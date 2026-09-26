@@ -111,8 +111,9 @@ número:
 - [ ] Alembic cuando el esquema empiece a migrar con datos valiosos dentro.
 - [ ] WebSocket de Finnhub para cotizaciones en vivo sin gastar llamadas REST
       (lo incluye el tier gratuito).
-- [ ] Paneles RSI/MACD como subgráficos bajo el precio (los datos ya viajan en
-      el API, solo falta dibujarlos).
+- [x] ~~Paneles RSI/MACD como subgráficos bajo el precio.~~ Hecho, en panes de
+      lightweight-charts. El RSI con escala FIJA 0-100 y sus bandas 70/30; el
+      MACD con el histograma en verde/rojo según el signo.
 - [ ] Editar tesis existentes (hoy se crean y se borran).
 - [ ] Exportar el portafolio y las tesis a CSV/Markdown.
 - [ ] Detección de eventos en noticias (resultados, guidance, ratings) —

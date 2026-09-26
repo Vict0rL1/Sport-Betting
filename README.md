@@ -757,6 +757,41 @@ alguien la va a buscar. Lo que no se hizo fue rellenar el hueco del 200 en la
 paleta: `border-amber-200` se usa en catorce sitios como borde visible de las
 cajas de aviso, y oscurecerlo habría roto los catorce para arreglar dos.
 
+## RSI y MACD dibujados, no solo transportados
+
+`TODO.md`: «los datos ya viajan en el API, solo falta dibujarlos». Era literal:
+la serie completa del RSI y las tres del MACD llegaban en cada respuesta de
+histórico y **solo se usaba el último valor del RSI**, como número suelto en la
+cabecera. Un 50 no dice nada; un 50 que viene bajando desde 80 dice bastante.
+
+Ahora van en panes de lightweight-charts debajo del precio, con el eje de
+tiempo compartido. En panes y no superpuestos: sus escalas no tienen nada que
+ver con la del precio (0-100 el RSI, alrededor de cero el MACD) y meterlos en
+el mismo eje aplastaría las velas hasta dejarlas ilegibles.
+
+Dos decisiones que los hacen legibles en vez de decorativos:
+
+- **El RSI lleva escala FIJA 0-100.** Con escala automática, el eje se reajusta
+  en cada rango y un RSI de 55 parece un extremo porque es el máximo de esa
+  ventana. Con 0-100, la altura significa siempre lo mismo. Y las bandas 70/30
+  van dibujadas: un RSI sin ellas es una curva sin referencia.
+- **El histograma del MACD va en verde o rojo según el signo**, porque el signo
+  ES la señal y un solo color la escondería.
+
+### Lo que costó cuatro intentos, medido en vez de adivinado
+
+El RSI salía en una franja de 27 px donde la línea no se distinguía, pese a
+pedirle 90. Midiendo las alturas reales en el navegador aparecieron dos
+comportamientos que la documentación no menciona:
+
+1. **Con `autoSize`, el dimensionado llega por `ResizeObserver`** — después del
+   efecto de React— y se lleva por delante cualquier altura fijada dentro. Hay
+   que fijarlas tras el layout.
+2. **El panel del precio no es redimensionable**: absorbe lo que sobre. Y entre
+   subpaneles, el último en fijarse consigue su valor exacto mientras el otro se
+   queda con el resto. Repartirlos a partes iguales no se puede; lo que sí se
+   garantiza es que ninguno baje del mínimo legible.
+
 ## El recorrido de la cartera, no solo el P&L de hoy
 
 El portafolio decía cuánto vale HOY y cuánto llevas ganado HOY. Faltaba lo único
