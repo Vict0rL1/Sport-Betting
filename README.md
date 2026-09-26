@@ -576,6 +576,16 @@ equivalente, con ese aviso.
 
 ## Qué incluye — 🏈 Fútbol americano (NFL)
 
+- **Lo que se enseña es casi el precio, y ese precio ahora está bien leído.** El modelo pesa un
+  10 % en la mezcla porque, medido, es peor que la línea de cierre. Sin clave de cuotas no hay
+  moneyline, así que el «precio» sale de la **línea de hándicap** convertida en probabilidad — y
+  esa conversión es, en la práctica, la predicción. Se hacía con la curva del propio modelo, que
+  es demasiado plana: con 7 puntos decía **69 %** y el favorito gana el **75 %**; con 10, **76 %**
+  contra **82 %**. Ahora es una curva ajustada a los resultados (`npm run study:nfl-spread`):
+  walk-forward 2010–2023 sobre 3.781 partidos, con la mezcla encima, **log loss −0,0023**
+  (IC95 [−0,0038, −0,0008], p = 0,004). El porcentaje de aciertos no cambia —quién es favorito lo
+  decide el signo de la línea, y eso ningún ajuste lo mueve—; cambia **cuánto** se le da, que es
+  lo que usan el filtro de confianza, las bandas y cualquier apuesta.
 - **Los números clave del deporte, 3 y 7.** Un touchdown son 7 puntos y un field goal 3, así que
   el margen final se amontona: acaba en 3 el **15.1 %** de las veces y en 9 solo el **1.6 %**. Todos
   los demás deportes de la app valoran su hándicap con una curva suave; aquí eso se equivoca justo

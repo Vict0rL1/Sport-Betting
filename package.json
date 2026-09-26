@@ -65,6 +65,7 @@
     "study:ablation": "npm run study:ablation --workspace server --",
     "study:home-elo": "npm run study:home-elo --workspace server --",
     "study:home-bb": "npm run study:home-bb --workspace server --",
+    "study:nfl-spread": "npm run study:nfl-spread --workspace server --",
     "auto": "node scripts/auto.mjs",
     "demo": "node scripts/demo.mjs",
     "paper": "npm run paper --workspace server --",

@@ -350,18 +350,33 @@ function deVig(oddsHome: number | null, oddsAway: number | null): NafMarket | nu
  * here rather than 1.0, because "no margin measured" and "a margin of zero" are
  * different claims.
  */
-export function marketFromSpread(spreadLine: number | null | undefined, expectedTotal: number): NafMarket | null {
+/**
+ * Curva línea → probabilidad de victoria local, ajustada a resultados reales.
+ *
+ *   P(local) = 1 / (1 + e^−(a + b · margen esperado por la línea))
+ *
+ * Sustituye a leer la línea con la distribución de márgenes del modelo, que era
+ * demasiado plana: con 7 puntos decía 69 % y el favorito gana el 75 %; con 10, 76 %
+ * contra 82 %. `npm run study:nfl-spread`, walk-forward 2010–2023 sobre 3.781
+ * partidos, con todo el post-proceso encima: log loss −0,0023, IC95 [−0,0038,
+ * −0,0008], p 0,004. El acierto no cambia —quién es favorito lo decide el signo de la
+ * línea—; cambia cuánto se le da, que es lo que usan el filtro de confianza, las
+ * bandas y cualquier apuesta. Ajustada con las temporadas < 2024 (el holdout no entra).
+ */
+export const SPREAD_WIN_LOGIT = { a: -0.023, b: 0.1406 };
+
+export function marketFromSpread(spreadLine: number | null | undefined, _expectedTotal?: number): NafMarket | null {
   if (spreadLine == null || !Number.isFinite(spreadLine)) return null;
-  const d = buildDistribution(-spreadLine, expectedTotal);
-  const o = outcomeProbabilities(d);
-  const two = o.home + o.away;
-  if (two <= 0) return null;
+  // `_expectedTotal` ya no entra: con la curva ajustada, la probabilidad de victoria
+  // depende solo de la línea. Se deja el parámetro para no tocar a quien lo llama.
+  // Signo de casa (−3,5 = local favorito) → margen esperado del local (+3,5).
+  const home = 1 / (1 + Math.exp(-(SPREAD_WIN_LOGIT.a + SPREAD_WIN_LOGIT.b * -spreadLine)));
   return {
     source: 'spread',
     odds: null,
     line: spreadLine,
-    home: o.home / two,
-    away: o.away / two,
+    home,
+    away: 1 - home,
     overround: null,
   };
 }
