@@ -460,8 +460,23 @@ export interface PriceAlert {
   condition: { op?: string; price?: number }
   active: boolean
   current_price: number | null
+  /** Tri-estado: `null` es «no se ha podido comprobar», que no es `false`. */
   triggered: boolean | null
+  estado: 'ok' | 'sin_precio' | 'condicion_invalida' | 'desactivada'
+  motivo: string
   triggered_at: string | null
+}
+
+/** Si alguien revisa las alertas cuando la app está cerrada, y desde cuándo. */
+export interface Vigilancia {
+  activa: boolean
+  nunca: boolean
+  nota: string
+  cuando?: string
+  hace?: string
+  revisadas?: number | null
+  nuevas?: number | null
+  no_evaluables?: number | null
 }
 
 export interface ScenarioRecord {

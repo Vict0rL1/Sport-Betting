@@ -17,6 +17,7 @@ import type {
   ScanResponse,
   ScreenerPreset,
   UniverseInfo,
+  Vigilancia,
   SignalExplanation,
   SignalResponse,
   ScreenResult,
@@ -257,7 +258,8 @@ export const api = {
     }),
   deletePosition: (id: number) =>
     deleteJson<{ deleted: number }>(`/api/portfolio/positions/${id}`),
-  alerts: () => fetchJson<{ alerts: PriceAlert[] }>('/api/portfolio/alerts'),
+  alerts: () =>
+    fetchJson<{ alerts: PriceAlert[]; vigilancia: Vigilancia }>('/api/portfolio/alerts'),
   addAlert: (body: { symbol: string; op: 'lt' | 'gt'; price: number }) =>
     postJson<{ id: number }>('/api/portfolio/alerts', body),
   deleteAlert: (id: number) => deleteJson<{ deleted: number }>(`/api/portfolio/alerts/${id}`),

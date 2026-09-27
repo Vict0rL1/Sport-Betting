@@ -86,9 +86,25 @@ número:
       afinada: edítalo en la pestaña Valoración.
 
 ### Producto
-- [ ] **Las alertas no notifican**: se evalúan cuando abres la pestaña. Es una
-      app local sin proceso en marcha. Un cron + notificación de escritorio
-      sería el siguiente paso.
+- [x] ~~**Las alertas no notifican**: se evalúan cuando abres la pestaña.~~
+      Hecho: la evaluación salió del handler a `app/analysis/alertas.py`, y
+      `backend/scripts/revisar_alertas.py` la corre desde el cron (línea de
+      ejemplo en el README y en el docstring del propio guion). Avisa al
+      escritorio con `notify-send`/`osascript`/PowerShell y **siempre** imprime
+      por salida estándar, que es donde el aviso sobrevive aunque el escritorio
+      falle. Una alerta salta una vez y el sello se pone ANTES de notificar.
+      La pestaña dice si alguien está vigilando de verdad y desde cuándo, en vez
+      de afirmarlo o negarlo a ciegas.
+      **Pendiente de verificar en una máquina con escritorio**: aquí no hay
+      sesión gráfica, así que el globo de notificación no se ha visto aparecer.
+      Probado sí está lo demás — que el fallo del notificador no tumba la
+      pasada y que dice el motivo exacto.
+- [ ] **Las fechas de `positions` y `watchlist_items` se sirven sin zona.**
+      Mismo fallo que se arregló en `triggered_at`: SQLite no guarda la zona,
+      así que `opened_at`, `closed_at` y `added_at` salen ingenuos y el
+      navegador los lee como hora local. En fechas a medianoche eso puede
+      correr el DÍA mostrado. El arreglo es `alertas.como_utc()` aplicado al
+      serializar; no se tocó en el mismo commit por no mezclar.
 - [ ] **Una sola watchlist** ("Principal"). El esquema soporta varias.
 - [x] ~~**Sin divisas.**~~ Hecho. Todo se convierte a USD antes de sumar, con
       tipos de FRED (gratis, 24 h de caché, una serie por divisa presente). Lo

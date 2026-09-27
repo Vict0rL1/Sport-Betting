@@ -1680,6 +1680,126 @@ proyecto (las demás tienen tier gratuito), así que solo corre cuando pulsas
 uno de esos botones, con `max_tokens` acotado, y el resultado se guarda por
 hash del prompt: repetir la misma consulta no vuelve a cobrar.
 
+## Alertas que avisan con la app cerrada
+
+Las alertas de precio existían desde la fase 5, pero se evaluaban **dentro del
+handler de `GET /api/portfolio/alerts`**: la comparación ocurría al pintar la
+pestaña. Es decir, una alerta solo saltaba cuando ya estabas mirando — y si
+estás mirando, no necesitas la alerta. El caso que importa es el contrario: el
+precio cruza el umbral un martes por la mañana y te enteras el jueves.
+
+### Un comando del sistema, no un demonio fingido
+
+La evaluación se sacó a `app/analysis/alertas.py`, sin HTTP, para que la llamen
+igual el endpoint y **`scripts/revisar_alertas.py`**, que es el comando que
+programas en el cron.
+
+No hay hilo planificador dentro del servidor a propósito. Esta es una app local
+que arrancas cuando la usas: un planificador dentro de un proceso que puede
+estar apagado no vigila nada **y además mentiría**, porque la pestaña diría
+«vigilando» con el servidor parado. El calendario es trabajo del sistema
+operativo, que para eso está siempre encendido.
+
+```bash
+# Cada quince minutos, de lunes a viernes, en horario de mercado de EE. UU.
+*/15 13-21 * * 1-5  cd /ruta/al/repo/backend && \
+    /usr/bin/python3 scripts/revisar_alertas.py >> ~/.alertas.log 2>&1
+```
+
+En macOS `launchd` es más fiable que `cron` para tareas de usuario; en Windows,
+el Programador de tareas. Con `--solo-cache` no gasta ni una llamada a la API
+(usa lo ya guardado, que puede estar viejo); sin esa opción gasta **una
+cotización por símbolo con alerta activa** — ocho alertas cada quince minutos
+son ~256 llamadas al día, que caben de sobra en el tier gratuito de Finnhub.
+
+### Una alerta salta una vez, y se marca antes de avisar
+
+`triggered_at` se escribe la primera vez que se cumple y no se vuelve a tocar.
+Si se notificara en cada pasada, una alerta cumplida un lunes mandaría un aviso
+cada quince minutos toda la semana, y a los dos días estarían todas silenciadas
+— que es la única forma segura de no enterarse de la siguiente.
+
+El sello se pone **antes** de intentar la notificación, no después. Si el aviso
+falla, la alerta queda igualmente registrada como saltada y se ve en la app:
+peor que un aviso perdido es un aviso repetido cada quince minutos hasta que lo
+silencias todo. Hay un test para ese invariante, porque no se ve desde fuera.
+
+Y el comando **siempre escribe por salida estándar**, además de notificar: con
+cron eso acaba en el log o en el correo del sistema, donde el aviso sigue
+existiendo aunque el escritorio no se entere. Devuelve 0 aunque salten alertas
+— que una salte no es un fallo del comando, y un código distinto de 0 haría que
+cron llenara el correo de falsos problemas.
+
+### «No se pudo comprobar» no es «no salta»
+
+Es la distinción que sostiene todo lo demás. Una alerta tiene ahora cuatro
+estados, y mezclar los tres últimos es la forma de creerse cubierto sin estarlo:
+
+| Estado | Qué significa | Cómo se pinta |
+|---|---|---|
+| `ok` | Se comparó con un precio real | «Cumplida», o nada |
+| `sin_precio` | No se pudo consultar la cotización | «Sin comprobar», en rojo |
+| `condicion_invalida` | La condición guardada no se entiende | «Condición inválida» |
+| `desactivada` | La apagaste tú | «Desactivada», en gris |
+
+La cuarta fila salió de un test. La primera versión contaba las desactivadas
+como «no evaluables», así que cada alerta que apagabas aparecía en el log del
+cron como **«NO se ha podido comprobar»** — y a la tercera dejas de leer el log,
+que es justo donde aparecerán las que sí están rotas.
+
+Un detalle del mismo tipo: el handler viejo trataba **cualquier operador que no
+fuera `lt` como `>`**, en el backend y en el frontend. Una condición guardada
+con un operador raro se evaluaba al revés, en silencio y con aplomo. Ahora los
+operadores desconocidos se rechazan en vez de adivinarse.
+
+### La pestaña dice si alguien está mirando
+
+Antes había una frase fija: «no hay notificaciones push: es una app local». Con
+el comando programado dejó de ser verdad, pero tampoco se puede poner la
+contraria, porque depende de si llegaste a programarlo. Así que cada pasada deja
+una marca junto a la base de datos y la pestaña dice lo que encuentre:
+
+- **Verde** — «última revisión en segundo plano hace 8 minutos», con el recuento.
+- **Ámbar** — corrió, pero hace días. Está configurado y no está funcionando:
+  máquina apagada, o cron roto. No es lo mismo que lo siguiente.
+- **Gris** — nunca ha corrido, con la línea de cron que hay que programar.
+
+La marca se escribe **también cuando no salta nada**: una pasada tranquila es
+justamente la prueba de que la vigilancia funciona.
+
+### Un bug de zona horaria que destapó el primer test
+
+El test comparaba `triggered_at` entre dos llamadas seguidas y fallaba:
+
+```
+'2026-09-27T20:04:50.697728+00:00'   ← la pasada que la marcó
+'2026-09-27T20:04:50.697728'         ← todas las siguientes
+```
+
+El mismo instante, servido de dos formas. **SQLite no guarda la zona**: un
+`datetime` escrito consciente de estar en UTC vuelve a leerse ingenuo. Y un
+navegador interpreta lo segundo como hora **local**, así que «cumplida a las
+14:30» cambiaba de hora al recargar la página. Ahora la zona se vuelve a poner
+al serializar. (`astimezone` a secas no vale: sobre un ingenuo supone hora
+local, que es precisamente la suposición equivocada.)
+
+### Lo que no se ha podido probar aquí
+
+**El globo de notificación del escritorio no se ha visto aparecer.** Este
+contenedor no tiene sesión gráfica, así que `notify-send` no existe y no hay a
+quién avisar. Lo que sí está probado es el camino de al lado, que es el que se
+puede verificar: el módulo `app/notify.py` **nunca lanza**, devuelve el motivo
+exacto del fallo, y la pasada real imprimió
+
+```
+[2026-09-27 20:06 UTC] 3 alerta(s) revisadas. 2 han saltado ahora: …
+  (no se pudo notificar al escritorio: no hay notify-send (instala libnotify-bin))
+```
+
+— la alerta llegó igual, por el sitio que nunca falla. En macOS usa `osascript`
+y en Windows PowerShell; esos dos caminos están cubiertos por tests con el
+subproceso simulado, no por haberlos visto funcionar.
+
 ## Estado
 
 Las cinco fases están completas. Ver `TODO.md` para limitaciones conocidas y

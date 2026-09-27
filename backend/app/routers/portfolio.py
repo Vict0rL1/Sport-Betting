@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime, timezone
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.analysis import fx, historial as hist, portfolio_risk
+from app.analysis import alertas, fx, historial as hist, portfolio_risk
 from app.analysis.decision import _stop_pct
 from app.analysis.risk_budget import presupuesto_de_riesgo
 from app.analysis.sizing import con_caida_esperada, peor_ventana
@@ -22,6 +23,7 @@ from app.analysis.portfolio import (
     realized_pnl,
 )
 from app.cache.cache import MarketDataService
+from app.config import settings
 from app.db.engine import get_session
 from app.db.models import (
     Alert,
@@ -181,6 +183,11 @@ def _precio_y_divisa(service: MarketDataService, symbol: str) -> tuple[float | N
 
 def _price_of(service: MarketDataService, symbol: str) -> float | None:
     return _precio_y_divisa(service, symbol)[0]
+
+
+def _directorio_de_datos() -> Path:
+    """Donde vive lo local y tuyo: junto a la base de datos, fuera del repo."""
+    return Path(settings.database_path).parent
 
 
 def tipos_de_cambio(service: MarketDataService, monedas: set[str]) -> dict[str, dict]:
@@ -873,37 +880,64 @@ def list_alerts(
     session: Session = Depends(get_session),
     service: MarketDataService = Depends(get_service),
 ):
-    """Alertas configuradas, evaluadas contra el precio actual (cacheado)."""
+    """Alertas configuradas, evaluadas contra el precio actual (cacheado).
+
+    La evaluación no vive aquí: está en `app.analysis.alertas`, que es el mismo
+    módulo que usa `scripts/revisar_alertas.py`. Eso importa más de lo que
+    parece — si el comando programado y la pestaña comparasen los precios cada
+    uno a su manera, la app podría decir «cumplida» de algo que el cron nunca
+    avisó, y no habría forma de saber cuál de los dos tiene razón.
+    """
     rows = session.execute(
         select(Alert, Instrument).join(Instrument, Alert.instrument_id == Instrument.id)
     ).all()
+    ahora = datetime.now(timezone.utc)
     out = []
+    hay_que_guardar = False
     for alert, instrument in rows:
+        datos = {
+            "id": alert.id,
+            "symbol": instrument.symbol,
+            "condition": alert.condition or {},
+            "active": alert.active,
+            "triggered_at": alert.triggered_at,
+        }
         price = _price_of(service, instrument.symbol) if alert.active else None
-        condition = alert.condition or {}
-        triggered = None
-        if price is not None and "price" in condition:
-            triggered = (
-                price < condition["price"]
-                if condition.get("op") == "lt"
-                else price > condition["price"]
-            )
-            if triggered and alert.triggered_at is None:
-                alert.triggered_at = datetime.now(timezone.utc)
-                session.commit()
+        veredicto = alertas.evaluar(datos, price, ahora)
+        if alertas.es_nueva(datos, veredicto):
+            alert.triggered_at = ahora
+            hay_que_guardar = True
         out.append(
             {
                 "id": alert.id,
                 "symbol": instrument.symbol,
                 "kind": alert.kind,
-                "condition": condition,
+                "condition": alert.condition or {},
                 "active": alert.active,
                 "current_price": price,
-                "triggered": triggered,
-                "triggered_at": alert.triggered_at.isoformat() if alert.triggered_at else None,
+                # `triggered` sigue siendo tri-estado: None significa «no se ha
+                # podido comprobar», que no es lo mismo que False. `estado` y
+                # `motivo` dicen por qué, para que la pestaña pueda distinguir
+                # una alerta tranquila de una que nadie ha mirado.
+                "triggered": veredicto["cumple"] if veredicto["evaluable"] else None,
+                "estado": veredicto["estado"],
+                "motivo": veredicto["motivo"],
+                # Con zona siempre: SQLite la pierde al guardar, y sin marcarla
+                # el navegador leería el mismo instante como hora local.
+                "triggered_at": (
+                    utc.isoformat() if (utc := alertas.como_utc(alert.triggered_at)) else None
+                ),
             }
         )
-    return {"alerts": out}
+    if hay_que_guardar:
+        session.commit()
+
+    return {
+        "alerts": out,
+        # Si el comando programado existe y ha corrido, esto lo dice. Si no,
+        # también: la pestaña no puede prometer avisos que nadie va a mandar.
+        "vigilancia": alertas.ultima_pasada(_directorio_de_datos(), ahora),
+    }
 
 
 @router.post("/alerts")
