@@ -123,6 +123,8 @@ export function runBacktest(opts: {
    * local es un 70 % visitante, y el filtro corta por el segundo.
    */
   favs?: { p: number; hit: boolean }[];
+  /** Cada predicción con su temporada: para elegir y validar en tramos distintos. */
+  preds?: { season: number; p: number; y: number }[];
 }): BacktestTotals {
   const warmup = opts.warmup ?? 60;
   const dispersion = opts.dispersion ?? RUN_DISPERSION;
@@ -229,6 +231,7 @@ export function runBacktest(opts: {
           b.obs += homeWon;
           opts.bands.set(key, b);
         }
+        opts.preds?.push({ season: Number(game.season), p: win.home, y: homeWon });
         if (opts.favs) {
           opts.favs.push(
             win.home >= 0.5 ? { p: win.home, hit: homeWon === 1 } : { p: 1 - win.home, hit: homeWon === 0 },

@@ -66,6 +66,8 @@
     "study:home-elo": "npm run study:home-elo --workspace server --",
     "study:home-bb": "npm run study:home-bb --workspace server --",
     "study:nfl-spread": "npm run study:nfl-spread --workspace server --",
+    "study:params-bb": "npm run study:params-bb --workspace server --",
+    "study:params-bsb": "npm run study:params-bsb --workspace server --",
     "auto": "node scripts/auto.mjs",
     "demo": "node scripts/demo.mjs",
     "paper": "npm run paper --workspace server --",

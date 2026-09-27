@@ -21,6 +21,8 @@
 
 import {
   calibratedHomeWinProbability,
+  carryOver,
+  SEASON_CARRYOVER,
   coverProbability,
   expectedMargin,
   expectedPoints,
@@ -379,6 +381,9 @@ function describeRest(side: TeamSide): string | null {
   return `${side.name} llega con ${side.daysRest} días de descanso`;
 }
 
+/** Días sin partidos a partir de los cuales el siguiente es de otra temporada. */
+export const OFFSEASON_GAP_DAYS = 60;
+
 /** Build the full, explainable prediction for one game. */
 export function buildGamePrediction(
   league: LeagueId,
@@ -394,6 +399,28 @@ export function buildGamePrediction(
   const home = buildSide(league, homeId, true, reference);
   const away = buildSide(league, awayId, false, reference);
   const neutral = !!opts.neutral;
+
+  // ===========================================================================
+  // PRETEMPORADA: los ratings de junio no valen a plena fuerza en octubre
+  // ===========================================================================
+  // La reproducción acerca cada equipo a la media al cruzar un verano (SEASON_CARRYOVER),
+  // porque las plantillas cambian. Pero lo hace al encontrar el PRIMER partido de la
+  // temporada nueva, y hasta que ese partido está en la base, los ratings guardados son
+  // los de final de curso. Resultado: el vivo predecía la jornada 1 con los Elo de las
+  // Finales sin regresar, más confiado de lo que el backtest mide. La NFL tuvo el mismo
+  // fallo y el mismo arreglo (ageAcrossOffseasons en nfl/predict.ts).
+  //
+  // La temporada nueva se detecta por el hueco de calendario y no por un número de
+  // temporada: más de 60 días desde el último partido de la liga no es el parón del
+  // All-Star (una semana), es un verano. Así vale para cualquier liga sin suponer cómo
+  // numera sus temporadas.
+  const ultimo = getLeagueLatestDate(league);
+  const hueco = opts.gameDate && ultimo ? daysBetween(ultimo, opts.gameDate) : null;
+  const pretemporada = hueco != null && hueco > OFFSEASON_GAP_DAYS;
+  if (pretemporada) {
+    home.elo = round1(carryOver(home.elo));
+    away.elo = round1(carryOver(away.elo));
+  }
 
   const homeAdj = home.elo + home.restAdjustment;
   const awayAdj = away.elo + away.restAdjustment;
@@ -515,6 +542,13 @@ export function buildGamePrediction(
         `(entre dos equipos iguales, el local ganaría el ${Math.round(100 / (1 + Math.pow(10, -homeAdvantage / 400)))} %; ` +
         'se aprende de los resultados y ha bajado mucho en la última década).',
   );
+
+  if (pretemporada) {
+    bullets.push(
+      `Primer partido de temporada: los Elo de la temporada pasada se acercan a la media ` +
+        `(conservan el ${Math.round(SEASON_CARRYOVER * 100)} %), porque las plantillas cambian en verano.`,
+    );
+  }
 
   bullets.push(
     `Elo: ${home.name} ${Math.round(home.elo)} (#${home.eloRank}) vs ` +

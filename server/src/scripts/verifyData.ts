@@ -68,6 +68,8 @@ import { normalCdf, MARGIN_SIGMA as NFL_MARGIN_SIGMA } from '../nfl/model.ts';
 import { recomputeBaseballRatings } from '../baseball/ratings.ts';
 import { loadGames as loadBbGames, replayGames as replayBbGames } from '../basketball/ratings.ts';
 import { getHomeAdvantage } from '../basketball/repo.ts';
+import { buildGamePrediction } from '../basketball/predict.ts';
+import { carryOver as bbCarryOver } from '../basketball/elo.ts';
 import { runBacktest as runBaseballBacktest } from '../baseball/backtest.ts';
 import { listGamesWithMarket as listNflGames } from '../nfl/repo.ts';
 import { replayGames as replayNflGames } from '../nfl/ratings.ts';
@@ -1289,6 +1291,23 @@ function auditHomeBias(): void {
       medir('baloncesto NBA', ps.length, ps.reduce((a, b) => a + b, 0), ys.reduce((a, b) => a + b, 0));
       // Y que el vivo use la misma que la reproducción: si la meta falta o se quedó
       // vieja, la tarjeta volvería a la constante de 1947.
+      // Pretemporada: un partido a cuatro meses del último de la base es de la temporada
+      // siguiente, y el vivo tiene que regresar los Elo como hace la reproducción.
+      {
+        const ultimo = games[games.length - 1].game_date;
+        const d = new Date(Date.UTC(+ultimo.slice(0, 4), +ultimo.slice(4, 6) - 1, +ultimo.slice(6, 8) + 120));
+        const fecha = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
+        const ids = (getDb().prepare("SELECT team_id, elo FROM bb_team_ratings WHERE league = 'nba' ORDER BY elo DESC LIMIT 2").all() as { team_id: string; elo: number }[]);
+        if (ids.length === 2) {
+          const p = buildGamePrediction('nba', ids[0].team_id, ids[1].team_id, undefined, { gameDate: fecha });
+          const esperado = Math.round(bbCarryOver(ids[0].elo) * 10) / 10;
+          check(
+            'baloncesto NBA: la pretemporada regresa los Elo en vivo',
+            Math.abs(p.teams.home.elo - esperado) < 0.2,
+            `vivo ${p.teams.home.elo} · esperado ${esperado} (guardado ${ids[0].elo})`,
+          );
+        }
+      }
       check(
         'baloncesto NBA: el vivo usa la ventaja aprendida',
         Math.abs(getHomeAdvantage('nba') - aprendida) < 1,

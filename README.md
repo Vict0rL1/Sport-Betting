@@ -164,7 +164,7 @@ una calibración medida, no dimensiona. Eso deja tres situaciones distintas:
 | --- | --- | --- |
 | **Tenis** | ECE 0,64 pp · 22.062 predicciones | **sí**, tamaño a la mitad |
 | **Fútbol** | ECE 0,86 pp · 71.319 predicciones | **sí**, tamaño a la mitad |
-| **Baloncesto** | ECE 0,30 pp · 85.562 predicciones | **sí**, tamaño a la mitad |
+| **Baloncesto** | ECE 0,12 pp · 85.562 predicciones | **sí**, tamaño a la mitad |
 | **Béisbol** | ECE 1,12 pp · 14.337 predicciones | **sí**, tamaño a la mitad |
 | **NFL** | ECE 1,82 pp, y medido **peor que la línea de cierre** | **nunca** |
 
@@ -655,6 +655,18 @@ Detalles y todas las mediciones en **[docs/NFL.md](docs/NFL.md)**.
   58.281 partidos pasa de perder (0,2041 vs 0,2039) a **ganar** (0,2036 vs 0,2039). `verify:data`
   mide ahora el sesgo local de las temporadas recientes en baloncesto, béisbol y NFL: con la
   constante vieja, la NBA falla por nueve errores estándar.
+- **La pretemporada, aplicada también en vivo.** La reproducción acerca cada equipo a la media al
+  cruzar un verano, pero lo hacía al encontrar el primer partido de la temporada nueva: hasta que
+  ese partido estaba en la base, el vivo predecía la jornada 1 con los Elo de las Finales a plena
+  fuerza. El mejor equipo salía con 1.786 cuando el modelo mide que debe empezar en 1.700 —unos
+  diez puntos de probabilidad contra un rival medio, justo en octubre—. Ahora se aplica en cuanto
+  el partido está a más de 60 días del último jugado (la NFL ya lo hacía), y la tarjeta lo dice.
+  Y el propio arrastre, revisado con los seis parámetros del modelo (`npm run study:params-bb`,
+  elegir ≤ 2020, validar 2021+, Bonferroni): **0,75 → 0,70**, log loss −0,0004 (p = 0,001). Los
+  otros cinco ya estaban en su punto. ECE de la NBA: 0,30 → **0,12 pp**.
+- **El béisbol, revisado igual y sin cambios.** Ocho parámetros (`npm run study:params-bsb`):
+  ninguno mejora fuera de muestra, y dos de los candidatos empeoran. Está apuntado en el registro
+  con el resto: un resultado negativo también es un resultado.
 - **Fiabilidad y track record propios**, igual que en tenis — incluida la precisión del margen, que
   es lo que importa si miras el handicap.
 - **Ligas sin fuente de resultados** (EuroLeague, NBL) muestran partidos y probabilidades del

@@ -69,8 +69,20 @@ export const HOME_ADV_RATE = 1;
 /** Base K-factor, before the margin multiplier. */
 export const K_FACTOR = 20;
 
-/** Fraction of a team's distance from the mean that carries into next season. */
-export const SEASON_CARRYOVER = 0.75;
+/**
+ * Fraction of a team's distance from the mean that carries into next season.
+ *
+ * Era 0,75. Revisado con `npm run study:params-bb` después de que la ventaja de campo
+ * pasara a aprenderse: elegido con temporadas ≤ 2020 → 0,70, y en 2021+ log loss
+ * −0,0004, IC95 [−0,0006, −0,0002], p 0,001, por debajo del listón de Bonferroni para
+ * los seis parámetros revisados (0,0083). Los otros cinco ya estaban en su óptimo o no
+ * se sostuvieron fuera de muestra. Las plantillas de la NBA cambian más de un año a
+ * otro de lo que suponía el valor anterior.
+ *
+ * El vivo lo aplica también en pretemporada (ver buildGamePrediction): sin eso, la
+ * jornada 1 se predecía con los Elo de las Finales a plena fuerza.
+ */
+export const SEASON_CARRYOVER = 0.7;
 
 /** Elo points per point of expected margin (used for the spread estimate). */
 export const ELO_PER_POINT = 28;
