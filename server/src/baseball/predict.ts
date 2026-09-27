@@ -17,7 +17,9 @@ import {
   runLine,
   topScorelines,
   winProbability,
+  carryOver,
   HOME_ADVANTAGE,
+  SEASON_CARRYOVER,
   RUN_SENSITIVITY,
   type MarketProbabilities,
   type RunMargin,
@@ -35,7 +37,7 @@ import {
   getTeam,
 } from './repo.ts';
 import { getHomePark, getParkFactor } from './parkFactors.ts';
-import { getLeagueRunsPerGame } from './ratings.ts';
+import { getLeagueRunsPerGame, PITCHER_CARRYOVER } from './ratings.ts';
 import type { BsbRecord, LeagueId } from './types.ts';
 
 export const DISCLAIMER =
@@ -250,18 +252,44 @@ export function buildBaseballPrediction(
     /** Fill unknown starters with the team's most-used arm. */
     guessStarters?: boolean;
     totalLine?: number;
+    /** Fecha del partido, AAAAMMDD: decide si hay que cruzar un invierno (ver abajo). */
+    gameDate?: string | null;
   } = {},
 ): BsbPrediction {
   const home = buildSide(league, homeId, true);
   const away = buildSide(league, awayId, false);
+
+  // ===========================================================================
+  // TEMPORADAS QUE LA BASE AÚN NO TIENE
+  // ===========================================================================
+  // La reproducción acerca equipos y abridores a la media al cruzar cada invierno, pero
+  // al encontrar el primer partido de la temporada nueva. Si ese partido no está en la
+  // base —el día inaugural, o toda una temporada si la fuente en curso (MLB Stats API)
+  // no respondió—, el vivo predecía con los ratings del octubre anterior a plena
+  // fuerza. Simulado prediciendo cada temporada 2016–2025 con los ratings congelados de
+  // la anterior (12.884 partidos): log loss 0,68309 sin regresión, 0,68196 con ella.
+  //
+  // Una regresión por temporada cruzada, como en la reproducción. En el béisbol la
+  // temporada es el año natural, así que se cuentan años.
+  const ultimo = getLeagueLatestDate(league);
+  const inviernos =
+    opts.gameDate && ultimo ? Math.max(0, Number(opts.gameDate.slice(0, 4)) - Number(ultimo.slice(0, 4))) : 0;
+  for (let i = 0; i < inviernos; i++) {
+    home.elo = carryOver(home.elo, SEASON_CARRYOVER);
+    away.elo = carryOver(away.elo, SEASON_CARRYOVER);
+  }
+  home.elo = Math.round(home.elo * 10) / 10;
+  away.elo = Math.round(away.elo * 10) / 10;
+  const regresarAbridor = (r: number | null): number | null =>
+    r == null ? null : 1 + (r - 1) * Math.pow(PITCHER_CARRYOVER, inviernos);
   const leagueRuns = getLeagueRunsPerGame(league);
   const totalLine = opts.totalLine ?? DEFAULT_TOTAL_LINE;
 
   const guess = opts.guessStarters !== false;
   const homeSpId = opts.homeStarter ?? (guess ? guessStarter(league, homeId) : null);
   const awaySpId = opts.awayStarter ?? (guess ? guessStarter(league, awayId) : null);
-  const homeSp = getPitcher(league, homeSpId ?? '')?.rating ?? null;
-  const awaySp = getPitcher(league, awaySpId ?? '')?.rating ?? null;
+  const homeSp = regresarAbridor(getPitcher(league, homeSpId ?? '')?.rating ?? null);
+  const awaySp = regresarAbridor(getPitcher(league, awaySpId ?? '')?.rating ?? null);
 
   // The ballpark. Read from the home team's recent schedule rather than
   // configured, so a club that changed stadium is followed automatically.
@@ -410,6 +438,13 @@ export function buildBaseballPrediction(
     : `Lo más probable: ${outcomeLabel} (${pct1(outcomeProb)}%), con ${top.label} como marcador más probable (${pct1(top.probability)}%).`;
 
   const bullets: string[] = [];
+  if (inviernos > 0) {
+    bullets.push(
+      `Los datos llegan hasta ${ultimo!.slice(6, 8)}/${ultimo!.slice(4, 6)}/${ultimo!.slice(0, 4)}: ` +
+        `los ratings se acercan a la media ${inviernos === 1 ? 'un invierno' : `${inviernos} inviernos`} ` +
+        '(las plantillas cambian), igual que haría el modelo con la temporada delante.',
+    );
+  }
   bullets.push(
     `Ganador: ${home.name} ${pct1(win.home)}% · ${away.name} ${pct1(win.away)}%. ` +
       `El béisbol es el deporte más igualado de los cuatro: el mejor equipo de la liga pierde ~60 partidos al año.`,

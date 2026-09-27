@@ -666,7 +666,14 @@ Detalles y todas las mediciones en **[docs/NFL.md](docs/NFL.md)**.
   otros cinco ya estaban en su punto. ECE de la NBA: 0,30 → **0,12 pp**.
 - **El béisbol, revisado igual y sin cambios.** Ocho parámetros (`npm run study:params-bsb`):
   ninguno mejora fuera de muestra, y dos de los candidatos empeoran. Está apuntado en el registro
-  con el resto: un resultado negativo también es un resultado.
+  con el resto: un resultado negativo también es un resultado. Pero tenía el mismo fallo de
+  pretemporada que la NBA, y peor: Retrosheet publica al acabar cada temporada, así que si la
+  fuente en curso (MLB Stats API) no responde, **toda una temporada** se predecía con los ratings
+  del octubre anterior a plena fuerza. Simulado prediciendo cada temporada 2016–2025 con los
+  ratings congelados de la anterior: log loss 0,68309 sin regresión, **0,68196** con ella. Ahora
+  se regresan equipos y abridores una vez por invierno cruzado, la tarjeta dice hasta qué fecha
+  llegan los datos, y `verify:data` lo comprueba. (Aun así, 0,682 contra 0,670 con datos al día:
+  lo que de verdad importa es que `update-all` traiga la temporada en curso.)
 - **Fiabilidad y track record propios**, igual que en tenis — incluida la precisión del margen, que
   es lo que importa si miras el handicap.
 - **Ligas sin fuente de resultados** (EuroLeague, NBL) muestran partidos y probabilidades del

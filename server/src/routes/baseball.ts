@@ -41,6 +41,7 @@ function predictRow(
     {
       homeStarter: starters.home ?? row.home_sp,
       awayStarter: starters.away ?? row.away_sp,
+      gameDate: row.commence_time ? row.commence_time.slice(0, 10).replace(/-/g, '') : null,
     },
   );
 }

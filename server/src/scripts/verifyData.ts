@@ -71,6 +71,8 @@ import { getHomeAdvantage } from '../basketball/repo.ts';
 import { buildGamePrediction } from '../basketball/predict.ts';
 import { carryOver as bbCarryOver } from '../basketball/elo.ts';
 import { runBacktest as runBaseballBacktest } from '../baseball/backtest.ts';
+import { buildBaseballPrediction } from '../baseball/predict.ts';
+import { carryOver as bsbCarryOver } from '../baseball/model.ts';
 import { listGamesWithMarket as listNflGames } from '../nfl/repo.ts';
 import { replayGames as replayNflGames } from '../nfl/ratings.ts';
 import { buildDistribution as nflDistribution, outcomeProbabilities as nflOutcomes } from '../nfl/model.ts';
@@ -1332,6 +1334,24 @@ function auditHomeBias(): void {
         y += b.obs;
       }
       medir('béisbol', n, p, y);
+      // Y el invierno en vivo: un partido del año siguiente al último de la base tiene
+      // que salir con los Elo regresados, como en la reproducción.
+      const top = getDb()
+        .prepare("SELECT team_id, elo FROM bsb_team_ratings WHERE league = 'mlb' ORDER BY elo DESC LIMIT 2")
+        .all() as { team_id: string; elo: number }[];
+      const fin = (getDb().prepare("SELECT MAX(game_date) AS d FROM bsb_games WHERE league = 'mlb'").get() as { d: string }).d;
+      if (top.length === 2 && fin) {
+        const pr = buildBaseballPrediction('mlb', top[0].team_id, top[1].team_id, undefined, {
+          guessStarters: false,
+          gameDate: `${Number(fin.slice(0, 4)) + 1}0415`,
+        });
+        const esperado = Math.round(bsbCarryOver(top[0].elo) * 10) / 10;
+        check(
+          'béisbol: un partido de la temporada siguiente sale con los Elo regresados',
+          Math.abs(pr.teams.home.elo - esperado) < 0.2,
+          `vivo ${pr.teams.home.elo} · esperado ${esperado} (guardado ${top[0].elo})`,
+        );
+      }
     }
   }
   // NFL: las cinco últimas temporadas (la NFL juega pocos partidos por año).
