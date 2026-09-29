@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { DATA_DIR, DB_PATH } from './config.ts';
 import { ODDS_SNAPSHOT_SCHEMA } from './odds/schema.ts';
-import { PAPER_BET_COLUMNS, PAPER_TRIGGERS, PREDICTION_LOG_TRIGGERS } from './paper/schema.ts';
+import { EDGE_SIGNALS_SCHEMA, PAPER_BET_COLUMNS, PAPER_TRIGGERS, PREDICTION_LOG_TRIGGERS } from './paper/schema.ts';
 
 let db: DatabaseSync | null = null;
 
@@ -29,6 +29,7 @@ export function getDb(): DatabaseSync {
   // Paper trading auditable (fase 4) y registros de predicciones que no se reescriben.
   // DESPUÉS de migrar: los triggers nombran columnas que añade la migración.
   db.exec(PAPER_TRIGGERS);
+  db.exec(EDGE_SIGNALS_SCHEMA);
   db.exec(PREDICTION_LOG_TRIGGERS);
   return db;
 }

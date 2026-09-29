@@ -177,3 +177,43 @@ test('una predicción registrada no se reescribe ni se borra', () => {
   const p = db.prepare("SELECT prob_home, home_goals FROM fb_prediction_log WHERE match_key = 'epl|ars|che|x'").get() as { prob_home: number; home_goals: number };
   assert.deepEqual({ ...p }, { prob_home: 0.54, home_goals: 0 });
 });
+
+// ---------------------------------------------------------------------------
+// Señales de edge: todo lo evaluado, apostado o no
+// ---------------------------------------------------------------------------
+test('la apuesta dejó su señal «apostada», con el cierre y el CLV fijados', () => {
+  const s = db.prepare("SELECT * FROM edge_signals WHERE event_id = 'epl-arsenal-chelsea'").all() as Record<string, unknown>[];
+  assert.equal(s.length, 1);
+  assert.equal(s[0].decision, 'apostada');
+  assert.equal(s[0].selection, 'Arsenal');
+  assert.ok(s[0].paper_bet_id != null);
+  assert.equal(s[0].closing_odds, 2.3, 'settle() también cierra las señales');
+  assert.ok(Math.abs((s[0].clv as number) - (2.5 / 2.3 - 1)) < 1e-12);
+});
+
+test('un partido rechazado deja señal «rechazada» con el motivo, y no se duplica', () => {
+  const inicio = iso(ahora + 30 * H);
+  db.prepare(
+    `INSERT INTO fb_upcoming (id, league, commence_time, home_name, away_name, home_id, away_id, odds_home, odds_draw, odds_away, books, source, updated_at)
+     VALUES ('sin-ventaja', 'epl', ?, 'Leeds', 'Fulham', 'lee', 'ful', 2.05, 3.4, 3.8, 5, 'live', ?)`,
+  ).run(inicio, iso(ahora));
+  // El modelo coincide con el mercado: no hay ventaja que apostar.
+  db.prepare(
+    `INSERT INTO fb_prediction_log (match_key, league, upcoming_id, commence_time, home_id, away_id, home_name, away_name,
+       prob_home, prob_draw, prob_away, market_prob_home, market_prob_draw, market_prob_away, reliability, predicted_at)
+     VALUES ('epl|lee|ful|x', 'epl', 'sin-ventaja', ?, 'lee', 'ful', 'Leeds', 'Fulham', 0.47, 0.28, 0.25, 0.48, 0.28, 0.24, 'high', ?)`,
+  ).run(inicio, iso(ahora - H));
+  place();
+  place(); // la misma evaluación dos veces: una sola señal
+  const s = db.prepare("SELECT decision, reason, stake FROM edge_signals WHERE event_id = 'sin-ventaja'").all() as Record<string, unknown>[];
+  assert.equal(s.length, 1);
+  assert.equal(s[0].decision, 'rechazada');
+  assert.equal(s[0].reason, 'ventaja insuficiente');
+  assert.equal(s[0].stake, 0);
+});
+
+test('una señal registrada no se reescribe ni se borra', () => {
+  assert.throws(() => db.prepare("UPDATE edge_signals SET odds = 9 WHERE event_id = 'sin-ventaja'").run(), /congelada/);
+  assert.throws(() => db.prepare("UPDATE edge_signals SET decision = 'apostada' WHERE event_id = 'sin-ventaja'").run(), /congelada/);
+  assert.throws(() => db.prepare("DELETE FROM edge_signals WHERE event_id = 'sin-ventaja'").run(), /no se borra/);
+});

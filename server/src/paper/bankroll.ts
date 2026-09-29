@@ -38,6 +38,7 @@ import { decideEvent, DEFAULT_CONFIG } from '../staking/policy.ts';
 import { fullKelly } from '../staking/kelly.ts';
 import { closingLine, marketAt, openingLine } from '../odds/snapshots.ts';
 import { versionsFor, type SportId } from '../versions.ts';
+import { captureSignalClosing, recordSignal } from './signals.ts';
 
 /** El banco inicial del experimento. Se guarda para que cambiarlo sea deliberado. */
 export const BANCO_INICIAL = 1000;
@@ -503,13 +504,27 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
       { sport: c.sport, bankroll: banco, openExposure: abierto },
       DEFAULT_CONFIG,
     );
+    // La señal se registra SIEMPRE, se apueste o no: el edge detectado se mide sobre todo
+    // lo evaluado, no solo sobre lo que pasó los topes (ver paper/signals.ts).
+    const elegida = d ? c.salidas.find((s) => s.label === d.label) : undefined;
+    const senalDe = (decision: 'apostada' | 'rechazada', stake: number, betId: number | null) =>
+      d && elegida
+        ? recordSignal({
+            sport: c.sport, league: c.league, eventId: c.event_id, providerEventId: providerId(c.event_id),
+            selection: elegida.label, providerSelection: elegida.proveedor, pRaw: elegida.pRaw, pCal: elegida.p,
+            pMarket: elegida.pMarket, odds: elegida.odds, edge: d.edge, kellyRaw: fullKelly(elegida.p, elegida.odds),
+            decision, reason: decision === 'rechazada' ? d.blockedBy : null, stake, paperBetId: betId,
+            versions: versionsFor(c.sport), predictionTimestamp: c.predictedAt, oddsTimestamp: c.oddsAt, commenceTime: c.commence,
+          })
+        : null;
     if (!d || d.stake <= 0) {
       const motivoRechazo = d?.blockedBy ?? 'ninguna salida con ventaja';
       rechazos[motivoRechazo] = (rechazos[motivoRechazo] ?? 0) + 1;
       detalle.push(`${c.label}: no se apuesta — ${motivoRechazo}`);
+      senalDe('rechazada', 0, null);
       continue;
     }
-    const e = c.salidas.find((s) => s.label === d.label);
+    const e = elegida;
     if (!e) {
       // No puede pasar —la etiqueta sale de esta misma lista— pero si pasara, apostar
       // sin saber a qué se apostó sería peor que no apostar.
@@ -524,7 +539,7 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
     const apertura = openingLine(pid, 'h2h', e.proveedor);
     const senal = c.predictedAt ? marketAt(pid, 'h2h', e.proveedor, c.predictedAt) : null;
     const v = versionsFor(c.sport);
-    ins.run(
+    const alta = ins.run(
       ahora, c.sport, c.match_key, c.event_id, c.label, e.label, e.p, e.pMarket, e.odds, stake, banco,
       c.league, 'h2h', c.commence, pid, e.proveedor,
       e.pRaw, e.p, 1 / e.odds, e.pMarket, d.edge,
@@ -532,6 +547,7 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
       v.model_version, v.model_config_version, v.calibration_version, v.data_version, v.strategy_version, v.git_commit,
       c.predictedAt, c.oddsAt, apertura?.consensus ?? null, apertura?.at ?? null, senal?.consensus ?? null, senal ? c.predictedAt : null,
     );
+    senalDe('apostada', stake, Number(alta.changes) ? Number(alta.lastInsertRowid) : null);
     // La exposición se acumula DENTRO del bucle: sin esto, veinte candidatas se
     // dimensionarían todas como si fueran la primera y los topes no servirían.
     abierto += stake;
@@ -598,6 +614,7 @@ type Liquidacion = { status: 'won' | 'lost' | 'push' | 'void' | 'cancelled'; res
  */
 export function settle(now = new Date()): { liquidadas: number } {
   captureClosing(now);
+  captureSignalClosing(now);
   const db = getDb();
   const pend = db.prepare("SELECT * FROM paper_bets WHERE status = 'pending' ORDER BY id").all() as unknown as ApuestaPapel[];
   if (pend.length === 0) return { liquidadas: 0 };

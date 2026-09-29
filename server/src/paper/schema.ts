@@ -142,3 +142,64 @@ export const PREDICTION_LOG_TRIGGERS = LOGS.map(
     WHEN ${distinto(l.congeladas)}${l.unaVez.length ? ` OR ${l.unaVez.map((c) => `(OLD.${c} IS NOT NULL AND NEW.${c} IS NOT OLD.${c})`).join(' OR ')}` : ''}
     BEGIN SELECT RAISE(ABORT, '${l.tabla}: lo que el modelo dijo no se reescribe'); END;`,
 ).join('\n');
+
+// ===========================================================================
+// LAS SEÑALES: CADA VEZ QUE EL MODELO MIRÓ UN PARTIDO CON PRECIO REAL
+// ===========================================================================
+// Las apuestas son una muestra sesgada de lo que el modelo detecta: solo las que pasaron
+// todos los topes. Para saber si el EDGE es real hace falta todo lo evaluado, apostado o
+// no. Cada fila: la selección que eligió la política, sus probabilidades, la cuota, la
+// ventaja, la decisión y su motivo. Append-only; el cierre y el CLV se fijan una vez.
+export const EDGE_SIGNALS_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS edge_signals (
+    id                           INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at                   TEXT NOT NULL,
+    sport                        TEXT NOT NULL,
+    league                       TEXT,
+    event_id                     TEXT NOT NULL,
+    provider_event_id            TEXT,
+    market                       TEXT NOT NULL DEFAULT 'h2h',
+    selection                    TEXT NOT NULL,
+    provider_selection           TEXT,
+    model_probability_raw        REAL,
+    model_probability_calibrated REAL NOT NULL,
+    market_probability_no_vig    REAL,
+    odds                         REAL NOT NULL CHECK (odds > 1),
+    edge                         REAL NOT NULL,
+    kelly_raw                    REAL,
+    decision                     TEXT NOT NULL CHECK (decision IN ('apostada', 'rechazada')),
+    reason                       TEXT,
+    stake                        REAL NOT NULL DEFAULT 0,
+    paper_bet_id                 INTEGER,
+    model_version                TEXT,
+    calibration_version          TEXT,
+    strategy_version             TEXT,
+    data_version                 TEXT,
+    git_commit                   TEXT,
+    prediction_timestamp         TEXT,
+    odds_timestamp               TEXT,
+    commence_time                TEXT,
+    closing_odds                 REAL,
+    closing_observed_at          TEXT,
+    clv                          REAL,
+    CHECK (commence_time IS NULL OR created_at < commence_time)
+  );
+  CREATE INDEX IF NOT EXISTS idx_signals_event ON edge_signals (event_id, selection, id);
+
+  CREATE TRIGGER IF NOT EXISTS edge_signals_no_delete
+    BEFORE DELETE ON edge_signals
+    BEGIN SELECT RAISE(ABORT, 'edge_signals: una señal registrada no se borra'); END;
+  CREATE TRIGGER IF NOT EXISTS edge_signals_congelada
+    BEFORE UPDATE ON edge_signals
+    WHEN ${distinto([
+      'created_at', 'sport', 'league', 'event_id', 'provider_event_id', 'market', 'selection', 'provider_selection',
+      'model_probability_raw', 'model_probability_calibrated', 'market_probability_no_vig', 'odds', 'edge', 'kelly_raw',
+      'decision', 'reason', 'stake', 'paper_bet_id', 'model_version', 'calibration_version', 'strategy_version',
+      'data_version', 'git_commit', 'prediction_timestamp', 'odds_timestamp', 'commence_time',
+    ])}
+    BEGIN SELECT RAISE(ABORT, 'edge_signals: una señal registrada queda congelada'); END;
+  CREATE TRIGGER IF NOT EXISTS edge_signals_cierre_una_vez
+    BEFORE UPDATE ON edge_signals
+    WHEN OLD.closing_odds IS NOT NULL AND (${distinto(['closing_odds', 'closing_observed_at', 'clv'])})
+    BEGIN SELECT RAISE(ABORT, 'edge_signals: la cuota de cierre se fija una sola vez'); END;
+`;
