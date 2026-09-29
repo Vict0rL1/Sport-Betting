@@ -1471,6 +1471,11 @@ function auditLiveEvaluation(): void {
   for (const r of evaluacionEnVivo()) {
     check(`evaluación en vivo ${r.deporte}: calculable`, !r.error, r.error ?? '');
     check(`evaluación en vivo ${r.deporte}: marcada como live`, r.origen === 'live');
+    // Por versión: cada predicción en exactamente un grupo, y cada grupo de su deporte.
+    const suma = r.porVersion.reduce((a, v) => a + v.n, 0);
+    check(`evaluación en vivo ${r.deporte}: las versiones suman el total`, suma === r.n, `${suma} ≠ ${r.n}`);
+    const ajenas = r.porVersion.filter((v) => v.version != null && !v.version.startsWith(`${r.deporte}-`));
+    check(`evaluación en vivo ${r.deporte}: ninguna versión de otro deporte`, ajenas.length === 0, ajenas.map((v) => v.version).join(', '));
     if (r.n > 0) console.log(`  ${r.deporte}: ${r.n} partidos · log loss ${r.logLoss?.toFixed(4)} · Brier ${r.brier?.toFixed(4)}`);
   }
   // La ficha de los backtests, aparte: solo backtest, entera y con la referencia correcta.

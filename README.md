@@ -1041,7 +1041,10 @@ para cualquier origen:
 Ningún número va solo: se compara con el **mercado sobre los mismos partidos** y con no saber
 nada. `GET /api/evaluation` da la evaluación **en vivo**, que solo lee predicciones registradas
 antes de cada partido real (cada informe lleva `origen: 'live'`); ningún backtest entra ahí. La
-pestaña Apuestas lo enseña en «El modelo en vivo».
+pestaña Apuestas lo enseña en «El modelo en vivo». Cada informe trae además `porVersion`: las
+mismas métricas partidas por la `model_version` que hizo cada predicción (las anteriores al
+versionado, aparte y sin versión inventada), para que cuando el modelo cambie la cifra de la
+versión vieja no tape a la nueva.
 
 Los cinco backtests usan la **misma** capa: además de sus métricas propias (RPS, margen,
 over/under…), cada uno termina con el bloque «Capa común de métricas» y lo guarda en

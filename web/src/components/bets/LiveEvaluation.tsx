@@ -18,6 +18,7 @@ interface Informe {
   ece: number | null;
   mercado: { n: number; logLoss: number; brier: number; modeloLogLoss: number } | null;
   logLossUniforme: number | null;
+  porVersion?: { version: string | null; n: number; logLoss: number | null; mercado: { n: number; logLoss: number; modeloLogLoss: number } | null }[];
 }
 
 interface Prueba {
@@ -125,6 +126,29 @@ export default function LiveEvaluation() {
               })}
             </tbody>
           </table>
+          {/* POR VERSIÓN. La fila de arriba junta todas las versiones del modelo; en cuanto
+              hay más de una, aquí se ve cada una sobre SUS predicciones, para saber si el
+              cambio mejoró o empeoró sin que la vieja tape a la nueva. */}
+          {hay.some((x) => (x.porVersion?.length ?? 0) > 1) && (
+            <div className="border-t border-white/[0.05] px-4 py-2 text-[12px] text-[#9aa1ac]">
+              <p className="mb-1 text-[#7b828d]">Por versión del modelo (cada una sobre sus propias predicciones):</p>
+              {hay
+                .filter((x) => (x.porVersion?.length ?? 0) > 1)
+                .map((x) => (
+                  <p key={x.deporte}>
+                    {NOMBRE[x.deporte] ?? x.deporte}:{' '}
+                    {x.porVersion!.map((v, i) => (
+                      <span key={v.version ?? 'sin'}>
+                        {i > 0 && ' · '}
+                        <code className="text-[#c3c9d1]">{v.version ?? 'sin versión (anteriores)'}</code> {v.n} partidos, log loss{' '}
+                        {f3(v.logLoss)}
+                        {v.mercado && ` (en sus ${v.mercado.n} con precio: modelo ${f3(v.mercado.modeloLogLoss)}, mercado ${f3(v.mercado.logLoss)})`}
+                      </span>
+                    ))}
+                  </p>
+                ))}
+            </div>
+          )}
           {hay.some((x) => x.n < 200) && (
             <p className="border-t border-white/[0.05] px-4 py-2 text-[12px] text-[#7b828d]">
               Con menos de unos cientos de partidos estas cifras se mueven mucho por azar: son el registro de lo

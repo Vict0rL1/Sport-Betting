@@ -94,4 +94,30 @@ test('en vivo: solo partidos resueltos, con la probabilidad ENSEÑADA, y origen 
   cerca(nfl.logLoss, -(Math.log(0.7) + Math.log(0.35)) / 2);
   assert.equal(nfl.accuracy, 0.5);
   assert.equal(nfl.mercado?.n, 2);
+  // Anteriores al versionado: un solo grupo, sin versión inventada.
+  assert.deepEqual(nfl.porVersion.map((v) => [v.version, v.n]), [[null, 2]]);
+});
+
+test('en vivo: cada versión del modelo se mide sobre SUS predicciones, sin mezclarse', () => {
+  const db = getDb();
+  const ins = db.prepare(
+    `INSERT INTO bsb_prediction_log (match_key, league, upcoming_id, commence_time, home_id, away_id, home_name, away_name,
+       prob_home, market_prob_home, reliability, predicted_at, home_runs, away_runs, resolved_at,
+       model_version, model_config_version, calibration_version, data_version, git_commit)
+     VALUES (?, 'mlb', 'u', '2026-09-20T17:00:00Z', 'a', 'b', 'A', 'B', ?, 0.5, 'high', '2026-09-19T10:00:00Z', ?, ?, '2026-09-21T00:00:00Z',
+       ?, 'c', 'k', 'd', 'g')`,
+  );
+  ins.run('v1-a', 0.8, 5, 2, 'baseball-111111111111'); // la vieja: 0,8 y acierta
+  ins.run('v1-b', 0.8, 1, 3, 'baseball-111111111111'); //          0,8 y falla
+  ins.run('v2-a', 0.6, 5, 2, 'baseball-222222222222'); // la nueva: 0,6 y acierta
+  const bsb = evaluacionEnVivo().find((r) => r.deporte === 'baseball')!;
+  assert.equal(bsb.n, 3);
+  const [v1, v2] = bsb.porVersion;
+  assert.equal(v1.version, 'baseball-111111111111');
+  assert.equal(v2.version, 'baseball-222222222222');
+  assert.equal(v1.n + v2.n, bsb.n);
+  cerca(v1.logLoss, -(Math.log(0.8) + Math.log(0.2)) / 2);
+  // TEST NEGATIVO: si las versiones se mezclaran, la nueva cargaría con el fallo de la vieja.
+  cerca(v2.logLoss, -Math.log(0.6));
+  assert.notEqual(v2.logLoss, bsb.logLoss);
 });
