@@ -46,7 +46,9 @@ from app.config import settings  # noqa: E402
 from app.db.engine import SessionLocal, init_db  # noqa: E402
 from app.db.models import Alert, Instrument  # noqa: E402
 from app.deps import get_service  # noqa: E402
+from app.mantenimiento import mantener  # noqa: E402
 from app.notify import notificar  # noqa: E402
+from app.registro import configurar as configurar_registro  # noqa: E402
 from app.providers.base import DataNotFoundError  # noqa: E402
 from app.providers.router import AllProvidersFailedError  # noqa: E402
 
@@ -63,7 +65,12 @@ def _precio(service, symbol: str, solo_cache: bool) -> float | None:
 
 
 def revisar(solo_cache: bool = False, avisar: bool = True) -> dict:
+    configurar_registro()
     init_db()
+    # La limpieza vive aquí además de al arrancar el servidor: el cron corre
+    # cada quince minutos esté o no abierta la app, y es lo que la hace
+    # automática de verdad. `mantener` no lanza.
+    mantener(SessionLocal)
     service = get_service()
     ahora = datetime.now(timezone.utc)
 

@@ -245,11 +245,17 @@ class YFinanceProvider(DataProvider):
         contratos: list[dict] = []
         spot: float | None = None
         usadas: list[str] = []
+        fallidos: list[str] = []
         for venc in expiraciones[:max_expiraciones]:
             try:
                 cadena = ticker.option_chain(venc)
-            except Exception:
-                continue  # un vencimiento que falla no tumba los demás
+            except Exception as exc:  # noqa: BLE001 — yfinance lanza de todo
+                # Un vencimiento que falla no tumba los demás, pero se CUENTA y se
+                # dice. Antes era un `continue` mudo: una cadena con la mitad de
+                # vencimientos perdidos se leía como una cadena corta.
+                fallidos.append(venc)
+                logger.warning("yfinance: vencimiento %s de %s falló: %s", venc, symbol, exc)
+                continue
             if spot is None:
                 sub = getattr(cadena, "underlying", None) or {}
                 spot = _clean(sub.get("regularMarketPrice")) if isinstance(sub, dict) else None
@@ -293,6 +299,7 @@ class YFinanceProvider(DataProvider):
             "spot": spot,
             "contratos": contratos,
             "expiraciones": usadas,
+            "vencimientos_fallidos": fallidos,
             "expiraciones_totales": len(expiraciones),
             "as_of": iso_utc(),
         }
@@ -418,6 +425,7 @@ class YFinanceProvider(DataProvider):
 
         top_holdings: list[dict] = []
         sector_weights: dict[str, float] = {}
+        composicion_error: str | None = None
         try:
             funds = ticker.funds_data
             holdings_df = funds.top_holdings
@@ -433,8 +441,13 @@ class YFinanceProvider(DataProvider):
             sector_weights = {
                 k: v for k, v in (funds.sector_weightings or {}).items() if v
             }
-        except Exception:
-            pass  # sin composición: se reporta vacío, no se inventa
+        except Exception as exc:  # noqa: BLE001 — yfinance lanza de todo
+            # Sin composición se reporta vacío, no se inventa — pero DICIENDO que
+            # falló. Antes era un `pass` mudo, y «este ETF no tiene holdings» era
+            # indistinguible de «no se pudieron leer», con lo que el solapamiento
+            # entre dos ETFs salía 0 % en vez de desconocido.
+            composicion_error = f"no se pudo leer la composición: {exc}"
+            logger.warning("yfinance: composición de %s falló: %s", symbol, exc)
 
         expense = _clean(info.get("netExpenseRatio"))
         return {
@@ -448,5 +461,6 @@ class YFinanceProvider(DataProvider):
             "currency": info.get("currency"),
             "top_holdings": top_holdings,
             "sector_weights": sector_weights,
+            "composicion_error": composicion_error,
             "as_of": iso_utc(),
         }

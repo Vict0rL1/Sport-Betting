@@ -15,7 +15,16 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 
 from app.config import CACHE_TTL_SECONDS
+from app.datos import Estado
 from app.db.models import ApiCache
+from app.providers.router import AllProvidersFailedError
+from app.registro import log
+
+# Cuánto después de caducar se puede rescatar un dato si todas las fuentes
+# fallan: un múltiplo de su propio TTL, con techo absoluto. Una cotización (TTL
+# 60 s) se rescata durante 30 minutos; unos fundamentales, hasta el techo.
+FACTOR_RESCATE = 30
+TECHO_RESCATE_SEGUNDOS = 7 * 24 * 3600
 
 
 def params_hash(params: dict) -> str:
@@ -53,6 +62,67 @@ class CacheStore:
             payload["cached"] = True
             payload["fetched_at"] = _as_utc(row.fetched_at).isoformat()
             return payload
+
+    def get_vencido(self, data_type: str, params: dict) -> dict | None:
+        """Una entrada CADUCADA pero aún dentro del margen de rescate.
+
+        Existe para un caso concreto: todas las fuentes han fallado y hay un
+        dato de hace unos minutos. Servirlo marcado como viejo es mejor que un
+        apagón — pero solo marcado, y solo si «unos minutos» sigue siendo
+        cierto. Un precio de hace tres días es peor que un error honesto,
+        porque el error se ve y el precio viejo no.
+
+        El margen escala con el TTL del propio dato, que ya codifica cuánto de
+        rápido se mueve: una cotización caduca en un minuto y se rescata durante
+        media hora; unos fundamentales caducan en días y aguantan semanas.
+        """
+        key = params_hash(params)
+        with self.session_factory() as session:
+            row = session.execute(
+                select(ApiCache).where(
+                    ApiCache.provider == "router",
+                    ApiCache.endpoint == data_type,
+                    ApiCache.params_hash == key,
+                )
+            ).scalar_one_or_none()
+            if row is None:
+                return None
+            ahora = self._now()
+            antiguedad = (ahora - _as_utc(row.fetched_at)).total_seconds()
+            if antiguedad > self.margen_de_rescate(data_type):
+                return None
+            payload = dict(row.payload)
+            payload["cached"] = True
+            payload["fetched_at"] = _as_utc(row.fetched_at).isoformat()
+            payload["antiguedad_segundos"] = int(antiguedad)
+            return payload
+
+    def margen_de_rescate(self, data_type: str) -> float:
+        ttl = self.ttls.get(data_type, 300)
+        return min(ttl * FACTOR_RESCATE, TECHO_RESCATE_SEGUNDOS)
+
+    def limpiar(self, ahora: datetime | None = None) -> int:
+        """Borra lo caducado que ya ni siquiera sirve como rescate.
+
+        No se borra en cuanto caduca: lo recién caducado es justamente lo que
+        sostiene la caída a dato viejo cuando las fuentes fallan. Se borra lo
+        que ya no puede servir para nada, que es lo único que solo ocupa sitio.
+        """
+        ahora = ahora or self._now()
+        borradas = 0
+        with self.session_factory() as session:
+            filas = session.execute(
+                select(ApiCache).where(ApiCache.provider == "router")
+            ).scalars().all()
+            for row in filas:
+                antiguedad = (ahora - _as_utc(row.fetched_at)).total_seconds()
+                if antiguedad > self.margen_de_rescate(row.endpoint):
+                    session.delete(row)
+                    borradas += 1
+            if borradas:
+                session.commit()
+        log("cache").info("limpieza: %d entrada(s) caducada(s) borradas", borradas)
+        return borradas
 
     def invalidate(self, data_type: str, params: dict) -> bool:
         """Borra una entrada concreta. Devuelve si había algo que borrar.
@@ -119,10 +189,35 @@ class MarketDataService:
         cache_params = {k: v for k, v in kwargs.items() if not k.startswith("_")}
         cached = self.cache.get(data_type, cache_params)
         if cached is not None:
+            cached["estado"] = Estado.VALIDO.value
             return cached
-        payload = self.router.fetch(data_type, **kwargs)
+        try:
+            payload = self.router.fetch(data_type, **kwargs)
+        except AllProvidersFailedError as exc:
+            # Todas las fuentes han fallado. Si hay un dato reciente caducado,
+            # se sirve MARCADO: `estado: viejo`, su antigüedad y un aviso. Lo
+            # que no se hace es servirlo como si fuera de ahora, ni inventarlo.
+            # `DataNotFoundError` no entra aquí a propósito: «no existe» es una
+            # respuesta, y taparla con caché vieja la contradiría.
+            rescate = self.cache.get_vencido(data_type, cache_params)
+            if rescate is None:
+                raise
+            minutos = rescate["antiguedad_segundos"] // 60
+            log("cache").warning(
+                "rescate de dato viejo: %s %s (hace %d min) porque %s",
+                data_type, cache_params, minutos, exc,
+            )
+            rescate["estado"] = Estado.VIEJO.value
+            rescate["aviso"] = (
+                f"Dato viejo: todas las fuentes han fallado y se sirve la última "
+                f"copia, de hace {minutos} min. Motivo del fallo: {exc}"
+            )
+            return rescate
+        # Solo llega aquí un payload que pasó `validacion.validar` dentro del
+        # router: lo inválido nunca se cachea.
         self.cache.set(data_type, cache_params, payload)
         result = dict(payload)
         result["cached"] = False
         result["fetched_at"] = self.cache._now().isoformat()
+        result["estado"] = Estado.VALIDO.value
         return result

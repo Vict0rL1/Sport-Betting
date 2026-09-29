@@ -13,6 +13,8 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 
+from app import validacion
+from app.registro import log
 from app.config import PROVIDER_RATE_LIMITS
 from app.db.models import ApiCallLog
 from app.providers.base import (
@@ -107,6 +109,28 @@ class RateLimiter:
     def allow(self, provider: str) -> bool:
         return self.usage(provider)["remaining"] > 0
 
+    def limpiar(self) -> int:
+        """Borra llamadas más viejas que la ventana más larga configurada.
+
+        El registro solo sirve para contar lo gastado en la ventana vigente;
+        pasada la ventana más larga (un día, la de Twelve Data), una fila ya no
+        cuenta para nada y solo ocupa sitio. Sin esto la tabla crecía una fila
+        por llamada, para siempre.
+        """
+        ventana = max(
+            (w for ventanas in self.limits.values() for _, w in ventanas),
+            default=24 * 3600,
+        )
+        corte = datetime.now(timezone.utc) - timedelta(seconds=ventana)
+        with self.session_factory() as session:
+            filas = session.execute(
+                select(ApiCallLog).where(ApiCallLog.called_at < corte)
+            ).scalars().all()
+            for fila in filas:
+                session.delete(fila)
+            session.commit()
+            return len(filas)
+
     def record(self, provider: str, endpoint: str, status: str = "ok") -> None:
         with self.session_factory() as session:
             session.add(ApiCallLog(provider=provider, endpoint=endpoint, status=status))
@@ -155,12 +179,27 @@ class DataRouter:
             for attempt in range(RETRY_ATTEMPTS + 1):
                 try:
                     payload = provider.fetch(data_type, **kwargs)
+                    # La respuesta se comprueba ANTES de darla por buena. Un
+                    # payload inválido es un fallo del proveedor, no un dato:
+                    # se registra como error y se pasa a la siguiente fuente.
+                    # Antes, el primer proveedor con una respuesta rota ganaba
+                    # —devolvía `{"price": None}` y la cadena de fallback ni se
+                    # tocaba— y eso acababa cacheado durante todo el TTL.
+                    payload = validacion.validar(data_type, payload)
                     self.limiter.record(name, data_type, "ok")
                     payload["source"] = name
                     return payload
+                except validacion.PayloadInvalido as exc:
+                    self.limiter.record(name, data_type, "error")
+                    last_error = f"respuesta inválida: {exc}"
+                    log("validacion").warning(
+                        "%s/%s devolvió un payload inválido: %s", name, data_type, exc
+                    )
+                    break  # reintentar no arregla un payload mal formado
                 except RateLimitError as exc:
                     self.limiter.record(name, data_type, "rate_limited")
                     last_error = str(exc)
+                    log("proveedor").info("%s/%s: límite del API: %s", name, data_type, exc)
                     break  # no reintentar contra un rate limit: siguiente fuente
                 except DataNotFoundError:
                     self.limiter.record(name, data_type, "ok")
@@ -168,8 +207,13 @@ class DataRouter:
                 except (NotSupportedError, ProviderError) as exc:
                     self.limiter.record(name, data_type, "error")
                     last_error = str(exc)
+                    log("proveedor").warning(
+                        "%s/%s falló (intento %d): %s", name, data_type, attempt + 1, exc
+                    )
                     if isinstance(exc, NotSupportedError) or attempt == RETRY_ATTEMPTS:
                         break
                     self._sleep(RETRY_BASE_DELAY * (2**attempt))
             reasons[name] = last_error or "error desconocido"
-        raise AllProvidersFailedError(data_type, reasons)
+        error = AllProvidersFailedError(data_type, reasons)
+        log("proveedor").error("%s", error)
+        raise error

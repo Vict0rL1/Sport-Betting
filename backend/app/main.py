@@ -6,7 +6,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.db.engine import init_db
+from app.db.engine import SessionLocal, init_db
+from app.mantenimiento import mantener
+from app.registro import configurar as configurar_registro
 from app.routers import (
     deep_dive,
     earnings,
@@ -26,7 +28,11 @@ from app.routers import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    configurar_registro()
     init_db()
+    # Limpieza al arrancar. `mantener` no lanza: un fallo aquí no puede
+    # impedir que la app arranque.
+    mantener(SessionLocal)
     yield
 
 
