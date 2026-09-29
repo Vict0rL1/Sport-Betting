@@ -759,14 +759,18 @@ function EstadoDeAlerta({ a }: { a: PriceAlert }) {
   }
   const etiqueta = {
     sin_precio: 'Sin comprobar',
+    error: 'Error al comprobar',
     condicion_invalida: 'Condición inválida',
     desactivada: 'Desactivada',
   }[a.estado]
   const tono =
     a.estado === 'desactivada' ? 'bg-slate-100 text-slate-800' : 'bg-red-100 text-red-800'
   return (
-    <span className={`ml-2 rounded px-1.5 py-0.5 text-xs ${tono}`} title={a.motivo}>
+    <span className={`ml-2 rounded px-1.5 py-0.5 text-xs ${tono}`} title={a.last_error ?? a.motivo}>
       {etiqueta}
+      {/* Cuántas revisiones seguidas lleva sin poder mirarse: una es un
+          tropiezo, cinco es una alerta que no te está protegiendo. */}
+      {(a.consecutive_errors ?? 0) > 1 && ` · ${a.consecutive_errors} seguidas`}
     </span>
   )
 }

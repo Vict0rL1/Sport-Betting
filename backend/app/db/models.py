@@ -239,6 +239,13 @@ class Alert(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Desde la migración 0003. Sin esto, «la alerta no ha saltado» no se podía
+    # distinguir de «la alerta lleva tres días sin poder comprobarse».
+    last_evaluated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_result: Mapped[str | None] = mapped_column(String(24))  # estado de alertas.evaluar
+    last_error: Mapped[str | None] = mapped_column(Text)
+    consecutive_errors: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    error_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Thesis(Base):

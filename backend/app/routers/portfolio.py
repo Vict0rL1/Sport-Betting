@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import datos
+from app import datos, vigilancia
 from app.analysis import alertas, fx, historial as hist, portfolio_risk
 from app.analysis.decision import _stop_pct
 from app.analysis.risk_budget import presupuesto_de_riesgo
@@ -1125,20 +1125,16 @@ def list_alerts(
     ).all()
     ahora = datetime.now(timezone.utc)
     out = []
-    hay_que_guardar = False
+    buscar = lambda symbol: service.get("quote", symbol=symbol).get("price")  # noqa: E731
     for alert, instrument in rows:
-        datos = {
-            "id": alert.id,
-            "symbol": instrument.symbol,
-            "condition": alert.condition or {},
-            "active": alert.active,
-            "triggered_at": alert.triggered_at,
-        }
-        price = _price_of(service, instrument.symbol) if alert.active else None
-        veredicto = alertas.evaluar(datos, price, ahora)
-        if alertas.es_nueva(datos, veredicto):
-            alert.triggered_at = ahora
-            hay_que_guardar = True
+        # La MISMA evaluación que el cron (`app.vigilancia`), sin reintentos:
+        # una petición del navegador no debe quedarse dormida esperando.
+        if alert.active:
+            price, fallo, detalle = vigilancia.obtener_precio(buscar, instrument.symbol, reintentos=0)
+        else:
+            price, fallo, detalle = None, None, None
+        r = vigilancia.evaluar_y_registrar(alert, instrument.symbol, price, fallo, detalle, ahora)
+        veredicto = r["veredicto"]
         out.append(
             {
                 "id": alert.id,
@@ -1159,10 +1155,14 @@ def list_alerts(
                 "triggered_at": (
                     utc.isoformat() if (utc := alertas.como_utc(alert.triggered_at)) else None
                 ),
+                "last_evaluated_at": (
+                    utc.isoformat() if (utc := alertas.como_utc(alert.last_evaluated_at)) else None
+                ),
+                "last_error": alert.last_error,
+                "consecutive_errors": alert.consecutive_errors or 0,
             }
         )
-    if hay_que_guardar:
-        session.commit()
+    session.commit()
 
     return {
         "alerts": out,

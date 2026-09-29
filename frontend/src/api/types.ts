@@ -472,9 +472,14 @@ export interface PriceAlert {
   current_price: number | null
   /** Tri-estado: `null` es «no se ha podido comprobar», que no es `false`. */
   triggered: boolean | null
-  estado: 'ok' | 'sin_precio' | 'condicion_invalida' | 'desactivada'
+  estado: 'ok' | 'sin_precio' | 'error' | 'condicion_invalida' | 'desactivada'
   motivo: string
   triggered_at: string | null
+  /** Cuándo se comprobó por última vez (cron o pestaña). */
+  last_evaluated_at?: string | null
+  last_error?: string | null
+  /** Revisiones seguidas sin poder comprobarla. */
+  consecutive_errors?: number
 }
 
 /** Si alguien revisa las alertas cuando la app está cerrada, y desde cuándo. */

@@ -45,10 +45,14 @@ OPERADORES = {
 DESACTIVADA = "desactivada"
 CONDICION_INVALIDA = "condicion_invalida"
 SIN_PRECIO = "sin_precio"
+# Se intentó y algo se rompió: proveedores caídos tras reintentar, o una
+# excepción inesperada. Distinto de SIN_PRECIO porque exige una acción distinta:
+# «sin datos» es que el símbolo no cotiza; «error» es que hay que mirar qué pasa.
+ERROR = "error"
 
 
 def evaluar(
-    alerta: dict, precio: float | None, ahora: datetime | None = None
+    alerta: dict, precio: float | None, ahora: datetime | None = None, error: str | None = None
 ) -> dict:
     """¿Se cumple esta alerta con este precio? Sin efectos: solo el veredicto.
 
@@ -77,6 +81,16 @@ def evaluar(
             "motivo": (
                 f"{alerta.get('symbol')}: condición no reconocida ({condicion!r}). "
                 f"Hace falta un precio y un operador de: {conocidos}."
+            ),
+        }
+    if error:
+        return {
+            "evaluable": False,
+            "cumple": False,
+            "estado": ERROR,
+            "motivo": (
+                f"error al comprobar {alerta.get('symbol')}: {error}. NO es «no "
+                "salta»: no se ha podido mirar."
             ),
         }
     if precio is None:
@@ -133,6 +147,12 @@ def resumir(resultados: list[dict]) -> dict:
         if not r["veredicto"].get("evaluable")
         and r["veredicto"].get("estado") != DESACTIVADA
     ]
+    sin_datos = [r for r in rotas if r["veredicto"].get("estado") == SIN_PRECIO]
+    errores = [r for r in rotas if r["veredicto"].get("estado") == ERROR]
+    tranquilas = sum(
+        1 for r in resultados
+        if r["veredicto"].get("evaluable") and not r["veredicto"].get("cumple")
+    )
     return {
         # `total` son todas las que existen; `revisadas`, las que de verdad se
         # han mirado. No es lo mismo y no pueden compartir nombre: el JSON decía
@@ -143,7 +163,12 @@ def resumir(resultados: list[dict]) -> dict:
         "nuevas": nuevas,
         "ya_saltadas": len(ya_estaban),
         "desactivadas": len(apagadas),
+        # Los tres grupos que NO son «no salta», separados: sin datos (el símbolo
+        # no cotiza), errores (algo se rompió) y el total de no evaluables.
         "no_evaluables": rotas,
+        "sin_datos": sin_datos,
+        "errores": errores,
+        "tranquilas": tranquilas,
         "resumen": _frase(nuevas, len(ya_estaban), rotas, len(apagadas), len(resultados)),
     }
 
@@ -167,9 +192,11 @@ def _frase(nuevas: list[dict], ya: int, rotas: list[dict], apagadas: int, total:
         partes.append(f"{apagadas} están desactivadas y no se miran.")
     if rotas:
         nombres = ", ".join(str(r.get("symbol")) for r in rotas[:5])
+        n_error = sum(1 for r in rotas if r["veredicto"].get("estado") == ERROR)
+        detalle = f", {n_error} por error" if n_error else ""
         partes.append(
-            f"{len(rotas)} NO se han podido comprobar ({nombres}): eso no es que no "
-            "salten, es que no se sabe."
+            f"{len(rotas)} NO se han podido comprobar ({nombres}{detalle}): eso no es "
+            "que no salten, es que no se sabe."
         )
     return " ".join(partes)
 

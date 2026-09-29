@@ -41,6 +41,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from sqlalchemy import select  # noqa: E402
 
+from app import vigilancia  # noqa: E402
 from app.analysis import alertas as al  # noqa: E402
 from app.config import settings  # noqa: E402
 from app.db.engine import SessionLocal, init_db  # noqa: E402
@@ -49,19 +50,19 @@ from app.deps import get_service  # noqa: E402
 from app.mantenimiento import mantener  # noqa: E402
 from app.notify import notificar  # noqa: E402
 from app.registro import configurar as configurar_registro  # noqa: E402
-from app.providers.base import DataNotFoundError  # noqa: E402
-from app.providers.router import AllProvidersFailedError  # noqa: E402
+from app.registro import log  # noqa: E402
 
 
-def _precio(service, symbol: str, solo_cache: bool) -> float | None:
+def _ahora() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _buscador_de_precio(service, solo_cache: bool):
+    """Cómo conseguir el precio: de la red, o solo de lo ya guardado."""
     if solo_cache:
         cache = getattr(service, "cache", None)
-        payload = cache.get("quote", {"symbol": symbol}) if cache else None
-        return (payload or {}).get("price")
-    try:
-        return service.get("quote", symbol=symbol).get("price")
-    except (DataNotFoundError, AllProvidersFailedError):
-        return None
+        return lambda symbol: ((cache.get("quote", {"symbol": symbol}) if cache else None) or {}).get("price")
+    return lambda symbol: service.get("quote", symbol=symbol).get("price")
 
 
 def revisar(solo_cache: bool = False, avisar: bool = True) -> dict:
@@ -72,32 +73,42 @@ def revisar(solo_cache: bool = False, avisar: bool = True) -> dict:
     # automática de verdad. `mantener` no lanza.
     mantener(SessionLocal)
     service = get_service()
-    ahora = datetime.now(timezone.utc)
+    ahora = _ahora()
+    buscar = _buscador_de_precio(service, solo_cache)
 
     with SessionLocal() as session:
         filas = session.execute(
             select(Alert, Instrument).join(Instrument, Alert.instrument_id == Instrument.id)
         ).all()
 
-        resultados = []
+        resultados, atascadas = [], []
         for alerta, instrumento in filas:
-            datos = {
-                "id": alerta.id,
-                "symbol": instrumento.symbol,
-                "condition": alerta.condition,
-                "active": alerta.active,
-                "triggered_at": alerta.triggered_at,
-            }
-            precio = _precio(service, instrumento.symbol, solo_cache) if alerta.active else None
-            veredicto = al.evaluar(datos, precio, ahora)
-            nueva = al.es_nueva(datos, veredicto)
-            if nueva:
-                # Se marca ANTES de notificar. Si el aviso falla, la alerta
-                # queda igualmente registrada como saltada y se ve en la app:
-                # peor que un aviso perdido es un aviso repetido cada quince
-                # minutos hasta que lo silencias todo.
-                alerta.triggered_at = ahora
-            resultados.append({"symbol": instrumento.symbol, "veredicto": veredicto, "nueva": nueva})
+            # Cada alerta, en su propio perímetro. Antes, una excepción
+            # inesperada con UNA abortaba la pasada entera —y con ella la marca
+            # de vigilancia, así que la pestaña decía que el cron no corría—.
+            # `obtener_precio` no lanza; lo que pudiera reventar al juzgar se
+            # captura aquí y la alerta queda en estado de error.
+            if alerta.active:
+                precio, fallo, detalle = vigilancia.obtener_precio(buscar, instrumento.symbol)
+            else:
+                precio, fallo, detalle = None, None, None
+            try:
+                r = vigilancia.evaluar_y_registrar(
+                    alerta, instrumento.symbol, precio, fallo, detalle, ahora
+                )
+            except Exception as exc:  # noqa: BLE001 — se aísla por alerta, no se traga
+                log("alertas").exception("alerta #%s de %s: fallo al evaluar", alerta.id, instrumento.symbol)
+                r = vigilancia.evaluar_y_registrar(
+                    alerta, instrumento.symbol, None, vigilancia.ERROR,
+                    f"{type(exc).__name__}: {exc}", ahora,
+                )
+            # Se marca ANTES de notificar (lo hace `evaluar_y_registrar`). Si el
+            # aviso falla, la alerta queda igualmente registrada como saltada:
+            # peor que un aviso perdido es uno repetido cada quince minutos.
+            resultados.append(r)
+            if alerta.active and vigilancia.necesita_aviso_de_error(alerta, ahora):
+                alerta.error_notified_at = ahora  # también antes de avisar
+                atascadas.append((instrumento.symbol, alerta.consecutive_errors, alerta.last_error))
         session.commit()
 
     salida = al.resumir(resultados)
@@ -110,6 +121,10 @@ def revisar(solo_cache: bool = False, avisar: bool = True) -> dict:
     if avisar and salida["nuevas"]:
         titulo, cuerpo = al.texto_de_aviso(salida["nuevas"])
         salida["notificacion"] = notificar(titulo, cuerpo)
+    salida["atascadas"] = [s for s, _, _ in atascadas]
+    if avisar and atascadas:
+        titulo, cuerpo = vigilancia.texto_de_aviso_de_error(atascadas)
+        salida["notificacion_de_errores"] = notificar(titulo, cuerpo)
     return salida
 
 
