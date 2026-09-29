@@ -19,6 +19,15 @@ interface Apuesta {
   stake: number;
   status: string;
   profit: number | null;
+  // Auditoría: nulos en las apuestas anteriores a que existiera, y no se inventan.
+  opening_odds?: number | null;
+  closing_odds?: number | null;
+  closing_observed_at?: string | null;
+  commence_time?: string | null;
+  clv?: number | null;
+  event_result?: string | null;
+  model_version?: string | null;
+  git_commit?: string | null;
 }
 
 interface Resumen {
@@ -36,7 +45,19 @@ interface Resumen {
   ultima: { cuando: string; candidatas: number; colocadas: number; rechazos: Record<string, number> } | null;
   apuestas: Apuesta[];
   motivo: string | null;
+  clvMedio?: number | null;
+  conCierre?: number;
 }
+
+/** Los seis estados, en español. `push`: empate que devuelve el importe (NFL). */
+const ESTADO: Record<string, string> = {
+  pending: 'pendiente',
+  won: 'ganada',
+  lost: 'perdida',
+  push: 'empate (devuelta)',
+  void: 'anulada',
+  cancelled: 'cancelada',
+};
 
 const dinero = (n: number) => `${n >= 0 ? '' : '−'}${Math.abs(n).toFixed(2)} $`;
 
@@ -97,6 +118,22 @@ export default function PaperBankroll() {
         ))}
       </div>
 
+      {/* EL CLV: si se consiguió mejor precio que el de cierre. Es la medida que no
+          depende de la suerte del resultado: una apuesta perdida a 2,10 que cerró a
+          1,94 fue una buena apuesta. */}
+      {r.conCierre != null && r.conCierre > 0 && r.clvMedio != null && (
+        <p className="border-t border-white/[0.07] px-4 py-2.5 text-[13px] text-[#9aa1ac]">
+          <strong style={{ color: r.clvMedio >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
+            CLV medio {r.clvMedio >= 0 ? '+' : '−'}
+            {Math.abs(r.clvMedio * 100).toFixed(1)} %
+          </strong>{' '}
+          sobre {r.conCierre} apuesta{r.conCierre === 1 ? '' : 's'} con cuota de cierre:{' '}
+          {r.clvMedio >= 0
+            ? 'se apostó, de media, a mejor precio que el que dejó el mercado al cerrar.'
+            : 'el mercado cerró, de media, por encima de lo apostado: el precio empeoró tras apostar.'}
+        </p>
+      )}
+
       <p className="border-t border-white/[0.07] px-4 py-2.5 text-[13px] text-[#7b828d]">
         {r.liquidadas} liquidada{r.liquidadas === 1 ? '' : 's'} ({r.ganadas} ganada
         {r.ganadas === 1 ? '' : 's'}, {r.perdidas} perdida{r.perdidas === 1 ? '' : 's'}) ·{' '}
@@ -139,7 +176,7 @@ export default function PaperBankroll() {
                 <th className="px-4 py-2 font-medium">Partido</th>
                 <th className="px-4 py-2 font-medium">Apuesta</th>
                 <th className="px-4 py-2 text-right font-medium">Modelo / mercado</th>
-                <th className="px-4 py-2 text-right font-medium">Cuota</th>
+                <th className="px-4 py-2 text-right font-medium">Cuota: apertura · apostada · cierre</th>
                 <th className="px-4 py-2 text-right font-medium">Importe</th>
                 <th className="px-4 py-2 text-right font-medium">Resultado</th>
               </tr>
@@ -147,12 +184,32 @@ export default function PaperBankroll() {
             <tbody>
               {r.apuestas.map((a) => (
                 <tr key={a.id} className="border-t border-white/[0.05]">
-                  <td className="px-4 py-2.5 text-[#c3c9d1]">{a.label}</td>
+                  <td className="px-4 py-2.5 text-[#c3c9d1]">
+                    {a.label}
+                    {/* Qué versión exacta del modelo tomó la decisión. */}
+                    {a.model_version && (
+                      <span className="block text-[11px] text-[#5c636e]" title={a.git_commit ? `commit ${a.git_commit}` : undefined}>
+                        {a.model_version}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5 text-[#e8eaed]">{a.selection}</td>
                   <td className="whitespace-nowrap px-4 py-2.5 text-right text-[#9aa1ac]">
                     {(a.p_model * 100).toFixed(1)} % / {(a.p_market * 100).toFixed(1)} %
                   </td>
-                  <td className="px-4 py-2.5 text-right text-[#9aa1ac]">{a.odds.toFixed(2)}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right text-[#9aa1ac]">
+                    <span className="text-[#5c636e]">{a.opening_odds != null ? a.opening_odds.toFixed(2) : '—'}</span>
+                    {' · '}
+                    <span className="font-semibold text-[#e8eaed]">{a.odds.toFixed(2)}</span>
+                    {' · '}
+                    <span className="text-[#5c636e]">{a.closing_odds != null ? a.closing_odds.toFixed(2) : '—'}</span>
+                    {a.clv != null && (
+                      <span className="block text-[11px]" style={{ color: a.clv >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
+                        CLV {a.clv >= 0 ? '+' : '−'}
+                        {Math.abs(a.clv * 100).toFixed(1)} %
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-2.5 text-right text-[#9aa1ac]">{a.stake.toFixed(2)}</td>
                   <td
                     className="whitespace-nowrap px-4 py-2.5 text-right font-medium"
@@ -167,7 +224,12 @@ export default function PaperBankroll() {
                               : BREAK_EVEN_COLOR,
                     }}
                   >
-                    {a.status === 'pending' ? 'pendiente' : dinero(a.profit ?? 0)}
+                    {a.status === 'pending' || a.status === 'won' || a.status === 'lost'
+                      ? a.status === 'pending'
+                        ? 'pendiente'
+                        : dinero(a.profit ?? 0)
+                      : ESTADO[a.status] ?? a.status}
+                    {a.event_result && <span className="block text-[11px] font-normal text-[#7b828d]">{a.event_result}</span>}
                   </td>
                 </tr>
               ))}

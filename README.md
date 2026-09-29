@@ -968,6 +968,40 @@ Las cuotas de demostración nunca entran: no pasan por el cliente del proveedor.
 `fb_odds_history` sigue existiendo porque la usa el módulo de noticias (solo la mediana del
 fútbol); el histórico general es este.
 
+## El banco de papel, auditable
+
+El modelo apuesta solo con 1.000 $ de papel, y cada apuesta queda registrada de forma que
+**no se puede reescribir**. No es una promesa del código: son triggers de SQLite
+(`server/src/paper/schema.ts`) que hacen fallar cualquier escritura prohibida.
+
+Una apuesta tiene tres momentos, y cada uno escribe lo suyo **una sola vez**:
+
+| Momento | Qué se guarda |
+| --- | --- |
+| **Al apostar** (congelado) | probabilidad del modelo cruda y calibrada, del mercado con y sin margen, ventaja, cuota, casas, importe, % del banco, Kelly completo y fracción usada, banco antes, `model_version`, `model_config_version`, `calibration_version`, `data_version`, `strategy_version`, `git_commit`, hora de la predicción, hora de las cuotas, **cuota de apertura** y **cuota de la señal** (la del mercado cuando el modelo registró la predicción) |
+| **Al cerrar el mercado** | **cuota de cierre** (de los snapshots: el último estado antes del inicio, con la hora en que se vio) y **CLV** = cuota apostada / cierre − 1 |
+| **Al liquidar** | resultado del partido, estado, beneficio, banco después, ROI |
+
+Lo que la base de datos **rechaza**: cambiar probabilidades, cuota, importe o versiones de una
+apuesta registrada; borrarla; liquidarla dos veces; cambiar el cierre una vez fijado;
+registrarla después del inicio; darla de alta con cierre o beneficio (datos del futuro); un
+estado que no sea `pending`, `won`, `lost`, `push`, `void` o `cancelled`. Los registros de
+predicciones de los cinco deportes tampoco se pueden borrar ni reescribir: si mañana cambia el
+modelo, lo de ayer sigue diciendo lo que dijo.
+
+La cuota de la apuesta **nunca** se sustituye por la de cierre: van en columnas distintas.
+Por eso una apuesta perdida a 2,10 que cerró a 1,94 sigue constando como buena línea
+(CLV +8,2 %). El CLV medio es la medida de habilidad que no depende de la suerte del
+resultado, y la pantalla lo enseña.
+
+Cambios de comportamiento:
+- Se decide con la probabilidad **calibrada** (la que se enseña y miden las bandas), no con la
+  cruda; las dos quedan guardadas.
+- `push`: empate en el moneyline de la NFL (antes `void`). `cancelled`: sin resultado 14 días
+  después del inicio; se devuelve el importe.
+- El banco de papel es solo hacia delante y vive en su propia tabla: ningún backtest escribe
+  en ella.
+
 ## Por qué ESTE deporte sale en demostración (`npm run doctor`)
 
 Cada deporte guardaba `*_odds_source = 'fixture'`, que dice **que** está en demostración.

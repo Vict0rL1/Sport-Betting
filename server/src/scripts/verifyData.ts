@@ -1430,6 +1430,13 @@ function auditPaperBankroll(): void {
   }[];
 
   console.log(`  ${bets.length} apuesta(s) registradas`);
+  // Los triggers, SIEMPRE: con cero apuestas es justo cuando conviene saber que la
+  // primera no se podrá reescribir.
+  const triggers = new Set((db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'paper_bets_%'").all() as { name: string }[]).map((r) => r.name));
+  for (const t of ['paper_bets_no_delete', 'paper_bets_congelada', 'paper_bets_liquida_una_vez', 'paper_bets_cierre_una_vez']) {
+    check(`banco de papel: el trigger ${t} existe`, triggers.has(t), 'sin él, una apuesta registrada se puede reescribir');
+  }
+
   if (bets.length === 0) {
     // Cero apuestas es el estado normal sin cuotas reales, no un fallo. Lo que sí sería
     // un fallo es que la tabla no existiera, y llegar hasta aquí ya lo descarta.
@@ -1476,7 +1483,7 @@ function auditPaperBankroll(): void {
         ? b.stake * (b.odds - 1)
         : b.status === 'lost'
           ? -b.stake
-          : b.status === 'void'
+          : b.status === 'void' || b.status === 'push' || b.status === 'cancelled'
             ? 0
             : null;
     if (esperado === null) continue;
@@ -1519,6 +1526,30 @@ function auditPaperBankroll(): void {
     contraSiMismo.length === 0,
     `${contraSiMismo.length} con la probabilidad del modelo por debajo de la del mercado`,
   );
+
+  // --- 7. La auditoría de la fase 4 ---
+  // Las apuestas registradas desde que existe (las que traen versión) tienen que traerlo
+  // TODO; el cierre tiene que ser anterior al inicio y el CLV salir de sus propias cuotas.
+  // Las anteriores a la migración no tienen esos campos y no se les inventan.
+  const aud = db
+    .prepare(
+      `SELECT id, odds, model_version, calibration_version, strategy_version, data_version, prediction_timestamp,
+              placed_at, commence_time, closing_odds, closing_observed_at, clv
+         FROM paper_bets WHERE model_version IS NOT NULL`,
+    )
+    .all() as {
+    id: number; odds: number; model_version: string; calibration_version: string | null; strategy_version: string | null;
+    data_version: string | null; prediction_timestamp: string | null; placed_at: string; commence_time: string | null;
+    closing_odds: number | null; closing_observed_at: string | null; clv: number | null;
+  }[];
+  const incompletas = aud.filter((b) => !b.calibration_version || !b.strategy_version || !b.data_version || !b.prediction_timestamp || !b.commence_time);
+  check('banco de papel: cada apuesta nueva guarda versiones y marcas de tiempo', incompletas.length === 0, `${incompletas.length} incompletas`);
+  const despues = aud.filter((b) => b.commence_time && b.placed_at >= b.commence_time);
+  check('banco de papel: ninguna apuesta registrada después del inicio', despues.length === 0, `${despues.length} apuestas tardías`);
+  const cierreTarde = aud.filter((b) => b.closing_observed_at && b.commence_time && b.closing_observed_at >= b.commence_time);
+  check('banco de papel: la cuota de cierre es anterior al inicio', cierreTarde.length === 0, `${cierreTarde.length} cierres observados con el partido empezado`);
+  const clvMal = aud.filter((b) => b.closing_odds != null && (b.clv == null || Math.abs(b.clv - (b.odds / b.closing_odds - 1)) > 1e-9));
+  check('banco de papel: el CLV sale de la cuota apostada y la de cierre', clvMal.length === 0, `${clvMal.length} con CLV incoherente`);
 
   const liq = bets.filter((b) => b.status !== 'pending');
   if (liq.length > 0) {

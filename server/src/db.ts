@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { DATA_DIR, DB_PATH } from './config.ts';
 import { ODDS_SNAPSHOT_SCHEMA } from './odds/schema.ts';
+import { PAPER_BET_COLUMNS, PAPER_TRIGGERS, PREDICTION_LOG_TRIGGERS } from './paper/schema.ts';
 
 let db: DatabaseSync | null = null;
 
@@ -25,6 +26,10 @@ export function getDb(): DatabaseSync {
   migrateSchema(db);
   // Snapshots de mercado (fase 2): tablas append-only con sus triggers.
   db.exec(ODDS_SNAPSHOT_SCHEMA);
+  // Paper trading auditable (fase 4) y registros de predicciones que no se reescriben.
+  // DESPUÉS de migrar: los triggers nombran columnas que añade la migración.
+  db.exec(PAPER_TRIGGERS);
+  db.exec(PREDICTION_LOG_TRIGGERS);
   return db;
 }
 
@@ -957,6 +962,8 @@ function migrateSchema(d: DatabaseSync): void {
       shown_draw: 'REAL',
       shown_away: 'REAL',
     },
+    // El paper trading auditable: ver paper/schema.ts.
+    paper_bets: PAPER_BET_COLUMNS,
   };
 
   for (const [table, cols] of Object.entries(wanted)) {
