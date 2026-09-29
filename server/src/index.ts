@@ -1,5 +1,6 @@
 // REST API bootstrap (Fastify).
 
+import { captureClosingOdds } from './odds/closingCapture.ts';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { env, ROOT } from './config.ts';
@@ -537,6 +538,16 @@ async function main() {
     const resolveLog = (msg: string) => app.log.info(msg);
     resolveAllPredictions(resolveLog);
     setInterval(() => resolveAllPredictions(resolveLog), RESOLVE_EVERY_MINUTES * 60_000).unref();
+
+    // La cuota de CIERRE de verdad: justo antes de que empiecen los partidos con una
+    // apuesta de papel o una señal abierta, se observa su competición (1 crédito por
+    // liga, respetando el presupuesto). Sin esto el «cierre» podía ser de doce horas
+    // antes. Ver odds/closingCapture.ts.
+    if (env.oddsApiKey) {
+      setInterval(() => {
+        captureClosingOdds(resolveLog).catch((e) => resolveLog(`Cierre: ${(e as Error).message}`));
+      }, 10 * 60_000).unref();
+    }
   } catch (err) {
     app.log.error(err);
     process.exit(1);
