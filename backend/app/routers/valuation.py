@@ -27,6 +27,8 @@ reutilizan `peers` (cacheado 7 días) y `fundamentals` de hasta 6 pares (24 h).
 
 from __future__ import annotations
 
+from app import datos
+
 import re
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -63,6 +65,9 @@ MAX_PARES = 6
 FACTOR_CRECIMIENTO = {"bajista": 0.4, "base": 1.0, "alcista": 1.5}
 DESCUENTO = {"bajista": 0.11, "base": 0.09, "alcista": 0.08}
 TERMINAL = {"bajista": 0.015, "base": 0.025, "alcista": 0.030}
+# Lo que se supone cuando no hay crecimiento histórico utilizable. Viaja
+# SIEMPRE declarado como supuesto: es el parámetro que más mueve un DCF.
+CRECIMIENTO_SUPUESTO = 0.03
 CRECIMIENTO_MAXIMO = 0.15  # el pasado no se extrapola alegremente
 ANOS = 5
 
@@ -133,13 +138,39 @@ def _escenarios_por_defecto(crecimiento: dict) -> dict[str, dict]:
     Se acota al 15 %: extrapolar a perpetuidad el mejor quinquenio de una empresa
     es el error más común del DCF casero, y el que más caro sale.
     """
-    historico = crecimiento.get("fcf_cagr") or crecimiento.get("revenue_cagr") or 0.03
-    base = max(0.0, min(historico, CRECIMIENTO_MAXIMO))
+    # Dos fallos vivían en el `or` encadenado que había aquí.
+    #
+    # Uno: un crecimiento ausente se convertía en un 3 % que nunca se declaraba
+    # como supuesto, así que en pantalla no había forma de distinguir «crece al
+    # 3 % según sus cuentas» de «no sabemos cuánto crece y hemos puesto un 3 %».
+    #
+    # Dos, y más sutil: `0.0` es *falsy*, así que una empresa con crecimiento
+    # real de cero caía también en el 3 %. Justo la empresa estancada —el caso
+    # en que el DCF más se equivoca— se valoraba como si creciera.
+    medido = datos.numero(crecimiento.get("fcf_cagr"))
+    if medido is None:
+        medido = datos.numero(crecimiento.get("revenue_cagr"))
+    supuesto = medido is None
+    historico = CRECIMIENTO_SUPUESTO if supuesto else medido
+
+    # El suelo en 0 se mantiene solo para el escenario base hacia arriba: un
+    # crecimiento negativo medido SÍ se respeta, porque una empresa en
+    # contracción es un dato, no un error que haya que corregir.
+    base = min(historico, CRECIMIENTO_MAXIMO)
+    motivo = (
+        f"No hay crecimiento histórico utilizable (ni FCF ni ingresos): se SUPONE "
+        f"un {CRECIMIENTO_SUPUESTO * 100:.0f} % anual. Es un supuesto, no un dato "
+        "de la empresa, y mueve el valor más que casi ningún otro."
+        if supuesto
+        else None
+    )
     return {
         nombre: {
             "growth_rate": round(min(base * FACTOR_CRECIMIENTO[nombre], CRECIMIENTO_MAXIMO), 4),
             "discount_rate": DESCUENTO[nombre],
             "terminal_growth": TERMINAL[nombre],
+            "supuesto": supuesto,
+            "motivo": motivo,
         }
         for nombre in ("bajista", "base", "alcista")
     }
@@ -253,9 +284,18 @@ def valorar(
     # aquí no se repite: había un guardián duplicado con su propio texto, más
     # pobre, que además ganaba por llegar antes. Dos sitios explicando lo mismo
     # con palabras distintas es como acaban diciendo cosas distintas.
+    # `supuesto`/`motivo` describen DE DÓNDE sale el crecimiento, no son
+    # parámetros del DCF. Viajan al lado, en `procedencia`, para que la pantalla
+    # pueda distinguir «crece al 3 % según sus cuentas» de «no sabemos cuánto
+    # crece y hemos puesto un 3 %» — que es la diferencia que importa.
+    META = ("supuesto", "motivo")
     escenarios = {
         nombre: {
-            "supuestos": s,
+            "supuestos": {k: v for k, v in s.items() if k not in META},
+            "procedencia": {
+                "crecimiento_supuesto": bool(s.get("supuesto")),
+                "motivo": s.get("motivo"),
+            },
             "rango": rango_de_valor(
                 base_fcf, s["growth_rate"], s["discount_rate"], s["terminal_growth"],
                 request.years, net_debt, acciones,

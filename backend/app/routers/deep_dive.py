@@ -7,6 +7,9 @@ puedas leer el informe entero sin gastar nada en Claude.
 
 from __future__ import annotations
 
+from app import datos
+from app.routers.valuation import CRECIMIENTO_SUPUESTO
+
 import re
 from datetime import datetime, timedelta, timezone
 
@@ -197,10 +200,24 @@ def _dcf_defaults(periods: list[dict], quote: dict | None) -> dict | None:
         return None
 
     growth = growth_summary(periods)
-    base_growth = growth.get("fcf_cagr") or growth.get("revenue_cagr") or 0.04
-    base_growth = max(0.0, min(base_growth, 0.15))
+    # Misma pareja de fallos que en `routers/valuation.py`: el `or` encadenado
+    # convertía la ausencia en un supuesto no declarado, y un crecimiento real
+    # de 0.0 en ese mismo supuesto por ser *falsy*.
+    medido = datos.numero(growth.get("fcf_cagr"))
+    if medido is None:
+        medido = datos.numero(growth.get("revenue_cagr"))
+    crecimiento_supuesto = medido is None
+    base_growth = min(CRECIMIENTO_SUPUESTO if crecimiento_supuesto else medido, 0.15)
+
+    # Y la deuda: sin ella no hay valor por acción. `scenario_set` propaga el
+    # `indeterminado` de `dcf`, así que se le pasa None y la respuesta dice que
+    # falta, en vez de valorar la empresa como si no debiera nada.
     debt = total_debt(latest)
-    net_debt = (debt - (latest.get("cash") or 0.0)) if debt is not None else 0.0
+    net_debt = (
+        debt - (datos.numero(latest.get("cash")) or 0.0)
+        if datos.numero(debt) is not None
+        else None
+    )
 
     scenarios = scenario_set(
         {

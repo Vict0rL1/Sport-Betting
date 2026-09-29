@@ -8,6 +8,8 @@ el resultado al tocar cada supuesto. La falsa precisión es el enemigo.
 
 from __future__ import annotations
 
+from app import datos
+
 
 def dcf(
     base_fcf: float,
@@ -46,12 +48,56 @@ def dcf(
     pv_terminal = terminal_value / (1 + discount_rate) ** years
 
     enterprise_value = pv_sum + pv_terminal
-    equity_value = enterprise_value - net_debt
+
+    # La deuda neta NO puede darse por cero cuando no se conoce.
+    #
+    # `equity = enterprise_value − net_debt`, así que suponer cero es suponer
+    # una empresa sin deuda: el supuesto más optimista posible, aplicado justo
+    # cuando menos se sabe. Con 8.000 M de deuda neta sobre este mismo flujo,
+    # la diferencia son 83,95 $/acción frente a 163,95 $: un 95 % de valoración
+    # regalado por un dato que falta.
+    #
+    # Ojo con el cero: una empresa SIN deuda existe, y `net_debt=0.0` es un dato
+    # legítimo. Lo que no vale es que el desconocimiento se disfrace de cero.
+    deuda = datos.numero(net_debt)
+    acciones = datos.numero(shares_outstanding)
+    faltan = []
+    if deuda is None:
+        faltan.append("deuda neta")
+    if acciones is None or acciones <= 0:
+        faltan.append("acciones en circulación")
+
+    equity_value = enterprise_value - deuda if deuda is not None else None
     per_share = (
-        equity_value / shares_outstanding
-        if shares_outstanding and shares_outstanding > 0
+        equity_value / acciones
+        if equity_value is not None and acciones and acciones > 0
         else None
     )
+    if faltan:
+        return {
+            **datos.indeterminado(faltan, "esta empresa"),
+            "assumptions": {
+                "base_fcf": base_fcf,
+                "growth_rate": growth_rate,
+                "discount_rate": discount_rate,
+                "terminal_growth": terminal_growth,
+                "years": years,
+                "net_debt": deuda,
+                "shares_outstanding": acciones,
+            },
+            "projections": projections,
+            "terminal_value": terminal_value,
+            "pv_terminal": pv_terminal,
+            "pv_explicit": pv_sum,
+            "terminal_weight": pv_terminal / enterprise_value if enterprise_value else None,
+            # El valor de empresa SÍ se puede calcular sin saber la deuda: no
+            # depende de ella. Se entrega, porque es información real; lo que no
+            # se entrega es el salto de ahí al valor por acción.
+            "enterprise_value": enterprise_value,
+            "equity_value": equity_value,
+            "value_per_share": None,
+        }
+
     return {
         "assumptions": {
             "base_fcf": base_fcf,
