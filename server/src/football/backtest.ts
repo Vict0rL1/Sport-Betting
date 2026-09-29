@@ -47,6 +47,8 @@
 //   --momentum <elo>      Elo worth of recent form (0 = off)
 //   --rest <elo>          Elo lost at full fixture congestion (0 = off)
 
+import { informeComun } from '../evaluation/report.ts';
+import type { Prediccion } from '../evaluation/metrics.ts';
 import { footballConfig } from '../config.ts';
 import {
   impliedFrom1X2,
@@ -149,6 +151,8 @@ function main() {
   let viaElo = 0;
   let skippedHoldout = 0;
   const drawBands = new Map<string, { n: number; pred: number; obs: number }>();
+  /** Cada predicción, para la capa común de métricas (evaluation/). */
+  const comun: Prediccion[] = [];
 
   for (const league of leagues) {
     const matches = loadMatches(league, fromSeason);
@@ -217,6 +221,20 @@ function main() {
         const dist = scoreDistribution(lam.home, lam.away, useRho);
         const probs = outcomeProbabilities(dist);
         const actual = match.result as 'H' | 'D' | 'A';
+        {
+          // La capa común (evaluation/): [local, empate, visitante], renormalizado por si
+          // la rejilla truncada suma 0,9999; el mercado, sin margen, si hay cuotas.
+          const t = probs.home + probs.draw + probs.away;
+          const imp =
+            match.odds_home && match.odds_draw && match.odds_away
+              ? impliedFrom1X2(match.odds_home, match.odds_draw, match.odds_away)
+              : null;
+          comun.push({
+            p: [probs.home / t, probs.draw / t, probs.away / t],
+            y: actual === 'H' ? 0 : actual === 'D' ? 1 : 2,
+            mercado: imp ? [imp.home, imp.draw, imp.away] : null,
+          });
+        }
 
         scored++;
         rps += rankedProbabilityScore(probs, actual);
@@ -309,6 +327,8 @@ function main() {
     `Empates: el modelo elige empate en ${allDrawsPredicted} partidos; ` +
       `hubo ${allDrawsActual} (${((allDrawsActual / allScored) * 100).toFixed(1)}%)`,
   );
+  // Solo se guarda la corrida completa (todas las ligas): una de una sola liga no es la ficha.
+  informeComun('football', comun, console.log, !onlyLeague);
   console.log(
     `\nGoles:\n  over/under 2.5 acertado: ${((allOverCorrect / Math.max(1, allOverScored)) * 100).toFixed(1)}%` +
       `\n  error absoluto medio del total: ${(allGoalErr / Math.max(1, allOverScored)).toFixed(2)} goles`,

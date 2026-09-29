@@ -106,13 +106,15 @@ export interface Informe {
   mercado: { n: number; logLoss: number; brier: number; accuracy: number; modeloLogLoss: number; modeloBrier: number } | null;
   /** Log loss de no saber nada: ln K. Lo mínimo que hay que batir. */
   logLossUniforme: number | null;
+  /** Brier de no saber nada: (K − 1) / 2K. 0,25 con dos resultados, 1/3 con tres. */
+  brierUniforme: number | null;
 }
 
 /** Todas las métricas de un conjunto de predicciones. Vacío → nulos, no ceros. */
 export function evaluate(origen: Informe['origen'], deporte: string, xs: Prediccion[]): Informe {
   for (const x of xs) validar(x);
   if (xs.length === 0) {
-    return { origen, deporte, n: 0, logLoss: null, brier: null, accuracy: null, ece: null, mercado: null, logLossUniforme: null };
+    return { origen, deporte, n: 0, logLoss: null, brier: null, accuracy: null, ece: null, mercado: null, logLossUniforme: null, brierUniforme: null };
   }
   const conMercado = xs.filter((x) => x.mercado && x.mercado.length === x.p.length);
   const comoMercado = conMercado.map((x) => ({ p: x.mercado as number[], y: x.y }));
@@ -135,5 +137,6 @@ export function evaluate(origen: Informe['origen'], deporte: string, xs: Predicc
         }
       : null,
     logLossUniforme: Math.log(xs[0].p.length),
+    brierUniforme: (xs[0].p.length - 1) / (2 * xs[0].p.length),
   };
 }

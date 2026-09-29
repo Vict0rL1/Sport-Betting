@@ -62,6 +62,19 @@ test('contra el mercado sobre los MISMOS partidos', () => {
   cerca(r.mercado!.logLoss, -Math.log(0.7));
   cerca(r.mercado!.modeloLogLoss, -Math.log(0.6));
   cerca(r.logLossUniforme, Math.log(2));
+  cerca(r.brierUniforme, 0.25);
+});
+
+// La referencia tiene que ser lo que saca de verdad quien reparte a partes iguales: con tres
+// resultados eso es 1/3, no el 0,25 de dos (el texto viejo del fútbol decía 0,25).
+test('la referencia de «no saber nada» es la que obtiene el reparto uniforme', () => {
+  for (const k of [2, 3]) {
+    const u = Array(k).fill(1 / k);
+    const r = evaluate('backtest', 'x', Array.from({ length: k }, (_, y) => ({ p: u, y })));
+    cerca(r.brier, r.brierUniforme!);
+    cerca(r.logLoss, r.logLossUniforme!);
+  }
+  assert.notEqual(evaluate('backtest', 'football', [{ p: [1 / 3, 1 / 3, 1 / 3], y: 0 }]).brierUniforme, 0.25);
 });
 
 test('en vivo: solo partidos resueltos, con la probabilidad ENSEÑADA, y origen live', () => {

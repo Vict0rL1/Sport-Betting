@@ -21,6 +21,8 @@
 // bet depends on) and — for the NBA — a head-to-head against FiveThirtyEight's
 // published pre-game forecast on identical games.
 
+import { informeComun } from '../evaluation/report.ts';
+import type { Prediccion } from '../evaluation/metrics.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import { RAW_DIR } from '../config.ts';
@@ -108,6 +110,8 @@ function main() {
   let scored = 0;
   let correct = 0;
   let brier = 0;
+  /** Cada predicción, para la capa común de métricas (evaluation/). */
+  const comun: Prediccion[] = [];
   let logloss = 0;
   let homeWinCount = 0;
   let marginAbsErr = 0;
@@ -139,6 +143,7 @@ function main() {
       if (probHome > 0.5 === homeWon) correct++;
       else if (probHome === 0.5) correct += 0.5;
       brier += (probHome - (homeWon ? 1 : 0)) ** 2;
+      comun.push({ p: [probHome, 1 - probHome], y: homeWon ? 0 : 1 });
       logloss += -Math.log(Math.max(homeWon ? probHome : 1 - probHome, 1e-15));
       if (homeWon) homeWinCount++;
 
@@ -187,6 +192,7 @@ function main() {
   );
   console.log(`Brier score: ${(brier / scored).toFixed(4)}   (0.25 = decir siempre 50/50)`);
   console.log(`Log loss:    ${(logloss / scored).toFixed(4)}   (0.693 = decir siempre 50/50)`);
+  informeComun('basketball', comun, console.log, league === 'nba');
   const bias = marginBias / scored;
   console.log(
     (() => {

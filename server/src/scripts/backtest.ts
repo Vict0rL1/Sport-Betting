@@ -16,6 +16,8 @@
 //
 // Baselines are printed alongside so the numbers mean something.
 
+import { informeComun } from '../evaluation/report.ts';
+import type { Prediccion } from '../evaluation/metrics.ts';
 import { getDb } from '../db.ts';
 import { toursConfig } from '../config.ts';
 import {
@@ -194,6 +196,8 @@ function main() {
     // deriva reciente: en la NBA, las décadas viejas bien predichas escondieron durante
     // años que el modelo inflaba al local siete puntos en las temporadas actuales.
     const porAnio = new Map<string, { n: number; pred: number; won: number; ll: number }>();
+    /** Cada predicción, para la capa común de métricas (evaluation/). */
+    const comun: Prediccion[] = [];
     // Does the reliability tier shown in the UI mean anything? Score each tier
     // separately: if the label is informative, "low" must be measurably worse.
     const tiers = new Map<string, { n: number; correct: number; brier: number; margin: number }>();
@@ -267,6 +271,12 @@ function main() {
         // Calibration on the favourite's probability.
         const pFav = Math.max(pWinnerWins, 1 - pWinnerWins);
         const favWon = pWinnerWins >= 0.5 ? 1 : 0;
+        {
+          // Orden [ganador, perdedor]: el resultado ocurrido es siempre el 0. El mercado,
+          // sin margen por proporción, cuando la fuente trae cuotas.
+          const iw = m.w_odds && m.l_odds ? 1 / m.w_odds / (1 / m.w_odds + 1 / m.l_odds) : null;
+          comun.push({ p: [pWinnerWins, 1 - pWinnerWins], y: 0, mercado: iw == null ? null : [iw, 1 - iw] });
+        }
         {
           const y = String(m.tourney_date).slice(0, 4);
           const a = porAnio.get(y) ?? { n: 0, pred: 0, won: 0, ll: 0 };
@@ -411,6 +421,8 @@ function main() {
     }
     console.log(`Brier score: ${(brier / scored).toFixed(4)}   (0 = perfecto, 0.25 = 50/50 siempre)`);
     console.log(`Log loss:    ${(logloss / scored).toFixed(4)}   (0.693 = 50/50 siempre)`);
+    // Solo la ATP se guarda: es la que sale en la ficha (la WTA no tiene histórico aquí).
+    informeComun('tennis', comun, console.log, tour.id === 'atp');
     // ===========================================================================
     // EL TECHO: HASTA DÓNDE PUEDE LLEGAR CUALQUIER MODELO CON ESTOS PARTIDOS
     // ===========================================================================

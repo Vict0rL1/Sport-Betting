@@ -29,6 +29,7 @@
 
 import { validacionEnVivo, MIN_N } from '../evaluation/validation.ts';
 import { evaluacionEnVivo } from '../evaluation/live.ts';
+import { leerMetricasBacktest, problemasMetricasBacktest } from '../evaluation/report.ts';
 import nodeFs from 'node:fs';
 import nodePath from 'node:path';
 import { getDb } from '../db.ts';
@@ -1472,6 +1473,11 @@ function auditLiveEvaluation(): void {
     check(`evaluación en vivo ${r.deporte}: marcada como live`, r.origen === 'live');
     if (r.n > 0) console.log(`  ${r.deporte}: ${r.n} partidos · log loss ${r.logLoss?.toFixed(4)} · Brier ${r.brier?.toFixed(4)}`);
   }
+  // La ficha de los backtests, aparte: solo backtest, entera y con la referencia correcta.
+  const ficha = leerMetricasBacktest();
+  const problemas = problemasMetricasBacktest(ficha);
+  check('ficha de backtests (capa común): coherente y solo de backtest', problemas.length === 0, problemas.join(' · '));
+  console.log(`  ficha de backtests: ${Object.keys(ficha).length} deportes`);
 }
 
 function auditPaperBankroll(): void {

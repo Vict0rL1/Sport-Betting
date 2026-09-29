@@ -1034,7 +1034,7 @@ para cualquier origen:
 | Métrica | Qué mide | Referencia |
 | --- | --- | --- |
 | **Log loss** (principal) | −media de ln p(lo que pasó): castiga decir 95 % a lo que no pasa | ln 2 = 0,693 decir siempre 50/50; ln 3 = 1,099 en fútbol |
-| **Brier** | media de Σ (p − y)² / 2: para dos resultados es exactamente el Brier clásico | 0,25 decir siempre 50/50 |
+| **Brier** | media de Σ (p − y)² / 2: para dos resultados es exactamente el Brier clásico | 0,25 decir siempre 50/50; 1/3 = 0,333 en fútbol (tres resultados) |
 | **Calibración (ECE)** | cuánto se desvía «cuando digo X %, pasa X %» | 0 perfecto |
 | Acierto (secundario) | cuántas veces ganó el favorito | no distingue un 51 % de un 90 % |
 
@@ -1042,6 +1042,27 @@ Ningún número va solo: se compara con el **mercado sobre los mismos partidos**
 nada. `GET /api/evaluation` da la evaluación **en vivo**, que solo lee predicciones registradas
 antes de cada partido real (cada informe lleva `origen: 'live'`); ningún backtest entra ahí. La
 pestaña Apuestas lo enseña en «El modelo en vivo».
+
+Los cinco backtests usan la **misma** capa: además de sus métricas propias (RPS, margen,
+over/under…), cada uno termina con el bloque «Capa común de métricas» y lo guarda en
+`experiments/backtest_metrics.json` (`origen: 'backtest'`, con la versión del modelo y de los
+datos que lo produjeron; solo la corrida completa de referencia, no una liga suelta). Así un
+0,613 del tenis y un 0,592 de la NBA se calculan igual y se pueden poner al lado de lo que pasa
+en vivo, **sin mezclarse**: `verify:data` falla si ese fichero tiene una fila que no sea de
+backtest, métricas rotas o la referencia equivocada. Cifras actuales:
+
+| Deporte | Partidos | Log loss (no saber nada) | Brier (no saber nada) | ECE | Acierto |
+| --- | ---: | --- | --- | ---: | ---: |
+| Tenis (ATP) | 22.062 | 0,6133 (0,6931) | 0,2132 (0,2500) | 0,64 pp | 65,3 % |
+| Fútbol | 20.824 | 1,0143 (1,0986) | 0,3037 (0,3333) | 0,78 pp | 49,4 % |
+| Baloncesto (NBA) | 85.562 | 0,5919 (0,6931) | 0,2033 (0,2500) | 0,12 pp | 68,3 % |
+| Béisbol (MLB) | 14.428 | 0,6756 (0,6931) | 0,2414 (0,2500) | 0,58 pp | 57,3 % |
+| NFL | 4.380 | 0,6277 (0,6931) | 0,2191 (0,2500) | 0,98 pp | 64,7 % |
+
+En la NFL, contra el cierre real sobre los mismos 4.379 partidos: modelo 0,6277, mercado 0,6100.
+El mercado es mejor, y así se dice. (La capa común deja fuera los empates, cuyo moneyline se
+devuelve; las cifras propias del backtest de la NFL los cuentan como medio acierto, de ahí que
+difieran en la cuarta cifra.)
 
 ## Del edge a la validación: señales, cierre real y «¿es real?»
 

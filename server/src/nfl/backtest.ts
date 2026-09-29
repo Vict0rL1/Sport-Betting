@@ -32,6 +32,8 @@
 //   --k 25               Elo K
 //   --per-point 25       Elo points per point of margin
 
+import { informeComun } from '../evaluation/report.ts';
+import type { Prediccion } from '../evaluation/metrics.ts';
 import { getDb } from '../db.ts';
 import { nflConfig } from '../config.ts';
 import { listGamesWithMarket } from './repo.ts';
@@ -115,6 +117,8 @@ function main(): void {
   let n = 0;
   let logLoss = 0;
   let brier = 0;
+  /** Cada predicción, para la capa común de métricas (evaluation/). */
+  const comun: Prediccion[] = [];
   let hits = 0;
   const marginResid: number[] = [];
   const totalResid: number[] = [];
@@ -210,6 +214,13 @@ function main(): void {
 
       // --- against the closing line ----------------------------------------
       const row = marketByKey.get(`${game.season}|${game.week}|${game.home_id}|${game.away_id}`);
+      // La capa común (evaluation/): dos vías sin empates, y el moneyline de cierre sin margen.
+      if (margin !== 0) {
+        const dh = row?.close_ml_home != null ? americanToDecimal(row.close_ml_home) : null;
+        const da = row?.close_ml_away != null ? americanToDecimal(row.close_ml_away) : null;
+        const mh = dh && da ? 1 / dh / (1 / dh + 1 / da) : null;
+        comun.push({ p: [pHome, 1 - pHome], y: margin > 0 ? 0 : 1, mercado: mh == null ? null : [mh, 1 - mh] });
+      }
       if (!row) return;
 
       if (row.close_spread != null) {
@@ -278,6 +289,9 @@ function main(): void {
   console.log(`  Acierto      ${pct(hits / n)}`);
   console.log(`  Log loss     ${(logLoss / n).toFixed(4)}   (0.6931 = moneda al aire)`);
   console.log(`  Brier        ${(brier / n).toFixed(4)}`);
+  // La capa común excluye los empates (el moneyline se devuelve), como la evaluación en
+  // vivo; las cifras de arriba los cuentan como medio acierto. De ahí la diferencia mínima.
+  informeComun('nfl', comun);
 
   console.log('\nMargen y total:');
   console.log(`  Error del margen: sd ${sd(marginResid).toFixed(2)}  ·  medio ${mean(marginResid).toFixed(2)} (0 = sin sesgo)`);

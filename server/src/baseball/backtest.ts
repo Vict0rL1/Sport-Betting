@@ -27,6 +27,8 @@
 //   --rundiff <w>       run-difference weighting on K (0 = win/loss only)
 //   --extra <p>         home win rate in extra innings
 
+import { informeComun } from '../evaluation/report.ts';
+import type { Prediccion } from '../evaluation/metrics.ts';
 import { baseballConfig } from '../config.ts';
 import {
   impliedFromMoneyline,
@@ -287,7 +289,8 @@ function main() {
 
   const bands = new Map<string, { n: number; pred: number; obs: number }>();
   const favs: { p: number; hit: boolean }[] = [];
-  const r = runBacktest({ ...cfg, bands, favs });
+  const preds: { season: number; p: number; y: number }[] = [];
+  const r = runBacktest({ ...cfg, bands, favs, preds });
 
   if (r.n === 0) {
     console.log('\nSin partidos evaluables. Corre `npm run update-data:bsb` primero.');
@@ -301,6 +304,12 @@ function main() {
   console.log(`  Log loss: ${r.logLoss.toFixed(4)}   (0.6931 = decir siempre 50%)`);
   console.log(
     `  Acierto: ${(r.accuracy * 100).toFixed(1)}%   (elegir siempre al local ≈ 54%)`,
+  );
+  informeComun(
+    'baseball',
+    preds.map((x): Prediccion => ({ p: [x.p, 1 - x.p], y: x.y === 1 ? 0 : 1 })),
+    console.log,
+    !cfg.league || cfg.league === 'mlb',
   );
   console.log(`\nCarreras:`);
   console.log(`  Error absoluto medio del total: ${r.runMae.toFixed(2)} carreras`);
