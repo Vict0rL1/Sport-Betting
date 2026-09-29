@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import math
 
+from app import datos
+
 # --- Parámetros del sistema. Están aquí, juntos y con nombre, para que se
 # puedan discutir y ajustar sin bucear por el código. ---
 
@@ -78,6 +80,10 @@ ACCIONES = {
 def _stop_pct(vol_diaria_pct: float | None, clase: str = "accion") -> float:
     """Distancia del stop, dimensionada por la volatilidad y la clase de activo."""
     minimo, maximo = TOPES_STOP.get(clase, TOPES_STOP["accion"])
+    # Saneado: una volatilidad NaN se colaba hasta aquí y salía por `min(max(...))`
+    # intacta —las comparaciones con NaN son todas False, así que `min` y `max`
+    # devuelven el NaN— produciendo un stop NaN con toda la pinta de un número.
+    vol_diaria_pct = datos.porcentaje(vol_diaria_pct)
     if not vol_diaria_pct:
         # Sin volatilidad medible, el punto medio del rango de su clase: es
         # explícito y no finge una precisión que no hay.
@@ -123,20 +129,30 @@ def decide(
 
     `position`: {"cost_basis": float, "quantity": float} si ya se tiene, o None.
     """
-    score = signal.get("score")
-    if price is None or not price.get("last") or score is None:
+    # Saneado ANTES de cualquier comparación. La guarda anterior era
+    # `not price.get("last")`, que no para ni un NaN (es *truthy*) ni un precio
+    # negativo. Lo que entraba corrupto salía por el otro lado convertido en
+    # «comprar», con un stop NaN y —esto era lo grave— un `peso_bruto_pct`
+    # numérico que el dimensionador aceptaba como bueno: una cotización rota
+    # producía una orden de compra dimensionada. Toda comparación con NaN
+    # devuelve False, así que los `elif` encadenados caen en la rama final sin
+    # que nada lo señale.
+    ultimo = datos.precio((price or {}).get("last"))
+    score = datos.numero(signal.get("score"))
+    faltan = datos.faltantes({"precio": ultimo, "puntuación": score})
+    if faltan:
         return {
             "action": "sin_datos",
             "label": ACCIONES["sin_datos"],
-            "reasons": ["Sin precio o sin puntuación: no hay base para decidir."],
+            "reasons": [datos.indeterminado(faltan, "sobre esta empresa")["motivo"]],
+            "faltan": faltan,
             "levels": None,
             "triggers": [],
             "confidence": "ninguna",
             "owned": position is not None,
         }
 
-    ultimo = price["last"]
-    sma200 = price.get("sma200")
+    sma200 = datos.numero(price.get("sma200"))
     # `above_sma200` es un booleano crudo que cambia con cualquier roce de la
     # línea. Aquí se aplica la banda muerta: hay tres estados, no dos.
     # Tres estados: True (claramente encima), False (claramente debajo) y None
@@ -144,14 +160,24 @@ def decide(
     # crudo aquí anularía la banda entera. Aguas abajo, None no basta para
     # entrar (se va a "vigilar") ni basta para salir (se queda en "mantener"),
     # que es exactamente la asimetría que corta el vaivén.
-    sobre_media = _tendencia(ultimo, sma200, price.get("above_sma200"))
+    sobre_media = _tendencia(
+        ultimo,
+        sma200,
+        price.get("above_sma200"),
+        corrupta=price.get("sma200") is not None and sma200 is None,
+    )
     niveles = _niveles(ultimo, price.get("daily_vol_pct"), clase)
     razones: list[str] = []
     disparadores: list[str] = []
 
     # --- Ya se tiene la empresa: la pregunta es si sostenerla o soltarla ---
     if position:
-        coste = position.get("cost_basis")
+        # Un coste corrupto daba un stop de posición NaN, y con él un
+        # disparador «vender si cierra por debajo de nan». Sin coste utilizable
+        # se sigue pudiendo decidir —la puntuación y la tendencia no dependen de
+        # él— pero los niveles anclados a tu compra quedan en None, que es la
+        # respuesta honesta: no se sabe a qué precio entraste.
+        coste = datos.precio(position.get("cost_basis"))
         pnl_pct = round((ultimo / coste - 1) * 100, 2) if coste else None
         stop_posicion = (
             round(coste * (1 - niveles["stop_pct"] / 100), 2) if coste else None
@@ -355,7 +381,9 @@ def _confianza(signal: dict, reglas: dict | None = None) -> str:
     return "sin_calibrar"
 
 
-def _tendencia(ultimo: float, sma200: float | None, crudo: bool | None) -> bool | None:
+def _tendencia(
+    ultimo: float, sma200: float | None, crudo: bool | None, corrupta: bool = False
+) -> bool | None:
     """¿Acompaña la tendencia? Con banda muerta alrededor de la media.
 
     Devuelve True (claramente encima), False (claramente debajo) o None (dentro
@@ -363,8 +391,13 @@ def _tendencia(ultimo: float, sma200: float | None, crudo: bool | None) -> bool 
     — sin él, «no está claro» se convierte por defecto en «está debajo», y esa
     conversión silenciosa es la que produce el vaivén.
     """
-    if not sma200:
-        return crudo
+    if sma200 is None:
+        # Sin media no hay banda, así que se acepta el booleano que trae el
+        # proveedor... salvo que la media viniera y fuera ilegible. Ese caso
+        # NO es «no hay media»: es «la media está corrupta», y el booleano se
+        # calculó a partir de esa misma media, así que tampoco vale. Aceptarlo
+        # sería creerle a la conclusión después de rechazar la premisa.
+        return crudo if not corrupta else None
     if ultimo >= sma200 * (1 + BANDA_TENDENCIA_ENTRAR_PCT / 100):
         return True
     if ultimo <= sma200 * (1 - BANDA_TENDENCIA_SALIR_PCT / 100):
