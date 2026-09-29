@@ -1380,6 +1380,46 @@ function auditHomeBias(): void {
   }
 }
 
+/**
+ * El histórico de mercado: append-only de verdad, y solo con precios reales.
+ *
+ * Los triggers son la garantía; esta comprobación es la que avisa si alguien los quita
+ * (una migración que recrea la tabla sin ellos dejaría el histórico editable en silencio).
+ */
+function auditOddsSnapshots(): void {
+  console.log('\n▸ Histórico de cuotas (snapshots)');
+  const db = getDb();
+  const triggers = new Set(
+    (db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as { name: string }[]).map((r) => r.name),
+  );
+  for (const t of ['odds_snapshots_no_update', 'odds_snapshots_no_delete', 'odds_observations_no_update', 'odds_observations_no_delete']) {
+    check(`snapshots: el trigger ${t} existe`, triggers.has(t), 'sin él, el histórico de cuotas se puede editar');
+  }
+  const r = db
+    .prepare(
+      `SELECT COUNT(*) AS n,
+              SUM(CASE WHEN source <> 'the-odds-api' THEN 1 ELSE 0 END) AS ajenos,
+              SUM(CASE WHEN withdrawn = 0 AND (odds_decimal IS NULL OR odds_decimal <= 1) THEN 1 ELSE 0 END) AS malos,
+              COUNT(DISTINCT event_id) AS eventos
+       FROM odds_snapshots`,
+    )
+    .get() as { n: number; ajenos: number | null; malos: number | null; eventos: number };
+  check('snapshots: solo cuotas del proveedor real (nunca demostración)', (r.ajenos ?? 0) === 0, `${r.ajenos} filas de otro origen`);
+  check('snapshots: toda cuota vigente es > 1', (r.malos ?? 0) === 0, `${r.malos} filas con cuota imposible`);
+  // Un snapshot sin observación de su evento en el mismo instante es un registro huérfano:
+  // escribir el snapshot y la observación van en la misma transacción.
+  const huerfanos = (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS n FROM odds_snapshots s
+         WHERE NOT EXISTS (SELECT 1 FROM odds_event_observations o WHERE o.event_id = s.event_id AND o.observed_at = s.observed_at)`,
+      )
+      .get() as { n: number }
+  ).n;
+  check('snapshots: cada snapshot tiene la observación de su evento', huerfanos === 0, `${huerfanos} huérfanos`);
+  console.log(`  ${r.n} snapshots de ${r.eventos} eventos`);
+}
+
 function auditPaperBankroll(): void {
   console.log('\n▸ El banco de papel del modelo');
   const db = getDb();
@@ -3809,6 +3849,7 @@ function main(): void {
   auditPaperBankroll();
   auditCalibrationFile();
   auditHomeBias();
+  auditOddsSnapshots();
   auditDixonColes();
   auditPostprocess();
   auditThinMarkets();

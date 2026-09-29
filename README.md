@@ -935,6 +935,39 @@ cuántas casas, y el doctor lo enseña. `soccer_epl=0 eventos` y `soccer_epl: HT
 sin_creditos` ya no se leen igual. Todo está fijado por tests (`npm test`); los de la ingesta
 de fútbol se comprobaron contra el código anterior, y fallan con él.
 
+## El histórico del mercado: snapshots de cuotas
+
+Cada respuesta real de The Odds API queda guardada **casa por casa**, en los cinco deportes, y
+nunca se sobrescribe. Así se puede reconstruir cómo se movió un mercado:
+
+```
+Sinner vs Alcaraz (h2h, mediana de las casas)
+  10:00  Sinner 1.82
+  13:00  Sinner 1.76
+  16:00  Sinner 1.69
+  cierre Sinner 1.67   (última observación, 10 min antes de empezar)
+```
+
+`GET /api/odds/history/:eventId?market=h2h` devuelve la evolución de cada selección, la
+apertura, la última cuota y el cierre.
+
+| Tabla | Qué guarda | ¿Se puede editar? |
+| --- | --- | --- |
+| `odds_snapshots` | evento, deporte, competición, mercado, selección, casa, cuota, línea, cuándo se vio, cuándo la publicó la casa, origen, si el evento ya había empezado | **No**: triggers de SQLite rechazan UPDATE y DELETE |
+| `odds_event_observations` | cada vez que un evento apareció en una descarga | **No** |
+| `odds_quote_state` | la última cuota de cada casa: caché para decidir si hay cambio | sí, y se puede reconstruir de las otras dos |
+
+**Decisión: solo se guardan CAMBIOS.** Una cuota que no se movió no genera otra fila: el estado
+del mercado en cualquier instante es «el último snapshot anterior», y la prueba de que seguía
+vigente la da `odds_event_observations`. Por eso la cuota de cierre sabe decir *cuándo* se
+observó por última vez aunque no cambiara. Si una casa **deja** de ofrecer una selección, se
+anota una fila de «retirada»; sin ella, esa cuota vieja seguiría viva para siempre en la
+reconstrucción. Un cambio de **línea** con la misma cuota también es un cambio.
+
+Las cuotas de demostración nunca entran: no pasan por el cliente del proveedor.
+`fb_odds_history` sigue existiendo porque la usa el módulo de noticias (solo la mediana del
+fútbol); el histórico general es este.
+
 ## Por qué ESTE deporte sale en demostración (`npm run doctor`)
 
 Cada deporte guardaba `*_odds_source = 'fixture'`, que dice **que** está en demostración.

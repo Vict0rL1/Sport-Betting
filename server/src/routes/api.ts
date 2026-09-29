@@ -41,6 +41,7 @@ import type { Surface as PointsSurface } from '../points/fit.ts';
 import { readCalibration } from '../staking/calibration.ts';
 import { getTrackRecord, logPrediction } from '../trackRecord.ts';
 import type { TourId, UpcomingRow } from '../types.ts';
+import { closingLine, history, latestLine, openingLine, selectionsOf } from '../odds/snapshots.ts';
 
 /** Attach a full prediction to an upcoming-match row (null if players unknown). */
 function predictRow(row: UpcomingRow): Prediction | null {
@@ -385,6 +386,33 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.get('/today', async () => partidosDeHoy());
 
   // --- y el cierre del círculo: qué dijo el modelo y qué pasó ---
+  // --- la evolución del mercado de un evento (snapshots de la fase 2) ---
+  // El id es el del proveedor. La NFL lo guarda con prefijo `odds-` en su tabla, así que
+  // se acepta también así.
+  app.get<{ Params: { id: string }; Querystring: { market?: string } }>('/odds/history/:id', async (req) => {
+    const id = req.params.id.replace(/^odds-/, '');
+    const market = req.query.market ?? 'h2h';
+    const obs = getDb()
+      .prepare('SELECT commence_time AS c, MIN(observed_at) AS primera, MAX(observed_at) AS ultima, COUNT(*) AS n FROM odds_event_observations WHERE event_id = ?')
+      .get(id) as { c: string | null; primera: string | null; ultima: string | null; n: number };
+    const selecciones = selectionsOf(id, market).map((sel) => ({
+      seleccion: sel,
+      evolucion: history(id, market, sel),
+      apertura: openingLine(id, market, sel),
+      ultima: latestLine(id, market, sel),
+      cierre: obs.c && Date.parse(obs.c) <= Date.now() ? closingLine(id, market, sel, obs.c) : null,
+    }));
+    return {
+      eventId: id,
+      market,
+      inicio: obs.c,
+      observaciones: obs.n,
+      primeraObservacion: obs.primera,
+      ultimaObservacion: obs.ultima,
+      selecciones,
+    };
+  });
+
   app.get('/recent-results', async () => {
     const r = resultadosRecientes();
     const aciertos = r.filter((x) => x.acerto).length;

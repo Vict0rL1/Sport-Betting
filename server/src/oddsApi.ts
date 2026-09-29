@@ -23,6 +23,7 @@
 
 import { env } from './config.ts';
 import { assertCanSpend, creditCost, recordQuota, setOddsError } from './oddsQuota.ts';
+import { recordOddsResponse } from './odds/snapshots.ts';
 
 export const ODDS_API_BASE = 'https://api.the-odds-api.com/v4';
 
@@ -155,17 +156,6 @@ export interface OddsResponse {
   malformed: number;
 }
 
-/** Quien quiera enterarse de cada respuesta buena (los snapshots de la fase 2). */
-type Listener = (sportKey: string, markets: string, r: OddsResponse) => void;
-const listeners: Listener[] = [];
-export function onOddsResponse(l: Listener): () => void {
-  listeners.push(l);
-  return () => {
-    const i = listeners.indexOf(l);
-    if (i >= 0) listeners.splice(i, 1);
-  };
-}
-
 /**
  * Pide las cuotas de UNA competición.
  *
@@ -225,13 +215,13 @@ export async function requestOdds(
     fetchedAt: new Date().toISOString(),
     malformed: data.length - events.length,
   };
-  for (const l of listeners) {
-    try {
-      l(sportKey, markets, out);
-    } catch (e) {
-      // Guardar un snapshot nunca puede tumbar la descarga, pero tampoco se calla.
-      process.stderr.write(`  aviso: no se pudo registrar la respuesta de ${sportKey}: ${(e as Error).message}\n`);
-    }
+  // Cada respuesta real queda en el histórico de mercado (odds/snapshots.ts), sea cual
+  // sea el deporte y quien la pidiera — también el sondeo del doctor. Guardarla nunca
+  // puede tumbar la descarga, pero tampoco se calla.
+  try {
+    recordOddsResponse(sportKey, markets, out);
+  } catch (e) {
+    process.stderr.write(`  aviso: no se pudo guardar el snapshot de ${sportKey}: ${(e as Error).message}\n`);
   }
   return out;
 }

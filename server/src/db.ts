@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
 import { DATA_DIR, DB_PATH } from './config.ts';
+import { ODDS_SNAPSHOT_SCHEMA } from './odds/schema.ts';
 
 let db: DatabaseSync | null = null;
 
@@ -22,6 +23,8 @@ export function getDb(): DatabaseSync {
   db.exec('PRAGMA foreign_keys = ON;');
   createSchema(db);
   migrateSchema(db);
+  // Snapshots de mercado (fase 2): tablas append-only con sus triggers.
+  db.exec(ODDS_SNAPSHOT_SCHEMA);
   return db;
 }
 
