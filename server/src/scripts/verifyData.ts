@@ -27,6 +27,7 @@
 //
 // Exit code is non-zero on failure, so it can gate a data refresh.
 
+import { validacionEnVivo, MIN_N } from '../evaluation/validation.ts';
 import { evaluacionEnVivo } from '../evaluation/live.ts';
 import nodeFs from 'node:fs';
 import nodePath from 'node:path';
@@ -1450,6 +1451,22 @@ function auditVersions(): void {
 /** La evaluación en vivo se puede calcular en los cinco deportes (ninguna fila rota). */
 function auditLiveEvaluation(): void {
   console.log('\n▸ Evaluación en vivo (capa común de métricas)');
+  // La validación: cada veredicto tiene que salir de su propio intervalo. Un «a favor»
+  // con un intervalo que cruza el cero sería exactamente el falso positivo que existe
+  // para evitar.
+  try {
+    const v = validacionEnVivo();
+    const pruebas = [...Object.values(v.modeloVsMercado), v.clvSenales, v.clvApostadas, v.clvRechazadas, v.retornoBanco];
+    const incoherentes = pruebas.filter(
+      (p) => p.veredicto === 'a favor' || p.veredicto === 'en contra' ? p.lo == null || p.hi == null || (p.lo <= 0 && p.hi >= 0) : false,
+    );
+    check('validación en vivo: calculable', true);
+    check('validación en vivo: ningún veredicto contradice su intervalo', incoherentes.length === 0, incoherentes.map((p) => p.pregunta).join(' · '));
+    const insuf = pruebas.filter((p) => p.n < MIN_N && p.veredicto !== 'muestra insuficiente');
+    check(`validación en vivo: con menos de ${MIN_N} datos no se afirma nada`, insuf.length === 0, insuf.map((p) => p.pregunta).join(' · '));
+  } catch (e) {
+    check('validación en vivo: calculable', false, (e as Error).message);
+  }
   for (const r of evaluacionEnVivo()) {
     check(`evaluación en vivo ${r.deporte}: calculable`, !r.error, r.error ?? '');
     check(`evaluación en vivo ${r.deporte}: marcada como live`, r.origen === 'live');

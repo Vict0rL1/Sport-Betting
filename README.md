@@ -1043,6 +1043,27 @@ nada. `GET /api/evaluation` da la evaluación **en vivo**, que solo lee predicci
 antes de cada partido real (cada informe lleva `origen: 'live'`); ningún backtest entra ahí. La
 pestaña Apuestas lo enseña en «El modelo en vivo».
 
+## Del edge a la validación: señales, cierre real y «¿es real?»
+
+La cadena completa es **predicción → mercado → edge → paper trading → evaluación en vivo →
+validación estadística**, y cada eslabón deja rastro inmutable:
+
+- **Señales de edge** (`edge_signals`): cada partido con precio real que la política evalúa,
+  apostado o no, con la selección, las probabilidades, la cuota, la ventaja, la decisión y su
+  motivo, las versiones, y después el cierre y el CLV. Las apuestas solas son una muestra
+  sesgada (solo lo que pasó los topes); las señales dicen si el edge detectado es real, con
+  muchas más muestras. Append-only; una evaluación idéntica a la anterior no se repite.
+- **Cierre de verdad** (`odds/closingCapture.ts`): cada 10 minutos, las ligas con una apuesta
+  pendiente o una señal abierta que empieza en los próximos 30 minutos y no se ha visto en los
+  últimos 15 se piden (1 crédito por liga, respetando el presupuesto). Con el refresco de
+  12 h el «cierre» podía ser de la mañana; ahora es de minutos antes.
+- **¿Es real?** (`evaluation/validation.ts`, en el panel «El modelo en vivo»): tres pruebas
+  por bootstrap —¿el modelo le gana al mercado en log loss, partido a partido?, ¿el edge
+  detectado le gana al cierre (CLV)?, ¿el banco gana?— con intervalo del 95 % y un veredicto:
+  *a favor*, *en contra*, *no concluyente* (y cuántos datos harían falta) o *muestra
+  insuficiente* (menos de 30). `verify:data` comprueba que ningún veredicto contradiga su
+  intervalo.
+
 ## Por qué ESTE deporte sale en demostración (`npm run doctor`)
 
 Cada deporte guardaba `*_odds_source = 'fixture'`, que dice **que** está en demostración.

@@ -20,17 +20,42 @@ interface Informe {
   logLossUniforme: number | null;
 }
 
+interface Prueba {
+  pregunta: string;
+  n: number;
+  veredicto: 'a favor' | 'en contra' | 'no concluyente' | 'muestra insuficiente';
+  lectura: string;
+}
+interface Validacion {
+  modeloVsMercado: Record<string, Prueba>;
+  clvSenales: Prueba;
+  clvApostadas: Prueba;
+  clvRechazadas: Prueba;
+  retornoBanco: Prueba;
+}
+const COLOR_VEREDICTO: Record<Prueba['veredicto'], string> = {
+  'a favor': PROFIT_COLOR,
+  'en contra': LOSS_COLOR,
+  'no concluyente': '#d9a441',
+  'muestra insuficiente': '#7b828d',
+};
+
 const NOMBRE: Record<string, string> = { tennis: '🎾 Tenis', football: '⚽ Fútbol', basketball: '🏀 Baloncesto', baseball: '⚾ Béisbol', nfl: '🏈 NFL' };
 const f3 = (x: number | null | undefined) => (x == null ? '—' : x.toFixed(3).replace('.', ','));
 const pct = (x: number | null | undefined) => (x == null ? '—' : `${(x * 100).toFixed(1).replace('.', ',')} %`);
 
 export default function LiveEvaluation() {
   const [d, setD] = useState<Informe[] | null>(null);
+  const [v, setV] = useState<Validacion | null>(null);
   useEffect(() => {
     let vivo = true;
     fetch('/api/evaluation')
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((j: { deportes: Informe[] }) => vivo && setD(j.deportes))
+      .then((j: { deportes: Informe[]; validacion?: Validacion }) => {
+        if (!vivo) return;
+        setD(j.deportes);
+        setV(j.validacion ?? null);
+      })
       .catch(() => vivo && setD([]));
     return () => {
       vivo = false;
@@ -106,6 +131,30 @@ export default function LiveEvaluation() {
               que pasa, no todavía una medida del modelo.
             </p>
           )}
+        </div>
+      )}
+      {/* ¿ES REAL? Cada cifra con su intervalo. El veredicto no promete más de lo que la
+          muestra sostiene: con pocos datos dice cuántos harían falta. */}
+      {v && (
+        <div className="border-t border-white/[0.07] px-4 py-3">
+          <h4 className="text-[14px] font-semibold text-[#c3c9d1]">¿Es real?</h4>
+          <ul className="mt-2 space-y-1.5 text-[13px] leading-relaxed">
+            {[
+              ...Object.entries(v.modeloVsMercado)
+                .filter(([, p]) => p.n > 0)
+                .map(([dep, p]) => ({ ...p, pregunta: `${NOMBRE[dep] ?? dep}: ¿el modelo le gana al mercado?` })),
+              { ...v.clvSenales, pregunta: '¿El edge que detecta el modelo le gana al cierre? (todas las señales con ventaja)' },
+              { ...v.clvApostadas, pregunta: '¿Las apuestas del banco le ganan al cierre?' },
+              { ...v.clvRechazadas, pregunta: '¿Las señales que se rechazaron le ganaban al cierre?' },
+              { ...v.retornoBanco, pregunta: '¿El banco de papel gana dinero?' },
+            ].map((p) => (
+              <li key={p.pregunta}>
+                <span className="text-[#9aa1ac]">{p.pregunta}</span>{' '}
+                <strong style={{ color: COLOR_VEREDICTO[p.veredicto] }}>{p.veredicto}</strong>
+                <span className="text-[#7b828d]"> · {p.lectura}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </section>
