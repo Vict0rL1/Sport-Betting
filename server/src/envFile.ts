@@ -54,7 +54,7 @@ function pareceClaveSuelta(linea: string): boolean {
   return /^[A-Za-z0-9_-]{16,}$/.test(l);
 }
 
-const ES_CLAVE = /^\s*(export\s+)?ODDS_API_KEY\s*=/;
+const ES_CLAVE = /^\s*(export\s+)?(THE_)?ODDS_API_KEY\s*=/;
 
 /**
  * Revisa el .env y devuelve lo que esté mal. Lista vacía = nada que decir.

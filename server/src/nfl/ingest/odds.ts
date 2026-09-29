@@ -15,9 +15,10 @@
 import { getDb } from '../../db.ts';
 import { pruneUpcoming } from '../../freshness.ts';
 import { env, nflConfig } from '../../config.ts';
-import { activeKeys, creditCost, fetchOdds } from '../../oddsQuota.ts';
+import { activeKeys, creditCost, OddsBudgetSkip } from '../../oddsQuota.ts';
+import { outcomeError, outcomeOk, requestOdds, type KeyOutcome } from '../../oddsApi.ts';
 import { resolveTeam } from '../repo.ts';
-import { recordOddsReason } from '../../oddsReason.ts';
+import { decideReason, recordKeyOutcomes, recordOddsReason } from '../../oddsReason.ts';
 import type { LeagueId } from '../types.ts';
 
 const median = (xs: number[]): number => {
@@ -60,17 +61,14 @@ const MARKETS = 'h2h,spreads,totals';
 
 async function fetchLive(
   sportKey: string,
-  active: Set<string>,
   manual: boolean,
-): Promise<AggregatedEvent[] | null> {
-  const result = await fetchOdds(sportKey, MARKETS, { active, manual });
-  if (result.events === null) {
-    console.warn(`[nfl] ${sportKey}: ${result.skipped}`);
-    return null;
-  }
-  const events = result.events as Record<string, unknown>[];
+): Promise<{ events: AggregatedEvent[]; outcome: KeyOutcome }> {
+  // Petición y errores en oddsApi.ts, iguales para los cinco deportes.
+  const result = await requestOdds(sportKey, { markets: MARKETS, manual });
+  const outcome = outcomeOk(sportKey, result);
+  const events = result.events as unknown as Record<string, unknown>[];
 
-  return events.map((ev) => {
+  const agregados = events.map((ev) => {
     const home = String(ev.home_team ?? '');
     const prices: Record<string, number[]> = {};
     const spreads: number[] = [];
@@ -112,6 +110,7 @@ async function fetchLive(
       books: ((ev.bookmakers as unknown[] | undefined) ?? []).length,
     };
   });
+  return { events: agregados, outcome };
 }
 
 /**
@@ -162,15 +161,24 @@ export async function refreshOdds(manual = false): Promise<number> {
     `[nfl] ${active.size} competición(es) en temporada · ${active.size * creditCost(MARKETS)} créditos`,
   );
 
+  const outcomes: KeyOutcome[] = [];
+  let conPrecio = 0;
   for (const [sportKey, league] of byKey) {
-    let events: AggregatedEvent[] | null = [];
+    // Fuera de temporada no se pregunta: el listado es gratis y la petición no.
+    if (!active.has(sportKey)) continue;
+    let events: AggregatedEvent[] = [];
     try {
-      events = await fetchLive(sportKey, active, manual);
+      const r = await fetchLive(sportKey, manual);
+      events = r.events;
+      outcomes.push(r.outcome);
     } catch (err) {
+      // Con su causa. Antes un error de aquí acababa, al final, en `sin_eventos`.
+      outcomes.push(outcomeError(sportKey, err, err instanceof OddsBudgetSkip));
       console.warn(`[nfl] ${sportKey}: ${(err as Error).message}`);
       continue;
     }
-    if (events === null || events.length === 0) continue;
+    conPrecio += events.filter((e) => e.price[e.home] != null && e.price[e.away] != null).length;
+    if (events.length === 0) continue;
 
     db.exec('BEGIN');
     try {
@@ -227,6 +235,8 @@ export async function refreshOdds(manual = false): Promise<number> {
 
   // Borrar la causa cuando vuelve a funcionar importa tanto como guardarla: una causa
   // que sobrevive a un refresco correcto manda a arreglar algo que ya está bien.
-  recordOddsReason('naf_', stored > 0 ? null : 'sin_eventos');
+  recordKeyOutcomes('naf_', outcomes);
+  const d = decideReason(outcomes, conPrecio);
+  recordOddsReason('naf_', d.reason, d.reason ? `${d.detail} · regiones=${env.oddsRegions}` : '');
   return stored;
 }

@@ -76,3 +76,64 @@ export const REASON_TEXT: Record<NonNullable<OddsReason>, string> = {
   sin_eventos: 'no hay ningún partido con precio publicado',
   presupuesto: 'la app se frenó sola para no gastar el plan del mes de golpe (no llegó a preguntar)',
 };
+
+// ---------------------------------------------------------------------------
+// La evidencia por competición, y la causa que se deduce de ella
+// ---------------------------------------------------------------------------
+import type { KeyOutcome } from './oddsApi.ts';
+
+const KEYS = (p: SportPrefix): string => `${p}odds_keys`;
+
+/** Lo que contestó cada competición en la última descarga. Lo lee `npm run doctor`. */
+export function recordKeyOutcomes(prefix: SportPrefix, outcomes: KeyOutcome[]): void {
+  setMeta(KEYS(prefix), JSON.stringify(outcomes));
+}
+
+export function readKeyOutcomes(prefix: SportPrefix): KeyOutcome[] {
+  try {
+    const raw = getMeta(KEYS(prefix));
+    return raw ? (JSON.parse(raw) as KeyOutcome[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * La causa de que un deporte acabe sin cuotas reales, deducida de la evidencia.
+ *
+ * Una sola regla para los cinco deportes. Antes cada ingesta la decidía a su manera, y
+ * el tenis, por ejemplo, llamaba `sin_ligas` a «todas las peticiones fallaron con 401».
+ *
+ *   hay partidos con precio                → null (no hace falta causa)
+ *   no se preguntó a nada                  → sin_ligas (el llamante pone qué ofrecía el proveedor)
+ *   todo lo preguntado se frenó            → presupuesto
+ *   algo falló y nada salió bien           → fuente_falla, CON el error de cada clave
+ *   algo salió bien pero sin precio        → sin_eventos, con cuántos eventos y casas trajo cada una
+ */
+export function decideReason(
+  outcomes: KeyOutcome[],
+  conPrecio: number,
+): { reason: OddsReason; detail: string } {
+  if (conPrecio > 0) return { reason: null, detail: '' };
+  if (outcomes.length === 0) return { reason: 'sin_ligas', detail: '' };
+  const ok = outcomes.filter((o) => o.ok);
+  const frenadas = outcomes.filter((o) => o.kind === 'presupuesto');
+  const fallos = outcomes.filter((o) => !o.ok && o.kind !== 'presupuesto');
+  const lista = (os: KeyOutcome[]): string =>
+    os
+      .slice(0, 12)
+      .map((o) =>
+        o.ok
+          ? `${o.key}=${o.eventos} eventos (${o.conPrecio} con precio, ${o.casas} casas)`
+          : `${o.key}: ${o.message ?? o.kind}`,
+      )
+      .join(' · ') + (os.length > 12 ? ' …' : '');
+  if (ok.length === 0 && fallos.length === 0) {
+    return { reason: 'presupuesto', detail: frenadas[0]?.message ?? '' };
+  }
+  if (ok.length === 0) return { reason: 'fuente_falla', detail: lista(fallos) };
+  return {
+    reason: 'sin_eventos',
+    detail: lista(ok) + (fallos.length ? ` · además fallaron: ${lista(fallos)}` : ''),
+  };
+}

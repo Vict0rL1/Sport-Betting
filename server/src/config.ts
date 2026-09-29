@@ -30,7 +30,29 @@ export const DB_PATH = path.join(DATA_DIR, 'tennis.db');
 export const CONFIG_DIR = path.join(ROOT, 'config');
 
 // Load .env from the repo root (never commit it — see .env.example).
-dotenv.config({ path: path.join(ROOT, '.env') });
+//
+// OJO: dotenv NO pisa una variable que ya exista en la terminal. Si alguna vez hiciste
+// `export ODDS_API_KEY=...` (o la dejaste vacía en ~/.zshrc), ESA es la que se usa y la
+// del .env se ignora sin decir nada. Se guarda lo que traía el fichero para que
+// `npm run doctor` pueda detectar exactamente ese caso.
+const dotenvResult = dotenv.config({ path: path.join(ROOT, '.env') });
+export const envFileValues: Record<string, string> = dotenvResult.parsed ?? {};
+
+/**
+ * La clave de The Odds API, y de dónde salió.
+ *
+ * Se aceptan dos nombres: `ODDS_API_KEY` (el de siempre) y `THE_ODDS_API_KEY`, que es el
+ * que usa la documentación del proveedor y el que mucha gente escribe por instinto. Con
+ * uno solo, poner el otro dejaba la app en demostración con la clave «puesta».
+ */
+function resolveOddsKey(): { value: string; name: string | null } {
+  for (const name of ['ODDS_API_KEY', 'THE_ODDS_API_KEY']) {
+    const v = process.env[name]?.trim();
+    if (v) return { value: v, name };
+  }
+  return { value: '', name: null };
+}
+export const oddsKeySource = resolveOddsKey();
 
 function readJson<T>(file: string): T {
   return JSON.parse(fs.readFileSync(file, 'utf8')) as T;
@@ -74,7 +96,7 @@ function numberFromEnv(raw: string | undefined, fallback: number): number {
 }
 
 export const env = {
-  oddsApiKey: process.env.ODDS_API_KEY?.trim() || '',
+  oddsApiKey: oddsKeySource.value,
   // ONE region by default, not two.
   //
   // The Odds API charges per market PER REGION, so "eu,uk" doubled the price of

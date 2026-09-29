@@ -8,10 +8,11 @@
 // Rows go to fb_upcoming only: the three sports never share a fixtures table.
 
 import { getDb, setMeta } from '../../db.ts';
-import { recordOddsReason, type OddsReason } from '../../oddsReason.ts';
+import { decideReason, recordKeyOutcomes, recordOddsReason, type OddsReason } from '../../oddsReason.ts';
+import { aggregateH2H, outcomeError, outcomeOk, requestOdds, type KeyOutcome } from '../../oddsApi.ts';
 import { pruneUpcoming } from '../../freshness.ts';
 import { env, footballConfig } from '../../config.ts';
-import { assertCanSpend, creditCost, listSports, recordQuota, OddsBudgetSkip } from '../../oddsQuota.ts';
+import { listSports, OddsBudgetSkip } from '../../oddsQuota.ts';
 import { demoKickoffs } from '../../demoSchedule.ts';
 import { eloExpectation, HOME_ADVANTAGE } from '../model.ts';
 import { buildTeamIndex as buildNameIndex, resolveTeam as resolve } from './teamNames.ts';
@@ -22,7 +23,6 @@ import { recordOdds } from '../../news/repo.ts';
 import { recordLatency, recordFreshness } from '../../latency/record.ts';
 import { publish } from '../../latency/alert.ts';
 
-const ODDS_API_BASE = 'https://api.the-odds-api.com/v4';
 
 interface Aggregated {
   id: string;
@@ -49,11 +49,6 @@ function leagueByKey(): Map<string, LeagueId> {
   return m;
 }
 
-const median = (xs: number[]): number => {
-  const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-};
 
 async function fetchActive(): Promise<{ key: string }[]> {
   // Shared and cached — see the note in oddsQuota.ts.
@@ -62,49 +57,23 @@ async function fetchActive(): Promise<{ key: string }[]> {
   return all.filter((s) => s.active && !s.has_outrights && known.has(s.key));
 }
 
-async function fetchLive(sportKey: string, manual: boolean): Promise<Aggregated[]> {
-  const url =
-    `${ODDS_API_BASE}/sports/${sportKey}/odds/?apiKey=${encodeURIComponent(env.oddsApiKey)}` +
-    `&regions=${encodeURIComponent(env.oddsRegions)}&markets=h2h&oddsFormat=decimal`;
-  // The guard comes BEFORE the request, obviously: checking afterwards would be
-  // checking whether we could afford something already bought.
-  //
-  // LANZA, no devuelve vacío. Devolver `[]` hacía que un freno nuestro se leyera como
-  // «el proveedor no tiene partidos» — ver OddsBudgetSkip en oddsQuota.ts.
-  assertCanSpend(creditCost('h2h'), manual);
-  const res = await fetch(url);
-  // Every response carries x-requests-remaining, so this is free knowledge.
-  recordQuota(res);
-
-  if (!res.ok) throw new Error(`Odds API ${sportKey}: HTTP ${res.status}`);
-  const events = (await res.json()) as any[];
-  return events.map((ev) => {
-    const prices: Record<string, number[]> = {};
-    let newest = 0;
-    for (const bk of ev.bookmakers ?? []) {
-      const h2h = (bk.markets ?? []).find((m: any) => m.key === 'h2h');
-      if (!h2h) continue;
-      // `last_update` viene en el mercado en las versiones nuevas y en la casa en las
-      // viejas. Se miran los dos: si solo se leyera uno, media API devolvería null y la
-      // latencia de origen saldría «sin datos» sin que nadie supiera por qué.
-      for (const t of [h2h.last_update, bk.last_update]) {
-        const ms = t ? Date.parse(String(t)) : NaN;
-        if (Number.isFinite(ms) && ms > newest) newest = ms;
-      }
-      for (const o of h2h.outcomes ?? []) (prices[o.name] ??= []).push(o.price);
-    }
-    const price: Record<string, number> = {};
-    for (const [n, arr] of Object.entries(prices)) price[n] = median(arr);
+async function fetchLive(sportKey: string, manual: boolean): Promise<{ events: Aggregated[]; outcome: KeyOutcome }> {
+  // La petición y la clasificación de errores viven en oddsApi.ts, iguales para los cinco
+  // deportes. `last_update` se lee de mercado y casa allí mismo (aggregateH2H).
+  const r = await requestOdds(sportKey, { manual });
+  const events = r.events.map((ev) => {
+    const agg = aggregateH2H(ev);
     return {
       id: String(ev.id),
       commence_time: String(ev.commence_time),
       home: String(ev.home_team ?? ''),
       away: String(ev.away_team ?? ''),
-      price,
-      books: (ev.bookmakers ?? []).length,
-      sourceUpdatedAt: newest > 0 ? new Date(newest).toISOString() : null,
+      price: agg.price,
+      books: agg.books,
+      sourceUpdatedAt: agg.sourceUpdatedAt,
     };
   });
+  return { events, outcome: outcomeOk(sportKey, r) };
 }
 
 
@@ -219,70 +188,51 @@ export async function refreshFootballOdds(manual = false): Promise<FootballOddsR
   if (env.oddsApiKey) {
     motivo = 'fuente_falla';
     let sports: { key: string }[] = [];
+    let listado = false;
     try {
       sports = await fetchActive();
       motivo = 'sin_ligas';
+      listado = true;
     } catch (e) {
       detalle = (e as Error).message;
       process.stderr.write(`  no pude listar ligas de fútbol: ${(e as Error).message}\n`);
     }
     const reconocidas: string[] = [];
-    /** Cuántos eventos devolvió cada clave. Es EL dato que faltaba: ver abajo. */
-    const porClave: string[] = [];
+    /** Qué contestó cada liga. Ver `KeyOutcome` en oddsApi.ts. */
+    const outcomes: KeyOutcome[] = [];
+    let conPrecio = 0;
     for (const s of sports) {
       const league = known.get(s.key);
       if (!league) continue;
       reconocidas.push(s.key);
-      motivo = 'sin_eventos';
       try {
-        const events = await fetchLive(s.key, manual);
-        porClave.push(`${s.key}=${events.length}`);
-        if (events.length) {
-          perLeague.set(league, [...(perLeague.get(league) ?? []), ...events]);
-          source = 'live';
-        }
+        const { events, outcome } = await fetchLive(s.key, manual);
+        outcomes.push(outcome);
+        conPrecio += events.filter((e) => e.price[e.home] != null && e.price[e.away] != null).length;
+        if (events.length) perLeague.set(league, [...(perLeague.get(league) ?? []), ...events]);
       } catch (e) {
-        if (e instanceof OddsBudgetSkip) {
-          // No preguntamos. Decir «sin_eventos» aquí mandaría a esperar a que el mundo
-          // cambie cuando lo que hay que cambiar es nuestro propio freno.
-          motivo = 'presupuesto';
-          detalle = e.message;
-          process.stderr.write(`  ${s.key} saltado: ${e.message}\n`);
-        } else {
-          motivo = 'fuente_falla';
-          detalle = `${s.key}: ${(e as Error).message}`;
-          process.stderr.write(`  odds de ${s.key} fallaron: ${(e as Error).message}\n`);
-        }
+        outcomes.push(outcomeError(s.key, e, e instanceof OddsBudgetSkip));
+        process.stderr.write(`  ${s.key}: ${(e as Error).message}\n`);
       }
     }
-    // ===========================================================================
-    // `sin_eventos` NO GUARDABA NINGÚN DETALLE, Y ASÍ NO SE PUEDE ARREGLAR NADA
-    // ===========================================================================
-    // `sin_ligas` sí lo hacía —«el proveedor ofrece N y ninguna coincide»— y por eso es
-    // diagnosticable. `sin_eventos` se quedaba en «no hay partidos con precio», sin
-    // decir a QUÉ ligas se preguntó ni qué contestó cada una, así que ante un
-    // «la Premier está en temporada y esto dice que no hay nada» no había ni un dato
-    // con el que seguir: ni siquiera se sabía si a la Premier se le había preguntado.
-    //
-    // Con esto, la línea dice exactamente qué se pidió y qué vino: si aparece
-    // `soccer_epl=0` en septiembre, el problema está en el proveedor o en la petición;
-    // si la Premier no sale en la lista, es que no se le preguntó y el problema es
-    // nuestro. Son dos averías distintas que antes se veían igual.
-    if (motivo === 'sin_eventos') {
-      detalle =
-        `se preguntó a ${porClave.length} liga(s) y ninguna devolvió partidos con precio: ` +
-        porClave.slice(0, 12).join(', ') +
-        (porClave.length > 12 ? '…' : '') +
-        ` · regiones=${env.oddsRegions}`;
-    }
-    if (motivo === 'sin_ligas') {
+    recordKeyOutcomes('fb_', outcomes);
+    // «Live» exige PRECIO, no solo eventos: un calendario sin casas en tus regiones no son
+    // cuotas reales, y marcarlo como tal dejaba la pestaña «en vivo» con cuotas vacías.
+    if (conPrecio > 0) source = 'live';
+    else perLeague.clear();
+    // Solo si el listado funcionó: si falló, la causa ya es `fuente_falla` con su error,
+    // y deducirla de cero peticiones la convertiría en `sin_ligas`, que es otra avería.
+    const d = listado ? decideReason(outcomes, conPrecio) : { reason: motivo, detail: detalle };
+    motivo = d.reason ?? 'sin_eventos';
+    detalle = !listado ? detalle : d.reason ? `${d.detail} · regiones=${env.oddsRegions}` : '';
+    if (listado && motivo === 'sin_ligas') {
       // EL DATO CON EL QUE SE ARREGLA: qué ofreció el proveedor frente a lo que sabemos
       // traducir. Sin los nombres no hay forma de saber si la liga está fuera de
       // temporada o si al proveedor le cambió la clave del deporte.
       detalle =
-        `el proveedor ofrece ${sports.length} competiciones y ninguna coincide con las ` +
-        `${known.size} configuradas. Ofrece: ${sports.map((x) => x.key).slice(0, 8).join(', ')}` +
-        (sports.length > 8 ? '…' : '');
+          `el proveedor ofrece ${sports.length} competiciones y ninguna coincide con las ` +
+            `${known.size} configuradas. Ofrece: ${sports.map((x) => x.key).slice(0, 8).join(', ')}` +
+            (sports.length > 8 ? '…' : '');
     }
     fetchDoneAt = Date.now();
   }

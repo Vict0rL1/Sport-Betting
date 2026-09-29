@@ -41,6 +41,7 @@
 // cycle, twice a day, ~480 a month. Inside the free plan, with the reserve as
 // the backstop if a month runs long.
 
+import { classifyFailure, OddsApiError } from './oddsApi.ts';
 import { getMeta, setMeta } from './db.ts';
 import { env } from './config.ts';
 
@@ -343,19 +344,22 @@ const CACHE_MS = 10 * 60_000;
  */
 export async function listSports(): Promise<SportListing[]> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.sports;
-  const res = await fetch(`${ODDS_API_BASE}/sports/?apiKey=${encodeURIComponent(env.oddsApiKey)}`);
+  let res: Response;
+  try {
+    res = await fetch(`${ODDS_API_BASE}/sports/?apiKey=${encodeURIComponent(env.oddsApiKey)}`);
+  } catch (e) {
+    throw new OddsApiError('sin_red', `Sin conexión con The Odds API: ${(e as Error).message}`);
+  }
   recordQuota(res);
-  if (res.status === 401) {
-    const msg = 'The Odds API rechazó la clave (401). Revisa ODDS_API_KEY en tu .env.';
-    setOddsError(msg);
-    throw new Error(msg);
+  if (!res.ok) {
+    // La misma clasificación que las cuotas (oddsApi.ts). La versión anterior llamaba
+    // «cupo agotado» al 429, que es «demasiadas peticiones seguidas»; el cupo agotado
+    // llega como 401 OUT_OF_USAGE_CREDITS.
+    const body = await res.text().catch(() => '');
+    const f = classifyFailure(res.status, body);
+    if (f.kind === 'clave_invalida' || f.kind === 'sin_creditos') setOddsError(f.message);
+    throw new OddsApiError(f.kind, `/sports: ${f.message}`, res.status, body.slice(0, 500));
   }
-  if (res.status === 429) {
-    const msg = 'The Odds API: cupo agotado (429). El plan gratuito son 500 peticiones al mes.';
-    setOddsError(msg);
-    throw new Error(msg);
-  }
-  if (!res.ok) throw new Error(`Odds API /sports: HTTP ${res.status}`);
   const sports = (await res.json()) as SportListing[];
   setOddsError(null);
   cache = { at: Date.now(), sports };
@@ -370,52 +374,4 @@ export async function activeKeys(wanted: Iterable<string>): Promise<Set<string>>
     if (s.active && !s.has_outrights && want.has(s.key)) active.add(s.key);
   }
   return active;
-}
-
-/**
- * One /odds request, quota-aware.
- *
- * Returns null when the call was skipped — out of season, or no credits — rather
- * than throwing, because "this league is not playing" is the normal case and not
- * an error. `skipped` says which it was so the caller can log it.
- */
-export async function fetchOdds(
-  sportKey: string,
-  markets: string,
-  opts: { manual?: boolean; active?: Set<string> } = {},
-): Promise<{ events: unknown[]; credits: number } | { events: null; skipped: string }> {
-  if (opts.active && !opts.active.has(sportKey)) {
-    return { events: null, skipped: 'fuera de temporada' };
-  }
-  const credits = creditCost(markets);
-  const allowed = canSpend(credits, opts.manual);
-  if (!allowed.ok) {
-    setOddsError(allowed.reason);
-    return { events: null, skipped: allowed.reason };
-  }
-
-  const url =
-    `${ODDS_API_BASE}/sports/${encodeURIComponent(sportKey)}/odds/` +
-    `?apiKey=${encodeURIComponent(env.oddsApiKey)}` +
-    `&regions=${encodeURIComponent(env.oddsRegions)}` +
-    `&markets=${encodeURIComponent(markets)}` +
-    `&oddsFormat=decimal`;
-
-  const res = await fetch(url);
-  recordQuota(res);
-  // 404/422 mean "no such sport" or "no events" — normal, not a failure.
-  if (res.status === 404 || res.status === 422) return { events: [], credits };
-  if (res.status === 401) {
-    const msg = 'The Odds API rechazó la clave (401). Revisa ODDS_API_KEY en tu .env.';
-    setOddsError(msg);
-    throw new Error(msg);
-  }
-  if (res.status === 429) {
-    const msg = 'The Odds API: cupo agotado (429). El plan gratuito son 500 peticiones al mes.';
-    setOddsError(msg);
-    throw new Error(msg);
-  }
-  if (!res.ok) throw new Error(`Odds API ${sportKey}: HTTP ${res.status}`);
-  setOddsError(null);
-  return { events: (await res.json()) as unknown[], credits };
 }

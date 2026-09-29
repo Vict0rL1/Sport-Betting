@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "go": "node scripts/go.mjs",
+    "test": "npm run test --workspace server",
     "odds": "npm run odds --workspace server --",
     "deploy": "node scripts/deploy.mjs",
     "dev": "node scripts/dev.mjs",

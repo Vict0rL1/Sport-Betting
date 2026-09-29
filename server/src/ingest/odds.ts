@@ -14,13 +14,13 @@ import { getDb, setMeta } from '../db.ts';
 import { demoKickoffs } from '../demoSchedule.ts';
 import { pruneUpcoming } from '../freshness.ts';
 import { env, tournamentsConfig } from '../config.ts';
-import type { OddsReason } from '../oddsReason.ts';
-import { assertCanSpend, creditCost, listSports, recordQuota, OddsBudgetSkip } from '../oddsQuota.ts';
+import { decideReason, recordKeyOutcomes, type OddsReason } from '../oddsReason.ts';
+import { listSports, OddsBudgetSkip } from '../oddsQuota.ts';
+import { aggregateH2H, outcomeError, outcomeOk, requestOdds, type KeyOutcome } from '../oddsApi.ts';
 import { expectedScore } from '../model/elo.ts';
 import { SURFACE_WEIGHT } from '../model/predict.ts';
 import type { Surface, TourId } from '../types.ts';
 
-const ODDS_API_BASE = 'https://api.the-odds-api.com/v4';
 
 interface AggregatedEvent {
   id: string;
@@ -56,52 +56,23 @@ async function fetchActiveTennisSports(): Promise<TennisSport[]> {
     .map((s) => ({ key: s.key as string, title: s.title as string }));
 }
 
-async function fetchLive(sportKey: string, manual: boolean): Promise<AggregatedEvent[]> {
-  const url =
-    `${ODDS_API_BASE}/sports/${sportKey}/odds/` +
-    `?apiKey=${encodeURIComponent(env.oddsApiKey)}` +
-    `&regions=${encodeURIComponent(env.oddsRegions)}` +
-    `&markets=h2h&oddsFormat=decimal`;
-  // The guard comes BEFORE the request, obviously: checking afterwards would be
-  // checking whether we could afford something already bought.
-  //
-  // LANZA, no devuelve vacío: un freno nuestro no puede leerse como «el proveedor no
-  // tiene partidos». Ver OddsBudgetSkip en oddsQuota.ts.
-  assertCanSpend(creditCost('h2h'), manual);
-  const res = await fetch(url);
-  // Every response carries x-requests-remaining, so this is free knowledge.
-  recordQuota(res);
-  if (res.status === 404 || res.status === 422) return []; // no such sport / out of season
-  if (!res.ok) {
-    throw new Error(`Odds API error for ${sportKey}: HTTP ${res.status} ${await res.text()}`);
-  }
-  const events = (await res.json()) as any[];
-  return events.map((ev) => {
-    const prices: Record<string, number[]> = {};
-    for (const bk of ev.bookmakers ?? []) {
-      const h2h = (bk.markets ?? []).find((m: any) => m.key === 'h2h');
-      if (!h2h) continue;
-      for (const o of h2h.outcomes ?? []) {
-        (prices[o.name] ??= []).push(o.price);
-      }
-    }
-    const price: Record<string, number> = {};
-    for (const [name, arr] of Object.entries(prices)) price[name] = median(arr);
+async function fetchLive(sportKey: string, manual: boolean): Promise<{ events: AggregatedEvent[]; outcome: KeyOutcome }> {
+  // Una sola forma de pedir, para los cinco deportes: ver oddsApi.ts. Lanza si el freno
+  // de presupuesto no deja preguntar, o si la respuesta no es una lista de eventos —
+  // nunca devuelve vacío para disimular un error.
+  const r = await requestOdds(sportKey, { manual });
+  const events = r.events.map((ev) => {
+    const agg = aggregateH2H(ev);
     return {
       id: ev.id,
       commence_time: ev.commence_time,
       home: ev.home_team,
       away: ev.away_team,
-      price,
-      books: (ev.bookmakers ?? []).length,
+      price: agg.price,
+      books: agg.books,
     };
   });
-}
-
-function median(xs: number[]): number {
-  const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  return { events, outcome: outcomeOk(sportKey, r) };
 }
 
 // ---------------------------------------------------------------------------
@@ -335,10 +306,10 @@ export async function ingestOdds(manual = false): Promise<{
   const nameIndex: Partial<Record<TourId, Map<string, number>>> = {};
   clearUpcoming();
   let total = 0;
-  /** El motivo del freno de presupuesto, si alguno de los torneos lo encontró. */
-  let frenado: string | null = null;
-  /** Cuántos eventos devolvió cada torneo. Ver la nota en football/ingest/odds.ts. */
-  const porClave: string[] = [];
+  /** Partidos con al menos un precio: los que de verdad son «cuotas reales». */
+  let conPrecio = 0;
+  /** Qué contestó cada torneo. Ver `KeyOutcome` en oddsApi.ts. */
+  const outcomes: KeyOutcome[] = [];
 
   for (const sport of sports) {
     const tour = tourFromKey(sport.key);
@@ -347,16 +318,14 @@ export async function ingestOdds(manual = false): Promise<{
 
     let events: AggregatedEvent[] = [];
     try {
-      events = await fetchLive(sport.key, manual);
+      const r = await fetchLive(sport.key, manual);
+      events = r.events;
+      outcomes.push(r.outcome);
     } catch (e) {
-      if (e instanceof OddsBudgetSkip) {
-        // No preguntamos. Se recuerda para que el final no lo llame «sin_eventos», que
-        // es lo que mandaba a esperar a que el mundo cambiase.
-        frenado = e.message;
-        process.stderr.write(`  ${sport.key} saltado: ${e.message}\n`);
-      } else {
-        process.stderr.write(`  odds fetch failed for ${sport.key}: ${(e as Error).message}\n`);
-      }
+      // Cada fallo queda anotado CON su causa. Antes solo iba a la consola del servidor,
+      // y al final la ingesta llamaba `sin_ligas` a «todos los torneos dieron 401».
+      outcomes.push(outcomeError(sport.key, e, e instanceof OddsBudgetSkip));
+      process.stderr.write(`  ${sport.key}: ${(e as Error).message}\n`);
       continue;
     }
 
@@ -394,22 +363,24 @@ export async function ingestOdds(manual = false): Promise<{
         new Date().toISOString(),
       );
       total++;
+      if (ev.price[p1] != null && ev.price[p2] != null) conPrecio++;
     }
     db.exec('COMMIT');
-    porClave.push(`${sport.key}=${events.length}`);
     if (events.length) process.stdout.write(`  ${sport.key}: ${events.length} events\n`);
   }
+  recordKeyOutcomes('', outcomes);
 
   // Nothing live at all → keep a working demo with Elo-derived fixtures.
-  if (total === 0) {
+  //
+  // «Con precio», no «con evento»: un partido que el proveedor lista sin ninguna casa en
+  // tus regiones no es una cuota real, y contarlo como tal dejaba la pestaña en «live»
+  // con todas las cuotas vacías.
+  if (conPrecio === 0) {
     const count = generateFixtures();
-    // Si nos frenamos nosotros, la causa es ESA. «No hay partidos con precio» sería
-    // describir el mundo cuando el que no preguntó fue este proceso.
-    if (frenado) return { source: 'fixture', count, reason: 'presupuesto', detail: frenado };
-    // Si el proveedor no listó ni un torneo de tenis, la causa NO es «no hay partidos
-    // con precio»: es que no había a quién preguntar. Son cosas distintas y entre
-    // torneos la primera es lo normal, así que confundirlas esconde la de verdad.
-    if (porClave.length === 0) {
+    const d = decideReason(outcomes, conPrecio);
+    if (d.reason === 'sin_ligas') {
+      // Si el proveedor no listó ni un torneo que sepamos traducir, la causa NO es «no
+      // hay partidos con precio»: no había a quién preguntar.
       return {
         source: 'fixture',
         count,
@@ -419,14 +390,7 @@ export async function ingestOdds(manual = false): Promise<{
           `circuito que sepamos traducir${sports.length ? ': ' + sports.map((s) => s.key).slice(0, 8).join(', ') : ''}`,
       };
     }
-    return {
-      source: 'fixture',
-      count,
-      reason: 'sin_eventos',
-      detail:
-        `se preguntó a ${porClave.length} torneo(s) y ninguno devolvió partidos con ` +
-        `precio: ${porClave.slice(0, 12).join(', ')} · regiones=${env.oddsRegions}`,
-    };
+    return { source: 'fixture', count, reason: d.reason, detail: `${d.detail} · regiones=${env.oddsRegions}` };
   }
   return { source: 'live', count: total, reason: null };
 }

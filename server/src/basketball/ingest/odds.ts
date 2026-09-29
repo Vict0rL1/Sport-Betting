@@ -16,16 +16,16 @@
 // ===========================================================================
 
 import { getDb, setMeta } from '../../db.ts';
-import { recordOddsReason, type OddsReason } from '../../oddsReason.ts';
+import { decideReason, recordKeyOutcomes, recordOddsReason, type OddsReason } from '../../oddsReason.ts';
+import { aggregateH2H, outcomeError, outcomeOk, requestOdds, type KeyOutcome } from '../../oddsApi.ts';
 import { pruneUpcoming } from '../../freshness.ts';
 import { basketballConfig, env } from '../../config.ts';
-import { assertCanSpend, creditCost, listSports, recordQuota, OddsBudgetSkip } from '../../oddsQuota.ts';
+import { listSports, OddsBudgetSkip } from '../../oddsQuota.ts';
 import { demoKickoffs } from '../../demoSchedule.ts';
 import { buildNameIndex, resolve } from './teamNames.ts';
 import { homeWinProbability } from '../elo.ts';
 import type { LeagueId } from '../types.ts';
 
-const ODDS_API_BASE = 'https://api.the-odds-api.com/v4';
 
 interface AggregatedEvent {
   id: string;
@@ -61,50 +61,23 @@ async function fetchActiveBasketballSports(): Promise<SportListing[]> {
     .map((s) => ({ key: s.key, title: s.title }));
 }
 
-function median(xs: number[]): number {
-  const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-}
 
-async function fetchLive(sportKey: string, manual: boolean): Promise<AggregatedEvent[]> {
-  const url =
-    `${ODDS_API_BASE}/sports/${sportKey}/odds/` +
-    `?apiKey=${encodeURIComponent(env.oddsApiKey)}` +
-    `&regions=${encodeURIComponent(env.oddsRegions)}` +
-    `&markets=h2h&oddsFormat=decimal`;
-  // The guard comes BEFORE the request, obviously: checking afterwards would be
-  // checking whether we could afford something already bought.
-  //
-  // LANZA, no devuelve vacío: un freno nuestro no puede leerse como «el proveedor no
-  // tiene partidos». Ver OddsBudgetSkip en oddsQuota.ts.
-  assertCanSpend(creditCost('h2h'), manual);
-  const res = await fetch(url);
-  // Every response carries x-requests-remaining, so this is free knowledge.
-  recordQuota(res);
-  if (res.status === 404 || res.status === 422) return []; // out of season
-  if (!res.ok) {
-    throw new Error(`Odds API error for ${sportKey}: HTTP ${res.status} ${await res.text()}`);
-  }
-  const events = (await res.json()) as any[];
-  return events.map((ev) => {
-    const prices: Record<string, number[]> = {};
-    for (const bk of ev.bookmakers ?? []) {
-      const h2h = (bk.markets ?? []).find((m: any) => m.key === 'h2h');
-      if (!h2h) continue;
-      for (const o of h2h.outcomes ?? []) (prices[o.name] ??= []).push(o.price);
-    }
-    const price: Record<string, number> = {};
-    for (const [name, arr] of Object.entries(prices)) price[name] = median(arr);
+async function fetchLive(sportKey: string, manual: boolean): Promise<{ events: AggregatedEvent[]; outcome: KeyOutcome }> {
+  // Petición y errores en oddsApi.ts, iguales para los cinco deportes. Un 404 o 422 ya
+  // no se convierten en «no hay partidos»: son errores, y se dicen.
+  const r = await requestOdds(sportKey, { manual });
+  const events = r.events.map((ev) => {
+    const agg = aggregateH2H(ev);
     return {
       id: String(ev.id),
       commence_time: String(ev.commence_time),
       home: String(ev.home_team ?? ''),
       away: String(ev.away_team ?? ''),
-      price,
-      books: (ev.bookmakers ?? []).length,
+      price: agg.price,
+      books: agg.books,
     };
   });
+  return { events, outcome: outcomeOk(sportKey, r) };
 }
 
 // ---------------------------------------------------------------------------
@@ -208,52 +181,47 @@ export async function refreshBasketballOdds(manual = false): Promise<BasketballO
   if (env.oddsApiKey) {
     motivo = 'fuente_falla';
     let sports: SportListing[] = [];
+    let listado = false;
     try {
       sports = await fetchActiveBasketballSports();
       motivo = 'sin_ligas';
+      listado = true;
     } catch (e) {
       detalle = (e as Error).message;
       process.stderr.write(`  no pude listar deportes de baloncesto: ${(e as Error).message}\n`);
     }
-    const porClave: string[] = [];
+    /** Qué contestó cada liga. Ver `KeyOutcome` en oddsApi.ts. */
+    const outcomes: KeyOutcome[] = [];
+    let conPrecio = 0;
     for (const sport of sports) {
       const league = known.get(sport.key);
       if (!league) continue;
-      motivo = 'sin_eventos';
       try {
-        const events = await fetchLive(sport.key, manual);
-        porClave.push(`${sport.key}=${events.length}`);
-        if (events.length) {
-          perLeague.set(league, [...(perLeague.get(league) ?? []), ...events]);
-          source = 'live';
-        }
+        const { events, outcome } = await fetchLive(sport.key, manual);
+        outcomes.push(outcome);
+        conPrecio += events.filter((e) => e.price[e.home] != null && e.price[e.away] != null).length;
+        if (events.length) perLeague.set(league, [...(perLeague.get(league) ?? []), ...events]);
       } catch (e) {
-        if (e instanceof OddsBudgetSkip) {
-          // No preguntamos: la causa es nuestro freno, no el calendario.
-          motivo = 'presupuesto';
-          detalle = e.message;
-          process.stderr.write(`  ${sport.key} saltado: ${e.message}\n`);
-        } else {
-          motivo = 'fuente_falla';
-          detalle = `${sport.key}: ${(e as Error).message}`;
-          process.stderr.write(`  odds de ${sport.key} fallaron: ${(e as Error).message}\n`);
-        }
+        // Anotado con su causa. Antes el `motivo = 'sin_eventos'` del principio de cada
+        // vuelta borraba el fallo de la liga anterior, y un 401 acababa como «no hay
+        // partidos con precio».
+        outcomes.push(outcomeError(sport.key, e, e instanceof OddsBudgetSkip));
+        process.stderr.write(`  ${sport.key}: ${(e as Error).message}\n`);
       }
     }
-    // Ver la nota en football/ingest/odds.ts: `sin_eventos` sin detalle es un
-    // diagnóstico que no se puede seguir. Esto dice a qué se preguntó y qué vino.
-    if (motivo === 'sin_eventos') {
-      detalle =
-        `se preguntó a ${porClave.length} liga(s) y ninguna devolvió partidos con precio: ` +
-        porClave.slice(0, 12).join(', ') +
-        (porClave.length > 12 ? '…' : '') +
-        ` · regiones=${env.oddsRegions}`;
-    }
-    if (motivo === 'sin_ligas') {
-      detalle =
-        `el proveedor ofrece ${sports.length} competiciones y ninguna coincide con las ` +
-        `${known.size} configuradas. Ofrece: ${sports.map((x) => x.key).slice(0, 8).join(', ')}` +
-        (sports.length > 8 ? '…' : '');
+    if (listado) {
+      recordKeyOutcomes('bb_', outcomes);
+      if (conPrecio > 0) source = 'live';
+      else perLeague.clear();
+      const d = decideReason(outcomes, conPrecio);
+      motivo = d.reason ?? 'sin_eventos';
+      detalle = d.reason ? `${d.detail} · regiones=${env.oddsRegions}` : '';
+      if (motivo === 'sin_ligas') {
+        detalle =
+          `el proveedor ofrece ${sports.length} competiciones y ninguna coincide con las ` +
+          `${known.size} configuradas. Ofrece: ${sports.map((x) => x.key).slice(0, 8).join(', ')}` +
+          (sports.length > 8 ? '…' : '');
+      }
     }
   }
 

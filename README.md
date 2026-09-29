@@ -888,6 +888,53 @@ Tres detalles que no son de estilo:
   tener cuotas de tres deportes y no de los otros dos suele ser el calendario — y devolver
   error ahí rompería cualquier script que encadene esto.
 
+## El diagnóstico de punta a punta: `npm run doctor`
+
+Recorre el camino entero de una cuota, en el orden en que viaja —
+`.env → The Odds API → competiciones → base de datos → frescura → backend → pantalla` — y
+termina con un **RESULTADO** y una lista numerada de **QUÉ HACER**, cada punto con su solución
+copiable.
+
+```
+npm run doctor              # gratis: no gasta ni un crédito
+npm run doctor -- --probar  # 1 crédito por deporte en juego: eventos, mercados y casas REALES
+npm run doctor -- --sin-red # sin hablar con el proveedor
+```
+
+| Sección | Qué comprueba |
+| --- | --- |
+| CONFIGURACIÓN | `.env` en su sitio, clave detectada (`ODDS_API_KEY` o `THE_ODDS_API_KEY`), formato de la línea, **la terminal pisando al `.env`**, regiones válidas, zona horaria |
+| THE ODDS API | clave válida, API responde, créditos restantes y usados, plan, gasto estimado por día, freno de ritmo |
+| DEPORTES | por deporte, lo que contestó cada competición en la última descarga: eventos, **con cuotas**, casas, y el error exacto si falló |
+| BASE DE DATOS | próximos eventos, con cuotas reales, de demostración y sin cuotas |
+| ACTUALIZACIÓN | cuándo se actualizó y si las cuotas reales tienen más de 6 h |
+| SERVIDOR Y PANTALLA | backend vivo, cuántos partidos ve la pantalla y cuántos con cuota real |
+
+Código de salida 0 si no hay errores (puede haber advertencias), 1 si los hay.
+
+### Por qué «no hay partidos con precio» podía ser mentira
+
+Había cinco copias de la petición de cuotas, una por deporte, y cada una trataba los errores a
+su manera. Ahora hay **una** (`server/src/oddsApi.ts`) y nunca convierte un error en una lista
+vacía. Lo que se arregló:
+
+- **Tenis y baloncesto** convertían un 404 o un 422 en «no hay partidos». Un 422 significa
+  *parámetros inválidos*: era un error disfrazado de calendario vacío.
+- **El tenis** perdía los errores de cada torneo (solo iban a la consola) y acababa diciendo
+  `sin_ligas`, «no sé traducir esos circuitos», cuando lo que había eran 401.
+- **Baloncesto y fútbol** reponían «sin eventos» al empezar cada liga: si una liga fallaba con
+  401 y la siguiente venía vacía, el 401 desaparecía y quedaba «no hay partidos con precio».
+- **El béisbol** abandonaba el resto de ligas en cuanto una fallaba.
+- **La NFL** acababa en «sin eventos» pasara lo que pasara.
+- El listado llamaba «cupo agotado» al **429**, que es *demasiadas peticiones seguidas*; el cupo
+  agotado llega como 401 `OUT_OF_USAGE_CREDITS`.
+- Un evento **sin ninguna casa en tus regiones** contaba como «cuotas reales».
+
+Ahora cada descarga guarda, por competición, el código HTTP, los eventos, cuántos con precio y
+cuántas casas, y el doctor lo enseña. `soccer_epl=0 eventos` y `soccer_epl: HTTP 401
+sin_creditos` ya no se leen igual. Todo está fijado por tests (`npm test`); los de la ingesta
+de fútbol se comprobaron contra el código anterior, y fallan con él.
+
 ## Por qué ESTE deporte sale en demostración (`npm run doctor`)
 
 Cada deporte guardaba `*_odds_source = 'fixture'`, que dice **que** está en demostración.
