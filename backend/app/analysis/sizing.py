@@ -38,6 +38,8 @@ from __future__ import annotations
 
 import math
 
+from app import datos
+
 # --- Límites. Todos aquí, con nombre, para poder discutirlos. ---
 
 MAX_POR_POSICION_PCT = 10.0     # ninguna idea pasa de aquí, diga lo que diga el stop
@@ -46,6 +48,23 @@ MAX_POR_CLUSTER_PCT = 25.0      # lo que se mueve junto cuenta como uno
 UMBRAL_CORRELACION = 0.70       # a partir de aquí, dos posiciones son una
 OBJETIVO_VOL_ANUAL_PCT = 12.0   # volatilidad que se busca para la cartera
 SESIONES_ANO = 252
+
+# Volatilidad que se SUPONE cuando no se pudo medir. Está por encima de la
+# típica de una acción grande (20-25 %) a propósito: el error tiene que empujar
+# hacia recortar, no hacia comprar.
+#
+# Antes, una posición sin volatilidad se excluía del cálculo en silencio, y eso
+# hacía que faltar un dato ABARATARA el riesgo: dos posiciones al 40 % daban
+# 0,3464 con las dos medidas y 0,2000 si a una le faltaba. Menos información
+# producía menos riesgo aparente y por tanto más compra autorizada, que es
+# exactamente al revés de como debe comportarse.
+#
+# Es un supuesto, no un dato, y por eso viaja declarado en `controles`.
+VOL_SUPUESTA_PCT = 35.0
+
+# Correlación que se supone entre dos posiciones cuyo par no se pudo medir.
+# Ni independencia (que subestima) ni movimiento idéntico (que paraliza).
+CORRELACION_SUPUESTA = 0.5
 
 
 # --- Correlación y agrupación ------------------------------------------------
@@ -128,7 +147,23 @@ def volatilidad_cartera(
     sería el error contrario, que subestima justo en las caídas —cuando todo
     se correlaciona— y es el más caro de los dos.
     """
-    simbolos = [s for s in pesos if vol_anual.get(s)]
+    # `vol_anual.get(s)` excluía en silencio lo no medido Y descartaba una
+    # volatilidad legítima de 0.0 por ser *falsy*. Ahora lo que no se puede
+    # medir se SUPONE alto (`VOL_SUPUESTA_PCT`) en vez de desaparecer: un dato
+    # que falta no puede abaratar el riesgo.
+    conocidas = {
+        s: v
+        for s in pesos
+        if (v := datos.numero(vol_anual.get(s))) is not None and v >= 0
+    }
+    # El sustituto se ancla a la cartera que hay delante, no a una constante.
+    # Con un tope fijo del 35 %, un libro de nombres al 40 % seguía abaratándose
+    # al faltar un dato: el supuesto era «prudente» en abstracto y optimista en
+    # concreto. Suponer al menos lo peor que ya se ha medido cierra esa puerta —
+    # faltar un dato no puede salir más barato que el peor nombre conocido.
+    supuesto = max([VOL_SUPUESTA_PCT / 100, *conocidas.values()])
+    vols = {s: conocidas.get(s, supuesto) for s in pesos}
+    simbolos = [s for s in vols]
     if not simbolos:
         return None
     # UNIDADES EXPLÍCITAS. Antes se adivinaban por magnitud («si la volatilidad
@@ -140,18 +175,24 @@ def volatilidad_cartera(
     total = 0.0
     for i, a in enumerate(simbolos):
         for b in simbolos[i:]:
-            wa, wb = pesos[a], pesos[b]
-            va, vb = vol_anual[a], vol_anual[b]
+            wa = datos.numero(pesos[a]) or 0.0
+            wb = datos.numero(pesos[b]) or 0.0
+            va, vb = vols[a], vols[b]
             if a == b:
                 total += (wa * va) ** 2
             else:
-                c = corr.get((min(a, b), max(a, b)))
+                c = datos.numero(corr.get((min(a, b), max(a, b))))
                 # Sin correlación medida se asume 0,5: ni independencia (que
                 # subestimaría) ni movimiento idéntico (que paralizaría la
                 # cartera). Es un supuesto, y como tal se declara.
-                c = 0.5 if c is None else c
+                c = CORRELACION_SUPUESTA if c is None else c
                 total += 2 * wa * wb * va * vb * c
-    return math.sqrt(total) if total > 0 else None
+    # `total` no puede ser NaN ya —todo viene saneado— pero la comprobación se
+    # queda: si alguna vez vuelve a serlo, devolver None aquí apagaría el
+    # objetivo de volatilidad entero sin decir nada, que fue el fallo P0-3.
+    if not math.isfinite(total) or total < 0:
+        return None
+    return math.sqrt(total)
 
 
 # --- El dimensionador ---------------------------------------------------------
@@ -184,29 +225,38 @@ def dimensionar(
     Los pesos devueltos son lo que se AÑADE, no el peso final de la posición.
     """
     cartera = cartera or []
-    en_libro = {p["symbol"]: float(p.get("peso_pct") or 0.0) for p in cartera}
+    # Todo saneado en la frontera: un NaN en un peso del libro contaminaba cada
+    # «ocupado» y con él todos los topes, que pasaban a comparar contra NaN —o
+    # sea, a no comparar nada.
+    en_libro = {p["symbol"]: (datos.numero(p.get("peso_pct")) or 0.0) for p in cartera}
     sector_libro = {p["symbol"]: p.get("sector") or "Sin sector" for p in cartera}
     vol_libro = {
-        p["symbol"]: float(p["vol_anual_pct"])
+        p["symbol"]: v
         for p in cartera
-        if p.get("vol_anual_pct")
+        if (v := datos.porcentaje(p.get("vol_anual_pct"))) is not None
     }
+
+    controles: list[dict] = []
 
     if not candidatas:
         return {
             "pesos": {},
             "recortes": [],
             "clusters": [],
+            "controles": [],
+            "todos_los_limites_aplicados": True,
             "nota": "Sin candidatas que dimensionar.",
         }
 
-    pesos = {c["symbol"]: float(c.get("peso_bruto_pct") or 0.0) for c in candidatas}
+    pesos = {c["symbol"]: (datos.numero(c.get("peso_bruto_pct")) or 0.0) for c in candidatas}
+    pesos = {s: w if w > 0 else 0.0 for s, w in pesos.items()}
     sectores = {c["symbol"]: c.get("sector") or "Sin sector" for c in candidatas}
     vols = {
-        c["symbol"]: float(c["vol_anual_pct"])
+        c["symbol"]: v
         for c in candidatas
-        if c.get("vol_anual_pct")
+        if (v := datos.porcentaje(c.get("vol_anual_pct"))) is not None
     }
+    sin_volatilidad = sorted(set(pesos) - set(vols))
     recortes: list[str] = []
 
     # 1) Tope por posición. Lo que ya tienes de ese mismo símbolo cuenta contra
@@ -230,6 +280,15 @@ def dimensionar(
                 )
             pesos[s] = tope
 
+    controles.append(
+        {
+            "limite": "posición",
+            "tope_pct": max_posicion_pct,
+            "aplicado": True,
+            "motivo": None,
+        }
+    )
+
     # 2) Tope por sector, contando lo que el libro ya ocupa en cada uno.
     ocupado_sector: dict[str, float] = {}
     for s, w in en_libro.items():
@@ -242,6 +301,24 @@ def dimensionar(
         max_sector_pct, "sector", ocupado=ocupado_sector,
     )
     recortes += r
+    sin_sector = sorted(s for s, v in sectores.items() if v == "Sin sector")
+    controles.append(
+        {
+            "limite": "sector",
+            "tope_pct": max_sector_pct,
+            "aplicado": True,
+            "sin_sector": sin_sector,
+            "motivo": (
+                None
+                if not sin_sector
+                else (
+                    f"{len(sin_sector)} posición(es) sin sector conocido se agrupan "
+                    "en «Sin sector», que se limita como cualquier otro. No se "
+                    "reparten por ahí: eso fingiría diversificación."
+                )
+            ),
+        }
+    )
 
     # 3) Tope por correlación. El sector es una aproximación; lo que importa es
     #    qué se mueve junto, y eso cruza sectores. Los clusters se calculan
@@ -265,12 +342,50 @@ def dimensionar(
     )
     recortes += r
 
+    # Y aquí lo que faltaba: DECIR si el tope se ha podido comprobar.
+    #
+    # Este límite ya se rompió una vez (`e0067d7`): estaba escrito y nunca se
+    # ejecutaba porque `dimensionar` recibía `retornos` vacío. Se arregló el
+    # sitio que llamaba, no la función — así que seguía bastando con que las
+    # series no llegaran para que el tope desapareciera sin dejar rastro.
+    # `clusters: []` significaba las dos cosas a la vez: «nada se mueve junto» y
+    # «no se pudo mirar». Ahora se distinguen.
+    universo = sorted(set(pesos) | set(en_libro))
+    posibles = len(universo) * (len(universo) - 1) // 2
+    medidas = len(corr)
+    completo = posibles > 0 and medidas == posibles
+    controles.append(
+        {
+            "limite": "correlación",
+            "tope_pct": max_cluster_pct,
+            "aplicado": completo,
+            "parejas_medidas": medidas,
+            "parejas_posibles": posibles,
+            "motivo": (
+                None
+                if completo
+                else (
+                    f"Solo se pudieron medir {medidas} de {posibles} parejas: el tope "
+                    f"por correlación NO se ha comprobado del todo. «Sin clusters» "
+                    "aquí no significa que nada se mueva junto, significa que no se "
+                    "ha podido mirar. Hacen falta al menos 20 retornos comunes por "
+                    "pareja."
+                )
+            ),
+        }
+    )
+
     # 4) Volatility targeting sobre el libro entero: el que tienes más el que
     #    propones. Las candidatas traen la volatilidad en PORCENTAJE; aquí se
     #    convierte, que es el único sitio donde se conoce la unidad de origen.
     vols_frac = {s: v / 100 for s, v in vols.items()}
     for s, v in vol_libro.items():
         vols_frac.setdefault(s, v / 100)
+    # Lo que no se pudo medir NO se excluye: se supone alto. Excluirlo hacía que
+    # faltar un dato abaratara el riesgo, que es el fallo P0-4.
+    supuestas = sorted(
+        s for s in (set(pesos) | set(en_libro)) if s not in vols_frac
+    )
 
     def vol_con(escala: float) -> float | None:
         combinados = {s: w / 100 for s, w in en_libro.items()}
@@ -312,11 +427,43 @@ def dimensionar(
             )
         pesos = {s: w * escala for s, w in pesos.items()}
 
+    controles.append(
+        {
+            "limite": "volatilidad",
+            "objetivo_pct": objetivo_vol_pct,
+            # «Aplicado» exige que exista al menos UNA volatilidad medida de
+            # verdad. Si todas son supuestas, esto no es un control: es una
+            # comprobación contra un número que nos hemos inventado, y llamarlo
+            # límite cumplido sería el mismo autoengaño que se está corrigiendo.
+            "aplicado": bool(vols_frac),
+            "sin_volatilidad": supuestas,
+            "vol_supuesta_pct": VOL_SUPUESTA_PCT if supuestas else None,
+            "motivo": (
+                None
+                if not supuestas and vols_frac
+                else (
+                    "Ninguna posición tiene volatilidad medida: el objetivo de "
+                    f"volatilidad NO se ha comprobado. Se escala igual suponiendo un "
+                    f"{VOL_SUPUESTA_PCT:.0f} % para todas, que es prudente, pero es un "
+                    "supuesto entero."
+                    if not vols_frac
+                    else (
+                        f"{len(supuestas)} sin volatilidad medida ({', '.join(supuestas[:5])}): "
+                        f"se les supone un {VOL_SUPUESTA_PCT:.0f} % anual. El supuesto es "
+                        "alto a propósito — un dato que falta no puede abaratar el riesgo."
+                    )
+                )
+            ),
+        }
+    )
+
     invertido = sum(pesos.values())
     ya_invertido = sum(en_libro.values())
     vol_final = vol_con(1.0)
 
     return {
+        "controles": controles,
+        "todos_los_limites_aplicados": all(c["aplicado"] for c in controles),
         "pesos": {s: round(w, 2) for s, w in sorted(pesos.items(), key=lambda kv: -kv[1])},
         "invertido_pct": round(invertido, 2),
         "ya_invertido_pct": round(ya_invertido, 2),
