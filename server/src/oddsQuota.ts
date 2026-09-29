@@ -41,11 +41,12 @@
 // cycle, twice a day, ~480 a month. Inside the free plan, with the reserve as
 // the backstop if a month runs long.
 
-import { classifyFailure, OddsApiError } from './oddsApi.ts';
+import { classifyFailure, OddsApiError, ODDS_API_BASE } from './oddsApi.ts';
 import { getMeta, setMeta } from './db.ts';
 import { env } from './config.ts';
 
-export const ODDS_API_BASE = 'https://api.the-odds-api.com/v4';
+// Una sola URL del proveedor, en oddsApi.ts. Se reexporta por compatibilidad.
+export { ODDS_API_BASE };
 
 /**
  * Credits held back for the ↻ button.

@@ -1002,6 +1002,30 @@ Cambios de comportamiento:
 - El banco de papel es solo hacia delante y vive en su propia tabla: ningún backtest escribe
   en ella.
 
+## Qué versión produjo cada número
+
+Cuando la app dice «Sinner 71,4 %», la predicción queda registrada con **qué versión exacta**
+la produjo, y la respuesta de la API la incluye (`prediction.versiones`):
+
+| Campo | Qué es |
+| --- | --- |
+| `model_version` | `tenis-3fa2c1d9e0b4`: huella del **código** del modelo de ese deporte |
+| `model_config_version` | huella de `config/<deporte>.json` |
+| `calibration_version` | huella de `experiments/calibration.json` y `postprocess.json` |
+| `data_version` | hasta qué fecha y cuántos partidos había en la base |
+| `git_commit` | el commit que corría (con `+cambios` si había cambios sin commitear) |
+| `predicted_at` | cuándo |
+
+Son **huellas de contenido**, no números que alguien sube a mano: si cambia un byte del
+modelo, cambia la versión; si no, no. Un contador manual se olvida, y este proyecto ya tuvo
+una constante copiada en cinco sitios de la que se quedaron dos atrás. `GET /api/versions`
+da las vigentes.
+
+Las versiones se fijan **una vez**, al registrar la predicción, y no se pueden cambiar
+(trigger). A las predicciones anteriores a que esto existiera no se les estampa la versión de
+hoy: se quedan sin ella, que es la verdad. El umbral de «posible valor» (5 pp), que estaba
+copiado a mano en cuatro módulos, vive ahora en uno.
+
 ## Por qué ESTE deporte sale en demostración (`npm run doctor`)
 
 Cada deporte guardaba `*_odds_source = 'fixture'`, que dice **que** está en demostración.

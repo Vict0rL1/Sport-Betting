@@ -5,6 +5,7 @@
 // accuracy — a model that never predicts a draw can post a respectable "hit rate"
 // while being useless about the outcome that happens a quarter of the time.
 
+import { stampPredictionVersions } from '../versions.ts';
 import { getDb } from '../db.ts';
 import { postprocess } from '../postprocess/apply.ts';
 import { rankedProbabilityScore, impliedFrom1X2 } from './model.ts';
@@ -63,7 +64,7 @@ export function logFootballPrediction(row: FbUpcomingRow, p: FbPrediction): void
       ? impliedFrom1X2(row.odds_home, row.odds_draw, row.odds_away)
       : null;
   try {
-    getDb()
+    const ins = getDb()
       .prepare(
         `INSERT INTO fb_prediction_log (
            match_key, league, upcoming_id, commence_time, home_id, away_id,
@@ -84,6 +85,8 @@ export function logFootballPrediction(row: FbUpcomingRow, p: FbPrediction): void
         p.goals.expectedHome, p.goals.expectedAway,
         p.reliability.level, new Date().toISOString(),
       );
+    // Qué versión exacta produjo esta predicción: ver versions.ts.
+    stampPredictionVersions('fb_prediction_log', 'match_key', key, 'football', ins);
   } catch {
     // Logging must never break serving a prediction.
   }

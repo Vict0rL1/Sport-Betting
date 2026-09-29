@@ -12,6 +12,7 @@
 // "how did the model do against it, on the games this app actually showed you"
 // is the only version of the value question worth reporting.
 
+import { stampPredictionVersions } from '../versions.ts';
 import { getDb } from '../db.ts';
 import { postprocess } from '../postprocess/apply.ts';
 import type { NafPrediction } from './predict.ts';
@@ -68,7 +69,8 @@ export function logNflPrediction(row: NafUpcomingRow, prediction: NafPrediction)
   if (row.source === 'fixture') return;
   if (!row.home_id || !row.away_id) return;
 
-  getDb()
+  const mk = matchKey(row);
+  const ins = getDb()
     .prepare(
       `INSERT INTO naf_prediction_log
          (match_key, league, upcoming_id, commence_time, home_id, away_id, home_name, away_name,
@@ -77,7 +79,7 @@ export function logNflPrediction(row: NafUpcomingRow, prediction: NafPrediction)
        ON CONFLICT (match_key) DO NOTHING`,
     )
     .run(
-      matchKey(row),
+      mk,
       row.league,
       row.id,
       row.commence_time,
@@ -94,6 +96,8 @@ export function logNflPrediction(row: NafUpcomingRow, prediction: NafPrediction)
       prediction.reliability.level,
       new Date().toISOString(),
     );
+  // Qué versión exacta produjo esta predicción: ver versions.ts.
+  stampPredictionVersions('naf_prediction_log', 'match_key', mk, 'nfl', ins);
 }
 
 /**

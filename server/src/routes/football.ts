@@ -3,6 +3,7 @@
 // A third separate namespace. No endpoint here can return a tennis match or a
 // basketball game, which is what keeps the three tabs genuinely independent.
 
+import { versionsFor } from '../versions.ts';
 import type { FastifyInstance } from 'fastify';
 import { env, footballConfig } from '../config.ts';
 import { getMeta } from '../db.ts';
@@ -70,6 +71,8 @@ function describeRow(
   // and scoring the app on it would flatter or punish it for someone else's input.
   const userAdjusted = (out.home?.length ?? 0) + (out.away?.length ?? 0) > 0;
   if (prediction && row.source === 'live' && !userAdjusted) logFootballPrediction(row, prediction);
+  // Qué versión exacta produjo el número que se enseña (ver versions.ts).
+  if (prediction) Object.assign(prediction, { versiones: versionsFor('football') });
   return {
     fixture: row,
     /**

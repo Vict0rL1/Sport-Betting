@@ -4,6 +4,7 @@
 // basketball game or a tennis match, which is what keeps the four tabs genuinely
 // independent of one another.
 
+import { versionsFor } from '../versions.ts';
 import type { FastifyInstance } from 'fastify';
 import { env, baseballConfig } from '../config.ts';
 import { getMeta } from '../db.ts';
@@ -64,6 +65,8 @@ function describeRow(
   // question, and scoring the app on it would measure someone else's input.
   const userChose = starters.home !== undefined || starters.away !== undefined;
   if (prediction && row.source === 'live' && !userChose) logBaseballPrediction(row, prediction);
+  // Qué versión exacta produjo el número que se enseña (ver versions.ts).
+  if (prediction) Object.assign(prediction, { versiones: versionsFor('baseball') });
   return {
     game: row,
     /**

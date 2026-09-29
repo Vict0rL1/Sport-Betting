@@ -10,6 +10,7 @@
 // object from one made after, and lumping them together would hide the single
 // biggest source of error the app has.
 
+import { stampPredictionVersions } from '../versions.ts';
 import { getDb } from '../db.ts';
 import type { BsbPrediction } from './predict.ts';
 import type { BsbUpcomingRow } from './types.ts';
@@ -72,7 +73,8 @@ export function matchKey(row: BsbUpcomingRow): string {
  */
 export function logBaseballPrediction(row: BsbUpcomingRow, prediction: BsbPrediction): void {
   if (!row.home_id || !row.away_id) return;
-  getDb()
+  const mk = matchKey(row);
+  const ins = getDb()
     .prepare(
       `INSERT INTO bsb_prediction_log
          (match_key, league, upcoming_id, commence_time, home_id, away_id, home_name, away_name,
@@ -82,7 +84,7 @@ export function logBaseballPrediction(row: BsbUpcomingRow, prediction: BsbPredic
        ON CONFLICT(match_key) DO NOTHING`,
     )
     .run(
-      matchKey(row),
+      mk,
       row.league,
       row.id,
       row.commence_time,
@@ -99,6 +101,8 @@ export function logBaseballPrediction(row: BsbUpcomingRow, prediction: BsbPredic
       prediction.reliability.level,
       new Date().toISOString(),
     );
+  // Qué versión exacta produjo esta predicción: ver versions.ts.
+  stampPredictionVersions('bsb_prediction_log', 'match_key', mk, 'baseball', ins);
 }
 
 /** Attach real results to logged predictions once the games have been ingested. */

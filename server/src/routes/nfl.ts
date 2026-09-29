@@ -3,6 +3,7 @@
 // A fifth separate namespace. No endpoint here can return a game from another
 // sport, which is what keeps the five tabs genuinely independent.
 
+import { versionsFor } from '../versions.ts';
 import type { FastifyInstance } from 'fastify';
 import { env, nflConfig } from '../config.ts';
 import { getMeta } from '../db.ts';
@@ -63,6 +64,8 @@ function describeRow(row: NafUpcomingRow, withPrediction = true) {
   // still a real game — this is the one sport where the fixture list is
   // official even when no bookmaker feed is configured.
   if (prediction && row.source !== 'fixture') logNflPrediction(row, prediction);
+  // Qué versión exacta produjo el número que se enseña (ver versions.ts).
+  if (prediction) Object.assign(prediction, { versiones: versionsFor('nfl') });
   return {
     game: row,
     /**

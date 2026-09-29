@@ -1,6 +1,7 @@
 // All REST endpoints. Kept in one place for readability; each handler is thin
 // and delegates to repo (DB reads) and model (predict).
 
+import { versionsFor } from '../versions.ts';
 import type { FastifyInstance } from 'fastify';
 import { env, toursConfig, tournamentsConfig } from '../config.ts';
 import {
@@ -78,6 +79,8 @@ function describeRow(row: UpcomingRow, withPrediction = true) {
   // synthetic matches that will never be played, and scoring the app against
   // invented results would make the track record meaningless.
   if (prediction && row.source === 'live') logPrediction(row, prediction);
+  // Qué versión exacta produjo el número que se enseña (ver versions.ts).
+  if (prediction) Object.assign(prediction, { versiones: versionsFor('tennis') });
   const played = findTennisResult(row.tour, row.p1_id, row.p2_id, row.commence_time);
   return {
     match: row,
@@ -386,6 +389,15 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.get('/today', async () => partidosDeHoy());
 
   // --- y el cierre del círculo: qué dijo el modelo y qué pasó ---
+  // --- las versiones vigentes de los cinco modelos (fase 5) ---
+  app.get('/versions', async () => ({
+    tenis: versionsFor('tennis'),
+    futbol: versionsFor('football'),
+    baloncesto: versionsFor('basketball'),
+    beisbol: versionsFor('baseball'),
+    nfl: versionsFor('nfl'),
+  }));
+
   // --- la evolución del mercado de un evento (snapshots de la fase 2) ---
   // El id es el del proveedor. La NFL lo guarda con prefijo `odds-` en su tabla, así que
   // se acepta también así.

@@ -5,6 +5,7 @@
 // other. Unlike football, the biggest single input is a named individual, so the
 // breakdown has to say who is pitching and what the model thinks that is worth.
 
+import { VALUE_THRESHOLD } from '../model/market.ts';
 import {
   expectedRuns,
   expectedTotalRuns,
@@ -114,7 +115,9 @@ export interface BsbMarketComparison {
   verdict: 'value_home' | 'value_away' | 'agree' | 'no_market';
 }
 
-export const VALUE_THRESHOLD = 0.05;
+// El umbral del aviso «posible valor» es UNO para los cinco deportes y vive en
+// model/market.ts: estaba copiado aquí a mano, como en otros tres sitios.
+export { VALUE_THRESHOLD };
 
 export interface BsbPrediction {
   league: LeagueId;

@@ -881,6 +881,14 @@ function createSchema(d: DatabaseSync): void {
  * named …"), leaving an empty database. Adding the missing columns here means an
  * upgrade never needs the user to delete their data by hand.
  */
+const VERSIONED = {
+  model_version: 'TEXT',
+  model_config_version: 'TEXT',
+  calibration_version: 'TEXT',
+  data_version: 'TEXT',
+  git_commit: 'TEXT',
+};
+
 function migrateSchema(d: DatabaseSync): void {
   const columnsOf = (table: string): Set<string> => {
     try {
@@ -954,16 +962,14 @@ function migrateSchema(d: DatabaseSync): void {
     // «¿Acertó?» y «Hoy» leían esa misma columna, y en pantalla se enseña la FINAL —en la
     // NFL, un 90 % precio de mercado—. Resultado: el panel puntuaba una predicción que
     // nadie vio, y la peor de las dos.
-    naf_prediction_log: {
-      shown_home: 'REAL',
-    },
-    fb_prediction_log: {
-      shown_home: 'REAL',
-      shown_draw: 'REAL',
-      shown_away: 'REAL',
-    },
     // El paper trading auditable: ver paper/schema.ts.
     paper_bets: PAPER_BET_COLUMNS,
+    // Qué versión exacta produjo cada predicción (fase 5): ver versions.ts.
+    prediction_log: VERSIONED,
+    fb_prediction_log: { ...VERSIONED, shown_home: 'REAL', shown_draw: 'REAL', shown_away: 'REAL' },
+    bb_prediction_log: VERSIONED,
+    bsb_prediction_log: VERSIONED,
+    naf_prediction_log: { ...VERSIONED, shown_home: 'REAL' },
   };
 
   for (const [table, cols] of Object.entries(wanted)) {

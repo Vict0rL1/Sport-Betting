@@ -1420,6 +1420,32 @@ function auditOddsSnapshots(): void {
   console.log(`  ${r.n} snapshots de ${r.eventos} eventos`);
 }
 
+/**
+ * Qué versión produjo cada predicción (fase 5). Las anteriores a que existiera no tienen
+ * versión y no se les inventa; las que la tienen, la tienen ENTERA y con buena forma.
+ */
+function auditVersions(): void {
+  console.log('\n▸ Versiones de las predicciones');
+  const db = getDb();
+  for (const [tabla, deporte] of [
+    ['prediction_log', 'tennis'], ['fb_prediction_log', 'football'], ['bb_prediction_log', 'basketball'],
+    ['bsb_prediction_log', 'baseball'], ['naf_prediction_log', 'nfl'],
+  ] as const) {
+    const r = db
+      .prepare(
+        `SELECT COUNT(*) AS n,
+                SUM(CASE WHEN model_version IS NOT NULL THEN 1 ELSE 0 END) AS con,
+                SUM(CASE WHEN model_version IS NOT NULL AND (calibration_version IS NULL OR model_config_version IS NULL OR data_version IS NULL) THEN 1 ELSE 0 END) AS cojas,
+                SUM(CASE WHEN model_version IS NOT NULL AND model_version NOT LIKE ? THEN 1 ELSE 0 END) AS ajenas
+           FROM ${tabla}`,
+      )
+      .get(`${deporte}-%`) as { n: number; con: number | null; cojas: number | null; ajenas: number | null };
+    check(`versiones ${tabla}: completas cuando existen`, (r.cojas ?? 0) === 0, `${r.cojas} con versión de modelo pero sin el resto`);
+    check(`versiones ${tabla}: la versión es del deporte que toca`, (r.ajenas ?? 0) === 0, `${r.ajenas} con versión de otro deporte`);
+    console.log(`  ${tabla}: ${r.con ?? 0} de ${r.n} con versión`);
+  }
+}
+
 function auditPaperBankroll(): void {
   console.log('\n▸ El banco de papel del modelo');
   const db = getDb();
@@ -3881,6 +3907,7 @@ function main(): void {
   auditCalibrationFile();
   auditHomeBias();
   auditOddsSnapshots();
+  auditVersions();
   auditDixonColes();
   auditPostprocess();
   auditThinMarkets();

@@ -19,6 +19,7 @@
 // accuracy falls and the dashboard shows it instead of failing silently.
 // ===========================================================================
 
+import { stampPredictionVersions } from './versions.ts';
 import { getDb } from './db.ts';
 import type { Prediction } from './model/predict.ts';
 import type { TourId, UpcomingRow } from './types.ts';
@@ -120,7 +121,7 @@ export function logPrediction(row: UpcomingRow, prediction: Prediction): void {
   if (row.p1_id == null || row.p2_id == null) return;
   const key = matchKey(row.tour, row.p1_id, row.p2_id, row.commence_time);
   try {
-    getDb()
+    const ins = getDb()
       .prepare(
         `INSERT INTO prediction_log (
            match_key, tour, upcoming_id, tournament_name, surface, commence_time,
@@ -144,6 +145,8 @@ export function logPrediction(row: UpcomingRow, prediction: Prediction): void {
         prediction.reliability.level,
         new Date().toISOString(),
       );
+    // Qué versión exacta produjo esta predicción: ver versions.ts.
+    stampPredictionVersions('prediction_log', 'match_key', key, 'tennis', ins);
   } catch {
     // Logging is a side benefit, never a reason to fail serving a prediction.
   }

@@ -6,6 +6,7 @@
 // difference from the other two sports, where the win probability is the primary
 // object and the scoreline is derived from it.
 
+import { VALUE_THRESHOLD } from '../model/market.ts';
 import {
   bothTeamsScoreProbability,
   expectedGoals,
@@ -178,7 +179,9 @@ export interface FbMarketComparison {
 }
 
 /** Flagged when the model rates an outcome this much higher than the market. */
-export const VALUE_THRESHOLD = 0.05;
+// El umbral del aviso «posible valor» es UNO para los cinco deportes y vive en
+// model/market.ts: estaba copiado aquí a mano, como en otros tres sitios.
+export { VALUE_THRESHOLD };
 
 /**
  * Lo que la capa de post-proceso le hizo a la probabilidad, para poder enseñarlo.

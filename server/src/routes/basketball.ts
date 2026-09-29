@@ -4,6 +4,7 @@
 // a tennis match and nothing there can return a game, so the two sports cannot be
 // mixed up by a client — which is the whole point of the separate tab.
 
+import { versionsFor } from '../versions.ts';
 import type { FastifyInstance } from 'fastify';
 import { basketballConfig, env } from '../config.ts';
 import { getMeta } from '../db.ts';
@@ -66,6 +67,8 @@ function describeRow(row: UpcomingGameRow, withPrediction = true) {
   // Only real fixtures go into the track record: demo games are never played, so
   // scoring the app against them would be meaningless.
   if (prediction && row.source === 'live') logGamePrediction(row, prediction);
+  // Qué versión exacta produjo el número que se enseña (ver versions.ts).
+  if (prediction) Object.assign(prediction, { versiones: versionsFor('basketball') });
   return {
     game: row,
     /**

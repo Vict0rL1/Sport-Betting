@@ -12,6 +12,7 @@
 // report how far off that margin was — the figure that matters if you look at
 // the handicap rather than the moneyline.
 
+import { stampPredictionVersions } from '../versions.ts';
 import { getDb } from '../db.ts';
 import type { GamePrediction } from './predict.ts';
 import type { UpcomingGameRow } from './types.ts';
@@ -83,7 +84,8 @@ function gameKey(league: string, homeId: string, awayId: string, commence: strin
 export function logGamePrediction(row: UpcomingGameRow, prediction: GamePrediction): void {
   if (!row.home_id || !row.away_id) return;
   try {
-    getDb()
+    const gk = gameKey(row.league, row.home_id, row.away_id, row.commence_time);
+    const ins = getDb()
       .prepare(
         `INSERT INTO bb_prediction_log (
            game_key, league, upcoming_id, commence_time, home_id, away_id,
@@ -93,7 +95,7 @@ export function logGamePrediction(row: UpcomingGameRow, prediction: GamePredicti
          ON CONFLICT(game_key) DO NOTHING`,
       )
       .run(
-        gameKey(row.league, row.home_id, row.away_id, row.commence_time),
+        gk,
         row.league,
         row.id,
         row.commence_time ?? null,
@@ -107,6 +109,8 @@ export function logGamePrediction(row: UpcomingGameRow, prediction: GamePredicti
         prediction.reliability.level,
         new Date().toISOString(),
       );
+    // Qué versión exacta produjo esta predicción: ver versions.ts.
+    stampPredictionVersions('bb_prediction_log', 'game_key', gk, 'basketball', ins);
   } catch {
     // Logging is a side benefit, never a reason to fail serving a prediction.
   }

@@ -146,3 +146,31 @@ export function _resetVersionCache(): void {
 export function isSportId(s: string): s is SportId {
   return s in MODEL_FILES;
 }
+
+/** Las columnas de versión que llevan los registros de predicciones. */
+export const VERSION_COLUMNS = ['model_version', 'model_config_version', 'calibration_version', 'data_version', 'git_commit'] as const;
+
+/**
+ * Estampa las versiones en una predicción RECIÉN registrada.
+ *
+ * Solo si el INSERT de verdad insertó (`changes === 1`): los registros son de escritura
+ * única (`ON CONFLICT DO NOTHING`), y estampar las versiones de HOY en una predicción de
+ * ayer sería inventarle un origen. Las predicciones anteriores a que esto existiera se
+ * quedan sin versión, que es la verdad.
+ */
+export function stampPredictionVersions(
+  table: string,
+  keyColumn: string,
+  key: string,
+  sport: SportId,
+  inserted: { changes: number | bigint },
+): void {
+  if (Number(inserted.changes) !== 1) return;
+  const v = versionsFor(sport);
+  getDb()
+    .prepare(
+      `UPDATE ${table} SET model_version = ?, model_config_version = ?, calibration_version = ?, data_version = ?, git_commit = ?
+       WHERE ${keyColumn} = ? AND model_version IS NULL`,
+    )
+    .run(v.model_version, v.model_config_version, v.calibration_version, v.data_version, v.git_commit, key);
+}

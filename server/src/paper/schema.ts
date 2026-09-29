@@ -117,16 +117,19 @@ export const PAPER_TRIGGERS = `
 // Se pueden anotar el resultado (lo que pasó después) y rellenar una sola vez la
 // probabilidad enseñada. Lo que el modelo DIJO no se toca: si mañana cambia el modelo, lo
 // de ayer sigue diciendo lo que dijo.
+/** Las versiones de una predicción: se fijan una vez (al registrarla) y no cambian. */
+const VERSIONES = ['model_version', 'model_config_version', 'calibration_version', 'data_version', 'git_commit'];
+
 const LOGS: { tabla: string; congeladas: string[]; unaVez: string[] }[] = [
-  { tabla: 'prediction_log', congeladas: ['match_key', 'p1_id', 'p2_id', 'prob1', 'market_prob1', 'predicted_at'], unaVez: [] },
+  { tabla: 'prediction_log', congeladas: ['match_key', 'p1_id', 'p2_id', 'prob1', 'market_prob1', 'predicted_at'], unaVez: VERSIONES },
   {
     tabla: 'fb_prediction_log',
     congeladas: ['match_key', 'home_id', 'away_id', 'prob_home', 'prob_draw', 'prob_away', 'market_prob_home', 'market_prob_draw', 'market_prob_away', 'predicted_at'],
-    unaVez: ['shown_home', 'shown_draw', 'shown_away'],
+    unaVez: ['shown_home', 'shown_draw', 'shown_away', ...VERSIONES],
   },
-  { tabla: 'bb_prediction_log', congeladas: ['game_key', 'home_id', 'away_id', 'prob_home', 'market_prob_home', 'predicted_at'], unaVez: [] },
-  { tabla: 'bsb_prediction_log', congeladas: ['match_key', 'home_id', 'away_id', 'prob_home', 'market_prob_home', 'predicted_at'], unaVez: [] },
-  { tabla: 'naf_prediction_log', congeladas: ['match_key', 'home_id', 'away_id', 'prob_home', 'market_prob_home', 'predicted_at'], unaVez: ['shown_home'] },
+  { tabla: 'bb_prediction_log', congeladas: ['game_key', 'home_id', 'away_id', 'prob_home', 'market_prob_home', 'predicted_at'], unaVez: VERSIONES },
+  { tabla: 'bsb_prediction_log', congeladas: ['match_key', 'home_id', 'away_id', 'prob_home', 'market_prob_home', 'predicted_at'], unaVez: VERSIONES },
+  { tabla: 'naf_prediction_log', congeladas: ['match_key', 'home_id', 'away_id', 'prob_home', 'market_prob_home', 'predicted_at'], unaVez: ['shown_home', ...VERSIONES] },
 ];
 
 export const PREDICTION_LOG_TRIGGERS = LOGS.map(

@@ -10,6 +10,7 @@
 // game, in the order it posts them: SPREAD first (the headline market in this
 // sport, unlike every other tab in this app), then TOTAL, then MONEYLINE.
 
+import { VALUE_THRESHOLD } from '../model/market.ts';
 import {
   buildDistribution,
   coverProbability,
@@ -122,7 +123,9 @@ const GAMES_FOR_HIGH = 32;
 const MARGIN_HIGH_MAX = 6;
 const MARGIN_LOW_MIN = 12;
 
-export const VALUE_THRESHOLD = 0.05;
+// El umbral del aviso «posible valor» es UNO para los cinco deportes y vive en
+// model/market.ts: estaba copiado aquí a mano, como en otros tres sitios.
+export { VALUE_THRESHOLD };
 
 export interface NafSide {
   id: string;
