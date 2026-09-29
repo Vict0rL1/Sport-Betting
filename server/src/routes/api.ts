@@ -1,6 +1,7 @@
 // All REST endpoints. Kept in one place for readability; each handler is thin
 // and delegates to repo (DB reads) and model (predict).
 
+import { evaluacionEnVivo } from '../evaluation/live.ts';
 import { versionsFor } from '../versions.ts';
 import type { FastifyInstance } from 'fastify';
 import { env, toursConfig, tournamentsConfig } from '../config.ts';
@@ -389,6 +390,10 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   app.get('/today', async () => partidosDeHoy());
 
   // --- y el cierre del círculo: qué dijo el modelo y qué pasó ---
+  // --- evaluación EN VIVO, con la capa común de métricas (fase 6) ---
+  // Solo registros de predicciones reales: ningún número de backtest entra aquí.
+  app.get('/evaluation', async () => ({ origen: 'live', deportes: evaluacionEnVivo() }));
+
   // --- las versiones vigentes de los cinco modelos (fase 5) ---
   app.get('/versions', async () => ({
     tenis: versionsFor('tennis'),

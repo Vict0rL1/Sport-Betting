@@ -1026,6 +1026,23 @@ Las versiones se fijan **una vez**, al registrar la predicción, y no se pueden 
 hoy: se quedan sin ella, que es la verdad. El umbral de «posible valor» (5 pp), que estaba
 copiado a mano en cuatro módulos, vive ahora en uno.
 
+## Métricas: una sola capa, y el acierto no manda
+
+`server/src/evaluation/metrics.ts` define **una vez** las métricas para los cinco deportes y
+para cualquier origen:
+
+| Métrica | Qué mide | Referencia |
+| --- | --- | --- |
+| **Log loss** (principal) | −media de ln p(lo que pasó): castiga decir 95 % a lo que no pasa | ln 2 = 0,693 decir siempre 50/50; ln 3 = 1,099 en fútbol |
+| **Brier** | media de Σ (p − y)² / 2: para dos resultados es exactamente el Brier clásico | 0,25 decir siempre 50/50 |
+| **Calibración (ECE)** | cuánto se desvía «cuando digo X %, pasa X %» | 0 perfecto |
+| Acierto (secundario) | cuántas veces ganó el favorito | no distingue un 51 % de un 90 % |
+
+Ningún número va solo: se compara con el **mercado sobre los mismos partidos** y con no saber
+nada. `GET /api/evaluation` da la evaluación **en vivo**, que solo lee predicciones registradas
+antes de cada partido real (cada informe lleva `origen: 'live'`); ningún backtest entra ahí. La
+pestaña Apuestas lo enseña en «El modelo en vivo».
+
 ## Por qué ESTE deporte sale en demostración (`npm run doctor`)
 
 Cada deporte guardaba `*_odds_source = 'fixture'`, que dice **que** está en demostración.

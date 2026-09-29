@@ -1,0 +1,113 @@
+// Cómo va el modelo EN VIVO, con la capa común de métricas (server/src/evaluation).
+//
+// El log loss va delante y el acierto al final, a propósito: el acierto no distingue un
+// 51 % de un 90 % y el log loss sí. Y ningún número va solo: al lado, el del mercado sobre
+// los MISMOS partidos, que es la referencia que decide si el modelo aporta algo. Son solo
+// predicciones reales registradas antes de cada partido: ningún backtest entra aquí.
+
+import { useEffect, useState } from 'react';
+import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
+
+interface Informe {
+  origen: 'live';
+  deporte: string;
+  n: number;
+  logLoss: number | null;
+  brier: number | null;
+  accuracy: number | null;
+  ece: number | null;
+  mercado: { n: number; logLoss: number; brier: number; modeloLogLoss: number } | null;
+  logLossUniforme: number | null;
+}
+
+const NOMBRE: Record<string, string> = { tennis: '🎾 Tenis', football: '⚽ Fútbol', basketball: '🏀 Baloncesto', baseball: '⚾ Béisbol', nfl: '🏈 NFL' };
+const f3 = (x: number | null | undefined) => (x == null ? '—' : x.toFixed(3).replace('.', ','));
+const pct = (x: number | null | undefined) => (x == null ? '—' : `${(x * 100).toFixed(1).replace('.', ',')} %`);
+
+export default function LiveEvaluation() {
+  const [d, setD] = useState<Informe[] | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    fetch('/api/evaluation')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j: { deportes: Informe[] }) => vivo && setD(j.deportes))
+      .catch(() => vivo && setD([]));
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  if (!d) return null;
+  const hay = d.filter((x) => x.n > 0);
+
+  return (
+    <section className="mb-6 overflow-hidden rounded-xl border border-white/[0.09] bg-white/[0.02]">
+      <div className="px-4 py-3">
+        <h3 className="text-[16px] font-semibold text-[#e8eaed]">El modelo en vivo</h3>
+        <p className="mt-1 text-[13px] leading-relaxed text-[#7b828d]">
+          Predicciones registradas <strong>antes</strong> de cada partido real, contra lo que pasó. Solo en vivo:
+          los backtests van aparte. Manda el <strong>log loss</strong> (más bajo es mejor) comparado con el del
+          mercado en los mismos partidos; el acierto se da, pero no distingue un 51 % de un 90 %.
+        </p>
+      </div>
+      {hay.length === 0 ? (
+        <p className="border-t border-white/[0.07] px-4 py-3 text-[14px] text-[#9aa1ac]">
+          Todavía no hay predicciones en vivo con resultado. Se llenará solo a medida que se jueguen partidos
+          con cuotas reales.
+        </p>
+      ) : (
+        <div className="overflow-x-auto border-t border-white/[0.07]">
+          <table className="w-full min-w-[620px] border-collapse text-[14px]">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wide text-[#7b828d]">
+                <th className="px-4 py-2 font-medium">Deporte</th>
+                <th className="px-4 py-2 text-right font-medium">Partidos</th>
+                <th className="px-4 py-2 text-right font-medium">Log loss</th>
+                <th className="px-4 py-2 text-right font-medium">Mercado</th>
+                <th className="px-4 py-2 text-right font-medium">No saber nada</th>
+                <th className="px-4 py-2 text-right font-medium">Brier</th>
+                <th className="px-4 py-2 text-right font-medium">Calibración</th>
+                <th className="px-4 py-2 text-right font-medium">Acierto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {hay.map((x) => {
+                // Comparado sobre los MISMOS partidos: el del modelo restringido a los que
+                // tienen precio, no el global.
+                const mejor = x.mercado ? x.mercado.modeloLogLoss < x.mercado.logLoss : null;
+                return (
+                  <tr key={x.deporte} className="border-t border-white/[0.05]">
+                    <td className="px-4 py-2.5 text-[#c3c9d1]">{NOMBRE[x.deporte] ?? x.deporte}</td>
+                    <td className="px-4 py-2.5 text-right text-[#9aa1ac]">{x.n}</td>
+                    <td className="px-4 py-2.5 text-right font-semibold text-[#e8eaed]">{f3(x.logLoss)}</td>
+                    <td className="px-4 py-2.5 text-right text-[#9aa1ac]">
+                      {x.mercado ? (
+                        <>
+                          {f3(x.mercado.logLoss)}
+                          <span className="block text-[11px]" style={{ color: mejor ? PROFIT_COLOR : LOSS_COLOR }}>
+                            {mejor ? 'el modelo, mejor' : 'el mercado, mejor'} · {x.mercado.n} con precio
+                          </span>
+                        </>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-[#5c636e]">{f3(x.logLossUniforme)}</td>
+                    <td className="px-4 py-2.5 text-right text-[#9aa1ac]">{f3(x.brier)}</td>
+                    <td className="px-4 py-2.5 text-right text-[#9aa1ac]">±{pct(x.ece)}</td>
+                    <td className="px-4 py-2.5 text-right text-[#7b828d]">{pct(x.accuracy)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {hay.some((x) => x.n < 200) && (
+            <p className="border-t border-white/[0.05] px-4 py-2 text-[12px] text-[#7b828d]">
+              Con menos de unos cientos de partidos estas cifras se mueven mucho por azar: son el registro de lo
+              que pasa, no todavía una medida del modelo.
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}

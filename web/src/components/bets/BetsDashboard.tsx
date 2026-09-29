@@ -1,3 +1,4 @@
+import LiveEvaluation from './LiveEvaluation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   deleteBet,
@@ -110,6 +111,7 @@ export default function BetsDashboard() {
       {/* El banco del modelo va ANTES del formulario y separado del registro propio:
           son dos cuentas distintas y mezclarlas haría imposible leer ninguna de las dos. */}
       <PaperBankroll />
+      <LiveEvaluation />
 
       {(adding || editing) && (
         <BetForm

@@ -27,6 +27,7 @@
 //
 // Exit code is non-zero on failure, so it can gate a data refresh.
 
+import { evaluacionEnVivo } from '../evaluation/live.ts';
 import nodeFs from 'node:fs';
 import nodePath from 'node:path';
 import { getDb } from '../db.ts';
@@ -1443,6 +1444,16 @@ function auditVersions(): void {
     check(`versiones ${tabla}: completas cuando existen`, (r.cojas ?? 0) === 0, `${r.cojas} con versión de modelo pero sin el resto`);
     check(`versiones ${tabla}: la versión es del deporte que toca`, (r.ajenas ?? 0) === 0, `${r.ajenas} con versión de otro deporte`);
     console.log(`  ${tabla}: ${r.con ?? 0} de ${r.n} con versión`);
+  }
+}
+
+/** La evaluación en vivo se puede calcular en los cinco deportes (ninguna fila rota). */
+function auditLiveEvaluation(): void {
+  console.log('\n▸ Evaluación en vivo (capa común de métricas)');
+  for (const r of evaluacionEnVivo()) {
+    check(`evaluación en vivo ${r.deporte}: calculable`, !r.error, r.error ?? '');
+    check(`evaluación en vivo ${r.deporte}: marcada como live`, r.origen === 'live');
+    if (r.n > 0) console.log(`  ${r.deporte}: ${r.n} partidos · log loss ${r.logLoss?.toFixed(4)} · Brier ${r.brier?.toFixed(4)}`);
   }
 }
 
@@ -3908,6 +3919,7 @@ function main(): void {
   auditHomeBias();
   auditOddsSnapshots();
   auditVersions();
+  auditLiveEvaluation();
   auditDixonColes();
   auditPostprocess();
   auditThinMarkets();
