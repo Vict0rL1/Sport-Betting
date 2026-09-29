@@ -114,6 +114,19 @@ function Escenarios({
       <p className="mt-1 text-xs leading-relaxed text-slate-500">
         {data.nota_supuestos}
       </p>
+      {/* Si el crecimiento no sale de las cuentas de la empresa, se dice arriba
+          del todo: es el parámetro que más mueve el valor, y «3 %» con cara de
+          dato histórico era indistinguible de «3 %» puesto a falta de uno. */}
+      {(() => {
+        const supuesto = Object.values(data.escenarios).find(
+          (e) => e?.procedencia?.crecimiento_supuesto,
+        )
+        return supuesto?.procedencia?.motivo ? (
+          <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
+            {supuesto.procedencia.motivo}
+          </p>
+        ) : null
+      })()}
 
       <div className="mt-4 space-y-4">
         {ESCENARIOS.filter((n) => data.escenarios[n]).map((nombre) => {

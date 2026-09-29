@@ -72,7 +72,11 @@ def compare_etfs(
         for b in etfs[i + 1 :]:
             result = overlap_weight(a.get("top_holdings") or [], b.get("top_holdings") or [])
             overlaps.append({"a": a["symbol"], "b": b["symbol"], **result})
-    overlaps.sort(key=lambda o: o["overlap_weight"], reverse=True)
+    # Los desconocidos van al final: no son «0 %», pero tampoco se pueden ordenar.
+    overlaps.sort(
+        key=lambda o: (o["overlap_weight"] is not None, o["overlap_weight"] or 0.0),
+        reverse=True,
+    )
 
     return {
         "etfs": etfs,

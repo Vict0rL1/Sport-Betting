@@ -192,11 +192,26 @@ export function EtfsPage() {
                       <span className="font-medium text-slate-700">
                         {o.a} ↔ {o.b}
                       </span>
-                      <span className="tabular-nums text-slate-600">
-                        {fmtPct(o.overlap_weight)} del peso · {o.shared_count} posiciones
-                      </span>
+                      {o.overlap_weight === null ? (
+                        <span
+                          className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800"
+                          title={o.motivo ?? undefined}
+                        >
+                          Desconocido
+                        </span>
+                      ) : (
+                        <span className="tabular-nums text-slate-600">
+                          {fmtPct(o.overlap_weight)} del peso · {o.shared_count} posiciones
+                        </span>
+                      )}
                     </div>
-                    <OverlapBar value={o.overlap_weight} />
+                    {/* Sin composición no hay barra: una barra vacía y verde se lee
+                        como «no se solapan», que es justo lo que no se sabe. */}
+                    {o.overlap_weight === null ? (
+                      <p className="text-xs text-amber-800">{o.motivo}</p>
+                    ) : (
+                      <OverlapBar value={o.overlap_weight} />
+                    )}
                     {o.common_holdings.length > 0 && (
                       <p className="mt-1 text-xs text-slate-400">
                         Compartidas:{' '}

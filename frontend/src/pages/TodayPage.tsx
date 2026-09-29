@@ -471,8 +471,15 @@ function AvoidList({
  */
 function SizingPanel({ sizing }: { sizing: Sizing }) {
   const enLibro = Object.entries(sizing.cartera_actual ?? {})
+  const sinAplicar = (sizing.controles ?? []).filter((c) => !c.aplicado)
+  // Un límite que no se pudo aplicar SIEMPRE se enseña, aunque no haya
+  // recortado nada. Antes el panel se ocultaba sin recortes, y «no recortó
+  // porque no pudo mirar» era indistinguible de «no hacía falta recortar».
   const hayAlgoQueContar =
-    sizing.recortes.length > 0 || enLibro.length > 0 || sizing.aviso_cartera
+    sizing.recortes.length > 0 ||
+    enLibro.length > 0 ||
+    sizing.aviso_cartera ||
+    sinAplicar.length > 0
   if (!hayAlgoQueContar) return null
 
   return (
@@ -527,6 +534,23 @@ function SizingPanel({ sizing }: { sizing: Sizing }) {
         <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
           {sizing.aviso_cartera}
         </p>
+      )}
+
+      {sinAplicar.length > 0 && (
+        <div className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-800">
+          <p className="font-medium">
+            {sinAplicar.length === 1
+              ? 'Un límite de riesgo NO se ha podido comprobar:'
+              : `${sinAplicar.length} límites de riesgo NO se han podido comprobar:`}
+          </p>
+          <ul className="mt-1 space-y-1">
+            {sinAplicar.map((c) => (
+              <li key={c.limite}>
+                <span className="font-medium">Tope por {c.limite}.</span> {c.motivo}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <p className="mt-3 text-[11px] leading-relaxed text-slate-400">{sizing.nota}</p>

@@ -293,8 +293,11 @@ export interface EtfData extends Sourced {
 export interface EtfOverlap {
   a: string
   b: string
-  overlap_weight: number
-  shared_count: number
+  /** `null` = no se pudo leer la composición. NO es 0 %: es desconocido. */
+  overlap_weight: number | null
+  desconocido?: boolean
+  motivo?: string | null
+  shared_count: number | null
   common_holdings: {
     symbol: string
     weight_a: number
@@ -723,7 +726,16 @@ export interface Sizing {
   recortes: string[]
   /** Posiciones abiertas que este barrido no pudo valorar. */
   aviso_cartera?: string
+  /** Cada límite de riesgo, con si se pudo aplicar de verdad o no. */
+  controles?: ControlDeRiesgo[]
+  todos_los_limites_aplicados?: boolean
   nota: string
+}
+
+export interface ControlDeRiesgo {
+  limite: 'posición' | 'sector' | 'correlación' | 'volatilidad'
+  aplicado: boolean
+  motivo: string | null
 }
 
 export interface Shortlist {
@@ -1337,6 +1349,8 @@ export interface RangoValor {
 
 export interface EscenarioValoracion {
   supuestos: SupuestosEscenario
+  /** De dónde sale el crecimiento: del histórico real o de un supuesto. */
+  procedencia?: { crecimiento_supuesto: boolean; motivo: string | null }
   rango: RangoValor
 }
 

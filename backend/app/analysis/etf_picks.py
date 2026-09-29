@@ -116,9 +116,21 @@ def avisos_de_solapamiento(evaluados: list[dict], solapamientos: list[dict]) -> 
     elegidos = {e["symbol"] for e in evaluados if e["action"] in {"comprar", "vigilar"}}
     avisos = []
     for s in solapamientos:
-        if s.get("overlap_weight", 0) < SOLAPAMIENTO_ALTO:
+        ambos = s.get("a") in elegidos and s.get("b") in elegidos
+        if s.get("overlap_weight") is None:
+            # Desconocido NO es bajo. Si los dos van a comprarse y no se pudo
+            # mirar su composición, se dice: el caso que este aviso existe para
+            # cazar (dos ETFs del mismo índice) es justo el que se escaparía.
+            if ambos:
+                avisos.append(
+                    f"No se ha podido comprobar el solapamiento entre {s['a']} y "
+                    f"{s['b']}: falta la composición de al menos uno. Antes de "
+                    "comprar los dos, confirma que no replican el mismo índice."
+                )
             continue
-        if s.get("a") in elegidos and s.get("b") in elegidos:
+        if s["overlap_weight"] < SOLAPAMIENTO_ALTO:
+            continue
+        if ambos:
             avisos.append(
                 f"{s['a']} y {s['b']} comparten un {s['overlap_weight'] * 100:.0f} % "
                 "de su cartera: comprar los dos no diversifica, concentra. Elige uno."
