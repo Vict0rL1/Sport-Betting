@@ -120,3 +120,107 @@ def test_un_crecimiento_negativo_no_se_convierte_en_positivo():
     esc = _escenarios_por_defecto({"fcf_cagr": -0.05})
     assert esc["base"]["growth_rate"] <= 0.0
     assert esc["base"]["supuesto"] is False
+
+
+# --- A nivel de ENDPOINT: que la corrección llegue de verdad -------------
+#
+# La primera versión de la corrección de P0-6 protegía `dcf()` cuando recibe
+# `None`... pero el router le seguía pasando `0.0`, así que `dcf()` nunca veía
+# el `None`. Los tests de arriba pasaban y el fallo seguía vivo en la ruta
+# principal: la misma familia de «la regla existe pero no se ejecuta». Estos
+# tests atraviesan el endpoint entero para que eso no pueda repetirse.
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from app.db.engine import get_session  # noqa: E402
+from app.deps import get_service  # noqa: E402
+from app.main import app  # noqa: E402
+from tests.test_valuation_api import FakeService, _periodos  # noqa: E402
+
+
+class ServicioConHuecos(FakeService):
+    def __init__(self, quitar: tuple[str, ...]):
+        super().__init__()
+        self.quitar = quitar
+
+    def get(self, data_type, **kw):
+        r = super().get(data_type, **kw)
+        if data_type == "financials":
+            r["periods"] = [
+                {k: (None if k in self.quitar else v) for k, v in p.items()}
+                for p in _periodos()
+            ]
+        return r
+
+
+@pytest.fixture
+def valorar(session_factory):
+    def _hacer(quitar=(), body=None):
+        service = ServicioConHuecos(quitar)
+
+        def override_session():
+            s = session_factory()
+            try:
+                yield s
+            finally:
+                s.close()
+
+        app.dependency_overrides[get_service] = lambda: service
+        app.dependency_overrides[get_session] = override_session
+        return TestClient(app).post("/api/valuation/AAPL", json=body)
+
+    yield _hacer
+    app.dependency_overrides.clear()
+
+
+def test_endpoint_sin_deuda_conocida_no_valora_por_accion(valorar):
+    r = valorar(quitar=("long_term_debt", "short_term_debt"))
+    assert r.status_code == 422, r.text
+    assert "deuda" in r.json()["detail"].lower()
+    assert "net_debt" in r.json()["detail"]  # y dice cómo arreglarlo
+
+
+def test_endpoint_sin_deuda_pero_con_la_tuya_si_valora(valorar):
+    """Si el usuario aporta la deuda, es su dato y se usa."""
+    r = valorar(quitar=("long_term_debt", "short_term_debt"), body={"net_debt": 1.5e9})
+    assert r.status_code == 200, r.text
+
+
+def test_endpoint_sin_capex_no_toma_el_flujo_operativo_entero_como_libre(valorar):
+    """capex ausente = FCF desconocido, no FCF = flujo operativo entero."""
+    r = valorar(quitar=("capex",))
+    assert r.status_code == 422, r.text
+    assert "capex" in r.json()["detail"].lower()
+
+
+def test_endpoint_sin_acciones_no_mezcla_valor_total_con_valor_por_accion(valorar):
+    """Antes, sin acciones, el «rango» se rellenaba con el equity TOTAL."""
+    r = valorar(quitar=("shares_outstanding",))
+    assert r.status_code == 422, r.text
+    assert "acciones" in r.json()["detail"].lower()
+
+
+def test_endpoint_con_todo_sigue_funcionando(valorar):
+    r = valorar()
+    assert r.status_code == 200, r.text
+    assert r.json()["escenarios"]["base"]["rango"]["disponible"] is True
+
+
+def test_rango_de_valor_no_mezcla_unidades():
+    from app.analysis.valuation import rango_de_valor
+
+    r = rango_de_valor(1e9, 0.05, 0.10, 0.025, 5, net_debt=0.0, shares_outstanding=None)
+    assert r["disponible"] is False
+    assert "acciones" in r["nota"].lower()
+
+
+def test_los_escenarios_sin_deuda_explican_por_que_no_hay_valor():
+    from app.analysis.valuation import scenario_set
+
+    r = scenario_set(
+        {"base": {"growth_rate": 0.05, "discount_rate": 0.10, "terminal_growth": 0.025}},
+        base_fcf=1e9, years=5, net_debt=None, shares_outstanding=1e8,
+    )
+    assert r["base"]["value_per_share"] is None
+    assert r["base"]["indeterminado"] is True
+    assert "deuda neta" in r["base"]["faltan"]

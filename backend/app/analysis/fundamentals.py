@@ -35,9 +35,12 @@ def free_cash_flow(period: dict) -> float | None:
     """FCF = flujo de caja operativo − capex (capex llega como pago positivo)."""
     cfo = period.get("cfo")
     capex = period.get("capex")
-    if cfo is None:
+    # Sin capex NO hay FCF. Antes se tomaba como cero, así que el flujo libre
+    # salía igual al operativo entero —el mayor posible— y la valoración subía
+    # justo por faltar un dato. Un capex de 0.0 reportado sí es un dato.
+    if cfo is None or capex is None:
         return None
-    return cfo - (capex or 0.0)
+    return cfo - capex
 
 
 def derive_ratio_series(periods: list[dict]) -> list[dict]:

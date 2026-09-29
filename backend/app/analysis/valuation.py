@@ -174,6 +174,11 @@ def scenario_set(
             "value_per_share": result["value_per_share"],
             "equity_value": result["equity_value"],
             "terminal_weight": result["terminal_weight"],
+            # Si no hay valor por acción, el porqué viaja con el hueco. Un «—»
+            # sin motivo se lee como fallo de la app; con motivo, como lo que es.
+            "indeterminado": bool(result.get("indeterminado")),
+            "faltan": result.get("faltan", []),
+            "motivo": result.get("motivo"),
         }
     return out
 
@@ -229,6 +234,17 @@ def rango_de_valor(
     centro: un rango de ±40 % no es una valoración, es un aviso de que el
     método no discrimina en este caso, y merece leerse como tal.
     """
+    # Sin deuda o sin acciones no hay valor por acción, y NO se sustituye por
+    # el valor total del equity. Antes se hacía (`valor or equity_value`), y el
+    # «rango» salía en miles de millones en los mismos campos que normalmente
+    # llevan dólares por acción: una mezcla de unidades sin aviso.
+    faltan = datos.faltantes({"deuda neta": net_debt, "acciones en circulación": shares_outstanding})
+    if not faltan and (datos.numero(shares_outstanding) or 0) <= 0:
+        faltan = ["acciones en circulación"]
+    if faltan:
+        return {"disponible": False, "faltan": faltan,
+                "nota": datos.indeterminado(faltan, "un valor por acción")["motivo"]}
+
     combinaciones = []
     for g in (growth_rate - banda_crecimiento, growth_rate, growth_rate + banda_crecimiento):
         for r in (
@@ -241,10 +257,8 @@ def rango_de_valor(
             resultado = dcf(
                 base_fcf, g, r, terminal_growth, years, net_debt, shares_outstanding
             )
-            valor = resultado["value_per_share"]
-            if valor is None:
-                valor = resultado["equity_value"]
-            combinaciones.append(valor)
+            if resultado["value_per_share"] is not None:
+                combinaciones.append(resultado["value_per_share"])
 
     # El centro se comprueba aparte, y no es redundante: la banda puede tener
     # esquinas válidas mientras el punto central NO lo es (descuento 3 % con
@@ -267,7 +281,7 @@ def rango_de_valor(
         base_fcf, growth_rate, discount_rate, terminal_growth, years, net_debt,
         shares_outstanding,
     )
-    valor_centro = centro["value_per_share"] or centro["equity_value"]
+    valor_centro = centro["value_per_share"]
     bajo, alto = min(combinaciones), max(combinaciones)
     amplitud = (alto - bajo) / valor_centro if valor_centro else None
 

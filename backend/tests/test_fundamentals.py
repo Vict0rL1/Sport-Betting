@@ -65,7 +65,8 @@ def test_cagr_no_definido_con_negativos():
 
 def test_growth_summary_usa_hasta_5_ejercicios():
     periods = [
-        {"fiscal_year": str(2019 + i), "revenue": 100.0 * (1.10**i), "cfo": 10.0 * (1.10**i)}
+        {"fiscal_year": str(2019 + i), "revenue": 100.0 * (1.10**i), "cfo": 10.0 * (1.10**i),
+         "capex": 0.0}
         for i in range(7)
     ]
     growth = growth_summary(periods)
@@ -74,9 +75,22 @@ def test_growth_summary_usa_hasta_5_ejercicios():
     assert growth["fcf_cagr"] == pytest.approx(0.10, rel=1e-6)
 
 
-def test_free_cash_flow_sin_capex_usa_cfo():
-    assert free_cash_flow({"cfo": 100.0}) == pytest.approx(100.0)
+def test_free_cash_flow_sin_capex_es_desconocido():
+    """Cambiado en el RC1. Antes: «sin capex, FCF = flujo operativo».
+
+    El parser de EDGAR solo reconoce dos etiquetas de capex, y muchas empresas
+    intensivas en capital (petroleras, utilities) usan otras. Para ellas el capex
+    llegaba vacío y el FCF salía igual al flujo operativo ENTERO: el mayor
+    posible, justo en las empresas donde el capex más pesa. Un dato ausente no
+    puede tratarse como cero, y menos cuando el cero es el valor favorable.
+    """
+    assert free_cash_flow({"cfo": 100.0}) is None
     assert free_cash_flow({}) is None
+
+
+def test_free_cash_flow_con_capex_cero_reportado_si_es_un_dato():
+    assert free_cash_flow({"cfo": 100.0, "capex": 0.0}) == pytest.approx(100.0)
+    assert free_cash_flow({"cfo": 100.0, "capex": 30.0}) == pytest.approx(70.0)
 
 
 # ---------------------------------------------------------------------------

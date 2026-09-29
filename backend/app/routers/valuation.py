@@ -121,7 +121,12 @@ def _cimientos(service: MarketDataService, symbol: str) -> dict:
     return {
         "periodos": periodos,
         "base_fcf": free_cash_flow(ultimo),
-        "net_debt": (deuda - (ultimo.get("cash") or 0.0)) if deuda is not None else 0.0,
+        # Deuda desconocida viaja como None, NUNCA como 0.0: con cero, una
+        # empresa sobre la que no sabemos la deuda se valoraba como si no debiera
+        # nada (+95 % en el caso de la auditoría). La caja ausente sí se toma
+        # como cero, porque ese error va en dirección prudente: sube la deuda
+        # neta y BAJA el valor.
+        "net_debt": (deuda - (ultimo.get("cash") or 0.0)) if deuda is not None else None,
         "shares_outstanding": ultimo.get("shares_outstanding"),
         "revenue": ultimo.get("revenue"),
         "eps": ultimo.get("eps_diluted"),
@@ -269,6 +274,27 @@ def valorar(
                 "No se pudo calcular el flujo de caja libre del último ejercicio "
                 "(faltan flujo operativo o capex en el filing). Puedes mandarlo tú "
                 "en `base_fcf` si lo tienes."
+            ),
+        )
+    # Mismo patrón para la deuda y las acciones: sin ellas no hay valor por
+    # acción, y lo honesto es decirlo y ofrecer el arreglo, no rellenar el
+    # hueco con el supuesto más favorable.
+    if net_debt is None:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "No se conoce la deuda neta de la empresa (el filing no trae deuda "
+                "a largo ni a corto plazo). Sin ella no hay valor por acción: "
+                "suponerla cero la valoraría como si no debiera nada. Puedes "
+                "mandarla tú en `net_debt` si la tienes."
+            ),
+        )
+    if not acciones:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "No se conoce el número de acciones en circulación, así que no hay "
+                "valor por acción. Puedes mandarlo tú en `shares_outstanding`."
             ),
         )
 
