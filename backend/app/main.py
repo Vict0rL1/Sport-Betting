@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+import math
+
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
@@ -44,6 +49,34 @@ app = FastAPI(
     ),
     lifespan=lifespan,
 )
+
+
+
+def _sin_no_finitos(valor):
+    """Sustituye NaN e infinitos por su texto, para que se puedan serializar."""
+    if isinstance(valor, float) and not math.isfinite(valor):
+        return str(valor)
+    if isinstance(valor, dict):
+        return {k: _sin_no_finitos(v) for k, v in valor.items()}
+    if isinstance(valor, (list, tuple)):
+        return [_sin_no_finitos(v) for v in valor]
+    return valor
+
+
+@app.exception_handler(RequestValidationError)
+async def _error_de_validacion(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """El 422 de siempre, pero que no revienta con un `Infinity` dentro.
+
+    FastAPI devuelve en el error el valor recibido. Si ese valor era `Infinity`
+    —que el `json` de Python acepta al leer pero no al escribir— el propio
+    mensaje de error fallaba al serializarse y el cliente recibía un 500: el
+    rechazo correcto se convertía en un fallo del servidor.
+    """
+    return JSONResponse(
+        status_code=422,
+        content={"detail": jsonable_encoder(_sin_no_finitos(exc.errors()))},
+    )
+
 
 app.add_middleware(
     CORSMiddleware,

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import re
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -455,16 +455,52 @@ def remove_from_watchlist(item_id: int, session: Session = Depends(get_session))
 # ---------------------------------------------------------------------------
 
 
+# `allow_inf_nan=False` en todo importe que entra. `gt=0` ya paraba NaN (porque
+# `NaN > 0` es False), pero dejaba pasar `Infinity`, que el `json` de Python lee
+# sin quejarse: una posición de infinitas acciones hacía infinito el valor, el
+# peso y el riesgo de toda la cartera.
+VENTANA_DUPLICADO = timedelta(minutes=10)
+
+
+def _fecha_de_apertura(valor: str | None) -> datetime | None:
+    """ISO (fecha o fecha y hora). Sin zona = UTC. Futura = error."""
+    if valor is None:
+        return None
+    try:
+        fecha = datetime.fromisoformat(valor)
+    except ValueError:
+        raise ValueError(
+            f"Fecha de apertura ilegible: {valor!r}. Usa el formato AAAA-MM-DD."
+        ) from None
+    if fecha.tzinfo is None:
+        fecha = fecha.replace(tzinfo=timezone.utc)
+    if fecha > datetime.now(timezone.utc) + timedelta(minutes=5):
+        raise ValueError(
+            "La fecha de apertura está en el futuro. Una compra que aún no ha "
+            "ocurrido descoloca la curva histórica y el tipo de cambio de compra."
+        )
+    return fecha
+
+
 class PositionCreate(BaseModel):
     symbol: str = Field(min_length=1, max_length=12)
-    quantity: float = Field(gt=0)
-    cost_basis: float = Field(ge=0, description="Coste por acción")
+    quantity: float = Field(gt=0, allow_inf_nan=False)
+    cost_basis: float = Field(ge=0, allow_inf_nan=False, description="Coste por acción")
     opened_at: str | None = None
     tesis: TesisEnLinea | None = None
+    # Comprar otra vez lo mismo, a la misma cantidad y precio, existe. Pero es
+    # mucho más probable que sea un doble clic: se pide confirmarlo.
+    confirmar_duplicado: bool = False
+
+    @field_validator("opened_at")
+    @classmethod
+    def _fecha_valida(cls, v: str | None) -> str | None:
+        _fecha_de_apertura(v)
+        return v
 
 
 class PositionClose(BaseModel):
-    exit_price: float = Field(ge=0, description="Precio de venta por acción")
+    exit_price: float = Field(ge=0, allow_inf_nan=False, description="Precio de venta por acción")
 
 
 @router.post("/positions")
@@ -474,11 +510,32 @@ def create_position(
     service: MarketDataService = Depends(get_service),
 ):
     instrument = get_or_create_instrument(session, body.symbol, service)
-    opened_at = (
-        datetime.fromisoformat(body.opened_at)
-        if body.opened_at
-        else datetime.now(timezone.utc)
-    )
+    opened_at = _fecha_de_apertura(body.opened_at) or datetime.now(timezone.utc)
+
+    # Un doble clic creaba dos posiciones idénticas: la cartera salía con el
+    # doble de exposición sin que nadie lo decidiera. Misma empresa, misma
+    # cantidad, mismo coste y abierta casi a la vez → se pide confirmación.
+    if not body.confirmar_duplicado:
+        for gemela in session.execute(
+            select(Position).where(
+                Position.instrument_id == instrument.id,
+                Position.closed_at.is_(None),
+                Position.quantity == body.quantity,
+                Position.cost_basis == body.cost_basis,
+            )
+        ).scalars():
+            abierta = alertas.como_utc(gemela.opened_at)
+            if abs(abierta - opened_at) <= VENTANA_DUPLICADO:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        f"Posición duplicada: ya hay una de {instrument.symbol} con "
+                        f"{body.quantity:g} acciones a {body.cost_basis:g}, abierta "
+                        f"el {abierta:%Y-%m-%d %H:%M} UTC (#{gemela.id}). Si de verdad "
+                        "es un segundo lote, repite con `confirmar_duplicado: true`."
+                    ),
+                )
+
     position = Position(
         instrument_id=instrument.id,
         quantity=body.quantity,
@@ -667,7 +724,7 @@ def get_portfolio(
 class AlertCreate(BaseModel):
     symbol: str = Field(min_length=1, max_length=12)
     op: str = Field(pattern="^(lt|gt)$")
-    price: float = Field(gt=0)
+    price: float = Field(gt=0, allow_inf_nan=False)
 
 
 def _historico_largo(
@@ -1122,14 +1179,26 @@ def create_alert(
     service: MarketDataService = Depends(get_service),
 ):
     instrument = get_or_create_instrument(session, body.symbol, service)
+    condicion = {"op": body.op, "price": body.price}
+    # Dos alertas idénticas mandarían dos avisos idénticos. Crear la misma otra
+    # vez devuelve la que ya existe, diciéndolo.
+    for existente in session.execute(
+        select(Alert).where(
+            Alert.instrument_id == instrument.id,
+            Alert.kind == "price",
+            Alert.active.is_(True),
+        )
+    ).scalars():
+        if existente.condition == condicion:
+            return {"id": existente.id, "symbol": instrument.symbol, "duplicada": True}
     alert = Alert(
         instrument_id=instrument.id,
         kind="price",
-        condition={"op": body.op, "price": body.price},
+        condition=condicion,
     )
     session.add(alert)
     session.commit()
-    return {"id": alert.id, "symbol": instrument.symbol}
+    return {"id": alert.id, "symbol": instrument.symbol, "duplicada": False}
 
 
 @router.delete("/alerts/{alert_id}")

@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -212,6 +213,12 @@ class WatchlistItem(Base):
 
 class Position(Base):
     __tablename__ = "positions"
+    # Desde la migración 0002. Una posición con cantidad ≤ 0 o coste negativo
+    # no describe nada real, y cada cálculo que la toca produce basura sin avisar.
+    __table_args__ = (
+        CheckConstraint("quantity > 0", name="ck_positions_cantidad_positiva"),
+        CheckConstraint("cost_basis >= 0", name="ck_positions_coste_no_negativo"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     instrument_id: Mapped[int] = mapped_column(ForeignKey("instruments.id"), index=True)

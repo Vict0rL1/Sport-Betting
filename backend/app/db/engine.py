@@ -26,10 +26,16 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 
 
 def init_db() -> None:
-    # Import por efecto: registra los modelos en Base.metadata antes de crear.
-    from app.db import models  # noqa: F401
+    """Pone la base al día con Alembic. Si no puede, la app no arranca.
 
-    Base.metadata.create_all(engine)
+    Antes era `Base.metadata.create_all(engine)`, que crea tablas pero nunca
+    añade columnas a las que ya existen: con una base de una versión anterior,
+    el código leía columnas que no estaban y fallaba lejos de la causa.
+    """
+    from app.db import models  # noqa: F401  (registra los modelos)
+    from app.db.migraciones import migrar
+
+    migrar(engine)
 
 
 def get_session():
