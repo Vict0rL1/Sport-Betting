@@ -22,7 +22,8 @@ class FakeService:
         if data_type == "quote":
             return {**common, "symbol": kwargs["symbol"], "price": self.price}
         if data_type == "profile":
-            return {**common, "symbol": kwargs["symbol"], "name": "Fake Corp", "sector": "Tech"}
+            return {**common, "symbol": kwargs["symbol"], "name": "Fake Corp", "sector": "Tech",
+                    "currency": "USD"}
         raise AssertionError(f"tipo inesperado: {data_type}")
 
 

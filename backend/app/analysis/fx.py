@@ -236,6 +236,45 @@ def convertir(
     return en_usd if hacia == BASE else en_usd * _por_usd(hacia, tipos)
 
 
+def convertir_con_traza(
+    importe: float, desde: str, hacia: str, tipos: dict[str, dict]
+) -> dict:
+    """Como `convertir`, pero devuelve también CÓMO se convirtió.
+
+    Cada conversión deja escrito el par, el tipo efectivo aplicado, la fecha de
+    ese tipo y su fuente. Sin esto, un total en dólares no se puede auditar: no
+    hay forma de saber, meses después, si una posición canadiense se convirtió a
+    1,37 o a 0,73 — que es justo el error de dirección que este módulo existe
+    para impedir, y el único modo de comprobarlo a posteriori es tener la traza.
+    """
+    if desde == hacia:
+        return {
+            "importe": importe,
+            "traza": {"desde": desde, "hacia": hacia, "tipo": 1.0,
+                      "fecha_tipo": None, "fuente": "misma moneda"},
+        }
+    convertido = convertir(importe, desde, hacia, tipos)
+    # La fuente es la serie de la moneda que no es el dólar; en un cruce entre
+    # dos monedas no-USD se nombran las dos, porque se usan las dos.
+    patas = [m for m in (desde, hacia) if m != BASE]
+    fuentes = [f"FRED {tipos[m].get('serie')}" for m in patas if tipos.get(m, {}).get("serie")]
+    fechas = [tipos[m].get("fecha") for m in patas if tipos.get(m, {}).get("fecha")]
+    return {
+        "importe": convertido,
+        "traza": {
+            "desde": desde,
+            "hacia": hacia,
+            # Tipo EFECTIVO: unidades de destino por unidad de origen. Es el que
+            # se puede comparar con lo que marca un broker.
+            "tipo": convertir(1.0, desde, hacia, tipos),
+            # Si hay dos patas, la fecha que manda es la más vieja: la
+            # conversión no es más fresca que su tipo más antiguo.
+            "fecha_tipo": min(fechas) if fechas else None,
+            "fuente": " + ".join(fuentes) if fuentes else None,
+        },
+    }
+
+
 def _por_usd(moneda: str, tipos: dict[str, dict]) -> float:
     info = tipos.get(moneda)
     if not info or not info.get("por_usd"):
@@ -257,18 +296,37 @@ def convertir_cartera(
 
     for p in posiciones:
         try:
-            moneda = normalizar(p.get("currency")) or base
+            moneda = normalizar(p.get("currency"))
         except SinTipo as exc:
             sin_convertir.append({"symbol": p.get("symbol"), "motivo": str(exc)})
+            continue
+        if moneda is None:
+            # La moneda desconocida NO es la base. Antes se suponía dólar, y el
+            # proveedor principal de cotizaciones (Finnhub) no devuelve moneda
+            # nunca: una acción canadiense se sumaba en dólares canadienses
+            # como si fueran estadounidenses. Sin moneda no hay conversión
+            # posible, así que queda fuera del total y se nombra.
+            sin_convertir.append({
+                "symbol": p.get("symbol"),
+                "moneda": None,
+                "motivo": (
+                    "Moneda desconocida: ni la cotización, ni el instrumento ni el "
+                    "perfil la dicen. No se supone el dólar — sumar una posición en "
+                    "otra moneda como si fuera dólares es el error que esto evita."
+                ),
+            })
             continue
 
         fila = {**p, "currency": moneda}
         try:
             for campo in ("market_value", "invested"):
                 valor = p.get(campo)
-                fila[f"{campo}_base"] = (
-                    convertir(float(valor), moneda, base, tipos) if valor is not None else None
-                )
+                if valor is None:
+                    fila[f"{campo}_base"] = None
+                    continue
+                r = convertir_con_traza(float(valor), moneda, base, tipos)
+                fila[f"{campo}_base"] = r["importe"]
+                fila["conversion"] = r["traza"]
         except SinTipo as exc:
             sin_convertir.append({"symbol": p.get("symbol"), "moneda": moneda, "motivo": str(exc)})
             continue

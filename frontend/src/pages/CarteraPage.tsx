@@ -471,6 +471,13 @@ export function CarteraPage() {
   }, [cargar])
 
   const faltanHistoricos = Object.keys(datos?.sin_historico ?? {}).length
+  // Lo que no entra en los pesos. `sin_precio` viajaba en la respuesta desde el
+  // principio y no se pintaba: una posición sin cotización desaparecía del
+  // análisis sin que la pantalla lo dijera.
+  const fuera = [
+    ...(datos?.sin_precio ?? []).map((s) => `${s} (sin precio)`),
+    ...(datos?.sin_convertir ?? []).map((s) => `${s.symbol} (${s.moneda ?? 'moneda desconocida'})`),
+  ]
 
   return (
     <div className="space-y-4">
@@ -506,6 +513,17 @@ export function CarteraPage() {
 
       {datos?.disponible && (
         <>
+          {fuera.length > 0 && (
+            <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
+              <p className="text-sm text-amber-900">
+                {fuera.length} posición(es) quedan FUERA de todos los pesos de esta
+                página: {fuera.join(', ')}. La concentración, la exposición y el estrés
+                se calculan sin ellas — tu cartera real es más grande de lo que se ve
+                aquí.
+              </p>
+            </div>
+          )}
+
           {faltanHistoricos > 0 && (
             <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
               <p className="text-sm text-sky-900">

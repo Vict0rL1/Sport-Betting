@@ -160,6 +160,9 @@ class DataRouter:
         - DataNotFoundError → se propaga: el dato no existe, no es un fallo.
         """
         reasons: dict[str, str] = {}
+        # Quién dijo «no lo tengo». Solo si lo dicen TODAS las fuentes que se
+        # pudieron consultar se puede afirmar que el dato no existe.
+        no_encontrado: list[str] = []
         # _order permite forzar fuentes para casos especiales (p. ej. índices
         # tipo ^VIX que solo cubre yfinance) sin tocar el orden global.
         order = kwargs.pop("_order", None) or self.source_order.get(data_type, [])
@@ -201,9 +204,17 @@ class DataRouter:
                     last_error = str(exc)
                     log("proveedor").info("%s/%s: límite del API: %s", name, data_type, exc)
                     break  # no reintentar contra un rate limit: siguiente fuente
-                except DataNotFoundError:
+                except DataNotFoundError as exc:
+                    # «No lo tengo» de UNA fuente no es «no existe». Antes se
+                    # propagaba en el acto y la cadena se cortaba: Finnhub
+                    # gratuito devuelve ceros para la bolsa de Toronto, así que
+                    # una acción canadiense se quedaba sin precio sin que nadie
+                    # preguntara a yfinance, que sí la cubre. Cuesta como mucho
+                    # una llamada más por símbolo inexistente.
                     self.limiter.record(name, data_type, "ok")
-                    raise
+                    no_encontrado.append(name)
+                    last_error = f"no encontrado: {exc}"
+                    break
                 except (NotSupportedError, ProviderError) as exc:
                     self.limiter.record(name, data_type, "error")
                     last_error = str(exc)
@@ -214,6 +225,16 @@ class DataRouter:
                         break
                     self._sleep(RETRY_BASE_DELAY * (2**attempt))
             reasons[name] = last_error or "error desconocido"
+
+        # Todas las que respondieron dijeron «no existe» y ninguna falló por
+        # otra causa: ahora sí se puede afirmar. Si una dijo «no existe» y otra
+        # estaba caída, NO se puede — quizá la caída lo tenía — y el fallo va
+        # como AllProvidersFailedError, que además permite el rescate de caché.
+        consultadas = [n for n in reasons if not reasons[n].startswith(("no configurado", "no soporta"))]
+        if no_encontrado and set(no_encontrado) == set(consultadas):
+            raise DataNotFoundError(
+                f"'{data_type}' no existe en ninguna fuente ({', '.join(no_encontrado)})"
+            )
         error = AllProvidersFailedError(data_type, reasons)
         log("proveedor").error("%s", error)
         raise error

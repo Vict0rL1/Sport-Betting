@@ -394,6 +394,10 @@ export interface DivisasDeCartera {
   monedas: Record<string, number>
   sin_convertir: { symbol?: string; moneda?: string; motivo: string }[]
   tipos_usados: Record<string, { por_usd: number; fecha: string | null; serie: string }>
+  /** Ganancia (+) o pérdida (−) en la base causada solo por el tipo de cambio desde la compra. */
+  efecto_divisa_base?: number | null
+  /** Posiciones cuyo coste se convirtió al tipo de hoy por no haber serie hasta su compra. */
+  coste_al_tipo_de_hoy?: string[]
   nota: string
 }
 
@@ -442,7 +446,10 @@ export interface Portfolio {
     total_market_value: number | null
     unrealized_pnl: number | null
     unrealized_pct: number | null
-    realized_pnl: number
+    /** En la base; `null` si ninguna cerrada se pudo convertir. */
+    realized_pnl: number | null
+    /** Cerradas que no entran en el realizado por moneda o tipo desconocidos. */
+    realizado_sin_convertir?: string[]
     priced_positions: number
     total_positions: number
     /** Ninguna rentabilidad viaja sola: esta es la caída que la acompaña. */
@@ -1684,6 +1691,8 @@ export interface RiesgoDeCartera {
   nota?: string
   posiciones?: PosicionDeCartera[]
   sin_precio?: string[]
+  /** Posiciones con precio pero sin moneda o tipo de cambio: fuera de los pesos. */
+  sin_convertir?: { symbol: string; moneda?: string | null; motivo: string }[]
   sin_historico?: Record<string, string>
   correlacion?: MatrizCorrelacion
   concentracion?: ConcentracionReal
@@ -1869,6 +1878,8 @@ export interface HistorialDeCartera {
   cierres?: string[]
   excluidas?: { symbol: string; motivo: string }[]
   fallos_de_cambio?: Record<string, string>
+  /** Posiciones fuera de la curva por no saberse en qué moneda están. */
+  sin_moneda?: string[]
   aviso?: string
   resumen?: {
     disponible: boolean

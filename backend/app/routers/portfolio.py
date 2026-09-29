@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import datos
 from app.analysis import alertas, fx, historial as hist, portfolio_risk
 from app.analysis.decision import _stop_pct
 from app.analysis.risk_budget import presupuesto_de_riesgo
@@ -20,7 +21,6 @@ from app.analysis.portfolio import (
     concentration_warning,
     portfolio_summary,
     position_metrics,
-    realized_pnl,
 )
 from app.cache.cache import MarketDataService
 from app.config import settings
@@ -60,14 +60,17 @@ def get_or_create_instrument(session: Session, symbol: str, service=None) -> Ins
     if instrument is not None:
         return instrument
 
-    name = sector = None
+    name = sector = currency = None
     if service is not None:
         try:
             profile = service.get("profile", symbol=symbol)
             name, sector = profile.get("name"), profile.get("sector")
+            # La moneda venía en el perfil y se tiraba, mientras la cotización
+            # de Finnhub —el primer proveedor— no la trae nunca.
+            currency = _moneda_legible(profile.get("currency"))
         except (DataNotFoundError, AllProvidersFailedError):
             pass
-    instrument = Instrument(symbol=symbol, name=name, sector=sector)
+    instrument = Instrument(symbol=symbol, name=name, sector=sector, currency=currency)
     session.add(instrument)
     session.commit()
     return instrument
@@ -179,6 +182,113 @@ def _precio_y_divisa(service: MarketDataService, symbol: str) -> tuple[float | N
         return q.get("price"), q.get("currency")
     except (DataNotFoundError, AllProvidersFailedError):
         return None, None
+
+
+def _realizado_en_base(cerradas: list[dict], series: dict) -> tuple[float | None, list[str]]:
+    """P&L realizado en la base: lo cobrado al tipo del día de VENTA menos lo
+    pagado al tipo del día de COMPRA.
+
+    Convertir el beneficio local a un solo tipo tampoco valdría: se perdería lo
+    que movió el cambio entre la compra y la venta, que es dinero ganado o
+    perdido igual que el de la acción.
+    """
+    total, fuera, alguna = 0.0, [], False
+    for p in cerradas:
+        pnl, moneda = datos.numero(p.get("realized_pnl")), p.get("currency")
+        if pnl is None:
+            continue
+        if moneda is None:
+            fuera.append(p["symbol"])
+            continue
+        if moneda == fx.BASE:
+            p["realized_pnl_base"] = pnl
+        else:
+            serie = series.get(moneda) or []
+            fechas, valores = [f for f, _ in serie], [v for _, v in serie]
+            try:
+                t_compra = hist._vigente(fechas, valores, date.fromisoformat(p["opened_at"][:10]))
+                t_venta = hist._vigente(fechas, valores, date.fromisoformat(p["closed_at"][:10]))
+            except ValueError:
+                t_compra = t_venta = None
+            if not t_compra or not t_venta:
+                fuera.append(p["symbol"])
+                continue
+            coste = p["quantity"] * p["cost_basis"]
+            p["realized_pnl_base"] = (coste + pnl) / t_venta - coste / t_compra
+        total += p["realized_pnl_base"]
+        alguna = True
+    return (round(total, 2) if alguna else None), fuera
+
+
+def _coste_al_tipo_de_compra(posiciones: list[dict], series: dict) -> None:
+    """Convierte lo invertido al tipo VIGENTE EL DÍA DE COMPRA, no al de hoy.
+
+    Con el tipo de hoy, la ganancia o pérdida cambiaria desde la compra se
+    borraba del P&L: si compraste con el dólar a 1,25 CAD y hoy está a 1,37, el
+    dólar canadiense se ha depreciado y ese dinero se ha perdido — pero el P&L
+    en dólares no lo enseñaba. Ahora el coste sale del tipo de aquel día y el
+    efecto divisa se da aparte en `efecto_divisa_base`.
+
+    Si la serie no llega a la fecha de compra, se queda el tipo de hoy y se
+    marca `coste_al_tipo_de_hoy`: mejor un P&L que se sabe aproximado que uno
+    que parece exacto.
+    """
+    for p in posiciones:
+        moneda = p.get("currency")
+        if moneda == fx.BASE or p.get("invested") is None or p.get("invested_base") is None:
+            continue
+        serie = series.get(moneda) or []
+        tipo = None
+        try:
+            abierto = date.fromisoformat(str(p.get("opened_at"))[:10])
+            tipo = hist._vigente([f for f, _ in serie], [v for _, v in serie], abierto)
+        except ValueError:
+            abierto = None
+        if not tipo:
+            p["efecto_divisa_base"] = None
+            p["coste_al_tipo_de_hoy"] = True
+            continue
+        al_tipo_de_hoy = p["invested_base"]
+        p["invested_base"] = p["invested"] / tipo
+        p["efecto_divisa_base"] = al_tipo_de_hoy - p["invested_base"]
+        p["coste_al_tipo_de_hoy"] = False
+        p["tipo_de_compra"] = {"por_usd": tipo, "fecha": abierto.isoformat()}
+
+
+def _moneda_segura(valor) -> str | None:
+    try:
+        return fx.normalizar(valor)
+    except fx.SinTipo:
+        return None
+
+
+def _moneda_legible(valor) -> str | None:
+    return valor.strip().upper() if isinstance(valor, str) and valor.strip() else None
+
+
+def _resolver_divisa(
+    session: Session, service: MarketDataService, instrument: Instrument, cotizada: str | None
+) -> str | None:
+    """La moneda de una posición, con lo que ya se sabe antes que suponiendo.
+
+    Orden: la cotización → la guardada en el instrumento → el perfil. Lo que se
+    aprende se guarda en `Instrument.currency`, que existía y nunca se rellenaba.
+
+    Si nada la dice, devuelve None, y la posición queda FUERA de los totales.
+    Antes se suponía dólar, y Finnhub —el primer proveedor de cotizaciones— no
+    devuelve la moneda nunca: una acción canadiense se sumaba en dólares
+    canadienses como si fueran estadounidenses, sin un aviso.
+    """
+    moneda = _moneda_legible(cotizada) or _moneda_legible(instrument.currency)
+    if moneda is None:
+        try:
+            moneda = _moneda_legible(service.get("profile", symbol=instrument.symbol).get("currency"))
+        except (DataNotFoundError, AllProvidersFailedError):
+            moneda = None
+    if moneda and instrument.currency != moneda:
+        instrument.currency = moneda
+        session.commit()
+    return moneda
 
 
 def _price_of(service: MarketDataService, symbol: str) -> float | None:
@@ -426,11 +536,16 @@ def get_portfolio(
                     "quantity": position.quantity,
                     "cost_basis": position.cost_basis,
                     "realized_pnl": position.realized_pnl,
+                    "opened_at": position.opened_at.isoformat(),
                     "closed_at": position.closed_at.isoformat(),
+                    "currency": _moneda_segura(
+                        _resolver_divisa(session, service, instrument, None)
+                    ),
                 }
             )
             continue
         price, divisa = _precio_y_divisa(service, instrument.symbol)
+        divisa = _resolver_divisa(session, service, instrument, divisa)
         metrics = position_metrics(
             {"quantity": position.quantity, "cost_basis": position.cost_basis}, price
         )
@@ -460,8 +575,22 @@ def get_portfolio(
     # moneda; sumarlos directamente daba un total creíble y equivocado, y de ese
     # total cuelgan los pesos, la concentración y el presupuesto de riesgo.
     monedas = {m for p in open_positions if (m := fx.normalizar(p.get("currency")))}
-    tipos = tipos_de_cambio(service, monedas)
+    monedas |= {p["currency"] for p in closed if p.get("currency")}
+    tipos, series_fx, _ = _fx_completo(service, monedas)
+    realizado_base, realizado_fuera = _realizado_en_base(closed, series_fx)
     divisas = fx.convertir_cartera(open_positions, tipos)
+    _coste_al_tipo_de_compra(divisas["posiciones"], series_fx)
+    efectos = [p["efecto_divisa_base"] for p in divisas["posiciones"]
+               if p.get("efecto_divisa_base") is not None]
+    aproximadas = [p["symbol"] for p in divisas["posiciones"] if p.get("coste_al_tipo_de_hoy")]
+    divisas["efecto_divisa_base"] = round(sum(efectos), 2) if efectos else None
+    divisas["coste_al_tipo_de_hoy"] = aproximadas
+    if aproximadas:
+        divisas["nota"] += (
+            f" El coste de {', '.join(aproximadas[:4])} se convierte al tipo de HOY "
+            "porque la serie no llega a su fecha de compra: su P&L en dólares no "
+            "incluye el efecto divisa desde que compraste."
+        )
 
     # A partir de aquí se trabaja con los importes YA convertidos, y lo que no
     # se pudo convertir sencillamente no está en la lista.
@@ -503,7 +632,15 @@ def get_portfolio(
         # −45 % por el camino» son propuestas distintas, y quien solo ve la
         # primera abandona en el peor momento.
         "summary": con_caida_esperada(
-            {**summary, "realized_pnl": realized_pnl(closed)}, estres
+            {
+                **summary,
+                # Convertido a la base, cada cerrada con los tipos de SUS fechas.
+                # Antes se sumaba cada una en su moneda: 370 CAD contaban como
+                # 370 USD. Lo que no se puede convertir queda fuera y se nombra.
+                "realized_pnl": realizado_base,
+                "realizado_sin_convertir": realizado_fuera,
+            },
+            estres
         ),
         "estres": estres,
         "allocation_by_position": by_position,
@@ -692,6 +829,29 @@ def _referencia_del_universo(session: Session) -> tuple[dict | None, int]:
 DIAS_FX_HISTORICO = 4000  # ~11 años: cubre cualquier cartera de esta app
 
 
+def _fx_completo(service: MarketDataService, monedas: set[str]) -> tuple[dict, dict, dict]:
+    """UNA descarga larga por divisa, de la que salen el tipo de hoy Y la serie.
+
+    Devuelve (tipos de hoy, series completas, fallos). Pedir la ventana corta
+    para el tipo actual y la larga para el histórico eran dos llamadas por
+    divisa para el mismo dato.
+    """
+    tipos, series, fallos = {}, {}, {}
+    desde = fx.inicio_de_ventana(dias=DIAS_FX_HISTORICO)
+    for moneda in sorted(monedas):
+        if moneda == fx.BASE or moneda not in fx.SERIES:
+            continue
+        try:
+            payload = service.get("macro", series_id=fx.SERIES[moneda]["serie"], start=desde)
+            puntos = payload.get("points") or []
+            series[moneda] = fx.serie_por_usd(moneda, puntos)
+            tipos[moneda] = fx.tipo_desde_observaciones(moneda, puntos)
+        except (DataNotFoundError, AllProvidersFailedError, fx.SinTipo) as exc:
+            fallos[moneda] = str(exc)[:200]
+            tipos[moneda] = {"por_usd": None, "error": str(exc)[:200]}
+    return tipos, series, fallos
+
+
 def _series_fx(service: MarketDataService, monedas: set[str]) -> tuple[dict, dict]:
     """Series completas de tipos, para convertir CADA fecha con SU tipo.
 
@@ -699,16 +859,7 @@ def _series_fx(service: MarketDataService, monedas: set[str]) -> tuple[dict, dic
     divisa desaparece del gráfico y lo que movió el cambio parece que lo movió
     la acción.
     """
-    series, fallos = {}, {}
-    desde = fx.inicio_de_ventana(dias=DIAS_FX_HISTORICO)
-    for moneda in sorted(monedas):
-        if moneda == fx.BASE or moneda not in fx.SERIES:
-            continue
-        try:
-            payload = service.get("macro", series_id=fx.SERIES[moneda]["serie"], start=desde)
-            series[moneda] = fx.serie_por_usd(moneda, payload.get("points") or [])
-        except (DataNotFoundError, AllProvidersFailedError, fx.SinTipo) as exc:
-            fallos[moneda] = str(exc)[:200]
+    _, series, fallos = _fx_completo(service, monedas)
     return series, fallos
 
 
@@ -731,11 +882,20 @@ def historial_de_cartera(
     if not filas:
         return {"disponible": False, "nota": "No hay posiciones que recorrer."}
 
-    posiciones, symbols, monedas = [], [], set()
+    posiciones, symbols, monedas, sin_moneda = [], [], set(), []
     for position, instrument in filas:
         _, divisa = _precio_y_divisa(service, instrument.symbol)
-        moneda = fx.normalizar(divisa) or fx.BASE
-        monedas.add(moneda)
+        try:
+            moneda = fx.normalizar(_resolver_divisa(session, service, instrument, divisa))
+        except fx.SinTipo:
+            moneda = None
+        if moneda is None:
+            # Sin moneda no entra en la curva: suponer dólar dibujaría una
+            # posición canadiense un 37 % más grande de lo que es. Pasa igual
+            # a `historial`, que la excluye y la nombra en el aviso de pantalla.
+            sin_moneda.append(instrument.symbol)
+        else:
+            monedas.add(moneda)
         symbols.append(instrument.symbol)
         posiciones.append(
             {
@@ -752,7 +912,7 @@ def historial_de_cartera(
     fx_series, fallos_fx = _series_fx(service, monedas)
 
     resultado = hist.historial(posiciones, series, fx_series, base=fx.BASE)
-    return {**resultado, "fallos_de_cambio": fallos_fx}
+    return {**resultado, "fallos_de_cambio": fallos_fx, "sin_moneda": sin_moneda}
 
 
 @router.get("/riesgo")
@@ -781,19 +941,33 @@ def riesgo_de_cartera(
 
     crudas = []
     for position, instrument in rows:
-        price = _price_of(service, instrument.symbol)
+        price, divisa = _precio_y_divisa(service, instrument.symbol)
         crudas.append(
             {
                 "symbol": instrument.symbol,
                 "name": instrument.name,
                 "sector": instrument.sector,
+                "currency": _resolver_divisa(session, service, instrument, divisa),
                 "market_value": price * position.quantity if price else None,
+                "invested": position.cost_basis * position.quantity,
             }
         )
 
-    con_precio = [p for p in crudas if p["market_value"]]
-    total = sum(p["market_value"] for p in con_precio)
     sin_precio = [p["symbol"] for p in crudas if not p["market_value"]]
+    # CONVERTIR ANTES DE PESAR. Este endpoint es anterior a la conversión de
+    # divisas y sumaba cada `market_value` en su moneda: con una posición
+    # canadiense, todos los pesos —concentración, exposición, estrés— salían
+    # mal. Lo que no se puede convertir queda fuera y se nombra.
+    monedas = {m for p in crudas if p["market_value"] and (m := _moneda_segura(p["currency"]))}
+    divisas = fx.convertir_cartera(
+        [p for p in crudas if p["market_value"]], tipos_de_cambio(service, monedas)
+    )
+    con_precio = [
+        {**p, "market_value": p["market_value_base"]}
+        for p in divisas["posiciones"]
+        if p.get("market_value_base")
+    ]
+    total = sum(p["market_value"] for p in con_precio)
     if not con_precio or not total:
         return {
             "disponible": False,
@@ -853,6 +1027,7 @@ def riesgo_de_cartera(
         "disponible": True,
         "posiciones": posiciones,
         "sin_precio": sin_precio,
+        "sin_convertir": divisas["sin_convertir"],
         "sin_historico": fallos,
         "correlacion": correlacion,
         "concentracion": concentracion,

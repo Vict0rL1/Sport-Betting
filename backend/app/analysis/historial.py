@@ -78,7 +78,12 @@ def historial(
     usables, excluidas = [], []
     for p in posiciones:
         symbol = p["symbol"]
-        moneda = (p.get("currency") or base).upper()
+        moneda = (p.get("currency") or "").upper() or None
+        if moneda is None:
+            # Antes: `currency or base`, o sea, la moneda desconocida se suponía
+            # dólar y una posición canadiense se dibujaba un 37 % más grande.
+            excluidas.append({"symbol": symbol, "motivo": "moneda desconocida"})
+            continue
         if symbol not in idx_precio:
             excluidas.append({"symbol": symbol, "motivo": "sin histórico de precios en caché"})
             continue

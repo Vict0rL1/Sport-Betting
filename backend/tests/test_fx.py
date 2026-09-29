@@ -199,10 +199,18 @@ def test_los_tipos_usados_viajan_con_su_fecha_y_su_serie():
     assert usado["serie"] == "DEXCAUS"
 
 
-def test_una_posicion_sin_moneda_se_asume_en_la_base_y_no_se_pierde():
+def test_una_posicion_sin_moneda_no_se_supone_en_la_base():
+    """Cambiado en el RC1. Antes: «sin moneda, se asume la base y no se pierde».
+
+    Finnhub, el primer proveedor de cotizaciones, no devuelve la moneda NUNCA.
+    Suponer dólar hacía que una acción canadiense se sumara en dólares
+    canadienses como si fueran estadounidenses, sin aviso. La moneda se resuelve
+    ahora antes (cotización → instrumento → perfil); si aun así no se sabe, la
+    posición no se suma y se nombra.
+    """
     r = fx.convertir_cartera([_pos("AAPL", 100.0, None)], TIPOS)
-    assert r["posiciones"][0]["currency"] == "USD"
-    assert r["posiciones"][0]["market_value_base"] == 100.0
+    assert r["posiciones"] == []
+    assert r["sin_convertir"][0]["symbol"] == "AAPL"
 
 
 def test_una_posicion_sin_precio_se_convierte_a_none_sin_romper():

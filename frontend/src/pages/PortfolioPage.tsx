@@ -185,6 +185,20 @@ function DivisasPanel({ d }: { d: DivisasDeCartera }) {
         </ul>
       )}
 
+      {/* Lo que ha movido SOLO el tipo de cambio desde que compraste. Está
+          dentro del P&L de arriba; aquí se separa porque es un riesgo distinto
+          del de la acción, y uno que se suele olvidar. */}
+      {d.efecto_divisa_base != null && (
+        <p className="mt-2 text-[11px] tabular-nums text-sky-900">
+          Efecto divisa desde la compra:{' '}
+          <span className={d.efecto_divisa_base >= 0 ? 'text-emerald-700' : 'text-red-700'}>
+            {d.efecto_divisa_base >= 0 ? '+' : ''}
+            {fmtNumber(d.efecto_divisa_base, 0)} {d.base}
+          </span>{' '}
+          <span className="text-sky-700">(incluido en el P&L)</span>
+        </p>
+      )}
+
       {d.sin_convertir.length > 0 && (
         <ul className="mt-2 space-y-0.5 text-[11px] text-amber-800">
           {d.sin_convertir.map((x, i) => (
@@ -431,6 +445,12 @@ function PortfolioTab() {
               <div className="text-xl">
                 <Pnl value={data.summary.realized_pnl} pct={null} />
               </div>
+              {(data.summary.realizado_sin_convertir?.length ?? 0) > 0 && (
+                <div className="mt-1 text-[11px] text-amber-800">
+                  Sin contar {data.summary.realizado_sin_convertir!.join(', ')}: moneda o
+                  tipo de cambio desconocidos.
+                </div>
+              )}
             </div>
           </section>
 

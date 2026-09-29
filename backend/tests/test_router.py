@@ -90,15 +90,19 @@ def test_reintenta_con_backoff_ante_error_transitorio(session_factory):
     assert sleeps == [1.0, 2.0]  # backoff exponencial
 
 
-def test_data_not_found_se_propaga_sin_fallback(session_factory):
-    # Si el símbolo no existe, probar otra fuente solo quema llamadas.
+def test_data_not_found_de_una_fuente_no_corta_la_cadena(session_factory):
+    """Cambiado en el RC1. Antes: «si no existe, probar otra solo quema llamadas».
+
+    El problema es que «no existe» dependía de la COBERTURA de la fuente, no del
+    símbolo: Finnhub gratuito no cubre Toronto y lo dice como «no existe». Con la
+    regla vieja, una acción canadiense nunca llegaba a yfinance.
+    """
     a = FakeProvider("a", [DataNotFoundError("no existe")])
     b = FakeProvider("b", [{"symbol": "X", "price": 2.0}])
     router = make_router(session_factory, {"a": a, "b": b})
 
-    with pytest.raises(DataNotFoundError):
-        router.fetch("quote", symbol="NOEXISTE")
-    assert b.calls == 0
+    assert router.fetch("quote", symbol="X")["source"] == "b"
+    assert b.calls == 1
 
 
 def test_error_agregado_si_todo_falla(session_factory):

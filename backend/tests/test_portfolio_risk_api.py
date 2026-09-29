@@ -56,7 +56,8 @@ class FakeService:
         if data_type == "quote":
             return {**common, "symbol": symbol, "price": 100.0}
         if data_type == "profile":
-            return {**common, "symbol": symbol, "name": symbol, "country": "US"}
+            return {**common, "symbol": symbol, "name": symbol, "country": "US",
+                    "currency": "USD"}
         if data_type == "price_history_long":
             if symbol not in self.largos:
                 raise DataNotFoundError(f"sin histórico para {symbol}")

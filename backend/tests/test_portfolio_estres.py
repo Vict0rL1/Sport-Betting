@@ -56,6 +56,7 @@ class FakeService:
                 **common,
                 "symbol": kwargs["symbol"],
                 "name": "Fake Corp",
+                "currency": "USD",
                 "sector": "Tech",
             }
         raise AssertionError(f"tipo inesperado: {data_type}")
