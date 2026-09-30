@@ -12,6 +12,8 @@
 //                                       muestra y la que no depende de la suerte del resultado.
 //   3. ¿El banco gana?                   retorno por apuesta liquidada. La más ruidosa: con
 //                                       cuotas de 2,0, cien apuestas dan ±20 puntos de ROI.
+//   4. ¿Rinde lo prometido?              retorno realizado menos la ventaja con que se apostó.
+//                                       Negativo: el modelo sobrestima su ventaja.
 //
 // Intervalos por bootstrap (el emparejado del registro de experimentos: mismo generador,
 // mismo número de remuestreos). Con menos de MIN_N datos no se calcula nada: se dice
@@ -83,7 +85,14 @@ export function probarMedia(
 const pp = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(x * 100).toFixed(1).replace('.', ',')} %`;
 const ll = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(4).replace('.', ',')}`;
 
-export function validacionEnVivo(): { modeloVsMercado: Record<string, Prueba>; clvSenales: Prueba; clvApostadas: Prueba; clvRechazadas: Prueba; retornoBanco: Prueba } {
+export function validacionEnVivo(): {
+  modeloVsMercado: Record<string, Prueba>;
+  clvSenales: Prueba;
+  clvApostadas: Prueba;
+  clvRechazadas: Prueba;
+  retornoBanco: Prueba;
+  promesa: Prueba;
+} {
   // 1. Modelo contra mercado, por deporte (cada deporte tiene su propio mercado).
   const modeloVsMercado: Record<string, Prueba> = {};
   for (const d of ['tennis', 'football', 'basketball', 'baseball', 'nfl'] as const) {
@@ -112,5 +121,20 @@ export function validacionEnVivo(): { modeloVsMercado: Record<string, Prueba>; c
   );
   const retornoBanco = probarMedia(ret, '¿El banco de papel gana?', true, pp);
 
-  return { modeloVsMercado, clvSenales, clvApostadas, clvRechazadas, retornoBanco };
+  // 4. ¿Rinde lo que prometía? Cada apuesta se hizo con una ventaja (p·cuota − 1); si el
+  //    modelo tiene razón, el retorno realizado menos esa ventaja es cero de media. Si es
+  //    negativo con intervalo, el modelo sobrestima su ventaja justo donde apuesta: el
+  //    fallo típico de un modelo demasiado seguro, porque las apuestas son los partidos
+  //    donde más discrepa del mercado.
+  const prom = (
+    getDb()
+      .prepare(
+        `SELECT profit, stake, odds, edge, COALESCE(model_probability_calibrated, p_model) AS p
+           FROM paper_bets WHERE status IN ('won', 'lost')`,
+      )
+      .all() as { profit: number; stake: number; odds: number; edge: number | null; p: number }[]
+  ).map((r) => r.profit / r.stake - (r.edge ?? r.p * r.odds - 1));
+  const promesa = probarMedia(prom, '¿Las apuestas rinden lo que el modelo prometía?', true, pp);
+
+  return { modeloVsMercado, clvSenales, clvApostadas, clvRechazadas, retornoBanco, promesa };
 }

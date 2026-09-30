@@ -33,6 +33,27 @@ interface Validacion {
   clvApostadas: Prueba;
   clvRechazadas: Prueba;
   retornoBanco: Prueba;
+  promesa?: Prueba;
+}
+
+interface Tramo {
+  etiqueta: string;
+  n: number;
+  roi: number | null;
+  roiPrometido: number | null;
+  clvMedio: number | null;
+}
+interface Rendimiento {
+  total: Tramo;
+  aciertos: number;
+  aciertosEsperados: number | null;
+  drawdown: { importe: number; pct: number } | null;
+  peorRacha: number;
+  porDeporte: Tramo[];
+  porCuota: Tramo[];
+  porEdge: Tramo[];
+  senalesPorEdge: (Prueba & { etiqueta: string })[];
+  lecturaEdge: string | null;
 }
 const COLOR_VEREDICTO: Record<Prueba['veredicto'], string> = {
   'a favor': PROFIT_COLOR,
@@ -44,18 +65,21 @@ const COLOR_VEREDICTO: Record<Prueba['veredicto'], string> = {
 const NOMBRE: Record<string, string> = { tennis: '🎾 Tenis', football: '⚽ Fútbol', basketball: '🏀 Baloncesto', baseball: '⚾ Béisbol', nfl: '🏈 NFL' };
 const f3 = (x: number | null | undefined) => (x == null ? '—' : x.toFixed(3).replace('.', ','));
 const pct = (x: number | null | undefined) => (x == null ? '—' : `${(x * 100).toFixed(1).replace('.', ',')} %`);
+const signo = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '+' : '−'}${Math.abs(x * 100).toFixed(1).replace('.', ',')} %`);
 
 export default function LiveEvaluation() {
   const [d, setD] = useState<Informe[] | null>(null);
   const [v, setV] = useState<Validacion | null>(null);
+  const [rend, setRend] = useState<Rendimiento | null>(null);
   useEffect(() => {
     let vivo = true;
     fetch('/api/evaluation')
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((j: { deportes: Informe[]; validacion?: Validacion }) => {
+      .then((j: { deportes: Informe[]; validacion?: Validacion; rendimiento?: Rendimiento }) => {
         if (!vivo) return;
         setD(j.deportes);
         setV(j.validacion ?? null);
+        setRend(j.rendimiento ?? null);
       })
       .catch(() => vivo && setD([]));
     return () => {
@@ -157,6 +181,84 @@ export default function LiveEvaluation() {
           )}
         </div>
       )}
+      {/* EL DINERO, POR TRAMOS. Lo que el banco prometía (la ventaja con que apostó) al lado
+          de lo que dio, y dónde: deporte, cuota y tamaño de la ventaja. */}
+      {rend && (rend.total.n > 0 || rend.senalesPorEdge.some((t) => t.n > 0)) && (
+        <div className="border-t border-white/[0.07] px-4 py-3">
+          <h4 className="text-[14px] font-semibold text-[#c3c9d1]">El dinero, por tramos</h4>
+          {rend.total.n > 0 && (
+            <>
+              <p className="mt-1 text-[13px] leading-relaxed text-[#9aa1ac]">
+                {rend.total.n} apuestas ganadas o perdidas · ROI{' '}
+                <strong style={{ color: (rend.total.roi ?? 0) >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>{signo(rend.total.roi)}</strong> ·
+                el modelo prometía {signo(rend.total.roiPrometido)}
+                {rend.aciertosEsperados != null &&
+                  ` · ${rend.aciertos} acertadas de ${rend.aciertosEsperados.toFixed(1).replace('.', ',')} esperadas`}
+                {rend.drawdown && rend.drawdown.importe > 0 && ` · peor caída desde un máximo −${pct(rend.drawdown.pct)} del banco`}
+                {rend.peorRacha > 0 && ` · racha más larga perdiendo: ${rend.peorRacha}`}
+              </p>
+              <div className="mt-2 overflow-x-auto">
+                <table className="w-full border-collapse whitespace-nowrap text-[12px] sm:text-[13px]">
+                  <thead>
+                    <tr className="text-left text-[11px] uppercase tracking-wide text-[#7b828d]">
+                      <th className="py-1.5 pr-2 sm:pr-3 font-medium">Tramo</th>
+                      <th className="py-1.5 pr-2 sm:pr-3 text-right font-medium">N.º</th>
+                      <th className="py-1.5 pr-2 sm:pr-3 text-right font-medium">ROI</th>
+                      <th className="py-1.5 pr-2 sm:pr-3 text-right font-medium">Prometido</th>
+                      <th className="py-1.5 text-right font-medium">CLV</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(
+                      [
+                        ['Por deporte', rend.porDeporte.map((t) => ({ ...t, etiqueta: NOMBRE[t.etiqueta] ?? t.etiqueta }))],
+                        ['Por cuota', rend.porCuota],
+                        ['Por ventaja al apostar', rend.porEdge],
+                      ] as [string, Tramo[]][]
+                    ).map(([grupo, ts]) => [
+                      <tr key={grupo}>
+                        <td colSpan={5} className="pt-2 text-[11px] uppercase tracking-wide text-[#5c636e]">
+                          {grupo}
+                        </td>
+                      </tr>,
+                      ...ts.map((t) => (
+                        <tr key={grupo + t.etiqueta} className="border-t border-white/[0.05]">
+                          <td className="py-1.5 pr-2 sm:pr-3 text-[#c3c9d1]">{t.etiqueta}</td>
+                          <td className="py-1.5 pr-2 sm:pr-3 text-right text-[#9aa1ac]">{t.n}</td>
+                          <td className="py-1.5 pr-2 sm:pr-3 text-right" style={{ color: (t.roi ?? 0) >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
+                            {signo(t.roi)}
+                          </td>
+                          <td className="py-1.5 pr-2 sm:pr-3 text-right text-[#7b828d]">{signo(t.roiPrometido)}</td>
+                          <td className="py-1.5 text-right text-[#9aa1ac]">{signo(t.clvMedio)}</td>
+                        </tr>
+                      )),
+                    ])}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+          {rend.senalesPorEdge.some((t) => t.n > 0) && (
+            <div className="mt-3 text-[13px] leading-relaxed">
+              <p className="text-[#9aa1ac]">
+                ¿Le gana más al cierre una ventaja grande que una pequeña? (todas las señales, apostadas o no)
+              </p>
+              <ul className="mt-1 space-y-1">
+                {rend.senalesPorEdge
+                  .filter((t) => t.n > 0)
+                  .map((t) => (
+                    <li key={t.etiqueta}>
+                      <span className="text-[#c3c9d1]">{t.etiqueta}</span>{' '}
+                      <strong style={{ color: COLOR_VEREDICTO[t.veredicto] }}>{t.veredicto}</strong>
+                      <span className="text-[#7b828d]"> · {t.lectura}</span>
+                    </li>
+                  ))}
+              </ul>
+              {rend.lecturaEdge && <p className="mt-1 text-[#9aa1ac]">{rend.lecturaEdge}</p>}
+            </div>
+          )}
+        </div>
+      )}
       {/* ¿ES REAL? Cada cifra con su intervalo. El veredicto no promete más de lo que la
           muestra sostiene: con pocos datos dice cuántos harían falta. */}
       {v && (
@@ -170,7 +272,10 @@ export default function LiveEvaluation() {
               { ...v.clvSenales, pregunta: '¿El edge que detecta el modelo le gana al cierre? (todas las señales con ventaja)' },
               { ...v.clvApostadas, pregunta: '¿Las apuestas del banco le ganan al cierre?' },
               { ...v.clvRechazadas, pregunta: '¿Las señales que se rechazaron le ganaban al cierre?' },
-              { ...v.retornoBanco, pregunta: '¿El banco de papel gana dinero?' },
+              { ...v.retornoBanco, pregunta: '¿El banco de papel gana dinero? (retorno medio por apuesta)' },
+              ...(v.promesa
+                ? [{ ...v.promesa, pregunta: '¿Las apuestas rinden lo que el modelo prometía? (retorno menos la ventaja con que se apostó)' }]
+                : []),
             ].map((p) => (
               <li key={p.pregunta}>
                 <span className="text-[#9aa1ac]">{p.pregunta}</span>{' '}

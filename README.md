@@ -1081,12 +1081,24 @@ validación estadística**, y cada eslabón deja rastro inmutable:
   pendiente o una señal abierta que empieza en los próximos 30 minutos y no se ha visto en los
   últimos 15 se piden (1 crédito por liga, respetando el presupuesto). Con el refresco de
   12 h el «cierre» podía ser de la mañana; ahora es de minutos antes.
-- **¿Es real?** (`evaluation/validation.ts`, en el panel «El modelo en vivo»): tres pruebas
+- **¿Es real?** (`evaluation/validation.ts`, en el panel «El modelo en vivo»): cuatro pruebas
   por bootstrap —¿el modelo le gana al mercado en log loss, partido a partido?, ¿el edge
-  detectado le gana al cierre (CLV)?, ¿el banco gana?— con intervalo del 95 % y un veredicto:
-  *a favor*, *en contra*, *no concluyente* (y cuántos datos harían falta) o *muestra
-  insuficiente* (menos de 30). `verify:data` comprueba que ningún veredicto contradiga su
-  intervalo.
+  detectado le gana al cierre (CLV)?, ¿el banco gana?, ¿rinde lo que el modelo prometía?— con
+  intervalo del 95 % y un veredicto: *a favor*, *en contra*, *no concluyente* (y cuántos datos
+  harían falta) o *muestra insuficiente* (menos de 30). `verify:data` comprueba que ningún
+  veredicto contradiga su intervalo.
+- **El dinero, por tramos** (`evaluation/betting.ts`, mismo panel): el ROI realizado al lado
+  del **prometido** (la ventaja p·cuota − 1 con que se hizo cada apuesta, ponderada por
+  importe), aciertos contra los esperados (Σ p), la peor caída desde un máximo y la racha más
+  larga perdiendo; y todo eso partido por deporte, por tramo de cuota y por tramo de ventaja.
+  Las apuestas son los partidos donde el modelo más discrepa del mercado, que es donde un
+  modelo demasiado seguro se nota primero: si el realizado va sistemáticamente por debajo del
+  prometido, la prueba «¿rinde lo prometido?» sale *en contra*.
+- **¿Una ventaja grande es más ventaja?** Con todas las señales (apostadas o no), el CLV por
+  tramo de ventaja. Si las ventajas de más del 10 % le ganan al cierre menos que las del 3 %,
+  lo grande no es edge: es un partido que el modelo conoce mal. Solo se afirma cuando los
+  intervalos de los dos tramos no se tocan; si se tocan, se dice que no se distinguen. Es un
+  diagnóstico, no una regla: la política de apuestas no se toca por él sin medirlo antes.
 
 ## Por qué ESTE deporte sale en demostración (`npm run doctor`)
 

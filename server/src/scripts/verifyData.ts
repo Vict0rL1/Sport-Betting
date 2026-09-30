@@ -29,6 +29,7 @@
 
 import { validacionEnVivo, MIN_N } from '../evaluation/validation.ts';
 import { evaluacionEnVivo } from '../evaluation/live.ts';
+import { rendimientoEnVivo } from '../evaluation/betting.ts';
 import { leerMetricasBacktest, problemasMetricasBacktest } from '../evaluation/report.ts';
 import nodeFs from 'node:fs';
 import nodePath from 'node:path';
@@ -1457,7 +1458,7 @@ function auditLiveEvaluation(): void {
   // para evitar.
   try {
     const v = validacionEnVivo();
-    const pruebas = [...Object.values(v.modeloVsMercado), v.clvSenales, v.clvApostadas, v.clvRechazadas, v.retornoBanco];
+    const pruebas = [...Object.values(v.modeloVsMercado), v.clvSenales, v.clvApostadas, v.clvRechazadas, v.retornoBanco, v.promesa];
     const incoherentes = pruebas.filter(
       (p) => p.veredicto === 'a favor' || p.veredicto === 'en contra' ? p.lo == null || p.hi == null || (p.lo <= 0 && p.hi >= 0) : false,
     );
@@ -1477,6 +1478,22 @@ function auditLiveEvaluation(): void {
     const ajenas = r.porVersion.filter((v) => v.version != null && !v.version.startsWith(`${r.deporte}-`));
     check(`evaluación en vivo ${r.deporte}: ninguna versión de otro deporte`, ajenas.length === 0, ajenas.map((v) => v.version).join(', '));
     if (r.n > 0) console.log(`  ${r.deporte}: ${r.n} partidos · log loss ${r.logLoss?.toFixed(4)} · Brier ${r.brier?.toFixed(4)}`);
+  }
+  // El dinero: los tramos reparten las mismas apuestas que el total, ni una más ni una menos.
+  try {
+    const r = rendimientoEnVivo();
+    const suma = (ts: { n: number }[]) => ts.reduce((a, t) => a + t.n, 0);
+    check('rendimiento en vivo: los deportes suman el total', suma(r.porDeporte) === r.total.n, `${suma(r.porDeporte)} ≠ ${r.total.n}`);
+    check('rendimiento en vivo: los tramos de cuota suman el total', suma(r.porCuota) === r.total.n, `${suma(r.porCuota)} ≠ ${r.total.n}`);
+    check('rendimiento en vivo: el drawdown no es negativo', !r.drawdown || r.drawdown.importe >= 0);
+    if (r.total.n > 0) {
+      console.log(
+        `  banco de papel: ${r.total.n} apuestas · ROI ${((r.total.roi ?? 0) * 100).toFixed(1)} % · ` +
+          `prometido ${((r.total.roiPrometido ?? 0) * 100).toFixed(1)} %`,
+      );
+    }
+  } catch (e) {
+    check('rendimiento en vivo: calculable', false, (e as Error).message);
   }
   // La ficha de los backtests, aparte: solo backtest, entera y con la referencia correcta.
   const ficha = leerMetricasBacktest();
