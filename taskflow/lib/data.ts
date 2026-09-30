@@ -55,12 +55,21 @@ export async function getCtx(): Promise<Ctx> {
   return { supabase, userId: auth.user.id, profile, tz, today: todayInTz(tz) };
 }
 
+/*
+ * Todas las consultas de aquí filtran por `user_id` a mano, aunque la RLS ya
+ * lo haga con la sesión del usuario. El motivo es el reloj: `/api/sync` usa
+ * estos mismos cargadores con la service role, que salta la RLS, y sin el
+ * filtro el aviso de un usuario salía con las tareas de todos los demás.
+ * `tests/data-scope.test.ts` lo vigila.
+ */
+
 /* ------------------------------------------------------------------ tareas */
 
 export async function loadTasks(ctx: Ctx): Promise<Task[]> {
   const { data } = await ctx.supabase
     .from("tasks")
     .select("*")
+    .eq("user_id", ctx.userId)
     .order("due_date", { ascending: true, nullsFirst: false })
     .order("priority", { ascending: true })
     .order("created_at", { ascending: false })
@@ -85,12 +94,14 @@ export async function loadEvents(ctx: Ctx, from: string, to: string): Promise<Da
     ctx.supabase
       .from("events")
       .select("*")
+      .eq("user_id", ctx.userId)
       .gte("starts_at", `${lo}T00:00:00Z`)
       .lte("starts_at", `${hi}T23:59:59Z`)
       .returns<EventRow[]>(),
     ctx.supabase
       .from("events")
       .select("*")
+      .eq("user_id", ctx.userId)
       .gte("all_day_date", from)
       .lte("all_day_date", to)
       .returns<EventRow[]>(),
@@ -134,6 +145,7 @@ export async function loadIcsSources(ctx: Ctx): Promise<{ name: string; count: n
   const { data } = await ctx.supabase
     .from("events")
     .select("course_ref")
+    .eq("user_id", ctx.userId)
     .eq("source", "ics")
     .returns<{ course_ref: string | null }[]>();
 
@@ -151,6 +163,7 @@ export async function loadNotes(ctx: Ctx): Promise<Note[]> {
   const { data } = await ctx.supabase
     .from("notes")
     .select("*")
+    .eq("user_id", ctx.userId)
     .order("pinned", { ascending: false })
     .order("created_at", { ascending: false })
     .returns<Note[]>();
@@ -161,6 +174,7 @@ export async function loadHabits(ctx: Ctx): Promise<Habit[]> {
   const { data } = await ctx.supabase
     .from("habits")
     .select("*")
+    .eq("user_id", ctx.userId)
     .eq("archived", false)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true })
@@ -173,6 +187,7 @@ export async function loadHabitLog(ctx: Ctx, from: string, to: string): Promise<
   const { data } = await ctx.supabase
     .from("habit_log")
     .select("habit_id, day")
+    .eq("user_id", ctx.userId)
     .gte("day", from)
     .lte("day", to)
     .returns<{ habit_id: string; day: string }[]>();
@@ -192,6 +207,7 @@ export async function loadBlocks(ctx: Ctx, from: string, to: string): Promise<Bl
   const { data } = await ctx.supabase
     .from("blocks")
     .select("*")
+    .eq("user_id", ctx.userId)
     .gte("day", from)
     .lte("day", to)
     .order("start_min", { ascending: true })
@@ -212,6 +228,7 @@ export async function loadSyncState(ctx: Ctx, source: string): Promise<SyncState
   const { data } = await ctx.supabase
     .from("sync_state")
     .select("source, last_synced_at, last_error, items_synced")
+    .eq("user_id", ctx.userId)
     .eq("source", source)
     .maybeSingle<SyncState>();
   return data ?? null;
@@ -234,12 +251,15 @@ export async function loadCounts(ctx: Ctx): Promise<Counts> {
 
   const [dueToday, openTasks, notes, timedEvents, allDayEvents, habits, log] = await Promise.all([
     ctx.supabase.from("tasks").select("id", { count: "exact", head: true })
-      .eq("done", false).lte("due_date", ctx.today),
-    ctx.supabase.from("tasks").select("id", { count: "exact", head: true }).eq("done", false),
-    ctx.supabase.from("notes").select("id", { count: "exact", head: true }),
+      .eq("user_id", ctx.userId).eq("done", false).lte("due_date", ctx.today),
+    ctx.supabase.from("tasks").select("id", { count: "exact", head: true })
+      .eq("user_id", ctx.userId).eq("done", false),
+    ctx.supabase.from("notes").select("id", { count: "exact", head: true }).eq("user_id", ctx.userId),
     ctx.supabase.from("events").select("id", { count: "exact", head: true })
+      .eq("user_id", ctx.userId)
       .gte("starts_at", `${from}T00:00:00Z`).lte("starts_at", `${to}T23:59:59Z`),
     ctx.supabase.from("events").select("id", { count: "exact", head: true })
+      .eq("user_id", ctx.userId)
       .gte("all_day_date", from).lte("all_day_date", to),
     loadHabits(ctx),
     loadHabitLog(ctx, ctx.today, ctx.today),
