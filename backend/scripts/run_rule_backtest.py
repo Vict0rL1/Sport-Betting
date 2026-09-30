@@ -37,7 +37,8 @@ from app.analysis.experiments import (  # noqa: E402
     abrir_holdout,
     corregir_multiples,
     historial,
-    partir_periodo,
+    corte_fijo,
+    partir_con_corte,
     pvalor_desde_bootstrap,
     registrar,
     sharpe_deflactado,
@@ -169,7 +170,13 @@ def main() -> int:
     with SessionLocal() as s_hist:
         previo = historial(s_hist)
 
-    particion = partir_periodo(fechas)
+    # Corte FIJO: el guardado la primera vez, o se fija ahora. Antes se partía
+    # cada ventana por su cuenta y el corte se movía con los años pedidos.
+    with SessionLocal() as s_corte:
+        particion = partir_con_corte(fechas, corte_fijo(s_corte, fechas))
+    if particion["corte"] is None:
+        print(f"\n{particion['nota']}")
+        return 1
     usando_holdout = False
     if args.abrir_holdout is not None:
         try:
@@ -177,7 +184,12 @@ def main() -> int:
         except HoldoutBloqueado as exc:
             print(f"\n{exc}")
             return 1
-        fechas_uso = particion["holdout"] or fechas
+        if not particion["holdout"]:
+            # Antes caía a TODAS las fechas: abrir un holdout vacío acababa
+            # mirando el desarrollo y registrándolo como holdout.
+            print("\nEsta ventana no llega al holdout: no hay nada que abrir.")
+            return 1
+        fechas_uso = particion["holdout"]
         usando_holdout = True
         print(f"\n*** HOLDOUT ABIERTO ***\n{apertura['aviso']}")
     else:
@@ -203,12 +215,21 @@ def main() -> int:
         # empresas, el baseline 3 selecciona a todas y deja de ser un baseline
         # distinto del 2 — dos filas idénticas no comparan nada.
         top = max(3, min(10, len(universo) // 4))
+        # Índice externo: la única vara que no comparte el sesgo de supervivencia
+        # del universo (las empresas que existen hoy). Si no se puede bajar, se
+        # compara sin él y se dice.
+        simbolo_indice = "BTC-USD" if clase == "cripto" else "SPY"
+        indice = _safe(service, "price_history", symbol=simbolo_indice,
+                       interval="1day", outputsize=5000)
+        if not indice:
+            print(f"\n  (sin histórico de {simbolo_indice}: la comparación va sin índice externo)")
         bases = comparar(
             universo,
             fechas,
             resultado["operaciones"],
             costes_por_lado(con_divisa),
             top_momentum=top,
+            referencia=indice,
         )
         _imprimir_baselines(bases)
         _imprimir_rigor(bases, previo, usando_holdout)
@@ -315,12 +336,14 @@ def _imprimir_baselines(b: dict) -> None:
     """La tabla comparativa y el veredicto, sin adornos."""
     linea = "═" * 78
     print(f"\n{linea}\nCONTRA LOS BASELINES\n{linea}")
-    print(f"  {'':22} {'Retorno':>9} {'Volat.':>8} {'Sharpe':>7} {'Máx.caída':>10} {'Rotación':>9}")
+    print(f"  {'':22} {'Retorno':>9} {'Volat.':>8} {'Sharpe':>7} {'Máx.caída':>10}"
+          f" {'Rotación':>9} {'Costes':>7} {'Expos.':>7}")
     etiquetas = {
         "estrategia": "TU ESTRATEGIA",
         "comprar_y_mantener": "1· Comprar y mantener",
         "equiponderada": "2· Equiponderada",
         "momentum_12m": "3· Momentum 12 meses",
+        "indice_referencia": "4· Índice externo",
     }
     for clave, etiqueta in etiquetas.items():
         f = b["tabla"].get(clave) or {}
@@ -331,6 +354,8 @@ def _imprimir_baselines(b: dict) -> None:
             f" {num(f.get('sharpe'), '6.2f'):>7}"
             f" {num(f.get('max_drawdown_pct'), '9.1f'):>10}"
             f" {num(f.get('rotacion_media'), '8.2f'):>9}"
+            f" {num(f.get('costes_pagados_pct'), '6.1f'):>7}"
+            f" {num(f.get('exposicion_media_pct'), '5.0f'):>6}%"
         )
 
     print("\n  Diferencia anual frente a cada baseline (bootstrap por bloques):")

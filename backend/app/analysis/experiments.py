@@ -29,7 +29,7 @@ Tres piezas, y ninguna sirve sin las otras dos:
 from __future__ import annotations
 
 import math
-from datetime import date
+from datetime import date, timedelta
 from statistics import NormalDist
 
 # Fracción final del periodo que queda reservada e intocable.
@@ -70,6 +70,74 @@ def partir_periodo(fechas: list[date], fraccion: float = FRACCION_HOLDOUT) -> di
             "El corte es cronológico a propósito: partir al azar dejaría un "
             "holdout que comparte régimen de mercado con el desarrollo y no "
             "sería información nueva."
+        ),
+    }
+
+
+def corte_fijo(session, fechas: list[date]) -> date | None:
+    """El primer día del holdout: el guardado, o se fija ahora y se guarda.
+
+    Una vez fijado no se mueve, pida la ventana que pida quien llame. Y al
+    fijarlo por primera vez nunca cae antes de una fecha ya usada en un
+    experimento de desarrollo: si el historial ya miró hasta junio de 2023, el
+    holdout no puede empezar en 2022, porque esa parte ya no es nueva.
+
+    Devuelve None si no hay corte guardado y el periodo es demasiado corto para
+    fijar uno con sentido.
+    """
+    from sqlalchemy import select
+
+    from app.db.models import Experiment, HoldoutCorte
+
+    fila = session.execute(select(HoldoutCorte).order_by(HoldoutCorte.id)).scalars().first()
+    if fila is not None:
+        return date.fromisoformat(fila.corte)
+
+    particion = partir_periodo(fechas)
+    if not particion["suficiente"]:
+        return None
+    corte = date.fromisoformat(particion["corte"])
+    motivo = f"Último {int(FRACCION_HOLDOUT * 100)} % de la primera ventana partida."
+
+    usados = [
+        date.fromisoformat(h)
+        for h in session.execute(
+            select(Experiment.periodo_hasta).where(Experiment.uso_holdout.is_(False))
+        ).scalars()
+        if h
+    ]
+    if usados and max(usados) >= corte:
+        corte = max(usados) + timedelta(days=1)
+        motivo += (
+            f" Movido al {corte} porque el historial ya había usado en desarrollo "
+            f"fechas hasta el {max(usados)}: esa parte no es nueva."
+        )
+
+    session.add(HoldoutCorte(corte=corte.isoformat(), motivo=motivo))
+    session.commit()
+    return corte
+
+
+def partir_con_corte(fechas: list[date], corte: date | None) -> dict:
+    """Desarrollo = antes del corte; holdout = desde el corte. Sin corte, nada."""
+    if corte is None:
+        return {
+            "desarrollo": [],
+            "holdout": [],
+            "suficiente": False,
+            "corte": None,
+            "nota": "Periodo demasiado corto para fijar un holdout: no se ejecuta.",
+        }
+    desarrollo = [f for f in sorted(fechas) if f < corte]
+    holdout = [f for f in sorted(fechas) if f >= corte]
+    return {
+        "desarrollo": desarrollo,
+        "holdout": holdout,
+        "suficiente": len(desarrollo) >= 10,
+        "corte": corte.isoformat(),
+        "nota": (
+            f"Holdout fijo desde el {corte}: ninguna ejecución de desarrollo mira "
+            "después de esa fecha, pida la ventana que pida."
         ),
     }
 

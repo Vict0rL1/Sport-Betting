@@ -24,6 +24,7 @@ from app.analysis.backtest import (
     monthly_rebalance_dates,
     run_walk_forward,
 )
+from app.analysis import experiments
 from app.analysis.rule_backtest import rebalance_dates_mensuales, run_rule_backtest
 from app.analysis.shortlist import construir_lista_corta
 from app.analysis.sizing import dimensionar
@@ -1213,7 +1214,24 @@ def run_rules_backtest(
     # periodo puedan cerrarse. Sin ese margen se contarían solo las rápidas.
     end = date.today() - timedelta(days=365)
     start = end - timedelta(days=365 * request.years)
-    fechas = rebalance_dates_mensuales(start, end)
+    todas = rebalance_dates_mensuales(start, end)
+
+    # SOLO desarrollo. Antes este endpoint corría sobre todas las fechas —el
+    # holdout incluido—, sin registrar el experimento ni contar la apertura:
+    # cada pulsación del botón quemaba el holdout en silencio, y su resultado
+    # alimentaba la «confianza» de las decisiones de la lista diaria. Desde la
+    # interfaz no hay forma de abrir el holdout; eso solo se hace con
+    # `scripts/run_rule_backtest.py --abrir-holdout`, y queda registrado.
+    particion = experiments.partir_con_corte(todas, experiments.corte_fijo(session, todas))
+    if not particion["suficiente"]:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Con {request.years} años no quedan fechas de desarrollo suficientes "
+                f"antes del holdout ({particion['corte'] or 'sin fijar'}). Pide más años."
+            ),
+        )
+    fechas = particion["desarrollo"]
 
     resultado = run_rule_backtest(universe, fechas, con_divisa=request.con_divisa)
     # La misma prueba sin el filtro de tendencia. Es la única forma de saber si
@@ -1236,11 +1254,35 @@ def run_rules_backtest(
         )
         session.commit()
 
+    # Se registra SIEMPRE, salga bien o mal: si las pruebas de la interfaz no se
+    # anotan, el recuento del Sharpe deflactado sale corto y el resultado parece
+    # mejor de lo que es.
+    experiments.registrar(
+        session,
+        hipotesis="Backtest de reglas lanzado desde la interfaz",
+        estrategia="reglas/interfaz",
+        parametros={"anos": request.years, "con_divisa": request.con_divisa,
+                    "n_universo": len(universe)},
+        desde=fechas[0].isoformat(),
+        hasta=fechas[-1].isoformat(),
+        universo=list(universe),
+        resultado={k: v for k, v in resultado.items() if k != "operaciones"},
+        sharpe=None,
+        uso_holdout=False,
+    )
+
     return {
         **resultado,
         "universo": list(universe),
         "sin_datos": missing,
-        "periodo": {"desde": start.isoformat(), "hasta": end.isoformat()},
+        "periodo": {"desde": fechas[0].isoformat(), "hasta": fechas[-1].isoformat()},
+        "particion": {
+            "corte": particion["corte"],
+            "fechas_desarrollo": len(fechas),
+            "fechas_reservadas": len(particion["holdout"]),
+            "holdout_mirado": False,
+            "nota": particion["nota"],
+        },
         "comparativa_sin_filtro_tendencia": {
             "n_operaciones": sin_filtro["n_operaciones"],
             "esperanza_pct": sin_filtro.get("esperanza_pct"),

@@ -118,6 +118,12 @@ def simular_cartera(
     curva: list[dict] = []
     retornos: list[float] = []
     rotacion_total = 0.0
+    # Lo que se paga en total y cuánto del capital está invertido cada periodo.
+    # Sin ellas, una estrategia que pasa la mitad del tiempo en liquidez y otra
+    # que está siempre dentro se comparaban solo por su retorno, y el coste
+    # aparecía únicamente como un porcentaje por operación.
+    costes_total = 0.0
+    exposiciones: list[float] = []
 
     for i, as_of in enumerate(fechas):
         # 1) Revalorizar lo que ya se tenía desde la fecha anterior.
@@ -158,8 +164,10 @@ def simular_cartera(
             simbolos = set(pesos) | set(nuevos)
             rotacion = sum(abs(nuevos.get(s, 0.0) - pesos.get(s, 0.0)) for s in simbolos)
             capital *= 1 - rotacion * coste_lado / 100
+            costes_total += rotacion * coste_lado
             rotacion_total += rotacion
             pesos = nuevos
+        exposiciones.append(sum(pesos.values()))
 
         curva.append({"fecha": as_of.isoformat(), "capital": round(capital, 6)})
 
@@ -167,6 +175,12 @@ def simular_cartera(
         "curva": curva,
         "retornos": retornos,
         "rotacion_media": round(rotacion_total / max(len(fechas), 1), 3),
+        # Suma de lo pagado en comisiones, horquilla, deslizamiento y divisa,
+        # en puntos porcentuales del capital (aproximado: no se compone).
+        "costes_pagados_pct": round(costes_total, 2),
+        "exposicion_media_pct": (
+            round(sum(exposiciones) / len(exposiciones) * 100, 1) if exposiciones else None
+        ),
         **metricas(curva, retornos),
     }
 
@@ -276,8 +290,15 @@ def comparar(
     operaciones: list[dict],
     coste_lado: float,
     top_momentum: int = 10,
+    referencia: dict | None = None,
 ) -> dict:
-    """Estrategia contra los tres baselines, mismas fechas y mismos costes."""
+    """Estrategia contra los baselines, mismas fechas y mismos costes.
+
+    `referencia` es el histórico de un índice EXTERNO (p. ej. SPY). Los otros
+    tres baselines compran el mismo universo que la estrategia, que ya viene
+    filtrado por supervivencia —son empresas que existen hoy—; el índice es la
+    única vara que no comparte ese sesgo.
+    """
     carteras = {
         "estrategia": hacer_seleccion_desde_operaciones(operaciones),
         "comprar_y_mantener": seleccion_comprar_y_mantener,
@@ -288,6 +309,11 @@ def comparar(
         nombre: simular_cartera(universo, fechas, sel, coste_lado)
         for nombre, sel in carteras.items()
     }
+    if referencia and referencia.get("bars"):
+        resultados["indice_referencia"] = simular_cartera(
+            {"__indice__": referencia}, fechas,
+            lambda u, a, primera: {"__indice__"} if primera else None, coste_lado,
+        )
 
     estrategia = resultados["estrategia"]
     comparaciones = {}
@@ -325,6 +351,7 @@ def comparar(
 
 
 _ETIQUETAS = {
+    "indice_referencia": "el índice de referencia",
     "comprar_y_mantener": "comprar el universo y no tocarlo",
     "equiponderada": "equiponderada con rebalanceo",
     "momentum_12m": "momentum de 12 meses",
@@ -384,20 +411,20 @@ def _veredicto(resultados: dict, comparaciones: dict) -> str:
         ]
         if minimo < MARGEN_CLARO_PCT:
             partes.append(
-                f"Supera a los tres baselines, pero al más cercano solo por "
+                f"Supera a los {len(mejores)} baselines, pero al más cercano solo por "
                 f"{minimo:.2f} puntos anuales. Un margen así se lo come cualquier "
                 "diferencia de comisiones o de fechas: trátalo como un empate."
             )
         elif not claros:
             partes.append(
-                "Supera a los tres baselines, pero en NINGUNA comparación el "
+                f"Supera a los {len(mejores)} baselines, pero en NINGUNA comparación el "
                 "intervalo de confianza deja el cero fuera. Con estos datos la "
                 "ventaja no se distingue del azar."
             )
         else:
             nombres = ", ".join(_ETIQUETAS[n] for n in claros)
             partes.append(
-                f"Supera a los tres baselines, y frente a {nombres} la diferencia "
+                f"Supera a los {len(mejores)} baselines, y frente a {nombres} la diferencia "
                 "queda fuera del azar según el bootstrap. Es lo más parecido a "
                 "una ventaja real que este backtest puede mostrar — sobre un "
                 "universo sin las empresas que quebraron."

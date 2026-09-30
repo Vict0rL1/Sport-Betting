@@ -560,3 +560,20 @@ def _snapshot_inmutable(mapper, connection, target):
 @event.listens_for(DecisionSnapshot, "before_delete")
 def _snapshot_sin_borrado(mapper, connection, target):
     raise ValueError("Una instantánea de decisión no se borra: es el registro del sistema.")
+
+
+class HoldoutCorte(Base):
+    """La fecha a partir de la cual empieza el holdout. Se fija UNA vez.
+
+    Antes el holdout era «el último 30 % de la ventana que pidas», y con otra
+    ventana el corte caía en otro sitio: parte del holdout de una ejecución era
+    desarrollo en la siguiente. Una sola fila, escrita la primera vez que se
+    parte un periodo, y leída siempre después.
+    """
+
+    __tablename__ = "holdout_corte"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    corte: Mapped[str] = mapped_column(String(10))  # AAAA-MM-DD: primer día del holdout
+    definido_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    motivo: Mapped[str] = mapped_column(Text)
