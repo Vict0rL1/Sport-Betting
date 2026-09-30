@@ -62,7 +62,9 @@ def _buscador_de_precio(service, solo_cache: bool):
     if solo_cache:
         cache = getattr(service, "cache", None)
         return lambda symbol: ((cache.get("quote", {"symbol": symbol}) if cache else None) or {}).get("price")
-    return lambda symbol: service.get("quote", symbol=symbol).get("price")
+    # La respuesta entera, no solo el precio: trae su `estado`, y un precio
+    # rescatado de caché no basta para afirmar que una alerta no salta.
+    return lambda symbol: service.get("quote", symbol=symbol)
 
 
 def revisar(solo_cache: bool = False, avisar: bool = True) -> dict:

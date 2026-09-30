@@ -285,3 +285,51 @@ def test_mantener_limpia_las_dos_cosas(session_factory):
     r = mantener(session_factory)
     assert r["cache_borradas"] == 0 and r["llamadas_borradas"] == 0
     assert r["errores"] == []
+
+
+# --- La cartera dice qué precios son viejos --------------------------------
+
+
+def test_la_cartera_marca_los_precios_viejos(session_factory):
+    """Visto en el navegador: la cartera sumaba 4.205 con dos precios rescatados
+    de hace 11 minutos y no lo decía en ninguna parte."""
+    from datetime import datetime, timezone
+
+    from fastapi.testclient import TestClient
+
+    from app.db.engine import get_session
+    from app.db.models import Instrument, Position
+    from app.deps import get_service
+    from app.main import app
+
+    class Servicio:
+        def get(self, data_type, **kw):
+            if data_type == "quote":
+                return {"symbol": kw["symbol"], "price": 100.0, "currency": "USD",
+                        "source": "finnhub", "as_of": "x", "estado": "viejo",
+                        "antiguedad_segundos": 660}
+            raise DataNotFoundError(data_type)
+
+    with session_factory() as s:
+        inst = Instrument(symbol="AAPL", name="AAPL", currency="USD")
+        s.add(inst)
+        s.flush()
+        s.add(Position(instrument_id=inst.id, quantity=10, cost_basis=90.0,
+                       opened_at=datetime.now(timezone.utc), stop=80.0))
+        s.commit()
+
+    def override_session():
+        s = session_factory()
+        try:
+            yield s
+        finally:
+            s.close()
+
+    app.dependency_overrides[get_service] = lambda: Servicio()
+    app.dependency_overrides[get_session] = override_session
+    try:
+        d = TestClient(app).get("/api/portfolio").json()
+    finally:
+        app.dependency_overrides.clear()
+    assert d["positions"][0]["precio_estado"] == "viejo"
+    assert d["summary"]["precios_viejos"] == ["AAPL"]

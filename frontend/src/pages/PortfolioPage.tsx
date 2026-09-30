@@ -474,6 +474,14 @@ function PortfolioTab() {
             </div>
           </section>
 
+          {(data.summary.precios_viejos?.length ?? 0) > 0 && (
+            <p className="rounded-lg border border-amber-100 bg-amber-50 p-2 text-xs text-amber-800">
+              Precios VIEJOS en {data.summary.precios_viejos!.join(', ')}: todas las fuentes
+              fallaron y se usa la última copia guardada. El valor, el P&L y el riesgo de
+              arriba los incluyen, pero no son de ahora.
+            </p>
+          )}
+
           {data.summary.priced_positions < data.summary.total_positions && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
               {data.summary.total_positions - data.summary.priced_positions} posición(es) sin
@@ -557,6 +565,14 @@ function PortfolioTab() {
                         <td className="px-2 py-1.5 tabular-nums">{fmtNumber(p.cost_basis)}</td>
                         <td className="px-2 py-1.5 tabular-nums">
                           {p.price !== null ? fmtNumber(p.price) : '—'}
+                          {p.precio_estado === 'viejo' && (
+                            <span
+                              className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800"
+                              title="Todas las fuentes fallaron: es la última copia guardada."
+                            >
+                              viejo · {Math.round((p.precio_antiguedad_segundos ?? 0) / 60)} min
+                            </span>
+                          )}
                         </td>
                         <td className="px-2 py-1.5 tabular-nums">
                           {p.market_value !== null ? fmtNumber(p.market_value) : '—'}

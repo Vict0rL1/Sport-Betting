@@ -49,6 +49,8 @@ ENFRIAMIENTO_AVISO_ERROR = timedelta(hours=24)
 
 SIN_DATOS = "sin_datos"
 ERROR = "error"
+# Hay precio, pero rescatado de caché porque todas las fuentes fallaron.
+VIEJO = "viejo"
 
 
 def obtener_precio(
@@ -78,9 +80,18 @@ def obtener_precio(
         except Exception as exc:  # noqa: BLE001 — se aísla por alerta, no se traga
             log("alertas").exception("%s: fallo inesperado al pedir el precio", symbol)
             return None, ERROR, f"{type(exc).__name__}: {exc}"[:300]
+        # El buscador puede devolver el precio suelto o la respuesta entera del
+        # servicio de datos; en el segundo caso trae su `estado`.
+        viejo_seg = None
+        if isinstance(crudo, dict):
+            if crudo.get("estado") == "viejo":
+                viejo_seg = datos.numero(crudo.get("antiguedad_segundos")) or 0
+            crudo = crudo.get("price")
         precio = datos.precio(crudo)
         if precio is None:
             return None, SIN_DATOS, f"precio inutilizable ({crudo!r})"
+        if viejo_seg is not None:
+            return precio, VIEJO, f"de hace {round(viejo_seg / 60)} min"
         return precio, None, None
     return None, ERROR, "sin respuesta tras reintentar"  # inalcanzable, por completitud
 
@@ -97,6 +108,24 @@ def evaluar_y_registrar(alerta, symbol: str, precio, fallo, detalle, ahora: date
     veredicto = alertas.evaluar(
         entrada, precio, ahora, error=detalle if fallo == ERROR else None
     )
+    if fallo == VIEJO and veredicto.get("evaluable"):
+        # Con un precio viejo se puede afirmar que la condición SE CUMPLIÓ —el
+        # cruce ocurrió—, pero no que no se cumple ahora: en esos minutos el
+        # precio pudo cruzar. Visto en el navegador: una alerta salía «no
+        # cumplida» contra un precio rescatado de hace once minutos.
+        if veredicto["cumple"]:
+            veredicto = {**veredicto, "motivo": f"{veredicto['motivo']} (precio {detalle})"}
+        else:
+            veredicto = {
+                "evaluable": False,
+                "cumple": False,
+                "estado": alertas.SIN_PRECIO,
+                "motivo": (
+                    f"solo hay un precio viejo para {symbol} ({detalle}: las fuentes "
+                    "fallaron). Con él no se puede afirmar que no salte: en esos "
+                    "minutos pudo cruzar el umbral."
+                ),
+            }
     nueva = alertas.es_nueva(entrada, veredicto)
 
     if alerta.active:

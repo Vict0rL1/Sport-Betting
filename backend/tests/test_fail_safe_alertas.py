@@ -296,3 +296,50 @@ def test_el_endpoint_distingue_error_de_sin_datos(session_factory, tmp_path, mon
     assert "503" in d["CAIDA"]["last_error"]
     assert d["NOEXISTE"]["estado"] == "sin_precio" and d["NOEXISTE"]["triggered"] is None
     assert d["CAIDA"]["last_evaluated_at"].endswith("+00:00")
+
+
+# --- Con un precio VIEJO: «saltó» se puede afirmar, «no salta» no -----------
+#
+# Visto en el navegador: la alerta de MSFT salía «no cumplida» evaluada contra
+# un precio rescatado de hace 11 minutos. Con un precio viejo se puede afirmar
+# que la condición SE CUMPLIÓ —el cruce ocurrió—, pero no que no se cumple
+# ahora: en esos minutos el precio pudo cruzar el umbral.
+
+
+def _viejo(precio, minutos=11):
+    return {"price": precio, "estado": "viejo", "antiguedad_segundos": minutos * 60}
+
+
+def test_un_precio_viejo_se_reconoce_como_tal():
+    precio, fallo, detalle = vigilancia.obtener_precio(lambda _: _viejo(412.0), "MSFT",
+                                                       dormir=lambda s: None)
+    assert precio == 412.0 and fallo == "viejo" and "11 min" in detalle
+
+
+def test_con_precio_viejo_no_cumplida_es_sin_comprobar(session_factory):
+    with session_factory() as s:
+        inst = Instrument(symbol="MSFT", name="MSFT")
+        s.add(inst)
+        s.flush()
+        a = Alert(instrument_id=inst.id, kind="price", condition={"op": "lt", "price": 350.0},
+                  active=True)
+        s.add(a)
+        s.flush()
+        r = vigilancia.evaluar_y_registrar(a, "MSFT", 412.0, "viejo", "de hace 11 min", AHORA)
+        assert r["veredicto"]["estado"] == "sin_precio" and not r["veredicto"]["evaluable"]
+        assert "viejo" in r["veredicto"]["motivo"].lower()
+        assert a.last_result == "sin_precio" and a.consecutive_errors == 1
+
+
+def test_con_precio_viejo_cumplida_si_salta_y_lo_dice(session_factory):
+    with session_factory() as s:
+        inst = Instrument(symbol="MSFT", name="MSFT")
+        s.add(inst)
+        s.flush()
+        a = Alert(instrument_id=inst.id, kind="price", condition={"op": "lt", "price": 450.0},
+                  active=True)
+        s.add(a)
+        s.flush()
+        r = vigilancia.evaluar_y_registrar(a, "MSFT", 412.0, "viejo", "de hace 11 min", AHORA)
+        assert r["veredicto"]["cumple"] and r["nueva"]
+        assert "11 min" in r["veredicto"]["motivo"]

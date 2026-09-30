@@ -177,11 +177,21 @@ def _precio_y_divisa(service: MarketDataService, symbol: str) -> tuple[float | N
     precio, así que la cartera sumaba dólares canadienses con estadounidenses
     como si fueran lo mismo. El dato estaba; faltaba leerlo.
     """
+    precio, moneda, _ = _cotizacion(service, symbol)
+    return precio, moneda
+
+
+def _cotizacion(service: MarketDataService, symbol: str) -> tuple[float | None, str | None, dict]:
+    """Precio, moneda y ESTADO del dato. El estado se tiraba: la cartera sumaba
+    precios rescatados de caché hace once minutos sin decirlo en ninguna parte."""
     try:
         q = service.get("quote", symbol=symbol)
-        return q.get("price"), q.get("currency")
     except (DataNotFoundError, AllProvidersFailedError):
-        return None, None
+        return None, None, {"estado": "desconocido", "antiguedad_segundos": None}
+    return q.get("price"), q.get("currency"), {
+        "estado": q.get("estado", "valido"),
+        "antiguedad_segundos": q.get("antiguedad_segundos"),
+    }
 
 
 def _realizado_en_base(cerradas: list[dict], series: dict) -> tuple[float | None, list[str]]:
@@ -666,7 +676,7 @@ def get_portfolio(
                 }
             )
             continue
-        price, divisa = _precio_y_divisa(service, instrument.symbol)
+        price, divisa, estado_precio = _cotizacion(service, instrument.symbol)
         divisa = _resolver_divisa(session, service, instrument, divisa)
         metrics = position_metrics(
             {"quantity": position.quantity, "cost_basis": position.cost_basis}, price
@@ -694,6 +704,8 @@ def get_portfolio(
                 "stop": stop,
                 "stop_fijado_al_abrir": stop_fijado is not None,
                 "price": price,
+                "precio_estado": estado_precio["estado"] if price is not None else "desconocido",
+                "precio_antiguedad_segundos": estado_precio["antiguedad_segundos"],
                 "currency": divisa,
                 "spark": _spark_cacheado(service, instrument.symbol),
                 **metrics,
@@ -768,6 +780,12 @@ def get_portfolio(
                 # 370 USD. Lo que no se puede convertir queda fuera y se nombra.
                 "realized_pnl": realizado_base,
                 "realizado_sin_convertir": realizado_fuera,
+                # Las posiciones valoradas con un precio rescatado de caché: el
+                # total las incluye —un precio de hace minutos sigue siendo el
+                # mejor dato que hay—, pero la pantalla tiene que decirlo.
+                "precios_viejos": sorted(
+                    p["symbol"] for p in open_positions if p.get("precio_estado") == "viejo"
+                ),
             },
             estres
         ),
@@ -1197,7 +1215,7 @@ def list_alerts(
     ).all()
     ahora = datetime.now(timezone.utc)
     out = []
-    buscar = lambda symbol: service.get("quote", symbol=symbol).get("price")  # noqa: E731
+    buscar = lambda symbol: service.get("quote", symbol=symbol)  # noqa: E731 — con su estado
     for alert, instrument in rows:
         # La MISMA evaluación que el cron (`app.vigilancia`), sin reintentos:
         # una petición del navegador no debe quedarse dormida esperando.

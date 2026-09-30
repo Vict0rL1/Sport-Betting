@@ -397,6 +397,9 @@ export interface PortfolioPosition {
   stop_fijado_al_abrir?: boolean
   /** Ganancia/pérdida en la base causada solo por el tipo de cambio. */
   efecto_divisa_base?: number | null
+  /** `viejo` = precio rescatado de caché porque todas las fuentes fallaron. */
+  precio_estado?: 'valido' | 'viejo' | 'desconocido'
+  precio_antiguedad_segundos?: number | null
 }
 
 export interface DivisasDeCartera {
@@ -461,6 +464,8 @@ export interface Portfolio {
     realized_pnl: number | null
     /** Cerradas que no entran en el realizado por moneda o tipo desconocidos. */
     realizado_sin_convertir?: string[]
+    /** Posiciones valoradas con un precio viejo: entran en el total, avisando. */
+    precios_viejos?: string[]
     priced_positions: number
     total_positions: number
     /** Ninguna rentabilidad viaja sola: esta es la caída que la acompaña. */
