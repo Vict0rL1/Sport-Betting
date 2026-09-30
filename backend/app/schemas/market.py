@@ -15,6 +15,13 @@ class Sourced(BaseModel):
     as_of: str
     cached: bool = False
     fetched_at: str | None = None
+    # El estado del dato TIENE que llegar al cliente. Sin estos campos,
+    # `response_model` los filtraba: la caché servía un precio de hace 20 minutos
+    # marcado como `viejo` y la marca se perdía por el camino, así que la
+    # pantalla lo enseñaba como si fuera de ahora.
+    estado: str = "valido"            # valido | viejo (ver app/datos.Estado)
+    aviso: str | None = None          # por qué es viejo, si lo es
+    antiguedad_segundos: int | None = None
 
 
 class QuoteResponse(Sourced):
