@@ -25,6 +25,7 @@ from app.routers import (
     portfolio,
     screener,
     signals,
+    snapshots,
     stocks,
     theses,
     valuation,
@@ -97,5 +98,6 @@ app.include_router(signals.router)
 app.include_router(deep_dive.router)
 app.include_router(earnings.router)
 app.include_router(valuation.router)
+app.include_router(snapshots.router)
 app.include_router(options.router)
 app.include_router(meta.router)

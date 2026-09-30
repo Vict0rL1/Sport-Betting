@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import snapshots
 from app.analysis.decision import decide
 from app.analysis.backtest import (
     metrics_from_period,
@@ -1067,6 +1068,14 @@ def _today(
             "cartera por operación; ajústalo a tu situación."
         ),
     }
+
+    # Se congela lo accionable ANTES de cachear, y solo aquí, al calcular: una
+    # respuesta servida desde caché es una decisión tomada cuando se calculó, y
+    # congelarla al servirla la fecharía como de hoy. `congelar_lista_diaria` no
+    # lanza; si falla, la lista se sirve igual y el fallo viaja en la respuesta.
+    payload["instantaneas"] = snapshots.congelar_lista_diaria(
+        session, payload, f"hoy:{market}", datetime.now(timezone.utc)
+    )
 
     service.cache.set("daily_picks", cache_params, payload)
     payload["cached"] = False

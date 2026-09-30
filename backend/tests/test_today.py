@@ -568,3 +568,21 @@ def test_puntuar_el_indice_no_gasta_la_cuota_cara(session_factory):
     assert service.financial_calls > 400
     # Y lo importante: ni una sola llamada al proveedor con cuota escasa.
     assert service.fundamental_calls == 0
+
+
+def test_la_lista_diaria_congela_lo_accionable(client, session_factory):
+    """Cada cálculo deja registro: sin esto no hay forward testing posible."""
+    from app.db.models import DecisionSnapshot
+
+    c, _ = client
+    data = _completar(c)
+    assert data["instantaneas"]["error"] is None
+    n_ideas = len(data["shortlist"]["ideas"]) + len(data["shortlist"]["evitar"])
+    with session_factory() as s:
+        congeladas = s.query(DecisionSnapshot).all()
+    assert len(congeladas) >= n_ideas > 0
+    assert all(x.origen == "hoy:us_sp500" for x in congeladas)
+    # Recalcular el mismo día no duplica nada.
+    c.get("/api/signals/today?market=us_sp500&budget=600&refresh=true")
+    with session_factory() as s:
+        assert s.query(DecisionSnapshot).count() == len(congeladas)

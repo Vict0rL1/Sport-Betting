@@ -23,6 +23,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy import event
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.engine import Base
@@ -475,3 +476,81 @@ class OptionsSnapshot(Base):
     skew_25d: Mapped[float | None] = mapped_column(Float)
     volumen_total: Mapped[int | None] = mapped_column(Integer)
     oi_total: Mapped[int | None] = mapped_column(Integer)
+
+
+# ---------------------------------------------------------------------------
+# Instantáneas de decisión (RC1, fases 11 y 15)
+# ---------------------------------------------------------------------------
+
+
+class DecisionSnapshot(Base):
+    """Lo que el MOTOR decidió, congelado en el momento. Nunca se modifica.
+
+    `Decision` guarda lo que TÚ decidiste, con tu razonamiento. Esto guarda lo
+    que el sistema dijo, con todo lo que vio: la señal entera, el precio con su
+    fuente y su fecha, las reglas activadas, lo que faltaba, el tamaño y qué
+    límites de riesgo se pudieron comprobar. Con eso se puede contestar «¿por
+    qué el sistema dijo esto el 12 de septiembre?» sin depender de cómo esté la
+    base de datos hoy — que es la condición para medir el sistema fuera del
+    backtest.
+
+    Inmutable por dos vías: un evento del ORM impide actualizar desde la app, y
+    un trigger de SQLite (migración 0004) impide actualizar o borrar desde
+    cualquier otro sitio. El resultado posterior va en `DecisionOutcome`, en
+    filas nuevas: si se reescribiera la instantánea con lo que pasó después, el
+    registro dejaría de medir lo que el sistema sabía.
+    """
+
+    __tablename__ = "decision_snapshots"
+    __table_args__ = (
+        UniqueConstraint("symbol", "fecha", "origen", name="uq_snapshot_simbolo_dia"),
+        Index("ix_snapshot_fecha", "fecha"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    fecha: Mapped[str] = mapped_column(String(10))  # AAAA-MM-DD en UTC
+    origen: Mapped[str] = mapped_column(String(32))  # p. ej. "hoy:sp500"
+    symbol: Mapped[str] = mapped_column(String(16), index=True)
+    accion: Mapped[str] = mapped_column(String(16))
+    score: Mapped[float | None] = mapped_column(Float)
+    precio: Mapped[float | None] = mapped_column(Float)
+    moneda: Mapped[str | None] = mapped_column(String(8))
+    stop: Mapped[float | None] = mapped_column(Float)
+    objetivo: Mapped[float | None] = mapped_column(Float)
+    peso_bruto_pct: Mapped[float | None] = mapped_column(Float)
+    peso_final_pct: Mapped[float | None] = mapped_column(Float)
+    horizonte_dias: Mapped[int] = mapped_column(Integer)
+    reglas_version: Mapped[str] = mapped_column(String(16))
+    contexto: Mapped[dict] = mapped_column(JSON)
+    # SHA-256 del contexto canónico: si alguien lo toca por fuera, se nota.
+    huella: Mapped[str] = mapped_column(String(64))
+
+
+class DecisionOutcome(Base):
+    """Cómo salió una instantánea, medido después. Solo se añaden filas."""
+
+    __tablename__ = "decision_outcomes"
+    __table_args__ = (Index("ix_outcome_snapshot", "snapshot_id", "evaluado_en"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    snapshot_id: Mapped[int] = mapped_column(ForeignKey("decision_snapshots.id"))
+    evaluado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    dias: Mapped[int] = mapped_column(Integer)
+    precio: Mapped[float | None] = mapped_column(Float)
+    retorno_pct: Mapped[float | None] = mapped_column(Float)
+    estado: Mapped[str] = mapped_column(String(16))  # abierta|stop|objetivo|horizonte|sin_datos
+    detalle: Mapped[dict | None] = mapped_column(JSON)
+
+
+@event.listens_for(DecisionSnapshot, "before_update")
+def _snapshot_inmutable(mapper, connection, target):
+    raise ValueError(
+        "Una instantánea de decisión no se modifica: medir el sistema exige saber "
+        "qué sabía EN SU MOMENTO. Lo que pasó después va en DecisionOutcome."
+    )
+
+
+@event.listens_for(DecisionSnapshot, "before_delete")
+def _snapshot_sin_borrado(mapper, connection, target):
+    raise ValueError("Una instantánea de decisión no se borra: es el registro del sistema.")
