@@ -228,9 +228,10 @@ Ese es el patrón a propagar, y es la forma de la solución de la Fase 3.
 ## Estado final (tras el trabajo de RC1)
 
 Los siete P0 de la auditoría inicial están corregidos, cada uno con su test
-que fallaba antes del arreglo. Pero el trabajo encontró **once fallos más de la
-misma familia** que la auditoría inicial no vio — cuatro de ellos solo al
-escribir el test de extremo a extremo. Esa es la lección principal: leer el
+que fallaba antes del arreglo. Pero el trabajo encontró **dieciséis fallos más
+de la misma familia** que la auditoría inicial no vio — cuatro solo al escribir
+el test de extremo a extremo, y dos solo al abrir la app en el navegador con las
+fuentes caídas de verdad. Esa es la lección principal: leer el
 código encontró siete; hacerlo funcionar de punta a punta encontró el resto.
 
 ### P0 de la auditoría inicial
@@ -260,6 +261,11 @@ código encontró siete; hacerlo funcionar de punta a punta encontró el resto.
 | P0-16 | `response_model` filtraba el estado del dato: el dato viejo llegaba sin marca | Test de extremo a extremo | `e3e223e` |
 | P0-17 | El botón de backtest de la interfaz miraba el holdout, sin registrarlo | Auditoría de validación | `ca51076` |
 | P0-18 | El corte del holdout se movía con la ventana pedida | Idem | `ca51076` |
+| P0-19 | Una cotización rescatada de caché salía rotulada «en vivo» en la interfaz | Revisión de la interfaz | `79493ba` |
+| P0-20 | La lista diaria decidía sobre precios rescatados sin saberlo, y podía recomendar comprar | Idem | `79493ba` |
+| P0-21 | Capex con signo cambiado: `cfo − (−capex)` inflaba el FCF | Validación de EDGAR | `ddd3b6e` |
+| P0-22 | Una alerta evaluada con precio viejo decía «no salta» | Abriendo la app en el navegador | `f338493` |
+| P0-23 | La cartera valoraba con precios viejos sin marcarlo | Idem | `f338493` |
 
 ### P1
 
@@ -293,11 +299,11 @@ código encontró siete; hacerlo funcionar de punta a punta encontró el resto.
   reales no se ha podido correr aquí.
 - **Sesgo de supervivencia** en los universos: son empresas que existen hoy. El
   índice externo como baseline lo acota, no lo elimina.
-- **Posiciones abiertas antes del RC1** no tienen stop fijado: se sigue
-  recalculando para ellas, avisando. Cerrarlas y reabrirlas lo fija.
-- **Resultados de backtest guardados antes del RC1** se calcularon sobre el
-  holdout, y siguen alimentando la «confianza» de las decisiones hasta que se
-  ejecute un backtest nuevo.
+- **Posiciones abiertas antes del RC1** no tienen stop fijado hasta que se
+  pulse «Fijar stop» (`a719b3a`); mientras tanto se recalcula, avisando.
+- *(Cerrado en `a719b3a`)* Los backtests guardados antes del RC1 ya no validan
+  decisiones: hasta que se ejecute uno nuevo, las reglas figuran como no
+  validadas.
 - **La app no registra efectivo, dividendos, depósitos ni retiradas.** Los
   pesos se miden sobre lo invertido; los topes aprietan antes de lo debido si
   guardas liquidez fuera (error en dirección prudente, pero error).

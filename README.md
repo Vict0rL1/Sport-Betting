@@ -1845,7 +1845,7 @@ Un precio `NaN` producía «comprar» con un tamaño real. Una deuda desconocida
 valoraba como deuda cero (+95 %). Una volatilidad ausente abarataba el riesgo
 de la cartera un 42 %. El stop de una posición se alejaba solo con la
 volatilidad de la propia caída. La conversión de divisas no se ejecutaba si
-respondía Finnhub. Dieciocho fallos de esta familia, corregidos cada uno con un
+respondía Finnhub. Veintitrés fallos de esta familia, corregidos cada uno con un
 test que fallaba antes.
 
 Lo que cambia para quien usa la app:

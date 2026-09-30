@@ -1,6 +1,6 @@
 # Checklist de Release Candidate 1
 
-Base: `e3265f5` → `6eab884` · 17 commits · tests 826 → **1069** (todos en verde)
+Base: `e3265f5` → `f338493` · 22 commits · tests 826 → **1108** (todos en verde)
 · puntos abiertos en `TODO.md` 32 → **28**
 
 Este documento separa dos cosas que no deben mezclarse: lo que está
@@ -9,7 +9,7 @@ Este documento separa dos cosas que no deben mezclarse: lo que está
 máquina con escritorio o de tu broker. Lo segundo no está hecho: este entorno
 no tiene claves de API ni salida de red a ninguna fuente financiera.
 
-Un sistema con 1069 tests en verde no está «listo para producción»: está
+Un sistema con 1108 tests en verde no está «listo para producción»: está
 probado contra lo que sus tests saben imaginar. Lo que no saben imaginar es lo
 que está en la segunda mitad de este documento.
 
@@ -18,7 +18,7 @@ que está en la segunda mitad de este documento.
 ## Automatizado y verificado
 
 ### Tests
-- [x] Suite completa: **1069 passed** (`cd backend && python -m pytest tests/`)
+- [x] Suite completa: **1108 passed** (`cd backend && python -m pytest tests/`)
 - [x] La suite NO toca `backend/data/app.db` — `test_aislamiento.py`; verificado
       además comparando la fecha de modificación del fichero antes y después
 - [x] Frontend: `tsc --noEmit` y `npm run build` sin errores
@@ -39,6 +39,12 @@ que está en la segunda mitad de este documento.
 - [x] Si todas las fuentes fallan, se sirve la última copia **marcada** `viejo`,
       con su antigüedad; demasiado vieja → error, no dato
 - [x] El estado del dato llega al cliente (los `response_model` lo filtraban)
+- [x] …y se VE: «DATO VIEJO · hace N min» en cada bloque con fuente (antes, una
+      cotización rescatada salía rotulada «en vivo»); «viejo · N min» junto a
+      cada precio de la cartera, con un aviso en el resumen — verificado en el
+      navegador con las fuentes caídas de verdad
+- [x] Estados financieros de EDGAR validados: NaN e infinitos fuera; signos
+      imposibles (capex negativo, que inflaría el FCF) fuera; `filed_at` intacto
 - [x] Limpieza automática al arrancar y en cada pasada del cron; respeta el
       margen de rescate
 - [x] TTL por tipo de dato en `config.py` (cotización 60 s, histórico 6 h,
@@ -53,6 +59,8 @@ que está en la segunda mitad de este documento.
 - [x] Tres revisiones seguidas sin poder comprobar → **un** aviso de error, con
       enfriamiento de 24 h y rearme al recuperarse
 - [x] Alertas duplicadas no se crean dos veces
+- [x] Con un precio viejo, «no cumplida» pasa a «sin comprobar»; «cumplida» salta
+      diciendo la antigüedad
 
 ### Divisas
 - [x] Reciprocidad: USD→CAD→USD = identidad; CAD/USD = 1/(USD/CAD); cruces no-USD
@@ -88,6 +96,10 @@ que está en la segunda mitad de este documento.
 - [x] Puntuación `NaN` → `sin_datos`, no «ni destaca ni preocupa»
 - [x] El stop de una posición se **fija al abrir**; ya no se aleja con la
       volatilidad de la propia caída
+- [x] Las posiciones antiguas pueden fijarlo («Fijar stop»); un stop se puede
+      subir, nunca bajar — verificado en el navegador
+- [x] No se recomienda comprar sobre un precio viejo (pasa a «vigilar»); sobre
+      una posición abierta se decide igual, diciéndolo
 - [x] Valoración: deuda, capex o acciones desconocidos → sin valor por acción
       (422 con el arreglo), nunca «deuda cero»
 - [x] Crecimiento supuesto marcado como supuesto, no como dato
@@ -109,6 +121,8 @@ que está en la segunda mitad de este documento.
       costes pagados y exposición; y con operaciones, tasa de acierto (con
       intervalo), esperanza y factor de beneficio
 - [x] El veredicto dice «NO SUPERA AL BASELINE» cuando no lo supera
+- [x] Los backtests guardados antes del RC1 (calculados mirando el holdout) ya no
+      validan decisiones; solo cuenta uno guardado con su partición
 
 ### Registro de decisiones y forward testing
 - [x] Cada lista diaria congela lo accionable con la señal entera
@@ -124,6 +138,9 @@ que está en la segunda mitad de este documento.
       `None` —se pinta «—»— y el router ya ha registrado el fallo en
       `app.proveedor`. Lo que no hacen es explicar en pantalla POR QUÉ falta;
       eso queda como mejora (P2), no como fallo abierto.
+
+### Interfaz
+- [x] Los errores de validación (422) muestran su motivo; antes solo «Error HTTP 422»
 
 ### Seguridad
 - [x] `.env` y `backend/data/` en `.gitignore`; ningún commit los incluye
