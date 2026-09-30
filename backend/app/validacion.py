@@ -136,7 +136,62 @@ def _macro(payload: dict) -> dict:
     }
 
 
+# Partidas que por definición no pueden ser negativas. El capex entra aquí
+# porque EDGAR lo da como PAGO positivo: con el signo cambiado, `cfo − capex`
+# sumaría en vez de restar e inflaría el flujo libre y la valoración.
+NO_NEGATIVAS = frozenset({
+    "revenue", "total_assets", "total_liabilities", "current_assets",
+    "current_liabilities", "cash", "long_term_debt", "short_term_debt",
+    "capex", "interest_expense", "depreciation_amortization",
+})
+# Y las que tienen que ser estrictamente positivas.
+POSITIVAS = frozenset({"shares_outstanding"})
+_NO_NUMERICAS = frozenset({"fiscal_year", "end_date", "filed", "filed_at", "form", "accession_no"})
+
+
+def _financieros(payload: dict) -> dict:
+    """Estados financieros anuales: se sanean partida a partida.
+
+    Lo que no puede ser verdad —un NaN, un signo imposible, cero acciones— se
+    deja en None y se cuenta. No se corrige el signo: un capex negativo puede
+    ser un error de signo o una etiqueta XBRL que significa otra cosa, y
+    adivinar entre las dos es inventar.
+    """
+    periodos = payload.get("periods")
+    if not isinstance(periodos, list) or not periodos:
+        raise PayloadInvalido("estados financieros sin periodos")
+
+    limpios, descartadas = [], 0
+    for periodo in periodos:
+        if not isinstance(periodo, dict) or not periodo.get("fiscal_year"):
+            continue
+        fila = {}
+        for clave, valor in periodo.items():
+            if clave in _NO_NUMERICAS or valor is None or isinstance(valor, str) and clave.endswith(("_date", "_at")):
+                fila[clave] = valor
+                continue
+            numero = datos.numero(valor)
+            if numero is not None and clave in NO_NEGATIVAS and numero < 0:
+                numero = None
+            if numero is not None and clave in POSITIVAS and numero <= 0:
+                numero = None
+            if numero is None:
+                descartadas += 1
+            fila[clave] = numero
+        limpios.append(fila)
+
+    if not limpios:
+        raise PayloadInvalido("estados financieros sin ningún ejercicio identificable")
+    salida = {**payload, "periods": limpios}
+    if descartadas:
+        # Se dice cuántas partidas se tiraron: un balance al que le falta la
+        # deuda porque venía rota no puede parecer uno de una empresa sin deuda.
+        salida["partidas_descartadas"] = descartadas
+    return salida
+
+
 VALIDADORES = {
+    "financials": _financieros,
     "quote": _quote,
     "price_history": _barras,
     "price_history_long": _barras,
