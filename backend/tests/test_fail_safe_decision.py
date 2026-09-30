@@ -167,3 +167,33 @@ def test_un_stop_guardado_corrupto_no_se_usa():
                                                      "stop": float("nan")})
     assert d["levels"]["stop"] == d["levels"]["stop"]  # no NaN
     assert d["levels"]["stop_fijado_al_abrir"] is False
+
+
+# --- Un precio VIEJO no es un precio inválido, pero no basta para comprar ---
+#
+# Cuando todas las fuentes fallan, la caché sirve la última copia marcada
+# `estado: viejo`. Sobre eso se puede opinar —la tendencia y la puntuación no
+# cambian en veinte minutos— pero no fijar una zona de compra: el ±2 % se
+# mediría contra un precio que quizá ya no existe.
+
+
+def test_no_se_recomienda_comprar_sobre_un_precio_viejo():
+    d = decision.decide(SENAL, _precio(estado="viejo", antiguedad_segundos=1800))
+    assert d["action"] != "comprar"
+    assert d["action"] == "vigilar"
+    assert any("viejo" in r.lower() for r in d["reasons"])
+
+
+def test_sobre_lo_que_tienes_un_precio_viejo_no_calla_un_stop_perforado():
+    """Al revés que comprar: avisar de un riesgo con un dato viejo es prudente."""
+    d = decision.decide(
+        SENAL, _precio(last=80.0, estado="viejo", antiguedad_segundos=1800),
+        position={"cost_basis": 100.0, "quantity": 10, "stop": 90.0},
+    )
+    assert d["action"] == "vender"
+    assert any("viejo" in r.lower() for r in d["reasons"])
+
+
+def test_un_precio_valido_sigue_permitiendo_comprar():
+    d = decision.decide(SENAL, _precio(last=100.0, sma200=90.0, estado="valido"))
+    assert d["action"] == "comprar"

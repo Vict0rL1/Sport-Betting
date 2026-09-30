@@ -102,6 +102,10 @@ class MarketService:
         if data_type == "bulk_momentum":
             self.bulk_calls += 1
             symbols = kwargs["symbols"]
+            # Simula el rescate de caché: todas las fuentes cayeron y la
+            # descarga llega marcada como vieja.
+            if getattr(self, "bulk_viejo", False):
+                common = {**common, "estado": "viejo", "antiguedad_segundos": 1800}
             return {
                 **common,
                 "momentum": {s: (i % 7) / 10 - 0.3 for i, s in enumerate(symbols)},
@@ -586,3 +590,21 @@ def test_la_lista_diaria_congela_lo_accionable(client, session_factory):
     c.get("/api/signals/today?market=us_sp500&budget=600&refresh=true")
     with session_factory() as s:
         assert s.query(DecisionSnapshot).count() == len(congeladas)
+
+
+def test_con_precios_viejos_la_lista_no_recomienda_comprar(client, session_factory):
+    """Si la descarga masiva llega del rescate, ningún precio del barrido es de
+    ahora. La lista puede opinar, pero no fijar zonas de compra — y lo que
+    congela lo registra como viejo."""
+    from app import snapshots as sn
+    from app.db.models import DecisionSnapshot
+
+    c, service = client
+    service.bulk_viejo = True
+    data = _completar(c)
+    con_precio = [s for s in data["signals"] if s.get("price")]
+    assert con_precio and all(s["price"]["estado"] == "viejo" for s in con_precio)
+    assert not [s for s in data["signals"] if s["decision"]["action"] == "comprar"]
+    with session_factory() as s:
+        for snap in s.query(DecisionSnapshot):
+            assert sn.reconstruir(snap)["precio"]["estado"] == "viejo"

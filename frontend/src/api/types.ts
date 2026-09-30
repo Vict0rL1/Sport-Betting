@@ -6,6 +6,11 @@ export interface Sourced {
   as_of: string
   cached: boolean
   fetched_at: string | null
+  /** `viejo` = todas las fuentes fallaron y se sirve la última copia. */
+  estado?: 'valido' | 'viejo'
+  /** Por qué es viejo, si lo es. */
+  aviso?: string | null
+  antiguedad_segundos?: number | null
 }
 
 export interface Quote extends Sourced {

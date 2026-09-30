@@ -153,6 +153,13 @@ def decide(
         }
 
     sma200 = datos.numero(price.get("sma200"))
+    # Un precio VIEJO (todas las fuentes fallaron y se sirve la última copia)
+    # no es inválido: la tendencia y la puntuación no cambian en veinte
+    # minutos. Pero no basta para COMPRAR —la zona de entrada se mediría contra
+    # un precio que quizá ya no existe— y cualquier decisión tomada con él lo
+    # dice en sus razones.
+    precio_viejo = price.get("estado") == "viejo"
+    minutos_viejo = round((datos.numero(price.get("antiguedad_segundos")) or 0) / 60)
     # `above_sma200` es un booleano crudo que cambia con cualquier roce de la
     # línea. Aquí se aplica la banda muerta: hay tres estados, no dos.
     # Tres estados: True (claramente encima), False (claramente debajo) y None
@@ -221,6 +228,13 @@ def decide(
 
         if pnl_pct is not None:
             razones.append(f"Llevas un {pnl_pct:+.2f} % sobre tu precio de compra.")
+        if precio_viejo:
+            # Sobre lo que ya tienes se decide igual: callar un stop perforado
+            # por no tener un precio fresco sería el error caro.
+            razones.append(
+                f"Precio viejo (de hace {minutos_viejo} min: las fuentes fallaron). "
+                "Compruébalo en tu broker antes de actuar."
+            )
         if stop_fijado is None and stop_posicion is not None:
             razones.append(
                 "El stop de esta posición se recalcula con la volatilidad de hoy "
@@ -328,6 +342,16 @@ def decide(
         ]
     elif resultados_en:
         razones.append(f"Presenta resultados el {resultados_en}: espera volatilidad.")
+
+    if precio_viejo and accion == "comprar":
+        accion = "vigilar"
+        razones.insert(
+            0,
+            f"El precio es viejo (de hace {minutos_viejo} min: todas las fuentes "
+            "fallaron). La idea puede ser buena, pero no se fija una zona de "
+            "compra contra un precio que quizá ya no existe.",
+        )
+        disparadores = ["Reevaluar cuando vuelva a haber precio actual", *disparadores[1:]]
 
     if price.get("drawdown_pct") is not None and price["drawdown_pct"] < -25:
         razones.append(

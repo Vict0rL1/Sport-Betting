@@ -467,6 +467,7 @@ def _score_symbols(
     # y minigráfico sin ninguna llamada extra.
     price_map: dict[str, dict | None] = {}
     price_as_of = None
+    price_estado: dict = {"estado": "valido"}
     bulk = _safe_get(service, "bulk_momentum", symbols=symbols)
     # Una entrada guardada antes de que la descarga trajera precios sigue
     # vigente hasta 6 h. Servirla daría una lista sin precio ni minigráfico y
@@ -481,6 +482,13 @@ def _score_symbols(
         momentum_source = bulk.get("source")
         price_map = bulk.get("prices") or {}
         price_as_of = bulk.get("as_of")
+        # Si la descarga masiva llegó del rescate de caché, TODOS los precios de
+        # este barrido son viejos. El estado viaja en cada bloque de precio para
+        # que el motor no compre sobre él y la instantánea lo registre.
+        price_estado = {
+            "estado": bulk.get("estado", "valido"),
+            "antiguedad_segundos": bulk.get("antiguedad_segundos"),
+        }
 
     # 2) Fundamentales por empresa (caché 24 h).
     raw_by_symbol: dict[str, dict] = {}
@@ -564,7 +572,7 @@ def _score_symbols(
         # decir de dónde sale y de cuándo es.
         precio = price_map.get(symbol)
         signal["price"] = (
-            {**precio, "source": momentum_source, "as_of": price_as_of}
+            {**precio, "source": momentum_source, "as_of": price_as_of, **price_estado}
             if precio
             else None
         )
