@@ -497,8 +497,11 @@ def test_la_lista_diaria_recoge_el_backtest_de_reglas_guardado(client, session_f
         session.add(
             LlmOutput(
                 kind="rule_backtest",
+                # Con su partición: desde el RC1, un backtest guardado sin ella
+                # (calculado mirando el holdout) no valida nada.
                 content_md=json.dumps(
-                    {"fiable": True, "esperanza_pct": -1.2, "ventaja_pct": -3.4}
+                    {"fiable": True, "esperanza_pct": -1.2, "ventaja_pct": -3.4,
+                     "particion": {"corte": "2024-01-01", "holdout_mirado": False}}
                 ),
                 model="reglas/6a",
             )

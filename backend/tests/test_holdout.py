@@ -141,3 +141,47 @@ def test_la_interfaz_no_ofrece_ninguna_forma_de_abrir_el_holdout(backtest_http):
     assert r.status_code == 200
     corte = date.fromisoformat(r.json()["particion"]["corte"])
     assert all(f < corte for lote in vistas for f in lote)
+
+
+# --- Lo guardado antes del RC1 no cuenta como validación ------------------
+
+
+def test_un_backtest_guardado_sin_particion_no_valida_las_decisiones(session_factory):
+    """Los resultados anteriores al RC1 se calcularon mirando el holdout y no lo
+    registraron. No pueden seguir convirtiendo «razonable» en «probada»."""
+    import json
+
+    from app.db.models import LlmOutput
+    from app.routers.signals import _stored_rule_backtest
+
+    with session_factory() as s:
+        s.add(LlmOutput(kind="rule_backtest", model="reglas/6a",
+                        content_md=json.dumps({"n_operaciones": 120, "esperanza_pct": 0.9})))
+        s.commit()
+        assert _stored_rule_backtest(s) is None
+
+        s.add(LlmOutput(kind="rule_backtest", model="reglas/6a",
+                        content_md=json.dumps({"n_operaciones": 80, "esperanza_pct": 0.2,
+                                               "particion": {"corte": "2023-01-01",
+                                                             "holdout_mirado": False}})))
+        s.commit()
+        assert _stored_rule_backtest(s)["n_operaciones"] == 80
+
+
+def test_el_endpoint_guarda_la_particion_con_el_resultado(backtest_http, session_factory, monkeypatch):
+    import json
+
+    from app.db.models import LlmOutput
+    from app.routers import signals
+
+    # La forma que devuelve el backtest de verdad con operaciones: el endpoint
+    # redacta su veredicto con estos campos.
+    resultado = {"n_operaciones": 5, "operaciones": [], "fiable": False,
+                 "esperanza_pct": 0.4, "tasa_acierto": 0.6, "referencia_pct": 0.1,
+                 "ventaja_pct": 0.3, "racha_perdedora": 2}
+    monkeypatch.setattr(signals, "run_rule_backtest", lambda u, f, **kw: dict(resultado))
+    c, _ = backtest_http
+    c.post("/api/signals/rule-backtest", json={"symbols": ["AAA", "BBB", "CCC"], "years": 8})
+    with session_factory() as s:
+        guardado = json.loads(s.query(LlmOutput).one().content_md)
+    assert guardado["particion"]["holdout_mirado"] is False and guardado["particion"]["corte"]

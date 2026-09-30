@@ -312,20 +312,27 @@ def _cartera_actual(
 
 
 def _stored_rule_backtest(session: Session) -> dict | None:
-    """Último backtest de reglas. Es lo que convierte «razonable» en «probada»."""
-    record = session.execute(
+    """Último backtest de reglas VÁLIDO. Convierte «razonable» en «probada».
+
+    Solo cuentan los que declaran su partición desarrollo/holdout. Los guardados
+    antes del RC1 se calcularon sobre todas las fechas —holdout incluido— sin
+    registrarlo, así que no pueden seguir validando decisiones: hasta que se
+    ejecute un backtest nuevo, las reglas vuelven a figurar como no validadas.
+    """
+    import json
+
+    for record in session.execute(
         select(LlmOutput)
         .where(LlmOutput.kind == "rule_backtest")
         .order_by(LlmOutput.created_at.desc())
-    ).scalars().first()
-    if record is None:
-        return None
-    import json
-
-    try:
-        return json.loads(record.content_md)
-    except json.JSONDecodeError:
-        return None
+    ).scalars():
+        try:
+            contenido = json.loads(record.content_md)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(contenido, dict) and contenido.get("particion"):
+            return contenido
+    return None
 
 
 def _proximos_resultados(service: MarketDataService, dias: int = 7) -> dict[str, str]:
@@ -1255,7 +1262,10 @@ def run_rules_backtest(
             LlmOutput(
                 kind="rule_backtest",
                 content_md=json.dumps(
-                    {k: v for k, v in resultado.items() if k != "operaciones"}
+                    {
+                        **{k: v for k, v in resultado.items() if k != "operaciones"},
+                        "particion": {"corte": particion["corte"], "holdout_mirado": False},
+                    }
                 ),
                 model=f"reglas/{request.years}a",
             )

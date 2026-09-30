@@ -222,3 +222,67 @@ def test_las_fechas_de_posiciones_y_watchlist_llevan_zona(api):
     wl = c.get("/api/watchlist").json()
     items = wl.get("items") or wl.get("watchlist") or []
     assert items and all(i["added_at"].endswith("+00:00") for i in items)
+
+
+# --- Fijar el stop de una posición abierta: subir sí, bajar nunca -----------
+#
+# Las posiciones anteriores al RC1 no tienen stop fijado. Poder fijarlo evita
+# tener que cerrarlas y reabrirlas. Pero BAJAR un stop es exactamente la evasión
+# que se cerró en f124d24 —alejarlo cuando el precio se acerca—, así que eso no
+# se permite. Subirlo (asegurar beneficio) sí.
+
+
+def _posicion_sin_stop(factory):
+    from app.db.models import Instrument
+
+    with factory() as s:
+        inst = Instrument(symbol="OLD", name="OLD", currency="USD")
+        s.add(inst)
+        s.flush()
+        p = Position(instrument_id=inst.id, quantity=10, cost_basis=100.0,
+                     opened_at=datetime.now(timezone.utc), stop=None)
+        s.add(p)
+        s.commit()
+        return p.id
+
+
+def test_se_puede_fijar_el_stop_de_una_posicion_antigua(api):
+    c, factory = api
+    pid = _posicion_sin_stop(factory)
+    r = c.post(f"/api/portfolio/positions/{pid}/stop", json={"stop": 90.0})
+    assert r.status_code == 200, r.text
+    with factory() as s:
+        assert s.get(Position, pid).stop == 90.0
+
+
+def test_un_stop_se_puede_subir(api):
+    c, factory = api
+    pid = _posicion_sin_stop(factory)
+    c.post(f"/api/portfolio/positions/{pid}/stop", json={"stop": 90.0})
+    assert c.post(f"/api/portfolio/positions/{pid}/stop", json={"stop": 105.0}).status_code == 200
+
+
+def test_un_stop_no_se_puede_bajar(api):
+    c, factory = api
+    pid = _posicion_sin_stop(factory)
+    c.post(f"/api/portfolio/positions/{pid}/stop", json={"stop": 90.0})
+    r = c.post(f"/api/portfolio/positions/{pid}/stop", json={"stop": 80.0})
+    assert r.status_code == 409
+    assert "bajar" in r.json()["detail"].lower()
+    with factory() as s:
+        assert s.get(Position, pid).stop == 90.0
+
+
+@pytest.mark.parametrize("stop", [0.0, -5.0])
+def test_un_stop_no_positivo_se_rechaza_al_fijarlo(api, stop):
+    c, factory = api
+    pid = _posicion_sin_stop(factory)
+    assert c.post(f"/api/portfolio/positions/{pid}/stop", json={"stop": stop}).status_code == 422
+
+
+def test_no_se_fija_el_stop_de_una_posicion_cerrada_o_inexistente(api):
+    c, factory = api
+    pid = _posicion_sin_stop(factory)
+    c.post(f"/api/portfolio/positions/{pid}/close", json={"exit_price": 110.0})
+    assert c.post(f"/api/portfolio/positions/{pid}/stop", json={"stop": 90.0}).status_code == 409
+    assert c.post("/api/portfolio/positions/9999/stop", json={"stop": 90.0}).status_code == 404

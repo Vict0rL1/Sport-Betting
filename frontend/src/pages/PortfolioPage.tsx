@@ -363,6 +363,26 @@ function PortfolioTab() {
     }
   }
 
+  // Para posiciones abiertas antes de que el stop se fijara al comprar: su stop
+  // se recalcula con la volatilidad de hoy y en una caída se aleja solo. Fijarlo
+  // lo congela. El servidor rechaza BAJAR un stop ya fijado, y el motivo sale
+  // en el mensaje de error.
+  const fijarStop = async (id: number, sugerido: number | null | undefined) => {
+    const raw = window.prompt(
+      'Stop para esta posición (precio por acción). Se podrá subir, nunca bajar:',
+      sugerido ? String(sugerido) : '',
+    )
+    if (!raw) return
+    const stop = parseFloat(raw)
+    if (Number.isNaN(stop)) return
+    try {
+      await api.fijarStop(id, stop)
+      load()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error')
+    }
+  }
+
   const close = async (id: number) => {
     const raw = window.prompt('Precio de venta por acción:')
     if (!raw) return
@@ -548,6 +568,15 @@ function PortfolioTab() {
                           {weight ? fmtPct(weight.weight) : '—'}
                         </td>
                         <td className="px-2 py-1.5 text-right">
+                          {p.stop_fijado_al_abrir === false && (
+                            <button
+                              onClick={() => fijarStop(p.id, p.stop)}
+                              title="Su stop se recalcula con la volatilidad de hoy y en una caída se aleja solo. Fíjalo."
+                              className="mr-3 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800"
+                            >
+                              Fijar stop
+                            </button>
+                          )}
                           <button
                             onClick={() => close(p.id)}
                             className="text-xs text-slate-400 hover:text-slate-700"

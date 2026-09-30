@@ -263,7 +263,12 @@ def main() -> int:
                 LlmOutput(
                     kind="rule_backtest",
                     content_md=json.dumps(
-                        {k: v for k, v in resultado.items() if k != "operaciones"}
+                        {
+                            **{k: v for k, v in resultado.items() if k != "operaciones"},
+                            # Sin esto, la lista diaria no lo acepta como validación.
+                            "particion": {"corte": particion["corte"],
+                                          "holdout_mirado": usando_holdout},
+                        }
                     ),
                     model=f"reglas/{clase}/{args.anos}a",
                 )

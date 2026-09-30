@@ -579,6 +579,40 @@ def create_position(
     return {"id": position.id, "symbol": instrument.symbol, "thesis_id": thesis_id}
 
 
+class StopUpdate(BaseModel):
+    stop: float = Field(gt=0, allow_inf_nan=False)
+
+
+@router.post("/positions/{position_id}/stop")
+def fijar_stop(position_id: int, body: StopUpdate, session: Session = Depends(get_session)):
+    """Fija el stop de una posición abierta. Subirlo sí; bajarlo, nunca.
+
+    Existe para las posiciones abiertas antes del RC1, que no guardan stop y
+    para las que se sigue recalculando con la volatilidad de hoy. Pero bajar un
+    stop es exactamente la evasión que se cerró en `f124d24` —alejarlo cuando
+    el precio se acerca—, así que no se permite. Subirlo (asegurar beneficio,
+    o apretar el riesgo) sí.
+    """
+    position = session.get(Position, position_id)
+    if position is None:
+        raise HTTPException(status_code=404, detail="Posición no encontrada")
+    if position.closed_at is not None:
+        raise HTTPException(status_code=409, detail="La posición está cerrada: ya no tiene stop.")
+    actual = datos.precio(position.stop)
+    if actual is not None and body.stop < actual:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"No se puede bajar el stop de {actual:g} a {body.stop:g}. Bajar un stop "
+                "es alejarlo justo cuando el precio se acerca: el control que protege "
+                "la posición deja de hacerlo. Si la tesis cambió, cierra la posición."
+            ),
+        )
+    anterior, position.stop = actual, body.stop
+    session.commit()
+    return {"id": position.id, "stop": position.stop, "anterior": anterior}
+
+
 @router.post("/positions/{position_id}/close")
 def close_position(
     position_id: int, body: PositionClose, session: Session = Depends(get_session)

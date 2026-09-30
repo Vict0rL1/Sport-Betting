@@ -79,6 +79,22 @@ export class ApiError extends Error {
 const DEFAULT_TIMEOUT_MS = 30_000
 export const SCAN_TIMEOUT_MS = 300_000
 
+/** El `detail` de FastAPI, legible. En los 422 de validación es una LISTA de
+ *  errores, y antes se mostraba solo «Error HTTP 422»: mensajes como «el stop
+ *  tiene que estar por debajo del coste» no llegaban nunca a la pantalla. */
+function textoDeError(detail: unknown): string | null {
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    const textos = detail
+      .map((e) => (e && typeof e === 'object' && 'msg' in e ? String(e.msg) : null))
+      .filter((m): m is string => Boolean(m))
+      // Pydantic antepone «Value error, » a los mensajes de los validadores.
+      .map((m) => m.replace(/^Value error, /, ''))
+    return textos.length ? textos.join(' · ') : null
+  }
+  return null
+}
+
 async function fetchJson<T>(path: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<T> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -102,7 +118,7 @@ async function fetchJson<T>(path: string, timeoutMs = DEFAULT_TIMEOUT_MS): Promi
     let detail = `Error HTTP ${resp.status}`
     try {
       const body = await resp.json()
-      if (typeof body.detail === 'string') detail = body.detail
+      detail = textoDeError(body.detail) ?? detail
     } catch {
       // cuerpo no-JSON: nos quedamos con el mensaje genérico
     }
@@ -121,7 +137,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
     let detail = `Error HTTP ${resp.status}`
     try {
       const data = await resp.json()
-      if (typeof data.detail === 'string') detail = data.detail
+      detail = textoDeError(data.detail) ?? detail
     } catch {
       // sin cuerpo JSON
     }
@@ -136,7 +152,7 @@ async function deleteJson<T>(path: string): Promise<T> {
     let detail = `Error HTTP ${resp.status}`
     try {
       const data = await resp.json()
-      if (typeof data.detail === 'string') detail = data.detail
+      detail = textoDeError(data.detail) ?? detail
     } catch {
       // sin cuerpo JSON
     }
@@ -252,6 +268,12 @@ export const api = {
     fetchJson<RiesgoDeCartera>(`/api/portfolio/riesgo?descargar=${descargar}`),
   addPosition: (body: { symbol: string; quantity: number; cost_basis: number }) =>
     postJson<{ id: number; symbol: string }>('/api/portfolio/positions', body),
+  /** Fija o SUBE el stop de una posición abierta. Bajarlo lo rechaza el servidor. */
+  fijarStop: (id: number, stop: number) =>
+    postJson<{ id: number; stop: number; anterior: number | null }>(
+      `/api/portfolio/positions/${id}/stop`,
+      { stop },
+    ),
   closePosition: (id: number, exitPrice: number) =>
     postJson<{ id: number; realized_pnl: number }>(`/api/portfolio/positions/${id}/close`, {
       exit_price: exitPrice,

@@ -239,7 +239,7 @@ def decide(
             razones.append(
                 "El stop de esta posición se recalcula con la volatilidad de hoy "
                 "porque se abrió antes de que el stop se fijara al comprar. En una "
-                "caída eso lo aleja: vigílalo a mano o ciérrala y reábrela con stop."
+                "caída eso lo aleja. Fíjalo desde la cartera («Fijar stop»)."
             )
 
         # Sobre algo que ya tienes, una "zona de compra" y un objetivo medidos
