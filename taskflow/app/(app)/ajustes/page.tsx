@@ -3,8 +3,9 @@ import { ViewHead } from "@/components/TaskRow";
 import { AreasForm, HoursForm, ImportIcs, TimezoneForm } from "@/components/SettingsForms";
 import { CanvasPanel } from "@/components/CanvasPanel";
 import { PushPanel } from "@/components/PushPanel";
+import { TelegramPanel } from "@/components/TelegramPanel";
 import { getCtx, loadIcsSources, loadSyncState } from "@/lib/data";
-import { canvasConfigured } from "@/lib/env.server";
+import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
 import { VAPID_PUBLIC_KEY } from "@/lib/env";
 import { MONTHS_SHORT, dayOfMonth, minsToHHMM, monthOf, zonedDayMinute } from "@/lib/date";
 
@@ -12,10 +13,22 @@ export const metadata = { title: "Ajustes · TaskFlow" };
 
 export default async function AjustesPage() {
   const ctx = await getCtx();
-  const [sources, canvasState] = await Promise.all([
+  const [sources, canvasState, telegram] = await Promise.all([
     loadIcsSources(ctx),
     loadSyncState(ctx, "canvas"),
+    ctx.supabase
+      .from("telegram_chats")
+      .select("linked_at, chat_id")
+      .eq("user_id", ctx.userId)
+      .maybeSingle<{ linked_at: string | null; chat_id: number | null }>()
+      .then((r) => r.data),
   ]);
+
+  let telegramLinked: string | null = null;
+  if (telegram?.chat_id && telegram.linked_at) {
+    const { date, min } = zonedDayMinute(telegram.linked_at, ctx.tz);
+    telegramLinked = dayOfMonth(date) + " " + MONTHS_SHORT[monthOf(date)] + " · " + minsToHHMM(min);
+  }
 
   // La fecha se formatea aquí, en la zona del perfil, y viaja ya hecha.
   let lastSynced: string | null = null;
@@ -108,6 +121,16 @@ export default async function AjustesPage() {
             </div>
             <div className="pb">
               <PushPanel vapidPublicKey={VAPID_PUBLIC_KEY ?? null} />
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="ph">
+              <h2>Telegram</h2>
+              <span className="sub">fase 4</span>
+            </div>
+            <div className="pb">
+              <TelegramPanel configured={telegramConfigured()} linkedAt={telegramLinked} />
             </div>
           </div>
 

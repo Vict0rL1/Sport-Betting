@@ -1,5 +1,7 @@
 import "server-only";
 
+import { createHmac } from "node:crypto";
+
 /**
  * Variables que NUNCA pueden llegar al navegador.
  *
@@ -75,4 +77,31 @@ export function requireAnthropicKey(): string {
     );
   }
   return ANTHROPIC_API_KEY;
+}
+
+/* ---------------------------------------------------------------- Telegram */
+
+/** El token que da @BotFather. Quien lo tiene manda mensajes como el bot. */
+export const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+/**
+ * Sólo para pruebas: apunta a un servidor de mentira en vez de a Telegram. En
+ * producción no se define y se usa la API de verdad.
+ */
+export const TELEGRAM_API_BASE = (process.env.TELEGRAM_API_BASE || "https://api.telegram.org").replace(/\/+$/, "");
+
+export const telegramConfigured = () => Boolean(TELEGRAM_BOT_TOKEN);
+
+/**
+ * El secreto que Telegram repite en cada llamada al webhook, para que la ruta
+ * sepa que es Telegram y no cualquiera con la URL.
+ *
+ * Sale del token por HMAC en vez de ser otra variable de entorno: una variable
+ * menos que Victor tenga que crear, y sin el token no se puede adivinar. Si el
+ * token se revoca, el secreto cambia con él; por eso "Conectar" vuelve a
+ * registrar el webhook cada vez.
+ */
+export function telegramWebhookSecret(): string {
+  if (!TELEGRAM_BOT_TOKEN) throw new Error("Falta TELEGRAM_BOT_TOKEN");
+  return createHmac("sha256", TELEGRAM_BOT_TOKEN).update("taskflow-telegram-webhook").digest("hex");
 }

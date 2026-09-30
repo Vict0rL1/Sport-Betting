@@ -277,6 +277,32 @@ ya tenía motivo propio.
 Para dejar de recibirlos, el mismo botón en Ajustes. Y si borras el navegador o
 revocas el permiso, la suscripción muerta se limpia sola en el siguiente envío.
 
+### 6b. Los avisos también por Telegram (opcional)
+
+El push del navegador tiene dos agujeros: en iPhone sólo funciona si la app está
+en la pantalla de inicio, y basta con que el navegador tenga los avisos
+silenciados para que no llegue nada. Telegram llega igual.
+
+1. En Telegram, háblale a **@BotFather**, escribe `/newbot` y ponle nombre. Te da
+   un token.
+2. Ponlo en las variables de entorno de Vercel como `TELEGRAM_BOT_TOKEN` y vuelve
+   a desplegar. Al repo no va nunca; si se filtra, `/revoke` en @BotFather.
+3. En la app, **Ajustes → Telegram → Conectar Telegram → Abrir Telegram**, y en el
+   chat del bot pulsa **Iniciar**. Vuelve y pulsa «Ya lo conecté».
+
+No hay que registrar el webhook a mano: «Conectar» lo registra cada vez, apuntando
+a la dirección desde la que lo pulsaste. Por eso **tiene que ser la app
+desplegada** — Telegram sólo acepta HTTPS, y desde `localhost` avisa de eso en vez
+de fallar en silencio.
+
+El enlace de «Abrir Telegram» lleva un código de un solo uso que caduca a los 15
+minutos. Nadie tiene que copiar un número de chat, y una captura vieja del enlace
+no conecta nada.
+
+Salen los mismos dos avisos que por push, con la misma regla de no repetir, y un
+canal caído no tumba al otro. Desde Telegram, `/stop` desconecta; si bloqueas al
+bot, la app lo nota en el siguiente aviso y suelta el chat sola.
+
 ### 7. Planear el día con Claude (fase 4, opcional y de pago)
 
 Un botón al pie de la agenda que reparte tus tareas pendientes en los ratos que
@@ -383,6 +409,7 @@ lib/
   canvas.ts          Canvas: paginación y mapeo a tareas (puro, testeado)
   canvas-sync.ts     el sync en sí: trae de Canvas y escribe en la base
   push.ts            arma los dos avisos del día y los manda (sólo servidor)
+  telegram.ts        el mismo aviso por Telegram, y la conexión del chat
   planner.ts         huecos libres del día + el plan con Claude (sólo servidor)
   breakdown.ts       parte una tarea grande en pasos con fecha (sólo servidor)
   data.ts            lectura desde Supabase (sólo servidor)
@@ -501,7 +528,6 @@ Lo que `PLAN.md` pedía confirmar antes de escribir código:
   eventos con `singleEvents=true`.
 - **Fase 4 — Que trabaje sola.** El reloj, los dos avisos push y las dos
   funciones con Claude ("Planear mi día" y partir una tarea en pasos) ya están.
-  Falta el mismo resumen por Telegram, para que llegue aunque el navegador tenga
-  los avisos apagados.
+  Los avisos llegan por push y por Telegram.
 
 El detalle de cada una está en `PLAN.md`.

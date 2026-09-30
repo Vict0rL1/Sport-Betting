@@ -139,6 +139,8 @@ Ver `supabase/schema.sql`. Resumen:
 - `sync_state` — última sincronización por fuente
 - `digest_log` — qué aviso se mandó cada día, para que el reloj horario no
   repita el mismo resumen una vez por hora
+- `telegram_chats` — el chat de Telegram conectado y el código de un solo uso
+  que lo conecta
 
 `schema.sql` está probado contra Postgres 16: corre dos veces seguidas sin
 error, el trigger crea el perfil al registrarse, el upsert de sync deja una

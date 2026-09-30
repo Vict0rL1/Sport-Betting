@@ -1,11 +1,14 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { getCtx } from "@/lib/data";
 import { parseInput } from "@/lib/parse";
 import { cleanSourceName, parseICS } from "@/lib/ics";
 import { recordSync, syncCanvas } from "@/lib/canvas-sync";
-import { canvasConfigured } from "@/lib/env.server";
+import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
+import { TelegramError, botUsername, ensureWebhook } from "@/lib/telegram";
 import { minsToTime, todayInTz } from "@/lib/date";
 
 export type ActionResult = { ok: boolean; message: string };
@@ -466,7 +469,7 @@ export async function savePushSubscription(
   if (error) return fail("No se pudo guardar la suscripción");
 
   refresh();
-  return ok("Listo: te avisamos cada mañana");
+  return ok("Listo: te avisamos por la mañana y la noche antes");
 }
 
 export async function removePushSubscription(
@@ -482,6 +485,65 @@ export async function removePushSubscription(
 
   refresh();
   return ok("Avisos desactivados");
+}
+
+/* ---------------------------------------------------------------- Telegram */
+
+export type TelegramLinkResult = ActionResult & { url?: string };
+
+/** Cuánto vale un enlace de conexión. Lo justo para abrir Telegram y volver. */
+const MINUTOS_ENLACE = 15;
+
+/**
+ * Genera el enlace t.me/<bot>?start=<código> que conecta el chat.
+ *
+ * El código es de un solo uso y caduca: quien lo vea en una captura de
+ * pantalla media hora después ya no puede conectar su chat a tu cuenta.
+ */
+export async function startTelegramLink(): Promise<TelegramLinkResult> {
+  if (!telegramConfigured()) return fail("Falta TELEGRAM_BOT_TOKEN en el servidor");
+
+  const ctx = await getCtx();
+  const codigo = randomBytes(16).toString("base64url");
+  const caduca = new Date(Date.now() + MINUTOS_ENLACE * 60_000).toISOString();
+
+  // Si ya había un chat conectado se conserva hasta que el nuevo /start llegue:
+  // generar un enlace no debería desconectarte.
+  const { error } = await ctx.supabase
+    .from("telegram_chats")
+    .upsert(
+      { user_id: ctx.userId, link_code: codigo, link_expires_at: caduca },
+      { onConflict: "user_id" },
+    );
+  if (error) return fail("No se pudo generar el enlace");
+
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  if (!host) return fail("No se pudo saber la dirección de la app");
+  const origin = `${proto}://${host}`;
+
+  try {
+    await ensureWebhook(origin);
+    const bot = await botUsername();
+    return { ok: true, message: `El enlace vale ${MINUTOS_ENLACE} minutos`, url: `https://t.me/${bot}?start=${codigo}` };
+  } catch (e) {
+    if (e instanceof TelegramError && /https/i.test(e.message)) {
+      return fail("Telegram sólo acepta HTTPS: esto funciona con la app desplegada, no en localhost.");
+    }
+    if (e instanceof TelegramError && e.code === 401) {
+      return fail("Telegram no reconoce el token. Revisa TELEGRAM_BOT_TOKEN.");
+    }
+    return fail(e instanceof Error ? e.message : "No se pudo hablar con Telegram");
+  }
+}
+
+export async function unlinkTelegram(): Promise<ActionResult> {
+  const ctx = await getCtx();
+  const { error } = await ctx.supabase.from("telegram_chats").delete().eq("user_id", ctx.userId);
+  if (error) return fail("No se pudo desconectar");
+  refresh();
+  return ok("Telegram desconectado");
 }
 
 /* ------------------------------------------------------------ importar .ics */

@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordSync, syncCanvas } from "@/lib/canvas-sync";
-import { CRON_SECRET, canvasConfigured, pushSendConfigured } from "@/lib/env.server";
+import { CRON_SECRET, canvasConfigured, pushSendConfigured, telegramConfigured } from "@/lib/env.server";
 import { DEFAULT_TIMEZONE, addDays, minutesInTz, todayInTz } from "@/lib/date";
 import {
   buildDigest,
   digestDue,
   sendDigest,
+  type Digest,
   type DigestKind,
   type PushSubscriptionRow,
 } from "@/lib/push";
+import { TelegramError, sendDigestTelegram } from "@/lib/telegram";
 import { loadEvents, loadTasks, type Ctx } from "@/lib/data";
 import type { Profile } from "@/lib/types";
 
@@ -55,7 +57,7 @@ export async function GET(request: Request) {
   // mano: `?digest=night` manda ese aviso ya, saltándose la ventana Y el
   // registro (si no, sólo se podría probar una vez al día), y `?canvas=1`
   // fuerza el sync aunque acabe de correr.
-  const params = new URL(request.url).searchParams;
+  const { searchParams: params, origin } = new URL(request.url);
   const forzado = leerKind(params.get("digest"));
   const forzarCanvas = params.get("canvas") === "1";
 
@@ -100,10 +102,11 @@ export async function GET(request: Request) {
     // El aviso va después del sync, para que cuente los deadlines que acaban
     // de entrar. Que falle no debe tumbar la corrida.
     const kind = forzado ?? digestDue(profile, hora);
-    let aviso = kind ? "push no configurado" : `no toca (son las ${hora})`;
-    if (kind && pushSendConfigured()) {
+    const hayCanal = pushSendConfigured() || telegramConfigured();
+    let aviso = !kind ? `no toca (son las ${hora})` : "ningún canal configurado (ni push ni Telegram)";
+    if (kind && hayCanal) {
       try {
-        aviso = await avisar(ctx, admin, kind, forzado != null);
+        aviso = await avisar(ctx, admin, kind, forzado != null, origin);
       } catch (e) {
         aviso = "falló el aviso: " + (e instanceof Error ? e.message : String(e));
       }
@@ -159,6 +162,7 @@ async function avisar(
   admin: Admin,
   kind: DigestKind,
   forzado: boolean,
+  origin: string,
 ): Promise<string> {
   if (!forzado && !(await reservar(ctx, admin, kind))) return `${kind}: ya se avisó hoy`;
 
@@ -175,30 +179,72 @@ async function avisar(
     // workflow de GitHub no imprime este cuerpo, justo por eso.
     const que = ` «${digest.title}»`;
 
-    const { data: subs } = await admin
-      .from("push_subscriptions")
-      .select("endpoint, p256dh, auth")
-      .eq("user_id", ctx.userId)
-      .returns<PushSubscriptionRow[]>();
+    // Los dos canales van por separado y ninguno puede tumbar al otro: un
+    // Telegram caído no debe dejarte sin el push, ni al revés. Por lo mismo,
+    // sus fallos se informan en la línea en vez de lanzarse — si se lanzaran,
+    // la reserva se devolvería y el canal que SÍ llegó repetiría el aviso
+    // dentro de una hora.
+    const partes = await Promise.all([avisarPush(ctx, admin, digest), avisarTelegram(ctx, admin, digest, origin)]);
 
-    if (!subs?.length) return `${kind}: sin navegadores suscritos${que}`;
-
-    const r = await sendDigest(subs, digest);
-
-    // Las suscripciones muertas se borran: si no, fallan todos los días.
-    if (r.caducadas.length) {
-      await admin.from("push_subscriptions").delete().in("endpoint", r.caducadas);
-    }
-
-    return `${kind}: ${r.enviadas} enviado(s)` +
-      (r.caducadas.length ? `, ${r.caducadas.length} caducada(s) borrada(s)` : "") +
-      (r.fallidas ? `, ${r.fallidas} fallida(s)` : "") +
-      que;
+    return `${kind}: ${partes.filter(Boolean).join(" · ") || "sin canales conectados"}${que}`;
   } catch (e) {
     // Se cayó la base o el servicio de push: devolver el turno para que el
     // reloj lo reintente dentro de una hora, mientras la ventana siga abierta.
     if (!forzado) await liberar(ctx, admin, kind);
     throw e;
+  }
+}
+
+/** Push a cada navegador suscrito. Cadena vacía si push no está configurado. */
+async function avisarPush(ctx: Ctx, admin: Admin, digest: Digest): Promise<string> {
+  if (!pushSendConfigured()) return "";
+
+  const { data: subs } = await admin
+    .from("push_subscriptions")
+    .select("endpoint, p256dh, auth")
+    .eq("user_id", ctx.userId)
+    .returns<PushSubscriptionRow[]>();
+
+  if (!subs?.length) return "push: sin navegadores suscritos";
+
+  const r = await sendDigest(subs, digest);
+
+  // Las suscripciones muertas se borran: si no, fallan todos los días.
+  if (r.caducadas.length) {
+    await admin.from("push_subscriptions").delete().in("endpoint", r.caducadas);
+  }
+
+  return `push: ${r.enviadas} enviado(s)` +
+    (r.caducadas.length ? `, ${r.caducadas.length} caducada(s) borrada(s)` : "") +
+    (r.fallidas ? `, ${r.fallidas} fallida(s)` : "");
+}
+
+/** El chat de Telegram conectado, si hay uno. Cadena vacía si Telegram no está configurado. */
+async function avisarTelegram(ctx: Ctx, admin: Admin, digest: Digest, origin: string): Promise<string> {
+  if (!telegramConfigured()) return "";
+
+  const { data: chat } = await admin
+    .from("telegram_chats")
+    .select("chat_id")
+    .eq("user_id", ctx.userId)
+    .not("chat_id", "is", null)
+    .maybeSingle<{ chat_id: number }>();
+
+  if (!chat) return "telegram: sin chat conectado";
+
+  try {
+    await sendDigestTelegram(chat.chat_id, digest, origin);
+    return "telegram: enviado";
+  } catch (e) {
+    // 403: el usuario bloqueó al bot. 400 "chat not found": el chat ya no
+    // existe. En los dos casos el chat está muerto y se suelta, igual que una
+    // suscripción push caducada; si no, fallaría dos veces al día para siempre.
+    const muerto = e instanceof TelegramError && (e.code === 403 || (e.code === 400 && /chat not found/i.test(e.message)));
+    if (muerto) {
+      await admin.from("telegram_chats").delete().eq("user_id", ctx.userId).eq("chat_id", chat.chat_id);
+      return "telegram: el chat ya no existe, desconectado";
+    }
+    return "telegram: falló (" + (e instanceof Error ? e.message : String(e)) + ")";
   }
 }
 

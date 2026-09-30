@@ -193,6 +193,24 @@ create table if not exists public.digest_log (
   primary key (user_id, day, kind)
 );
 
+-- ------------------------------------------------------------- Telegram
+
+-- El chat de Telegram donde llegan los avisos. Uno por usuario.
+--
+-- La conexión se hace con un código de un solo uso: Ajustes genera
+-- `link_code`, el usuario abre t.me/<bot>?start=<código>, Telegram le manda al
+-- webhook "/start <código>" desde su chat, y ahí se guarda `chat_id` y el
+-- código se borra. Así nadie tiene que copiar ni pegar un número de chat, y un
+-- código viejo o ajeno no conecta nada.
+create table if not exists public.telegram_chats (
+  user_id         uuid primary key references auth.users (id) on delete cascade,
+  chat_id         bigint unique,
+  link_code       text unique,
+  link_expires_at timestamptz,
+  linked_at       timestamptz,
+  created_at      timestamptz not null default now()
+);
+
 -- ------------------------------------------------------------- triggers
 
 create or replace function public.touch_updated_at()
@@ -237,6 +255,7 @@ alter table public.blocks     enable row level security;
 alter table public.sync_state enable row level security;
 alter table public.push_subscriptions enable row level security;
 alter table public.digest_log enable row level security;
+alter table public.telegram_chats enable row level security;
 
 drop policy if exists own_profile on public.profiles;
 create policy own_profile on public.profiles
@@ -276,4 +295,8 @@ create policy own_push_subscriptions on public.push_subscriptions
 
 drop policy if exists own_digest_log on public.digest_log;
 create policy own_digest_log on public.digest_log
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists own_telegram_chats on public.telegram_chats;
+create policy own_telegram_chats on public.telegram_chats
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
