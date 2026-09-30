@@ -255,6 +255,14 @@ def _coste_al_tipo_de_compra(posiciones: list[dict], series: dict) -> None:
         p["tipo_de_compra"] = {"por_usd": tipo, "fecha": abierto.isoformat()}
 
 
+def _utc_iso(cuando) -> str | None:
+    """ISO con zona SIEMPRE. SQLite la pierde al guardar, y sin marcarla el
+    navegador lee el instante como hora local: una compra a medianoche UTC
+    cambiaba de DÍA en husos negativos. Mismo fallo que en las alertas."""
+    utc = alertas.como_utc(cuando)
+    return utc.isoformat() if utc else None
+
+
 def _moneda_segura(valor) -> str | None:
     try:
         return fx.normalizar(valor)
@@ -407,7 +415,7 @@ def get_watchlist(
                 "name": instrument.name,
                 "sector": instrument.sector,
                 "notes": item.notes,
-                "added_at": item.added_at.isoformat(),
+                "added_at": _utc_iso(item.added_at),
                 "quote": quote,
                 "spark": _spark_cacheado(service, instrument.symbol),
             }
@@ -616,8 +624,8 @@ def get_portfolio(
                     "quantity": position.quantity,
                     "cost_basis": position.cost_basis,
                     "realized_pnl": position.realized_pnl,
-                    "opened_at": position.opened_at.isoformat(),
-                    "closed_at": position.closed_at.isoformat(),
+                    "opened_at": _utc_iso(position.opened_at),
+                    "closed_at": _utc_iso(position.closed_at),
                     "currency": _moneda_segura(
                         _resolver_divisa(session, service, instrument, None)
                     ),
@@ -648,7 +656,7 @@ def get_portfolio(
                 "name": instrument.name,
                 "sector": instrument.sector or "Sin clasificar",
                 "asset_class": clase,
-                "opened_at": position.opened_at.isoformat(),
+                "opened_at": _utc_iso(position.opened_at),
                 "stop": stop,
                 "stop_fijado_al_abrir": stop_fijado is not None,
                 "price": price,

@@ -200,3 +200,25 @@ def test_la_cartera_usa_el_stop_fijado_no_uno_recalculado(api):
     port = c.get("/api/portfolio").json()
     assert port["positions"][0]["stop"] == 140.0
     assert port["positions"][0]["stop_fijado_al_abrir"] is True
+
+
+# --- Fechas con zona, siempre ---------------------------------------------
+
+
+def test_las_fechas_de_posiciones_y_watchlist_llevan_zona(api):
+    """SQLite pierde la zona al guardar: sin marcarla al servir, el navegador
+    lee el instante como hora local y una compra a medianoche UTC cambia de DÍA
+    en husos negativos. Mismo fallo que se arregló en las alertas (e3265f5)."""
+    c, _ = api
+    pid = c.post("/api/portfolio/positions",
+                 json={"symbol": "AAPL", "quantity": 10, "cost_basis": 100.0,
+                       "opened_at": "2026-01-15"}).json()["id"]
+    c.post("/api/watchlist", json={"symbol": "MSFT"})
+    port = c.get("/api/portfolio").json()
+    assert port["positions"][0]["opened_at"].endswith("+00:00")
+    c.post(f"/api/portfolio/positions/{pid}/close", json={"exit_price": 110.0})
+    cerrada = c.get("/api/portfolio").json()["closed_positions"][0]
+    assert cerrada["opened_at"].endswith("+00:00") and cerrada["closed_at"].endswith("+00:00")
+    wl = c.get("/api/watchlist").json()
+    items = wl.get("items") or wl.get("watchlist") or []
+    assert items and all(i["added_at"].endswith("+00:00") for i in items)
