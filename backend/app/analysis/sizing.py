@@ -39,6 +39,7 @@ from __future__ import annotations
 import math
 
 from app import datos
+from app.registro import log
 
 # --- Límites. Todos aquí, con nombre, para poder discutirlos. ---
 
@@ -456,6 +457,12 @@ def dimensionar(
             ),
         }
     )
+
+    # Un límite que no se aplicó deja rastro también fuera de la pantalla: la
+    # pantalla no la mira nadie a las tres de la mañana.
+    for c in controles:
+        if not c["aplicado"]:
+            log("riesgo").warning("límite por %s NO aplicado: %s", c["limite"], c["motivo"])
 
     invertido = sum(pesos.values())
     ya_invertido = sum(en_libro.values())

@@ -269,3 +269,20 @@ def test_los_controles_viajan_siempre_en_la_respuesta():
         assert "aplicado" in c
         if not c["aplicado"]:
             assert c["motivo"], f"«{c['limite']}» no se aplicó y no dice por qué"
+
+
+def test_un_limite_no_aplicado_queda_en_el_registro(caplog):
+    import logging
+
+    # El capturador se engancha al logger directamente: `registro.configurar()`
+    # corta la propagación de `app`, y si otro test ya la llamó, caplog (que
+    # escucha en la raíz) no vería nada.
+    registro = logging.getLogger("app.riesgo")
+    registro.addHandler(caplog.handler)
+    try:
+        with caplog.at_level(logging.WARNING, logger="app.riesgo"):
+            sizing.dimensionar([_c("A"), _c("B")], retornos=None)
+    finally:
+        registro.removeHandler(caplog.handler)
+    assert any("correlación" in r.getMessage() and "NO aplicado" in r.getMessage()
+               for r in caplog.records)

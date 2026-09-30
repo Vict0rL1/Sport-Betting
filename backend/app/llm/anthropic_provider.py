@@ -10,6 +10,8 @@
 
 from __future__ import annotations
 
+from app.registro import log
+
 import anthropic
 
 from app.llm.base import LLMProvider, LLMUnavailableError
@@ -131,8 +133,9 @@ class AnthropicProvider(LLMProvider):
                 system=system,
                 messages=[{"role": "user", "content": prompt}],
             ).input_tokens
-        except anthropic.AnthropicError:
+        except anthropic.AnthropicError as exc:
             # Contar es para poder enseñar el coste antes de gastarlo; si falla,
             # no debe impedir el análisis. None significa «no se pudo estimar»,
             # que no es lo mismo que cero.
+            log("llm").info("no se pudo estimar el coste en tokens: %s", exc)
             return None

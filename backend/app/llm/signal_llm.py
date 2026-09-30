@@ -11,6 +11,8 @@ precios, y dejarle emitir la señal convertiría el motor en teatro.
 
 from __future__ import annotations
 
+from app.registro import log
+
 import json
 
 from app.llm.base import LLMProvider, LLMUnavailableError
@@ -77,7 +79,12 @@ def extract_events(llm: LLMProvider, items: list[dict]) -> list[dict]:
     )
     try:
         result = llm.interpret(EXTRACTION_SYSTEM, payload)
-    except LLMUnavailableError:
+    except LLMUnavailableError as exc:
+        # Lista vacía → `sentiment_from_events` devuelve None: el factor queda
+        # AUSENTE, no neutro. El comportamiento es seguro; lo que faltaba era
+        # que el fallo dejara rastro, porque en pantalla «no hay eventos» y «el
+        # modelo no respondió» se ven igual.
+        log("llm").warning("extracción de eventos: LLM no disponible: %s", exc)
         return []
 
     text = result["content"].strip()
@@ -85,7 +92,8 @@ def extract_events(llm: LLMProvider, items: list[dict]) -> list[dict]:
         text = text.split("```")[1].removeprefix("json").strip()
     try:
         parsed = json.loads(text)
-    except (json.JSONDecodeError, IndexError):
+    except (json.JSONDecodeError, IndexError) as exc:
+        log("llm").warning("extracción de eventos: respuesta no es JSON (%s): %.120r", exc, text)
         return []
     if not isinstance(parsed, list):
         return []
