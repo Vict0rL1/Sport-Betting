@@ -1,5 +1,10 @@
 # TODO — estado tras completar las cinco fases
 
+> **Release Candidate 1**: la clasificación P0-P3 de estos puntos, y de los
+> fallos que la auditoría encontró fuera de esta lista, está en
+> `docs/RELEASE_CANDIDATE_AUDIT.md`. Lo que falta para el RC1 y lo que solo se
+> puede verificar a mano está en `docs/RC1_CHECKLIST.md`.
+
 ## ⚠️ Lo primero: verificar con datos reales
 
 Nada de esto se ha podido probar contra las APIs reales (el entorno donde se
@@ -26,7 +31,11 @@ número:
       El solapamiento calculado es una cota inferior; la UI lo advierte pero
       conviene tenerlo presente al decidir.
 - [ ] **yfinance no distingue "símbolo inexistente" de "red caída"**: puede
-      mostrarse un 404 cuando en realidad falló la red.
+      mostrarse un 404 cuando en realidad falló la red. *Mitigado en el RC1*:
+      el router ya no corta la cadena cuando UNA fuente dice «no existe» —
+      solo si lo dicen todas—, y si una lo dice y otra está caída se trata como
+      fallo, no como inexistencia. Queda abierto cuando yfinance es la única
+      fuente que queda.
 - [ ] **Sin datos de propiedad institucional (13F).** EDGAR los publica pero
       requiere parsear otro formato; hoy solo se listan los Forms 3/4/5 con
       enlace, sin desglose de importes por transacción.
@@ -61,9 +70,10 @@ número:
 - [ ] **El factor de sentimiento no está validado.** Entra en la señal en vivo
       (10 % del peso) pero se excluye del backtest por falta de histórico, así
       que su tasa de acierto es desconocida.
-- [ ] **Sin costes de transacción ni deslizamiento** en el backtest. Una
-      estrategia con rebalanceo trimestral pagaría comisiones que aquí no se
-      descuentan.
+- [x] ~~**Sin costes de transacción ni deslizamiento** en el backtest.~~
+      Hecho desde `8301e07` (comisión, horquilla, deslizamiento y divisa,
+      desagregados) y el TODO no se había actualizado. En el RC1 se añade el
+      coste TOTAL pagado a la comparación con los baselines.
 - [ ] **Sesgo de supervivencia**: el universo lo eliges tú hoy, con empresas
       que existen hoy. Un backtest riguroso incluiría las que quebraron.
 
@@ -99,12 +109,8 @@ número:
       sesión gráfica, así que el globo de notificación no se ha visto aparecer.
       Probado sí está lo demás — que el fallo del notificador no tumba la
       pasada y que dice el motivo exacto.
-- [ ] **Las fechas de `positions` y `watchlist_items` se sirven sin zona.**
-      Mismo fallo que se arregló en `triggered_at`: SQLite no guarda la zona,
-      así que `opened_at`, `closed_at` y `added_at` salen ingenuos y el
-      navegador los lee como hora local. En fechas a medianoche eso puede
-      correr el DÍA mostrado. El arreglo es `alertas.como_utc()` aplicado al
-      serializar; no se tocó en el mismo commit por no mezclar.
+- [x] ~~**Las fechas de `positions` y `watchlist_items` se sirven sin zona.**~~
+      Hecho en el RC1 (`6eab884`).
 - [ ] **Una sola watchlist** ("Principal"). El esquema soporta varias.
 - [x] ~~**Sin divisas.**~~ Hecho. Todo se convierte a USD antes de sumar, con
       tipos de FRED (gratis, 24 h de caché, una serie por divisa presente). Lo
@@ -122,9 +128,11 @@ número:
 
 ## Mejoras pendientes
 
-- [ ] Limpieza periódica de `api_cache` expirado y `api_call_log` viejo (hoy
-      solo crecen; para uso personal tardará en importar).
-- [ ] Alembic cuando el esquema empiece a migrar con datos valiosos dentro.
+- [x] ~~Limpieza periódica de `api_cache` y `api_call_log`.~~ Hecho en el RC1:
+      al arrancar y en cada pasada del cron. No borra lo recién caducado, que
+      es lo que sostiene el rescate de dato viejo.
+- [x] ~~Alembic.~~ Hecho en el RC1: migraciones 0001-0006, la app migra sola
+      al arrancar y no arranca si no puede. Ver `docs/RC1_CHECKLIST.md`.
 - [ ] WebSocket de Finnhub para cotizaciones en vivo sin gastar llamadas REST
       (lo incluye el tier gratuito).
 - [x] ~~Paneles RSI/MACD como subgráficos bajo el precio.~~ Hecho, en panes de

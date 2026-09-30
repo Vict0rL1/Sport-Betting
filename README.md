@@ -88,6 +88,36 @@ http://localhost:8000/docs. Los logs quedan en `/tmp/bolsa-backend.log` y
 cambió (compara un hash), y libera los puertos 8000 y 5173 si quedaron
 ocupados por una ejecución anterior que no cerró bien.
 
+### La base de datos se migra sola (desde el RC1)
+
+Al arrancar, la app pone `backend/data/app.db` al día con Alembic, y **si no
+puede, no arranca**: es mejor un error claro al principio que un esquema que
+no coincide con el código y falla lejos de la causa. La primera vez que
+arranques esta versión sobre una base existente:
+
+```bash
+cp backend/data/app.db backend/data/app.db.antes-rc1   # copia de seguridad
+./start.sh
+```
+
+La migración no borra nada. Si encuentra posiciones imposibles (cantidad ≤ 0 o
+coste negativo) se niega a seguir y dice cuáles: corrígelas y vuelve a
+arrancar. Para mirar o mover versiones a mano: `cd backend && alembic current`.
+
+### Tareas programadas
+
+Dos comandos para `cron` (o `launchd` en macOS), ninguno obligatorio:
+
+```cron
+# Alertas con la app cerrada: cada 15 min en horario de mercado (horas en UTC)
+*/15 13-21 * * 1-5  cd /ruta/al/repo/backend && /usr/bin/python3 scripts/revisar_alertas.py >> ~/.alertas.log 2>&1
+# Forward testing: medir las decisiones congeladas, una vez al día tras el cierre
+30 22 * * 1-5       cd /ruta/al/repo/backend && /usr/bin/python3 scripts/evaluar_instantaneas.py >> ~/.instantaneas.log 2>&1
+```
+
+El nivel de detalle del registro se ajusta con `APP_LOG_LEVEL` (INFO por
+defecto); cada línea lleva su categoría (`app.proveedor`, `app.riesgo`…).
+
 <details>
 <summary>Arranque manual (dos terminales)</summary>
 
@@ -1799,6 +1829,40 @@ exacto del fallo, y la pasada real imprimió
 — la alerta llegó igual, por el sitio que nunca falla. En macOS usa `osascript`
 y en Windows PowerShell; esos dos caminos están cubiertos por tests con el
 subproceso simulado, no por haberlos visto funcionar.
+
+## Release Candidate 1: que falle de forma segura
+
+Antes de intentar demostrar que el sistema gana dinero, hay que demostrar que
+falla de forma segura: que un dato ausente, corrupto o viejo produce «no sé»
+en vez de una recomendación. La auditoría (`docs/RELEASE_CANDIDATE_AUDIT.md`)
+encontró que no era así, y casi siempre con la misma forma:
+
+> falta un dato → se sustituye por un valor neutro → el valor neutro resulta
+> ser el favorable → el sistema recomienda **más** exposición por tener
+> **menos** información.
+
+Un precio `NaN` producía «comprar» con un tamaño real. Una deuda desconocida se
+valoraba como deuda cero (+95 %). Una volatilidad ausente abarataba el riesgo
+de la cartera un 42 %. El stop de una posición se alejaba solo con la
+volatilidad de la propia caída. La conversión de divisas no se ejecutaba si
+respondía Finnhub. Dieciocho fallos de esta familia, corregidos cada uno con un
+test que fallaba antes.
+
+Lo que cambia para quien usa la app:
+
+- **Los datos tienen estado.** `valido`, `viejo`, `desconocido` o `error`
+  (`app/datos.py`). Lo que llega corrupto de un proveedor se rechaza en la
+  frontera y se pasa a la siguiente fuente; si todas fallan, se sirve la última
+  copia marcada como vieja, con su antigüedad.
+- **Los límites de riesgo dicen si se aplicaron.** Si no se pudo medir la
+  correlación, la pantalla lo dice en rojo en vez de enseñar «sin clusters».
+- **El stop se fija al comprar** y ya no se recalcula.
+- **Cada decisión del motor se congela** con todo lo que vio, y no se puede
+  modificar: es lo que permite medir el sistema fuera del backtest.
+- **El holdout está bloqueado de verdad**: fijo, y no se mira desde la interfaz.
+
+Lo que sigue pendiente —sobre todo, ejecutar todo esto contra las APIs reales
+y contrastarlo con tu broker— está en `docs/RC1_CHECKLIST.md`.
 
 ## Estado
 

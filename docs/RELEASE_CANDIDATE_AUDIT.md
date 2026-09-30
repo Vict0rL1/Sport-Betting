@@ -222,3 +222,85 @@ Ese es el patrón a propagar, y es la forma de la solución de la Fase 3.
 5. Alembic, limpieza de caché, traza FX, snapshot de decisión.
 6. Test end-to-end con los siete escenarios de la Fase 4.
 7. `docs/RC1_CHECKLIST.md`.
+
+---
+
+## Estado final (tras el trabajo de RC1)
+
+Los siete P0 de la auditoría inicial están corregidos, cada uno con su test
+que fallaba antes del arreglo. Pero el trabajo encontró **once fallos más de la
+misma familia** que la auditoría inicial no vio — cuatro de ellos solo al
+escribir el test de extremo a extremo. Esa es la lección principal: leer el
+código encontró siete; hacerlo funcionar de punta a punta encontró el resto.
+
+### P0 de la auditoría inicial
+
+| # | Fallo | Estado | Commit |
+|---|---|---|---|
+| P0-1 | Precio NaN → «comprar» con peso real | Corregido | `53f6c2a` |
+| P0-2 | Precio negativo o cero aceptado | Corregido | `53f6c2a` |
+| P0-3 | Volatilidad NaN anula el objetivo de volatilidad | Corregido | `903f026` |
+| P0-4 | Volatilidad ausente abarata el riesgo | Corregido | `903f026` |
+| P0-5 | Sin retornos, el tope por correlación no corre ni avisa | Corregido | `903f026` |
+| P0-6 | Deuda desconocida = deuda cero (+95 % de valoración) | Corregido **en dos intentos**: el primero no llegaba al endpoint | `07b5e1a`, `9033df0` |
+| P0-7 | Crecimiento ausente = 3 % no declarado; 0,0 real = 3 % | Corregido | `07b5e1a` |
+
+### P0 encontrados después
+
+| # | Fallo | Cómo apareció | Commit |
+|---|---|---|---|
+| P0-8 | Capex desconocido = 0 → FCF = flujo operativo entero | Buscando por qué P0-6 no llegaba | `9033df0` |
+| P0-9 | Sin acciones, el «rango» por acción se rellenaba con el equity total | Idem | `9033df0` |
+| P0-10 | Finnhub nunca trae la moneda y se suponía dólar: la conversión FX no se ejecutaba | Auditoría de divisas | `77b3e9d` |
+| P0-11 | `/riesgo` pesaba sumando monedas sin convertir | Idem | `77b3e9d` |
+| P0-12 | P&L realizado sumado en la moneda de cada posición | Idem | `77b3e9d` |
+| P0-13 | Coste convertido al tipo de hoy: el efecto divisa desaparecía del P&L | Idem | `77b3e9d` |
+| P0-14 | Solapamiento de ETFs desconocido = 0 % → sin aviso de concentración | Auditoría de proveedores | `87ea405` |
+| P0-15 | **El stop se recalculaba con la volatilidad de la propia caída y se alejaba solo** | Test de extremo a extremo | `f124d24` |
+| P0-16 | `response_model` filtraba el estado del dato: el dato viejo llegaba sin marca | Test de extremo a extremo | `e3e223e` |
+| P0-17 | El botón de backtest de la interfaz miraba el holdout, sin registrarlo | Auditoría de validación | `ca51076` |
+| P0-18 | El corte del holdout se movía con la ventana pedida | Idem | `ca51076` |
+
+### P1
+
+| # | Punto | Estado |
+|---|---|---|
+| P1-1 | Frontera de validación | Hecho (`f2ff481`) |
+| P1-2 | Estado UNKNOWN | Hecho: `app/datos.py`; `estado` en cada respuesta del servicio de datos |
+| P1-3 | Alembic | Hecho (`50675ff`), 0001–0006 |
+| P1-4 | Limpieza de caché | Hecho (`f2ff481`) |
+| P1-5 | Payload corrupto cacheado | Hecho (`f2ff481`) |
+| P1-6 | Caída a caché vieja marcada | Hecho (`f2ff481`, `e3e223e`) |
+| P1-7 | Divisa de la posición | Hecho: se guarda en el instrumento (`77b3e9d`) |
+| P1-8 | Traza por conversión | Hecho (`77b3e9d`) |
+| P1-9 | Test de extremo a extremo | Hecho (`e3e223e`) |
+| P1-10 | Registro por alerta, reintentos, aviso de errores | Hecho (`5888372`) |
+| P1-11 | `DataNotFoundError` cortaba el fallback | Hecho (`77b3e9d`) |
+| P1-12 | `decision_snapshot` | Hecho (`173dfd2`) |
+| — | La suite de tests escribía en la base real | Hecho (`f2ff481`) |
+| — | `Infinity` aceptado en importes; su 422 salía como 500 | Hecho (`50675ff`) |
+| — | Doble clic creaba posiciones duplicadas | Hecho (`50675ff`) |
+| — | Una alerta rota tumbaba la pasada del cron | Hecho (`5888372`) |
+| — | Fechas de posiciones sin zona horaria | Hecho (`6eab884`) |
+
+### Lo que sigue abierto (riesgo residual)
+
+- **Nada se ha ejecutado contra las APIs reales** desde este entorno. La
+  frontera de validación hace que un payload mal formado se rechace en vez de
+  usarse, pero un campo mal MAPEADO con un valor plausible (una deuda leída de
+  la etiqueta XBRL equivocada) la atraviesa. Ver `RC1_CHECKLIST.md`.
+- **Nadie sabe si la estrategia bate a no hacer nada.** El backtest con datos
+  reales no se ha podido correr aquí.
+- **Sesgo de supervivencia** en los universos: son empresas que existen hoy. El
+  índice externo como baseline lo acota, no lo elimina.
+- **Posiciones abiertas antes del RC1** no tienen stop fijado: se sigue
+  recalculando para ellas, avisando. Cerrarlas y reabrirlas lo fija.
+- **Resultados de backtest guardados antes del RC1** se calcularon sobre el
+  holdout, y siguen alimentando la «confianza» de las decisiones hasta que se
+  ejecute un backtest nuevo.
+- **La app no registra efectivo, dividendos, depósitos ni retiradas.** Los
+  pesos se miden sobre lo invertido; los topes aprietan antes de lo debido si
+  guardas liquidez fuera (error en dirección prudente, pero error).
+- Las dos limpiezas (caché y registro de llamadas) cargan en memoria las filas
+  que van a borrar en vez de borrar con una sola sentencia; con uso personal no
+  importa, con otro volumen sí (P2).
