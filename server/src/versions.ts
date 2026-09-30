@@ -27,7 +27,9 @@ import path from 'node:path';
 import { ROOT } from './config.ts';
 import { getDb } from './db.ts';
 
-export type SportId = 'tennis' | 'football' | 'basketball' | 'baseball' | 'nfl';
+import type { SportId } from './sports.ts';
+export type { SportId } from './sports.ts';
+export { isSportId } from './sports.ts';
 
 const SRC = path.join(ROOT, 'server', 'src');
 
@@ -141,10 +143,6 @@ export function versionsFor(sport: SportId): Versions {
 export function _resetVersionCache(): void {
   cache.clear();
   commit = undefined;
-}
-
-export function isSportId(s: string): s is SportId {
-  return s in MODEL_FILES;
 }
 
 /** Las columnas de versión que llevan los registros de predicciones. */

@@ -8,6 +8,7 @@
 
 import { getDb } from '../db.ts';
 import { evaluate, type Informe, type Prediccion } from './metrics.ts';
+import { SPORT_IDS, type SportId } from '../sports.ts';
 
 type Fila = Record<string, number | string | null>;
 
@@ -30,7 +31,7 @@ const dos = (r: Fila): PrediccionEnVivo => ({
   version: (r.v as string | null) ?? null,
 });
 
-export function predicciones(deporte: 'tennis' | 'football' | 'basketball' | 'baseball' | 'nfl'): PrediccionEnVivo[] {
+export function predicciones(deporte: SportId): PrediccionEnVivo[] {
   switch (deporte) {
     case 'tennis':
       return leer(
@@ -109,7 +110,7 @@ export function porVersion(deporte: string, xs: PrediccionEnVivo[]): PorVersion[
 }
 
 export function evaluacionEnVivo(): (Informe & { error?: string; porVersion: PorVersion[] })[] {
-  return (['tennis', 'football', 'basketball', 'baseball', 'nfl'] as const).map((d) => {
+  return SPORT_IDS.map((d) => {
     try {
       const xs = predicciones(d);
       return { ...evaluate('live', d, xs), porVersion: porVersion(d, xs) };

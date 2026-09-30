@@ -14,7 +14,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from '../config.ts';
 import { evaluate, type Informe, type Prediccion } from './metrics.ts';
-import { versionsFor, type SportId } from '../versions.ts';
+import { versionsFor } from '../versions.ts';
+import { OUTCOMES, isSportId, type SportId } from '../sports.ts';
 
 export const BACKTEST_METRICS_PATH = path.join(ROOT, 'experiments', 'backtest_metrics.json');
 
@@ -28,9 +29,6 @@ export function leerMetricasBacktest(): BacktestMetrics {
   }
 }
 
-/** Cuántos resultados posibles tiene el mercado principal de cada deporte. */
-const RESULTADOS: Record<string, number> = { tennis: 2, football: 3, basketball: 2, baseball: 2, nfl: 2 };
-
 /**
  * Lo que haría que la ficha mintiera. Vacío = bien. Lo usa verify:data.
  *
@@ -42,12 +40,12 @@ export function problemasMetricasBacktest(m: BacktestMetrics): string[] {
   for (const [k, r] of Object.entries(m)) {
     if (r.origen !== 'backtest') out.push(`${k}: origen «${r.origen}», no 'backtest' — el en vivo no se guarda aquí`);
     if (r.deporte !== k) out.push(`${k}: guardado bajo otro deporte (${r.deporte})`);
-    if (!(k in RESULTADOS)) out.push(`${k}: deporte desconocido`);
+    if (!isSportId(k)) out.push(`${k}: deporte desconocido`);
     if (!(r.n > 0)) out.push(`${k}: sin partidos`);
     for (const [nombre, x] of [['logLoss', r.logLoss], ['brier', r.brier], ['ece', r.ece]] as const) {
       if (x == null || !Number.isFinite(x) || x < 0) out.push(`${k}: ${nombre} inválido (${x})`);
     }
-    const K = RESULTADOS[k];
+    const K = isSportId(k) ? OUTCOMES[k] : null;
     if (K && (r.brierUniforme == null || Math.abs(r.brierUniforme - (K - 1) / (2 * K)) > 1e-9)) {
       out.push(`${k}: la referencia del Brier no corresponde a ${K} resultados (${r.brierUniforme})`);
     }

@@ -23,6 +23,7 @@
 import { getDb } from '../db.ts';
 import { pairedBootstrap } from '../experiments/registry.ts';
 import { predicciones } from './live.ts';
+import { SPORT_IDS } from '../sports.ts';
 
 export const MIN_N = 30;
 
@@ -95,7 +96,7 @@ export function validacionEnVivo(): {
 } {
   // 1. Modelo contra mercado, por deporte (cada deporte tiene su propio mercado).
   const modeloVsMercado: Record<string, Prueba> = {};
-  for (const d of ['tennis', 'football', 'basketball', 'baseball', 'nfl'] as const) {
+  for (const d of SPORT_IDS) {
     let diffs: number[] = [];
     try {
       diffs = predicciones(d)
