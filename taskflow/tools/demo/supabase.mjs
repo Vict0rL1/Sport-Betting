@@ -97,23 +97,41 @@ const session = (id) => ({
 const IDENT = /^[a-z_][a-z0-9_]*$/i;
 const OPS = { eq: "=", neq: "<>", gt: ">", gte: ">=", lt: "<", lte: "<=", like: "like", ilike: "ilike" };
 
+/**
+ * Un filtro de PostgREST (`eq.5`, `is.null`, `not.is.null`, `in.(a,b)`) a SQL.
+ *
+ * Un operador que no conoce **revienta** en vez de saltarse: un harness que
+ * ignora un filtro en silencio devuelve filas que Supabase no devolvería, y la
+ * prueba pasa por la razón equivocada.
+ */
+function clause(key, raw, args) {
+  const dot = raw.indexOf(".");
+  const op = raw.slice(0, dot), value = raw.slice(dot + 1);
+  if (op === "not") return `not (${clause(key, value, args)})`;
+  if (op === "is") {
+    if (!["null", "true", "false"].includes(value)) throw new FilterError(`is.${value}`);
+    return `"${key}" is ${value}`;
+  }
+  if (op === "in") {
+    const list = value.replace(/^\(|\)$/g, "").split(",").map((v) => v.replace(/^"|"$/g, ""));
+    if (!list.length) return "false";
+    return `"${key}" in (${list.map((v) => { args.push(v); return `$${args.length}`; }).join(",")})`;
+  }
+  if (OPS[op]) {
+    args.push(value);
+    return `"${key}" ${OPS[op]} $${args.length}`;
+  }
+  throw new FilterError(`${op} en ${key}`);
+}
+
+class FilterError extends Error {}
+
 function buildWhere(params, args) {
   const clauses = [];
   for (const [key, raw] of params) {
     if (["select", "order", "limit", "offset", "on_conflict", "columns"].includes(key)) continue;
     if (!IDENT.test(key)) continue;
-    const dot = raw.indexOf(".");
-    const op = raw.slice(0, dot), value = raw.slice(dot + 1);
-    if (op === "is") {
-      clauses.push(`"${key}" is ${value === "null" ? "null" : value}`);
-    } else if (op === "in") {
-      const list = value.replace(/^\(|\)$/g, "").split(",").map((v) => v.replace(/^"|"$/g, ""));
-      if (!list.length) { clauses.push("false"); continue; }
-      clauses.push(`"${key}" in (${list.map((v) => { args.push(v); return `$${args.length}`; }).join(",")})`);
-    } else if (OPS[op]) {
-      args.push(value);
-      clauses.push(`"${key}" ${OPS[op]} $${args.length}`);
-    }
+    clauses.push(clause(key, raw, args));
   }
   return clauses.length ? " where " + clauses.join(" and ") : "";
 }
