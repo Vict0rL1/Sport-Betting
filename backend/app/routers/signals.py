@@ -919,9 +919,11 @@ def _today(
     # Lo que ya tienes cambia la pregunta: sobre una posición abierta no se
     # decide si comprar, sino si sostenerla o soltarla.
     posiciones = {
-        symbol: {"cost_basis": coste, "quantity": cantidad}
-        for symbol, coste, cantidad in session.execute(
-            select(Instrument.symbol, Position.cost_basis, Position.quantity)
+        # El stop viaja con la posición: el que se fijó al abrirla, no uno
+        # recalculado con la volatilidad de hoy.
+        symbol: {"cost_basis": coste, "quantity": cantidad, "stop": stop}
+        for symbol, coste, cantidad, stop in session.execute(
+            select(Instrument.symbol, Position.cost_basis, Position.quantity, Position.stop)
             .join(Position, Position.instrument_id == Instrument.id)
             .where(Position.closed_at.is_(None))
         ).all()

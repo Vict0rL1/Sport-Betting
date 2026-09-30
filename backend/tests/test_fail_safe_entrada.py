@@ -163,3 +163,40 @@ def test_una_alerta_con_otro_umbral_no_es_duplicada(api):
     c.post("/api/portfolio/alerts", json={"symbol": "AAPL", "op": "lt", "price": 130.0})
     with factory() as s:
         assert s.query(Alert).count() == 2
+
+
+# --- El stop se congela al abrir la posición ------------------------------
+
+
+def test_abrir_una_posicion_fija_su_stop(api):
+    c, factory = api
+    c.post("/api/portfolio/positions", json={"symbol": "AAPL", "quantity": 10, "cost_basis": 150.0})
+    with factory() as s:
+        p = s.query(Position).one()
+    assert p.stop is not None and 0 < p.stop < 150.0
+
+
+def test_el_stop_se_puede_dar_a_mano(api):
+    c, factory = api
+    r = c.post("/api/portfolio/positions",
+               json={"symbol": "AAPL", "quantity": 10, "cost_basis": 150.0, "stop": 140.0})
+    assert r.status_code == 200
+    with factory() as s:
+        assert s.query(Position).one().stop == 140.0
+
+
+@pytest.mark.parametrize("stop", [150.0, 160.0, 0.0, -5.0])
+def test_un_stop_por_encima_del_coste_o_no_positivo_se_rechaza(api, stop):
+    c, _ = api
+    r = c.post("/api/portfolio/positions",
+               json={"symbol": "AAPL", "quantity": 10, "cost_basis": 150.0, "stop": stop})
+    assert r.status_code == 422
+
+
+def test_la_cartera_usa_el_stop_fijado_no_uno_recalculado(api):
+    c, factory = api
+    c.post("/api/portfolio/positions",
+           json={"symbol": "AAPL", "quantity": 10, "cost_basis": 150.0, "stop": 140.0})
+    port = c.get("/api/portfolio").json()
+    assert port["positions"][0]["stop"] == 140.0
+    assert port["positions"][0]["stop_fijado_al_abrir"] is True

@@ -179,9 +179,20 @@ def decide(
         # respuesta honesta: no se sabe a qué precio entraste.
         coste = datos.precio(position.get("cost_basis"))
         pnl_pct = round((ultimo / coste - 1) * 100, 2) if coste else None
-        stop_posicion = (
-            round(coste * (1 - niveles["stop_pct"] / 100), 2) if coste else None
-        )
+        # El stop que manda es el FIJADO AL ABRIR. Recalcularlo cada día con la
+        # volatilidad actual lo alejaba justo en las caídas —la caída dispara
+        # la volatilidad, la volatilidad ensancha el stop— y un precio que ya
+        # lo había perforado seguía «por encima». Solo si la posición es
+        # anterior a este cambio (no guarda stop) se recalcula, y se dice.
+        stop_fijado = datos.precio(position.get("stop"))
+        if stop_fijado is not None and coste and stop_fijado >= coste:
+            stop_fijado = None  # un stop por encima del coste no protege: se ignora
+        if stop_fijado is not None:
+            stop_posicion = round(stop_fijado, 2)
+        else:
+            stop_posicion = (
+                round(coste * (1 - niveles["stop_pct"] / 100), 2) if coste else None
+            )
 
         if score <= desfavorable_max:
             accion = "vender"
@@ -210,6 +221,12 @@ def decide(
 
         if pnl_pct is not None:
             razones.append(f"Llevas un {pnl_pct:+.2f} % sobre tu precio de compra.")
+        if stop_fijado is None and stop_posicion is not None:
+            razones.append(
+                "El stop de esta posición se recalcula con la volatilidad de hoy "
+                "porque se abrió antes de que el stop se fijara al comprar. En una "
+                "caída eso lo aleja: vigílalo a mano o ciérrala y reábrela con stop."
+            )
 
         # Sobre algo que ya tienes, una "zona de compra" y un objetivo medidos
         # desde el precio de hoy no significan nada: los niveles que importan
@@ -227,6 +244,7 @@ def decide(
                 "objetivo_pct": round((objetivo / ultimo - 1) * 100, 1),
                 "ratio": niveles["ratio"],
                 "peso_bruto_pct": None,
+                "stop_fijado_al_abrir": stop_fijado is not None,
             }
         disparadores = [
             f"Vender si cierra por debajo de {stop_posicion}" if stop_posicion else

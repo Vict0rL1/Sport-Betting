@@ -386,6 +386,12 @@ export interface PortfolioPosition {
   invested_base: number | null
   /** Motivo por el que quedó fuera de los totales, si quedó fuera. */
   sin_convertir?: string
+  /** Stop en la moneda del instrumento. */
+  stop?: number | null
+  /** true = fijado al abrir; false = recalculado (posición anterior al RC1). */
+  stop_fijado_al_abrir?: boolean
+  /** Ganancia/pérdida en la base causada solo por el tipo de cambio. */
+  efecto_divisa_base?: number | null
 }
 
 export interface DivisasDeCartera {
@@ -647,6 +653,9 @@ export interface DecisionLevels {
   /** Peso BRUTO: lo que este stop permite mirando esta empresa sola. NO es
    *  el peso final — ese depende de toda la cartera y lo decide el sizer. */
   peso_bruto_pct: number | null
+  /** Sobre una posición: si el stop es el fijado al abrirla (true) o uno
+   *  recalculado con la volatilidad de hoy (false, posiciones antiguas). */
+  stop_fijado_al_abrir?: boolean
 }
 
 /** Qué hacer, a qué precio y con qué salida. Reglas mecánicas, no opinión. */

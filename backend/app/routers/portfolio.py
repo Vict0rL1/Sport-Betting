@@ -491,11 +491,26 @@ class PositionCreate(BaseModel):
     # Comprar otra vez lo mismo, a la misma cantidad y precio, existe. Pero es
     # mucho más probable que sea un doble clic: se pide confirmarlo.
     confirmar_duplicado: bool = False
+    # Opcional: si no se da, se calcula con la volatilidad del día de apertura y
+    # se CONGELA. Tiene que estar por debajo del coste: un stop por encima no
+    # protege de una caída, y uno de cero no es un stop.
+    stop: float | None = Field(None, gt=0, allow_inf_nan=False)
 
     @field_validator("opened_at")
     @classmethod
     def _fecha_valida(cls, v: str | None) -> str | None:
         _fecha_de_apertura(v)
+        return v
+
+    @field_validator("stop")
+    @classmethod
+    def _stop_bajo_el_coste(cls, v: float | None, info) -> float | None:
+        coste = info.data.get("cost_basis")
+        if v is not None and coste is not None and v >= coste:
+            raise ValueError(
+                f"El stop ({v:g}) tiene que estar por debajo del coste ({coste:g}): "
+                "un stop por encima no protege de ninguna caída."
+            )
         return v
 
 
@@ -536,11 +551,19 @@ def create_position(
                     ),
                 )
 
+    # El stop se fija AHORA, con la volatilidad de hoy, y no se vuelve a
+    # recalcular: recalcularlo cada día lo alejaba justo en las caídas.
+    stop = body.stop
+    if stop is None and body.cost_basis > 0:
+        clase = "cripto" if instrument.symbol.endswith("-USD") else "accion"
+        vol = _volatilidad_de(service, instrument.symbol)
+        stop = round(body.cost_basis * (1 - _stop_pct(vol, clase) / 100), 4)
     position = Position(
         instrument_id=instrument.id,
         quantity=body.quantity,
         cost_basis=body.cost_basis,
         opened_at=opened_at,
+        stop=stop,
     )
     session.add(position)
     thesis_id = _guardar_tesis(session, instrument.id, body.tesis)
@@ -610,8 +633,14 @@ def get_portfolio(
         # tu coste. Sin él no se puede sumar el riesgo abierto, que es el
         # número que decide si una mala semana es un contratiempo o un agujero.
         clase = "cripto" if instrument.symbol.endswith("-USD") else "accion"
-        vol = _volatilidad_de(service, instrument.symbol)
-        stop = round(position.cost_basis * (1 - _stop_pct(vol, clase) / 100), 2)
+        # El stop FIJADO al abrir manda. Solo las posiciones anteriores a ese
+        # cambio (sin stop guardado) lo recalculan, y se marca.
+        stop_fijado = datos.precio(position.stop)
+        if stop_fijado is not None:
+            stop = round(stop_fijado, 2)
+        else:
+            vol = _volatilidad_de(service, instrument.symbol)
+            stop = round(position.cost_basis * (1 - _stop_pct(vol, clase) / 100), 2)
         open_positions.append(
             {
                 "id": position.id,
@@ -621,6 +650,7 @@ def get_portfolio(
                 "asset_class": clase,
                 "opened_at": position.opened_at.isoformat(),
                 "stop": stop,
+                "stop_fijado_al_abrir": stop_fijado is not None,
                 "price": price,
                 "currency": divisa,
                 "spark": _spark_cacheado(service, instrument.symbol),

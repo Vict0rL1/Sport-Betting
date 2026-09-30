@@ -133,3 +133,37 @@ def test_una_posicion_con_precio_corrupto_no_dice_vender_ni_mantener():
     d = decision.decide(SENAL, _precio(last=NAN), position={"cost_basis": 90.0, "quantity": 10})
     assert d["action"] == "sin_datos"
     assert d["owned"] is True
+
+
+# --- El stop se fija al abrir, no se recalcula con la volatilidad de hoy ---
+#
+# Encontrado por el test de extremo a extremo del RC1. El stop de una posición
+# se recalculaba cada día con la volatilidad ACTUAL. En una caída la volatilidad
+# se dispara, el stop se aleja solo hasta el tope del 25 %, y un precio que ya
+# había perforado el stop del día de compra seguía «por encima del stop». El
+# control de riesgo tenía un camino que lo evitaba: su propio recálculo.
+
+
+def test_un_stop_fijado_al_abrir_no_se_aleja_con_la_volatilidad():
+    pos = {"cost_basis": 150.0, "quantity": 10, "stop": 136.2}
+    d = decision.decide(
+        SENAL, {"last": 120.0, "daily_vol_pct": 6.0, "sma200": 160.0, "above_sma200": False},
+        position=pos,
+    )
+    assert d["action"] == "vender"
+    assert d["levels"]["stop"] == 136.2
+    assert d["levels"]["stop_fijado_al_abrir"] is True
+
+
+def test_sin_stop_guardado_se_recalcula_y_se_dice():
+    """Posiciones antiguas, anteriores al stop fijado: se recalcula, avisando."""
+    d = decision.decide(SENAL, _precio(), position={"cost_basis": 90.0, "quantity": 10})
+    assert d["levels"]["stop_fijado_al_abrir"] is False
+    assert any("recalcula" in r.lower() for r in d["reasons"])
+
+
+def test_un_stop_guardado_corrupto_no_se_usa():
+    d = decision.decide(SENAL, _precio(), position={"cost_basis": 90.0, "quantity": 10,
+                                                     "stop": float("nan")})
+    assert d["levels"]["stop"] == d["levels"]["stop"]  # no NaN
+    assert d["levels"]["stop_fijado_al_abrir"] is False

@@ -228,6 +228,12 @@ class Position(Base):
     opened_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     realized_pnl: Mapped[float | None] = mapped_column(Float)
+    # Desde la migración 0005: el stop se FIJA al abrir, en la moneda del
+    # instrumento. Antes se recalculaba cada día con la volatilidad actual, y en
+    # una caída la volatilidad lo alejaba solo: un precio que ya había perforado
+    # el stop del día de compra seguía «por encima del stop». NULL = posición
+    # anterior a este cambio, cuyo stop se recalcula y se avisa de ello.
+    stop: Mapped[float | None] = mapped_column(Float)
 
 
 class Alert(Base):
