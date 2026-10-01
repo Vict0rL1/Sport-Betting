@@ -283,10 +283,14 @@ export type ReplanScope = "today" | "tomorrow" | "week" | "date" | "auto";
 
 /**
  * Los días donde buscar según la opción elegida. Nunca después del deadline:
- * "Esta semana" con un deadline el miércoles es lunes a martes.
+ * "Esta semana" con un deadline el miércoles es de hoy al miércoles (y ese día,
+ * antes de la hora de entrega; eso lo recorta quien arma las ventanas).
+ *
+ * Una tarea ya atrasada no tiene límite: el deadline pasó, y lo que importa
+ * es encontrarle un rato.
  */
 export function replanDays(scope: ReplanScope, today: string, opts: { date?: string; due?: string | null } = {}): string[] {
-  const limite = opts.due ? addDays(opts.due, -1) : null;
+  const limite = opts.due && opts.due >= today ? opts.due : null;
   const rango = (from: string, to: string) => {
     const out: string[] = [];
     for (let d = from; d <= to && (!limite || d <= limite); d = addDays(d, 1)) out.push(d);

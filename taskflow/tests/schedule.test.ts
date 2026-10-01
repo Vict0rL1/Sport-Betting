@@ -131,8 +131,9 @@ describe("replanificar", () => {
     expect(replanDays("today", HOY)).toEqual([HOY]);
     expect(replanDays("tomorrow", HOY)).toEqual(["2026-10-02"]);
     expect(replanDays("week", HOY)).toEqual(["2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"]);
-    expect(replanDays("week", HOY, { due: "2026-10-03" })).toEqual(["2026-10-01", "2026-10-02"]);
-    expect(replanDays("tomorrow", HOY, { due: "2026-10-02" })).toEqual([]);
+    expect(replanDays("week", HOY, { due: "2026-10-03" })).toEqual(["2026-10-01", "2026-10-02", "2026-10-03"]);
+    expect(replanDays("tomorrow", HOY, { due: "2026-10-01" })).toEqual([]); // vence hoy: mañana ya es tarde
+    expect(replanDays("tomorrow", HOY, { due: "2026-09-25" })).toEqual(["2026-10-02"]); // atrasada: sin límite
     expect(replanDays("date", HOY, { date: "2026-10-09" })).toEqual(["2026-10-09"]);
     expect(replanDays("date", HOY, { date: "2026-09-20" })).toEqual([]); // en el pasado, no
     expect(replanDays("auto", HOY)).toHaveLength(14);

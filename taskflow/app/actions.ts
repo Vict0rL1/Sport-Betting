@@ -9,10 +9,10 @@ import { parseInput } from "@/lib/parse";
 import { cleanSourceName, parseICS } from "@/lib/ics";
 import { runCanvasSync } from "@/lib/canvas-sync";
 import { deliverPush, deliverTelegram } from "@/lib/clock";
-import { logActivity, q } from "@/lib/activity";
+import { logActivity, q, shortDate } from "@/lib/activity";
 import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
 import { TelegramError, botUsername, ensureWebhook } from "@/lib/telegram";
-import { minsToTime, minutesInTz, todayInTz } from "@/lib/date";
+import { fmtDur, minsToHHMM, minsToTime, minutesInTz, timeToMins, todayInTz } from "@/lib/date";
 import { TASK_KINDS } from "@/lib/types";
 
 export type ActionResult = { ok: boolean; message: string };
@@ -509,15 +509,165 @@ export async function applyBreakdown(_prev: ActionResult | null, fd: FormData): 
  * "Descartar" en una propuesta de Claude. No cambia nada: sólo lo anota, para
  * que Actividad cuente también lo que se dijo que no.
  */
-export async function discardProposal(what: "plan" | "breakdown", title?: string): Promise<void> {
+export async function discardProposal(what: "plan" | "breakdown" | "prep", title?: string): Promise<void> {
   const ctx = await getCtx();
   await logActivity(ctx, {
     actor: "user", kind: "ai.discarded",
     summary: what === "plan"
       ? "Descartaste el plan que propuso Claude"
-      : `Descartaste los pasos que propuso Claude` + (title ? ` para ${q(String(title).slice(0, 120))}` : ""),
+      : what === "prep"
+        ? "Descartaste un plan de preparación" + (title ? ` para ${q(String(title).slice(0, 120))}` : "")
+        : `Descartaste los pasos que propuso Claude` + (title ? ` para ${q(String(title).slice(0, 120))}` : ""),
     meta: { what },
   });
+}
+
+/* ------------------------------------- preparación y replanificación */
+
+type SessionIn = { day: string; start: number; end: number; title: string; taskId: string };
+
+/** Lo mínimo para escribir bloques de una tarea: la tarea viva y sus límites. */
+async function liveTask(ctx: Awaited<ReturnType<typeof getCtx>>, id: string) {
+  const { data } = await ctx.supabase
+    .from("tasks")
+    .select("id, title, due_date, due_time, source, done, deleted_at")
+    .eq("user_id", ctx.userId)
+    .eq("id", id)
+    .maybeSingle<{ id: string; title: string; due_date: string | null; due_time: string | null; source: string; done: boolean; deleted_at: string | null }>();
+  return data && !data.done && !data.deleted_at ? data : null;
+}
+
+/**
+ * Escribe bloques ya aceptados, revalidando cada uno contra lo que hay AHORA
+ * (clases, eventos, tus bloques). Devuelve cuántos entraron y cuántos no.
+ * Nunca borra ni mueve un bloque existente.
+ */
+async function insertSessions(ctx: Awaited<ReturnType<typeof getCtx>>, sessions: SessionIn[]) {
+  if (!sessions.length) return { inserted: 0, skipped: 0, minutes: 0 };
+  const dias = [...new Set(sessions.map((s) => s.day))].sort();
+  const [events, blocks] = await Promise.all([
+    loadEvents(ctx, dias[0], dias[dias.length - 1]),
+    loadBlocks(ctx, dias[0], dias[dias.length - 1]),
+  ]);
+  const ahora = minutesInTz(ctx.tz);
+
+  const rows: Record<string, unknown>[] = [];
+  let skipped = 0;
+  for (const day of dias) {
+    const busy = [
+      ...events.filter((e) => e.day === day && e.start != null).map((e) => ({ start: e.start!, end: e.end ?? e.start! + 60 })),
+      ...blocks.filter((b) => b.day === day).map((b) => ({ start: b.start_min, end: b.end_min })),
+    ];
+    const r = acceptable(sessions.filter((s) => s.day === day), busy, { now: day === ctx.today ? ahora : null });
+    skipped += r.skipped.length;
+    for (const s of r.accepted) {
+      rows.push({ user_id: ctx.userId, day, start_min: s.start, end_min: s.end, title: s.title, kind: "tarea", task_id: s.taskId });
+    }
+  }
+  if (rows.length) {
+    const { error } = await ctx.supabase.from("blocks").insert(rows);
+    if (error) throw new Error("No se pudieron guardar los bloques");
+  }
+  const minutes = rows.reduce((a, r) => a + (Number(r.end_min) - Number(r.start_min)), 0);
+  return { inserted: rows.length, skipped, minutes };
+}
+
+function readSessions(raw: string, taskId: string): SessionIn[] | null {
+  let list: unknown;
+  try {
+    list = JSON.parse(raw || "[]");
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(list)) return null;
+  return list.slice(0, 40).flatMap((x) => {
+    const s = x as { day?: unknown; start?: unknown; end?: unknown; title?: unknown };
+    if (typeof s.day !== "string" || !YMD.test(s.day)) return [];
+    if (!Number.isInteger(s.start) || !Number.isInteger(s.end)) return [];
+    const start = s.start as number, end = s.end as number;
+    if (start < 0 || end > 1440 || end <= start) return [];
+    return [{ day: s.day, start, end, title: String(s.title ?? "").trim().slice(0, 120) || "Sesión", taskId }];
+  });
+}
+
+/**
+ * "Agendar" un plan de preparación. Cada sesión se revalida: nunca antes de
+ * hoy, nunca el día del deadline ni después, y nunca encima de algo ocupado.
+ */
+export async function applyPrepPlan(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const ctx = await getCtx();
+  const task = await liveTask(ctx, str(fd, "taskId"));
+  if (!task || !task.due_date) return fail("Esa tarea ya no está pendiente");
+
+  const sessions = readSessions(str(fd, "sessions"), task.id);
+  if (!sessions) return fail("El plan llegó corrupto");
+  const validas = sessions.filter((s) => s.day >= ctx.today && s.day < task.due_date!);
+  if (!validas.length) return fail("Ninguna sesión cae entre hoy y el día antes del deadline");
+
+  let r;
+  try {
+    r = await insertSessions(ctx, validas);
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "No se pudo guardar");
+  }
+  const fuera = sessions.length - validas.length + r.skipped;
+  if (!r.inserted) return fail("Esas sesiones ya no caben: algo ocupó esos huecos. Pide una propuesta nueva.");
+
+  await logActivity(ctx, {
+    actor: "user", kind: "prep.accepted", taskId: task.id,
+    summary: `Agendaste un plan de preparación para ${q(task.title)}: ${r.inserted} sesión${r.inserted > 1 ? "es" : ""}, ${fmtDur(r.minutes)}` +
+      (fuera ? ` (${fuera} ya no cabía${fuera > 1 ? "n" : ""})` : ""),
+    meta: { sessions: r.inserted, minutes: r.minutes, skipped: fuera },
+  });
+  refresh();
+  return ok(`${r.inserted} sesión${r.inserted > 1 ? "es" : ""} agendada${r.inserted > 1 ? "s" : ""}` + (fuera ? ` · ${fuera} ya no cabía${fuera > 1 ? "n" : ""}` : ""));
+}
+
+/**
+ * "Agendar" el hueco que encontró Replanificar. Opcionalmente, para una tarea
+ * manual, también mueve su fecha a ese día (una de Canvas no: la fecha la
+ * pone el profesor, y el sync la volvería a poner).
+ */
+export async function applyReplan(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const ctx = await getCtx();
+  const task = await liveTask(ctx, str(fd, "taskId"));
+  if (!task) return fail("Esa tarea ya no está pendiente");
+
+  const day = str(fd, "day");
+  const start = Number(str(fd, "start"));
+  const end = Number(str(fd, "end"));
+  if (!YMD.test(day) || !Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end > 1440 || end <= start) {
+    return fail("Ese horario no es válido");
+  }
+  if (day < ctx.today) return fail("Ese día ya pasó");
+  // Nunca después del deadline (si todavía no venció).
+  if (task.due_date && task.due_date >= ctx.today) {
+    const dueMin = timeToMins(task.due_time);
+    if (day > task.due_date || (day === task.due_date && dueMin != null && end > dueMin)) {
+      return fail("Eso queda después del deadline");
+    }
+  }
+
+  let r;
+  try {
+    r = await insertSessions(ctx, [{ day, start, end, title: task.title.slice(0, 120), taskId: task.id }]);
+  } catch (e) {
+    return fail(e instanceof Error ? e.message : "No se pudo guardar");
+  }
+  if (!r.inserted) return fail("Ese hueco ya no está libre. Busca otro.");
+
+  const mover = str(fd, "moveDate") === "1" && task.source === "manual";
+  if (mover) {
+    await ctx.supabase.from("tasks").update({ due_date: day, ...EDITED() }).eq("id", task.id);
+  }
+
+  await logActivity(ctx, {
+    actor: "user", kind: "task.replanned", taskId: task.id,
+    summary: `Replanificaste ${q(task.title)}: ${shortDate(day)} · ${minsToHHMM(start)}–${minsToHHMM(end)}` +
+      (mover ? " y moviste su fecha a ese día" : ""),
+  });
+  refresh();
+  return ok(`Agendada: ${shortDate(day)}, ${minsToHHMM(start)}–${minsToHHMM(end)}` + (mover ? " · fecha movida" : ""));
 }
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;

@@ -4,6 +4,7 @@ import { useActionState, useId, useState } from "react";
 import { applyBreakdown, discardProposal, updateTaskDetails } from "@/app/actions";
 import { fmtDate, fmtDur } from "@/lib/date";
 import { TASK_KINDS, type Task, type TaskKind } from "@/lib/types";
+import { Prep, Replan } from "./TaskPlanning";
 
 type Step = { title: string; date: string; minutes: number };
 
@@ -33,12 +34,18 @@ export function TaskShell({
   task,
   today,
   canSplit,
+  prep,
+  ai,
   children,
 }: {
   task: Task;
   today: string;
   /** Hay Claude y la tarea tiene margen para repartir pasos. */
   canSplit: boolean;
+  /** Tiempo total sugerido si la tarea admite plan de preparación; null si no. */
+  prep: number | null;
+  /** Hay Claude configurado. */
+  ai: boolean;
   children: React.ReactNode;
 }) {
   const panelId = useId();
@@ -63,6 +70,12 @@ export function TaskShell({
       {open ? (
         <div className="taskpanel" id={panelId}>
           <Details task={task} />
+          {!task.done ? (
+            <div className="taskacts row">
+              <Replan task={task} today={today} />
+              {prep != null ? <Prep task={task} today={today} suggested={prep} ai={ai} /> : null}
+            </div>
+          ) : null}
           {canSplit ? <Split task={task} today={today} /> : null}
         </div>
       ) : null}

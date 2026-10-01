@@ -19,7 +19,7 @@ type Outcome =
  */
 export async function recordAiCall(
   ctx: Ctx,
-  what: "plan" | "breakdown",
+  what: "plan" | "breakdown" | "prep",
   outcome: Outcome,
 ): Promise<{ code?: ErrorCode; message: string }> {
   if (outcome.ok) {
@@ -41,7 +41,8 @@ export async function recordAiCall(
   if (info.code) {
     await recordRun(ctx.supabase, ctx.userId, "ai", { ok: false, error: info.message, code: info.code });
     await logActivity(ctx, {
-      actor: "ai", kind: "ai.failed", summary: `Claude no pudo ${what === "plan" ? "armar el plan" : "partir la tarea"}: ${info.message}`,
+      actor: "ai", kind: "ai.failed",
+      summary: `Claude no pudo ${what === "plan" ? "armar el plan" : what === "prep" ? "nombrar las sesiones" : "partir la tarea"}: ${info.message}`,
       taskId: outcome.taskId, meta: { what, code: info.code },
     });
   }

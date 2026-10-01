@@ -1,6 +1,7 @@
 import { deleteTask, toggleTask } from "@/app/actions";
 import { daysBetween, fmtDur, fmtDate, minsToHHMM, timeToMins } from "@/lib/date";
 import { plannerConfigured } from "@/lib/env.server";
+import { canPrep, suggestedTotal } from "@/lib/plan-tools";
 import type { Task } from "@/lib/types";
 import { ActionButton } from "./ActionButton";
 import { FocusButton } from "./FocusButton";
@@ -82,7 +83,13 @@ export function TaskRow({ task, today }: { task: Task; today: string }) {
   // `TaskShell` aporta el "⋯" y el panel de detalles, que va debajo de la
   // fila: por eso la envuelve entera.
   return (
-    <TaskShell task={task} today={today} canSplit={partible}>
+    <TaskShell
+      task={task}
+      today={today}
+      canSplit={partible}
+      prep={canPrep(task, today) ? suggestedTotal(task) : null}
+      ai={plannerConfigured()}
+    >
       {contenido}
     </TaskShell>
   );
