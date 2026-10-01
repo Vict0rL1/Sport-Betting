@@ -436,3 +436,27 @@ input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
 .actwhat{color:var(--ink);overflow-wrap:anywhere}
 .actfoot{font-size:12px;color:var(--ink-3);margin:10px 2px 0}
 @media (max-width:520px){.actrow{grid-template-columns:3em minmax(0,1fr)}.actwho{grid-column:2}.actwhat{grid-column:1/-1;padding-left:3.5em;margin-top:-4px}}
+
+/* ---- detalles de una tarea ---- */
+.xbtn.more{font-size:16px;letter-spacing:1px}
+.task.open .xbtn{opacity:1}
+.taskpanel{margin:2px 6px 10px 30px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--surface-2)}
+.details{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,140px),1fr));gap:10px 12px}
+.field{display:flex;flex-direction:column;gap:3px;min-width:0}
+.field label{font-size:11.5px;color:var(--ink-3)}
+.field select,.field input{width:100%;background:var(--surface);border:1px solid var(--line-2);border-radius:6px;padding:6px 8px;font-size:13px}
+.detailsfoot{grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-top:8px}
+.taskacts{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;align-items:flex-start;gap:8px}
+.pill.kind{background:var(--teal-soft);color:var(--teal)}
+.pill.kind.final,.pill.kind.midterm{background:var(--warn-soft);color:var(--warn)}
+@media (max-width:520px){.taskpanel{margin-left:0;margin-right:0}}
+
+/* ---- carga próxima ---- */
+.wlline{margin:0 0 6px;font-weight:600;font-size:14px}
+.wlheavy{margin:0 0 6px;font-size:12.5px;color:var(--warn)}
+.wllist{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:5px}
+.wllist li{display:grid;grid-template-columns:5.5em minmax(0,1fr) auto;gap:8px;font-size:13px;align-items:baseline}
+.wllist .mono{font-size:11.5px;color:var(--ink-3)}
+.wlwhat{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wlwhat b{font-weight:600}
+.tareasload{margin:-8px 0 14px;font-size:13px;color:var(--ink-2)}

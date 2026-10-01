@@ -3,6 +3,8 @@ import { clearDoneTasks } from "@/app/actions";
 import { EmptyBox, TaskGroup, TaskRow, ViewHead } from "@/components/TaskRow";
 import { getCtx, loadTasks } from "@/lib/data";
 import { daysBetween } from "@/lib/date";
+import { upcomingWorkload } from "@/lib/workload";
+import { CourseList } from "@/components/Workload";
 import type { Task } from "@/lib/types";
 
 export const metadata = { title: "Tareas · TaskFlow" };
@@ -60,6 +62,8 @@ export default async function TareasPage({ searchParams }: Props) {
     </div>
   );
 
+  const carga = upcomingWorkload(list, d);
+
   const hasAny = late.length + hoy.length + week.length + later.length + none.length > 0;
 
   return (
@@ -69,6 +73,9 @@ export default async function TareasPage({ searchParams }: Props) {
         title="Tareas"
         right={chips}
       />
+
+      <CourseList tasks={all} />
+      {carga.line ? <p className="tareasload">{carga.line}</p> : null}
 
       <div className="panel">
         <div className="pb tight">

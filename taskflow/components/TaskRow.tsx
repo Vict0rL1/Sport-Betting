@@ -4,14 +4,20 @@ import { plannerConfigured } from "@/lib/env.server";
 import type { Task } from "@/lib/types";
 import { ActionButton } from "./ActionButton";
 import { FocusButton } from "./FocusButton";
-import { TaskSplit } from "./TaskSplit";
+import { KIND_LABEL, TaskShell } from "./TaskShell";
 import { TaskTitle } from "./TaskTitle";
 
 export function TaskPills({ task, today }: { task: Task; today: string }) {
   const min = timeToMins(task.due_time);
   const bits: React.ReactNode[] = [];
 
-  if (task.area) bits.push(<span key="a" className="pill area">{task.area}</span>);
+  // Los exámenes y entregas grandes se dicen; una tarea común no necesita etiqueta.
+  if (task.kind && task.kind !== "assignment" && task.kind !== "other") {
+    bits.push(<span key="k" className={"pill kind " + task.kind}>{KIND_LABEL[task.kind]}</span>);
+  }
+  // El curso dice más que el área ("ECON 342" frente a "SFU"); si no hay curso, el área.
+  if (task.course) bits.push(<span key="c" className="pill area">{task.course}</span>);
+  else if (task.area) bits.push(<span key="a" className="pill area">{task.area}</span>);
 
   if (task.due_date) {
     const d = daysBetween(today, task.due_date);
@@ -25,6 +31,7 @@ export function TaskPills({ task, today }: { task: Task; today: string }) {
   }
 
   if (task.est_minutes) bits.push(<span key="e" className="pill est">{fmtDur(task.est_minutes)}</span>);
+  if (task.weight_pct != null) bits.push(<span key="w" className="pill est">{Number(task.weight_pct)}%</span>);
 
   if (!bits.length) return null;
   return <div className="tmeta">{bits}</div>;
@@ -72,18 +79,13 @@ export function TaskRow({ task, today }: { task: Task; today: string }) {
     </>
   );
 
-  // `TaskSplit` aporta el botón y el panel de la propuesta, y tiene que envolver
-  // la fila porque el panel va debajo, no dentro. Sin él, la fila es la de
-  // siempre y no se manda nada de más al navegador.
-  if (partible) {
-    return (
-      <TaskSplit task={task} today={today}>
-        {contenido}
-      </TaskSplit>
-    );
-  }
-
-  return <div className={"task" + (task.done ? " done" : "")}>{contenido}</div>;
+  // `TaskShell` aporta el "⋯" y el panel de detalles, que va debajo de la
+  // fila: por eso la envuelve entera.
+  return (
+    <TaskShell task={task} today={today} canSplit={partible}>
+      {contenido}
+    </TaskShell>
+  );
 }
 
 export function TaskGroup({

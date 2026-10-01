@@ -9,6 +9,7 @@ import { getCtx, loadBlocks, loadEvents, loadHabitLog, loadHabits, loadTasks } f
 import { DAYS, MONTHS, addDays, dayOfMonth, minutesInTz, monthOf, weekdayOf, yearOf } from "@/lib/date";
 import { HABIT_WINDOW, didHabit, habitsOn } from "@/lib/habits";
 import { FocusButton } from "@/components/FocusButton";
+import { CourseList, WorkloadPanel } from "@/components/Workload";
 
 export const metadata = { title: "Hoy · TaskFlow" };
 
@@ -49,6 +50,7 @@ export default async function HoyPage() {
   return (
     <>
       <ViewHead eyebrow={eyebrow} title={greeting(minutesInTz(ctx.tz))} />
+      <CourseList tasks={tasks} />
 
       <div className="grid2 hoy">
         <div className="stack">
@@ -137,6 +139,8 @@ export default async function HoyPage() {
               />
             )}
           </div>
+
+          <WorkloadPanel tasks={tasks} today={d} />
 
           <div className="panel">
             <div className="ph">

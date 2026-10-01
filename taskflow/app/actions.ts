@@ -13,6 +13,7 @@ import { logActivity, q } from "@/lib/activity";
 import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
 import { TelegramError, botUsername, ensureWebhook } from "@/lib/telegram";
 import { minsToTime, minutesInTz, todayInTz } from "@/lib/date";
+import { TASK_KINDS } from "@/lib/types";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -148,6 +149,50 @@ export async function renameTask(_prev: ActionResult | null, fd: FormData): Prom
 
   refresh();
   return ok("");
+}
+
+/**
+ * Los datos académicos de una tarea: tipo, curso, peso, dificultad y
+ * estimado. Todo opcional; un campo vacío lo deja en blanco.
+ *
+ * Cuenta como edición a mano: desde aquí el sync de Canvas sólo puede tocar
+ * título y fecha de esta fila, así que tu corrección del tipo no se pierde.
+ */
+export async function updateTaskDetails(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const id = str(fd, "id");
+  const kind = str(fd, "kind");
+  if (kind && !(TASK_KINDS as readonly string[]).includes(kind)) return fail("Ese tipo no existe");
+
+  const num = (k: string, min: number, max: number, entero: boolean) => {
+    const raw = str(fd, k).replace(",", ".");
+    if (!raw) return { ok: true as const, v: null };
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < min || n > max || (entero && !Number.isInteger(n))) return { ok: false as const, v: null };
+    return { ok: true as const, v: n };
+  };
+  const weight = num("weight_pct", 0, 100, false);
+  if (!weight.ok) return fail("El % de la nota va de 0 a 100");
+  const difficulty = num("difficulty", 1, 3, true);
+  if (!difficulty.ok) return fail("Dificultad inválida");
+  const est = num("est_minutes", 1, 1440, true);
+  if (!est.ok) return fail("El tiempo va de 1 a 1440 minutos");
+
+  const ctx = await getCtx();
+  const { error } = await ctx.supabase
+    .from("tasks")
+    .update({
+      kind: kind || null,
+      course: str(fd, "course").slice(0, 80) || null,
+      weight_pct: weight.v == null ? null : Math.round(weight.v * 100) / 100,
+      difficulty: difficulty.v,
+      est_minutes: est.v,
+      ...EDITED(),
+    })
+    .eq("id", id);
+  if (error) return fail("No se pudieron guardar los detalles");
+
+  refresh();
+  return ok("Guardado");
 }
 
 /** Fija o quita una tarea del enfoque de hoy. Máximo 3. */
