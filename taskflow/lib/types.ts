@@ -1,6 +1,9 @@
 /** Filas tal como están en `supabase/schema.sql`. */
 
 export type ItemSource = "manual" | "canvas" | "gcal" | "ics";
+
+export const TASK_KINDS = ["assignment", "quiz", "midterm", "final", "project", "presentation", "reading", "other"] as const;
+export type TaskKind = (typeof TASK_KINDS)[number];
 export type BlockKind = "tarea" | "descanso" | "clase";
 
 export type Profile = {
@@ -34,6 +37,13 @@ export type Task = {
   user_edited_at: string | null;
   /** En la papelera desde entonces; null si está viva. */
   deleted_at: string | null;
+  kind: TaskKind | null;
+  /** "ECON 342". */
+  course: string | null;
+  /** Peso en la nota, 0–100. Sólo si lo escribiste tú. */
+  weight_pct: number | null;
+  /** 1 baja · 2 media · 3 alta. */
+  difficulty: number | null;
   created_at: string;
   updated_at: string;
 };

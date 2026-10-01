@@ -53,6 +53,39 @@ alter table public.tasks add column if not exists focus_day date;
 
 create index if not exists tasks_focus_idx on public.tasks (user_id, focus_day);
 
+-- Planificación académica. Todo opcional: una tarea suelta ("comprar pan") no
+-- tiene tipo ni curso, y está bien.
+--
+--  - `kind`: assignment, quiz, midterm, final, project, presentation, reading,
+--    other. Canvas lo llena cuando se puede deducir (un quiz es un quiz; un
+--    "Midterm 1" es un midterm). Se corrige a mano y el sync lo respeta.
+--  - `course`: "ECON 342". De Canvas sale del curso; a mano, lo que escribas.
+--  - `weight_pct`: el peso en la nota. Canvas no lo da en el planner, así que
+--    sólo existe si lo escribes tú: no se inventa.
+--  - `difficulty`: 1 baja · 2 media · 3 alta.
+alter table public.tasks add column if not exists kind text;
+alter table public.tasks add column if not exists course text;
+alter table public.tasks add column if not exists weight_pct numeric(5,2);
+alter table public.tasks add column if not exists difficulty smallint;
+
+alter table public.tasks drop constraint if exists tasks_kind_ck;
+alter table public.tasks add constraint tasks_kind_ck check (
+  kind is null or kind in ('assignment', 'quiz', 'midterm', 'final', 'project', 'presentation', 'reading', 'other')
+);
+alter table public.tasks drop constraint if exists tasks_weight_ck;
+alter table public.tasks add constraint tasks_weight_ck check (weight_pct is null or weight_pct between 0 and 100);
+alter table public.tasks drop constraint if exists tasks_difficulty_ck;
+alter table public.tasks add constraint tasks_difficulty_ck check (difficulty is null or difficulty between 1 and 3);
+alter table public.tasks drop constraint if exists tasks_course_ck;
+alter table public.tasks add constraint tasks_course_ck check (course is null or char_length(course) <= 80);
+
+-- Las filas de Canvas de antes de esta columna guardaban el curso en `body`.
+-- Sólo se llenan las que no tienen curso, y sólo con lo que Canvas ya había
+-- dicho ("ECON 342 D100" → "ECON 342").
+update public.tasks
+  set course = substring(body from '^([A-Z]{2,5} ?[0-9]{3}[A-Z]?)')
+  where source = 'canvas' and course is null and body ~ '^[A-Z]{2,5} ?[0-9]{3}';
+
 -- Papelera. Borrar una tarea la marca, no la elimina: así se puede recuperar,
 -- y sobre todo, el sync de Canvas ve que la fila existe y NO la vuelve a
 -- crear. Con el borrado de verdad, una tarea de Canvas borrada reaparecía

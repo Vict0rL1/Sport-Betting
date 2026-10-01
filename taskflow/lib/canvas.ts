@@ -13,7 +13,7 @@
 
 import { addDays, minsToTime, norm, zonedDayMinute } from "./date";
 import { type ErrorCode, IntegrationError } from "./log";
-import type { ItemSource } from "./types";
+import type { ItemSource, TaskKind } from "./types";
 
 /** Los únicos tipos que son un deadline de verdad. */
 export const PLANNABLE_TYPES = ["assignment", "quiz", "discussion_topic"] as const;
@@ -47,6 +47,10 @@ export type CanvasTask = {
   /** Nombre del curso. Va al cuerpo, que es contexto y no clasificación. */
   body: string | null;
   externalUrl: string | null;
+  /** Deducido del tipo de Canvas y del título. */
+  kind: TaskKind;
+  /** "ECON 342". */
+  course: string | null;
 };
 
 /* --------------------------------------------------------------- paginación */
@@ -290,6 +294,40 @@ export function defaultArea(areas: string[]): string | null {
   return areas.find((a) => norm(a) === "sfu") ?? areas[0] ?? null;
 }
 
+/**
+ * Qué tipo de entrega es, con reglas fijas sobre lo que Canvas sí dice: el
+ * tipo de ítem y el título. Nada se adivina más allá de eso, y se corrige a
+ * mano (el sync respeta la corrección).
+ *
+ * El orden importa: "Final project" es un proyecto, no un final; un quiz que
+ * se llama "Midterm 1" es un midterm.
+ */
+export function classifyKind(type: string | null | undefined, title: string): TaskKind {
+  const t = norm(title);
+  if (/\b(project|proyecto|term paper|capstone)\b/.test(t)) return "project";
+  if (/\b(presentation|presentacion|pitch)\b/.test(t)) return "presentation";
+  if (/\b(midterm|mid-term|parcial)\b/.test(t)) return "midterm";
+  if (/\b(final exam|examen final)\b/.test(t) || (type === "quiz" && /\bfinal\b/.test(t))) return "final";
+  if (type === "quiz" || /\bquiz\b/.test(t)) return "quiz";
+  if (/\b(reading|readings|lectura)\b/.test(t)) return "reading";
+  if (type === "discussion_topic") return "other";
+  return "assignment";
+}
+
+/**
+ * La etiqueta corta del curso: "ECON 342 D100" → "ECON 342". Si el nombre no
+ * tiene esa forma, el código del curso, y si no, el nombre recortado.
+ */
+export function shortCourse(course: CanvasCourse | undefined): string | null {
+  if (!course) return null;
+  for (const raw of [course.name, course.course_code]) {
+    const m = String(raw ?? "").toUpperCase().match(/^([A-Z]{2,5})\s?(\d{3}[A-Z]?)\b/);
+    if (m) return `${m[1]} ${m[2]}`;
+  }
+  const fallback = (course.course_code || course.name || "").trim();
+  return fallback ? fallback.slice(0, 40) : null;
+}
+
 export type MapOptions = {
   /** Áreas del perfil, para clasificar los cursos. */
   areas: string[];
@@ -353,6 +391,8 @@ export function mapPlannerItems(
       dueTime,
       body: course?.name?.trim() || null,
       externalUrl: absoluteUrl(item.html_url, origin),
+      kind: classifyKind(item.plannable_type, title),
+      course: shortCourse(course),
     });
   }
 
@@ -387,6 +427,8 @@ export type TaskInsert = {
   source: ItemSource;
   external_id: string;
   external_url: string | null;
+  kind: TaskKind;
+  course: string | null;
 };
 
 /** Sólo lo que el sync tiene permitido refrescar. */
@@ -397,6 +439,8 @@ export type TaskPatch = {
   area?: string | null;
   body?: string | null;
   external_url?: string | null;
+  kind?: TaskKind;
+  course?: string | null;
 };
 
 export function insertRow(task: CanvasTask, userId: string): TaskInsert {
@@ -410,6 +454,8 @@ export function insertRow(task: CanvasTask, userId: string): TaskInsert {
     source: "canvas",
     external_id: task.externalId,
     external_url: task.externalUrl,
+    kind: task.kind,
+    course: task.course,
   };
   // Ojo con lo que NO va aquí: `done`, `priority` y `est_minutes` se quedan con
   // el default del esquema, y `user_edited_at` en null — la fila es del sync
@@ -429,7 +475,7 @@ export function updatePatch(task: CanvasTask, protectManual: boolean): TaskPatch
     due_time: task.dueTime,
   };
   if (protectManual) return base;
-  return { ...base, area: task.area, body: task.body, external_url: task.externalUrl };
+  return { ...base, area: task.area, body: task.body, external_url: task.externalUrl, kind: task.kind, course: task.course };
 }
 
 /**

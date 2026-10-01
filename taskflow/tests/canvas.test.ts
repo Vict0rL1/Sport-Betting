@@ -286,3 +286,35 @@ describe("paginación", () => {
     expect(nextPageUrl("")).toBe(null);
   });
 });
+
+describe("tipo y curso de lo que llega de Canvas", () => {
+  it("clasifica con reglas fijas, y el orden importa", async () => {
+    const { classifyKind } = await import("../lib/canvas");
+    expect(classifyKind("assignment", "Final Project — proposal")).toBe("project");
+    expect(classifyKind("quiz", "Midterm 1")).toBe("midterm");
+    expect(classifyKind("quiz", "Final")).toBe("final");
+    expect(classifyKind("assignment", "Final exam review sheet")).toBe("final");
+    expect(classifyKind("assignment", "Final draft of essay")).toBe("assignment");
+    expect(classifyKind("quiz", "Quiz 3")).toBe("quiz");
+    expect(classifyKind("assignment", "Group presentation")).toBe("presentation");
+    expect(classifyKind("assignment", "Lectura semana 4")).toBe("reading");
+    expect(classifyKind("discussion_topic", "Semana 3 — discusión")).toBe("other");
+    expect(classifyKind("assignment", "Problem Set 4")).toBe("assignment");
+  });
+
+  it("el curso sale corto: ECON 342, no ECON 342 D100", async () => {
+    const { shortCourse } = await import("../lib/canvas");
+    expect(shortCourse({ id: 1, name: "ECON 342 D100", course_code: "ECON342" })).toBe("ECON 342");
+    expect(shortCourse({ id: 1, name: "Intro to Stats", course_code: "STAT270" })).toBe("STAT 270");
+    expect(shortCourse({ id: 1, name: "Seminario", course_code: null })).toBe("Seminario");
+    expect(shortCourse(undefined)).toBeNull();
+  });
+
+  it("una fila editada a mano no recibe ni tipo ni curso", () => {
+    const [t] = mapPlannerItems(ITEMS, COURSES, OPTS);
+    const safe = updatePatch(t, true);
+    expect(safe).not.toHaveProperty("kind");
+    expect(safe).not.toHaveProperty("course");
+    expect(updatePatch(t, false)).toMatchObject({ kind: "assignment", course: "ECON 103" });
+  });
+});

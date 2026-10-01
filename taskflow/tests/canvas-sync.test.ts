@@ -228,6 +228,7 @@ describe("sync de Canvas contra la base", () => {
 
 const T = (id: string, due = "2026-10-10"): CanvasTask => ({
   externalId: id, title: id, area: "SFU", dueDate: due, dueTime: null, body: null, externalUrl: null,
+  kind: "assignment", course: null,
 });
 const W = { start: "2026-09-16", end: "2027-03-29", complete: true };
 

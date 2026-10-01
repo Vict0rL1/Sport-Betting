@@ -31,6 +31,7 @@ const task = (over: Partial<Task> = {}): Task => ({
   id: "t1", user_id: "u", title: "Problem set 4", area: "SFU", due_date: "2026-09-30", due_time: null,
   est_minutes: 60, priority: 2, done: false, done_at: null, body: null, source: "manual",
   external_id: null, external_url: null, focus_day: null, user_edited_at: null, deleted_at: null,
+  kind: null, course: null, weight_pct: null, difficulty: null,
   created_at: "", updated_at: "", ...over,
 });
 

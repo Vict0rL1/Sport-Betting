@@ -145,6 +145,8 @@ export async function createFakeSupabase({ serviceKey = null, users = [DEMO_USER
       1083: RAW, // time
       1114: RAW, // timestamp
       1184: RAW, // timestamptz
+      // PostgREST manda `numeric` como número de JSON; PGlite, como texto.
+      1700: (v) => (v == null ? v : Number(v)),
     },
   });
 
