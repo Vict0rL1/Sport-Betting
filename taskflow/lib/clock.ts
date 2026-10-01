@@ -3,7 +3,8 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { canvasSyncDue } from "./canvas";
 import { runCanvasSync } from "./canvas-sync";
-import { canvasConfigured, pushSendConfigured, telegramConfigured } from "./env.server";
+import { canvasConfigured, gcalConfigured, pushSendConfigured, telegramConfigured } from "./env.server";
+import { runGcalSync } from "./gcal-sync";
 import { DEFAULT_TIMEZONE, addDays, minutesInTz, todayInTz } from "./date";
 import { buildDigest, digestDue, sendDigest, type Digest, type DigestKind, type PushSubscriptionRow } from "./push";
 import { classifyTelegramError, sendDigestTelegram } from "./telegram";
@@ -85,6 +86,14 @@ async function tick(admin: Admin, profile: Profile, now: Date, opts: ClockOption
       }
     }
 
+    // Google Calendar, cada 3 h como Canvas, sólo si está conectado. Su fallo
+    // queda en su propia fila de Estado; no tumba el aviso.
+    if (gcalConfigured() && (await gcalToca(ctx, admin, now))) {
+      const g = await runGcalSync(ctx, "cron");
+      message += ` · Google Calendar: ${g.ok ? g.result.message : g.message}`;
+      ok = ok && g.ok;
+    }
+
     // El aviso va después del sync, para que cuente los deadlines que acaban
     // de entrar. Que falle no debe tumbar la corrida.
     const kind = opts.digest ?? digestDue(profile, hora);
@@ -132,6 +141,22 @@ async function canvasToca(ctx: Ctx, admin: Admin, now: Date): Promise<boolean> {
     .eq("source", "canvas")
     .maybeSingle<{ last_success_at: string | null }>();
   return canvasSyncDue(data?.last_success_at, now.getTime());
+}
+
+/* --------------------------------------------------------- Google Calendar */
+
+/** Conectado y sin un sync bueno en las últimas 3 h. */
+async function gcalToca(ctx: Ctx, admin: Admin, now: Date): Promise<boolean> {
+  const [{ data: link }, { data: st }] = await Promise.all([
+    admin.from("gcal_links").select("user_id").eq("user_id", ctx.userId).maybeSingle(),
+    admin
+      .from("sync_state")
+      .select("last_success_at")
+      .eq("user_id", ctx.userId)
+      .eq("source", "gcal")
+      .maybeSingle<{ last_success_at: string | null }>(),
+  ]);
+  return Boolean(link) && canvasSyncDue(st?.last_success_at, now.getTime());
 }
 
 /* ------------------------------------------------------------------ avisos */

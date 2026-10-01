@@ -6,10 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 /**
  * Login con Google.
  *
- * Fase 1: sólo identidad, sin scopes de Calendar. En la fase 3 se le agregan
- * `scopes: "https://www.googleapis.com/auth/calendar.readonly"` y
- * `queryParams: { access_type: "offline", prompt: "consent" }` para recibir
- * `provider_refresh_token` en la sesión.
+ * Sólo identidad, sin scopes de Calendar. Google Calendar se conecta aparte
+ * (`/api/gcal/connect`), con su propio permiso de sólo lectura: así funciona
+ * aunque entres con correo, y el reloj puede renovarlo sin una sesión abierta.
  */
 export function GoogleButton() {
   const [loading, setLoading] = useState(false);

@@ -56,7 +56,8 @@ export function Timeline({
       key: "e" + e.id,
       cls: "bk-ev",
       label: e.title,
-      sub: e.courseRef ?? "",
+      // Lo que viene de afuera se dice de dónde: no se edita aquí.
+      sub: e.source === "gcal" ? ["Google", e.courseRef].filter(Boolean).join(" · ") : e.courseRef ?? "",
     });
     if (p) placed.push(p);
   }

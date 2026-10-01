@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { sendTestPush, sendTestTelegram, syncCanvasNow } from "@/app/actions";
+import { headers } from "next/headers";
+import { disconnectGcal, sendTestPush, sendTestTelegram, syncCanvasNow, syncGcalNow } from "@/app/actions";
 import { PushDeviceStatus } from "@/components/PushDeviceStatus";
 import { RunButton } from "@/components/RunButton";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -7,7 +8,7 @@ import { ViewHead } from "@/components/TaskRow";
 import { aiModel } from "@/lib/ai";
 import { getCtx } from "@/lib/data";
 import { fmtClock, fmtStamp } from "@/lib/date";
-import { canvasConfigured, plannerConfigured, pushSendConfigured, telegramConfigured } from "@/lib/env.server";
+import { canvasConfigured, gcalConfigured, plannerConfigured, pushSendConfigured, telegramConfigured } from "@/lib/env.server";
 import { type IntegrationHealth, type Source, type StateRow, ago, nextCanvasSync, nextClockTick } from "@/lib/health";
 import { loadStatus } from "@/lib/status";
 import { recentAiCost } from "@/lib/activity";
@@ -22,8 +23,23 @@ export const metadata = { title: "Estado del sistema · TaskFlow" };
  * si no, desde cuándo y qué hacer. Ninguna llave sale de aquí: sólo si está
  * puesta o no.
  */
-export default async function EstadoPage() {
+/** Lo que vuelve de "Conectar Google Calendar" en `?gcal=`. */
+const GCAL_AVISO: Record<string, string> = {
+  ok: "Google Calendar conectado. Sólo lectura: TaskFlow nunca escribe en tu calendario.",
+  cancelado: "Cancelaste el permiso en Google; no se conectó nada.",
+  "estado-invalido": "La vuelta de Google no coincidió con este navegador (¿otra pestaña, o pasaron más de 10 minutos?). Vuelve a intentarlo.",
+  error: "No se pudo conectar Google Calendar. El detalle está en su fila, en «Último error».",
+  "sin-config": "Faltan GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en el servidor.",
+};
+
+type Props = { searchParams: Promise<{ gcal?: string }> };
+
+export default async function EstadoPage({ searchParams }: Props) {
+  const { gcal: gcalParam } = await searchParams;
   const ctx = await getCtx();
+  const hd = await headers();
+  const host = hd.get("x-forwarded-host") ?? hd.get("host");
+  const origin = host ? `${hd.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.") ? "http" : "https")}://${host}` : "https://TU-APP.vercel.app";
   const [status, pendientes, costo] = await Promise.all([
     loadStatus(ctx),
     ctx.supabase
@@ -55,6 +71,12 @@ export default async function EstadoPage() {
           ? `${health.alerts.length} cosa${health.alerts.length > 1 ? "s" : ""} que revisar.`
           : "Todo lo que corre solo está funcionando."}
       </p>
+
+      {gcalParam && GCAL_AVISO[gcalParam] ? (
+        <p className={"stflash" + (gcalParam === "ok" ? "" : " bad")} role="status">
+          {GCAL_AVISO[gcalParam]}
+        </p>
+      ) : null}
 
       <div className="stgrid">
         <Row item={h("cron")}>
@@ -101,6 +123,61 @@ export default async function EstadoPage() {
             </>
           ) : null}
           <LastError s={states.canvas} tz={ctx.tz} now={now} />
+        </Row>
+
+        <Row
+          item={h("gcal")}
+          actions={
+            gcalConfigured() ? (
+              status.gcal ? (
+                <>
+                  <RunButton action={syncGcalNow} label="Sincronizar ahora" busy="Sincronizando…" />
+                  <RunButton action={disconnectGcal} label="Desconectar" busy="Desconectando…" />
+                </>
+              ) : (
+                // Un <a> normal, no <Link>: es una ruta que redirige a Google, no una vista.
+                <a className="btn sm" href="/api/gcal/connect">
+                  Conectar Google Calendar
+                </a>
+              )
+            ) : null
+          }
+        >
+          <dt>Conectado</dt>
+          <dd>
+            {!gcalConfigured()
+              ? "no — faltan GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET"
+              : status.gcal
+                ? `desde ${fmtStamp(status.gcal.linkedAt, ctx.tz)}, sólo lectura`
+                : "no"}
+          </dd>
+          {status.gcal ? (
+            <>
+              <dt>Calendarios</dt>
+              <dd>{status.gcal.calendars.join(", ") || "—"}</dd>
+              <dt>Última sincronización</dt>
+              <dd>{when(states.gcal?.last_synced_at)}</dd>
+              <dt>Última correcta</dt>
+              <dd>{when(states.gcal?.last_success_at)}</dd>
+              <dt>Eventos leídos</dt>
+              <dd>{states.gcal?.items_synced ?? 0} (de una semana atrás a cuatro meses adelante)</dd>
+              <dt>Próxima (aprox.)</dt>
+              <dd>
+                {cronOk
+                  ? `hacia las ${fmtClock(nextCanvasSync(states.gcal?.last_success_at, now), ctx.tz)}`
+                  : "cuando el reloj vuelva a correr"}
+              </dd>
+            </>
+          ) : null}
+          <LastError s={states.gcal} tz={ctx.tz} now={now} />
+          {!gcalConfigured() ? (
+            <p className="sthelp">
+              Para conectarlo: en Google Cloud Console habilita <b>Google Calendar API</b>, crea un ID de cliente de
+              OAuth (aplicación web) y agrega como URI de redireccionamiento autorizado{" "}
+              <code>{origin}/api/gcal/callback</code>. Luego pon <code>GOOGLE_CLIENT_ID</code> y{" "}
+              <code>GOOGLE_CLIENT_SECRET</code> en las variables del servidor. Sólo se pide permiso de lectura.
+            </p>
+          ) : null}
         </Row>
 
         <Row

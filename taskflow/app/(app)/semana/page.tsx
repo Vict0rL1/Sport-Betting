@@ -102,7 +102,7 @@ export default async function SemanaPage({ searchParams }: Props) {
               </div>
 
               {evs.slice(0, MAX_EVENTS).map((e) => (
-                <div className="wi" key={e.id}>
+                <div className="wi" key={e.id} title={e.source === "gcal" ? `De Google Calendar${e.courseRef ? ` (${e.courseRef})` : ""}, sólo lectura` : undefined}>
                   {e.start != null ? <span className="mono">{minsToHHMM(e.start)}</span> : null}{" "}
                   {e.title}
                 </div>

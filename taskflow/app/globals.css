@@ -569,3 +569,7 @@ input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
 .ahora li:first-child{font-weight:600}
 .enmarcha{margin:0 0 8px;font-weight:600}
 .wlline.padded{padding:8px 8px 0}
+
+/* Lo que vuelve de conectar Google Calendar. */
+.stflash{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:var(--r);padding:9px 12px;font-size:13.5px;margin:0 0 14px}
+.stflash.bad{border-color:var(--warn);background:var(--warn-soft)}

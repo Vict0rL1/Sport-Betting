@@ -41,6 +41,7 @@ beforeAll(async () => {
     await tx.query(`insert into digest_log (user_id, day, kind) values ($1, '2026-09-30', 'morning')`, [A]);
     await tx.query(`insert into telegram_chats (user_id, link_code) values ($1, 'codigo-de-a')`, [A]);
     await tx.query(`insert into activity_log (user_id, actor, kind, summary) values ($1, 'canvas', 'canvas.added', 'algo de A')`, [A]);
+    await tx.query(`insert into gcal_links (user_id, refresh_token) values ($1, 'v1.cifrado.de.A')`, [A]);
   });
 
   // El perfil lo crea el trigger de registro; se comprueba que existe.
@@ -50,7 +51,7 @@ beforeAll(async () => {
 
 const TABLAS = [
   "tasks", "events", "notes", "habits", "habit_log", "blocks",
-  "push_subscriptions", "sync_state", "digest_log", "telegram_chats", "activity_log",
+  "push_subscriptions", "sync_state", "digest_log", "telegram_chats", "activity_log", "gcal_links",
 ] as const;
 
 describe("B no ve nada de A", () => {
@@ -99,6 +100,9 @@ describe("B no puede tocar las filas de A", () => {
       tx.query(`insert into notes (user_id, body) values ($1, 'intruso')`, [A])))).toBe(true);
     expect(await rejects(asUser(db, B, (tx) =>
       tx.query(`insert into digest_log (user_id, day, kind) values ($1, '2026-10-01', 'night')`, [A])))).toBe(true);
+    // Ni plantar su propio permiso de Google en la cuenta de A.
+    expect(await rejects(asUser(db, B, (tx) =>
+      tx.query(`insert into gcal_links (user_id, refresh_token) values ($1, 'v1.de.B.x')`, [A])))).toBe(true);
   });
 
   /**

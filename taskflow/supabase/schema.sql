@@ -329,6 +329,29 @@ create table if not exists public.telegram_chats (
   created_at      timestamptz not null default now()
 );
 
+-- ------------------------------------------------------ Google Calendar
+
+-- La conexión de sólo lectura con Google Calendar. Una por usuario.
+--
+-- `refresh_token` va CIFRADO (AES-256-GCM, con una llave que sale de
+-- GOOGLE_CLIENT_SECRET y sólo existe en el servidor). La política deja que
+-- tu sesión lea tu fila, como manda la regla de RLS, pero lo que leería es
+-- texto cifrado que sin el secreto del servidor no sirve para nada. Y aun
+-- descifrado, un refresh token de Google no se canjea sin ese mismo secreto.
+--
+-- `calendars` es sólo para mostrar qué calendarios se están leyendo.
+create table if not exists public.gcal_links (
+  user_id       uuid primary key references auth.users (id) on delete cascade,
+  refresh_token text not null,
+  calendars     jsonb not null default '[]'::jsonb,
+  linked_at     timestamptz not null default now()
+);
+
+alter table public.gcal_links enable row level security;
+drop policy if exists own_gcal_links on public.gcal_links;
+create policy own_gcal_links on public.gcal_links
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- ------------------------------------------------------------- actividad
 
 -- Qué pasó y quién lo hizo: Canvas agregó o cambió una tarea, el reloj mandó

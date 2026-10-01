@@ -57,7 +57,8 @@ minutos y una sola consola.
 ### 2. Login
 
 Hay dos formas de entrar. La de correo no necesita nada más que Supabase; la de
-Google hace falta para la fase 3, porque es la que entrega el token de Calendar.
+Google es opcional. Google Calendar no depende del login: se conecta aparte
+(ver 2c), así que funciona igual si entras con correo.
 
 #### 2a. Con correo y contraseña — lo rápido
 
@@ -113,8 +114,47 @@ error clásico, así que lee esto antes de pegar nada.
 
 En resumen: Google apunta a Supabase, y Supabase apunta a TaskFlow.
 
-En la fase 1 el login sólo pide identidad. Los scopes de Calendar entran en la
-fase 3, en `components/GoogleButton.tsx` (hay un comentario marcando el lugar).
+El login con Google sólo pide identidad. Calendar tiene su propia conexión, de
+sólo lectura: la del 2c.
+
+#### 2c. Google Calendar — opcional, sólo lectura
+
+Se conecta desde **Ajustes → Estado del sistema → Google Calendar → Conectar**.
+En Google Cloud Console (sirve el mismo proyecto del 2b):
+
+1. **APIs y servicios → Biblioteca → Google Calendar API → Habilitar.**
+2. En la pantalla de consentimiento OAuth agrega el permiso
+   `https://www.googleapis.com/auth/calendar.readonly` y agrégate como *test user*.
+3. En tu ID de cliente de OAuth (aplicación web), en *URIs de redireccionamiento
+   autorizados*, agrega **las de la app** — esta vez sí las de TaskFlow, no la de
+   Supabase:
+   - `https://TU-APP.vercel.app/api/gcal/callback`
+   - `http://localhost:3000/api/gcal/callback` (para probar en local)
+
+   Estado del sistema muestra la URL exacta que espera tu despliegue.
+4. Pon `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET` en `.env.local` y en las
+   variables de Vercel. Aquí, a diferencia del login, quien habla con Google es
+   la app: los necesita para canjear el permiso y renovarlo cada vez que lee.
+
+**Ojo con el modo Testing:** con la pantalla de consentimiento en *Testing*,
+Google hace caducar el permiso a los 7 días y habría que reconectar cada semana.
+Para uso personal, cámbiala a **In production** (sin pedir verificación): al
+conectar verás un aviso de "app no verificada" que puedes aceptar, y el permiso
+ya no caduca solo. Si caduca igual, Estado del sistema lo marca en rojo y el
+aviso de la mañana lo menciona; no se para en silencio.
+
+Qué hace y qué no:
+
+- Lee los calendarios que tienes visibles en Google (hasta 10), de una semana
+  atrás a cuatro meses adelante, cada 3 h con el reloj o con "Sincronizar ahora".
+- **Nunca escribe en Google**: el permiso es de sólo lectura y el código sólo
+  hace GET a la API de Calendar.
+- Los eventos aparecen en Hoy y Semana como "Google · nombre del calendario".
+  No se editan ni se borran desde TaskFlow; lo que cambies en Google llega en el
+  siguiente sync. Sincronizar dos veces deja exactamente lo mismo.
+- El permiso se guarda cifrado, con una llave que sale de `GOOGLE_CLIENT_SECRET`.
+  Si cambias ese secreto, hay que volver a conectar.
+- Desconectar revoca el permiso en Google y quita esos eventos de TaskFlow.
 
 ### 3. Variables de entorno
 
@@ -393,7 +433,8 @@ app/
     hoy/ tareas/ semana/ notas/ rutinas/ ajustes/
   api/sync/canvas/   route handler del sync de Canvas (POST)
   api/export/        baja todos tus datos en JSON (GET)
-  api/sync/          el reloj: sync de Canvas y avisos, con CRON_SECRET (GET)
+  api/sync/          el reloj: sync de Canvas y Google Calendar, y avisos, con CRON_SECRET (GET)
+  api/gcal/          conectar Google Calendar (sólo lectura) y la vuelta del permiso
   api/plan/          propone un plan para hoy; no escribe nada (POST)
   api/breakdown/     propone los pasos de una tarea; no escribe nada (POST)
   auth/callback/     canje del código de OAuth por la sesión
@@ -408,6 +449,8 @@ lib/
   ics.ts             importador .ics de respaldo
   canvas.ts          Canvas: paginación y mapeo a tareas (puro, testeado)
   canvas-sync.ts     el sync en sí: trae de Canvas y escribe en la base
+  gcal.ts            Google Calendar: permiso cifrado, lectura y mapeo (sólo GET)
+  gcal-sync.ts       el sync de Google Calendar: idempotente, sin borrar a ciegas
   push.ts            arma los dos avisos del día y los manda (sólo servidor)
   telegram.ts        el mismo aviso por Telegram, y la conexión del chat
   planner.ts         huecos libres del día + el plan con Claude (sólo servidor)
@@ -524,8 +567,9 @@ Lo que `PLAN.md` pedía confirmar antes de escribir código:
 
 ## Lo que sigue
 
-- **Fase 3 — Google Calendar.** Scopes de Calendar en el login y lectura de
-  eventos con `singleEvents=true`.
+- **Fase 3 — Google Calendar.** Hecha, con una conexión propia de sólo lectura
+  (2c) en vez de los scopes del login: no depende de cómo entres, y el reloj
+  puede renovar el permiso sin que abras la app.
 - **Fase 4 — Que trabaje sola.** El reloj, los dos avisos push y las dos
   funciones con Claude ("Planear mi día" y partir una tarea en pasos) ya están.
   Los avisos llegan por push y por Telegram.

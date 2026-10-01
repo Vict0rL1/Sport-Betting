@@ -8,9 +8,11 @@ import { acceptable } from "@/lib/schedule";
 import { parseInput } from "@/lib/parse";
 import { cleanSourceName, parseICS } from "@/lib/ics";
 import { runCanvasSync } from "@/lib/canvas-sync";
+import { runGcalSync } from "@/lib/gcal-sync";
+import { openToken, revokeToken } from "@/lib/gcal";
 import { deliverPush, deliverTelegram } from "@/lib/clock";
 import { logActivity, q, shortDate } from "@/lib/activity";
-import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
+import { canvasConfigured, gcalConfigured, requireGoogleEnv, telegramConfigured } from "@/lib/env.server";
 import { TelegramError, botUsername, ensureWebhook } from "@/lib/telegram";
 import { addDays, fmtDur, minsToHHMM, minsToTime, minutesInTz, timeToMins, todayInTz } from "@/lib/date";
 import { HABIT_WINDOW } from "@/lib/habits";
@@ -962,6 +964,42 @@ export async function syncCanvasNow(): Promise<ActionResult> {
   const r = await runCanvasSync(ctx, "manual");
   refresh();
   return r.ok ? ok(r.result.message) : fail(r.message);
+}
+
+/* --------------------------------------------------------- Google Calendar */
+
+export async function syncGcalNow(): Promise<ActionResult> {
+  if (!gcalConfigured()) return fail("Faltan GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en el servidor");
+  const ctx = await getCtx();
+  const r = await runGcalSync(ctx, "manual");
+  refresh();
+  return r.ok ? ok(r.result.message) : fail(r.message);
+}
+
+/**
+ * Desconectar: se le avisa a Google, se borra el permiso guardado y se quitan
+ * de TaskFlow los eventos que vinieron de ahí (sin sync, quedarían viejos).
+ * En Google no se toca nada.
+ */
+export async function disconnectGcal(): Promise<ActionResult> {
+  const ctx = await getCtx();
+  const { data: link } = await ctx.supabase
+    .from("gcal_links")
+    .select("refresh_token")
+    .eq("user_id", ctx.userId)
+    .maybeSingle<{ refresh_token: string }>();
+  if (link && gcalConfigured()) {
+    const token = openToken(link.refresh_token, requireGoogleEnv().clientSecret);
+    if (token) await revokeToken(token);
+  }
+  await ctx.supabase.from("gcal_links").delete().eq("user_id", ctx.userId);
+  await ctx.supabase.from("events").delete().eq("user_id", ctx.userId).eq("source", "gcal");
+  await ctx.supabase.from("sync_state").delete().eq("user_id", ctx.userId).eq("source", "gcal");
+  if (link) {
+    await logActivity(ctx, { actor: "user", kind: "gcal.unlinked", summary: "Desconectaste Google Calendar; sus eventos salieron de TaskFlow" });
+  }
+  refresh();
+  return ok("Desconectado. Los eventos de Google salieron de TaskFlow; en Google no cambió nada.");
 }
 
 /* -------------------------------------------------------------- Web Push */

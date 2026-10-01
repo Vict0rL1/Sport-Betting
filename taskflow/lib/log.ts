@@ -51,7 +51,19 @@ export type ErrorCode =
   | "ANTHROPIC_INVALID_RESPONSE"
   | "ANTHROPIC_TRUNCATED"
   | "ANTHROPIC_REFUSAL"
-  | "ANTHROPIC_FAILED";
+  | "ANTHROPIC_FAILED"
+  // Google Calendar
+  | "GCAL_NOT_CONFIGURED"
+  | "GCAL_NOT_LINKED"
+  | "GCAL_REVOKED"
+  | "GCAL_CLIENT_INVALID"
+  | "GCAL_FORBIDDEN"
+  | "GCAL_RATE_LIMITED"
+  | "GCAL_UNAVAILABLE"
+  | "GCAL_TIMEOUT"
+  | "GCAL_NETWORK"
+  | "GCAL_BAD_RESPONSE"
+  | "GCAL_DB_FAILED";
 
 export type Integration = "canvas" | "push" | "telegram" | "cron" | "ai" | "ics" | "gcal" | "app";
 
@@ -99,6 +111,8 @@ const PATTERNS: RegExp[] = [
   /bot\d{5,}:[A-Za-z0-9_-]{20,}/g, // token de Telegram dentro de una URL
   /sk-ant-[A-Za-z0-9_-]{10,}/g, // key de Anthropic
   /Bearer\s+[A-Za-z0-9._~+/=-]{8,}/gi, // cabecera Authorization copiada en un error
+  /ya29\.[A-Za-z0-9._-]{10,}/g, // access token de Google
+  /1\/\/[A-Za-z0-9._-]{20,}/g, // refresh token de Google
 ];
 
 const TACHADO = "[redactado]";

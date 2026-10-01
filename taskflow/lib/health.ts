@@ -11,7 +11,7 @@
  */
 
 export type Level = "ok" | "warn" | "error" | "off";
-export type Source = "cron" | "canvas" | "push" | "telegram" | "ai";
+export type Source = "cron" | "canvas" | "gcal" | "push" | "telegram" | "ai";
 
 export type StateRow = {
   source: string;
@@ -27,6 +27,10 @@ export type HealthInput = {
   now: number;
   states: Partial<Record<Source, StateRow>>;
   canvasConfigured: boolean;
+  /** GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET puestos. */
+  gcalConfigured?: boolean;
+  /** Hay un permiso de Google guardado. */
+  gcalLinked?: boolean;
   /** El servidor puede firmar avisos (llaves VAPID puestas). */
   pushConfigured: boolean;
   pushDevices: number;
@@ -103,7 +107,7 @@ export function computeHealth(h: HealthInput): Health {
 
   /* ---- reloj ---- */
   const cron = states.cron;
-  const needsClock = h.canvasConfigured || h.pushConfigured || h.telegramConfigured;
+  const needsClock = h.canvasConfigured || h.pushConfigured || h.telegramConfigured || Boolean(h.gcalLinked);
   const cronAge = now - ms(cron?.last_synced_at);
   if (!needsClock) {
     items.push({ key: "cron", label: "Reloj", level: "off", summary: "Nada que programar todavía" });
@@ -138,6 +142,27 @@ export function computeHealth(h: HealthInput): Health {
     items.push({ key: "canvas", label: "Canvas", level: "warn", summary: `La última sincronización fue ${ago(cv.last_success_at, now)}` });
   } else {
     items.push({ key: "canvas", label: "Canvas", level: "ok", summary: `Sincronizado ${ago(cv.last_success_at, now)}` });
+  }
+
+  /* ---- Google Calendar ---- */
+  const gc = states.gcal;
+  if (!h.gcalConfigured) {
+    items.push({ key: "gcal", label: "Google Calendar", level: "off", summary: "No configurado" });
+  } else if (!h.gcalLinked) {
+    items.push({ key: "gcal", label: "Google Calendar", level: "off", summary: "Sin conectar" });
+  } else if (failing(gc)) {
+    // Un permiso retirado no se arregla solo: es error desde el primer momento.
+    const viejo = gc?.last_error_code === "GCAL_REVOKED" || !gc?.last_success_at || now - ms(gc.last_success_at) > CANVAS_STALE;
+    items.push({
+      key: "gcal", label: "Google Calendar", level: viejo ? "error" : "warn",
+      summary: `No sincroniza${gc?.last_success_at ? ` desde ${ago(gc.last_success_at, now)}` : ""}: ${firstLine(gc)}`,
+    });
+  } else if (!gc?.last_success_at) {
+    items.push({ key: "gcal", label: "Google Calendar", level: "warn", summary: "Todavía no se ha sincronizado" });
+  } else if (now - ms(gc.last_success_at) > CANVAS_STALE) {
+    items.push({ key: "gcal", label: "Google Calendar", level: "warn", summary: `La última sincronización fue ${ago(gc.last_success_at, now)}` });
+  } else {
+    items.push({ key: "gcal", label: "Google Calendar", level: "ok", summary: `Sincronizado ${ago(gc.last_success_at, now)}` });
   }
 
   /* ---- push ---- */

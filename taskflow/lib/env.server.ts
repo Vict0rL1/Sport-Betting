@@ -105,3 +105,25 @@ export function telegramWebhookSecret(): string {
   if (!TELEGRAM_BOT_TOKEN) throw new Error("Falta TELEGRAM_BOT_TOKEN");
   return createHmac("sha256", TELEGRAM_BOT_TOKEN).update("taskflow-telegram-webhook").digest("hex");
 }
+
+/* --------------------------------------------------------- Google Calendar */
+
+/**
+ * El cliente OAuth de Google Cloud Console. El ID no es secreto (viaja en la
+ * URL de autorización); el secreto sí: canjea los códigos y los refresh
+ * tokens, y de él sale la llave que cifra esos tokens en la base.
+ */
+export const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+export const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+
+export const gcalConfigured = () => Boolean(GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET);
+
+export function requireGoogleEnv(): { clientId: string; clientSecret: string } {
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    throw new Error(
+      "Faltan GOOGLE_CLIENT_ID y/o GOOGLE_CLIENT_SECRET. Salen de Google Cloud Console -> " +
+        "Credenciales -> ID de cliente de OAuth (aplicación web). Van en las variables del servidor; al repo no.",
+    );
+  }
+  return { clientId: GOOGLE_CLIENT_ID, clientSecret: GOOGLE_CLIENT_SECRET };
+}
