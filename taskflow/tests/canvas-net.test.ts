@@ -10,7 +10,7 @@ afterEach(() => vi.unstubAllGlobals());
 /** Respuestas en orden; la última se repite si piden más. */
 function mockFetch(...responses: (Response | Error | (() => Promise<Response>))[]) {
   let i = 0;
-  const fn = vi.fn(async (_url: string, _init?: RequestInit) => {
+  const fn = vi.fn<(url: string, init?: RequestInit) => Promise<Response>>(async () => {
     const r = responses[Math.min(i++, responses.length - 1)];
     if (r instanceof Error) throw r;
     if (typeof r === "function") return r();
