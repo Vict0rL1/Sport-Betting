@@ -49,7 +49,7 @@ export async function POST() {
       blocks,
     });
     await recordAiCall(ctx, "plan", { ok: true, costUsd: plan.costUsd, ms: Date.now() - started });
-    return NextResponse.json({ ok: true, ...plan });
+    return NextResponse.json({ ok: true, day: ctx.today, ...plan });
   } catch (e) {
     const info = await recordAiCall(ctx, "plan", { ok: false, error: e, ms: Date.now() - started });
     return NextResponse.json({ ok: false, code: info.code, message: info.message }, { status: 200 });

@@ -12,7 +12,7 @@ type PlannedBlock = {
   taskId: string | null;
 };
 
-type Plan = { blocks: PlannedBlock[]; note: string; costUsd: number };
+type Plan = { blocks: PlannedBlock[]; note: string; costUsd: number; day: string };
 
 /**
  * El botón de "Planear mi día" y su propuesta.
@@ -49,7 +49,7 @@ export function DayPlanner() {
       const r = await fetch("/api/plan", { method: "POST" });
       const data = await r.json();
       if (!data.ok) setError(data.message || "No se pudo armar el plan");
-      else setPlan({ blocks: data.blocks, note: data.note, costUsd: data.costUsd });
+      else setPlan({ blocks: data.blocks, note: data.note, costUsd: data.costUsd, day: data.day });
     } catch {
       setError("No se pudo hablar con el servidor");
     } finally {
@@ -95,6 +95,7 @@ export function DayPlanner() {
           <div className="planfoot">
             <form action={guardar}>
               <input type="hidden" name="plan" value={JSON.stringify(plan.blocks)} />
+              <input type="hidden" name="day" value={plan.day} />
               <button className="btn sm" disabled={guardando} type="submit">
                 {guardando ? "Guardando…" : "Agendar"}
               </button>

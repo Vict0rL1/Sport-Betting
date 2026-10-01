@@ -3,13 +3,14 @@
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { getCtx } from "@/lib/data";
+import { getCtx, loadBlocks, loadEvents } from "@/lib/data";
+import { acceptable } from "@/lib/schedule";
 import { parseInput } from "@/lib/parse";
 import { cleanSourceName, parseICS } from "@/lib/ics";
 import { runCanvasSync } from "@/lib/canvas-sync";
 import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
 import { TelegramError, botUsername, ensureWebhook } from "@/lib/telegram";
-import { minsToTime, todayInTz } from "@/lib/date";
+import { minsToTime, minutesInTz, todayInTz } from "@/lib/date";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -277,11 +278,18 @@ export async function deleteBlock(fd: FormData) {
  * **Añade, no reemplaza.** El artifact de referencia hacía `byDate[d] = made`,
  * o sea que planear el día borraba los bloques puestos a mano. Eso es la misma
  * clase de error que `CLAUDE.md` prohíbe en el sync: pisar en silencio algo que
- * el usuario escribió. Aquí los bloques nuevos conviven con los que ya estaban,
- * y el planificador ya los había tratado como tiempo ocupado.
+ * el usuario escribió. Aquí los bloques nuevos conviven con los que ya estaban.
+ *
+ * **Y se vuelve a validar al aceptar.** La propuesta se armó hace un rato: lo
+ * que hoy choca con algo ocupado, ya terminó o adelanta una tarea que ya no
+ * está pendiente, no entra. Eso también hace inofensivo un doble "Agendar":
+ * antes, las acciones en cola insertaban el plan dos veces.
  */
 export async function applyPlan(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const ctx = await getCtx();
+
+  const day = str(fd, "day");
+  if (day && day !== ctx.today) return fail("Ese plan era para otro día. Pide uno nuevo.");
 
   let propuesta: unknown;
   try {
@@ -295,47 +303,68 @@ export async function applyPlan(_prev: ActionResult | null, fd: FormData): Promi
     .slice(0, 8)
     .map((b) => b as { start?: unknown; end?: unknown; title?: unknown; kind?: unknown; taskId?: unknown })
     .filter(
-      (b) =>
-        typeof b.start === "number" && typeof b.end === "number" &&
-        b.start >= 0 && b.end <= 1440 && b.end > b.start,
-    );
+      (b): b is { start: number; end: number; title?: unknown; kind?: unknown; taskId?: unknown } =>
+        Number.isInteger(b.start) && Number.isInteger(b.end) &&
+        (b.start as number) >= 0 && (b.end as number) <= 1440 && (b.end as number) > (b.start as number),
+    )
+    .map((b) => ({
+      start: b.start,
+      end: b.end,
+      title: String(b.title ?? "Bloque").slice(0, 120),
+      kind: b.kind === "descanso" ? ("descanso" as const) : ("tarea" as const),
+      taskId: typeof b.taskId === "string" && b.taskId ? b.taskId : null,
+    }));
 
   if (!limpios.length) return fail("El plan no tenía bloques válidos");
 
-  // `blocks.task_id` es una clave foránea. Si el plan referencia una tarea que
-  // ya no existe —la borraste mientras mirabas la propuesta, o el modelo se
-  // inventó un id— el insert entero falla y pierdes el plan completo por una
-  // sola fila. Se comprueba antes y el id desconocido se queda en null: el
-  // bloque sigue sirviendo aunque pierda el enlace a su tarea.
-  const pedidos = [...new Set(
-    limpios.map((b) => b.taskId).filter((x): x is string => typeof x === "string" && x.length > 0),
-  )];
-  let validos = new Set<string>();
-  if (pedidos.length) {
-    const { data } = await ctx.supabase
-      .from("tasks")
-      .select("id")
-      .in("id", pedidos)
-      .is("deleted_at", null)
-      .returns<{ id: string }[]>();
-    validos = new Set((data ?? []).map((t) => t.id));
+  // Lo que hay AHORA: compromisos de hoy, bloques ya puestos y tareas vivas.
+  const pedidos = [...new Set(limpios.map((b) => b.taskId).filter((x): x is string => Boolean(x)))];
+  const [events, blocks, vivas] = await Promise.all([
+    loadEvents(ctx, ctx.today, ctx.today),
+    loadBlocks(ctx, ctx.today, ctx.today),
+    pedidos.length
+      ? ctx.supabase.from("tasks").select("id").in("id", pedidos)
+          .eq("user_id", ctx.userId).eq("done", false).is("deleted_at", null)
+          .returns<{ id: string }[]>().then((r) => r.data ?? [])
+      : Promise.resolve([] as { id: string }[]),
+  ]);
+
+  const busy = [
+    ...events.filter((e) => e.start != null).map((e) => ({ start: e.start!, end: e.end ?? e.start! + 60 })),
+    ...blocks.map((b) => ({ start: b.start_min, end: b.end_min })),
+  ];
+  const { accepted, skipped } = acceptable(limpios, busy, {
+    now: minutesInTz(ctx.tz),
+    liveTaskIds: new Set(vivas.map((t) => t.id)),
+  });
+
+  if (!accepted.length) {
+    return fail(
+      skipped.every((x) => x.reason === "ocupado")
+        ? "Eso ya está agendado o ya no cabe: no se agregó nada"
+        : "Nada de ese plan sigue sirviendo: pide uno nuevo",
+    );
   }
 
-  const rows = limpios.map((b) => ({
+  const rows = accepted.map((b) => ({
     user_id: ctx.userId,
     day: ctx.today,
-    start_min: b.start as number,
-    end_min: b.end as number,
-    title: String(b.title ?? "Bloque").slice(0, 120),
-    kind: b.kind === "descanso" ? "descanso" : "tarea",
-    task_id: typeof b.taskId === "string" && validos.has(b.taskId) ? b.taskId : null,
+    start_min: b.start,
+    end_min: b.end,
+    title: b.title,
+    kind: b.kind,
+    task_id: b.taskId,
   }));
 
   const { error } = await ctx.supabase.from("blocks").insert(rows);
   if (error) return fail("No se pudieron guardar los bloques");
 
   refresh();
-  return ok(`${rows.length} bloque${rows.length > 1 ? "s" : ""} agendado${rows.length > 1 ? "s" : ""}`);
+  const n = rows.length;
+  return ok(
+    `${n} bloque${n > 1 ? "s" : ""} agendado${n > 1 ? "s" : ""}` +
+      (skipped.length ? ` · ${skipped.length} ya no cabía${skipped.length > 1 ? "n" : ""}` : ""),
+  );
 }
 
 /**
@@ -346,6 +375,9 @@ export async function applyPlan(_prev: ActionResult | null, fd: FormData): Promi
  * columna `parent_id` obligaría a anidar en todas las vistas, y para tres o
  * cuatro pasos con fecha propia eso es más estructura que provecho. Si algún
  * día estorba, se añade entonces.
+ *
+ * Un paso que ya existe (mismo título, misma fecha) no se vuelve a crear: así
+ * aceptar dos veces la misma propuesta no deja la lista duplicada.
  */
 export async function applyBreakdown(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const ctx = await getCtx();
@@ -360,13 +392,13 @@ export async function applyBreakdown(_prev: ActionResult | null, fd: FormData): 
 
   const area = str(fd, "area") || null;
 
-  const rows = pasos
+  const candidatos = pasos
     .slice(0, 7)
     .map((p) => p as { title?: unknown; date?: unknown; minutes?: unknown })
-    .filter((p) => typeof p.title === "string" && p.title.trim() && typeof p.date === "string")
+    .filter((p) => typeof p.title === "string" && p.title.trim() && typeof p.date === "string" && YMD.test(p.date))
     .map((p) => ({
       user_id: ctx.userId,
-      title: String(p.title).slice(0, 120),
+      title: String(p.title).trim().slice(0, 120),
       area,
       due_date: p.date as string,
       est_minutes: typeof p.minutes === "number" ? Math.min(1440, Math.max(1, Math.round(p.minutes))) : null,
@@ -377,7 +409,19 @@ export async function applyBreakdown(_prev: ActionResult | null, fd: FormData): 
       user_edited_at: new Date().toISOString(),
     }));
 
-  if (!rows.length) return fail("Ningún paso era válido");
+  if (!candidatos.length) return fail("Ningún paso era válido");
+
+  const { data: yaEstan } = await ctx.supabase
+    .from("tasks")
+    .select("title, due_date")
+    .eq("user_id", ctx.userId)
+    .is("deleted_at", null)
+    .in("title", [...new Set(candidatos.map((c) => c.title))])
+    .returns<{ title: string; due_date: string | null }[]>();
+  const existe = new Set((yaEstan ?? []).map((t) => `${t.title}|${t.due_date}`));
+  const rows = candidatos.filter((c) => !existe.has(`${c.title}|${c.due_date}`));
+
+  if (!rows.length) return fail("Esos pasos ya estaban agregados");
 
   const { error } = await ctx.supabase.from("tasks").insert(rows);
   if (error) return fail("No se pudieron guardar los pasos");
@@ -385,6 +429,8 @@ export async function applyBreakdown(_prev: ActionResult | null, fd: FormData): 
   refresh();
   return ok(`${rows.length} paso${rows.length > 1 ? "s" : ""} agregado${rows.length > 1 ? "s" : ""}`);
 }
+
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
 
 /* ------------------------------------------------------------------ ajustes */
 

@@ -5,6 +5,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { AI_FALLBACK, AI_MAX_TOKENS, type AiClient, aiClient, aiModel, checkStop, costOf } from "./ai";
 import { minsToHHMM } from "./date";
 import { IntegrationError } from "./log";
+import { MIN_GAP, freeGaps, type Gap } from "./schedule";
 import type { Block, DayEvent, Profile, Task } from "./types";
 
 /**
@@ -28,40 +29,8 @@ import type { Block, DayEvent, Profile, Task } from "./types";
 
 /* ------------------------------------------------------------------ huecos */
 
-export type Gap = { start: number; end: number };
-
-/** Un hueco por debajo de esto no sirve para nada: ni empiezas. */
-const MIN_GAP = 20;
-
-/**
- * Los ratos libres de hoy, en minutos locales.
- *
- * `busy` son los compromisos: clases, eventos con hora y los bloques que ya
- * tengas puestos. Se fusionan los solapados antes de restar, porque dos
- * eventos encimados dejarían un hueco negativo.
- */
-export function freeGaps(busy: Gap[], from: number, to: number): Gap[] {
-  const ocupado = busy
-    .map((b) => ({ start: Math.max(b.start, from), end: Math.min(b.end, to) }))
-    .filter((b) => b.end > b.start)
-    .sort((a, b) => a.start - b.start);
-
-  const fusionado: Gap[] = [];
-  for (const b of ocupado) {
-    const ultimo = fusionado[fusionado.length - 1];
-    if (ultimo && b.start <= ultimo.end) ultimo.end = Math.max(ultimo.end, b.end);
-    else fusionado.push({ ...b });
-  }
-
-  const libres: Gap[] = [];
-  let cursor = from;
-  for (const b of fusionado) {
-    if (b.start - cursor >= MIN_GAP) libres.push({ start: cursor, end: b.start });
-    cursor = Math.max(cursor, b.end);
-  }
-  if (to - cursor >= MIN_GAP) libres.push({ start: cursor, end: to });
-  return libres;
-}
+// Los huecos se calculan en `lib/schedule.ts`, que no sabe nada de Claude.
+export { freeGaps, MIN_GAP, type Gap } from "./schedule";
 
 /* ------------------------------------------------------- forma de la salida */
 
