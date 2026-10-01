@@ -51,6 +51,7 @@ export default async function AjustesPage() {
           <>
             <Link className="btn line sm" href="/ajustes/estado">Estado del sistema</Link>
             <Link className="btn line sm" href="/ajustes/actividad">Actividad</Link>
+            <Link className="btn line sm" href="/ajustes/papelera">Papelera</Link>
           </>
         }
       />

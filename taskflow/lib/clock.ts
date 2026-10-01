@@ -12,6 +12,7 @@ import { type ErrorCode, IntegrationError, errorCodeOf, logEvent, safeMessage } 
 import { recordRun } from "./sync-state";
 import { withHealthNote } from "./health";
 import { logActivity, purgeActivity, q } from "./activity";
+import { autoEmptyTrash } from "./trash";
 import { loadStatus } from "./status";
 import type { Profile } from "./types";
 
@@ -97,8 +98,16 @@ async function tick(admin: Admin, profile: Profile, now: Date, opts: ClockOption
       }
     }
 
-    // La actividad vieja se borra aquí, de a poco: una consulta por hora.
+    // La actividad vieja y la papelera vencida se limpian aquí, de a poco.
     await purgeActivity(ctx, now);
+    const limpio = await autoEmptyTrash(ctx, now, ctx.today);
+    if (limpio.tasks || limpio.notes) {
+      await logActivity(ctx, {
+        actor: "system", kind: "trash.auto",
+        summary: `Se vació lo que llevaba más de 30 días en la papelera: ${limpio.tasks} tarea${limpio.tasks === 1 ? "" : "s"} y ${limpio.notes} nota${limpio.notes === 1 ? "" : "s"}`,
+        meta: limpio,
+      });
+    }
 
     await recordRun(ctx.supabase, ctx.userId, "cron", { ok: true });
     logEvent({ event: "cron.tick", result: "ok", userId: ctx.userId, integration: "cron", hour: hora, digest: kind ?? null });

@@ -115,6 +115,13 @@ create index if not exists tasks_search_idx on public.tasks using gin (search);
 alter table public.tasks add column if not exists deleted_at timestamptz;
 create index if not exists tasks_trash_idx on public.tasks (user_id, deleted_at) where deleted_at is not null;
 
+-- "Eliminar para siempre" una tarea de Canvas no puede borrar la fila: si la
+-- borrara, el siguiente sync la vería nueva y la volvería a crear. Se queda
+-- como lápida (`purged_at`): invisible en todas partes, también en la
+-- papelera, pero ahí para que el sync sepa que no la quieres. El reloj borra
+-- las lápidas cuando su fecha ya quedó fuera de lo que se le pide a Canvas.
+alter table public.tasks add column if not exists purged_at timestamptz;
+
 -- Esto es lo que hace que sincronizar dos veces no duplique nada.
 -- Índice completo, no parcial: Postgres trata los NULL como distintos entre sí,
 -- así que las tareas manuales (external_id null) no chocan. Un índice parcial

@@ -15,6 +15,7 @@ import { TelegramError, botUsername, ensureWebhook } from "@/lib/telegram";
 import { fmtDur, minsToHHMM, minsToTime, minutesInTz, timeToMins, todayInTz } from "@/lib/date";
 import { TASK_KINDS } from "@/lib/types";
 import { elapsedSec } from "@/lib/timing";
+import { purgeNotes, purgeTasks } from "@/lib/trash";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -343,6 +344,58 @@ export async function clearDoneTasks() {
     });
   }
   refresh();
+}
+
+/* ---------------------------------------------------------------- papelera */
+
+/**
+ * Saca una tarea de la papelera. Queda marcada como tuya (editada a mano):
+ * si era de Canvas y ya no está allá, el sync no vuelve a mandarla a la
+ * papelera — la restauraste a propósito.
+ */
+export async function restoreTask(fd: FormData) {
+  const ctx = await getCtx();
+  const { data } = await ctx.supabase
+    .from("tasks")
+    .update({ deleted_at: null, ...EDITED() })
+    .eq("user_id", ctx.userId)
+    .eq("id", str(fd, "id"))
+    .is("purged_at", null)
+    .select("id, title")
+    .maybeSingle<{ id: string; title: string }>();
+  if (data) await logActivity(ctx, { actor: "user", kind: "task.restored", taskId: data.id, summary: `Restauraste ${q(data.title)} de la papelera` });
+  refresh();
+}
+
+export async function restoreNote(fd: FormData) {
+  const ctx = await getCtx();
+  const { data } = await ctx.supabase
+    .from("notes").update({ deleted_at: null }).eq("user_id", ctx.userId).eq("id", str(fd, "id")).select("id");
+  if (data?.length) await logActivity(ctx, { actor: "user", kind: "note.restored", summary: "Restauraste una nota de la papelera" });
+  refresh();
+}
+
+/** "Eliminar para siempre" un elemento de la papelera. */
+export async function purgeTrashItem(fd: FormData) {
+  const ctx = await getCtx();
+  const id = str(fd, "id");
+  const n = str(fd, "type") === "note" ? await purgeNotes(ctx, [id]) : await purgeTasks(ctx, [id]);
+  if (n) await logActivity(ctx, { actor: "user", kind: "trash.purged", summary: "Eliminaste para siempre un elemento de la papelera" });
+  refresh();
+}
+
+export async function emptyTrash(): Promise<ActionResult> {
+  const ctx = await getCtx();
+  const [t, n] = await Promise.all([purgeTasks(ctx, "all"), purgeNotes(ctx, "all")]);
+  const total = t + n;
+  if (total) {
+    await logActivity(ctx, {
+      actor: "user", kind: "trash.purged",
+      summary: `Vaciaste la papelera: ${total} elemento${total > 1 ? "s" : ""}`, meta: { tasks: t, notes: n },
+    });
+  }
+  refresh();
+  return ok(total ? "Papelera vacía" : "La papelera ya estaba vacía");
 }
 
 /* ------------------------------------------------------------------- notas */
