@@ -6,6 +6,7 @@ import { PushPanel } from "@/components/PushPanel";
 import { TelegramPanel } from "@/components/TelegramPanel";
 import { getCtx, loadIcsSources, loadSyncState } from "@/lib/data";
 import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
+import { isFailing } from "@/lib/sync-state";
 import { VAPID_PUBLIC_KEY } from "@/lib/env";
 import { MONTHS_SHORT, dayOfMonth, minsToHHMM, monthOf, zonedDayMinute } from "@/lib/date";
 
@@ -30,12 +31,15 @@ export default async function AjustesPage() {
     telegramLinked = dayOfMonth(date) + " " + MONTHS_SHORT[monthOf(date)] + " · " + minsToHHMM(min);
   }
 
-  // La fecha se formatea aquí, en la zona del perfil, y viaja ya hecha.
+  // La fecha se formatea aquí, en la zona del perfil, y viaja ya hecha. Lo que
+  // se enseña es el último sync que SALIÓ BIEN: con el token vencido, el último
+  // intento es de hace una hora y no dice nada útil.
   let lastSynced: string | null = null;
-  if (canvasState?.last_synced_at) {
-    const { date, min } = zonedDayMinute(canvasState.last_synced_at, ctx.tz);
+  if (canvasState?.last_success_at) {
+    const { date, min } = zonedDayMinute(canvasState.last_success_at, ctx.tz);
     lastSynced = dayOfMonth(date) + " " + MONTHS_SHORT[monthOf(date)] + " · " + minsToHHMM(min);
   }
+  const canvasError = isFailing(canvasState) ? canvasState?.last_error ?? null : null;
 
   return (
     <>
@@ -52,7 +56,7 @@ export default async function AjustesPage() {
               <CanvasPanel
                 configured={canvasConfigured()}
                 lastSynced={lastSynced}
-                lastError={canvasState?.last_error ?? null}
+                lastError={canvasError}
                 itemsSynced={canvasState?.items_synced ?? 0}
               />
             </div>

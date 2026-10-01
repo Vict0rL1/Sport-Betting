@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { getCtx } from "@/lib/data";
 import { parseInput } from "@/lib/parse";
 import { cleanSourceName, parseICS } from "@/lib/ics";
-import { recordSync, syncCanvas } from "@/lib/canvas-sync";
+import { runCanvasSync } from "@/lib/canvas-sync";
 import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
 import { TelegramError, botUsername, ensureWebhook } from "@/lib/telegram";
 import { minsToTime, todayInTz } from "@/lib/date";
@@ -430,17 +430,9 @@ export async function syncCanvasNow(): Promise<ActionResult> {
   }
 
   const ctx = await getCtx();
-  try {
-    const result = await syncCanvas(ctx);
-    await recordSync(ctx, { items: result.items });
-    refresh();
-    return ok(result.message);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Falló el sync de Canvas";
-    await recordSync(ctx, { items: 0, error: message });
-    refresh();
-    return fail(message);
-  }
+  const r = await runCanvasSync(ctx, "manual");
+  refresh();
+  return r.ok ? ok(r.result.message) : fail(r.message);
 }
 
 /* -------------------------------------------------------------- Web Push */

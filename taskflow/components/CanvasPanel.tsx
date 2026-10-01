@@ -37,7 +37,7 @@ export function CanvasPanel({
           </form>
 
           <div className="srcrow" style={{ marginTop: 14 }}>
-            <b>Última sincronización</b>
+            <b>Última sincronización correcta</b>
             <span className="mono">{lastSynced ?? "nunca"}</span>
           </div>
           {lastSynced ? (

@@ -163,14 +163,47 @@ create index if not exists push_subs_user_idx on public.push_subscriptions (user
 
 -- ------------------------------------------------------ estado del sync
 
+-- Una fila por integración y usuario: cuándo corrió, cuándo salió bien y qué
+-- falló. Es lo que lee Ajustes → Estado del sistema.
+--
+-- `last_synced_at` es el último INTENTO; `last_success_at`, el último que salió
+-- bien. Antes había sólo el primero, y un token vencido seguía mostrando
+-- "sincronizado hace 1 h" durante días.
 create table if not exists public.sync_state (
   user_id        uuid not null references auth.users (id) on delete cascade,
-  source         public.item_source not null,
+  source         text not null,
   last_synced_at timestamptz,
   last_error     text,
   items_synced   int not null default 0,
   primary key (user_id, source)
 );
+
+-- `source` nació como `item_source` (manual/canvas/gcal/ics). Se ensancha a
+-- texto para que el reloj, el push, Telegram y la IA guarden aquí su estado
+-- sin meter valores raros en el enum que también usan `tasks` y `events`.
+do $$ begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'sync_state'
+      and column_name = 'source' and data_type = 'USER-DEFINED'
+  ) then
+    alter table public.sync_state alter column source type text using source::text;
+  end if;
+end $$;
+
+alter table public.sync_state drop constraint if exists sync_state_source_ck;
+alter table public.sync_state add constraint sync_state_source_ck
+  check (source in ('canvas', 'gcal', 'ics', 'cron', 'push', 'telegram', 'ai'));
+
+alter table public.sync_state add column if not exists last_success_at timestamptz;
+alter table public.sync_state add column if not exists last_error_at   timestamptz;
+alter table public.sync_state add column if not exists last_error_code text;
+
+-- Las filas de antes de esta columna: si la última corrida no dejó error, fue
+-- un éxito. Sólo toca filas que todavía no tienen el dato.
+update public.sync_state
+  set last_success_at = last_synced_at
+  where last_success_at is null and last_error is null and last_synced_at is not null;
 
 -- ------------------------------------------------------ avisos ya enviados
 

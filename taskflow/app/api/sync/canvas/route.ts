@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getCtx } from "@/lib/data";
-import { recordSync, syncCanvas } from "@/lib/canvas-sync";
+import { runCanvasSync } from "@/lib/canvas-sync";
 import { canvasConfigured } from "@/lib/env.server";
 
 /**
@@ -33,14 +33,7 @@ export async function POST() {
   }
 
   const ctx = await getCtx();
-
-  try {
-    const result = await syncCanvas(ctx);
-    await recordSync(ctx, { items: result.items });
-    return NextResponse.json(result);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : "Falló el sync de Canvas";
-    await recordSync(ctx, { items: 0, error: message });
-    return NextResponse.json({ ok: false, message }, { status: 502 });
-  }
+  const r = await runCanvasSync(ctx, "manual");
+  if (r.ok) return NextResponse.json(r.result);
+  return NextResponse.json({ ok: false, message: r.message, code: r.code }, { status: 502 });
 }

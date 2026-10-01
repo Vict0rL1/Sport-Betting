@@ -10,8 +10,10 @@ import {
   safeUpsertRow,
 } from "./canvas";
 import { addDays } from "./date";
-import { requireCanvasEnv } from "./env.server";
+import { canvasConfigured, requireCanvasEnv } from "./env.server";
 import type { Ctx } from "./data";
+import { type ErrorCode, IntegrationError, errorCodeOf, logEvent, safeMessage } from "./log";
+import { recordRun } from "./sync-state";
 
 /** Ventana que se pide a Canvas, en días alrededor de hoy. */
 const DAYS_BACK = 14;
@@ -78,7 +80,7 @@ export async function syncCanvas(ctx: Ctx): Promise<SyncResult> {
     const { error } = await ctx.supabase
       .from("tasks")
       .upsert(owned, { onConflict: "user_id,source,external_id" });
-    if (error) throw new Error("No se pudieron guardar los deadlines: " + error.message);
+    if (error) throw new IntegrationError("CANVAS_DB_FAILED", "No se pudieron guardar los deadlines: " + error.message, true);
   }
 
   // Filas que Victor tocó: sólo título y fecha.
@@ -87,7 +89,9 @@ export async function syncCanvas(ctx: Ctx): Promise<SyncResult> {
     const { error } = await ctx.supabase
       .from("tasks")
       .upsert(manual, { onConflict: "user_id,source,external_id" });
-    if (error) throw new Error("No se pudieron actualizar los deadlines editados: " + error.message);
+    if (error) {
+      throw new IntegrationError("CANVAS_DB_FAILED", "No se pudieron actualizar los deadlines editados: " + error.message, true);
+    }
   }
 
   const message =
@@ -106,16 +110,38 @@ export async function syncCanvas(ctx: Ctx): Promise<SyncResult> {
   };
 }
 
-/** Deja constancia de la corrida en `sync_state`, salga bien o mal. */
-export async function recordSync(ctx: Ctx, result: { items: number; error?: string }) {
-  await ctx.supabase.from("sync_state").upsert(
-    {
-      user_id: ctx.userId,
-      source: "canvas",
-      last_synced_at: new Date().toISOString(),
-      last_error: result.error ?? null,
-      items_synced: result.items,
-    },
-    { onConflict: "user_id,source" },
-  );
+export type CanvasRun =
+  | { ok: true; result: SyncResult }
+  | { ok: false; message: string; code?: ErrorCode };
+
+/**
+ * Corre el sync y deja constancia en `sync_state` y en el log, salga bien o
+ * mal. Es lo que llaman el botón de Ajustes, la ruta y el reloj: los tres
+ * repetían el mismo try/catch y cada uno lo registraba un poco distinto.
+ */
+export async function runCanvasSync(ctx: Ctx, trigger: "cron" | "manual"): Promise<CanvasRun> {
+  if (!canvasConfigured()) {
+    return { ok: false, code: "CANVAS_NOT_CONFIGURED", message: "Falta CANVAS_TOKEN en las variables del servidor." };
+  }
+
+  const started = Date.now();
+  try {
+    const result = await syncCanvas(ctx);
+    await recordRun(ctx.supabase, ctx.userId, "canvas", { ok: true, items: result.items });
+    logEvent({
+      event: "canvas.sync", result: "ok", userId: ctx.userId, integration: "canvas", trigger,
+      items: result.items, inserted: result.inserted, updated: result.updated, protected: result.protected,
+      ms: Date.now() - started,
+    });
+    return { ok: true, result };
+  } catch (e) {
+    const code = errorCodeOf(e);
+    const message = safeMessage(e, "Falló el sync de Canvas");
+    await recordRun(ctx.supabase, ctx.userId, "canvas", { ok: false, error: message, code });
+    logEvent({
+      event: "canvas.sync", result: "error", userId: ctx.userId, integration: "canvas", trigger,
+      errorCode: code, message, ms: Date.now() - started,
+    });
+    return { ok: false, message, code };
+  }
 }

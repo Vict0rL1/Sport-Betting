@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { recordSync, syncCanvas } from "@/lib/canvas-sync";
+import { runCanvasSync } from "@/lib/canvas-sync";
+import { canvasSyncDue } from "@/lib/canvas";
 import { CRON_SECRET, canvasConfigured, pushSendConfigured, telegramConfigured } from "@/lib/env.server";
 import { DEFAULT_TIMEZONE, addDays, minutesInTz, todayInTz } from "@/lib/date";
 import {
@@ -84,18 +85,12 @@ export async function GET(request: Request) {
     let ok = true;
 
     if (canvasConfigured()) {
-      if (!forzarCanvas && (await syncReciente(ctx, admin))) {
+      if (!forzarCanvas && !(await canvasToca(ctx, admin))) {
         message = "Canvas: sincronizado hace poco, se salta";
       } else {
-        try {
-          const r = await syncCanvas(ctx);
-          await recordSync(ctx, { items: r.items });
-          message = r.message;
-        } catch (e) {
-          message = e instanceof Error ? e.message : "Falló el sync";
-          ok = false;
-          await recordSync(ctx, { items: 0, error: message });
-        }
+        const r = await runCanvasSync(ctx, "cron");
+        message = r.ok ? r.result.message : r.message;
+        ok = r.ok;
       }
     }
 
@@ -127,20 +122,15 @@ function leerKind(v: string | null): DigestKind | null {
 
 /* ------------------------------------------------------------------ Canvas */
 
-/** Cada cuánto tiene sentido volver a preguntarle a Canvas. */
-const HORAS_ENTRE_SYNCS = 3;
-
-async function syncReciente(ctx: Ctx, admin: Admin): Promise<boolean> {
+/** ¿Toca preguntarle a Canvas? Desde el último sync que salió bien, no desde el último intento. */
+async function canvasToca(ctx: Ctx, admin: Admin): Promise<boolean> {
   const { data } = await admin
     .from("sync_state")
-    .select("last_synced_at")
+    .select("last_success_at")
     .eq("user_id", ctx.userId)
     .eq("source", "canvas")
-    .maybeSingle<{ last_synced_at: string | null }>();
-
-  if (!data?.last_synced_at) return false;
-  const edad = Date.now() - new Date(data.last_synced_at).getTime();
-  return edad < HORAS_ENTRE_SYNCS * 3600_000;
+    .maybeSingle<{ last_success_at: string | null }>();
+  return canvasSyncDue(data?.last_success_at);
 }
 
 /* ------------------------------------------------------------------ avisos */

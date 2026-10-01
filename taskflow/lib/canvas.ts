@@ -236,6 +236,22 @@ export async function canvasGetAll(
   return { items: out, complete: url == null };
 }
 
+/* --------------------------------------------------------------- cadencia */
+
+/** Cada cuánto tiene sentido volver a preguntarle a Canvas. */
+export const HOURS_BETWEEN_SYNCS = 3;
+
+/**
+ * ¿Toca sincronizar? Cuenta desde el último sync que SALIÓ BIEN, no desde el
+ * último intento. Antes contaba desde el intento, así que un fallo dejaba a
+ * Canvas tres horas sin reintentar — y con el token vencido, eso era siempre.
+ */
+export function canvasSyncDue(lastSuccessAt: string | null | undefined, now: number = Date.now()): boolean {
+  if (!lastSuccessAt) return true;
+  const t = Date.parse(lastSuccessAt);
+  return !Number.isFinite(t) || now - t >= HOURS_BETWEEN_SYNCS * 3600_000;
+}
+
 /* ------------------------------------------------------------------- mapeo */
 
 const isPlannableType = (t: unknown): t is PlannableType =>

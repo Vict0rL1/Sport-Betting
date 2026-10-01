@@ -219,15 +219,23 @@ export async function loadBlocks(ctx: Ctx, from: string, to: string): Promise<Bl
 
 export type SyncState = {
   source: string;
+  /** Último intento. */
   last_synced_at: string | null;
+  /** Último intento que salió bien. */
+  last_success_at: string | null;
   last_error: string | null;
+  last_error_at: string | null;
+  last_error_code: string | null;
   items_synced: number;
 };
+
+const SYNC_STATE_COLS =
+  "source, last_synced_at, last_success_at, last_error, last_error_at, last_error_code, items_synced";
 
 export async function loadSyncState(ctx: Ctx, source: string): Promise<SyncState | null> {
   const { data } = await ctx.supabase
     .from("sync_state")
-    .select("source, last_synced_at, last_error, items_synced")
+    .select(SYNC_STATE_COLS)
     .eq("user_id", ctx.userId)
     .eq("source", source)
     .maybeSingle<SyncState>();
