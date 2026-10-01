@@ -14,5 +14,10 @@ export default defineConfig({
   },
   test: {
     include: ["tests/**/*.test.ts"],
+    // Los tests de integración arrancan un Postgres entero (PGlite). Con todos
+    // los archivos en paralelo, el arranque solo puede pasar de los 5 s por
+    // defecto sin que nada esté mal.
+    testTimeout: 30_000,
+    hookTimeout: 60_000,
   },
 });
