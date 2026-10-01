@@ -14,7 +14,7 @@
  *    reimportar el mismo archivo no duplique filas.
  */
 
-import { addDays, daysBetween, makeYmd, wallTimeToInstant, weekdayOf } from "./date";
+import { addDays, dayOfMonth, daysBetween, makeYmd, monthOf, wallTimeToInstant, weekdayOf, yearOf } from "./date";
 
 export type IcsEvent = {
   title: string;
@@ -54,7 +54,13 @@ function hash(s: string): string {
 
 type DT =
   | { kind: "date"; date: string }
-  | { kind: "time"; date: string; instant: number };
+  | {
+      kind: "time";
+      date: string;
+      instant: number;
+      /** Hora de pared y su zona, para repetir "a las 9:00" y no "cada 24 h". null = UTC. */
+      wall: { h: number; mi: number; zone: string | null };
+    };
 
 /** DTSTART/DTEND/EXDATE -> día completo o instante absoluto. */
 export function parseDT(val: string, params: Record<string, string>, timeZone: string): DT | null {
@@ -69,14 +75,13 @@ export function parseDT(val: string, params: Record<string, string>, timeZone: s
   if (!m[4] || params.VALUE === "DATE") return { kind: "date", date };
 
   const H = +m[4], Mi = +m[5];
-  let instant: number;
-  if (m[7]) instant = Date.UTC(Y, Mo - 1, D, H, Mi);
-  else if (params.TZID) instant = wallTimeToInstant(Y, Mo, D, H, Mi, params.TZID);
-  // Hora "flotante": sin zona. El original usaba la del navegador; aquí la del
-  // usuario, que es la misma que ve en pantalla.
-  else instant = wallTimeToInstant(Y, Mo, D, H, Mi, timeZone);
+  // UTC explícito (Z), la zona del evento (TZID), o "flotante": sin zona. El
+  // original usaba la del navegador para la flotante; aquí la del usuario, que
+  // es la misma que ve en pantalla.
+  const zone = m[7] ? null : params.TZID || timeZone;
+  const instant = zone ? wallTimeToInstant(Y, Mo, D, H, Mi, zone) : Date.UTC(Y, Mo - 1, D, H, Mi);
 
-  return { kind: "time", date, instant };
+  return { kind: "time", date, instant, wall: { h: H, mi: Mi, zone } };
 }
 
 const BYDAY: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
@@ -185,9 +190,13 @@ export function parseICS(text: string, opts: IcsOptions): IcsEvent[] {
           if (start.kind === "date") {
             out.push({ title, startsAt: null, endsAt: null, allDayDate: day, externalId });
           } else {
-            // Desplaza el instante original tantos días como diga la repetición.
-            const shift = daysBetween(start.date, day) * 86400000;
-            const s = start.instant + shift;
+            // Cada repetición se calcula desde la hora de pared en su zona: la
+            // clase de las 9:00 sigue a las 9:00 después del cambio de hora.
+            // Antes se sumaban 24 h por día en UTC, y desde el 1 de noviembre
+            // todas las clases del semestre salían una hora antes.
+            const s = start.wall.zone
+              ? wallTimeToInstant(yearOf(day), monthOf(day) + 1, dayOfMonth(day), start.wall.h, start.wall.mi, start.wall.zone)
+              : start.instant + daysBetween(start.date, day) * 86400000;
             out.push({
               title,
               startsAt: new Date(s).toISOString(),
