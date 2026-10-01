@@ -1,45 +1,29 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { NOTE_COLS, TASK_COLS, getCtx } from "@/lib/data";
+import { BackupError, buildExport } from "@/lib/backup";
+import { NOTE_COLS, TASK_COLS, getApiCtx } from "@/lib/data";
 
-/** Las tablas que son tuyas. `profiles` va aparte porque su clave es `id`. */
-const TABLAS = ["tasks", "events", "notes", "habits", "habit_log", "blocks", "sync_state"] as const;
+export const dynamic = "force-dynamic";
 
 /**
- * `GET /api/export` — baja todos tus datos como un JSON.
+ * `GET /api/export` — baja todos tus datos como un JSON (`schemaVersion: 2`).
  *
  * Los datos ya viven en tu propio proyecto de Supabase, así que esto no es un
  * respaldo contra perderlos: es para tener una copia a mano, mirarla, o
- * llevártela si algún día cambias de base.
+ * llevártela si algún día cambias de base. Vuelve a entrar con "Importar
+ * respaldo".
  *
  * Va por la sesión y la RLS, así que sólo salen tus filas.
  */
 export async function GET() {
-  const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) {
-    return NextResponse.json({ ok: false, message: "No hay sesión" }, { status: 401 });
-  }
+  const ctx = await getApiCtx();
+  if (!ctx) return NextResponse.json({ ok: false, message: "No hay sesión" }, { status: 401 });
 
-  const ctx = await getCtx();
-
-  const salida: Record<string, unknown> = {
-    exportado_en: new Date().toISOString(),
-    zona_horaria: ctx.tz,
-    perfil: ctx.profile,
-  };
-
-  for (const tabla of TABLAS) {
-    // Las columnas de búsqueda no van: son un índice que Postgres rehace solo.
-    const cols = tabla === "tasks" ? TASK_COLS : tabla === "notes" ? NOTE_COLS : "*";
-    const { data, error } = await ctx.supabase.from(tabla).select(cols).eq("user_id", ctx.userId);
-    if (error) {
-      return NextResponse.json(
-        { ok: false, message: `No se pudo leer ${tabla}: ${error.message}` },
-        { status: 500 },
-      );
-    }
-    salida[tabla] = data ?? [];
+  let salida;
+  try {
+    salida = await buildExport(ctx, { tasks: TASK_COLS, notes: NOTE_COLS });
+  } catch (e) {
+    const message = e instanceof BackupError ? e.message : "No se pudo armar el respaldo";
+    return NextResponse.json({ ok: false, message }, { status: 500 });
   }
 
   const nombre = `taskflow-${ctx.today}.json`;

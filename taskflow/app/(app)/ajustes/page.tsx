@@ -5,6 +5,7 @@ import { AreasForm, HoursForm, ImportIcs, TimezoneForm } from "@/components/Sett
 import { CanvasPanel } from "@/components/CanvasPanel";
 import { PushPanel } from "@/components/PushPanel";
 import { TelegramPanel } from "@/components/TelegramPanel";
+import { ImportBackup } from "@/components/ImportBackup";
 import { getCtx, loadIcsSources, loadSyncState } from "@/lib/data";
 import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
 import { isFailing } from "@/lib/sync-state";
@@ -158,9 +159,12 @@ export default async function AjustesPage() {
                 Tus datos ya viven en tu propio proyecto de Supabase. Esto es para tener una
                 copia a mano, mirarla, o llevártela si algún día cambias de base.
               </p>
-              <a className="btn line sm" href="/api/export" download>
-                Descargar todo en JSON
-              </a>
+              <div className="row">
+                <a className="btn line sm" href="/api/export" download>
+                  Descargar todo en JSON
+                </a>
+                <ImportBackup />
+              </div>
             </div>
           </div>
 

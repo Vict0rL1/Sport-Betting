@@ -516,3 +516,13 @@ input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
 .trashrow .tmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .trashmeta{font-size:11.5px;color:var(--ink-3)}
 @media (max-width:520px){.trashrow{flex-wrap:wrap}.trashrow .tmain{flex-basis:100%}}
+
+/* ---- importar respaldo ---- */
+.import{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.import label.btn{cursor:pointer}
+.import input[type=file]:focus-visible + label{outline:2px solid var(--accent);outline-offset:2px}
+.importsum{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface-2)}
+.importsum table{width:100%;border-collapse:collapse;font-size:13px;margin:6px 0}
+.importsum th,.importsum td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}
+.importsum thead th{font-size:11px;color:var(--ink-3);font-weight:500}
+.importsum td{font-family:var(--mono);font-size:12px}
