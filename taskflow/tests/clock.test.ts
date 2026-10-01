@@ -227,3 +227,32 @@ describe("Telegram", () => {
     expect((await s.state("telegram"))?.last_success_at).toBeTruthy();
   });
 });
+
+describe("horario de verano y viajes", () => {
+  it("el día del cambio de hora (1 nov) el aviso sale una vez, y la hora repetida no cuenta como mañana", async () => {
+    const s = await setup();
+    await s.p.as(A).from("tasks").insert({ user_id: s.a, title: "PS5", due_date: "2026-11-01" });
+    await s.run(new Date("2026-11-01T08:30:00Z")); // 1:30 PDT
+    await s.run(new Date("2026-11-01T09:30:00Z")); // 1:30 PST, otra vez
+    expect(tgSent).toHaveLength(0);
+    await s.run(new Date("2026-11-01T15:30:00Z")); // 7:30 PST
+    await s.run(new Date("2026-11-01T16:30:00Z")); // 8:30 PST
+    expect(tgSent).toHaveLength(1);
+  });
+
+  it("de viaje: cambiar de zona no repite el aviso del mismo día local; un día nuevo allá sí avisa", async () => {
+    const s = await setup();
+    await s.run(); // 30 sep, 8:30 en Vancouver
+    expect(tgSent).toHaveLength(1);
+
+    // Mismo instante: en Toronto son las 11:30 del mismo 30 de septiembre.
+    await s.p.admin.from("profiles").update({ timezone: "America/Toronto" }).eq("id", s.a);
+    await s.run(new Date(MANANA.getTime() + 60_000));
+    expect(tgSent).toHaveLength(1);
+
+    // Tokio, 1 oct a las 8:30: es otro día allá, y es de mañana.
+    await s.p.admin.from("profiles").update({ timezone: "Asia/Tokyo" }).eq("id", s.a);
+    await s.run(new Date("2026-09-30T23:30:00Z"));
+    expect(tgSent).toHaveLength(2);
+  });
+});
