@@ -97,9 +97,17 @@ export async function toggleTask(fd: FormData) {
   refresh();
 }
 
+/**
+ * Manda la tarea a la papelera. No la borra: así se puede recuperar, y el sync
+ * de Canvas ve que la fila existe y no la vuelve a crear (antes, una tarea de
+ * Canvas borrada reaparecía pendiente en la siguiente sincronización).
+ */
 export async function deleteTask(fd: FormData) {
   const ctx = await getCtx();
-  await ctx.supabase.from("tasks").delete().eq("id", str(fd, "id"));
+  await ctx.supabase
+    .from("tasks")
+    .update({ deleted_at: new Date().toISOString(), focus_day: null })
+    .eq("id", str(fd, "id"));
   refresh();
 }
 
@@ -150,7 +158,8 @@ export async function toggleFocus(_prev: ActionResult | null, fd: FormData): Pro
   }
 
   const { count } = await ctx.supabase
-    .from("tasks").select("id", { count: "exact", head: true }).eq("focus_day", ctx.today);
+    .from("tasks").select("id", { count: "exact", head: true })
+    .eq("focus_day", ctx.today).is("deleted_at", null);
   if ((count ?? 0) >= 3) return fail("Máximo 3 en el enfoque");
 
   await ctx.supabase.from("tasks").update({ focus_day: ctx.today, ...EDITED() }).eq("id", id);
@@ -160,7 +169,13 @@ export async function toggleFocus(_prev: ActionResult | null, fd: FormData): Pro
 
 export async function clearDoneTasks() {
   const ctx = await getCtx();
-  await ctx.supabase.from("tasks").delete().eq("done", true);
+  // A la papelera, igual que borrar una sola: las de Canvas no deben volver.
+  await ctx.supabase
+    .from("tasks")
+    .update({ deleted_at: new Date().toISOString(), focus_day: null })
+    .eq("user_id", ctx.userId)
+    .eq("done", true)
+    .is("deleted_at", null);
   refresh();
 }
 
@@ -177,7 +192,7 @@ export async function togglePin(fd: FormData) {
 
 export async function deleteNote(fd: FormData) {
   const ctx = await getCtx();
-  await ctx.supabase.from("notes").delete().eq("id", str(fd, "id"));
+  await ctx.supabase.from("notes").update({ deleted_at: new Date().toISOString() }).eq("id", str(fd, "id"));
   refresh();
 }
 
@@ -301,6 +316,7 @@ export async function applyPlan(_prev: ActionResult | null, fd: FormData): Promi
       .from("tasks")
       .select("id")
       .in("id", pedidos)
+      .is("deleted_at", null)
       .returns<{ id: string }[]>();
     validos = new Set((data ?? []).map((t) => t.id));
   }

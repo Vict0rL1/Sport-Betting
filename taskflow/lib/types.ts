@@ -32,6 +32,8 @@ export type Task = {
   external_url: string | null;
   focus_day: string | null;
   user_edited_at: string | null;
+  /** En la papelera desde entonces; null si está viva. */
+  deleted_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -56,6 +58,7 @@ export type Note = {
   user_id: string;
   body: string;
   pinned: boolean;
+  deleted_at: string | null;
   created_at: string;
 };
 

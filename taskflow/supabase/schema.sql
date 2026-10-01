@@ -53,6 +53,14 @@ alter table public.tasks add column if not exists focus_day date;
 
 create index if not exists tasks_focus_idx on public.tasks (user_id, focus_day);
 
+-- Papelera. Borrar una tarea la marca, no la elimina: así se puede recuperar,
+-- y sobre todo, el sync de Canvas ve que la fila existe y NO la vuelve a
+-- crear. Con el borrado de verdad, una tarea de Canvas borrada reaparecía
+-- pendiente en la siguiente sincronización. El reloj vacía la papelera a los
+-- 30 días.
+alter table public.tasks add column if not exists deleted_at timestamptz;
+create index if not exists tasks_trash_idx on public.tasks (user_id, deleted_at) where deleted_at is not null;
+
 -- Esto es lo que hace que sincronizar dos veces no duplique nada.
 -- Índice completo, no parcial: Postgres trata los NULL como distintos entre sí,
 -- así que las tareas manuales (external_id null) no chocan. Un índice parcial
@@ -104,6 +112,9 @@ create table if not exists public.notes (
 );
 
 create index if not exists notes_recent_idx on public.notes (user_id, pinned desc, created_at desc);
+
+alter table public.notes add column if not exists deleted_at timestamptz;
+create index if not exists notes_trash_idx on public.notes (user_id, deleted_at) where deleted_at is not null;
 
 -- --------------------------------------------------------------- rutinas
 

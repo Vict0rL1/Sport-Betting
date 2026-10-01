@@ -70,6 +70,7 @@ export async function loadTasks(ctx: Ctx): Promise<Task[]> {
     .from("tasks")
     .select("*")
     .eq("user_id", ctx.userId)
+    .is("deleted_at", null)
     .order("due_date", { ascending: true, nullsFirst: false })
     .order("priority", { ascending: true })
     .order("created_at", { ascending: false })
@@ -164,6 +165,7 @@ export async function loadNotes(ctx: Ctx): Promise<Note[]> {
     .from("notes")
     .select("*")
     .eq("user_id", ctx.userId)
+    .is("deleted_at", null)
     .order("pinned", { ascending: false })
     .order("created_at", { ascending: false })
     .returns<Note[]>();
@@ -259,10 +261,11 @@ export async function loadCounts(ctx: Ctx): Promise<Counts> {
 
   const [dueToday, openTasks, notes, timedEvents, allDayEvents, habits, log] = await Promise.all([
     ctx.supabase.from("tasks").select("id", { count: "exact", head: true })
-      .eq("user_id", ctx.userId).eq("done", false).lte("due_date", ctx.today),
+      .eq("user_id", ctx.userId).is("deleted_at", null).eq("done", false).lte("due_date", ctx.today),
     ctx.supabase.from("tasks").select("id", { count: "exact", head: true })
-      .eq("user_id", ctx.userId).eq("done", false),
-    ctx.supabase.from("notes").select("id", { count: "exact", head: true }).eq("user_id", ctx.userId),
+      .eq("user_id", ctx.userId).is("deleted_at", null).eq("done", false),
+    ctx.supabase.from("notes").select("id", { count: "exact", head: true })
+      .eq("user_id", ctx.userId).is("deleted_at", null),
     ctx.supabase.from("events").select("id", { count: "exact", head: true })
       .eq("user_id", ctx.userId)
       .gte("starts_at", `${from}T00:00:00Z`).lte("starts_at", `${to}T23:59:59Z`),

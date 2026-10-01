@@ -3,11 +3,13 @@ import "server-only";
 import {
   type CanvasCourse,
   type CanvasPlannerItem,
+  type ExistingRow,
   canvasGetAll,
   insertRow,
   mapPlannerItems,
   planSync,
   safeUpsertRow,
+  submittedIds,
 } from "./canvas";
 import { addDays } from "./date";
 import { canvasConfigured, requireCanvasEnv } from "./env.server";
@@ -27,6 +29,10 @@ export type SyncResult = {
   updated: number;
   /** Filas con edición manual: sólo se les refrescó título y fecha. */
   protected: number;
+  /** Entregadas en Canvas que se marcaron hechas. */
+  completed: number;
+  /** Ya no están en Canvas: a la papelera. */
+  vanished: number;
   message: string;
 };
 
@@ -63,16 +69,32 @@ export async function syncCanvas(ctx: Ctx): Promise<SyncResult> {
   );
 
   // El filtro por `user_id` es explícito a propósito. Con la sesión bastaría la
-  // RLS, pero el cron de la fase 4 corre con la service role, que la salta: sin
-  // esto leería y pisaría las filas de cualquier otro usuario.
-  const { data: existing } = await ctx.supabase
+  // RLS, pero el reloj corre con la service role, que la salta: sin esto leería
+  // y pisaría las filas de cualquier otro usuario.
+  const { data: existing, error: readError } = await ctx.supabase
     .from("tasks")
-    .select("external_id, user_edited_at")
+    .select("external_id, user_edited_at, done, deleted_at, due_date")
     .eq("user_id", ctx.userId)
     .eq("source", "canvas")
-    .returns<{ external_id: string; user_edited_at: string | null }[]>();
+    .returns<ExistingRow[]>();
 
-  const plan = planSync(incoming, existing ?? []);
+  // Si no se pudo leer lo que hay, NO se sigue. Antes, una lectura fallida
+  // dejaba la lista en blanco, todo parecía nuevo, y el upsert completo pisaba
+  // el área de las filas que Victor había editado — justo lo que la regla
+  // dura prohíbe.
+  if (readError || !existing) {
+    throw new IntegrationError(
+      "CANVAS_DB_FAILED",
+      "No se pudieron leer los deadlines guardados: " + (readError?.message ?? "sin respuesta"),
+      true,
+    );
+  }
+
+  const plan = planSync(incoming, existing, {
+    submitted: submittedIds(rawItems as CanvasPlannerItem[]),
+    coursesOk: courses != null,
+    window: { start, end, complete: planner.complete },
+  });
 
   // Filas que son del sync: se insertan o se refrescan enteras.
   const owned = [...plan.insert, ...plan.updateAll].map((t) => insertRow(t, ctx.userId));
@@ -94,11 +116,50 @@ export async function syncCanvas(ctx: Ctx): Promise<SyncResult> {
     }
   }
 
-  const message =
-    plan.insert.length === 0 && plan.updateAll.length === 0 && plan.updateSafe.length === 0
-      ? "Canvas no trajo deadlines pendientes"
-      : `${incoming.length} deadlines · ${plan.insert.length} nuevos` +
-        (plan.updateSafe.length ? ` · ${plan.updateSafe.length} respetando tus cambios` : "");
+  // Las dos escrituras que no son upsert repiten la condición en el UPDATE
+  // (`user_edited_at is null`, etc.). Si Victor tocó la fila entre la lectura de
+  // arriba y este momento, la condición ya no se cumple y la fila no se toca.
+  const now = new Date().toISOString();
+  if (plan.complete.length) {
+    const { error } = await ctx.supabase
+      .from("tasks")
+      .update({ done: true, done_at: now })
+      .eq("user_id", ctx.userId)
+      .eq("source", "canvas")
+      .in("external_id", plan.complete)
+      .is("user_edited_at", null)
+      .eq("done", false);
+    if (error) throw new IntegrationError("CANVAS_DB_FAILED", "No se pudieron marcar las entregadas: " + error.message, true);
+  }
+
+  if (plan.vanished.length) {
+    const { error } = await ctx.supabase
+      .from("tasks")
+      .update({ deleted_at: now, focus_day: null })
+      .eq("user_id", ctx.userId)
+      .eq("source", "canvas")
+      .in("external_id", plan.vanished)
+      .is("user_edited_at", null)
+      .is("deleted_at", null)
+      .eq("done", false);
+    if (error) throw new IntegrationError("CANVAS_DB_FAILED", "No se pudo limpiar lo que ya no está en Canvas: " + error.message, true);
+  }
+
+  if (plan.vanishedHeld) {
+    logEvent({
+      event: "canvas.vanish_held", result: "skipped", userId: ctx.userId, integration: "canvas",
+      count: plan.vanishedHeld,
+    });
+  }
+
+  const partes = [`${incoming.length} deadlines`, `${plan.insert.length} nuevos`];
+  if (plan.updateSafe.length) partes.push(`${plan.updateSafe.length} respetando tus cambios`);
+  if (plan.complete.length) partes.push(`${plan.complete.length} entregada${plan.complete.length > 1 ? "s" : ""}`);
+  if (plan.vanished.length) partes.push(`${plan.vanished.length} ya no está${plan.vanished.length > 1 ? "n" : ""} en Canvas (a la papelera)`);
+
+  const nada = !plan.insert.length && !plan.updateAll.length && !plan.updateSafe.length &&
+    !plan.complete.length && !plan.vanished.length;
+  const message = nada ? "Canvas no trajo deadlines pendientes" : partes.join(" · ");
 
   return {
     ok: true,
@@ -106,6 +167,8 @@ export async function syncCanvas(ctx: Ctx): Promise<SyncResult> {
     inserted: plan.insert.length,
     updated: plan.updateAll.length,
     protected: plan.updateSafe.length,
+    completed: plan.complete.length,
+    vanished: plan.vanished.length,
     message,
   };
 }

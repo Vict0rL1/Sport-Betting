@@ -11,7 +11,7 @@
  * hechas se deja de usar.
  */
 
-import { minsToTime, norm, zonedDayMinute } from "./date";
+import { addDays, minsToTime, norm, zonedDayMinute } from "./date";
 import { type ErrorCode, IntegrationError } from "./log";
 import type { ItemSource } from "./types";
 
@@ -448,7 +448,13 @@ export function safeUpsertRow(task: CanvasTask, userId: string) {
 
 /* ------------------------------------------------------- plan del sync */
 
-export type ExistingRow = { external_id: string; user_edited_at: string | null };
+export type ExistingRow = {
+  external_id: string;
+  user_edited_at: string | null;
+  done?: boolean;
+  deleted_at?: string | null;
+  due_date?: string | null;
+};
 
 export type SyncPlan = {
   /** Deadlines que todavía no existen. */
@@ -457,26 +463,94 @@ export type SyncPlan = {
   updateAll: CanvasTask[];
   /** Filas que Victor tocó: sólo título y fecha. */
   updateSafe: CanvasTask[];
+  /** Entregadas en Canvas, pendientes aquí y que nadie tocó: se marcan hechas. */
+  complete: string[];
+  /** Pendientes que Canvas ya no devuelve: van a la papelera. */
+  vanished: string[];
+  /** Si iban a desaparecer demasiadas de golpe y se frenó, cuántas eran. */
+  vanishedHeld: number;
 };
+
+export type PlanOptions = {
+  /** `external_id` de lo que Canvas dice que ya entregaste. */
+  submitted?: Iterable<string>;
+  /**
+   * ¿Llegó la lista de cursos? Sin ella, el área y el curso saldrían en
+   * blanco: las filas existentes sólo reciben título y fecha esa vez.
+   */
+  coursesOk?: boolean;
+  /** La ventana que se le pidió a Canvas, y si la respuesta llegó entera. */
+  window?: { start: string; end: string; complete: boolean };
+};
+
+/**
+ * Más de esto desapareciendo de una vez, y además más de la mitad de lo que
+ * había, huele a respuesta rota de Canvas y no a un profesor borrando tareas.
+ */
+const MAX_VANISH_AT_ONCE = 5;
 
 /**
  * Reparte los deadlines entrantes contra lo que ya está en la base.
  *
  * Correr esto dos veces sobre la misma respuesta deja exactamente las mismas
  * filas: la segunda vez no hay nada que insertar y los updates son idénticos.
+ *
+ * Lo que una fila editada a mano NUNCA recibe: ni el área, ni que la marquen
+ * hecha, ni que la manden a la papelera. Sólo título y fecha (CLAUDE.md).
  */
-export function planSync(incoming: CanvasTask[], existing: ExistingRow[]): SyncPlan {
+export function planSync(incoming: CanvasTask[], existing: ExistingRow[], opts: PlanOptions = {}): SyncPlan {
   const known = new Map<string, ExistingRow>();
   for (const row of existing) known.set(row.external_id, row);
+  const coursesOk = opts.coursesOk ?? true;
 
-  const plan: SyncPlan = { insert: [], updateAll: [], updateSafe: [] };
+  const plan: SyncPlan = { insert: [], updateAll: [], updateSafe: [], complete: [], vanished: [], vanishedHeld: 0 };
+  const seen = new Set<string>();
 
   for (const task of incoming) {
+    seen.add(task.externalId);
     const row = known.get(task.externalId);
     if (!row) plan.insert.push(task);
-    else if (row.user_edited_at) plan.updateSafe.push(task);
+    // La borraste tú: se queda borrada. Ni se recrea ni se actualiza.
+    else if (row.deleted_at) continue;
+    else if (row.user_edited_at || !coursesOk) plan.updateSafe.push(task);
     else plan.updateAll.push(task);
   }
 
+  // Antes, lo entregado simplemente dejaba de llegar y la fila se quedaba
+  // pendiente para siempre: salía en rojo como atrasada y en el aviso de la
+  // mañana. Ahora Canvas la da por hecha — si nadie la tocó.
+  for (const id of opts.submitted ?? []) {
+    seen.add(id);
+    const row = known.get(id);
+    if (row && !row.deleted_at && !row.user_edited_at && row.done === false) plan.complete.push(id);
+  }
+  plan.complete.sort();
+
+  // Lo que desapareció de Canvas (el profesor lo borró o lo despublicó) se va a
+  // la papelera, de donde se puede sacar. Sólo con una respuesta completa y no
+  // vacía, y sólo para fechas bien adentro de la ventana pedida: lo que se
+  // salió por el borde no desapareció, simplemente ya no se pregunta por ello.
+  const w = opts.window;
+  if (w?.complete && seen.size > 0) {
+    const lo = addDays(w.start, 1);
+    const hi = addDays(w.end, -1);
+    const candidates = existing.filter(
+      (r) => !r.deleted_at && !r.user_edited_at && r.done === false && r.due_date && r.due_date > lo && r.due_date < hi,
+    );
+    const gone = candidates.filter((r) => !seen.has(r.external_id)).map((r) => r.external_id).sort();
+    if (gone.length > MAX_VANISH_AT_ONCE && gone.length * 2 > candidates.length) plan.vanishedHeld = gone.length;
+    else plan.vanished = gone;
+  }
+
   return plan;
+}
+
+/** `external_id` de lo que Canvas marca como entregado. */
+export function submittedIds(items: CanvasPlannerItem[]): string[] {
+  const out = new Set<string>();
+  for (const item of items ?? []) {
+    if (!isPlannableType(item.plannable_type) || item.plannable_id == null) continue;
+    if (alreadySubmitted(item)) out.add(`canvas:${item.plannable_type}:${item.plannable_id}`);
+  }
+  return [...out].sort();
 }
