@@ -67,7 +67,10 @@ describe("detalles académicos de una tarea", () => {
 
   it("rechaza valores fuera de rango sin tocar nada", async () => {
     const id = await nueva();
-    for (const bad of [{ weight_pct: "120" }, { difficulty: "5" }, { est_minutes: "0" }, { est_minutes: "12.5" }, { kind: "examen" }]) {
+    const malos: Record<string, string>[] = [
+      { weight_pct: "120" }, { difficulty: "5" }, { est_minutes: "0" }, { est_minutes: "12.5" }, { kind: "examen" },
+    ];
+    for (const bad of malos) {
       const r = await updateTaskDetails(null, fd({ id, kind: "", ...bad }));
       expect(r.ok, JSON.stringify(bad)).toBe(false);
     }
