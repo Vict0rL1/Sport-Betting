@@ -38,8 +38,23 @@ const HOY = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date()
 const task = (o) => ({
   user_id: me, title: "", area: null, body: null, due_date: null, due_time: null,
   est_minutes: null, priority: 3, done: false, done_at: null, focus_day: null,
-  user_edited_at: null, ...o,
+  user_edited_at: null, kind: null, course: null, weight_pct: null, ...o,
 });
+
+/**
+ * Tipo y peso, sacados de lo que dice el programa del curso: "Midterm 1 (25%)"
+ * es un midterm que pesa 25%. Si el título no lo dice, se queda en blanco.
+ */
+function academico(titulo) {
+  const t = titulo.toLowerCase();
+  const kind = /midterm/.test(t) ? "midterm"
+    : /presentaci/.test(t) ? "presentation"
+    : /proyecto|propuesta/.test(t) ? "project"
+    : /final/.test(t) ? "final"
+    : null;
+  const m = titulo.match(/\((\d+(?:\.\d+)?)%/);
+  return { kind, weight_pct: m ? Number(m[1]) : null };
+}
 
 /* ------------------------------------------------------------------ tareas */
 
@@ -53,12 +68,14 @@ for (const course of COURSES) {
       body: d.note ?? null,
       due_date: d.date,
       priority: d.priority ?? 2,
+      course: course.code,
+      ...academico(d.title),
     }));
   }
   // Lo que el programa menciona pero no fecha. Entra sin `due_date` para que no
   // finja un vencimiento que nadie ha publicado.
   for (const pendiente of course.pending ?? []) {
-    tareas.push(task({ title: `${course.code}: ${pendiente}`, area: "SFU", priority: 2 }));
+    tareas.push(task({ title: `${course.code}: ${pendiente}`, area: "SFU", priority: 2, course: course.code }));
   }
 }
 

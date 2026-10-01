@@ -13,7 +13,7 @@ const SCOPES: [Scope, string][] = [
   ["tomorrow", "Mañana"],
   ["week", "Esta semana"],
   ["date", "Elegir fecha"],
-  ["auto", "Buscar hueco"],
+  ["auto", "Automático"],
 ];
 
 type Slot = { day: string; start: number; end: number; why: string };

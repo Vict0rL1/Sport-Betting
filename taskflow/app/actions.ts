@@ -615,12 +615,12 @@ export async function applyPrepPlan(_prev: ActionResult | null, fd: FormData): P
 
   await logActivity(ctx, {
     actor: "user", kind: "prep.accepted", taskId: task.id,
-    summary: `Agendaste un plan de preparación para ${q(task.title)}: ${r.inserted} sesión${r.inserted > 1 ? "es" : ""}, ${fmtDur(r.minutes)}` +
+    summary: `Agendaste un plan de preparación para ${q(task.title)}: ${r.inserted} ${r.inserted > 1 ? "sesiones" : "sesión"}, ${fmtDur(r.minutes)}` +
       (fuera ? ` (${fuera} ya no cabía${fuera > 1 ? "n" : ""})` : ""),
     meta: { sessions: r.inserted, minutes: r.minutes, skipped: fuera },
   });
   refresh();
-  return ok(`${r.inserted} sesión${r.inserted > 1 ? "es" : ""} agendada${r.inserted > 1 ? "s" : ""}` + (fuera ? ` · ${fuera} ya no cabía${fuera > 1 ? "n" : ""}` : ""));
+  return ok(`${r.inserted} ${r.inserted > 1 ? "sesiones" : "sesión"} agendada${r.inserted > 1 ? "s" : ""}` + (fuera ? ` · ${fuera} ya no cabía${fuera > 1 ? "n" : ""}` : ""));
 }
 
 /**
