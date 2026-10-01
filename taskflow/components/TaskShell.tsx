@@ -37,6 +37,7 @@ export function TaskShell({
   canSplit,
   prep,
   ai,
+  defaultOpen = false,
   children,
 }: {
   task: Task;
@@ -47,14 +48,19 @@ export function TaskShell({
   prep: number | null;
   /** Hay Claude configurado. */
   ai: boolean;
+  /** Abierta al cargar: la que se eligió en la paleta (⌘K). */
+  defaultOpen?: boolean;
   children: React.ReactNode;
 }) {
   const panelId = useId();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <>
-      <div className={"task" + (task.done ? " done" : "") + (open ? " open" : "") + (task.track_started_at ? " running" : "")}>
+      <div
+        id={"t-" + task.id}
+        className={"task" + (task.done ? " done" : "") + (open ? " open" : "") + (task.track_started_at ? " running" : "")}
+      >
         {children}
         {task.track_started_at ? <TimerChip task={task} /> : null}
         <button

@@ -11,7 +11,7 @@ function NoteRow({ note }: { note: NoteView }) {
   const [state, convert, pending] = useActionState(noteToTask, null);
 
   return (
-    <div className={"note" + (note.pinned ? " pinned" : "")}>
+    <div id={"n-" + note.id} className={"note" + (note.pinned ? " pinned" : "")}>
       <form action={togglePin} className="inline">
         <input type="hidden" name="id" value={note.id} />
         <button type="submit" className="pin" aria-label="Fijar" aria-pressed={note.pinned}>
@@ -33,7 +33,7 @@ function NoteRow({ note }: { note: NoteView }) {
 
       <form action={deleteNote} className="inline">
         <input type="hidden" name="id" value={note.id} />
-        <button type="submit" className="xbtn" aria-label="Eliminar">
+        <button type="submit" className="xbtn" aria-label="Mandar la nota a la papelera">
           ×
         </button>
       </form>

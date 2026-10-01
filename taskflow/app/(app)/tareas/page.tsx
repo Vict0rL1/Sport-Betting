@@ -11,15 +11,15 @@ import type { Task } from "@/lib/types";
 export const metadata = { title: "Tareas · TaskFlow" };
 
 /** El filtro por área vive en la URL, no en la base: así se comparte y se recarga bien. */
-type Props = { searchParams: Promise<{ area?: string }> };
+type Props = { searchParams: Promise<{ area?: string; curso?: string; t?: string }> };
 
 export default async function TareasPage({ searchParams }: Props) {
-  const { area } = await searchParams;
+  const { area, curso, t: abrir } = await searchParams;
   const ctx = await getCtx();
   const d = ctx.today;
 
   const all = await loadTasks(ctx);
-  const list = area ? all.filter((t) => t.area === area) : all;
+  const list = all.filter((t) => (!area || t.area === area) && (!curso || t.course === curso));
 
   const open = list.filter((t) => !t.done);
   const done = list
@@ -47,9 +47,14 @@ export default async function TareasPage({ searchParams }: Props) {
 
   const chips = (
     <div className="chips">
-      <Link className="chip" href="/tareas" aria-pressed={!area}>
+      <Link className="chip" href="/tareas" aria-pressed={!area && !curso}>
         Todas
       </Link>
+      {curso ? (
+        <Link className="chip" href="/tareas" aria-pressed aria-label={`Quitar el filtro del curso ${curso}`}>
+          {curso} ×
+        </Link>
+      ) : null}
       {ctx.profile.areas.map((a) => (
         <Link
           key={a}
@@ -84,11 +89,11 @@ export default async function TareasPage({ searchParams }: Props) {
         <div className="pb tight">
           {hasAny ? (
             <>
-              <TaskGroup title="Atrasadas" list={late} today={d} danger />
-              <TaskGroup title="Hoy" list={hoy} today={d} />
-              <TaskGroup title="Próximos 7 días" list={week} today={d} />
-              <TaskGroup title="Más adelante" list={later} today={d} />
-              <TaskGroup title="Sin fecha" list={none} today={d} />
+              <TaskGroup title="Atrasadas" list={late} today={d} danger openId={abrir} />
+              <TaskGroup title="Hoy" list={hoy} today={d} openId={abrir} />
+              <TaskGroup title="Próximos 7 días" list={week} today={d} openId={abrir} />
+              <TaskGroup title="Más adelante" list={later} today={d} openId={abrir} />
+              <TaskGroup title="Sin fecha" list={none} today={d} openId={abrir} />
             </>
           ) : (
             <EmptyBox
@@ -129,7 +134,7 @@ export default async function TareasPage({ searchParams }: Props) {
           </div>
           <div className="pb tight">
             {done.map((t) => (
-              <TaskRow key={t.id} task={t} today={d} />
+              <TaskRow key={t.id} task={t} today={d} open={t.id === abrir} />
             ))}
           </div>
         </div>

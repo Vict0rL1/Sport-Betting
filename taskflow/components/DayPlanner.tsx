@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { applyPlan, discardProposal } from "@/app/actions";
 import { minsToHHMM } from "@/lib/date";
 
@@ -41,6 +41,12 @@ export function DayPlanner() {
     if (guardado?.ok && plan) setPlan(null);
   }
 
+  // Desde la paleta (⌘K → "Planear mi día") se llega con #planear: el botón
+  // queda enfocado, a un Enter de distancia. No se pide solo: cuesta dinero.
+  useEffect(() => {
+    if (window.location.hash === "#planear") document.getElementById("planear")?.focus();
+  }, []);
+
   async function pedir() {
     setCargando(true);
     setError("");
@@ -62,7 +68,7 @@ export function DayPlanner() {
   return (
     <div className="planner">
       {!plan ? (
-        <button className="btn line sm" onClick={pedir} disabled={cargando} type="button">
+        <button id="planear" className="btn line sm" onClick={pedir} disabled={cargando} type="button">
           {cargando ? "Pensando…" : "Planear mi día"}
         </button>
       ) : null}

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Capture } from "@/components/Capture";
 import { PushHeal } from "@/components/PushHeal";
+import { CommandPalette } from "@/components/CommandPalette";
+import { canvasConfigured, plannerConfigured } from "@/lib/env.server";
 import { Rail } from "@/components/Rail";
 import { getCtx, loadCounts } from "@/lib/data";
 import { loadStatus } from "@/lib/status";
@@ -41,6 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {children}
       </main>
       <PushHeal />
+      <CommandPalette canvas={canvasConfigured()} planner={plannerConfigured()} />
     </div>
   );
 }

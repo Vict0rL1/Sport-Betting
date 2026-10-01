@@ -31,6 +31,18 @@ export function Capture({ areas, today }: { areas: string[]; today: string }) {
     if (state?.ok) setText("");
   }
 
+  // "Nueva tarea" / "Nueva nota" desde la paleta (⌘K).
+  useEffect(() => {
+    function onCapture(e: Event) {
+      const m = (e as CustomEvent<{ mode?: Mode }>).detail?.mode;
+      if (m === "tarea" || m === "nota" || m === "bloque") setMode(m);
+      // Después de que el diálogo devuelva el foco.
+      setTimeout(() => input.current?.focus(), 0);
+    }
+    window.addEventListener("taskflow:capture", onCapture);
+    return () => window.removeEventListener("taskflow:capture", onCapture);
+  }, []);
+
   // "/" enfoca la captura, como en el reference.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -82,7 +94,18 @@ export function Capture({ areas, today }: { areas: string[]; today: string }) {
         </button>
 
         <div className="hint">
-          <Hint raw={text} mode={mode} areas={areas} today={today} />
+          <span className="hinttext">
+            <Hint raw={text} mode={mode} areas={areas} today={today} />
+          </span>
+          <button
+            type="button"
+            className="palbtn"
+            onClick={() => window.dispatchEvent(new Event("taskflow:palette"))}
+            aria-label="Buscar y comandos (Ctrl+K)"
+            title="Buscar y comandos (Ctrl+K)"
+          >
+            Buscar <kbd>⌘K</kbd>
+          </button>
         </div>
       </form>
       <Toast result={state} />

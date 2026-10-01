@@ -45,7 +45,7 @@ export function TaskPills({ task, today }: { task: Task; today: string }) {
  */
 const MIN_DIAS_PARA_PARTIR = 3;
 
-export function TaskRow({ task, today }: { task: Task; today: string }) {
+export function TaskRow({ task, today, open = false }: { task: Task; today: string; open?: boolean }) {
   const focused = task.focus_day === today;
 
   const partible =
@@ -89,6 +89,7 @@ export function TaskRow({ task, today }: { task: Task; today: string }) {
       canSplit={partible}
       prep={canPrep(task, today) ? suggestedTotal(task) : null}
       ai={plannerConfigured()}
+      defaultOpen={open}
     >
       {contenido}
     </TaskShell>
@@ -100,11 +101,14 @@ export function TaskGroup({
   list,
   today,
   danger,
+  openId,
 }: {
   title: string;
   list: Task[];
   today: string;
   danger?: boolean;
+  /** La tarea que llega abierta (desde la paleta). */
+  openId?: string;
 }) {
   if (!list.length) return null;
   return (
@@ -113,7 +117,7 @@ export function TaskGroup({
         {title} <em>{list.length}</em>
       </h3>
       {list.map((t) => (
-        <TaskRow key={t.id} task={t} today={today} />
+        <TaskRow key={t.id} task={t} today={today} open={t.id === openId} />
       ))}
     </div>
   );
