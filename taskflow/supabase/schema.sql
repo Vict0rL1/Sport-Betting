@@ -277,13 +277,27 @@ drop policy if exists own_habits on public.habits;
 create policy own_habits on public.habits
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
+-- La clave de `habit_log` es (habit_id, day). Si alguien pudiera escribir una
+-- fila propia con el `habit_id` de otro, ocuparía ese día y el dueño ya no
+-- podría marcar su rutina sin ver siquiera qué se lo impide. Por eso la rutina
+-- también tiene que ser tuya.
 drop policy if exists own_habit_log on public.habit_log;
 create policy own_habit_log on public.habit_log
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all using (auth.uid() = user_id)
+  with check (
+    auth.uid() = user_id
+    and exists (select 1 from public.habits h where h.id = habit_id and h.user_id = auth.uid())
+  );
 
+-- Lo mismo con `blocks.task_id`: la clave foránea sólo comprueba que la tarea
+-- exista, no de quién es.
 drop policy if exists own_blocks on public.blocks;
 create policy own_blocks on public.blocks
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all using (auth.uid() = user_id)
+  with check (
+    auth.uid() = user_id
+    and (task_id is null or exists (select 1 from public.tasks t where t.id = task_id and t.user_id = auth.uid()))
+  );
 
 drop policy if exists own_sync_state on public.sync_state;
 create policy own_sync_state on public.sync_state
