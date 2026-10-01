@@ -620,23 +620,45 @@ export async function importIcs(_prev: ActionResult | null, fd: FormData): Promi
   }
   if (!events.length) return fail("No encontré eventos en ese archivo");
 
-  // Reimportar con el mismo nombre reemplaza: así un cambio de horario no deja
-  // clases fantasma de la importación anterior.
-  await ctx.supabase.from("events").delete().eq("source", "ics").eq("course_ref", source);
-
-  const { error } = await ctx.supabase.from("events").insert(
-    events.map((e) => ({
+  const rows = events.map((e) => {
+    // Un evento que "termina antes de empezar" (un .ics mal hecho) no puede
+    // tumbar la importación entera: se queda sin hora de fin.
+    const endsAt = e.endsAt && e.startsAt && e.endsAt < e.startsAt ? null : e.endsAt;
+    return {
       user_id: ctx.userId,
       title: e.title.slice(0, 200),
       starts_at: e.startsAt,
-      ends_at: e.endsAt,
+      ends_at: endsAt,
       all_day_date: e.allDayDate,
       course_ref: source,
       source: "ics" as const,
       external_id: e.externalId,
-    })),
-  );
-  if (error) return fail("No se pudieron guardar los eventos");
+    };
+  });
+
+  // Reimportar con el mismo nombre reemplaza, para que un cambio de horario no
+  // deje clases fantasma. Pero en este orden: PRIMERO se guarda lo nuevo y
+  // SÓLO si salió bien se borra lo que sobra. Antes era al revés, y si el
+  // insert fallaba (la red, o un solo evento raro) el horario anterior ya
+  // estaba borrado y no quedaba ninguno.
+  const { error } = await ctx.supabase
+    .from("events")
+    .upsert(rows, { onConflict: "user_id,source,external_id" });
+  if (error) return fail("No se pudieron guardar los eventos; lo que tenías sigue igual");
+
+  const nuevos = new Set(rows.map((r) => r.external_id));
+  const { data: previos } = await ctx.supabase
+    .from("events")
+    .select("id, external_id")
+    .eq("user_id", ctx.userId)
+    .eq("source", "ics")
+    .eq("course_ref", source)
+    .returns<{ id: string; external_id: string }[]>();
+  const sobran = (previos ?? []).filter((e) => !nuevos.has(e.external_id)).map((e) => e.id);
+  // De a 100: una lista de ids muy larga no cabe en la URL de PostgREST.
+  for (let i = 0; i < sobran.length; i += 100) {
+    await ctx.supabase.from("events").delete().eq("user_id", ctx.userId).in("id", sobran.slice(i, i + 100));
+  }
 
   refresh();
   return ok(events.length + " eventos importados de " + source);
