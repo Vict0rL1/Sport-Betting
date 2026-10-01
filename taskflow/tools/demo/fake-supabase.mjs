@@ -291,8 +291,10 @@ export async function createFakeSupabase({ serviceKey = null, users = [DEMO_USER
             }
             if (req.method === "HEAD") return { rows: [], count };
             const limit = url.searchParams.get("limit");
+            const offset = url.searchParams.get("offset");
             const sql = `select ${cols || "*"} from public."${table}"${where}${buildOrder(url.searchParams)}` +
-              (limit ? ` limit ${Number(limit)}` : "");
+              (limit ? ` limit ${Number(limit)}` : "") +
+              (offset ? ` offset ${Number(offset)}` : "");
             const r = await tx.query(sql, args);
             return { rows: r.rows, count };
           }
