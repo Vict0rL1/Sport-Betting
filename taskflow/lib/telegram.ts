@@ -1,6 +1,7 @@
 import "server-only";
 
 import { TELEGRAM_API_BASE, TELEGRAM_BOT_TOKEN, telegramWebhookSecret } from "./env.server";
+import type { ErrorCode } from "./log";
 import type { Digest } from "./push";
 
 /**
@@ -39,8 +40,12 @@ async function tg<T>(method: string, body: Record<string, unknown>): Promise<T> 
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(10_000),
     });
-  } catch {
+  } catch (e) {
     // Sin el error original: su mensaje puede traer la URL, y la URL lleva el token.
+    const name = e instanceof Error ? e.name : "";
+    if (name === "TimeoutError" || name === "AbortError") {
+      throw new TelegramError(`Telegram no respondió en 10 s (${method})`, -1);
+    }
     throw new TelegramError(`No se pudo hablar con Telegram (${method})`, 0);
   }
 
@@ -49,6 +54,28 @@ async function tg<T>(method: string, body: Record<string, unknown>): Promise<T> 
     throw new TelegramError(data.description || `Telegram respondió ${res.status}`, data.error_code ?? res.status);
   }
   return data.result as T;
+}
+
+/**
+ * Qué significa un fallo de Telegram, con el código que va al log y a Ajustes.
+ * `dead` es que el chat ya no sirve y hay que soltarlo.
+ */
+export function classifyTelegramError(e: unknown): { code: ErrorCode; dead: boolean; message: string } {
+  if (!(e instanceof TelegramError)) {
+    return { code: "TELEGRAM_FAILED", dead: false, message: "Falló el envío a Telegram" };
+  }
+  if (e.code === 403) {
+    return { code: "TELEGRAM_BOT_BLOCKED", dead: true, message: "Bloqueaste al bot en Telegram, así que se desconectó. Para volver, conéctalo otra vez desde Ajustes." };
+  }
+  if (e.code === 400 && /chat not found|user not found|chat_id is empty/i.test(e.message)) {
+    return { code: "TELEGRAM_CHAT_GONE", dead: true, message: "Ese chat de Telegram ya no existe, así que se desconectó." };
+  }
+  if (e.code === 429) return { code: "TELEGRAM_RATE_LIMITED", dead: false, message: "Telegram pidió esperar (demasiados mensajes)." };
+  if (e.code === 401 || e.code === 404) {
+    return { code: "TELEGRAM_TOKEN_INVALID", dead: false, message: "Telegram no reconoce el token del bot. Revisa TELEGRAM_BOT_TOKEN." };
+  }
+  if (e.code === -1) return { code: "TELEGRAM_TIMEOUT", dead: false, message: e.message };
+  return { code: "TELEGRAM_FAILED", dead: false, message: e.message || "Falló el envío a Telegram" };
 }
 
 /* ------------------------------------------------------------ mensajes */

@@ -85,6 +85,7 @@ jobs:
           case "$code" in
             200) echo "El reloj respondió. Qué hizo (o si no tocaba nada), en los logs de Vercel." ;;
             401) echo "CRON_SECRET no coincide con el de Vercel." >&2; exit 1 ;;
-            503) echo "A la app le falta CRON_SECRET en sus variables de entorno." >&2; exit 1 ;;
+            503) echo "A la app le falta configuración: CRON_SECRET o SUPABASE_SERVICE_ROLE_KEY en Vercel." >&2; exit 1 ;;
+            500) echo "El reloj falló (normalmente, la base no respondió). Detalle en los logs de Vercel." >&2; exit 1 ;;
             *)   echo "Respuesta inesperada." >&2; exit 1 ;;
           esac

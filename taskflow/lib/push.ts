@@ -4,6 +4,7 @@ import webpush from "web-push";
 import { VAPID_PRIVATE_KEY, VAPID_SUBJECT, pushSendConfigured } from "./env.server";
 import { VAPID_PUBLIC_KEY } from "./env";
 import { addDays, daysBetween, minsToHHMM } from "./date";
+import type { ErrorCode } from "./log";
 import type { DayEvent, Profile, Task } from "./types";
 
 export type Digest = { title: string; body: string; url: string };
@@ -178,7 +179,27 @@ function configurar() {
   configurado = true;
 }
 
-export type SendResult = { enviadas: number; caducadas: string[]; fallidas: number };
+export type SendResult = {
+  enviadas: number;
+  /** Endpoints muertos (404/410): el navegador se desinstaló o revocó el permiso. */
+  caducadas: string[];
+  fallidas: number;
+  /** El código del primer fallo que no fue una suscripción muerta. */
+  errorCode?: ErrorCode;
+};
+
+/** Ni el reloj ni el botón de prueba pueden quedarse colgados de un servicio de push. */
+const TIMEOUT_MS = 10_000;
+
+function codeFor(e: unknown): { gone: boolean; code: ErrorCode } {
+  const status = (e as { statusCode?: number }).statusCode;
+  if (status === 404 || status === 410) return { gone: true, code: "PUSH_SUBSCRIPTION_GONE" };
+  // 401/403: el servicio no acepta nuestra firma VAPID. Pasa si cambiaron las
+  // llaves después de que el navegador se suscribiera.
+  if (status === 401 || status === 403) return { gone: false, code: "PUSH_VAPID_REJECTED" };
+  if (e instanceof Error && /timeout/i.test(e.message)) return { gone: false, code: "PUSH_TIMEOUT" };
+  return { gone: false, code: "PUSH_FAILED" };
+}
 
 /**
  * Manda el aviso a cada navegador suscrito.
@@ -186,6 +207,8 @@ export type SendResult = { enviadas: number; caducadas: string[]; fallidas: numb
  * Los endpoints que responden 404 o 410 están muertos — el navegador se
  * desinstaló o revocó el permiso — y se devuelven para borrarlos. Si no, la
  * tabla se llena de suscripciones fantasma que fallan todos los días.
+ *
+ * Cada dispositivo va por su lado: que uno falle no impide que lleguen los demás.
  */
 export async function sendDigest(
   subs: PushSubscriptionRow[],
@@ -195,9 +218,7 @@ export async function sendDigest(
   configurar();
 
   const payload = JSON.stringify(digest);
-  const caducadas: string[] = [];
-  let enviadas = 0;
-  let fallidas = 0;
+  const out: SendResult = { enviadas: 0, caducadas: [], fallidas: 0 };
 
   await Promise.all(
     subs.map(async (s) => {
@@ -205,16 +226,19 @@ export async function sendDigest(
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           payload,
-          { TTL: 12 * 60 * 60 },
+          { TTL: 12 * 60 * 60, timeout: TIMEOUT_MS },
         );
-        enviadas++;
+        out.enviadas++;
       } catch (e) {
-        const code = (e as { statusCode?: number }).statusCode;
-        if (code === 404 || code === 410) caducadas.push(s.endpoint);
-        else fallidas++;
+        const { gone, code } = codeFor(e);
+        if (gone) out.caducadas.push(s.endpoint);
+        else {
+          out.fallidas++;
+          out.errorCode ??= code;
+        }
       }
     }),
   );
 
-  return { enviadas, caducadas, fallidas };
+  return out;
 }
