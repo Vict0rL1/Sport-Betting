@@ -11,6 +11,7 @@ import { loadEvents, loadTasks, type Ctx } from "./data";
 import { type ErrorCode, IntegrationError, errorCodeOf, logEvent, safeMessage } from "./log";
 import { recordRun } from "./sync-state";
 import { withHealthNote } from "./health";
+import { logActivity, purgeActivity, q } from "./activity";
 import { loadStatus } from "./status";
 import type { Profile } from "./types";
 
@@ -96,6 +97,9 @@ async function tick(admin: Admin, profile: Profile, now: Date, opts: ClockOption
       }
     }
 
+    // La actividad vieja se borra aquí, de a poco: una consulta por hora.
+    await purgeActivity(ctx, now);
+
     await recordRun(ctx.supabase, ctx.userId, "cron", { ok: true });
     logEvent({ event: "cron.tick", result: "ok", userId: ctx.userId, integration: "cron", hour: hora, digest: kind ?? null });
     return { user: profile.id, ok, message, aviso };
@@ -169,9 +173,22 @@ export async function avisar(
     // sus fallos se informan en la línea en vez de lanzarse — si se lanzaran,
     // la reserva se devolvería y el canal que SÍ llegó repetiría el aviso
     // dentro de una hora.
-    const partes = await Promise.all([deliverPush(ctx, admin, digest), deliverTelegram(ctx, admin, digest, origin)]);
+    const [pushR, tgR] = await Promise.all([deliverPush(ctx, admin, digest), deliverTelegram(ctx, admin, digest, origin)]);
 
-    return `${kind}: ${partes.map((p) => p?.line).filter(Boolean).join(" · ") || "sin canales conectados"}${que}`;
+    const canales = [
+      pushR?.sent ? `push a ${pushR.sent} dispositivo${pushR.sent > 1 ? "s" : ""}` : null,
+      tgR?.ok ? "Telegram" : null,
+    ].filter(Boolean);
+    const nombre = kind === "night" ? "Resumen de la noche" : "Resumen de la mañana";
+    await logActivity(ctx, {
+      actor: "system", kind: "digest.sent",
+      summary: canales.length
+        ? `${nombre} enviado: ${q(digest.title)} (${canales.join(" y ")})`
+        : `${nombre}: ${q(digest.title)} no llegó por ningún canal`,
+      meta: { kind, push: pushR?.sent ?? 0, telegram: Boolean(tgR?.ok) },
+    });
+
+    return `${kind}: ${[pushR, tgR].map((p) => p?.line).filter(Boolean).join(" · ") || "sin canales conectados"}${que}`;
   } catch (e) {
     // Se cayó la base: devolver el turno para que el reloj lo reintente dentro
     // de una hora, mientras la ventana siga abierta.
@@ -207,6 +224,13 @@ export async function deliverPush(ctx: Ctx, db: Admin, digest: Digest): Promise<
   // Las suscripciones muertas se borran: si no, fallan todos los días.
   if (r.caducadas.length) {
     await db.from("push_subscriptions").delete().eq("user_id", ctx.userId).in("endpoint", r.caducadas);
+    await logActivity(ctx, {
+      actor: "system", kind: "push.gone",
+      summary: r.caducadas.length > 1
+        ? `Se quitaron ${r.caducadas.length} suscripciones push que ya no existían (navegador desinstalado o permiso revocado)`
+        : "Se quitó una suscripción push que ya no existía (navegador desinstalado o permiso revocado)",
+      meta: { count: r.caducadas.length },
+    });
   }
 
   let code: ErrorCode | undefined;
@@ -270,6 +294,7 @@ export async function deliverTelegram(ctx: Ctx, db: Admin, digest: Digest, origi
     // simplemente desaparecía y Victor no sabía que había dejado de recibir.
     if (t.dead) {
       await db.from("telegram_chats").delete().eq("user_id", ctx.userId).eq("chat_id", chat.chat_id);
+      await logActivity(ctx, { actor: "system", kind: "telegram.unlinked", summary: `Telegram se desconectó: ${t.message}`, meta: { code: t.code } });
     }
     await recordRun(ctx.supabase, ctx.userId, "telegram", { ok: false, error: t.message, code: t.code });
     logEvent({ event: "telegram.send", result: "error", userId: ctx.userId, integration: "telegram", errorCode: t.code });

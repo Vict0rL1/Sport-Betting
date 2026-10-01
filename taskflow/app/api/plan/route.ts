@@ -48,7 +48,11 @@ export async function POST() {
       events,
       blocks,
     });
-    await recordAiCall(ctx, "plan", { ok: true, costUsd: plan.costUsd, ms: Date.now() - started });
+    const n = plan.blocks.length;
+    await recordAiCall(ctx, "plan", {
+      ok: true, costUsd: plan.costUsd, ms: Date.now() - started,
+      summary: `Claude propuso un plan de ${n} bloque${n > 1 ? "s" : ""} para hoy`,
+    });
     return NextResponse.json({ ok: true, day: ctx.today, ...plan });
   } catch (e) {
     const info = await recordAiCall(ctx, "plan", { ok: false, error: e, ms: Date.now() - started });

@@ -10,6 +10,7 @@ import { fmtClock, fmtStamp } from "@/lib/date";
 import { canvasConfigured, plannerConfigured, pushSendConfigured, telegramConfigured } from "@/lib/env.server";
 import { type IntegrationHealth, type Source, type StateRow, ago, nextCanvasSync, nextClockTick } from "@/lib/health";
 import { loadStatus } from "@/lib/status";
+import { recentAiCost } from "@/lib/activity";
 import { isFailing } from "@/lib/sync-state";
 
 export const metadata = { title: "Estado del sistema · TaskFlow" };
@@ -23,7 +24,7 @@ export const metadata = { title: "Estado del sistema · TaskFlow" };
  */
 export default async function EstadoPage() {
   const ctx = await getCtx();
-  const [status, pendientes] = await Promise.all([
+  const [status, pendientes, costo] = await Promise.all([
     loadStatus(ctx),
     ctx.supabase
       .from("tasks")
@@ -33,6 +34,7 @@ export default async function EstadoPage() {
       .eq("done", false)
       .is("deleted_at", null)
       .then((r) => r.count ?? 0),
+    recentAiCost(ctx),
   ]);
 
   const { health, states, now } = status;
@@ -151,6 +153,12 @@ export default async function EstadoPage() {
           <dd className="mono">{aiModel()}</dd>
           <dt>Último uso</dt>
           <dd>{when(states.ai?.last_synced_at)}</dd>
+          <dt>Costo aprox. (30 días)</dt>
+          <dd>
+            {costo.calls
+              ? `$${costo.usd < 0.01 ? costo.usd.toFixed(4) : costo.usd.toFixed(2)} en ${costo.calls} propuesta${costo.calls > 1 ? "s" : ""}`
+              : "$0 — sin propuestas"}
+          </dd>
           <LastError s={states.ai} tz={ctx.tz} now={now} />
         </Row>
       </div>

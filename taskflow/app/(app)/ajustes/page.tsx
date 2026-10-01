@@ -47,7 +47,12 @@ export default async function AjustesPage() {
       <ViewHead
         eyebrow="configuración y datos"
         title="Ajustes"
-        right={<Link className="btn line sm" href="/ajustes/estado">Estado del sistema</Link>}
+        right={
+          <>
+            <Link className="btn line sm" href="/ajustes/estado">Estado del sistema</Link>
+            <Link className="btn line sm" href="/ajustes/actividad">Actividad</Link>
+          </>
+        }
       />
 
       <div className="grid2">

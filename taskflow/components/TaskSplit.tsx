@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { applyBreakdown } from "@/app/actions";
+import { applyBreakdown, discardProposal } from "@/app/actions";
 import { fmtDate, fmtDur } from "@/lib/date";
 import type { Task } from "@/lib/types";
 
@@ -107,11 +107,19 @@ export function TaskSplit({
             <form action={guardar}>
               <input type="hidden" name="steps" value={JSON.stringify(steps)} />
               <input type="hidden" name="area" value={task.area ?? ""} />
+              <input type="hidden" name="parent" value={task.title} />
               <button className="btn sm" disabled={guardando} type="submit">
                 {guardando ? "Guardando…" : "Agregar"}
               </button>
             </form>
-            <button className="btn ghost sm" onClick={() => setSteps(null)} type="button">
+            <button
+              className="btn ghost sm"
+              onClick={() => {
+                setSteps(null);
+                void discardProposal("breakdown", task.title).catch(() => {});
+              }}
+              type="button"
+            >
               Descartar
             </button>
             <span className="plancost mono" title="Lo que costó esta llamada a la API">

@@ -9,6 +9,7 @@ import { parseInput } from "@/lib/parse";
 import { cleanSourceName, parseICS } from "@/lib/ics";
 import { runCanvasSync } from "@/lib/canvas-sync";
 import { deliverPush, deliverTelegram } from "@/lib/clock";
+import { logActivity, q } from "@/lib/activity";
 import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
 import { TelegramError, botUsername, ensureWebhook } from "@/lib/telegram";
 import { minsToTime, minutesInTz, todayInTz } from "@/lib/date";
@@ -106,10 +107,15 @@ export async function toggleTask(fd: FormData) {
  */
 export async function deleteTask(fd: FormData) {
   const ctx = await getCtx();
-  await ctx.supabase
+  const { data } = await ctx.supabase
     .from("tasks")
     .update({ deleted_at: new Date().toISOString(), focus_day: null })
-    .eq("id", str(fd, "id"));
+    .eq("id", str(fd, "id"))
+    .select("id, title")
+    .maybeSingle<{ id: string; title: string }>();
+  if (data) {
+    await logActivity(ctx, { actor: "user", kind: "task.trashed", taskId: data.id, summary: `Mandaste ${q(data.title)} a la papelera` });
+  }
   refresh();
 }
 
@@ -172,12 +178,20 @@ export async function toggleFocus(_prev: ActionResult | null, fd: FormData): Pro
 export async function clearDoneTasks() {
   const ctx = await getCtx();
   // A la papelera, igual que borrar una sola: las de Canvas no deben volver.
-  await ctx.supabase
+  const { data } = await ctx.supabase
     .from("tasks")
     .update({ deleted_at: new Date().toISOString(), focus_day: null })
     .eq("user_id", ctx.userId)
     .eq("done", true)
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .select("id");
+  const n = data?.length ?? 0;
+  if (n) {
+    await logActivity(ctx, {
+      actor: "user", kind: "task.trashed",
+      summary: `Limpiaste ${n} tarea${n > 1 ? "s" : ""} completada${n > 1 ? "s" : ""} (a la papelera)`, meta: { count: n },
+    });
+  }
   refresh();
 }
 
@@ -194,7 +208,10 @@ export async function togglePin(fd: FormData) {
 
 export async function deleteNote(fd: FormData) {
   const ctx = await getCtx();
-  await ctx.supabase.from("notes").update({ deleted_at: new Date().toISOString() }).eq("id", str(fd, "id"));
+  const { data } = await ctx.supabase
+    .from("notes").update({ deleted_at: new Date().toISOString() }).eq("id", str(fd, "id")).select("id");
+  // Sin el texto de la nota: el registro no guarda contenido privado.
+  if (data?.length) await logActivity(ctx, { actor: "user", kind: "note.trashed", summary: "Mandaste una nota a la papelera" });
   refresh();
 }
 
@@ -360,8 +377,14 @@ export async function applyPlan(_prev: ActionResult | null, fd: FormData): Promi
   const { error } = await ctx.supabase.from("blocks").insert(rows);
   if (error) return fail("No se pudieron guardar los bloques");
 
-  refresh();
   const n = rows.length;
+  await logActivity(ctx, {
+    actor: "user", kind: "ai.accepted",
+    summary: `Aceptaste el plan de Claude: ${n} bloque${n > 1 ? "s" : ""}` +
+      (skipped.length ? ` (${skipped.length} ya no cabía${skipped.length > 1 ? "n" : ""} y se omitió)` : ""),
+    meta: { what: "plan", accepted: n, skipped: skipped.length },
+  });
+  refresh();
   return ok(
     `${n} bloque${n > 1 ? "s" : ""} agendado${n > 1 ? "s" : ""}` +
       (skipped.length ? ` · ${skipped.length} ya no cabía${skipped.length > 1 ? "n" : ""}` : ""),
@@ -427,8 +450,29 @@ export async function applyBreakdown(_prev: ActionResult | null, fd: FormData): 
   const { error } = await ctx.supabase.from("tasks").insert(rows);
   if (error) return fail("No se pudieron guardar los pasos");
 
+  const padre = str(fd, "parent");
+  await logActivity(ctx, {
+    actor: "user", kind: "ai.accepted",
+    summary: `Aceptaste ${rows.length} paso${rows.length > 1 ? "s" : ""} de Claude` + (padre ? ` para ${q(padre)}` : ""),
+    meta: { what: "breakdown", accepted: rows.length },
+  });
   refresh();
   return ok(`${rows.length} paso${rows.length > 1 ? "s" : ""} agregado${rows.length > 1 ? "s" : ""}`);
+}
+
+/**
+ * "Descartar" en una propuesta de Claude. No cambia nada: sólo lo anota, para
+ * que Actividad cuente también lo que se dijo que no.
+ */
+export async function discardProposal(what: "plan" | "breakdown", title?: string): Promise<void> {
+  const ctx = await getCtx();
+  await logActivity(ctx, {
+    actor: "user", kind: "ai.discarded",
+    summary: what === "plan"
+      ? "Descartaste el plan que propuso Claude"
+      : `Descartaste los pasos que propuso Claude` + (title ? ` para ${q(String(title).slice(0, 120))}` : ""),
+    meta: { what },
+  });
 }
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
@@ -523,6 +567,7 @@ export async function savePushSubscription(
   );
   if (error) return fail("No se pudo guardar la suscripción");
 
+  await logActivity(ctx, { actor: "user", kind: "push.enabled", summary: "Activaste los avisos push en un navegador" });
   refresh();
   return ok("Listo: te avisamos por la mañana y la noche antes");
 }
@@ -553,6 +598,13 @@ export async function sendTestPush(): Promise<ActionResult> {
     body: "Si ves esto, los avisos llegan a este dispositivo.",
     url: "/ajustes/estado",
   });
+  if (r && (r.sent || r.gone || r.failed)) {
+    await logActivity(ctx, {
+      actor: "user", kind: "push.test",
+      summary: r.sent ? `Notificación de prueba: aceptada para ${r.sent} dispositivo${r.sent > 1 ? "s" : ""}` : "Notificación de prueba: no llegó a ningún dispositivo",
+      meta: { sent: r.sent, gone: r.gone, failed: r.failed },
+    });
+  }
   refresh();
   if (!r) return fail("El servidor no tiene las llaves VAPID: no puede mandar avisos");
   if (!r.sent && !r.gone && !r.failed) return fail("No hay ningún dispositivo suscrito. Actívalos en Ajustes → Avisos.");
@@ -574,6 +626,12 @@ export async function sendTestTelegram(): Promise<ActionResult> {
     { title: "Prueba de TaskFlow", body: "Si ves esto, los avisos llegan a este chat.", url: "/ajustes/estado" },
     await requestOrigin(),
   );
+  if (r?.linked || r?.code) {
+    await logActivity(ctx, {
+      actor: "user", kind: "telegram.test",
+      summary: r.ok ? "Mensaje de prueba enviado a Telegram" : `Mensaje de prueba a Telegram: ${r.message ?? "falló"}`,
+    });
+  }
   refresh();
   if (!r) return fail("El servidor no tiene TELEGRAM_BOT_TOKEN");
   if (!r.linked && !r.code) return fail("No hay ningún chat conectado");
@@ -591,6 +649,7 @@ export async function removePushSubscription(
   const { error } = endpoint ? await q.eq("endpoint", endpoint) : await q;
   if (error) return fail("No se pudo dar de baja");
 
+  await logActivity(ctx, { actor: "user", kind: "push.disabled", summary: "Desactivaste los avisos push en un navegador" });
   refresh();
   return ok("Avisos desactivados");
 }
@@ -647,6 +706,7 @@ export async function unlinkTelegram(): Promise<ActionResult> {
   const ctx = await getCtx();
   const { error } = await ctx.supabase.from("telegram_chats").delete().eq("user_id", ctx.userId);
   if (error) return fail("No se pudo desconectar");
+  await logActivity(ctx, { actor: "user", kind: "telegram.unlinked", summary: "Desconectaste Telegram desde Ajustes" });
   refresh();
   return ok("Telegram desconectado");
 }
@@ -719,12 +779,19 @@ export async function importIcs(_prev: ActionResult | null, fd: FormData): Promi
     await ctx.supabase.from("events").delete().eq("user_id", ctx.userId).in("id", sobran.slice(i, i + 100));
   }
 
+  await logActivity(ctx, {
+    actor: "user", kind: "ics.imported",
+    summary: `Importaste el calendario ${q(source)}: ${events.length} eventos` + (sobran.length ? ` (${sobran.length} viejos quitados)` : ""),
+    meta: { events: events.length, removed: sobran.length },
+  });
   refresh();
   return ok(events.length + " eventos importados de " + source);
 }
 
 export async function deleteIcsSource(fd: FormData) {
   const ctx = await getCtx();
-  await ctx.supabase.from("events").delete().eq("source", "ics").eq("course_ref", str(fd, "name"));
+  const name = str(fd, "name");
+  await ctx.supabase.from("events").delete().eq("user_id", ctx.userId).eq("source", "ics").eq("course_ref", name);
+  await logActivity(ctx, { actor: "user", kind: "ics.removed", summary: `Quitaste el calendario ${q(name)}` });
   refresh();
 }

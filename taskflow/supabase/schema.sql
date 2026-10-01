@@ -255,6 +255,34 @@ create table if not exists public.telegram_chats (
   created_at      timestamptz not null default now()
 );
 
+-- ------------------------------------------------------------- actividad
+
+-- Qué pasó y quién lo hizo: Canvas agregó o cambió una tarea, el reloj mandó
+-- el resumen, Claude propuso un plan, tú lo aceptaste. Es la respuesta a "¿por
+-- qué esta tarea dice otra fecha?" sin tener que adivinar.
+--
+-- Guarda una frase y unos pocos datos (conteos, costo, ids), nunca el
+-- contenido de una nota ni la respuesta entera de una API. El reloj borra lo
+-- que tiene más de 90 días.
+create table if not exists public.activity_log (
+  id      bigint generated always as identity primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  at      timestamptz not null default now(),
+  actor   text not null check (actor in ('user', 'canvas', 'system', 'ai')),
+  kind    text not null check (char_length(kind) <= 40),
+  summary text not null check (char_length(summary) <= 240),
+  task_id uuid references public.tasks (id) on delete set null,
+  meta    jsonb not null default '{}'::jsonb
+);
+
+create index if not exists activity_user_at_idx on public.activity_log (user_id, at desc);
+
+alter table public.activity_log enable row level security;
+
+drop policy if exists own_activity_log on public.activity_log;
+create policy own_activity_log on public.activity_log
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 -- ------------------------------------------------------------- triggers
 
 create or replace function public.touch_updated_at()

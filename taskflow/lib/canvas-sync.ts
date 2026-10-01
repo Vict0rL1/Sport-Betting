@@ -16,6 +16,7 @@ import { canvasConfigured, requireCanvasEnv } from "./env.server";
 import type { Ctx } from "./data";
 import { type ErrorCode, IntegrationError, errorCodeOf, logEvent, safeMessage } from "./log";
 import { recordRun } from "./sync-state";
+import { type ActivityEntry, logActivity, q, shortDate } from "./activity";
 
 /** Ventana que se pide a Canvas, en días alrededor de hoy. */
 const DAYS_BACK = 14;
@@ -34,6 +35,8 @@ export type SyncResult = {
   /** Ya no están en Canvas: a la papelera. */
   vanished: number;
   message: string;
+  /** Lo que pasó, tarea por tarea, para el registro de Actividad. */
+  activity: ActivityEntry[];
 };
 
 /**
@@ -73,10 +76,10 @@ export async function syncCanvas(ctx: Ctx): Promise<SyncResult> {
   // y pisaría las filas de cualquier otro usuario.
   const { data: existing, error: readError } = await ctx.supabase
     .from("tasks")
-    .select("external_id, user_edited_at, done, deleted_at, due_date")
+    .select("id, external_id, title, user_edited_at, done, deleted_at, due_date, due_time")
     .eq("user_id", ctx.userId)
     .eq("source", "canvas")
-    .returns<ExistingRow[]>();
+    .returns<(ExistingRow & { id: string })[]>();
 
   // Si no se pudo leer lo que hay, NO se sigue. Antes, una lectura fallida
   // dejaba la lista en blanco, todo parecía nuevo, y el upsert completo pisaba
@@ -96,13 +99,19 @@ export async function syncCanvas(ctx: Ctx): Promise<SyncResult> {
     window: { start, end, complete: planner.complete },
   });
 
+  // Para enlazar cada línea de Actividad con su tarea.
+  const idOf = new Map(existing.map((r) => [r.external_id, r.id]));
+
   // Filas que son del sync: se insertan o se refrescan enteras.
   const owned = [...plan.insert, ...plan.updateAll].map((t) => insertRow(t, ctx.userId));
   if (owned.length) {
-    const { error } = await ctx.supabase
+    const { data: saved, error } = await ctx.supabase
       .from("tasks")
-      .upsert(owned, { onConflict: "user_id,source,external_id" });
+      .upsert(owned, { onConflict: "user_id,source,external_id" })
+      .select("id, external_id")
+      .returns<{ id: string; external_id: string }[]>();
     if (error) throw new IntegrationError("CANVAS_DB_FAILED", "No se pudieron guardar los deadlines: " + error.message, true);
+    for (const r of saved ?? []) idOf.set(r.external_id, r.id);
   }
 
   // Filas que Victor tocó: sólo título y fecha.
@@ -162,6 +171,7 @@ export async function syncCanvas(ctx: Ctx): Promise<SyncResult> {
   const message = nada ? "Canvas no trajo deadlines pendientes" : partes.join(" · ");
 
   return {
+    activity: activityFor(plan, existing, idOf),
     ok: true,
     items: incoming.length,
     inserted: plan.insert.length,
@@ -188,9 +198,31 @@ export async function runCanvasSync(ctx: Ctx, trigger: "cron" | "manual"): Promi
   }
 
   const started = Date.now();
+  // Cómo estaba antes, para anotar un fallo sólo cuando empieza (o cambia), no
+  // cada hora mientras dure.
+  const { data: antes } = await ctx.supabase
+    .from("sync_state")
+    .select("last_error_code, last_error_at, last_success_at")
+    .eq("user_id", ctx.userId)
+    .eq("source", "canvas")
+    .maybeSingle<{ last_error_code: string | null; last_error_at: string | null; last_success_at: string | null }>();
+  const yaFallaba = Boolean(antes?.last_error_at && (!antes.last_success_at || antes.last_error_at > antes.last_success_at));
+
   try {
     const result = await syncCanvas(ctx);
     await recordRun(ctx.supabase, ctx.userId, "canvas", { ok: true, items: result.items });
+
+    const hubo = result.activity.length > 0;
+    const resumen: ActivityEntry[] = [];
+    if (trigger === "manual") {
+      resumen.push({ actor: "user", kind: "canvas.sync", summary: `Sincronizaste Canvas: ${result.message}` });
+    } else if (hubo || yaFallaba) {
+      resumen.push({
+        actor: "system", kind: "canvas.sync",
+        summary: yaFallaba ? `Canvas volvió a sincronizar: ${result.message}` : `El reloj sincronizó Canvas: ${result.message}`,
+      });
+    }
+    await logActivity(ctx, [...resumen, ...result.activity]);
     logEvent({
       event: "canvas.sync", result: "ok", userId: ctx.userId, integration: "canvas", trigger,
       items: result.items, inserted: result.inserted, updated: result.updated, protected: result.protected,
@@ -201,10 +233,84 @@ export async function runCanvasSync(ctx: Ctx, trigger: "cron" | "manual"): Promi
     const code = errorCodeOf(e);
     const message = safeMessage(e, "Falló el sync de Canvas");
     await recordRun(ctx.supabase, ctx.userId, "canvas", { ok: false, error: message, code });
+    if (trigger === "manual" || !yaFallaba || antes?.last_error_code !== (code ?? null)) {
+      await logActivity(ctx, {
+        actor: trigger === "manual" ? "user" : "system", kind: "canvas.failed",
+        summary: `Canvas no sincronizó: ${message}`, meta: { code: code ?? null },
+      });
+    }
     logEvent({
       event: "canvas.sync", result: "error", userId: ctx.userId, integration: "canvas", trigger,
       errorCode: code, message, ms: Date.now() - started,
     });
     return { ok: false, message, code };
   }
+}
+
+/* --------------------------------------------------------------- actividad */
+
+/** Más que esto en una sola corrida (el primer sync) se cuenta en una línea. */
+const MAX_LINES = 12;
+
+/**
+ * Las líneas de Actividad de una corrida: qué agregó, qué cambió (y si respetó
+ * tu edición), qué marcó entregado y qué mandó a la papelera. Sólo lo que de
+ * verdad cambió: refrescar una fila idéntica no es noticia.
+ */
+function activityFor(
+  plan: ReturnType<typeof planSync>,
+  existing: (ExistingRow & { id: string })[],
+  idOf: Map<string, string>,
+): ActivityEntry[] {
+  const out: ActivityEntry[] = [];
+  const titleOf = new Map(existing.map((r) => [r.external_id, r.title ?? ""]));
+
+  if (plan.insert.length > MAX_LINES) {
+    out.push({ actor: "canvas", kind: "canvas.added", summary: `Canvas agregó ${plan.insert.length} tareas`, meta: { count: plan.insert.length } });
+  } else {
+    for (const t of plan.insert) {
+      out.push({
+        actor: "canvas", kind: "canvas.added", taskId: idOf.get(t.externalId),
+        summary: `Canvas agregó ${q(t.title)}` + (t.dueDate ? ` · vence ${shortDate(t.dueDate)}` : ""),
+      });
+    }
+  }
+
+  for (const c of plan.changes.slice(0, MAX_LINES)) {
+    const partes: string[] = [];
+    if (c.before.title !== c.after.title) partes.push(`renombró ${q(c.before.title)} a ${q(c.after.title)}`);
+    if (c.before.due_date !== c.after.due_date) {
+      partes.push(`movió ${partes.length ? "la fecha" : q(c.after.title)} del ${shortDate(c.before.due_date)} al ${shortDate(c.after.due_date)}`);
+    } else if (c.before.due_time !== c.after.due_time) {
+      partes.push(`cambió la hora de ${partes.length ? "entrega" : q(c.after.title)}`);
+    }
+    out.push({
+      actor: "canvas", kind: c.protected ? "canvas.updated_protected" : "canvas.updated", taskId: idOf.get(c.externalId),
+      summary: `Canvas ${partes.join(" y ")}` + (c.protected ? " (respetó tus cambios: sólo tocó título y fecha)" : ""),
+    });
+  }
+  if (plan.changes.length > MAX_LINES) {
+    out.push({ actor: "canvas", kind: "canvas.updated", summary: `Canvas cambió ${plan.changes.length - MAX_LINES} tareas más` });
+  }
+
+  for (const id of plan.complete.slice(0, MAX_LINES)) {
+    out.push({
+      actor: "canvas", kind: "canvas.completed", taskId: idOf.get(id),
+      summary: `${q(titleOf.get(id) ?? "")} ya está entregada en Canvas: marcada como hecha`,
+    });
+  }
+  for (const id of plan.vanished) {
+    out.push({
+      actor: "canvas", kind: "canvas.vanished", taskId: idOf.get(id),
+      summary: `${q(titleOf.get(id) ?? "")} ya no está en Canvas: se fue a la papelera`,
+    });
+  }
+  if (plan.vanishedHeld) {
+    out.push({
+      actor: "system", kind: "canvas.vanish_held",
+      summary: `${plan.vanishedHeld} tareas parecían desaparecer de Canvas de golpe; por si era un fallo de Canvas, no se tocó ninguna`,
+      meta: { count: plan.vanishedHeld },
+    });
+  }
+  return out;
 }

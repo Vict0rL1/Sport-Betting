@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { applyPlan } from "@/app/actions";
+import { applyPlan, discardProposal } from "@/app/actions";
 import { minsToHHMM } from "@/lib/date";
 
 type PlannedBlock = {
@@ -100,7 +100,14 @@ export function DayPlanner() {
                 {guardando ? "Guardando…" : "Agendar"}
               </button>
             </form>
-            <button className="btn ghost sm" onClick={() => setPlan(null)} type="button">
+            <button
+              className="btn ghost sm"
+              onClick={() => {
+                setPlan(null);
+                void discardProposal("plan").catch(() => {});
+              }}
+              type="button"
+            >
               Descartar
             </button>
             {/* El costo se enseña siempre. Es dinero real y es de quien paga la

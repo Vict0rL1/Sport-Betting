@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { telegramConfigured, telegramWebhookSecret } from "@/lib/env.server";
 import { parseStart } from "@/lib/telegram";
+import { logActivity } from "@/lib/activity";
 
 export const dynamic = "force-dynamic";
 
@@ -65,7 +66,12 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
 
   if (/^\/stop(@\w+)?$/.test(text)) {
-    await admin.from("telegram_chats").delete().eq("chat_id", chatId);
+    const { data: soltados } = await admin.from("telegram_chats").delete().eq("chat_id", chatId).select("user_id");
+    for (const r of soltados ?? []) {
+      await logActivity({ supabase: admin as never, userId: r.user_id }, {
+        actor: "user", kind: "telegram.unlinked", summary: "Desconectaste Telegram con /stop desde el chat",
+      });
+    }
     return responder("Desconectado. Ya no te llegan avisos aquí.");
   }
 
@@ -103,6 +109,10 @@ export async function POST(request: Request) {
     .eq("link_code", codigo);
 
   if (error) return responder("No se pudo conectar. Intenta otra vez desde Ajustes.");
+
+  await logActivity({ supabase: admin as never, userId: fila.user_id }, {
+    actor: "user", kind: "telegram.linked", summary: "Conectaste un chat de Telegram",
+  });
 
   return responder(
     "Listo. Aquí te llegan los avisos de TaskFlow: el resumen de la mañana y el de la noche antes. Para desconectar, escribe /stop.",

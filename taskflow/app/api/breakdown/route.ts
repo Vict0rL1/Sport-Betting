@@ -3,6 +3,7 @@ import { getApiCtx, loadTasks } from "@/lib/data";
 import { plannerConfigured } from "@/lib/env.server";
 import { breakDown } from "@/lib/breakdown";
 import { recordAiCall } from "@/lib/ai-record";
+import { q } from "@/lib/activity";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -43,10 +44,13 @@ export async function POST(request: Request) {
   const started = Date.now();
   try {
     const r = await breakDown(task, ctx.today);
-    await recordAiCall(ctx, "breakdown", { ok: true, costUsd: r.costUsd, ms: Date.now() - started });
+    await recordAiCall(ctx, "breakdown", {
+      ok: true, costUsd: r.costUsd, ms: Date.now() - started, taskId: task.id,
+      summary: `Claude propuso ${r.steps.length} paso${r.steps.length > 1 ? "s" : ""} para ${q(task.title)}`,
+    });
     return NextResponse.json({ ok: true, ...r });
   } catch (e) {
-    const info = await recordAiCall(ctx, "breakdown", { ok: false, error: e, ms: Date.now() - started });
+    const info = await recordAiCall(ctx, "breakdown", { ok: false, error: e, ms: Date.now() - started, taskId: task.id });
     return NextResponse.json({ ok: false, code: info.code, message: info.message }, { status: 200 });
   }
 }

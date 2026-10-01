@@ -40,6 +40,7 @@ beforeAll(async () => {
     await tx.query(`insert into sync_state (user_id, source, last_error) values ($1, 'canvas', 'error de A')`, [A]);
     await tx.query(`insert into digest_log (user_id, day, kind) values ($1, '2026-09-30', 'morning')`, [A]);
     await tx.query(`insert into telegram_chats (user_id, link_code) values ($1, 'codigo-de-a')`, [A]);
+    await tx.query(`insert into activity_log (user_id, actor, kind, summary) values ($1, 'canvas', 'canvas.added', 'algo de A')`, [A]);
   });
 
   // El perfil lo crea el trigger de registro; se comprueba que existe.
@@ -49,7 +50,7 @@ beforeAll(async () => {
 
 const TABLAS = [
   "tasks", "events", "notes", "habits", "habit_log", "blocks",
-  "push_subscriptions", "sync_state", "digest_log", "telegram_chats",
+  "push_subscriptions", "sync_state", "digest_log", "telegram_chats", "activity_log",
 ] as const;
 
 describe("B no ve nada de A", () => {

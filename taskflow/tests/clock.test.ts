@@ -288,3 +288,25 @@ describe("el resumen de la mañana avisa lo que falla", () => {
     expect(JSON.parse(push.sent[0].payload).body).not.toMatch(/⚠/);
   });
 });
+
+describe("el reloj deja constancia en Actividad", () => {
+  const log = async (s: Awaited<ReturnType<typeof setup>>) =>
+    ((await s.p.admin.from("activity_log").select("actor, kind, summary").eq("user_id", s.a).order("id")).data ?? []);
+
+  it("el resumen enviado, con los canales por los que salió", async () => {
+    const s = await setup();
+    await s.run();
+    const sent = (await log(s)).find((r) => r.kind === "digest.sent")!;
+    expect(sent.actor).toBe("system");
+    expect(sent.summary).toMatch(/^Resumen de la mañana enviado: «.+» \(push a 2 dispositivos y Telegram\)$/);
+  });
+
+  it("Telegram bloqueado: queda escrito por qué se desconectó", async () => {
+    const s = await setup();
+    tgReply = { ok: false, error_code: 403, description: "Forbidden: bot was blocked by the user" };
+    await s.run();
+    const entries = await log(s);
+    expect(entries.some((r) => r.kind === "telegram.unlinked" && /Bloqueaste al bot/.test(r.summary))).toBe(true);
+    expect(entries.find((r) => r.kind === "digest.sent")!.summary).toMatch(/\(push a 2 dispositivos\)$/);
+  });
+});

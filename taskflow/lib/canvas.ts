@@ -454,6 +454,17 @@ export type ExistingRow = {
   done?: boolean;
   deleted_at?: string | null;
   due_date?: string | null;
+  title?: string;
+  due_time?: string | null;
+};
+
+/** Un cambio de verdad en título o fecha, para contarlo en Actividad. */
+export type SyncChange = {
+  externalId: string;
+  /** La fila tenía una edición manual y se respetó (sólo cambió título/fecha). */
+  protected: boolean;
+  before: { title: string; due_date: string | null; due_time: string | null };
+  after: { title: string; due_date: string | null; due_time: string | null };
 };
 
 export type SyncPlan = {
@@ -469,6 +480,8 @@ export type SyncPlan = {
   vanished: string[];
   /** Si iban a desaparecer demasiadas de golpe y se frenó, cuántas eran. */
   vanishedHeld: number;
+  /** De lo que se actualizó, lo que de verdad cambió de título o fecha. */
+  changes: SyncChange[];
 };
 
 export type PlanOptions = {
@@ -503,7 +516,9 @@ export function planSync(incoming: CanvasTask[], existing: ExistingRow[], opts: 
   for (const row of existing) known.set(row.external_id, row);
   const coursesOk = opts.coursesOk ?? true;
 
-  const plan: SyncPlan = { insert: [], updateAll: [], updateSafe: [], complete: [], vanished: [], vanishedHeld: 0 };
+  const plan: SyncPlan = {
+    insert: [], updateAll: [], updateSafe: [], complete: [], vanished: [], vanishedHeld: 0, changes: [],
+  };
   const seen = new Set<string>();
 
   for (const task of incoming) {
@@ -512,8 +527,21 @@ export function planSync(incoming: CanvasTask[], existing: ExistingRow[], opts: 
     if (!row) plan.insert.push(task);
     // La borraste tú: se queda borrada. Ni se recrea ni se actualiza.
     else if (row.deleted_at) continue;
-    else if (row.user_edited_at || !coursesOk) plan.updateSafe.push(task);
-    else plan.updateAll.push(task);
+    else {
+      if (row.user_edited_at || !coursesOk) plan.updateSafe.push(task);
+      else plan.updateAll.push(task);
+      if (
+        row.title !== undefined &&
+        (row.title !== task.title || (row.due_date ?? null) !== task.dueDate || (row.due_time ?? null) !== task.dueTime)
+      ) {
+        plan.changes.push({
+          externalId: task.externalId,
+          protected: Boolean(row.user_edited_at),
+          before: { title: row.title, due_date: row.due_date ?? null, due_time: row.due_time ?? null },
+          after: { title: task.title, due_date: task.dueDate, due_time: task.dueTime },
+        });
+      }
+    }
   }
 
   // Antes, lo entregado simplemente dejaba de llegar y la fila se quedaba
