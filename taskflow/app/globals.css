@@ -141,7 +141,7 @@ main{min-width:0;padding:22px 26px 90px;max-width:1180px}
 .pill.soon{background:var(--warn-soft);color:var(--warn);padding:1.5px 6px}
 .pill.est{color:var(--ink-3)}
 .prio{flex:0 0 auto;width:3px;align-self:stretch;border-radius:2px;background:transparent;margin-right:-4px}
-.prio.p1{background:var(--danger)}
+.prio.p1{background:var(--warn)}
 .prio.p2{background:var(--warn)}
 .xbtn{opacity:0;flex:0 0 auto;color:var(--ink-3);font-size:15px;padding:0 4px;line-height:1}
 .task:hover .xbtn,.note:hover .xbtn{opacity:1}
@@ -158,8 +158,8 @@ main{min-width:0;padding:22px 26px 90px;max-width:1180px}
 .tlrow{position:relative;height:44px;border-top:1px solid var(--line)}
 .tlrow:last-child{border-bottom:1px solid var(--line)}
 .tlrow span{position:absolute;left:-52px;top:-8px;width:44px;text-align:right;font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
-.tlnow{position:absolute;left:0;right:0;height:0;border-top:1.5px solid var(--danger);z-index:4;pointer-events:none}
-.tlnow::before{content:"";position:absolute;left:-4px;top:-4px;width:7px;height:7px;border-radius:50%;background:var(--danger)}
+.tlnow{position:absolute;left:0;right:0;height:0;border-top:1.5px solid var(--accent);z-index:4;pointer-events:none}
+.tlnow::before{content:"";position:absolute;left:-4px;top:-4px;width:7px;height:7px;border-radius:50%;background:var(--accent)}
 .blk{position:absolute;left:54px;right:6px;border-radius:6px;padding:4px 10px;font-size:12.5px;overflow:hidden;z-index:2;border-left:2.5px solid transparent}
 .blk b{font-weight:600;display:block;font-size:12.5px;line-height:1.25}
 .blk i{font-style:normal;font-family:var(--mono);font-size:10px;opacity:.8;display:block}
@@ -227,8 +227,9 @@ main{min-width:0;padding:22px 26px 90px;max-width:1180px}
 .shapetrack{display:flex;align-items:flex-end;justify-content:center;height:40px;width:100%}
 .shapebar{width:100%;max-width:22px;background:var(--accent);border-radius:3px}
 .shapeweek{font-family:var(--mono);font-size:10px;line-height:15px;height:15px;color:var(--ink-3);white-space:nowrap}
-.shapecell.hot .shapebar{background:var(--danger)}
-.shapecell.hot .shapecount{color:var(--danger);font-weight:600}
+/* Prioridad alta no es un error: ámbar. El rojo queda para lo atrasado. */
+.shapecell.hot .shapebar{background:var(--warn)}
+.shapecell.hot .shapecount{color:var(--warn);font-weight:600}
 .shapecell.blank .shapebar{background:var(--line-2)}
 /* La semana que se está mirando se marca con una línea bajo la fecha, no con
    un bloque de color: el bloque pesaba más que los datos. */
