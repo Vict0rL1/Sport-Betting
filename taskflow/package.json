@@ -10,7 +10,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "demo": "node tools/demo/start.mjs",
-    "ics": "node tools/make-ics.mjs"
+    "ics": "node tools/make-ics.mjs",
+    "check:secrets": "node tools/check-client-secrets.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.126.0",
