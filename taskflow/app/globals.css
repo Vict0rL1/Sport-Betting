@@ -526,3 +526,23 @@ input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
 .importsum th,.importsum td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}
 .importsum thead th{font-size:11px;color:var(--ink-3);font-weight:500}
 .importsum td{font-family:var(--mono);font-size:12px}
+
+/* ---- Hoy ----
+   El HTML va en el orden de lo que importa ahora, y así se lee en el
+   celular. En pantalla ancha la agenda (.hoyside) ocupa la columna derecha
+   entera: la última fila es 1fr, así que lo que la agenda mida de más cae
+   ahí y no abre huecos entre los paneles de la izquierda. Sin row-gap por
+   lo mismo: un panel que no está deja una fila vacía de alto cero. */
+.hoygrid{display:flex;flex-direction:column;gap:16px}
+.hoygrid .panel + .panel{margin-top:0}
+@media (min-width:900px){
+  .hoygrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:repeat(6,auto) 1fr;column-gap:16px;row-gap:0;align-items:start}
+  .hoygrid > *{grid-column:1;margin-bottom:16px;min-width:0}
+  .hoygrid > .hoyside{grid-column:2;grid-row:1 / -1}
+}
+.ahora{border:1px solid var(--accent-line);background:var(--accent-soft);border-radius:var(--r);padding:10px 14px}
+.ahora ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:3px}
+.ahora li{font-size:14px;color:var(--ink)}
+.ahora li:first-child{font-weight:600}
+.enmarcha{margin:0 0 8px;font-weight:600}
+.wlline.padded{padding:8px 8px 0}
