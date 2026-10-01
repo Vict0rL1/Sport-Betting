@@ -145,6 +145,10 @@ main{min-width:0;padding:22px 26px 90px;max-width:1180px}
 .prio.p2{background:var(--warn)}
 .xbtn{opacity:0;flex:0 0 auto;color:var(--ink-3);font-size:15px;padding:0 4px;line-height:1}
 .task:hover .xbtn,.note:hover .xbtn{opacity:1}
+/* Con teclado, el botón enfocado (y sus vecinos) se ve; en pantallas táctiles,
+   donde no existe el hover, siempre. Antes eran invisibles en el celular. */
+.task:focus-within .xbtn,.note:focus-within .xbtn{opacity:1}
+@media (hover:none){.xbtn{opacity:.7}}
 .xbtn:hover{color:var(--danger)}
 .task:hover .star{opacity:.55}
 .xbtn.star.on{opacity:1;color:var(--accent)}
