@@ -204,6 +204,14 @@ create table if not exists public.habit_log (
 
 create index if not exists habit_log_user_day_idx on public.habit_log (user_id, day desc);
 
+-- La racha es opcional: hay rutinas (entrenar tres veces por semana) en las
+-- que contar días seguidos sólo hace sentir mal.
+alter table public.habits add column if not exists show_streak boolean not null default true;
+-- Pausar una rutina es `archived = true`; al reanudarla, `active_from` es el
+-- día en que vuelve, y el cumplimiento se mide desde ahí: las semanas en
+-- pausa no cuentan como fallidas. Null = desde que se creó.
+alter table public.habits add column if not exists active_from date;
+
 -- ------------------------------------------------------- bloques del día
 
 create table if not exists public.blocks (

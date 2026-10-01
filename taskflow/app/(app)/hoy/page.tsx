@@ -8,7 +8,7 @@ import { ActionButton } from "@/components/ActionButton";
 import { toggleTask } from "@/app/actions";
 import { getCtx, loadBlocks, loadEvents, loadHabitLog, loadHabits, loadTasks } from "@/lib/data";
 import { DAYS, MONTHS, addDays, dayOfMonth, minutesInTz, monthOf, weekdayOf, yearOf } from "@/lib/date";
-import { HABIT_WINDOW, didHabit, habitsOn } from "@/lib/habits";
+import { HABIT_WINDOW, didHabit, habitSince, habitsOn } from "@/lib/habits";
 import { FocusButton } from "@/components/FocusButton";
 import { CourseList } from "@/components/Workload";
 import { TimerControls } from "@/components/Timer";
@@ -186,7 +186,7 @@ export default async function HoyPage() {
           {todayHabits.length ? (
             <div className="pb tight">
               {todayHabits.map((h) => (
-                <HabitRow key={h.id} habit={h} log={log} today={d} />
+                <HabitRow key={h.id} habit={h} log={log} today={d} since={habitSince(h, ctx.tz, log)} />
               ))}
             </div>
           ) : (

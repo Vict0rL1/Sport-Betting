@@ -71,6 +71,8 @@ const HabitIn = z.object({
   days: z.array(z.number().int().min(0).max(6)).max(7).catch([0, 1, 2, 3, 4, 5, 6]).default([0, 1, 2, 3, 4, 5, 6]),
   archived: z.boolean().catch(false).default(false),
   sort_order: z.number().int().catch(0).default(0),
+  show_streak: z.boolean().catch(true).default(true),
+  active_from: opt(ymd),
   // Sin fecha, mejor no mandar nada: un null explícito pisa el default de la base.
   created_at: iso.optional(),
 });

@@ -83,9 +83,14 @@ export type Habit = {
   name: string;
   /** Días en que aplica, 0 = domingo. */
   days: number[];
+  /** En pausa: no aparece en Hoy ni cuenta para el cumplimiento. */
   archived: boolean;
   sort_order: number;
   created_at: string;
+  /** Si se muestra la racha de días seguidos. */
+  show_streak: boolean;
+  /** Desde cuándo cuenta el cumplimiento, si se reanudó después de una pausa. */
+  active_from: string | null;
 };
 
 export type HabitLog = { habit_id: string; user_id: string; day: string };

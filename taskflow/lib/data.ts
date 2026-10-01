@@ -207,12 +207,13 @@ export async function loadNotes(ctx: Ctx): Promise<Note[]> {
   return data ?? [];
 }
 
-export async function loadHabits(ctx: Ctx): Promise<Habit[]> {
+/** Las rutinas activas; con `paused`, las que están en pausa. */
+export async function loadHabits(ctx: Ctx, opts: { paused?: boolean } = {}): Promise<Habit[]> {
   const { data } = await ctx.supabase
     .from("habits")
     .select("*")
     .eq("user_id", ctx.userId)
-    .eq("archived", false)
+    .eq("archived", !!opts.paused)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true })
     .returns<Habit[]>();

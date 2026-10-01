@@ -12,7 +12,8 @@ import { deliverPush, deliverTelegram } from "@/lib/clock";
 import { logActivity, q, shortDate } from "@/lib/activity";
 import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
 import { TelegramError, botUsername, ensureWebhook } from "@/lib/telegram";
-import { fmtDur, minsToHHMM, minsToTime, minutesInTz, timeToMins, todayInTz } from "@/lib/date";
+import { addDays, fmtDur, minsToHHMM, minsToTime, minutesInTz, timeToMins, todayInTz } from "@/lib/date";
+import { HABIT_WINDOW } from "@/lib/habits";
 import { TASK_KINDS } from "@/lib/types";
 import { elapsedSec } from "@/lib/timing";
 import { purgeNotes, purgeTasks } from "@/lib/trash";
@@ -469,6 +470,9 @@ export async function toggleHabit(fd: FormData) {
   const habitId = str(fd, "id");
   const ctx = await getCtx();
   const day = str(fd, "day") || ctx.today;
+  // El día viene del formulario. Sólo se marcan días que ya pasaron y que la
+  // vista muestra; una fecha rota o futura no entra.
+  if (!YMD.test(day) || day > ctx.today || day < addDays(ctx.today, -HABIT_WINDOW)) return;
 
   const { data } = await ctx.supabase
     .from("habit_log").select("habit_id").eq("habit_id", habitId).eq("day", day).maybeSingle();
@@ -479,17 +483,20 @@ export async function toggleHabit(fd: FormData) {
   refresh();
 }
 
+const habitDays = (fd: FormData) => {
+  const days = [...new Set(fd.getAll("days").map((d) => Number(d)).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
+  return days.length ? days : [0, 1, 2, 3, 4, 5, 6];
+};
+
 export async function addHabit(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const name = str(fd, "name");
   if (!name) return fail("Ponle nombre a la rutina");
 
   const ctx = await getCtx();
-  const days = fd.getAll("days").map((d) => Number(d)).filter((d) => d >= 0 && d <= 6);
-
   const { error } = await ctx.supabase.from("habits").insert({
     user_id: ctx.userId,
     name: name.slice(0, 80),
-    days: days.length ? days : [0, 1, 2, 3, 4, 5, 6],
+    days: habitDays(fd),
   });
   if (error) return fail("No se pudo crear la rutina");
 
@@ -497,9 +504,53 @@ export async function addHabit(_prev: ActionResult | null, fd: FormData): Promis
   return ok("Rutina agregada");
 }
 
+/** Cambiar los días en que toca, el nombre o si se muestra la racha. */
+export async function updateHabit(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const name = str(fd, "name");
+  if (!name) return fail("Ponle nombre a la rutina");
+  const ctx = await getCtx();
+  const { data, error } = await ctx.supabase
+    .from("habits")
+    .update({ name: name.slice(0, 80), days: habitDays(fd), show_streak: fd.get("show_streak") === "on" })
+    .eq("id", str(fd, "id"))
+    .eq("user_id", ctx.userId)
+    .select("id");
+  if (error || !data?.length) return fail("No se pudo guardar la rutina");
+  refresh();
+  return ok("Rutina guardada");
+}
+
+/**
+ * Pausar en vez de borrar: la rutina sale de Hoy y del cumplimiento, pero su
+ * historial queda. Al reanudarla, el cumplimiento cuenta desde ese día.
+ */
+export async function pauseHabit(fd: FormData) {
+  const ctx = await getCtx();
+  await ctx.supabase.from("habits").update({ archived: true }).eq("id", str(fd, "id")).eq("user_id", ctx.userId);
+  refresh();
+}
+
+export async function resumeHabit(fd: FormData) {
+  const ctx = await getCtx();
+  await ctx.supabase
+    .from("habits")
+    .update({ archived: false, active_from: ctx.today })
+    .eq("id", str(fd, "id"))
+    .eq("user_id", ctx.userId);
+  refresh();
+}
+
+/** Borrar del todo, con su historial. Sólo se ofrece para una rutina en pausa. */
 export async function deleteHabit(fd: FormData) {
   const ctx = await getCtx();
-  await ctx.supabase.from("habits").delete().eq("id", str(fd, "id"));
+  const { data } = await ctx.supabase
+    .from("habits")
+    .delete()
+    .eq("id", str(fd, "id"))
+    .eq("user_id", ctx.userId)
+    .select("name")
+    .maybeSingle<{ name: string }>();
+  if (data) await logActivity(ctx, { actor: "user", kind: "habit.deleted", summary: `Borraste la rutina ${q(data.name)} y su historial` });
   refresh();
 }
 
