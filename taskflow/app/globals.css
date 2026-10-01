@@ -204,6 +204,10 @@ main{min-width:0;padding:22px 26px 90px;max-width:1180px}
 .wi.t{border-left-color:var(--accent)}
 .wi.t.done{opacity:.45;text-decoration:line-through}
 .wmore{font-family:var(--mono);font-size:10px;color:var(--ink-3);padding-left:5px}
+/* Carga del día: tres rayas finas, sin rojo. Lleno no es un error. */
+.wload{display:flex;gap:2px;margin:-2px 0 3px}
+.wload i{flex:1;height:3px;border-radius:2px;background:var(--line-2)}
+.wload.l1 i:nth-child(-n+1),.wload.l2 i:nth-child(-n+2),.wload.l3 i{background:var(--accent);opacity:.7}
 
 /* La tira de las próximas semanas, debajo de la cuadrícula. Sin cajas ni
    sombras: sólo barras y fechas, para que compita lo menos posible con la

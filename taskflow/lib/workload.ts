@@ -1,4 +1,5 @@
 import { addDays, startOfWeek } from "./date";
+import { mergeBusy } from "./schedule";
 import type { Task, TaskKind } from "./types";
 
 /**
@@ -88,4 +89,38 @@ export function upcomingWorkload(tasks: Task[], today: string, days = 14): Workl
     });
 
   return { days, majors, counts, others, line, weight, heavyWeeks };
+}
+
+/**
+ * Cuánto del día ya está comprometido: clases, eventos y bloques agendados,
+ * sin contar dos veces lo que se pisa y sólo dentro de tu horario. Lo que
+ * vence ese día no suma: el trabajo de una entrega se hace antes, y su
+ * duración no se sabe.
+ *
+ * Tres niveles y horas redondeadas a la media hora: es para ver de un
+ * vistazo qué día está lleno, no para medir.
+ */
+export type DayLoad = { level: 0 | 1 | 2 | 3; minutes: number; word: string; label: string };
+
+const NIVEL = ["libre", "ligero", "medio", "lleno"] as const;
+
+export function dayLoad(input: {
+  day: string;
+  dayStart: number;
+  dayEnd: number;
+  events: { day: string; start: number | null; end: number | null }[];
+  blocks: { day: string; start_min: number; end_min: number }[];
+}): DayLoad {
+  const from = input.dayStart * 60, to = input.dayEnd * 60;
+  const busy = mergeBusy([
+    ...input.events.filter((e) => e.day === input.day && e.start != null).map((e) => ({ start: e.start!, end: e.end ?? e.start! + 60 })),
+    ...input.blocks.filter((b) => b.day === input.day).map((b) => ({ start: b.start_min, end: b.end_min })),
+  ]);
+  const minutes = busy.reduce((s, b) => s + Math.max(0, Math.min(b.end, to) - Math.max(b.start, from)), 0);
+  const ratio = to > from ? minutes / (to - from) : 0;
+  const level = minutes < 60 ? 0 : ratio < 0.25 ? 1 : ratio < 0.45 ? 2 : 3;
+  const horas = Math.round(minutes / 30) / 2;
+  const word = NIVEL[level];
+  const label = minutes < 30 ? `Carga del día: ${word}` : `Carga del día: ${word}, unas ${String(horas).replace(".", ",")} h ocupadas`;
+  return { level, minutes, word, label };
 }

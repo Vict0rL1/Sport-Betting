@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { upcomingWorkload } from "@/lib/workload";
+import { dayLoad, upcomingWorkload } from "@/lib/workload";
 import type { Task } from "@/lib/types";
 
 const HOY = "2026-10-01"; // jueves
@@ -69,5 +69,42 @@ describe("upcomingWorkload", () => {
       HOY,
     );
     expect(w.heavyWeeks).toEqual([{ monday: "2026-10-05", count: 2, kinds: "1 midterm + 1 presentación" }]);
+  });
+});
+
+describe("dayLoad", () => {
+  const D = "2026-10-05";
+  const ev = (start: number | null, end: number | null, day = D) => ({ day, start, end });
+  const bl = (start_min: number, end_min: number, day = D) => ({ day, start_min, end_min });
+  const load = (events: ReturnType<typeof ev>[], blocks: ReturnType<typeof bl>[] = []) =>
+    dayLoad({ day: D, dayStart: 7, dayEnd: 23, events, blocks });
+
+  it("un día sin nada, o con menos de una hora, es libre", () => {
+    expect(load([])).toMatchObject({ level: 0, minutes: 0, label: "Carga del día: libre" });
+    expect(load([ev(600, 650)]).level).toBe(0);
+  });
+
+  it("lo que se pisa no cuenta dos veces", () => {
+    // Clase 10:00–12:00 y un bloque 11:00–13:00: tres horas, no cuatro.
+    expect(load([ev(600, 720)], [bl(660, 780)]).minutes).toBe(180);
+  });
+
+  it("sólo cuenta lo que cae dentro de tu horario, y nada de otros días", () => {
+    expect(load([ev(360, 480), ev(1350, 1440), ev(600, 700, "2026-10-06")]).minutes).toBe(60 + 30);
+  });
+
+  it("los eventos de todo el día no ocupan horas", () => {
+    expect(load([ev(null, null)]).minutes).toBe(0);
+  });
+
+  it("tres niveles por proporción del día, con las horas redondeadas a la media hora", () => {
+    // Ventana 7–23: 16 h.
+    expect(load([ev(600, 700)])).toMatchObject({ level: 1, label: "Carga del día: ligero, unas 1,5 h ocupadas" });
+    expect(load([ev(480, 780)])).toMatchObject({ level: 2, word: "medio" });
+    expect(load([ev(480, 960)])).toMatchObject({ level: 3, label: "Carga del día: lleno, unas 8 h ocupadas" });
+  });
+
+  it("una clase sin hora de fin cuenta una hora, igual que en la agenda", () => {
+    expect(load([ev(600, null)]).minutes).toBe(60);
   });
 });

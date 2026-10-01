@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ViewHead } from "@/components/TaskRow";
 import { TermShape } from "@/components/TermShape";
 import { getCtx, loadBlocks, loadEvents, loadTasks } from "@/lib/data";
+import { dayLoad } from "@/lib/workload";
 import { DAYS_SHORT, MONTHS_SHORT, addDays, dayOfMonth, minsToHHMM, monthOf, startOfWeek, weekdayOf, yearOf } from "@/lib/date";
 
 export const metadata = { title: "Semana · TaskFlow" };
@@ -84,6 +85,7 @@ export default async function SemanaPage({ searchParams }: Props) {
           const ts = tasks.filter((t) => t.due_date === day);
           const hidden = Math.max(0, evs.length - MAX_EVENTS) + Math.max(0, bs.length - MAX_BLOCKS);
           const empty = !evs.length && !bs.length && !ts.length;
+          const carga = dayLoad({ day, dayStart: ctx.profile.day_start, dayEnd: ctx.profile.day_end, events: evs, blocks: bs });
 
           return (
             <div className={"wcol" + (day === d ? " today" : "")} key={day}>
@@ -91,6 +93,13 @@ export default async function SemanaPage({ searchParams }: Props) {
                 <b>{DAYS_SHORT[weekdayOf(day)]}</b>
                 <em>{dayOfMonth(day)}</em>
               </header>
+              {/* Tres rayas: libre, ligero, medio, lleno. La palabra y las
+                  horas van en el texto accesible y en el tooltip. */}
+              <div className={"wload l" + carga.level} role="img" aria-label={carga.label} title={carga.label}>
+                <i />
+                <i />
+                <i />
+              </div>
 
               {evs.slice(0, MAX_EVENTS).map((e) => (
                 <div className="wi" key={e.id}>
