@@ -44,8 +44,10 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(titulo, {
       body: datos.body || "",
-      icon: "/icon.svg",
-      badge: "/icon.svg",
+      // PNG: Chrome en Android no pinta un SVG en la notificación. Sin
+      // `badge`: ahí sólo cuenta la transparencia, y un ícono cuadrado opaco
+      // sale como un cuadro blanco; el del navegador se ve mejor.
+      icon: "/icons/icon-192.png",
       // Un `tag` fijo hace que el aviso de hoy reemplace al de ayer en vez de
       // apilarse. Una app que acumula notificaciones se silencia y se muere.
       tag: "taskflow-diario",
