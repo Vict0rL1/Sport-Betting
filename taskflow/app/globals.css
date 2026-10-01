@@ -417,3 +417,5 @@ input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
 .brand a:hover{color:var(--ink)}
 .syncdot.warn{background:var(--warn)}
 .syncdot.error{background:var(--danger)}
+/* Un botón deshabilitado tiene que verse deshabilitado: antes era idéntico. */
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
