@@ -16,12 +16,108 @@ const PLACEHOLDER: Record<Mode, string> = {
 
 const PRIO = ["", "alta", "media", "baja"];
 
+/* ------------------------------------------------- cola sin conexión */
+
+/** La misma clave que usa `public/offline.html`. */
+const QUEUE = "taskflow.offlineQueue";
+type Queued = { cid: string; text: string; mode: Mode; at: string };
+
+function readQueue(): Queued[] {
+  try {
+    const q = JSON.parse(localStorage.getItem(QUEUE) || "[]");
+    return Array.isArray(q) ? q : [];
+  } catch {
+    return [];
+  }
+}
+function writeQueue(q: Queued[]): boolean {
+  try {
+    if (q.length) localStorage.setItem(QUEUE, JSON.stringify(q));
+    else localStorage.removeItem(QUEUE);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Para que dos pestañas (o el doble efecto de desarrollo) no suban lo mismo a la vez. */
+let subiendo = false;
+
+/**
+ * Sube lo que se anotó sin conexión, de a uno y en orden. Cada uno lleva su
+ * id (`cid`), así que si una subida llegó pero la respuesta no, repetirla no
+ * duplica: el servidor contesta "ya estaba". Si se corta la red a la mitad,
+ * lo que falta se queda para la próxima.
+ */
+async function flushQueue(): Promise<number> {
+  if (subiendo || !navigator.onLine) return 0;
+  subiendo = true;
+  let subidas = 0;
+  try {
+    for (const it of readQueue()) {
+      const fd = new FormData();
+      fd.set("text", it.text);
+      fd.set("mode", it.mode);
+      fd.set("cid", it.cid);
+      let r;
+      try {
+        r = await capture(null, fd);
+      } catch {
+        break; // sin red otra vez: se reintenta después
+      }
+      // Bien, o repetida: se quita de la cola. Con un error de validación
+      // ("falta el texto") también: reintentarla para siempre no la arregla.
+      writeQueue(readQueue().filter((x) => x.cid !== it.cid));
+      if (r.ok) subidas++;
+    }
+  } finally {
+    subiendo = false;
+  }
+  return subidas;
+}
+
+const nuevoId = () =>
+  typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : "xxxxxxxx-xxxx-4xxx-8xxx-xxxxxxxxxxxx".replace(/x/g, () => ((Math.random() * 16) | 0).toString(16));
+
 /** La barra de captura rápida. El parser corre aquí en vivo y otra vez en el servidor. */
 export function Capture({ areas, today }: { areas: string[]; today: string }) {
   const [mode, setMode] = useState<Mode>("tarea");
   const [text, setText] = useState("");
   const [state, formAction, pending] = useActionState(capture, null);
+  const [local, setLocal] = useState<{ ok: boolean; message: string } | null>(null);
   const input = useRef<HTMLInputElement>(null);
+
+  // Al abrir y al volver la red, se sube lo anotado sin conexión (aquí o en
+  // la página offline).
+  useEffect(() => {
+    async function subir() {
+      const n = await flushQueue();
+      if (n) setLocal({ ok: true, message: `Se subieron ${n} captura${n > 1 ? "s" : ""} guardada${n > 1 ? "s" : ""} sin conexión` });
+    }
+    void subir();
+    window.addEventListener("online", subir);
+    return () => window.removeEventListener("online", subir);
+  }, []);
+
+  // Sin red, la captura no se pierde: queda en el dispositivo. Con red, va con
+  // su propio id, para que un reintento no la duplique.
+  function enviar(fd: FormData) {
+    const cid = nuevoId();
+    if (!navigator.onLine) {
+      const t = String(fd.get("text") ?? "").trim();
+      if (!t) return;
+      const ok = writeQueue([...readQueue(), { cid, text: t.slice(0, 500), mode, at: new Date().toISOString() }]);
+      setLocal(ok
+        ? { ok: true, message: "Sin conexión: quedó guardada en este dispositivo y se sube al volver la red" }
+        : { ok: false, message: "Sin conexión, y este navegador no deja guardar nada" });
+      if (ok) setText("");
+      return;
+    }
+    fd.set("cid", cid);
+    formAction(fd);
+  }
 
   // Vacía el campo sólo si el guardado salió bien: si falló, el texto se queda
   // para corregirlo en vez de perderse. Ajuste en render, no en un efecto.
@@ -31,7 +127,8 @@ export function Capture({ areas, today }: { areas: string[]; today: string }) {
     if (state?.ok) setText("");
   }
 
-  // "Nueva tarea" / "Nueva nota" desde la paleta (⌘K).
+  // "Nueva tarea" / "Nueva nota" desde la paleta (⌘K) o desde los atajos del
+  // ícono instalado (`?capturar=nota`).
   useEffect(() => {
     function onCapture(e: Event) {
       const m = (e as CustomEvent<{ mode?: Mode }>).detail?.mode;
@@ -40,6 +137,8 @@ export function Capture({ areas, today }: { areas: string[]; today: string }) {
       setTimeout(() => input.current?.focus(), 0);
     }
     window.addEventListener("taskflow:capture", onCapture);
+    const pedido = new URLSearchParams(window.location.search).get("capturar");
+    if (pedido) window.dispatchEvent(new CustomEvent("taskflow:capture", { detail: { mode: pedido } }));
     return () => window.removeEventListener("taskflow:capture", onCapture);
   }, []);
 
@@ -59,7 +158,7 @@ export function Capture({ areas, today }: { areas: string[]; today: string }) {
 
   return (
     <>
-      <form className="capture" action={formAction} data-pending={pending}>
+      <form className="capture" action={enviar} data-pending={pending}>
         <input type="hidden" name="mode" value={mode} />
 
         <div className="seg" role="group" aria-label="Tipo de captura">
@@ -109,6 +208,7 @@ export function Capture({ areas, today }: { areas: string[]; today: string }) {
         </div>
       </form>
       <Toast result={state} />
+      <Toast result={local} />
     </>
   );
 }

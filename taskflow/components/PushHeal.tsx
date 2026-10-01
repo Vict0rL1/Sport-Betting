@@ -12,6 +12,12 @@ import { syncPushSubscription } from "@/app/actions";
  * diciendo "activos" y ningún aviso llegando.
  */
 export function PushHeal() {
+  // El service worker se registra en cada carga, no sólo al activar los
+  // avisos: es también el que muestra la página sin conexión.
+  useEffect(() => {
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }, []);
+
   useEffect(() => {
     try {
       if (sessionStorage.getItem("taskflow.pushHeal")) return;

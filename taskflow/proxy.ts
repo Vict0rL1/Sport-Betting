@@ -22,8 +22,10 @@ export const config = {
      * navegador los pide sin cookies. Detrás del login, el manifest recibiría
      * el HTML del redirect y "Agregar a pantalla de inicio" no leería ni el
      * nombre ni el ícono; y `sw.js` ni siquiera llegaría a registrarse, con lo
-     * que los avisos push no funcionarían nunca.
+     * que los avisos push no funcionarían nunca. `offline.html` igual: el
+     * service worker la guarda al instalarse, sin cookies; detrás del login
+     * guardaría la redirección y sin red mostraría un login que no carga.
      */
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|offline.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

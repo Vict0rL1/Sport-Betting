@@ -38,16 +38,30 @@ const EDITED = () => ({ user_edited_at: new Date().toISOString() });
 
 /* ---------------------------------------------------------- captura rápida */
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Un id repetido: la captura ya se había guardado (un reintento). */
+const yaEstaba = (e: { code?: string } | null) => e?.code === "23505";
+
+/**
+ * La barra de captura.
+ *
+ * `cid` es un id que genera el navegador. Con él, guardar dos veces lo mismo
+ * —un reintento tras perder la conexión, o la cola de lo anotado sin red—
+ * choca contra la clave primaria en vez de duplicar.
+ */
 export async function capture(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
   const raw = str(fd, "text");
   const mode = str(fd, "mode") || "tarea";
   if (!raw) return fail("");
+  const id = UUID.test(str(fd, "cid")) ? str(fd, "cid") : undefined;
 
   const ctx = await getCtx();
   const p = parseInput(raw, { areas: ctx.profile.areas, today: ctx.today });
 
   if (mode === "nota") {
-    const { error } = await ctx.supabase.from("notes").insert({ user_id: ctx.userId, body: raw });
+    const { error } = await ctx.supabase.from("notes").insert({ id, user_id: ctx.userId, body: raw });
+    if (yaEstaba(error)) return ok("Esa nota ya estaba guardada");
     if (error) return fail("No se pudo guardar la nota");
     refresh();
     return ok("Nota guardada");
@@ -58,6 +72,7 @@ export async function capture(_prev: ActionResult | null, fd: FormData): Promise
     if (!p.title) return fail("Falta el texto del bloque");
     const day = p.due ?? ctx.today;
     const { error } = await ctx.supabase.from("blocks").insert({
+      id,
       user_id: ctx.userId,
       day,
       start_min: p.start,
@@ -65,6 +80,7 @@ export async function capture(_prev: ActionResult | null, fd: FormData): Promise
       title: p.title.slice(0, 120),
       kind: "tarea",
     });
+    if (yaEstaba(error)) return ok("Ese bloque ya estaba guardado");
     if (error) return fail("No se pudo crear el bloque");
     refresh();
     return ok("Bloque agendado");
@@ -72,6 +88,7 @@ export async function capture(_prev: ActionResult | null, fd: FormData): Promise
 
   if (!p.title) return fail("Falta el texto de la tarea");
   const { error } = await ctx.supabase.from("tasks").insert({
+    id,
     user_id: ctx.userId,
     title: p.title.slice(0, 200),
     area: p.area || null,
@@ -82,6 +99,7 @@ export async function capture(_prev: ActionResult | null, fd: FormData): Promise
     source: "manual",
     ...EDITED(),
   });
+  if (yaEstaba(error)) return ok("Esa tarea ya estaba guardada");
   if (error) return fail("No se pudo crear la tarea");
   refresh();
   return ok("Tarea agregada");

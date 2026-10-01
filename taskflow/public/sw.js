@@ -1,11 +1,36 @@
 /*
- * Service worker de TaskFlow: recibe los avisos y los muestra, y mantiene la
- * suscripción al día cuando el navegador la rota. No cachea nada — la app no
- * es offline-first, y un caché mal hecho es peor que no tenerlo.
+ * Service worker de TaskFlow: recibe los avisos y los muestra, mantiene la
+ * suscripción al día cuando el navegador la rota, y sin conexión muestra una
+ * página útil en vez del dinosaurio.
+ *
+ * Lo único que cachea es esa página. Ni las vistas ni los datos: son de tu
+ * cuenta, cambian a cada rato, y una agenda vieja mostrada como si fuera la de
+ * hoy es peor que decir "sin conexión".
  */
 
-self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+const CACHE = "taskflow-offline-v1";
+const OFFLINE = "/offline.html";
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE).then((c) => c.add(new Request(OFFLINE, { cache: "reload" }))).then(() => self.skipWaiting()),
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches
+      .keys()
+      .then((keys) => Promise.all(keys.filter((k) => k.startsWith("taskflow-") && k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim()),
+  );
+});
+
+// Sólo las navegaciones (abrir una vista), y sólo si la red falla.
+self.addEventListener("fetch", (event) => {
+  if (event.request.mode !== "navigate") return;
+  event.respondWith(fetch(event.request).catch(() => caches.match(OFFLINE)));
+});
 
 self.addEventListener("push", (event) => {
   let datos = {};
