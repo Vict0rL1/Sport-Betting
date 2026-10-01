@@ -95,6 +95,18 @@ alter table public.tasks add column if not exists track_started_at timestamptz;
 alter table public.tasks drop constraint if exists tasks_tracked_ck;
 alter table public.tasks add constraint tasks_tracked_ck check (tracked_sec >= 0 and track_sessions >= 0);
 
+-- Búsqueda. Una columna que Postgres mantiene sola con el texto de la tarea,
+-- en minúsculas y sin acentos ("lección" se encuentra escribiendo "leccion"),
+-- y un índice GIN encima. Configuración 'simple' porque las tareas mezclan
+-- español e inglés: un diccionario de un idioma recortaría mal las palabras
+-- del otro.
+alter table public.tasks add column if not exists search tsvector generated always as (
+  to_tsvector('simple', translate(lower(
+    coalesce(title, '') || ' ' || coalesce(course, '') || ' ' || coalesce(body, '')
+  ), 'áàäâéèëêíìïîóòöôúùüûñç', 'aaaaeeeeiiiioooouuuunc'))
+) stored;
+create index if not exists tasks_search_idx on public.tasks using gin (search);
+
 -- Papelera. Borrar una tarea la marca, no la elimina: así se puede recuperar,
 -- y sobre todo, el sync de Canvas ve que la fila existe y NO la vuelve a
 -- crear. Con el borrado de verdad, una tarea de Canvas borrada reaparecía
@@ -156,6 +168,11 @@ create table if not exists public.notes (
 create index if not exists notes_recent_idx on public.notes (user_id, pinned desc, created_at desc);
 
 alter table public.notes add column if not exists deleted_at timestamptz;
+
+alter table public.notes add column if not exists search tsvector generated always as (
+  to_tsvector('simple', translate(lower(coalesce(body, '')), 'áàäâéèëêíìïîóòöôúùüûñç', 'aaaaeeeeiiiioooouuuunc'))
+) stored;
+create index if not exists notes_search_idx on public.notes using gin (search);
 create index if not exists notes_trash_idx on public.notes (user_id, deleted_at) where deleted_at is not null;
 
 -- --------------------------------------------------------------- rutinas

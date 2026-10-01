@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getCtx } from "@/lib/data";
+import { NOTE_COLS, TASK_COLS, getCtx } from "@/lib/data";
 
 /** Las tablas que son tuyas. `profiles` va aparte porque su clave es `id`. */
 const TABLAS = ["tasks", "events", "notes", "habits", "habit_log", "blocks", "sync_state"] as const;
@@ -30,7 +30,9 @@ export async function GET() {
   };
 
   for (const tabla of TABLAS) {
-    const { data, error } = await ctx.supabase.from(tabla).select("*");
+    // Las columnas de búsqueda no van: son un índice que Postgres rehace solo.
+    const cols = tabla === "tasks" ? TASK_COLS : tabla === "notes" ? NOTE_COLS : "*";
+    const { data, error } = await ctx.supabase.from(tabla).select(cols).eq("user_id", ctx.userId);
     if (error) {
       return NextResponse.json(
         { ok: false, message: `No se pudo leer ${tabla}: ${error.message}` },

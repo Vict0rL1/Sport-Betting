@@ -89,10 +89,21 @@ export async function getApiCtx(): Promise<Ctx | null> {
 
 /* ------------------------------------------------------------------ tareas */
 
+/**
+ * Las columnas de `Task`, explícitas. Con `select("*")` también viajaba la
+ * columna `search` (el índice de búsqueda) a cada vista y de ahí al navegador.
+ */
+export const TASK_COLS =
+  "id, user_id, title, area, due_date, due_time, est_minutes, priority, done, done_at, body, source, " +
+  "external_id, external_url, focus_day, user_edited_at, deleted_at, kind, course, weight_pct, difficulty, " +
+  "tracked_sec, track_sessions, track_started_at, created_at, updated_at";
+
+export const NOTE_COLS = "id, user_id, body, pinned, deleted_at, created_at";
+
 export async function loadTasks(ctx: Ctx): Promise<Task[]> {
   const { data } = await ctx.supabase
     .from("tasks")
-    .select("*")
+    .select(TASK_COLS)
     .eq("user_id", ctx.userId)
     .is("deleted_at", null)
     .order("due_date", { ascending: true, nullsFirst: false })
@@ -187,7 +198,7 @@ export async function loadIcsSources(ctx: Ctx): Promise<{ name: string; count: n
 export async function loadNotes(ctx: Ctx): Promise<Note[]> {
   const { data } = await ctx.supabase
     .from("notes")
-    .select("*")
+    .select(NOTE_COLS)
     .eq("user_id", ctx.userId)
     .is("deleted_at", null)
     .order("pinned", { ascending: false })
