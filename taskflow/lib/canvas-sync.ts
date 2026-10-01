@@ -46,11 +46,13 @@ export async function syncCanvas(ctx: Ctx): Promise<SyncResult> {
     `${baseUrl}/planner/items?start_date=${start}&end_date=${end}&per_page=100`;
   const coursesUrl = `${baseUrl}/users/self/favorites/courses?per_page=100`;
 
-  const [rawItems, rawCourses] = await Promise.all([
+  const [planner, courses] = await Promise.all([
     canvasGetAll(plannerUrl, token),
     // Los cursos son para clasificar; si fallan, el sync sigue sin ellos.
-    canvasGetAll(coursesUrl, token).catch(() => [] as unknown[]),
+    canvasGetAll(coursesUrl, token).catch(() => null),
   ]);
+  const rawItems = planner.items;
+  const rawCourses = courses?.items ?? [];
 
   const incoming = mapPlannerItems(
     rawItems as CanvasPlannerItem[],

@@ -12,6 +12,7 @@
  */
 
 import { minsToTime, norm, zonedDayMinute } from "./date";
+import { type ErrorCode, IntegrationError } from "./log";
 import type { ItemSource } from "./types";
 
 /** Los únicos tipos que son un deadline de verdad. */
@@ -79,42 +80,160 @@ const MAX_PAGES = 20;
 
 type Fetched = { items: unknown[]; linkHeader: string | null };
 
-export async function canvasGet(url: string, token: string): Promise<Fetched> {
-  const res = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json+canvas-string-ids" },
-    cache: "no-store",
-  });
-
-  if (res.status === 401 || res.status === 403) {
-    throw new Error("Canvas rechazó el token (401/403). Genera uno nuevo y actualiza CANVAS_TOKEN.");
+/**
+ * Un fallo de Canvas con código estable (`CANVAS_TOKEN_EXPIRED`, …) para que
+ * Ajustes y los logs digan QUÉ pasó, no sólo que algo falló.
+ */
+export class CanvasError extends IntegrationError {
+  constructor(
+    code: ErrorCode,
+    message: string,
+    retryable: boolean,
+    /** Cuánto pidió Canvas que esperáramos, si lo dijo. */
+    readonly waitMs?: number,
+  ) {
+    super(code, message, retryable);
+    this.name = "CanvasError";
   }
-  if (!res.ok) {
-    throw new Error(`Canvas respondió ${res.status} en ${new URL(url).pathname}`);
-  }
-
-  const body = await res.json();
-  return {
-    items: Array.isArray(body) ? body : [],
-    linkHeader: res.headers.get("link"),
-  };
 }
 
-/** Recorre todas las páginas siguiendo el `rel="next"` del header Link. */
-export async function canvasGetAll(firstUrl: string, token: string): Promise<unknown[]> {
+export type CanvasGetOptions = {
+  /** Cuánto esperar a Canvas antes de rendirse. */
+  timeoutMs?: number;
+  /** Reintentos ante fallos pasajeros (límite de peticiones, 5xx, red). */
+  retries?: number;
+  /** Espera antes de reintentar, si Canvas no dice cuánto. */
+  backoffMs?: number;
+};
+
+/**
+ * Sin timeout, un Canvas colgado retenía al reloj hasta que Vercel mataba la
+ * función, y con ella el aviso de esa hora: la reserva en `digest_log` quedaba
+ * puesta y el aviso no salía nunca, sin un solo error en ningún lado.
+ */
+const DEFAULTS: Required<CanvasGetOptions> = { timeoutMs: 15_000, retries: 1, backoffMs: 1_500 };
+
+/** Nunca esperar más que esto por un Retry-After: la función tiene un límite de tiempo. */
+const MAX_WAIT_MS = 5_000;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+function retryAfterMs(res: Response): number | undefined {
+  const s = Number(res.headers.get("retry-after"));
+  return Number.isFinite(s) && s > 0 ? Math.min(MAX_WAIT_MS, s * 1000) : undefined;
+}
+
+async function canvasGetOnce(url: string, token: string, timeoutMs: number): Promise<Fetched> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json+canvas-string-ids" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (e) {
+    // El error original no se propaga: su texto podría traer la URL o la
+    // cabecera, y no aporta nada que el código no diga ya.
+    const name = e instanceof Error ? e.name : "";
+    if (name === "TimeoutError" || name === "AbortError") {
+      throw new CanvasError("CANVAS_TIMEOUT", `Canvas no respondió en ${Math.round(timeoutMs / 1000)} s.`, true);
+    }
+    throw new CanvasError("CANVAS_NETWORK", "No se pudo conectar con Canvas.", true);
+  }
+
+  if (res.status === 401) {
+    throw new CanvasError(
+      "CANVAS_TOKEN_EXPIRED",
+      "Canvas rechazó el token (401): venció o lo revocaron. Genera uno nuevo en Canvas → Account → Settings y actualiza CANVAS_TOKEN.",
+      false,
+    );
+  }
+
+  // Canvas no usa 429 para el límite de peticiones: responde 403 con
+  // "Rate Limit Exceeded". Tratarlo como token malo mandaba a Victor a
+  // regenerar un token que funcionaba perfectamente.
+  if (res.status === 403 || res.status === 429) {
+    const text = await res.text().catch(() => "");
+    const remaining = res.headers.get("x-rate-limit-remaining");
+    const throttled =
+      res.status === 429 || /rate limit exceeded/i.test(text) || (remaining != null && Number(remaining) <= 0);
+    if (throttled) {
+      throw new CanvasError(
+        "CANVAS_RATE_LIMITED",
+        "Canvas pidió bajar el ritmo (límite de peticiones). Se vuelve a intentar solo en la próxima hora.",
+        true,
+        retryAfterMs(res),
+      );
+    }
+    throw new CanvasError(
+      "CANVAS_FORBIDDEN",
+      "Canvas negó el acceso (403): el token no tiene permiso para leer tus tareas.",
+      false,
+    );
+  }
+
+  if (res.status >= 500) {
+    throw new CanvasError("CANVAS_UNAVAILABLE", `Canvas está con problemas (${res.status}).`, true, retryAfterMs(res));
+  }
+  if (!res.ok) {
+    throw new CanvasError("CANVAS_BAD_RESPONSE", `Canvas respondió ${res.status} en ${new URL(url).pathname}.`, false);
+  }
+
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    // Una página de mantenimiento en HTML con un 200, por ejemplo.
+    throw new CanvasError("CANVAS_BAD_RESPONSE", "Canvas respondió algo que no es JSON.", true);
+  }
+  // Antes, cualquier cosa que no fuera una lista se tomaba como "no hay nada".
+  // Una respuesta rara no es una respuesta vacía.
+  if (!Array.isArray(body)) {
+    throw new CanvasError("CANVAS_BAD_RESPONSE", "Canvas respondió con un formato inesperado.", false);
+  }
+
+  return { items: body, linkHeader: res.headers.get("link") };
+}
+
+export async function canvasGet(url: string, token: string, opts: CanvasGetOptions = {}): Promise<Fetched> {
+  const o = { ...DEFAULTS, ...opts };
+  for (let intento = 0; ; intento++) {
+    try {
+      return await canvasGetOnce(url, token, o.timeoutMs);
+    } catch (e) {
+      const err = e as CanvasError;
+      if (!err.retryable || intento >= o.retries) throw err;
+      await sleep(err.waitMs ?? o.backoffMs);
+    }
+  }
+}
+
+/**
+ * Recorre todas las páginas siguiendo el `rel="next"` del header Link.
+ *
+ * `complete` dice si se llegó de verdad a la última página. Si el tope de
+ * páginas cortó antes, la lista está incompleta y nadie debería concluir de
+ * ella que algo "ya no está en Canvas".
+ */
+export async function canvasGetAll(
+  firstUrl: string,
+  token: string,
+  opts: CanvasGetOptions = {},
+): Promise<{ items: unknown[]; complete: boolean }> {
   const out: unknown[] = [];
   let url: string | null = firstUrl;
   const visited = new Set<string>();
 
   for (let page = 0; url && page < MAX_PAGES; page++) {
-    if (visited.has(url)) break;
+    if (visited.has(url)) return { items: out, complete: false };
     visited.add(url);
 
-    const { items, linkHeader }: Fetched = await canvasGet(url, token);
+    const { items, linkHeader }: Fetched = await canvasGet(url, token, opts);
     out.push(...items);
     url = nextPageUrl(linkHeader);
   }
 
-  return out;
+  return { items: out, complete: url == null };
 }
 
 /* ------------------------------------------------------------------- mapeo */
