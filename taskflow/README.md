@@ -320,7 +320,7 @@ de verdad tienes libres hoy.
 **Esto cuesta dinero.** Es lo único de TaskFlow que no es gratis: la API de
 Anthropic se cobra por uso. Cada plan ronda el centavo de dólar, y la app te
 enseña el costo exacto de cada llamada debajo de la propuesta, para que no te
-enteres en la factura. Si quieres gastar menos, `PLANNER_MODEL=claude-sonnet-5`
+enteres en la factura. Si quieres gastar menos, `PLANNER_MODEL=claude-sonnet-5-5`
 o `claude-haiku-4-5`.
 
 **Propone, no dispone.** La propuesta se ve en pantalla con sus horas; se

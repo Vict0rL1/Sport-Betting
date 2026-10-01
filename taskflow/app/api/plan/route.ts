@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
-import { getCtx, loadBlocks, loadEvents, loadTasks } from "@/lib/data";
+import { getApiCtx, loadBlocks, loadEvents, loadTasks } from "@/lib/data";
 import { plannerConfigured } from "@/lib/env.server";
 import { minutesInTz } from "@/lib/date";
 import { planDay } from "@/lib/planner";
+import { recordAiCall } from "@/lib/ai-record";
 
 export const dynamic = "force-dynamic";
+/** Una llamada a Claude de hasta 50 s, más el resto. */
+export const maxDuration = 60;
 
 /**
  * `POST /api/plan` — arma una propuesta de plan para hoy.
@@ -20,19 +22,23 @@ export const dynamic = "force-dynamic";
 export async function POST() {
   if (!plannerConfigured()) {
     return NextResponse.json(
-      { ok: false, message: "El planificador no está configurado (falta ANTHROPIC_API_KEY)." },
+      { ok: false, code: "ANTHROPIC_NOT_CONFIGURED", message: "El planificador no está configurado (falta ANTHROPIC_API_KEY)." },
       { status: 503 },
     );
   }
 
-  // `getCtx` redirige al login si no hay sesión; el proxy ya deja pasar /api/*.
-  const ctx = await getCtx();
+  const ctx = await getApiCtx();
+  if (!ctx) {
+    return NextResponse.json({ ok: false, message: "Tu sesión venció. Recarga la página." }, { status: 401 });
+  }
+
   const [tasks, events, blocks] = await Promise.all([
     loadTasks(ctx),
     loadEvents(ctx, ctx.today, ctx.today),
     loadBlocks(ctx, ctx.today, ctx.today),
   ]);
 
+  const started = Date.now();
   try {
     const plan = await planDay({
       profile: ctx.profile,
@@ -42,30 +48,10 @@ export async function POST() {
       events,
       blocks,
     });
+    await recordAiCall(ctx, "plan", { ok: true, costUsd: plan.costUsd, ms: Date.now() - started });
     return NextResponse.json({ ok: true, ...plan });
   } catch (e) {
-    return NextResponse.json({ ok: false, message: readableError(e) }, { status: 200 });
+    const info = await recordAiCall(ctx, "plan", { ok: false, error: e, ms: Date.now() - started });
+    return NextResponse.json({ ok: false, code: info.code, message: info.message }, { status: 200 });
   }
-}
-
-/**
- * Los errores de la API traen jerga y a veces el nombre del modelo. Al usuario
- * le sirve saber qué hacer, no qué clase de excepción fue.
- */
-function readableError(e: unknown): string {
-  if (e instanceof Anthropic.AuthenticationError) {
-    return "La ANTHROPIC_API_KEY no es válida. Revísala en console.anthropic.com.";
-  }
-  if (e instanceof Anthropic.RateLimitError) {
-    return "Demasiadas peticiones seguidas. Espera un momento y vuelve a intentar.";
-  }
-  if (e instanceof Anthropic.APIConnectionError) {
-    return "No se pudo hablar con la API. Revisa tu conexión.";
-  }
-  if (e instanceof Anthropic.APIError) {
-    return e.status === 400
-      ? "La API rechazó la petición. Si acabas de cambiar PLANNER_MODEL, revisa el nombre."
-      : `La API respondió con un error (${e.status}).`;
-  }
-  return e instanceof Error ? e.message : "No se pudo armar el plan.";
 }

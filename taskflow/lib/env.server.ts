@@ -65,7 +65,7 @@ export const pushSendConfigured = () =>
 export const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 /** Se puede cambiar por uno más barato sin tocar código. */
-export const PLANNER_MODEL = process.env.PLANNER_MODEL || "claude-opus-5";
+export const PLANNER_MODEL = process.env.PLANNER_MODEL || "claude-opus-5-5";
 
 export const plannerConfigured = () => Boolean(ANTHROPIC_API_KEY);
 

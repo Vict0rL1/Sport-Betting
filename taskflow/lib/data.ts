@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
 import { DEFAULT_TIMEZONE, addDays, todayInTz, weekdayOf, zonedDayMinute } from "./date";
@@ -10,6 +11,8 @@ const DEFAULT_AREAS = ["SFU", "FINSA", "Badminton", "Proyectos", "Personal"];
 export type Ctx = {
   supabase: Awaited<ReturnType<typeof createClient>>;
   userId: string;
+  /** Sólo con sesión; el reloj no lo tiene. */
+  email?: string;
   profile: Profile;
   /** Zona del perfil, no la del servidor. */
   tz: string;
@@ -17,14 +20,11 @@ export type Ctx = {
   today: string;
 };
 
-/**
- * Sesión + perfil. Todas las páginas empiezan por aquí.
- * Si no hay sesión, al login (el middleware ya lo hace; esto cubre el resto).
- */
-export async function getCtx(): Promise<Ctx> {
+/** Sesión + perfil, o `null` si no hay sesión. */
+async function loadCtx(): Promise<Ctx | null> {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) redirect("/login");
+  if (!auth.user) return null;
 
   const { data } = await supabase
     .from("profiles")
@@ -52,7 +52,31 @@ export async function getCtx(): Promise<Ctx> {
   }
 
   const tz = profile.timezone || DEFAULT_TIMEZONE;
-  return { supabase, userId: auth.user.id, profile, tz, today: todayInTz(tz) };
+  return { supabase, userId: auth.user.id, email: auth.user.email ?? "", profile, tz, today: todayInTz(tz) };
+}
+
+/**
+ * Sesión + perfil. Todas las páginas empiezan por aquí.
+ * Si no hay sesión, al login (el middleware ya lo hace; esto cubre el resto).
+ *
+ * `cache` hace que el layout y la página compartan una sola consulta por
+ * request: antes cada uno pedía la sesión y el perfil por su lado, y el layout
+ * además volvía a pedir el usuario para sacar el correo.
+ */
+export const getCtx = cache(async (): Promise<Ctx> => {
+  const ctx = await loadCtx();
+  if (!ctx) redirect("/login");
+  return ctx;
+});
+
+/**
+ * Lo mismo para los route handlers que hablan JSON: sin sesión devuelve
+ * `null` y la ruta responde 401. Con `getCtx`, la ruta redirigía al login y el
+ * navegador recibía el HTML de esa página donde esperaba JSON — y decía "no se
+ * pudo hablar con el servidor" cuando lo que pasaba era que la sesión venció.
+ */
+export async function getApiCtx(): Promise<Ctx | null> {
+  return loadCtx();
 }
 
 /*

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
-import { getCtx, loadTasks } from "@/lib/data";
+import { getApiCtx, loadTasks } from "@/lib/data";
 import { plannerConfigured } from "@/lib/env.server";
 import { breakDown } from "@/lib/breakdown";
+import { recordAiCall } from "@/lib/ai-record";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * `POST /api/breakdown` — propone los pasos de una tarea grande.
@@ -15,12 +16,15 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   if (!plannerConfigured()) {
     return NextResponse.json(
-      { ok: false, message: "Falta ANTHROPIC_API_KEY." },
+      { ok: false, code: "ANTHROPIC_NOT_CONFIGURED", message: "Falta ANTHROPIC_API_KEY." },
       { status: 503 },
     );
   }
 
-  const ctx = await getCtx();
+  const ctx = await getApiCtx();
+  if (!ctx) {
+    return NextResponse.json({ ok: false, message: "Tu sesión venció. Recarga la página." }, { status: 401 });
+  }
 
   let taskId = "";
   try {
@@ -36,18 +40,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, message: "Esa tarea ya no existe" }, { status: 404 });
   }
 
+  const started = Date.now();
   try {
     const r = await breakDown(task, ctx.today);
+    await recordAiCall(ctx, "breakdown", { ok: true, costUsd: r.costUsd, ms: Date.now() - started });
     return NextResponse.json({ ok: true, ...r });
   } catch (e) {
-    return NextResponse.json({ ok: false, message: readableError(e) }, { status: 200 });
+    const info = await recordAiCall(ctx, "breakdown", { ok: false, error: e, ms: Date.now() - started });
+    return NextResponse.json({ ok: false, code: info.code, message: info.message }, { status: 200 });
   }
-}
-
-function readableError(e: unknown): string {
-  if (e instanceof Anthropic.AuthenticationError) return "La ANTHROPIC_API_KEY no es válida.";
-  if (e instanceof Anthropic.RateLimitError) return "Demasiadas peticiones. Espera un momento.";
-  if (e instanceof Anthropic.APIConnectionError) return "No se pudo hablar con la API.";
-  if (e instanceof Anthropic.APIError) return `La API respondió con un error (${e.status}).`;
-  return e instanceof Error ? e.message : "No se pudieron armar los pasos.";
 }

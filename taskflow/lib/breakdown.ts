@@ -1,10 +1,9 @@
 import "server-only";
 
-import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ANTHROPIC_API_KEY, PLANNER_MODEL } from "./env.server";
-import { PRICE_PER_MTOK } from "./planner";
+import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { AI_FALLBACK, AI_MAX_TOKENS, type AiClient, aiClient, aiModel, checkStop, costOf } from "./ai";
+import { IntegrationError } from "./log";
 import type { Task } from "./types";
 
 /**
@@ -56,7 +55,7 @@ const SYSTEM = [
   "- En español, en minúscula salvo nombres propios.",
 ].join("\n");
 
-export async function breakDown(task: Task, today: string): Promise<Breakdown> {
+export async function breakDown(task: Task, today: string, client: AiClient = aiClient()): Promise<Breakdown> {
   if (!task.due_date) {
     throw new Error("Esta tarea no tiene fecha, así que no hay entre qué repartir los pasos.");
   }
@@ -65,8 +64,7 @@ export async function breakDown(task: Task, today: string): Promise<Breakdown> {
     throw new Error("La fecha es hoy o ya pasó. No queda margen que repartir.");
   }
 
-  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-  const model = PLANNER_MODEL;
+  const model = aiModel();
 
   const prompt = [
     `Tarea: ${task.title}`,
@@ -80,22 +78,20 @@ export async function breakDown(task: Task, today: string): Promise<Breakdown> {
     .filter(Boolean)
     .join("\n");
 
-  const response = await client.messages.parse({
+  const response = await client.beta.messages.parse({
     model,
-    max_tokens: 4000,
+    max_tokens: AI_MAX_TOKENS,
     system: SYSTEM,
     messages: [{ role: "user", content: prompt }],
-    output_config: { format: zodOutputFormat(BreakdownSchema) },
+    output_config: { format: betaZodOutputFormat(BreakdownSchema), effort: "medium" },
+    ...AI_FALLBACK,
   });
 
-  if (response.stop_reason === "refusal") throw new Error("El modelo no quiso responder a esto.");
+  checkStop(response.stop_reason);
   const parsed = response.parsed_output;
-  if (!parsed) throw new Error("La respuesta no vino en el formato esperado.");
+  if (!parsed) throw new IntegrationError("ANTHROPIC_INVALID_RESPONSE", "La respuesta no vino en el formato esperado.");
 
-  const precio = PRICE_PER_MTOK[model] ?? PRICE_PER_MTOK["claude-opus-5"];
-  const costUsd =
-    (response.usage.input_tokens / 1e6) * precio.in +
-    (response.usage.output_tokens / 1e6) * precio.out;
+  const costUsd = costOf(response.model, response.usage);
 
   // El esquema garantiza la forma, no que las fechas caigan donde deben. Un
   // paso fuera de la ventana se recorta al borde en vez de descartarse: la

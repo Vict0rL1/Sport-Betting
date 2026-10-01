@@ -1,10 +1,10 @@
 import "server-only";
 
-import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
-import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { ANTHROPIC_API_KEY, PLANNER_MODEL } from "./env.server";
+import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
+import { AI_FALLBACK, AI_MAX_TOKENS, type AiClient, aiClient, aiModel, checkStop, costOf } from "./ai";
 import { minsToHHMM } from "./date";
+import { IntegrationError } from "./log";
 import type { Block, DayEvent, Profile, Task } from "./types";
 
 /**
@@ -143,15 +143,8 @@ function buildPrompt(input: {
 
 /* -------------------------------------------------------------------- call */
 
-/**
- * Precios de la API por millón de tokens, para poder decirle al usuario lo que
- * costó en vez de que se entere en la factura. Lo comparte `lib/breakdown.ts`.
- */
-export const PRICE_PER_MTOK: Record<string, { in: number; out: number }> = {
-  "claude-opus-5": { in: 5, out: 25 },
-  "claude-sonnet-5": { in: 2, out: 10 },
-  "claude-haiku-4-5": { in: 1, out: 5 },
-};
+/** Se re-exporta para no romper a quien ya lo importaba de aquí. */
+export { PRICE_PER_MTOK } from "./ai";
 
 export type PlanInput = {
   profile: Profile;
@@ -162,7 +155,7 @@ export type PlanInput = {
   blocks: Block[];
 };
 
-export async function planDay(input: PlanInput): Promise<Plan> {
+export async function planDay(input: PlanInput, client: AiClient = aiClient()): Promise<Plan> {
   const { profile, today, now, tasks, events, blocks } = input;
 
   // La ventana del día: lo que queda, redondeado al cuarto de hora siguiente
@@ -204,28 +197,21 @@ export async function planDay(input: PlanInput): Promise<Plan> {
     .sort((a, b) => a.start! - b.start!)
     .map((e) => `${minsToHHMM(e.start!)}–${minsToHHMM(e.end ?? e.start! + 60)} ${e.title}`);
 
-  const client = new Anthropic({ apiKey: ANTHROPIC_API_KEY });
-  const model = PLANNER_MODEL;
-
-  const response = await client.messages.parse({
+  const model = aiModel();
+  const response = await client.beta.messages.parse({
     model,
-    max_tokens: 4000,
+    max_tokens: AI_MAX_TOKENS,
     system: SYSTEM,
     messages: [{ role: "user", content: buildPrompt({ today, now, gaps, fixed, tasks: candidatas }) }],
-    output_config: { format: zodOutputFormat(PlanSchema) },
+    output_config: { format: betaZodOutputFormat(PlanSchema), effort: "medium" },
+    ...AI_FALLBACK,
   });
 
-  if (response.stop_reason === "refusal") {
-    throw new Error("El modelo no quiso responder a esto.");
-  }
-
+  checkStop(response.stop_reason);
   const parsed = response.parsed_output;
-  if (!parsed) throw new Error("La respuesta no vino en el formato esperado.");
+  if (!parsed) throw new IntegrationError("ANTHROPIC_INVALID_RESPONSE", "La respuesta no vino en el formato esperado.");
 
-  const precio = PRICE_PER_MTOK[model] ?? PRICE_PER_MTOK["claude-opus-5"];
-  const costUsd =
-    (response.usage.input_tokens / 1e6) * precio.in +
-    (response.usage.output_tokens / 1e6) * precio.out;
+  const costUsd = costOf(response.model, response.usage);
 
   const idsValidos = new Set(candidatas.map((t) => t.id));
 

@@ -12,11 +12,10 @@ export const dynamic = "force-dynamic";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getCtx();
   const counts = await loadCounts(ctx);
-  const { data: auth } = await ctx.supabase.auth.getUser();
 
   return (
     <div className="shell">
-      <Rail counts={counts} email={auth.user?.email ?? ""} />
+      <Rail counts={counts} email={ctx.email ?? ""} />
       <main>
         <Capture areas={ctx.profile.areas} today={ctx.today} />
         {children}
