@@ -86,6 +86,15 @@ update public.tasks
   set course = substring(body from '^([A-Z]{2,5} ?[0-9]{3}[A-Z]?)')
   where source = 'canvas' and course is null and body ~ '^[A-Z]{2,5} ?[0-9]{3}';
 
+-- Tiempo real. "Empezar" pone `track_started_at`; "Pausar" suma lo
+-- transcurrido a `tracked_sec` y cuenta una sesión. Así se compara lo que
+-- estimaste (`est_minutes`) con lo que tardaste de verdad.
+alter table public.tasks add column if not exists tracked_sec int not null default 0;
+alter table public.tasks add column if not exists track_sessions int not null default 0;
+alter table public.tasks add column if not exists track_started_at timestamptz;
+alter table public.tasks drop constraint if exists tasks_tracked_ck;
+alter table public.tasks add constraint tasks_tracked_ck check (tracked_sec >= 0 and track_sessions >= 0);
+
 -- Papelera. Borrar una tarea la marca, no la elimina: así se puede recuperar,
 -- y sobre todo, el sync de Canvas ve que la fila existe y NO la vuelve a
 -- crear. Con el borrado de verdad, una tarea de Canvas borrada reaparecía

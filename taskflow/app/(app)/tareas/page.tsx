@@ -3,7 +3,8 @@ import { clearDoneTasks } from "@/app/actions";
 import { EmptyBox, TaskGroup, TaskRow, ViewHead } from "@/components/TaskRow";
 import { getCtx, loadTasks } from "@/lib/data";
 import { daysBetween } from "@/lib/date";
-import { upcomingWorkload } from "@/lib/workload";
+import { kindLabel, upcomingWorkload } from "@/lib/workload";
+import { estimateStats, statsLine } from "@/lib/timing";
 import { CourseList } from "@/components/Workload";
 import type { Task } from "@/lib/types";
 
@@ -63,6 +64,8 @@ export default async function TareasPage({ searchParams }: Props) {
   );
 
   const carga = upcomingWorkload(list, d);
+  // Sobre todas las terminadas, no sólo las 12 que se muestran.
+  const tiempo = estimateStats(all);
 
   const hasAny = late.length + hoy.length + week.length + later.length + none.length > 0;
 
@@ -95,6 +98,24 @@ export default async function TareasPage({ searchParams }: Props) {
           )}
         </div>
       </div>
+
+      {tiempo ? (
+        <div className="panel">
+          <div className="ph">
+            <h2>Tu tiempo</h2>
+            <span className="sub">{tiempo.samples} tareas medidas</span>
+          </div>
+          <div className="pb">
+            <p className="wlline">{statsLine(tiempo)}</p>
+            {tiempo.byKind.map((k) => (
+              <p className="tiempokind" key={k.kind}>
+                {kindLabel(k.kind, 2)[0].toUpperCase() + kindLabel(k.kind, 2).slice(1)}: estimas {k.est} min, tardas {k.real} min
+              </p>
+            ))}
+            <p className="propwhy">Con las tareas terminadas que tenían estimado y cronómetro. Medianas: una tarea rara no tuerce el número.</p>
+          </div>
+        </div>
+      ) : null}
 
       {done.length ? (
         <div className="panel">

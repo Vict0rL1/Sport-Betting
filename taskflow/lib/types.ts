@@ -44,6 +44,11 @@ export type Task = {
   weight_pct: number | null;
   /** 1 baja · 2 media · 3 alta. */
   difficulty: number | null;
+  /** Segundos medidos con el cronómetro (sin contar la sesión en marcha). */
+  tracked_sec: number;
+  track_sessions: number;
+  /** Si el cronómetro está corriendo, desde cuándo. */
+  track_started_at: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -32,6 +32,7 @@ const task = (over: Partial<Task> = {}): Task => ({
   est_minutes: 60, priority: 2, done: false, done_at: null, body: null, source: "manual",
   external_id: null, external_url: null, focus_day: null, user_edited_at: null, deleted_at: null,
   kind: null, course: null, weight_pct: null, difficulty: null,
+  tracked_sec: 0, track_sessions: 0, track_started_at: null,
   created_at: "", updated_at: "", ...over,
 });
 

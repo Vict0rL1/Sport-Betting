@@ -473,3 +473,15 @@ input[type=checkbox],input[type=radio]{accent-color:var(--accent)}
 .propwhy{margin:0 0 6px;font-size:12.5px;color:var(--ink-2)}
 .propfoot{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:6px}
 .planrow.prep .plantitle small{display:block;font-size:11.5px;color:var(--ink-3);font-weight:400}
+
+/* ---- cronómetro ---- */
+.timer{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.timerclock{font-size:15px;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px;margin-right:4px}
+.timerclock small{font-size:11.5px;color:var(--ink-3)}
+.timerclock.on{color:var(--accent)}
+.timerclock i,.timerchip i{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:pulso 1.6s ease-in-out infinite}
+.timerchip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--accent);flex:0 0 auto}
+.task.running{background:var(--accent-soft)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@keyframes pulso{50%{opacity:.35}}
+.tiempokind{margin:0 0 4px;font-size:13px;color:var(--ink-2)}

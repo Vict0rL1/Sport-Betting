@@ -5,6 +5,7 @@ import { applyBreakdown, discardProposal, updateTaskDetails } from "@/app/action
 import { fmtDate, fmtDur } from "@/lib/date";
 import { TASK_KINDS, type Task, type TaskKind } from "@/lib/types";
 import { Prep, Replan } from "./TaskPlanning";
+import { TimerChip, TimerControls } from "./Timer";
 
 type Step = { title: string; date: string; minutes: number };
 
@@ -53,8 +54,9 @@ export function TaskShell({
 
   return (
     <>
-      <div className={"task" + (task.done ? " done" : "") + (open ? " open" : "")}>
+      <div className={"task" + (task.done ? " done" : "") + (open ? " open" : "") + (task.track_started_at ? " running" : "")}>
         {children}
+        {task.track_started_at ? <TimerChip task={task} /> : null}
         <button
           className="xbtn more"
           type="button"
@@ -69,6 +71,7 @@ export function TaskShell({
       </div>
       {open ? (
         <div className="taskpanel" id={panelId}>
+          {!task.done ? <TimerControls task={task} /> : null}
           <Details task={task} />
           {!task.done ? (
             <div className="taskacts row">

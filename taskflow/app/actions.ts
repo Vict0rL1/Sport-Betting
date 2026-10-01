@@ -14,6 +14,7 @@ import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
 import { TelegramError, botUsername, ensureWebhook } from "@/lib/telegram";
 import { fmtDur, minsToHHMM, minsToTime, minutesInTz, timeToMins, todayInTz } from "@/lib/date";
 import { TASK_KINDS } from "@/lib/types";
+import { elapsedSec } from "@/lib/timing";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -90,10 +91,13 @@ export async function capture(_prev: ActionResult | null, fd: FormData): Promise
 export async function toggleTask(fd: FormData) {
   const id = str(fd, "id");
   const ctx = await getCtx();
-  const { data } = await ctx.supabase.from("tasks").select("done").eq("id", id).maybeSingle<{ done: boolean }>();
+  const { data } = await ctx.supabase
+    .from("tasks").select(`done, ${TIMER_COLS}`).eq("id", id).maybeSingle<TimerRow & { done: boolean }>();
   if (!data) return;
 
   const done = !data.done;
+  // Marcarla hecha con el cronómetro corriendo lo cierra: el tiempo cuenta.
+  if (done && data.track_started_at) await closeSession(ctx, data, Date.now());
   await ctx.supabase
     .from("tasks")
     .update({ done, done_at: done ? new Date().toISOString() : null, ...EDITED() })
@@ -108,6 +112,8 @@ export async function toggleTask(fd: FormData) {
  */
 export async function deleteTask(fd: FormData) {
   const ctx = await getCtx();
+  const enMarcha = await timerRow(ctx, str(fd, "id"));
+  if (enMarcha?.track_started_at) await closeSession(ctx, enMarcha, Date.now());
   const { data } = await ctx.supabase
     .from("tasks")
     .update({ deleted_at: new Date().toISOString(), focus_day: null })
@@ -193,6 +199,105 @@ export async function updateTaskDetails(_prev: ActionResult | null, fd: FormData
 
   refresh();
   return ok("Guardado");
+}
+
+/* ------------------------------------------------------------ cronómetro */
+
+type TimerRow = { id: string; title: string; tracked_sec: number; track_sessions: number; track_started_at: string | null };
+
+/**
+ * Cierra la sesión en marcha de esa fila: suma lo transcurrido y cuenta una
+ * sesión. Es una escritura condicional — sólo si el cronómetro sigue
+ * empezado en el MISMO instante que se leyó —, así un doble "Pausar" no suma
+ * el tiempo dos veces: el segundo ya no encuentra la fila.
+ */
+async function closeSession(ctx: Awaited<ReturnType<typeof getCtx>>, row: TimerRow, now: number) {
+  if (!row.track_started_at) return null;
+  const { sec, capped } = elapsedSec(row.track_started_at, now);
+  const { data } = await ctx.supabase
+    .from("tasks")
+    .update({ tracked_sec: row.tracked_sec + sec, track_sessions: row.track_sessions + 1, track_started_at: null })
+    .eq("id", row.id)
+    .eq("track_started_at", row.track_started_at)
+    .select("id");
+  if (!data?.length) return null;
+  if (capped) {
+    await logActivity(ctx, {
+      actor: "system", kind: "timer.capped", taskId: row.id,
+      summary: `El cronómetro de ${q(row.title)} se quedó corriendo más de 6 h: se contaron 6 h`,
+    });
+  }
+  return sec;
+}
+
+const TIMER_COLS = "id, title, tracked_sec, track_sessions, track_started_at";
+
+async function timerRow(ctx: Awaited<ReturnType<typeof getCtx>>, id: string) {
+  const { data } = await ctx.supabase.from("tasks").select(TIMER_COLS).eq("user_id", ctx.userId).eq("id", id).maybeSingle<TimerRow>();
+  return data;
+}
+
+/** "Empezar": una sola tarea en marcha a la vez; si había otra, se pausa. */
+export async function startTimer(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const id = str(fd, "id");
+  const ctx = await getCtx();
+  const now = Date.now();
+
+  const { data: otras } = await ctx.supabase
+    .from("tasks")
+    .select(TIMER_COLS)
+    .eq("user_id", ctx.userId)
+    .not("track_started_at", "is", null)
+    .neq("id", id)
+    .returns<TimerRow[]>();
+  for (const o of otras ?? []) await closeSession(ctx, o, now);
+
+  const { data } = await ctx.supabase
+    .from("tasks")
+    .update({ track_started_at: new Date(now).toISOString() })
+    .eq("user_id", ctx.userId)
+    .eq("id", id)
+    .is("track_started_at", null)
+    .eq("done", false)
+    .is("deleted_at", null)
+    .select("id");
+  refresh();
+  if (!data?.length) return fail("Esa tarea ya está en marcha o ya no está pendiente");
+  return ok(otras?.length ? "En marcha · la otra quedó en pausa" : "En marcha");
+}
+
+export async function pauseTimer(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const ctx = await getCtx();
+  const row = await timerRow(ctx, str(fd, "id"));
+  if (!row?.track_started_at) return fail("No estaba en marcha");
+  const sec = await closeSession(ctx, row, Date.now());
+  refresh();
+  return sec == null ? fail("Ya estaba en pausa") : ok(`Pausada · ${fmtDur(Math.max(1, Math.round(sec / 60)))} esta vez`);
+}
+
+/** "Terminar": cierra la sesión y marca la tarea hecha. */
+export async function finishTimer(_prev: ActionResult | null, fd: FormData): Promise<ActionResult> {
+  const ctx = await getCtx();
+  const row = await timerRow(ctx, str(fd, "id"));
+  if (!row) return fail("Esa tarea ya no existe");
+  await closeSession(ctx, row, Date.now());
+
+  const { data } = await ctx.supabase
+    .from("tasks")
+    .update({ done: true, done_at: new Date().toISOString(), track_started_at: null, ...EDITED() })
+    .eq("id", row.id)
+    .select("title, tracked_sec, est_minutes")
+    .maybeSingle<{ title: string; tracked_sec: number; est_minutes: number | null }>();
+  if (data && data.tracked_sec >= 60) {
+    const real = Math.round(data.tracked_sec / 60);
+    await logActivity(ctx, {
+      actor: "user", kind: "timer.finished", taskId: row.id,
+      summary: `Terminaste ${q(data.title)}: ${fmtDur(real)}` + (data.est_minutes ? ` (estimado ${fmtDur(data.est_minutes)})` : ""),
+      meta: { realMin: real, estMin: data.est_minutes },
+    });
+  }
+  refresh();
+  return ok("Terminada");
 }
 
 /** Fija o quita una tarea del enfoque de hoy. Máximo 3. */
