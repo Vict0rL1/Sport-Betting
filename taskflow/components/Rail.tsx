@@ -17,7 +17,16 @@ const VIEWS = [
 
 const THEME_LABEL = { system: "del sistema", light: "claro", dark: "oscuro" } as const;
 
-export function Rail({ counts, email }: { counts: Counts; email: string }) {
+export function Rail({
+  counts,
+  email,
+  health,
+}: {
+  counts: Counts;
+  email: string;
+  /** Lo que sale bajo la marca. Antes decía "sincronizado" siempre, pasara lo que pasara. */
+  health: { level: "ok" | "warn" | "error" | "off"; text: string };
+}) {
   const path = usePathname();
   const { result, toast } = useToast();
   const [busy, setBusy] = useState(false);
@@ -49,8 +58,10 @@ export function Rail({ counts, email }: { counts: Counts; email: string }) {
         <div className="brand">
           <b>TaskFlow</b>
           <span>
-            <i className="syncdot" />
-            sincronizado
+            <Link href="/ajustes/estado" title="Estado del sistema">
+              <i className={"syncdot " + health.level} aria-hidden="true" />
+              {health.text}
+            </Link>
           </span>
         </div>
 

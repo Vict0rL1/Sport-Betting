@@ -8,8 +8,10 @@ import { DEFAULT_TIMEZONE, addDays, minutesInTz, todayInTz } from "./date";
 import { buildDigest, digestDue, sendDigest, type Digest, type DigestKind, type PushSubscriptionRow } from "./push";
 import { classifyTelegramError, sendDigestTelegram } from "./telegram";
 import { loadEvents, loadTasks, type Ctx } from "./data";
-import { IntegrationError, errorCodeOf, logEvent, safeMessage } from "./log";
+import { type ErrorCode, IntegrationError, errorCodeOf, logEvent, safeMessage } from "./log";
 import { recordRun } from "./sync-state";
+import { withHealthNote } from "./health";
+import { loadStatus } from "./status";
 import type { Profile } from "./types";
 
 /**
@@ -88,7 +90,7 @@ async function tick(admin: Admin, profile: Profile, now: Date, opts: ClockOption
     let aviso = !kind ? `no toca (son las ${hora})` : "ningún canal configurado (ni push ni Telegram)";
     if (kind && hayCanal) {
       try {
-        aviso = await avisar(ctx, admin, kind, opts.digest != null, opts.origin);
+        aviso = await avisar(ctx, admin, kind, opts.digest != null, opts.origin, now);
       } catch (e) {
         aviso = "falló el aviso: " + safeMessage(e, "error");
       }
@@ -139,6 +141,7 @@ export async function avisar(
   kind: DigestKind,
   forzado: boolean,
   origin: string,
+  now: Date = new Date(),
 ): Promise<string> {
   if (!forzado && !(await reservar(ctx, admin, kind))) return `${kind}: ya se avisó hoy`;
 
@@ -147,7 +150,13 @@ export async function avisar(
   try {
     const [tasks, events] = await Promise.all([loadTasks(ctx), loadEvents(ctx, dia, dia)]);
 
-    const digest = buildDigest(kind, tasks, events, ctx.today);
+    let digest = buildDigest(kind, tasks, events, ctx.today);
+    // Por la mañana, además, lo que esté fallando (lib/health.ts). Se mide
+    // ANTES de mandar: es el estado que dejaron las corridas anteriores.
+    if (kind === "morning") {
+      const { health } = await loadStatus(ctx, now.getTime());
+      digest = withHealthNote(digest, health.alerts);
+    }
     if (!digest) return `${kind}: nada que avisar`;
 
     // El título viaja en la respuesta a propósito: es lo único que permite
@@ -160,9 +169,9 @@ export async function avisar(
     // sus fallos se informan en la línea en vez de lanzarse — si se lanzaran,
     // la reserva se devolvería y el canal que SÍ llegó repetiría el aviso
     // dentro de una hora.
-    const partes = await Promise.all([avisarPush(ctx, admin, digest), avisarTelegram(ctx, admin, digest, origin)]);
+    const partes = await Promise.all([deliverPush(ctx, admin, digest), deliverTelegram(ctx, admin, digest, origin)]);
 
-    return `${kind}: ${partes.filter(Boolean).join(" · ") || "sin canales conectados"}${que}`;
+    return `${kind}: ${partes.map((p) => p?.line).filter(Boolean).join(" · ") || "sin canales conectados"}${que}`;
   } catch (e) {
     // Se cayó la base: devolver el turno para que el reloj lo reintente dentro
     // de una hora, mientras la ventana siga abierta.
@@ -171,52 +180,74 @@ export async function avisar(
   }
 }
 
-/** Push a cada navegador suscrito. Cadena vacía si push no está configurado. */
-async function avisarPush(ctx: Ctx, admin: Admin, digest: Digest): Promise<string> {
-  if (!pushSendConfigured()) return "";
+export type PushDelivery = { line: string; sent: number; gone: number; failed: number; code?: ErrorCode };
 
-  const { data: subs, error } = await admin
+/**
+ * Push a cada navegador suscrito, con la limpieza de los muertos y la
+ * constancia en `sync_state`. Lo usan el reloj y el botón de prueba de Ajustes.
+ * `null` si push no está configurado en el servidor.
+ *
+ * `db` puede ser la service role (el reloj) o la sesión del usuario (el botón):
+ * todo va filtrado por `user_id` igual.
+ */
+export async function deliverPush(ctx: Ctx, db: Admin, digest: Digest): Promise<PushDelivery | null> {
+  if (!pushSendConfigured()) return null;
+
+  const { data: subs, error } = await db
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth")
     .eq("user_id", ctx.userId)
     .returns<PushSubscriptionRow[]>();
   if (error) throw new IntegrationError("CRON_DB_FAILED", "No se pudieron leer las suscripciones: " + error.message, true);
 
-  if (!subs?.length) return "push: sin navegadores suscritos";
+  if (!subs?.length) return { line: "push: sin navegadores suscritos", sent: 0, gone: 0, failed: 0 };
 
   const r = await sendDigest(subs, digest);
 
   // Las suscripciones muertas se borran: si no, fallan todos los días.
   if (r.caducadas.length) {
-    await admin.from("push_subscriptions").delete().eq("user_id", ctx.userId).in("endpoint", r.caducadas);
+    await db.from("push_subscriptions").delete().eq("user_id", ctx.userId).in("endpoint", r.caducadas);
   }
 
+  let code: ErrorCode | undefined;
   if (r.enviadas) {
     await recordRun(ctx.supabase, ctx.userId, "push", { ok: true, items: r.enviadas });
   } else {
     // Ninguno llegó. Si es porque todos estaban muertos, eso es lo que hay
     // que contar: el usuario cree que tiene avisos y ya no los tiene.
-    const code = r.errorCode ?? "PUSH_SUBSCRIPTION_GONE";
+    code = r.errorCode ?? "PUSH_SUBSCRIPTION_GONE";
     const error = r.errorCode
       ? "Ningún navegador aceptó el aviso."
       : "Tus navegadores se dieron de baja de los avisos. Vuelve a activarlos en Ajustes.";
     await recordRun(ctx.supabase, ctx.userId, "push", { ok: false, error, code });
   }
   logEvent({
-    event: "digest.push", result: r.enviadas ? "ok" : "error", userId: ctx.userId, integration: "push",
-    sent: r.enviadas, gone: r.caducadas.length, failed: r.fallidas, errorCode: r.errorCode,
+    event: "push.send", result: r.enviadas ? "ok" : "error", userId: ctx.userId, integration: "push",
+    sent: r.enviadas, gone: r.caducadas.length, failed: r.fallidas, errorCode: code ?? r.errorCode,
   });
 
-  return `push: ${r.enviadas} enviado(s)` +
-    (r.caducadas.length ? `, ${r.caducadas.length} caducada(s) borrada(s)` : "") +
-    (r.fallidas ? `, ${r.fallidas} fallida(s)` : "");
+  return {
+    line: `push: ${r.enviadas} enviado(s)` +
+      (r.caducadas.length ? `, ${r.caducadas.length} caducada(s) borrada(s)` : "") +
+      (r.fallidas ? `, ${r.fallidas} fallida(s)` : ""),
+    sent: r.enviadas,
+    gone: r.caducadas.length,
+    failed: r.fallidas,
+    code: code ?? r.errorCode,
+  };
 }
 
-/** El chat de Telegram conectado, si hay uno. Cadena vacía si Telegram no está configurado. */
-async function avisarTelegram(ctx: Ctx, admin: Admin, digest: Digest, origin: string): Promise<string> {
-  if (!telegramConfigured()) return "";
+export type TelegramDelivery = { line: string; ok: boolean; linked: boolean; code?: ErrorCode; message?: string };
 
-  const { data: chat, error } = await admin
+/**
+ * Un mensaje al chat de Telegram conectado. `null` si Telegram no está
+ * configurado en el servidor. Igual que `deliverPush`, lo usan el reloj y el
+ * botón de prueba.
+ */
+export async function deliverTelegram(ctx: Ctx, db: Admin, digest: Digest, origin: string): Promise<TelegramDelivery | null> {
+  if (!telegramConfigured()) return null;
+
+  const { data: chat, error } = await db
     .from("telegram_chats")
     .select("chat_id")
     .eq("user_id", ctx.userId)
@@ -224,13 +255,13 @@ async function avisarTelegram(ctx: Ctx, admin: Admin, digest: Digest, origin: st
     .maybeSingle<{ chat_id: number }>();
   if (error) throw new IntegrationError("CRON_DB_FAILED", "No se pudo leer el chat de Telegram: " + error.message, true);
 
-  if (!chat) return "telegram: sin chat conectado";
+  if (!chat) return { line: "telegram: sin chat conectado", ok: false, linked: false };
 
   try {
     await sendDigestTelegram(chat.chat_id, digest, origin);
     await recordRun(ctx.supabase, ctx.userId, "telegram", { ok: true });
-    logEvent({ event: "digest.telegram", result: "ok", userId: ctx.userId, integration: "telegram" });
-    return "telegram: enviado";
+    logEvent({ event: "telegram.send", result: "ok", userId: ctx.userId, integration: "telegram" });
+    return { line: "telegram: enviado", ok: true, linked: true };
   } catch (e) {
     const t = classifyTelegramError(e);
     // Bloqueado o chat borrado: el chat está muerto y se suelta, igual que una
@@ -238,11 +269,17 @@ async function avisarTelegram(ctx: Ctx, admin: Admin, digest: Digest, origin: st
     // Pero ANTES se deja escrito por qué, para que Ajustes lo explique: antes
     // simplemente desaparecía y Victor no sabía que había dejado de recibir.
     if (t.dead) {
-      await admin.from("telegram_chats").delete().eq("user_id", ctx.userId).eq("chat_id", chat.chat_id);
+      await db.from("telegram_chats").delete().eq("user_id", ctx.userId).eq("chat_id", chat.chat_id);
     }
     await recordRun(ctx.supabase, ctx.userId, "telegram", { ok: false, error: t.message, code: t.code });
-    logEvent({ event: "digest.telegram", result: "error", userId: ctx.userId, integration: "telegram", errorCode: t.code });
-    return t.dead ? `telegram: ${t.code}, desconectado` : `telegram: falló (${t.code})`;
+    logEvent({ event: "telegram.send", result: "error", userId: ctx.userId, integration: "telegram", errorCode: t.code });
+    return {
+      line: t.dead ? `telegram: ${t.code}, desconectado` : `telegram: falló (${t.code})`,
+      ok: false,
+      linked: !t.dead,
+      code: t.code,
+      message: t.message,
+    };
   }
 }
 

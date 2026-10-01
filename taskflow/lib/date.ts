@@ -151,3 +151,15 @@ export function fmtDate(s: string | null | undefined, today: string): string {
 
 /** Lunes de la semana que contiene `day`. */
 export const startOfWeek = (day: string) => addDays(day, -((weekdayOf(day) + 6) % 7));
+
+/** Un `timestamptz` como "30 sep · 14:07" en la zona del usuario. */
+export function fmtStamp(iso: string | null | undefined, timeZone: string): string {
+  if (!iso) return "";
+  const { date, min } = zonedDayMinute(iso, timeZone);
+  return dayOfMonth(date) + " " + MONTHS_SHORT[monthOf(date)] + " · " + minsToHHMM(min);
+}
+
+/** Sólo la hora local de un instante: "14:07". */
+export function fmtClock(ms: number, timeZone: string): string {
+  return minsToHHMM(minutesInTz(timeZone, ms));
+}

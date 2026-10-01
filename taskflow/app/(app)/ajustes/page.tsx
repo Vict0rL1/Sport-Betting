@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { deleteIcsSource } from "@/app/actions";
 import { ViewHead } from "@/components/TaskRow";
 import { AreasForm, HoursForm, ImportIcs, TimezoneForm } from "@/components/SettingsForms";
@@ -43,7 +44,11 @@ export default async function AjustesPage() {
 
   return (
     <>
-      <ViewHead eyebrow="configuración y datos" title="Ajustes" />
+      <ViewHead
+        eyebrow="configuración y datos"
+        title="Ajustes"
+        right={<Link className="btn line sm" href="/ajustes/estado">Estado del sistema</Link>}
+      />
 
       <div className="grid2">
         <div className="stack">

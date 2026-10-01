@@ -1,7 +1,7 @@
 /*
- * Service worker de TaskFlow. Sólo hace una cosa: recibir el aviso diario y
- * mostrarlo. No cachea nada — la app no es offline-first, y un caché mal hecho
- * es peor que no tenerlo.
+ * Service worker de TaskFlow: recibe los avisos y los muestra, y mantiene la
+ * suscripción al día cuando el navegador la rota. No cachea nada — la app no
+ * es offline-first, y un caché mal hecho es peor que no tenerlo.
  */
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -45,5 +45,32 @@ self.addEventListener("notificationclick", (event) => {
       }
       return self.clients.openWindow(destino);
     }),
+  );
+});
+
+/*
+ * El navegador puede cambiar la suscripción por su cuenta (caduca, se rota la
+ * llave). La vieja empieza a fallar con 410 y, si nadie se entera, los avisos
+ * dejan de llegar en silencio. Aquí se vuelve a suscribir y se le avisa al
+ * servidor. Si algo falla (sin sesión, sin red), la app lo arregla al abrirse.
+ */
+self.addEventListener("pushsubscriptionchange", (event) => {
+  event.waitUntil(
+    (async () => {
+      const vieja = event.oldSubscription || null;
+      let nueva = event.newSubscription || null;
+      const llave = vieja && vieja.options && vieja.options.applicationServerKey;
+      if (!nueva && llave) {
+        nueva = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: llave });
+      }
+      if (!nueva) return;
+      const json = nueva.toJSON();
+      await fetch("/api/push/subscription", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ endpoint: nueva.endpoint, keys: json.keys, oldEndpoint: vieja ? vieja.endpoint : null }),
+      });
+    })().catch(() => {}),
   );
 });

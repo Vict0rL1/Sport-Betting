@@ -204,3 +204,23 @@ export function computeHealth(h: HealthInput): Health {
   const overall = items.reduce<Level>((w, i) => (RANK[i.level] > RANK[w] ? i.level : w), "off");
   return { overall: overall === "off" ? "ok" : overall, items, alerts };
 }
+
+/**
+ * El resumen de la mañana con una línea por lo que esté fallando.
+ *
+ * Es la forma de enterarse sin abrir la app: si Telegram falló ayer, el push
+ * lo dice; si Canvas lleva medio día sin sincronizar, lo dicen los dos. Sólo
+ * lo que es error de verdad, y sólo por la mañana: una vez al día basta.
+ *
+ * Si no había nada que avisar pero algo falla, igual sale un aviso.
+ */
+export function withHealthNote(
+  digest: { title: string; body: string; url: string } | null,
+  alerts: IntegrationHealth[],
+): { title: string; body: string; url: string } | null {
+  const graves = alerts.filter((a) => a.level === "error" && a.key !== "cron" && a.key !== "ai");
+  if (!graves.length) return digest;
+  const nota = graves.map((a) => `⚠ ${a.label}: ${a.summary}`).join("\n");
+  if (!digest) return { title: "TaskFlow necesita atención", body: nota, url: "/ajustes/estado" };
+  return { ...digest, body: digest.body ? `${digest.body}\n${nota}` : nota };
+}

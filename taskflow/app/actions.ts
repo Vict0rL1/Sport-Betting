@@ -8,6 +8,7 @@ import { acceptable } from "@/lib/schedule";
 import { parseInput } from "@/lib/parse";
 import { cleanSourceName, parseICS } from "@/lib/ics";
 import { runCanvasSync } from "@/lib/canvas-sync";
+import { deliverPush, deliverTelegram } from "@/lib/clock";
 import { canvasConfigured, telegramConfigured } from "@/lib/env.server";
 import { TelegramError, botUsername, ensureWebhook } from "@/lib/telegram";
 import { minsToTime, minutesInTz, todayInTz } from "@/lib/date";
@@ -526,6 +527,59 @@ export async function savePushSubscription(
   return ok("Listo: te avisamos por la mañana y la noche antes");
 }
 
+/**
+ * Vuelve a registrar en silencio la suscripción de este navegador.
+ *
+ * La llama la app al abrirse. Cubre el caso en que el navegador sigue
+ * suscrito pero el servidor ya no lo tiene (se borró tras un fallo, cambió la
+ * base, el navegador rotó la suscripción sin avisar): sin esto, Ajustes decía
+ * "avisos activos" y no llegaba nada. Es un upsert: repetirlo no cambia nada.
+ */
+export async function syncPushSubscription(sub: { endpoint: string; p256dh: string; auth: string }): Promise<void> {
+  if (!sub?.endpoint || !sub.p256dh || !sub.auth) return;
+  if (!/^https:\/\//.test(sub.endpoint) || sub.endpoint.length > 1000) return;
+  const ctx = await getCtx();
+  await ctx.supabase.from("push_subscriptions").upsert(
+    { endpoint: sub.endpoint, user_id: ctx.userId, p256dh: sub.p256dh.slice(0, 200), auth: sub.auth.slice(0, 100) },
+    { onConflict: "endpoint" },
+  );
+}
+
+/** "Enviar notificación de prueba" en Ajustes → Estado del sistema. */
+export async function sendTestPush(): Promise<ActionResult> {
+  const ctx = await getCtx();
+  const r = await deliverPush(ctx, ctx.supabase, {
+    title: "Prueba de TaskFlow",
+    body: "Si ves esto, los avisos llegan a este dispositivo.",
+    url: "/ajustes/estado",
+  });
+  refresh();
+  if (!r) return fail("El servidor no tiene las llaves VAPID: no puede mandar avisos");
+  if (!r.sent && !r.gone && !r.failed) return fail("No hay ningún dispositivo suscrito. Actívalos en Ajustes → Avisos.");
+  if (!r.sent) {
+    return fail(r.gone
+      ? "Los dispositivos ya no estaban suscritos y se quitaron. Vuelve a activar los avisos."
+      : "Ningún dispositivo aceptó el aviso (" + (r.code ?? "PUSH_FAILED") + ")");
+  }
+  return ok(`Enviado a ${r.sent} dispositivo${r.sent > 1 ? "s" : ""}` + (r.failed ? ` · ${r.failed} falló` : "") +
+    (r.gone ? ` · ${r.gone} ya no estaba suscrito` : ""));
+}
+
+/** "Enviar mensaje de prueba" en Ajustes → Estado del sistema. */
+export async function sendTestTelegram(): Promise<ActionResult> {
+  const ctx = await getCtx();
+  const r = await deliverTelegram(
+    ctx,
+    ctx.supabase,
+    { title: "Prueba de TaskFlow", body: "Si ves esto, los avisos llegan a este chat.", url: "/ajustes/estado" },
+    await requestOrigin(),
+  );
+  refresh();
+  if (!r) return fail("El servidor no tiene TELEGRAM_BOT_TOKEN");
+  if (!r.linked && !r.code) return fail("No hay ningún chat conectado");
+  return r.ok ? ok("Mensaje enviado") : fail(r.message ?? "No se pudo enviar");
+}
+
 export async function removePushSubscription(
   _prev: ActionResult | null,
   fd: FormData,
@@ -571,11 +625,8 @@ export async function startTelegramLink(): Promise<TelegramLinkResult> {
     );
   if (error) return fail("No se pudo generar el enlace");
 
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  if (!host) return fail("No se pudo saber la dirección de la app");
-  const origin = `${proto}://${host}`;
+  const origin = await requestOrigin();
+  if (!origin) return fail("No se pudo saber la dirección de la app");
 
   try {
     await ensureWebhook(origin);
@@ -598,6 +649,14 @@ export async function unlinkTelegram(): Promise<ActionResult> {
   if (error) return fail("No se pudo desconectar");
   refresh();
   return ok("Telegram desconectado");
+}
+
+/** La dirección pública de la app, según quien hizo la petición. */
+async function requestOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  return host ? `${proto}://${host}` : "";
 }
 
 /* ------------------------------------------------------------ importar .ics */

@@ -256,3 +256,35 @@ describe("horario de verano y viajes", () => {
     expect(tgSent).toHaveLength(2);
   });
 });
+
+describe("el resumen de la mañana avisa lo que falla", () => {
+  const telegramRoto = (a: string) => ({
+    user_id: a, source: "telegram", last_synced_at: "2026-09-29T15:00:00Z", last_success_at: "2026-09-28T15:00:00Z",
+    last_error_at: "2026-09-29T15:00:00Z", last_error: "Telegram no respondió en 10 s", last_error_code: "TELEGRAM_TIMEOUT",
+  });
+
+  it("si Telegram falló, el push de la mañana lo dice", async () => {
+    const s = await setup();
+    await s.p.admin.from("sync_state").insert(telegramRoto(s.a));
+    tgReply = "timeout";
+    await s.run();
+    const payload = JSON.parse(push.sent.find((x) => x.endpoint.endsWith("celular"))!.payload);
+    expect(payload.body).toMatch(/⚠ Telegram: El último mensaje no llegó/);
+    expect(payload.title).toMatch(/para hoy/); // el aviso normal sigue ahí
+  });
+
+  it("aunque no haya nada que avisar, si algo falla sale un aviso", async () => {
+    const s = await setup();
+    await s.p.admin.from("tasks").delete().eq("user_id", s.a);
+    await s.p.admin.from("sync_state").insert(telegramRoto(s.a));
+    await s.run();
+    const payload = JSON.parse(push.sent[0].payload);
+    expect(payload).toMatchObject({ title: "TaskFlow necesita atención", url: "/ajustes/estado" });
+  });
+
+  it("si todo anda, el aviso es el de siempre", async () => {
+    const s = await setup();
+    await s.run();
+    expect(JSON.parse(push.sent[0].payload).body).not.toMatch(/⚠/);
+  });
+});
