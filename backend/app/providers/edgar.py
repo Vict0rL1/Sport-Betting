@@ -168,6 +168,7 @@ def procedencia(entry: dict, etiqueta: str) -> dict:
 # Y el acumulado del año (6 y 9 meses) con la misma etiqueta: sin filtrar por
 # duración se mezclarían.
 _DIAS_TRIMESTRE = (75, 105)
+_DIAS_SEIS_MESES = (165, 200)
 _DIAS_NUEVE_MESES = (250, 290)
 _DIAS_ANO = (300, 400)
 
@@ -245,15 +246,16 @@ def parse_quarters(facts_json: dict, maximo: int = 12) -> list[dict]:
     por_fin: dict[str, dict] = {}
     meses_cierre: list[int] = []
 
-    def flujo(campo: str, etiquetas: list[str], unidades: tuple[str, ...], derivar_q4: bool):
+    def flujo(campo: str, etiquetas: list[str], unidades: tuple[str, ...], derivar: bool):
         for tag in etiquetas:
             por_unidad = (gaap.get(tag) or {}).get("units") or {}
             units = next((por_unidad[u] for u in unidades if u in por_unidad), None)
             if not units:
                 continue
             trimestres = _originales(units, _DIAS_TRIMESTRE)
-            anos = _originales(units, _DIAS_ANO)
+            seis = _originales(units, _DIAS_SEIS_MESES)
             nueve = _originales(units, _DIAS_NUEVE_MESES)
+            anos = _originales(units, _DIAS_ANO)
             if not trimestres and not anos:
                 continue
             for (_, fin), e in trimestres.items():
@@ -262,31 +264,42 @@ def parse_quarters(facts_json: dict, maximo: int = 12) -> list[dict]:
                     q[campo] = e["val"]
                     q.setdefault("fuentes", {})[campo] = procedencia(e, tag)
                     q["_hechos"][campo] = e
-            for (inicio, fin), fy in anos.items():
+            for (_, fin), _e in anos.items():
                 try:
                     meses_cierre.append(time.strptime(fin, "%Y-%m-%d").tm_mon)
                 except ValueError:
                     pass
-                if not derivar_q4:
-                    continue
-                q = por_fin.setdefault(fin, {"end_date": fin, "_hechos": {}})
-                if campo in q:
-                    continue
-                nm = next((e for (i, _), e in nueve.items() if i == inicio), None)
-                if nm is None:
-                    continue
-                q[campo] = fy["val"] - nm["val"]
-                q.setdefault("fuentes", {})[campo] = {
-                    **procedencia(fy, tag),
-                    "derivado": "año (10-K) − nueve meses (10-Q)",
-                    "nueve_meses": procedencia(nm, tag),
-                }
-                q["_hechos"][campo] = {**fy, "fp": "Q4", "_derivado": True}
+            if not derivar:
+                return
+            # Trimestre = acumulado − acumulado anterior del MISMO ejercicio
+            # (mismo inicio). Los 10-Q dan el flujo de caja solo acumulado, así
+            # que sin esto el CFO del segundo y tercer trimestre no existiría.
+            acumulados = [
+                (trimestres, seis, "seis meses − primer trimestre"),
+                (seis, nueve, "nueve meses − seis meses"),
+                (nueve, anos, "año (10-K) − nueve meses"),
+            ]
+            for previos, largos, metodo in acumulados:
+                for (inicio, fin), largo in largos.items():
+                    q = por_fin.setdefault(fin, {"end_date": fin, "_hechos": {}})
+                    if campo in q:
+                        continue
+                    corto = next((e for (i, _), e in previos.items() if i == inicio), None)
+                    if corto is None:
+                        continue
+                    q[campo] = largo["val"] - corto["val"]
+                    q.setdefault("fuentes", {})[campo] = {
+                        **procedencia(largo, tag),
+                        "derivado": metodo,
+                        "restado": procedencia(corto, tag),
+                    }
+                    q["_hechos"][campo] = {**largo, "_derivado": True,
+                                           "fp": "Q4" if largos is anos else largo.get("fp")}
             return
 
     for campo, etiquetas in _FLOW_TAGS.items():
-        flujo(campo, etiquetas, ("USD",), derivar_q4=True)
-    flujo("eps_diluted", ["EarningsPerShareDiluted"], ("USD/shares",), derivar_q4=False)
+        flujo(campo, etiquetas, ("USD",), derivar=True)
+    flujo("eps_diluted", ["EarningsPerShareDiluted"], ("USD/shares",), derivar=False)
 
     for campo, etiquetas in _BALANCE_TAGS.items():
         for tag in etiquetas:
@@ -314,7 +327,7 @@ def parse_quarters(facts_json: dict, maximo: int = 12) -> list[dict]:
         publicadas = [f.get("presentado") for f in (q.get("fuentes") or {}).values() if f.get("presentado")]
         q["filed_at"] = max(publicadas) if publicadas else None
         referencia = hechos.get("revenue") or hechos.get("net_income") or {}
-        if referencia.get("_derivado"):
+        if referencia.get("_derivado") and referencia.get("fp") == "Q4":
             ano, _ = _etiqueta_fiscal({**referencia, "fp": None}, mes_cierre)
             q["fiscal_year"], q["fiscal_period"] = ano, "Q4"
         else:

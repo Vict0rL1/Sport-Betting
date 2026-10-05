@@ -120,3 +120,26 @@ def test_la_validacion_respeta_linaje_y_sanea_trimestres():
     assert q[0]["change_inventory"] == -3.0
     assert q[0]["fuentes"]["revenue"]["etiqueta"] == "R"
     assert r["partidas_descartadas"] == 2
+
+
+def test_el_flujo_de_caja_acumulado_se_convierte_en_trimestres():
+    """Los 10-Q dan el CFO solo acumulado (3, 6 y 9 meses). Sin derivarlo, el
+    segundo y el tercer trimestre no tendrían flujo de caja."""
+    facts = {"facts": {"us-gaap": {
+        "Revenues": {"units": {"USD": [
+            _h(100.0, "2026-01-01", "2026-03-31", "2026-04-30", fp="Q1"),
+            _h(110.0, "2026-04-01", "2026-06-30", "2026-07-30", fp="Q2"),
+            _h(120.0, "2026-07-01", "2026-09-30", "2026-10-30", fp="Q3"),
+        ]}},
+        "NetCashProvidedByUsedInOperatingActivities": {"units": {"USD": [
+            _h(30.0, "2026-01-01", "2026-03-31", "2026-04-30", fp="Q1"),
+            _h(70.0, "2026-01-01", "2026-06-30", "2026-07-30", fp="Q2"),
+            _h(95.0, "2026-01-01", "2026-09-30", "2026-10-30", fp="Q3"),
+        ]}},
+    }}}
+    qs = {q["periodo"]: q for q in parse_quarters(facts)}
+    assert qs["2026-Q1"]["cfo"] == 30.0 and "derivado" not in qs["2026-Q1"]["fuentes"]["cfo"]
+    assert qs["2026-Q2"]["cfo"] == 40.0
+    assert qs["2026-Q2"]["fuentes"]["cfo"]["derivado"] == "seis meses − primer trimestre"
+    assert qs["2026-Q3"]["cfo"] == 25.0
+    assert qs["2026-Q3"]["fuentes"]["cfo"]["derivado"] == "nueve meses − seis meses"
