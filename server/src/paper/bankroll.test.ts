@@ -47,6 +47,16 @@ db.prepare(
      0.54, 0.24, 0.22, 0.52, 0.25, 0.23, 0.385, 0.283, 0.332, 'high', ?)`,
 ).run(INICIO, iso(ahora - 1 * H));
 
+// La evaluación de confianza de ese partido (trust/), posterior a las cuotas: sin ella la
+// abstención falla cerrada y no se apuesta (ver abstention.test.ts).
+db.prepare(
+  `INSERT INTO prediction_assessments (sport, match_key, event_id, commence_time, assessed_at, probs, decision, selection, odds, edge,
+     stake_factor, confidence, data_quality, uncertainty_pp, stability, stability_pp, disagreement, disagreement_pp, market_quality,
+     edge_vanish, ood, regime, reasons, model_version)
+   VALUES ('football', 'epl|ars|che|x', 'epl-arsenal-chelsea', ?, ?, '[0.52,0.25,0.23]', 'BET', 0, 2.5, 0.3, 1, 'ALTA', 90, 3,
+     'ALTA', 2, 'BAJO', 2, 'ALTA', 0.01, '[]', 'temporada', '[]', 'football-x')`,
+).run(INICIO, iso(ahora - 10 * 60_000));
+
 const apuesta = () => db.prepare("SELECT * FROM paper_bets WHERE event_id = 'epl-arsenal-chelsea'").get() as Record<string, unknown>;
 
 test('se registra con TODO lo que se sabía al apostar', () => {
@@ -72,6 +82,10 @@ test('se registra con TODO lo que se sabía al apostar', () => {
   assert.ok((a.kelly_raw as number) > 0);
   assert.ok((a.stake_pct_bankroll as number) > 0 && (a.stake_pct_bankroll as number) <= 0.02, 'tope del 2 % por evento');
   assert.equal(a.bankroll_at, 1000);
+  assert.equal(a.confidence, 'ALTA', 'queda congelada la confianza con la que se apostó');
+  assert.equal(a.data_quality, 90);
+  assert.equal(a.trust_stake_factor, 1);
+  assert.ok(a.assessment_id);
   for (const c of ['model_version', 'model_config_version', 'calibration_version', 'data_version', 'strategy_version', 'prediction_timestamp', 'odds_timestamp']) {
     assert.ok(a[c], `falta ${c}`);
   }

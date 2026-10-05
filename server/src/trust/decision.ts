@@ -1,0 +1,210 @@
+// BET / NO BET, la confianza y el contrafactual, con las reglas de verdad.
+//
+// ===========================================================================
+// NO ES «PROBABILIDAD < 60 % = ABSTENERSE»
+// ===========================================================================
+// La probabilidad sola no dice nada de si fiarse de ella. Lo que decide es si la ventaja
+// que se ve SOBREVIVE a lo que no se sabe:
+//
+//   1. Ventaja mínima de la política (DEFAULT_CONFIG.minEdge), la misma puerta 1 de
+//      staking/policy.ts.
+//   2. Que siga habiendo ventaja con la probabilidad bajada en su incertidumbre (±1σ):
+//      si la ventaja es menor que el error del propio número, no es una ventaja.
+//   3. Que la ventaja no desaparezca en más de la mitad de las simulaciones (ruido de
+//      rating + supuestos en su rango): por encima, es más probable que no esté.
+//   4. Datos: calidad ≥ 60/100, ningún aviso OOD grave.
+//   5. Estabilidad no BAJA; desacuerdo ALTO solo si ningún componente niega la ventaja.
+//   6. Mercado: calidad no BAJA (proxy) y precio observado en las últimas 6 h.
+//   7. Que la predicción con la que se apuesta (la registrada) no esté desfasada de la
+//      actual más de su incertidumbre.
+//
+// Las demás señales no abstienen: recortan el importe (nunca lo suben), y cada recorte
+// queda escrito con su motivo. Los umbrales son elecciones de diseño, a la vista, no
+// parámetros ajustados con datos — y menos con el holdout.
+
+import { DEFAULT_CONFIG, bestSelection } from '../staking/policy.ts';
+import type { EventoConfianza } from './types.ts';
+import type { Incertidumbre, Estabilidad, Desacuerdo } from './perturbation.ts';
+import type { CalidadDatos } from './dataQuality.ts';
+import type { CalidadMercado } from './market.ts';
+
+export const ABSTENCION = {
+  calidadDatosMin: 60,
+  desapareceMax: 0.5,
+  precioViejoHoras: 6,
+};
+
+/** Recortes del importe por señal. Multiplican; nunca suben de 1. */
+export const RECORTES = {
+  estabilidadMedia: 0.5,
+  desacuerdoMedio: 0.75,
+  desacuerdoAlto: 0.5,
+  oodLeve: 0.5,
+  dispersionAlta: 0.75,
+  deriva: 0.5,
+};
+
+export interface Senal {
+  ok: boolean;
+  texto: string;
+}
+
+export interface Confianza {
+  nivel: 'ALTA' | 'MEDIA' | 'BAJA';
+  porQue: Senal[];
+  criterio: string;
+}
+
+export interface Decision {
+  decision: 'BET' | 'NO BET' | 'SIN MERCADO';
+  seleccion: { indice: number; nombre: string; p: number; cuota: number; edge: number } | null;
+  /** Por qué NO, o las salvedades si es BET. */
+  razones: string[];
+  /** Multiplicador del importe de la política (≤ 1) y cada recorte. */
+  factorStake: number;
+  recortes: { texto: string; factor: number }[];
+  /** «Deja de cumplir si…» (BET) o «haría falta…» (NO BET). Calculado con las reglas de arriba. */
+  contrafactual: string[];
+  /** Fracción de simulaciones en que la ventaja desaparece. */
+  desaparece: number | null;
+}
+
+export interface Contexto {
+  evento: EventoConfianza;
+  calidad: CalidadDatos;
+  incertidumbre: Incertidumbre;
+  estabilidad: Estabilidad;
+  desacuerdo: Desacuerdo;
+  mercado: CalidadMercado;
+  /** Fracción de simulaciones sin ventaja, por selección (la calcula quien llama). */
+  desapareceDe: (seleccion: number, cuota: number) => number;
+  /** La probabilidad registrada con la que se apostaría, si difiere de la actual. */
+  pRegistrada?: number[] | null;
+  /** ¿El deporte muestra deriva reciente en vivo? */
+  deriva?: string | null;
+  now?: Date;
+}
+
+const pct = (x: number) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
+
+export function confianza(c: Omit<Contexto, 'desapareceDe'>): Confianza {
+  const s: Senal[] = [];
+  const u = c.incertidumbre;
+  s.push(
+    u.sesgoCalibracionPp == null
+      ? { ok: false, texto: 'tramo de probabilidad sin calibración histórica medida' }
+      : Math.abs(u.sesgoCalibracionPp) <= 2
+        ? { ok: true, texto: `tramo histórico bien calibrado (sesgo ${u.sesgoCalibracionPp} pp, n ${u.nTramo})` }
+        : { ok: false, texto: `tramo histórico descalibrado (${u.sesgoCalibracionPp} pp, n ${u.nTramo})` },
+  );
+  s.push(u.ruidoRatingPp <= 4 ? { ok: true, texto: `incertidumbre de rating baja (±${u.ruidoRatingPp} pp)` } : { ok: false, texto: `incertidumbre de rating alta (±${u.ruidoRatingPp} pp)` });
+  s.push(c.calidad.puntuacion >= 80 ? { ok: true, texto: `calidad de datos alta (${c.calidad.puntuacion}/100)` } : { ok: false, texto: `calidad de datos ${c.calidad.puntuacion}/100` });
+  s.push(c.estabilidad.nivel === 'ALTA' ? { ok: true, texto: 'predicción estable ante sus supuestos' } : { ok: false, texto: `estabilidad ${c.estabilidad.nivel} (P10–P90: ${c.estabilidad.anchoPp} pp)` });
+  if (c.desacuerdo.nivel !== 'SIN COMPONENTES') {
+    s.push(c.desacuerdo.nivel === 'BAJO' ? { ok: true, texto: 'los componentes del modelo coinciden' } : { ok: false, texto: `desacuerdo ${c.desacuerdo.nivel} entre componentes (${c.desacuerdo.rangoPp} pp)` });
+  }
+  if (c.evento.ood.length) for (const o of c.evento.ood) s.push({ ok: false, texto: o.texto });
+  else s.push({ ok: true, texto: 'sin señales de fuera de distribución' });
+  if (c.mercado.calidad !== 'SIN DATOS') {
+    s.push(c.mercado.dispersion === 'ALTA' ? { ok: false, texto: 'las casas discrepan mucho' } : { ok: true, texto: `mercado ${c.mercado.calidad.toLowerCase()} (${c.mercado.casas} casas)` });
+  }
+  const malas = s.filter((x) => !x.ok).length;
+  const grave = c.evento.ood.some((o) => o.grave) || c.estabilidad.nivel === 'BAJA' || c.calidad.puntuacion < ABSTENCION.calidadDatosMin;
+  return {
+    nivel: grave || malas >= 3 ? 'BAJA' : malas === 0 ? 'ALTA' : 'MEDIA',
+    porQue: s,
+    criterio:
+      'ALTA si no hay ningún aviso; BAJA si hay tres o más, o uno grave (OOD grave, estabilidad BAJA o calidad de datos < 60); ' +
+      'si no, MEDIA. No depende de la probabilidad: un 80 % puede ser de confianza baja y un 52 % de confianza alta.',
+  };
+}
+
+export function decidir(c: Contexto): Decision {
+  const e = c.evento;
+  const now = c.now ?? new Date();
+  const minEdge = DEFAULT_CONFIG.minEdge;
+  const base: Decision = { decision: 'SIN MERCADO', seleccion: null, razones: [], factorStake: 0, recortes: [], contrafactual: [], desaparece: null };
+  if (e.demo || !e.odds || e.odds.length !== e.probs.length) {
+    return { ...base, razones: [e.demo ? 'partido de demostración: no hay mercado real' : 'sin cuotas para este partido'] };
+  }
+  const opciones = e.probs.map((p, i) => ({ indice: i, p, odds: (e.odds as number[])[i] }));
+  const elegida = bestSelection(opciones, DEFAULT_CONFIG) ?? opciones[0];
+  const { indice, p, odds } = elegida;
+  const edge = p * odds - 1;
+  const u = c.incertidumbre.totalPp / 100;
+  const seleccion = { indice, nombre: e.outcomes[indice], p, cuota: odds, edge };
+  const razones: string[] = [];
+  const falta: string[] = [];
+
+  if (edge < minEdge) {
+    razones.push(`ventaja ${pct(edge)} por debajo del mínimo de la política (${pct(minEdge)})`);
+    falta.push(`cuota ≥ ${((1 + minEdge) / p).toFixed(2)} (hoy ${odds.toFixed(2)}) o probabilidad ≥ ${pct((1 + minEdge) / odds)}`);
+  }
+  const edgeBajo = (p - u) * odds - 1;
+  if (edge >= minEdge && edgeBajo < 0) {
+    razones.push(`la ventaja no sobrevive a la incertidumbre: con ${pct(p - u)} (−${(u * 100).toFixed(1)} pp) la apuesta pierde`);
+    falta.push(`cuota ≥ ${(1 / (p - u)).toFixed(2)} o incertidumbre ≤ ±${((p - 1 / odds) * 100).toFixed(1)} pp`);
+  }
+  const desaparece = edge >= minEdge ? c.desapareceDe(indice, odds) : null;
+  if (desaparece != null && desaparece > ABSTENCION.desapareceMax) {
+    razones.push(`la ventaja desaparece en el ${Math.round(desaparece * 100)} % de las simulaciones de sensibilidad`);
+    falta.push(`que desaparezca en menos del ${ABSTENCION.desapareceMax * 100} % (hoy ${Math.round(desaparece * 100)} %)`);
+  }
+  if (c.calidad.puntuacion < ABSTENCION.calidadDatosMin) {
+    razones.push(`calidad de datos ${c.calidad.puntuacion}/100 (mínimo ${ABSTENCION.calidadDatosMin})`);
+    falta.push(`calidad de datos ≥ ${ABSTENCION.calidadDatosMin}: ${c.calidad.items.filter((i) => i.estado === 'aviso').map((i) => i.texto).join('; ')}`);
+  }
+  for (const o of e.ood.filter((x) => x.grave)) razones.push(`fuera de distribución: ${o.texto}`);
+  if (c.estabilidad.nivel === 'BAJA') {
+    razones.push(`predicción inestable: entre ${pct(c.estabilidad.p10)} y ${pct(c.estabilidad.p90)} según los supuestos`);
+    falta.push(`estabilidad MEDIA o ALTA (P10–P90 < ${8} pp; hoy ${c.estabilidad.anchoPp} pp)`);
+  }
+  if (c.desacuerdo.nivel === 'ALTO') {
+    const niega = e.componentes.filter((k) => k.probs[indice] * odds - 1 < 0);
+    if (niega.length) razones.push(`componentes en contra: según ${niega.map((k) => k.nombre).join(', ')} no hay ventaja`);
+  }
+  if (c.mercado.calidad === 'BAJA') razones.push(`mercado de calidad baja (proxy): ${c.mercado.motivos.join('; ')}`);
+  if (e.oddsAt) {
+    const h = (now.getTime() - Date.parse(e.oddsAt)) / 3_600_000;
+    if (h > ABSTENCION.precioViejoHoras) {
+      razones.push(`precio de hace ${h.toFixed(0)} h (máximo ${ABSTENCION.precioViejoHoras} h)`);
+      falta.push('un precio observado en las últimas 6 h');
+    }
+  }
+  if (c.pRegistrada && Math.abs(c.pRegistrada[indice] - p) > Math.max(u, 0.01)) {
+    razones.push(`la predicción registrada (${pct(c.pRegistrada[indice])}) está desfasada de la actual (${pct(p)})`);
+  }
+
+  // Recortes del importe.
+  const recortes: Decision['recortes'] = [];
+  if (c.estabilidad.nivel === 'MEDIA') recortes.push({ texto: 'estabilidad MEDIA', factor: RECORTES.estabilidadMedia });
+  if (c.desacuerdo.nivel === 'MEDIO') recortes.push({ texto: 'desacuerdo MEDIO entre componentes', factor: RECORTES.desacuerdoMedio });
+  if (c.desacuerdo.nivel === 'ALTO') recortes.push({ texto: 'desacuerdo ALTO entre componentes', factor: RECORTES.desacuerdoAlto });
+  if (e.ood.some((o) => !o.grave)) recortes.push({ texto: 'señal leve de fuera de distribución', factor: RECORTES.oodLeve });
+  if (c.mercado.dispersion === 'ALTA') recortes.push({ texto: 'casas muy dispersas', factor: RECORTES.dispersionAlta });
+  if (c.deriva) recortes.push({ texto: `deriva reciente: ${c.deriva}`, factor: RECORTES.deriva });
+  const factor = recortes.reduce((a, r) => a * r.factor, 1);
+
+  if (razones.length) {
+    return { decision: 'NO BET', seleccion, razones, factorStake: 0, recortes, contrafactual: falta.length ? falta : ['ninguna regla cuantitativa lo arreglaría: es un problema de datos o de mercado'], desaparece };
+  }
+  // BET: qué tendría que cambiar para dejar de cumplir.
+  const cuotaMin = Math.max((1 + minEdge) / p, 1 / (p - u));
+  const pMin = Math.max((1 + minEdge) / odds, 1 / odds + u);
+  return {
+    decision: 'BET',
+    seleccion,
+    razones: recortes.map((r) => `importe ×${r.factor}: ${r.texto}`),
+    factorStake: factor,
+    recortes,
+    contrafactual: [
+      `la cuota cae por debajo de ${cuotaMin.toFixed(2)} (hoy ${odds.toFixed(2)})`,
+      `la probabilidad del modelo cae por debajo de ${pct(pMin)} (hoy ${pct(p)})`,
+      `la incertidumbre sube por encima de ±${((p - 1 / odds) * 100).toFixed(1)} pp (hoy ±${(u * 100).toFixed(1)} pp)`,
+      `la ventaja desaparece en más del ${ABSTENCION.desapareceMax * 100} % de las simulaciones (hoy ${Math.round((desaparece ?? 0) * 100)} %)`,
+      `la calidad de datos baja de ${ABSTENCION.calidadDatosMin} (hoy ${c.calidad.puntuacion})`,
+      'la estabilidad pasa a BAJA, o el precio queda más de 6 h sin observarse',
+    ],
+    desaparece,
+  };
+}

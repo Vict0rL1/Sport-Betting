@@ -48,6 +48,8 @@ import { recordSnapshot, horizontes, cambios, finalPrePartido, instantaneas } fr
 import { evaluacionPorHorizonte } from '../prematch/evaluation.ts';
 import { isSportId } from '../sports.ts';
 import { deTenis } from '../prematch/adapters.ts';
+import { confianzaTenis } from '../trust/adapters.ts';
+import { evaluarParaServir } from '../trust/assess.ts';
 import type { TourId, UpcomingRow } from '../types.ts';
 import { closingLine, history, latestLine, openingLine, selectionsOf } from '../odds/snapshots.ts';
 
@@ -86,6 +88,8 @@ function describeRow(row: UpcomingRow, withPrediction = true) {
   // synthetic matches that will never be played, and scoring the app against
   // invented results would make the track record meaningless.
   const snap = prediction ? deTenis(row, prediction) : null;
+  // ¿Cuánto fiarse de este número? (trust/). Se registra solo si el partido es real.
+  const confianza = prediction ? evaluarParaServir(confianzaTenis(row, prediction), row.source === 'live') : null;
   if (prediction && row.source === 'live') {
     logPrediction(row, prediction);
     // Y la instantánea pre-partido, si cambió algo (ver prematch/snapshots.ts).
@@ -96,6 +100,7 @@ function describeRow(row: UpcomingRow, withPrediction = true) {
   const played = findTennisResult(row.tour, row.p1_id, row.p2_id, row.commence_time);
   return {
     match: row,
+    confianza,
     // Para pedir sus instantáneas pre-partido: /api/prematch/:sport/:key.
     prePartido: snap && row.source === 'live' ? { sport: 'tennis', matchKey: snap.matchKey } : null,
     /**
@@ -505,6 +510,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     // dos días de no abrirla tiene resultados nuevos esperando, y ver «pendiente» en un
     // partido que se jugó el sábado hace dudar de todo lo demás.
     settle();
+    // Sin ciclo pre-partido aquí (costaría segundos por lectura): `place()` solo apuesta
+    // con una evaluación de confianza posterior a las cuotas, y esas las deja el ciclo de
+    // cada 15 minutos y el que corre tras cada refresco de cuotas.
     const r = place();
     return resumen(r.motivo);
   });

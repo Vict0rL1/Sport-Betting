@@ -27,6 +27,8 @@ import {
 import { getBaseballTrackRecord, logBaseballPrediction } from '../baseball/trackRecord.ts';
 import { recordSnapshot } from '../prematch/snapshots.ts';
 import { deBeisbol } from '../prematch/adapters.ts';
+import { confianzaBeisbol } from '../trust/adapters.ts';
+import { evaluarParaServir } from '../trust/assess.ts';
 import type { BsbUpcomingRow } from '../baseball/types.ts';
 import { findGameResult, hasStarted } from '../results.ts';
 import { readCalibration } from '../staking/calibration.ts';
@@ -67,6 +69,8 @@ function describeRow(
   // question, and scoring the app on it would measure someone else's input.
   const userChose = starters.home !== undefined || starters.away !== undefined;
   const snap = prediction ? deBeisbol(row, prediction) : null;
+  // ¿Cuánto fiarse de este número? (trust/). Se registra solo si el partido es real.
+  const confianza = prediction ? evaluarParaServir(confianzaBeisbol(row, prediction), row.source === 'live' && !userChose) : null;
   if (prediction && row.source === 'live' && !userChose) {
     logBaseballPrediction(row, prediction);
     if (snap) recordSnapshot(snap);
@@ -75,6 +79,7 @@ function describeRow(
   if (prediction) Object.assign(prediction, { versiones: versionsFor('baseball') });
   return {
     game: row,
+    confianza,
     prePartido: snap && row.source === 'live' && !userChose ? { sport: 'baseball', matchKey: snap.matchKey } : null,
     /**
      * The FINAL SCORE, once the game has been played and the archive has it.

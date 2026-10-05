@@ -25,6 +25,8 @@ import { getSquad, hasSquadData, squadAvailability } from '../football/players.t
 import { getFootballTrackRecord, logFootballPrediction } from '../football/trackRecord.ts';
 import { recordSnapshot } from '../prematch/snapshots.ts';
 import { deFutbol } from '../prematch/adapters.ts';
+import { confianzaFutbol } from '../trust/adapters.ts';
+import { evaluarParaServir } from '../trust/assess.ts';
 import type { FbUpcomingRow } from '../football/types.ts';
 import { findGameResult, hasStarted } from '../results.ts';
 import { readCalibration } from '../staking/calibration.ts';
@@ -73,6 +75,8 @@ function describeRow(
   // and scoring the app on it would flatter or punish it for someone else's input.
   const userAdjusted = (out.home?.length ?? 0) + (out.away?.length ?? 0) > 0;
   const snap = prediction ? deFutbol(row, prediction) : null;
+  // ¿Cuánto fiarse de este número? (trust/). Se registra solo si el partido es real.
+  const confianza = prediction ? evaluarParaServir(confianzaFutbol(row, prediction), row.source === 'live' && !userAdjusted) : null;
   if (prediction && row.source === 'live' && !userAdjusted) {
     logFootballPrediction(row, prediction);
     if (snap) recordSnapshot(snap);
@@ -81,6 +85,7 @@ function describeRow(
   if (prediction) Object.assign(prediction, { versiones: versionsFor('football') });
   return {
     fixture: row,
+    confianza,
     prePartido: snap && row.source === 'live' && !userAdjusted ? { sport: 'football', matchKey: snap.matchKey } : null,
     /**
      * The FINAL SCORE, once the game has been played and the archive has it.

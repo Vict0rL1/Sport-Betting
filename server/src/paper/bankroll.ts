@@ -450,6 +450,44 @@ export function conMercadoActual<T extends { salidas: { odds: number; pMarket: n
   return { ...c, salidas: c.salidas.map((s, i) => ({ ...s, pMarket: probs[i] })) };
 }
 
+/**
+ * ¿Deja la capa de confianza apostar este partido, con esta selección y esta cuota?
+ *
+ * Lee la última evaluación registrada (trust/assess.ts). Se exige que sea POSTERIOR a las
+ * cuotas que se van a apostar, que eligiera la misma selección a la misma cuota, y que la
+ * probabilidad registrada con la que se apuesta no se haya alejado de la actual más que
+ * su incertidumbre. Sin evaluación, no se apuesta: la abstención falla cerrada.
+ */
+export function juicioDeConfianza(
+  c: { sport: string; match_key: string; oddsAt: string | null; salidas: { label: string; p: number; odds: number }[] },
+  label: string,
+  now = new Date().toISOString(),
+): { apostar: boolean; razon: string | null; factor: number; id: number | null; confianza: string | null; calidad: number | null } {
+  const no = (razon: string, a?: { id: number; confidence: string; data_quality: number }) => ({
+    apostar: false, razon: `abstención: ${razon}`, factor: 0, id: a?.id ?? null, confianza: a?.confidence ?? null, calidad: a?.data_quality ?? null,
+  });
+  const a = getDb()
+    .prepare(
+      `SELECT id, assessed_at, decision, selection, odds, stake_factor, probs, uncertainty_pp, confidence, data_quality, reasons
+         FROM prediction_assessments WHERE sport = ? AND match_key = ? AND assessed_at <= ? ORDER BY assessed_at DESC, id DESC LIMIT 1`,
+    )
+    .get(c.sport, c.match_key, now) as
+    | { id: number; assessed_at: string; decision: string; selection: number | null; odds: number | null; stake_factor: number; probs: string; uncertainty_pp: number; confidence: string; data_quality: number; reasons: string }
+    | undefined;
+  if (!a) return no('sin evaluación de confianza registrada para este partido');
+  if (c.oddsAt && a.assessed_at < c.oddsAt) return no('la evaluación de confianza es anterior a las cuotas actuales', a);
+  const i = c.salidas.findIndex((x) => x.label === label);
+  if (a.selection !== i || a.odds == null || Math.abs(a.odds - c.salidas[i].odds) > 1e-9) {
+    return no('la evaluación de confianza se hizo con otra selección o con otra cuota', a);
+  }
+  if (a.decision !== 'BET') return no((JSON.parse(a.reasons) as string[])[0] ?? a.decision, a);
+  const actual = (JSON.parse(a.probs) as number[])[i];
+  if (Math.abs(actual - c.salidas[i].p) > Math.max(a.uncertainty_pp / 100, 0.01)) {
+    return no(`la predicción registrada (${(c.salidas[i].p * 100).toFixed(1)} %) está desfasada de la actual (${(actual * 100).toFixed(1)} %)`, a);
+  }
+  return { apostar: true, razon: null, factor: Math.min(1, a.stake_factor), id: a.id, confianza: a.confidence, calidad: a.data_quality };
+}
+
 /** El id del evento en The Odds API. La NFL lo guarda con prefijo `odds-`. */
 export function providerId(eventId: string): string {
   return eventId.replace(/^odds-/, '');
@@ -503,8 +541,9 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
        model_probability_raw, model_probability_calibrated, market_probability_raw, market_probability_no_vig, edge,
        bookmaker, books, line, stake_pct_bankroll, kelly_raw, kelly_fraction_used,
        model_version, model_config_version, calibration_version, data_version, strategy_version, git_commit,
-       prediction_timestamp, odds_timestamp, opening_odds, opening_observed_at, signal_odds, signal_observed_at
-     ) VALUES (?,?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?)`,
+       prediction_timestamp, odds_timestamp, opening_odds, opening_observed_at, signal_odds, signal_observed_at,
+       assessment_id, confidence, data_quality, trust_stake_factor
+     ) VALUES (?,?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?)`,
   );
   const ahora = AHORA();
   const banco = bancoActual();
@@ -522,13 +561,13 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
     // La señal se registra SIEMPRE, se apueste o no: el edge detectado se mide sobre todo
     // lo evaluado, no solo sobre lo que pasó los topes (ver paper/signals.ts).
     const elegida = d ? c.salidas.find((s) => s.label === d.label) : undefined;
-    const senalDe = (decision: 'apostada' | 'rechazada', stake: number, betId: number | null) =>
+    const senalDe = (decision: 'apostada' | 'rechazada', stake: number, betId: number | null, motivo: string | null = null) =>
       d && elegida
         ? recordSignal({
             sport: c.sport, league: c.league, eventId: c.event_id, providerEventId: providerId(c.event_id),
             selection: elegida.label, providerSelection: elegida.proveedor, pRaw: elegida.pRaw, pCal: elegida.p,
             pMarket: elegida.pMarket, odds: elegida.odds, edge: d.edge, kellyRaw: fullKelly(elegida.p, elegida.odds),
-            decision, reason: decision === 'rechazada' ? d.blockedBy : null, stake, paperBetId: betId,
+            decision, reason: decision === 'rechazada' ? (motivo ?? d.blockedBy) : null, stake, paperBetId: betId,
             versions: versionsFor(c.sport), predictionTimestamp: c.predictedAt, oddsTimestamp: c.oddsAt, commenceTime: c.commence,
           })
         : null;
@@ -539,6 +578,16 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
       senalDe('rechazada', 0, null);
       continue;
     }
+    // La capa de confianza (trust/): puede abstenerse o recortar, nunca subir el importe.
+    const juicio = juicioDeConfianza(c, d.label, ahora);
+    const stakeConfianza = Math.floor(d.stake * juicio.factor * 100) / 100;
+    if (!juicio.apostar || stakeConfianza <= 0) {
+      const motivoRechazo = juicio.razon ?? 'abstención: el recorte de confianza deja el importe en cero';
+      rechazos[motivoRechazo.split(':')[0]] = (rechazos[motivoRechazo.split(':')[0]] ?? 0) + 1;
+      detalle.push(`${c.label}: no se apuesta — ${motivoRechazo}`);
+      senalDe('rechazada', 0, null, motivoRechazo);
+      continue;
+    }
     const e = elegida;
     if (!e) {
       // No puede pasar —la etiqueta sale de esta misma lista— pero si pasara, apostar
@@ -546,7 +595,7 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
       detalle.push(`${c.label}: la política eligió «${d.label}», que no está en las salidas`);
       continue;
     }
-    const stake = Math.round(d.stake * 100) / 100;
+    const stake = stakeConfianza;
     const pid = providerId(c.event_id);
     // Apertura y señal salen de los SNAPSHOTS, que son el mercado tal como se vio. La de
     // la señal es el precio cuando el modelo registró su predicción, que puede ser horas
@@ -561,6 +610,7 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
       `consenso (mediana de ${c.books ?? '?'} casas)`, c.books, null, stake / banco, fullKelly(e.p, e.odds), DEFAULT_CONFIG.kellyFraction,
       v.model_version, v.model_config_version, v.calibration_version, v.data_version, v.strategy_version, v.git_commit,
       c.predictedAt, c.oddsAt, apertura?.consensus ?? null, apertura?.at ?? null, senal?.consensus ?? null, senal ? c.predictedAt : null,
+      juicio.id, juicio.confianza, juicio.calidad, juicio.factor,
     );
     senalDe('apostada', stake, Number(alta.changes) ? Number(alta.lastInsertRowid) : null);
     // La exposición se acumula DENTRO del bucle: sin esto, veinte candidatas se

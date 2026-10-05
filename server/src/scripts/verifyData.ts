@@ -1426,6 +1426,37 @@ function auditOddsSnapshots(): void {
   console.log(`  ${r.n} snapshots de ${r.eventos} eventos`);
 }
 
+/** La capa de confianza: evaluaciones inmutables, anteriores al partido, y ninguna apuesta sin la suya. */
+function auditTrust(): void {
+  console.log('\n▸ Evaluaciones de confianza (abstención)');
+  const db = getDb();
+  const triggers = new Set((db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as { name: string }[]).map((r) => r.name));
+  for (const t of ['prediction_assessments_no_update', 'prediction_assessments_no_delete']) {
+    check(`confianza: el trigger ${t} existe`, triggers.has(t), 'sin él, una abstención se podría reescribir a posteriori');
+  }
+  const congelada = (db.prepare("SELECT sql FROM sqlite_master WHERE name = 'paper_bets_congelada'").get() as { sql: string } | undefined)?.sql ?? '';
+  check('confianza: la confianza de cada apuesta queda congelada', congelada.includes('trust_stake_factor'));
+  const r = db
+    .prepare(
+      `SELECT COUNT(*) AS n, SUM(CASE WHEN assessed_at >= commence_time THEN 1 ELSE 0 END) AS tardias,
+              SUM(CASE WHEN decision = 'NO BET' THEN 1 ELSE 0 END) AS abst,
+              SUM(CASE WHEN stake_factor > 1 THEN 1 ELSE 0 END) AS suben
+         FROM prediction_assessments`,
+    )
+    .get() as { n: number; tardias: number | null; abst: number | null; suben: number | null };
+  check('confianza: ninguna evaluación posterior al inicio', (r.tardias ?? 0) === 0, `${r.tardias}`);
+  check('confianza: ningún recorte sube el importe', (r.suben ?? 0) === 0, `${r.suben}`);
+  // Las apuestas con columnas de confianza (posteriores a la capa) la traen enlazada.
+  const huerfanas = (
+    db.prepare(
+      `SELECT COUNT(*) AS n FROM paper_bets WHERE trust_stake_factor IS NOT NULL
+         AND (assessment_id IS NULL OR assessment_id NOT IN (SELECT id FROM prediction_assessments))`,
+    ).get() as { n: number }
+  ).n;
+  check('confianza: cada apuesta con juicio de confianza enlaza a su evaluación', huerfanas === 0, `${huerfanas}`);
+  console.log(`  ${r.n} evaluaciones · ${r.abst ?? 0} abstenciones`);
+}
+
 /**
  * El walk-forward guardado (experiments/walkforward/): sin holdout, sin fuga en la
  * recalibración, periodos que suman el total y un CLV que no finge ser cero.
@@ -4040,6 +4071,7 @@ function main(): void {
   auditOddsSnapshots();
   auditPrematch();
   auditWalkForward();
+  auditTrust();
   auditVersions();
   auditLiveEvaluation();
   auditDixonColes();

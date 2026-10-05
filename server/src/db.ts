@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { DATA_DIR, DB_PATH } from './config.ts';
 import { ODDS_SNAPSHOT_SCHEMA } from './odds/schema.ts';
 import { PREMATCH_SCHEMA } from './prematch/schema.ts';
+import { ASSESSMENT_SCHEMA } from './trust/schema.ts';
 import { EDGE_SIGNALS_SCHEMA, PAPER_BET_COLUMNS, PAPER_TRIGGERS, PREDICTION_LOG_TRIGGERS } from './paper/schema.ts';
 
 let db: DatabaseSync | null = null;
@@ -29,11 +30,17 @@ export function getDb(): DatabaseSync {
   db.exec(ODDS_SNAPSHOT_SCHEMA);
   // Paper trading auditable (fase 4) y registros de predicciones que no se reescriben.
   // DESPUÉS de migrar: los triggers nombran columnas que añade la migración.
+  // Un trigger de congelación de una versión anterior no conoce las columnas nuevas, y
+  // «IF NOT EXISTS» no lo actualizaría: se rehace si no las nombra.
+  const congelada = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'paper_bets_congelada'").get() as { sql: string } | undefined;
+  if (congelada && !congelada.sql.includes('trust_stake_factor')) db.exec('DROP TRIGGER paper_bets_congelada');
   db.exec(PAPER_TRIGGERS);
   db.exec(EDGE_SIGNALS_SCHEMA);
   db.exec(PREDICTION_LOG_TRIGGERS);
   // Instantáneas pre-partido y la final congelada: ver prematch/schema.ts.
   db.exec(PREMATCH_SCHEMA);
+  // Las evaluaciones de confianza (también las abstenciones): ver trust/assess.ts.
+  db.exec(ASSESSMENT_SCHEMA);
   return db;
 }
 

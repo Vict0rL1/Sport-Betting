@@ -22,14 +22,14 @@ import {
   recommendedRefreshMinutes,
   recordCycleSpend,
 } from './oddsQuota.ts';
-import { registerRoutes, predecirProximosTenis } from './routes/api.ts';
+import { registerRoutes } from './routes/api.ts';
 import { assertAuthConfigured, registerAuth, isProduction } from './auth.ts';
 import { registerStatic, webBuildExists, WEB_DIST } from './static.ts';
-import { registerBasketballRoutes, predecirProximosBaloncesto } from './routes/basketball.ts';
-import { registerFootballRoutes, predecirProximosFutbol } from './routes/football.ts';
-import { registerBaseballRoutes, predecirProximosBeisbol } from './routes/baseball.ts';
-import { registerNflRoutes, predecirProximosNfl } from './routes/nfl.ts';
-import { freezeFinals } from './prematch/snapshots.ts';
+import { registerBasketballRoutes } from './routes/basketball.ts';
+import { registerFootballRoutes } from './routes/football.ts';
+import { registerBaseballRoutes } from './routes/baseball.ts';
+import { registerNflRoutes } from './routes/nfl.ts';
+import { cicloPrePartido } from './prematch/job.ts';
 import { registerBetRoutes } from './routes/bets.ts';
 import { registerLatencyRoutes } from './routes/latency.ts';
 import { registerStakingRoutes } from './routes/staking.ts';
@@ -311,6 +311,9 @@ function startAutoRefresh(log: (msg: string) => void): void {
     // actualizado y no el de antes de saber cómo acabaron los partidos del fin de semana.
     try {
       settle();
+      // Evaluación de confianza con las cuotas recién descargadas: sin ella, la
+      // abstención de `place()` no se fía de nada y no apuesta.
+      cicloPrePartido(log);
       place();
     } catch (e) {
       log(`Banco de papel: ${(e as Error).message}`);
@@ -544,20 +547,7 @@ async function main() {
     // minutos se predice todo lo próximo —solo partidos reales; la instantánea solo se
     // guarda si algo cambió o se cruzó una marca— y se congela la final de lo que ya
     // empezó. Local, sin red ni cuota. Ver prematch/snapshots.ts.
-    const prePartido = () => {
-      for (const [nombre, f] of [
-        ['tenis', predecirProximosTenis], ['fútbol', predecirProximosFutbol], ['baloncesto', predecirProximosBaloncesto],
-        ['béisbol', predecirProximosBeisbol], ['NFL', predecirProximosNfl],
-      ] as const) {
-        try {
-          f();
-        } catch (e) {
-          resolveLog(`Pre-partido (${nombre}): ${(e as Error).message}`);
-        }
-      }
-      const { congeladas } = freezeFinals();
-      if (congeladas) resolveLog(`Pre-partido: ${congeladas} predicción(es) final(es) congelada(s).`);
-    };
+    const prePartido = () => cicloPrePartido(resolveLog);
     prePartido();
     setInterval(prePartido, 15 * 60_000).unref();
 

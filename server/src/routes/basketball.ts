@@ -27,6 +27,8 @@ import {
 } from '../basketball/trackRecord.ts';
 import { recordSnapshot } from '../prematch/snapshots.ts';
 import { deBaloncesto } from '../prematch/adapters.ts';
+import { confianzaBaloncesto } from '../trust/adapters.ts';
+import { evaluarParaServir } from '../trust/assess.ts';
 import type { UpcomingGameRow } from '../basketball/types.ts';
 import { findGameResult, hasStarted } from '../results.ts';
 import { readCalibration } from '../staking/calibration.ts';
@@ -69,6 +71,8 @@ function describeRow(row: UpcomingGameRow, withPrediction = true) {
   // Only real fixtures go into the track record: demo games are never played, so
   // scoring the app against them would be meaningless.
   const snap = prediction ? deBaloncesto(row, prediction) : null;
+  // ¿Cuánto fiarse de este número? (trust/). Se registra solo si el partido es real.
+  const confianza = prediction ? evaluarParaServir(confianzaBaloncesto(row, prediction), row.source === 'live') : null;
   if (prediction && row.source === 'live') {
     logGamePrediction(row, prediction);
     if (snap) recordSnapshot(snap);
@@ -77,6 +81,7 @@ function describeRow(row: UpcomingGameRow, withPrediction = true) {
   if (prediction) Object.assign(prediction, { versiones: versionsFor('basketball') });
   return {
     game: row,
+    confianza,
     prePartido: snap && row.source === 'live' ? { sport: 'basketball', matchKey: snap.matchKey } : null,
     /**
      * The FINAL SCORE, once the game has been played and the archive has it.

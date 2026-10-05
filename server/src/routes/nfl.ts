@@ -24,6 +24,8 @@ import {
 import { getNflTrackRecord, logNflPrediction, resolveNflPredictions } from '../nfl/trackRecord.ts';
 import { recordSnapshot } from '../prematch/snapshots.ts';
 import { deNfl } from '../prematch/adapters.ts';
+import { confianzaNfl } from '../trust/adapters.ts';
+import { evaluarParaServir } from '../trust/assess.ts';
 import { ELO_PER_POINT } from '../nfl/model.ts';
 import type { NafUpcomingRow } from '../nfl/types.ts';
 import { findGameResult, hasStarted } from '../results.ts';
@@ -66,6 +68,8 @@ function describeRow(row: NafUpcomingRow, withPrediction = true) {
   // still a real game — this is the one sport where the fixture list is
   // official even when no bookmaker feed is configured.
   const snap = prediction ? deNfl(row, prediction) : null;
+  // ¿Cuánto fiarse de este número? (trust/). Se registra solo si el partido es real.
+  const confianza = prediction ? evaluarParaServir(confianzaNfl(row, prediction), row.source !== 'fixture') : null;
   if (prediction && row.source !== 'fixture') {
     logNflPrediction(row, prediction);
     if (snap) recordSnapshot(snap);
@@ -74,6 +78,7 @@ function describeRow(row: NafUpcomingRow, withPrediction = true) {
   if (prediction) Object.assign(prediction, { versiones: versionsFor('nfl') });
   return {
     game: row,
+    confianza,
     prePartido: snap && row.source !== 'fixture' ? { sport: 'nfl', matchKey: snap.matchKey } : null,
     /**
      * The FINAL SCORE, once the game has been played and the archive has it.
