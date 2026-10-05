@@ -83,7 +83,7 @@ export interface TrackRecord {
 }
 
 /** Stable identity for a fixture, independent of which odds feed produced it. */
-function matchKey(tour: TourId, p1: number, p2: number, commenceTime: string | null): string {
+export function matchKey(tour: TourId, p1: number, p2: number, commenceTime: string | null): string {
   const lo = Math.min(p1, p2);
   const hi = Math.max(p1, p2);
   return `${tour}|${lo}|${hi}|${ymdOf(commenceTime)}`;

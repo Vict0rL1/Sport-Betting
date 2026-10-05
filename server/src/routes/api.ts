@@ -44,6 +44,10 @@ import { modelForServing } from '../points/repo.ts';
 import type { Surface as PointsSurface } from '../points/fit.ts';
 import { readCalibration } from '../staking/calibration.ts';
 import { getTrackRecord, logPrediction } from '../trackRecord.ts';
+import { recordSnapshot, horizontes, cambios, finalPrePartido, instantaneas } from '../prematch/snapshots.ts';
+import { evaluacionPorHorizonte } from '../prematch/evaluation.ts';
+import { isSportId } from '../sports.ts';
+import { deTenis } from '../prematch/adapters.ts';
 import type { TourId, UpcomingRow } from '../types.ts';
 import { closingLine, history, latestLine, openingLine, selectionsOf } from '../odds/snapshots.ts';
 
@@ -81,12 +85,19 @@ function describeRow(row: UpcomingRow, withPrediction = true) {
   // lands (see trackRecord.ts). Only for LIVE fixtures: demo fixtures are
   // synthetic matches that will never be played, and scoring the app against
   // invented results would make the track record meaningless.
-  if (prediction && row.source === 'live') logPrediction(row, prediction);
+  const snap = prediction ? deTenis(row, prediction) : null;
+  if (prediction && row.source === 'live') {
+    logPrediction(row, prediction);
+    // Y la instantánea pre-partido, si cambió algo (ver prematch/snapshots.ts).
+    if (snap) recordSnapshot(snap);
+  }
   // Qué versión exacta produjo el número que se enseña (ver versions.ts).
   if (prediction) Object.assign(prediction, { versiones: versionsFor('tennis') });
   const played = findTennisResult(row.tour, row.p1_id, row.p2_id, row.commence_time);
   return {
     match: row,
+    // Para pedir sus instantáneas pre-partido: /api/prematch/:sport/:key.
+    prePartido: snap && row.source === 'live' ? { sport: 'tennis', matchKey: snap.matchKey } : null,
     /**
      * WHO WON, once it has been played and the archive has it.
      *
@@ -388,6 +399,26 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true, ...result };
   });
 
+  // --- las instantáneas pre-partido de un partido: T-24h, T-6h, T-1h, final y cambios ---
+  // La clave es la del registro de predicciones (lleva «|»: va codificada en la URL).
+  app.get<{ Params: { sport: string; key: string } }>('/prematch/:sport/:key', async (req, reply) => {
+    const { sport, key } = req.params;
+    if (!isSportId(sport)) return reply.code(400).send({ error: 'deporte desconocido' });
+    const filas = instantaneas(sport, key);
+    const commence = filas[filas.length - 1]?.commence_time ?? null;
+    return {
+      sport,
+      matchKey: key,
+      commence,
+      instantaneas: filas.length,
+      horizontes: commence ? horizontes(sport, key, commence) : [],
+      cambios: cambios(sport, key),
+      final: finalPrePartido(sport, key),
+    };
+  });
+  // ¿Mejora el modelo cerca del partido? Emparejado sobre los mismos partidos.
+  app.get('/prematch/evaluacion', async () => ({ origen: 'live', deportes: evaluacionPorHorizonte() }));
+
   // --- qué se juega hoy, en los cinco deportes ---
   app.get('/today', async () => partidosDeHoy());
 
@@ -626,4 +657,15 @@ function countRowsWhere(table: string, col: string, value: string): number {
     .prepare(`SELECT COUNT(*) AS c FROM ${table} WHERE ${col} = ?`)
     .get(value) as unknown as { c: number };
   return row.c;
+}
+
+/**
+ * Predice TODOS los próximos de este deporte (registro de predicciones e instantánea
+ * pre-partido), sin que nadie tenga que abrir la pestaña. Lo llama el servidor cada 15
+ * minutos: así T-24h, T-6h y T-1h tienen observación propia aunque nadie mire.
+ */
+export function predecirProximosTenis(): number {
+  const rows = listUpcoming({});
+  for (const r of rows) describeRow(r, true);
+  return rows.length;
 }

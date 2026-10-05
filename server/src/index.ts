@@ -22,13 +22,14 @@ import {
   recommendedRefreshMinutes,
   recordCycleSpend,
 } from './oddsQuota.ts';
-import { registerRoutes } from './routes/api.ts';
+import { registerRoutes, predecirProximosTenis } from './routes/api.ts';
 import { assertAuthConfigured, registerAuth, isProduction } from './auth.ts';
 import { registerStatic, webBuildExists, WEB_DIST } from './static.ts';
-import { registerBasketballRoutes } from './routes/basketball.ts';
-import { registerFootballRoutes } from './routes/football.ts';
-import { registerBaseballRoutes } from './routes/baseball.ts';
-import { registerNflRoutes } from './routes/nfl.ts';
+import { registerBasketballRoutes, predecirProximosBaloncesto } from './routes/basketball.ts';
+import { registerFootballRoutes, predecirProximosFutbol } from './routes/football.ts';
+import { registerBaseballRoutes, predecirProximosBeisbol } from './routes/baseball.ts';
+import { registerNflRoutes, predecirProximosNfl } from './routes/nfl.ts';
+import { freezeFinals } from './prematch/snapshots.ts';
 import { registerBetRoutes } from './routes/bets.ts';
 import { registerLatencyRoutes } from './routes/latency.ts';
 import { registerStakingRoutes } from './routes/staking.ts';
@@ -538,6 +539,27 @@ async function main() {
     const resolveLog = (msg: string) => app.log.info(msg);
     resolveAllPredictions(resolveLog);
     setInterval(() => resolveAllPredictions(resolveLog), RESOLVE_EVERY_MINUTES * 60_000).unref();
+
+    // Las instantáneas pre-partido (T-24h, T-6h, T-1h y la final congelada): cada 15
+    // minutos se predice todo lo próximo —solo partidos reales; la instantánea solo se
+    // guarda si algo cambió o se cruzó una marca— y se congela la final de lo que ya
+    // empezó. Local, sin red ni cuota. Ver prematch/snapshots.ts.
+    const prePartido = () => {
+      for (const [nombre, f] of [
+        ['tenis', predecirProximosTenis], ['fútbol', predecirProximosFutbol], ['baloncesto', predecirProximosBaloncesto],
+        ['béisbol', predecirProximosBeisbol], ['NFL', predecirProximosNfl],
+      ] as const) {
+        try {
+          f();
+        } catch (e) {
+          resolveLog(`Pre-partido (${nombre}): ${(e as Error).message}`);
+        }
+      }
+      const { congeladas } = freezeFinals();
+      if (congeladas) resolveLog(`Pre-partido: ${congeladas} predicción(es) final(es) congelada(s).`);
+    };
+    prePartido();
+    setInterval(prePartido, 15 * 60_000).unref();
 
     // La cuota de CIERRE de verdad: justo antes de que empiecen los partidos con una
     // apuesta de papel o una señal abierta, se observa su competición (1 crédito por

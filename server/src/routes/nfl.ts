@@ -22,6 +22,8 @@ import {
   listUpcoming,
 } from '../nfl/repo.ts';
 import { getNflTrackRecord, logNflPrediction, resolveNflPredictions } from '../nfl/trackRecord.ts';
+import { recordSnapshot } from '../prematch/snapshots.ts';
+import { deNfl } from '../prematch/adapters.ts';
 import { ELO_PER_POINT } from '../nfl/model.ts';
 import type { NafUpcomingRow } from '../nfl/types.ts';
 import { findGameResult, hasStarted } from '../results.ts';
@@ -63,11 +65,16 @@ function describeRow(row: NafUpcomingRow, withPrediction = true) {
   // Only real games enter the track record. A schedule row with no price is
   // still a real game — this is the one sport where the fixture list is
   // official even when no bookmaker feed is configured.
-  if (prediction && row.source !== 'fixture') logNflPrediction(row, prediction);
+  const snap = prediction ? deNfl(row, prediction) : null;
+  if (prediction && row.source !== 'fixture') {
+    logNflPrediction(row, prediction);
+    if (snap) recordSnapshot(snap);
+  }
   // Qué versión exacta produjo el número que se enseña (ver versions.ts).
   if (prediction) Object.assign(prediction, { versiones: versionsFor('nfl') });
   return {
     game: row,
+    prePartido: snap && row.source !== 'fixture' ? { sport: 'nfl', matchKey: snap.matchKey } : null,
     /**
      * The FINAL SCORE, once the game has been played and the archive has it.
      *
@@ -241,4 +248,19 @@ export async function registerNflRoutes(app: FastifyInstance): Promise<void> {
     const stored = await refreshOdds(true);
     return { ok: true, stored };
   });
+}
+
+/**
+ * Predice TODOS los próximos de este deporte (registro de predicciones e instantánea
+ * pre-partido), sin que nadie tenga que abrir la pestaña. Lo llama el servidor cada 15
+ * minutos: así T-24h, T-6h y T-1h tienen observación propia aunque nadie mire.
+ */
+export function predecirProximosNfl(): number {
+  let n = 0;
+  for (const l of nflConfig.leagues) {
+    const rows = listUpcoming(l.id, 64);
+    for (const r of rows) describeRow(r, true);
+    n += rows.length;
+  }
+  return n;
 }

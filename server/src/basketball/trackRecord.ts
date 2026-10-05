@@ -76,7 +76,7 @@ function shiftYmd(ymd: string, days: number): string {
 }
 
 /** Stable identity for a fixture, independent of the odds feed's event id. */
-function gameKey(league: string, homeId: string, awayId: string, commence: string | null): string {
+export function gameKey(league: string, homeId: string, awayId: string, commence: string | null): string {
   return `${league}|${homeId}|${awayId}|${ymdOf(commence)}`;
 }
 

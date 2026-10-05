@@ -25,6 +25,8 @@ import {
   listUpcoming,
 } from '../baseball/repo.ts';
 import { getBaseballTrackRecord, logBaseballPrediction } from '../baseball/trackRecord.ts';
+import { recordSnapshot } from '../prematch/snapshots.ts';
+import { deBeisbol } from '../prematch/adapters.ts';
 import type { BsbUpcomingRow } from '../baseball/types.ts';
 import { findGameResult, hasStarted } from '../results.ts';
 import { readCalibration } from '../staking/calibration.ts';
@@ -64,11 +66,16 @@ function describeRow(
   // prediction the user reshaped by naming a different starter is a different
   // question, and scoring the app on it would measure someone else's input.
   const userChose = starters.home !== undefined || starters.away !== undefined;
-  if (prediction && row.source === 'live' && !userChose) logBaseballPrediction(row, prediction);
+  const snap = prediction ? deBeisbol(row, prediction) : null;
+  if (prediction && row.source === 'live' && !userChose) {
+    logBaseballPrediction(row, prediction);
+    if (snap) recordSnapshot(snap);
+  }
   // Qué versión exacta produjo el número que se enseña (ver versions.ts).
   if (prediction) Object.assign(prediction, { versiones: versionsFor('baseball') });
   return {
     game: row,
+    prePartido: snap && row.source === 'live' && !userChose ? { sport: 'baseball', matchKey: snap.matchKey } : null,
     /**
      * The FINAL SCORE, once the game has been played and the archive has it.
      *
@@ -244,4 +251,15 @@ export async function registerBaseballRoutes(app: FastifyInstance): Promise<void
     // que una persona acababa de pedir, y encima lo reportaba como «no hay partidos».
     return { ok: true, ...(await refreshBaseballOdds(true)) };
   });
+}
+
+/**
+ * Predice TODOS los próximos de este deporte (registro de predicciones e instantánea
+ * pre-partido), sin que nadie tenga que abrir la pestaña. Lo llama el servidor cada 15
+ * minutos: así T-24h, T-6h y T-1h tienen observación propia aunque nadie mire.
+ */
+export function predecirProximosBeisbol(): number {
+  const rows = listUpcoming();
+  for (const r of rows) describeRow(r, true);
+  return rows.length;
 }

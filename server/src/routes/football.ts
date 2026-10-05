@@ -23,6 +23,8 @@ import {
 } from '../football/repo.ts';
 import { getSquad, hasSquadData, squadAvailability } from '../football/players.ts';
 import { getFootballTrackRecord, logFootballPrediction } from '../football/trackRecord.ts';
+import { recordSnapshot } from '../prematch/snapshots.ts';
+import { deFutbol } from '../prematch/adapters.ts';
 import type { FbUpcomingRow } from '../football/types.ts';
 import { findGameResult, hasStarted } from '../results.ts';
 import { readCalibration } from '../staking/calibration.ts';
@@ -70,11 +72,16 @@ function describeRow(
   // a prediction the user reshaped by marking absences is a different question,
   // and scoring the app on it would flatter or punish it for someone else's input.
   const userAdjusted = (out.home?.length ?? 0) + (out.away?.length ?? 0) > 0;
-  if (prediction && row.source === 'live' && !userAdjusted) logFootballPrediction(row, prediction);
+  const snap = prediction ? deFutbol(row, prediction) : null;
+  if (prediction && row.source === 'live' && !userAdjusted) {
+    logFootballPrediction(row, prediction);
+    if (snap) recordSnapshot(snap);
+  }
   // Qué versión exacta produjo el número que se enseña (ver versions.ts).
   if (prediction) Object.assign(prediction, { versiones: versionsFor('football') });
   return {
     fixture: row,
+    prePartido: snap && row.source === 'live' && !userAdjusted ? { sport: 'football', matchKey: snap.matchKey } : null,
     /**
      * The FINAL SCORE, once the game has been played and the archive has it.
      *
@@ -247,4 +254,15 @@ export async function registerFootballRoutes(app: FastifyInstance): Promise<void
     // que una persona acababa de pedir, y encima lo reportaba como «no hay partidos».
     return { ok: true, ...(await refreshFootballOdds(true)) };
   });
+}
+
+/**
+ * Predice TODOS los próximos de este deporte (registro de predicciones e instantánea
+ * pre-partido), sin que nadie tenga que abrir la pestaña. Lo llama el servidor cada 15
+ * minutos: así T-24h, T-6h y T-1h tienen observación propia aunque nadie mire.
+ */
+export function predecirProximosFutbol(): number {
+  const rows = listUpcoming();
+  for (const r of rows) describeRow(r, true);
+  return rows.length;
 }

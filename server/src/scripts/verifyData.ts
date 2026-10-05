@@ -1425,6 +1425,42 @@ function auditOddsSnapshots(): void {
 }
 
 /**
+ * Las instantáneas pre-partido y la final congelada: que la base siga impidiendo
+ * reescribirlas y que nada de lo guardado sea posterior a lo que dice ser.
+ */
+function auditPrematch(): void {
+  console.log('\n▸ Instantáneas pre-partido y final congelada');
+  const db = getDb();
+  const triggers = new Set(
+    (db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as { name: string }[]).map((r) => r.name),
+  );
+  for (const t of ['prediction_snapshots_no_update', 'prediction_snapshots_no_delete', 'prematch_final_no_update', 'prematch_final_no_delete']) {
+    check(`pre-partido: el trigger ${t} existe`, triggers.has(t), 'sin él, lo que el modelo dijo antes del partido se puede reescribir');
+  }
+  const r = db
+    .prepare(
+      `SELECT COUNT(*) AS n, COUNT(DISTINCT sport || match_key) AS eventos,
+              SUM(CASE WHEN captured_at >= commence_time THEN 1 ELSE 0 END) AS tardias,
+              SUM(CASE WHEN odds_at > captured_at OR data_as_of > captured_at THEN 1 ELSE 0 END) AS futuras
+         FROM prediction_snapshots`,
+    )
+    .get() as { n: number; eventos: number; tardias: number | null; futuras: number | null };
+  check('pre-partido: ninguna instantánea tomada tras el inicio', (r.tardias ?? 0) === 0, `${r.tardias} tardías`);
+  check('pre-partido: ninguna instantánea con cuotas o datos posteriores a su captura', (r.futuras ?? 0) === 0, `${r.futuras} con información del futuro`);
+  const f = db
+    .prepare(
+      `SELECT COUNT(*) AS n,
+              SUM(CASE WHEN captured_at >= commence_time OR frozen_at < commence_time THEN 1 ELSE 0 END) AS malas,
+              SUM(CASE WHEN source = 'snapshot' AND snapshot_id NOT IN (SELECT id FROM prediction_snapshots) THEN 1 ELSE 0 END) AS huerfanas
+         FROM prematch_final`,
+    )
+    .get() as { n: number; malas: number | null; huerfanas: number | null };
+  check('pre-partido: cada final es anterior al inicio y se congeló después', (f.malas ?? 0) === 0, `${f.malas} incoherentes`);
+  check('pre-partido: cada final sale de una instantánea que existe', (f.huerfanas ?? 0) === 0, `${f.huerfanas} huérfanas`);
+  console.log(`  ${r.n} instantáneas de ${r.eventos} partidos · ${f.n} finales congeladas`);
+}
+
+/**
  * Qué versión produjo cada predicción (fase 5). Las anteriores a que existiera no tienen
  * versión y no se les inventa; las que la tienen, la tienen ENTERA y con buena forma.
  */
@@ -3963,6 +3999,7 @@ function main(): void {
   auditCalibrationFile();
   auditHomeBias();
   auditOddsSnapshots();
+  auditPrematch();
   auditVersions();
   auditLiveEvaluation();
   auditDixonColes();

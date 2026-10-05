@@ -25,6 +25,8 @@ import {
   getBasketballTrackRecord,
   logGamePrediction,
 } from '../basketball/trackRecord.ts';
+import { recordSnapshot } from '../prematch/snapshots.ts';
+import { deBaloncesto } from '../prematch/adapters.ts';
 import type { UpcomingGameRow } from '../basketball/types.ts';
 import { findGameResult, hasStarted } from '../results.ts';
 import { readCalibration } from '../staking/calibration.ts';
@@ -66,11 +68,16 @@ function describeRow(row: UpcomingGameRow, withPrediction = true) {
   const prediction = withPrediction ? predictRow(row) : null;
   // Only real fixtures go into the track record: demo games are never played, so
   // scoring the app against them would be meaningless.
-  if (prediction && row.source === 'live') logGamePrediction(row, prediction);
+  const snap = prediction ? deBaloncesto(row, prediction) : null;
+  if (prediction && row.source === 'live') {
+    logGamePrediction(row, prediction);
+    if (snap) recordSnapshot(snap);
+  }
   // Qué versión exacta produjo el número que se enseña (ver versions.ts).
   if (prediction) Object.assign(prediction, { versiones: versionsFor('basketball') });
   return {
     game: row,
+    prePartido: snap && row.source === 'live' ? { sport: 'basketball', matchKey: snap.matchKey } : null,
     /**
      * The FINAL SCORE, once the game has been played and the archive has it.
      *
@@ -228,4 +235,15 @@ export async function registerBasketballRoutes(app: FastifyInstance): Promise<vo
     const result = await refreshBasketballOdds(true);
     return { ok: true, ...result };
   });
+}
+
+/**
+ * Predice TODOS los próximos de este deporte (registro de predicciones e instantánea
+ * pre-partido), sin que nadie tenga que abrir la pestaña. Lo llama el servidor cada 15
+ * minutos: así T-24h, T-6h y T-1h tienen observación propia aunque nadie mire.
+ */
+export function predecirProximosBaloncesto(): number {
+  const rows = listUpcoming();
+  for (const r of rows) describeRow(r, true);
+  return rows.length;
 }

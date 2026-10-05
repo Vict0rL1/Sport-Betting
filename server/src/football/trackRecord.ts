@@ -56,9 +56,14 @@ function shiftYmd(ymd: string, days: number): string {
   return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, '0')}${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
+/** La identidad estable del partido en el registro: la misma para el log y las instantáneas. */
+export function footballMatchKey(row: FbUpcomingRow): string {
+  return `${row.league}|${row.home_id}|${row.away_id}|${ymdOf(row.commence_time)}`;
+}
+
 export function logFootballPrediction(row: FbUpcomingRow, p: FbPrediction): void {
   if (!row.home_id || !row.away_id) return;
-  const key = `${row.league}|${row.home_id}|${row.away_id}|${ymdOf(row.commence_time)}`;
+  const key = footballMatchKey(row);
   const implied =
     row.odds_home && row.odds_draw && row.odds_away
       ? impliedFrom1X2(row.odds_home, row.odds_draw, row.odds_away)
