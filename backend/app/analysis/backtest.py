@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
+from app import punto_en_el_tiempo as pit
 from app.analysis.factors import (
     build_raw_factors,
     composite_score,
@@ -81,7 +82,9 @@ def point_in_time_period(
             (_to_date(f["filed_at"]) for f in annual_filings if _to_date(f["filed_at"]) > end),
             end + timedelta(days=90),
         )
-        if published <= as_of:
+        # La regla de disponibilidad es la común (`punto_en_el_tiempo`), no
+        # una comparación propia: la misma que usa el replay de decisiones.
+        if pit.disponible_en(published, as_of):
             available.append((published, period))
 
     if not available:
@@ -99,7 +102,7 @@ def momentum_12_1(bars: list[dict], as_of: date) -> float | None:
     history = [
         (d, bar)
         for bar in bars
-        if (d := _to_date(bar.get("ts"))) is not None and d <= as_of
+        if (d := _to_date(bar.get("ts"))) is not None and pit.disponible_en(d, as_of)
     ]
     if len(history) < 200:  # menos de ~10 meses de sesiones: no hay señal
         return None
