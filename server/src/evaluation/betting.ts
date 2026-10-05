@@ -21,6 +21,7 @@
 import { getDb } from '../db.ts';
 import { BANCO_INICIAL } from '../paper/bankroll.ts';
 import { MIN_N, probarMedia, type Prueba } from './validation.ts';
+import { avisoMuestra, type AvisoMuestra } from './sample.ts';
 
 export interface Tramo {
   etiqueta: string;
@@ -33,6 +34,8 @@ export interface Tramo {
   roiPrometido: number | null;
   clvMedio: number | null;
   conCierre: number;
+  /** ⚠ cuando el número de apuestas no permite concluir (ver sample.ts). */
+  aviso: AvisoMuestra;
 }
 
 export interface Rendimiento {
@@ -99,6 +102,7 @@ export function tramo(etiqueta: string, xs: Fila[]): Tramo {
     roiPrometido: arriesgadoV > 0 ? conVentaja.reduce((s, a) => s + a.stake * (ventaja(a) as number), 0) / arriesgadoV : null,
     clvMedio: cierre.length ? cierre.reduce((s, a) => s + (a.clv as number), 0) / cierre.length : null,
     conCierre: cierre.length,
+    aviso: avisoMuestra(xs.length, 'apuestas'),
   };
 }
 

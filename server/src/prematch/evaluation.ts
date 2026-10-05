@@ -11,7 +11,7 @@ import { SPORT_IDS, type SportId } from '../sports.ts';
 import { horizontes } from './snapshots.ts';
 
 /** El resultado de cada partido resuelto, en el orden de resultados de la instantánea. */
-const RESULTADOS: Record<SportId, string> = {
+export const RESULTADOS: Record<SportId, string> = {
   tennis: `SELECT match_key AS k, CASE WHEN winner_id = p1_id THEN 0 ELSE 1 END AS y FROM prediction_log WHERE winner_id IS NOT NULL`,
   football: `SELECT match_key AS k, CASE WHEN home_goals > away_goals THEN 0 WHEN home_goals = away_goals THEN 1 ELSE 2 END AS y
                FROM fb_prediction_log WHERE home_goals IS NOT NULL`,

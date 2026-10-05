@@ -18,6 +18,7 @@ interface Informe {
   ece: number | null;
   mercado: { n: number; logLoss: number; brier: number; modeloLogLoss: number } | null;
   logLossUniforme: number | null;
+  aviso?: { nivel: string; texto: string | null };
   porVersion?: { version: string | null; n: number; logLoss: number | null; mercado: { n: number; logLoss: number; modeloLogLoss: number } | null }[];
 }
 
@@ -38,10 +39,24 @@ interface Validacion {
 
 interface Tramo {
   etiqueta: string;
+  aviso?: { nivel: string; texto: string | null };
   n: number;
   roi: number | null;
   roiPrometido: number | null;
   clvMedio: number | null;
+}
+interface GrupoSeleccion {
+  nombre: string;
+  informe: { n: number; logLoss: number | null; brier: number | null; ece: number | null; accuracy: number | null };
+  aviso: { nivel: string; texto: string | null };
+  roiHipotetico: { apuestas: number; roi: number | null; aviso: { nivel: string; texto: string | null } } | null;
+}
+interface CalidadSeleccion {
+  partidos: number;
+  grupos: GrupoSeleccion[];
+  cobertura: { cobertura: number; n: number; informe: { logLoss: number | null; brier: number | null }; aviso: { texto: string | null } }[];
+  clv: { apostadas: { n: number; media: number | null }; abstenidas: { n: number; media: number | null } };
+  lectura: string;
 }
 interface Rendimiento {
   total: Tramo;
@@ -71,15 +86,17 @@ export default function LiveEvaluation() {
   const [d, setD] = useState<Informe[] | null>(null);
   const [v, setV] = useState<Validacion | null>(null);
   const [rend, setRend] = useState<Rendimiento | null>(null);
+  const [sel, setSel] = useState<CalidadSeleccion | null>(null);
   useEffect(() => {
     let vivo = true;
     fetch('/api/evaluation')
       .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((j: { deportes: Informe[]; validacion?: Validacion; rendimiento?: Rendimiento }) => {
+      .then((j: { deportes: Informe[]; validacion?: Validacion; rendimiento?: Rendimiento; seleccion?: CalidadSeleccion }) => {
         if (!vivo) return;
         setD(j.deportes);
         setV(j.validacion ?? null);
         setRend(j.rendimiento ?? null);
+        setSel(j.seleccion ?? null);
       })
       .catch(() => vivo && setD([]));
     return () => {
@@ -127,7 +144,10 @@ export default function LiveEvaluation() {
                 return (
                   <tr key={x.deporte} className="border-t border-white/[0.05]">
                     <td className="px-4 py-2.5 text-[#c3c9d1]">{NOMBRE[x.deporte] ?? x.deporte}</td>
-                    <td className="px-4 py-2.5 text-right text-[#9aa1ac]">{x.n}</td>
+                    <td className="px-4 py-2.5 text-right text-[#9aa1ac]" title={x.aviso?.texto ?? undefined}>
+                      {x.n}
+                      {x.aviso?.nivel === 'insuficiente' && <span style={{ color: '#d9a441' }}> ⚠</span>}
+                    </td>
                     <td className="px-4 py-2.5 text-right font-semibold text-[#e8eaed]">{f3(x.logLoss)}</td>
                     <td className="px-4 py-2.5 text-right text-[#9aa1ac]">
                       {x.mercado ? (
@@ -197,6 +217,11 @@ export default function LiveEvaluation() {
                 {rend.drawdown && rend.drawdown.importe > 0 && ` · peor caída desde un máximo −${pct(rend.drawdown.pct)} del banco`}
                 {rend.peorRacha > 0 && ` · racha más larga perdiendo: ${rend.peorRacha}`}
               </p>
+              {rend.total.aviso?.texto && (
+                <p className="text-[12px]" style={{ color: '#d9a441' }}>
+                  {rend.total.aviso.texto}
+                </p>
+              )}
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse whitespace-nowrap text-[12px] sm:text-[13px]">
                   <thead>
@@ -224,7 +249,10 @@ export default function LiveEvaluation() {
                       ...ts.map((t) => (
                         <tr key={grupo + t.etiqueta} className="border-t border-white/[0.05]">
                           <td className="py-1.5 pr-2 sm:pr-3 text-[#c3c9d1]">{t.etiqueta}</td>
-                          <td className="py-1.5 pr-2 sm:pr-3 text-right text-[#9aa1ac]">{t.n}</td>
+                          <td className="py-1.5 pr-2 sm:pr-3 text-right text-[#9aa1ac]" title={t.aviso?.texto ?? undefined}>
+                            {t.n}
+                            {t.aviso?.nivel === 'insuficiente' && <span style={{ color: '#d9a441' }}> ⚠</span>}
+                          </td>
                           <td className="py-1.5 pr-2 sm:pr-3 text-right" style={{ color: (t.roi ?? 0) >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
                             {signo(t.roi)}
                           </td>
@@ -256,6 +284,36 @@ export default function LiveEvaluation() {
               </ul>
               {rend.lecturaEdge && <p className="mt-1 text-[#9aa1ac]">{rend.lecturaEdge}</p>}
             </div>
+          )}
+        </div>
+      )}
+      {/* ¿SIRVE ABSTENERSE? Lo que decidió la capa de confianza antes del partido, contra lo
+          que pasó: apostables contra abstenidas, y participar solo en lo más fiable. */}
+      {sel && (
+        <div className="border-t border-white/[0.07] px-4 py-3 text-[13px] leading-relaxed">
+          <h4 className="text-[14px] font-semibold text-[#c3c9d1]">¿Sirve abstenerse?</h4>
+          {sel.partidos === 0 ? (
+            <p className="mt-1 text-[#7b828d]">{sel.lectura}</p>
+          ) : (
+            <>
+              <ul className="mt-1 space-y-1 text-[#9aa1ac]">
+                {sel.grupos.filter((g) => g.informe.n > 0).map((g) => (
+                  <li key={g.nombre}>
+                    <span className="text-[#c3c9d1]">{g.nombre}</span>: {g.informe.n} partidos · log loss {f3(g.informe.logLoss)} · Brier {f3(g.informe.brier)} · calibración ±{pct(g.informe.ece)}
+                    {g.roiHipotetico && ` · ROI hipotético ${signo(g.roiHipotetico.roi)} (${g.roiHipotetico.apuestas})`}
+                    {g.aviso.texto && <span className="block text-[12px]" style={{ color: '#d9a441' }}>{g.aviso.texto}</span>}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[#9aa1ac]">
+                Cobertura contra rendimiento (de más a menos confianza):{' '}
+                {sel.cobertura.map((c) => `${Math.round(c.cobertura * 100)} %: log loss ${f3(c.informe.logLoss)} (${c.n})`).join(' · ')}
+              </p>
+              <p className="text-[#9aa1ac]">
+                CLV de las señales con ventaja: apostadas {signo(sel.clv.apostadas.media)} ({sel.clv.apostadas.n}) · abstenidas {signo(sel.clv.abstenidas.media)} ({sel.clv.abstenidas.n})
+              </p>
+              <p className="text-[12px] text-[#7b828d]">{sel.lectura}</p>
+            </>
           )}
         </div>
       )}

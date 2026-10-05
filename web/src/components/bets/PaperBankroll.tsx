@@ -140,6 +140,14 @@ export default function PaperBankroll() {
         {r.pendientes} sin resolver
         {r.arriesgado > 0 && <> · {dinero(r.arriesgado)} arriesgados en total</>}
         {r.empezado && <> · desde {new Date(r.empezado).toLocaleDateString('es')}</>}
+        {/* Mismos umbrales que server/src/evaluation/sample.ts (apuestas: 30 y 300). Un aviso,
+            no una prueba: el veredicto con intervalo está en «¿Es real?». */}
+        {r.roi !== null && r.liquidadas < 300 && (
+          <span className="block" style={{ color: '#d9a441' }}>
+            ⚠ {r.liquidadas} apuestas liquidadas:{' '}
+            {r.liquidadas < 30 ? 'muestra demasiado pequeña para sacar conclusiones del ROI.' : 'el ROI es orientativo; el azar todavía lo mueve mucho.'}
+          </span>
+        )}
       </p>
 
       {/* Sin apuestas y con un motivo: se dice el motivo. Un banco a 1.000 y una tabla

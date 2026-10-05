@@ -4,6 +4,7 @@
 import { validacionEnVivo } from '../evaluation/validation.ts';
 import { evaluacionEnVivo } from '../evaluation/live.ts';
 import { rendimientoEnVivo } from '../evaluation/betting.ts';
+import { calidadSeleccion } from '../trust/evaluation.ts';
 import { versionsFor } from '../versions.ts';
 import type { FastifyInstance } from 'fastify';
 import { env, toursConfig, tournamentsConfig } from '../config.ts';
@@ -435,6 +436,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     deportes: evaluacionEnVivo(),
     validacion: validacionEnVivo(),
     rendimiento: rendimientoEnVivo(),
+    // ¿Sirve abstenerse? Apostables contra abstenidas, y cobertura contra rendimiento.
+    seleccion: calidadSeleccion(),
   }));
 
   // --- las versiones vigentes de los cinco modelos (fase 5) ---

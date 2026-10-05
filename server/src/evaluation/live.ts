@@ -9,6 +9,7 @@
 import { getDb } from '../db.ts';
 import { evaluate, type Informe, type Prediccion } from './metrics.ts';
 import { SPORT_IDS, type SportId } from '../sports.ts';
+import { avisoMuestra, type AvisoMuestra } from './sample.ts';
 
 type Fila = Record<string, number | string | null>;
 
@@ -109,15 +110,15 @@ export function porVersion(deporte: string, xs: PrediccionEnVivo[]): PorVersion[
   });
 }
 
-export function evaluacionEnVivo(): (Informe & { error?: string; porVersion: PorVersion[] })[] {
+export function evaluacionEnVivo(): (Informe & { error?: string; porVersion: PorVersion[]; aviso: AvisoMuestra })[] {
   return SPORT_IDS.map((d) => {
     try {
       const xs = predicciones(d);
-      return { ...evaluate('live', d, xs), porVersion: porVersion(d, xs) };
+      return { ...evaluate('live', d, xs), porVersion: porVersion(d, xs), aviso: avisoMuestra(xs.length, 'predicciones') };
     } catch (e) {
       // Una fila mal formada no puede tumbar la evaluación de los otros cuatro, pero
       // tampoco se esconde: el deporte sale sin cifras y con el motivo.
-      return { ...evaluate('live', d, []), porVersion: [], error: (e as Error).message };
+      return { ...evaluate('live', d, []), porVersion: [], aviso: avisoMuestra(0, 'predicciones'), error: (e as Error).message };
     }
   });
 }
