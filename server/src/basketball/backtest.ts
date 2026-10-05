@@ -22,6 +22,8 @@
 // published pre-game forecast on identical games.
 
 import { informeComun } from '../evaluation/report.ts';
+import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
+import { daysBetween } from './ratings.ts';
 import type { Prediccion } from '../evaluation/metrics.ts';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -112,6 +114,10 @@ function main() {
   let brier = 0;
   /** Cada predicción, para la capa común de métricas (evaluation/). */
   const comun: Prediccion[] = [];
+  /** El flujo completo, en orden, para el walk-forward por periodos. */
+  const flujo: Juego[] = [];
+  /** Partidos jugados por cada equipo en la temporada en curso (para el régimen). */
+  const enTemporada = new Map<string, number>();
   let logloss = 0;
   let homeWinCount = 0;
   let marginAbsErr = 0;
@@ -137,6 +143,37 @@ function main() {
     calibrationScale,
     eloPerPoint,
     onGame: ({ game, home, away, probHome, predictedMargin }) => {
+      {
+        const kh = `${game.season}|${game.home_id}`;
+        const ka = `${game.season}|${game.away_id}`;
+        const nh = enTemporada.get(kh) ?? 0;
+        const na = enTemporada.get(ka) ?? 0;
+        enTemporada.set(kh, nh + 1);
+        enTemporada.set(ka, na + 1);
+        const puntua = home.games >= warmup && away.games >= warmup && game.season >= fromSeason;
+        const dh = daysBetween(home.lastDate, game.game_date);
+        const da = daysBetween(away.lastDate, game.game_date);
+        const descanso = (d: number | null) => (d == null ? 'desconocido' : d <= 1 ? 'back-to-back' : d === 2 ? '1 día' : '2+ días');
+        const bm = benchmark.get(`${game.game_date}|${game.home_id}|${game.away_id}`);
+        flujo.push({
+          fecha: game.game_date,
+          temporada: game.season,
+          a: game.home_id,
+          b: game.away_id,
+          local: !game.neutral,
+          y: game.home_pts > game.away_pts ? 0 : 1,
+          K: 2,
+          modelo: puntua ? [probHome, 1 - probHome] : null,
+          regimen: game.is_playoff ? 'playoffs' : Math.min(nh, na) < 10 ? 'inicio de temporada (10 primeros)' : 'temporada regular',
+          segmento: {
+            'descanso del local': descanso(dh),
+            'descanso del visitante': descanso(da),
+            campo: game.neutral ? 'neutral' : 'local',
+          },
+          profundidad: Math.min(home.games, away.games),
+          externos: bm != null ? { FiveThirtyEight: [bm, 1 - bm] } : undefined,
+        });
+      }
       if (home.games < warmup || away.games < warmup) return;
       const homeWon = game.home_pts > game.away_pts;
       scored++;
@@ -193,6 +230,13 @@ function main() {
   console.log(`Brier score: ${(brier / scored).toFixed(4)}   (0.25 = decir siempre 50/50)`);
   console.log(`Log loss:    ${(logloss / scored).toFixed(4)}   (0.693 = decir siempre 50/50)`);
   informeComun('basketball', comun, console.log, league === 'nba');
+  {
+    const wf = walkForward('basketball', flujo);
+    imprimirWalkForward(wf);
+    // Solo la corrida de referencia (NBA, parámetros por defecto) se guarda.
+    const cambiados = ['home', 'mov', 'rest', 'carryover', 'k', 'calibration', 'eloPerPoint', 'from', 'warmup'].some((x) => args[x] !== undefined);
+    if (league === 'nba' && !cambiados) console.log(`  guardado en ${guardarWalkForward(wf)}`);
+  }
   const bias = marginBias / scored;
   console.log(
     (() => {

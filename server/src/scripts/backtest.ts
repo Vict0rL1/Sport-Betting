@@ -38,6 +38,7 @@ import { SURFACE_WEIGHT } from '../model/predict.ts';
 import { computeReliability } from '../model/reliability.ts';
 import { VALUE_THRESHOLD } from '../model/market.ts';
 import { readCalibration, writeCalibration } from '../staking/calibration.ts';
+import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
 
 interface Row {
   id: number;
@@ -49,6 +50,7 @@ interface Row {
   loser_rank: number | null;
   score: string | null;
   best_of: number | null;
+  level: string | null;
   w_odds: number | null;
   l_odds: number | null;
 }
@@ -154,7 +156,7 @@ function main() {
   for (const tour of tours) {
     const rows = db
       .prepare(
-        `SELECT id, tourney_date, surface, winner_id, loser_id, winner_rank, loser_rank, score, best_of, w_odds, l_odds
+        `SELECT id, tourney_date, surface, winner_id, loser_id, winner_rank, loser_rank, score, best_of, level, w_odds, l_odds
          FROM matches WHERE tour = ? AND tourney_date >= ?
          ORDER BY tourney_date ASC, id ASC`,
       )
@@ -198,6 +200,8 @@ function main() {
     const porAnio = new Map<string, { n: number; pred: number; won: number; ll: number }>();
     /** Cada predicción, para la capa común de métricas (evaluation/). */
     const comun: Prediccion[] = [];
+    /** El flujo completo, en orden, para el walk-forward por periodos (evaluation/walkforward.ts). */
+    const flujo: Juego[] = [];
     // Does the reliability tier shown in the UI mean anything? Score each tier
     // separately: if the label is informative, "low" must be measurably worse.
     const tiers = new Map<string, { n: number; correct: number; brier: number; margin: number }>();
@@ -224,6 +228,20 @@ function main() {
       const w = get(m.winner_id);
       const l = get(m.loser_id);
       const sk = surfaceKey(m.surface);
+      // En el flujo el orden es por id, no ganador/perdedor: con el ganador siempre primero,
+      // cualquier baseline que mirase la posición acertaría siempre.
+      const ganaA = m.winner_id < m.loser_id;
+      const juego: Juego = {
+        fecha: m.tourney_date,
+        a: String(Math.min(m.winner_id, m.loser_id)),
+        b: String(Math.max(m.winner_id, m.loser_id)),
+        local: false,
+        y: ganaA ? 0 : 1,
+        K: 2,
+        modelo: null,
+        rango: { a: ganaA ? m.winner_rank : m.loser_rank, b: ganaA ? m.loser_rank : m.winner_rank },
+      };
+      flujo.push(juego);
 
       // ---- PREDICT (using only past information) ----
       const eligible = w.nOverall >= warmup && l.nOverall >= warmup;
@@ -261,6 +279,29 @@ function main() {
         // Calibrated probability — the same one the app reports. Note the rating
         // UPDATES below deliberately use the raw curve (that's the Elo system).
         const pWinnerWins = calibratedExpectedScore(adjW, adjL, scaleFor(m.best_of));
+        {
+          const pa = ganaA ? pWinnerWins : 1 - pWinnerWins;
+          juego.modelo = [pa, 1 - pa];
+          if (m.w_odds && m.l_odds && m.w_odds > 1 && m.l_odds > 1) {
+            const oa = ganaA ? m.w_odds : m.l_odds;
+            const ob = ganaA ? m.l_odds : m.w_odds;
+            juego.cuotas = [oa, ob];
+            juego.mercado = [1 / oa / (1 / oa + 1 / ob), 1 / ob / (1 / oa + 1 / ob)];
+          }
+          const pFavorito = Math.max(pWinnerWins, 1 - pWinnerWins);
+          const gap = m.winner_rank && m.loser_rank ? Math.abs(Math.log(m.winner_rank / m.loser_rank)) : null;
+          juego.segmento = {
+            superficie: sk ?? 'desconocida',
+            formato: m.best_of === 5 ? 'mejor de 5' : 'mejor de 3',
+            nivel: m.level ?? 'desconocido',
+            'diferencia de ranking': gap == null ? 'sin ranking' : gap < 0.5 ? 'pequeña' : gap < 1.5 ? 'media' : 'grande',
+            'fuerza del favorito': pFavorito < 0.6 ? '50–60 %' : pFavorito < 0.75 ? '60–75 %' : '≥ 75 %',
+          };
+          // El arranque del año es el «inicio de temporada» del tenis: ratings del curso
+          // anterior y jugadores que vuelven del parón.
+          juego.regimen = Number(String(m.tourney_date).replace(/-/g, '').slice(4, 6)) === 1 ? 'inicio de temporada (enero)' : 'resto de la temporada';
+          juego.profundidad = Math.min(w.nOverall, l.nOverall);
+        }
 
         scored++;
         if (pWinnerWins > 0.5) correct++;
@@ -423,6 +464,11 @@ function main() {
     console.log(`Log loss:    ${(logloss / scored).toFixed(4)}   (0.693 = 50/50 siempre)`);
     // Solo la ATP se guarda: es la que sale en la ficha (la WTA no tiene histórico aquí).
     informeComun('tennis', comun, console.log, tour.id === 'atp');
+    {
+      const wf = walkForward('tennis', flujo);
+      imprimirWalkForward(wf);
+      if (tour.id === 'atp' && !conParametrosCambiados(args)) console.log(`  guardado en ${guardarWalkForward(wf)}`);
+    }
     // ===========================================================================
     // EL TECHO: HASTA DÓNDE PUEDE LLEGAR CUALQUIER MODELO CON ESTOS PARTIDOS
     // ===========================================================================
@@ -596,3 +642,8 @@ function main() {
 }
 
 main();
+
+/** Solo la corrida de referencia se guarda: con parámetros cambiados sería otro modelo. */
+function conParametrosCambiados(args: Record<string, unknown>): boolean {
+  return ['mov', 'rest', 'load', 'bo3', 'bo5', 'calibration', 'from', 'warmup'].some((k) => args[k] !== undefined);
+}

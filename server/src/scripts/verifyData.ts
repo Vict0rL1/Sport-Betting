@@ -31,6 +31,8 @@ import { validacionEnVivo, MIN_N } from '../evaluation/validation.ts';
 import { evaluacionEnVivo } from '../evaluation/live.ts';
 import { rendimientoEnVivo } from '../evaluation/betting.ts';
 import { leerMetricasBacktest, problemasMetricasBacktest } from '../evaluation/report.ts';
+import { leerWalkForward } from '../evaluation/walkforward.ts';
+import { SPORT_IDS } from '../sports.ts';
 import nodeFs from 'node:fs';
 import nodePath from 'node:path';
 import { getDb } from '../db.ts';
@@ -1422,6 +1424,43 @@ function auditOddsSnapshots(): void {
   ).n;
   check('snapshots: cada snapshot tiene la observación de su evento', huerfanos === 0, `${huerfanos} huérfanos`);
   console.log(`  ${r.n} snapshots de ${r.eventos} eventos`);
+}
+
+/**
+ * El walk-forward guardado (experiments/walkforward/): sin holdout, sin fuga en la
+ * recalibración, periodos que suman el total y un CLV que no finge ser cero.
+ */
+function auditWalkForward(): void {
+  console.log('\n▸ Walk-forward por periodos');
+  for (const sport of SPORT_IDS) {
+    const r = leerWalkForward(sport);
+    if (!r) {
+      console.log(`  ${sport}: sin fichero (corre su backtest de referencia)`);
+      continue;
+    }
+    const suma = r.periodos.reduce((a, p) => a + p.n, 0);
+    check(`walk-forward ${sport}: los periodos suman el total`, suma === r.global.modelo.n, `${suma} ≠ ${r.global.modelo.n}`);
+    let anteriores = 0;
+    const fugas: string[] = [];
+    for (const p of r.periodos) {
+      const m = /con (\d+) partidos anteriores/.exec(p.recalibrado.parametros);
+      if (m && Number(m[1]) !== anteriores) fugas.push(`${p.periodo}: ${m[1]} ≠ ${anteriores}`);
+      anteriores += p.n;
+    }
+    check(`walk-forward ${sport}: cada recalibración usa solo los periodos anteriores`, fugas.length === 0, fugas.join(' · '));
+    check(`walk-forward ${sport}: el CLV histórico es null, no un 0 inventado`, r.periodos.every((p) => p.clv === null));
+    if (sport === 'nfl') {
+      const dentro = r.periodos.filter((p) => Number(p.periodo) >= FINAL_HOLDOUT_FROM.nfl);
+      check('walk-forward nfl: ningún periodo del holdout final', dentro.length === 0, dentro.map((p) => p.periodo).join(', '));
+    }
+    if (sport === 'football') {
+      // La temporada N empieza en agosto de N−1.
+      const limite = `${FINAL_HOLDOUT_FROM.football - 1}0801`;
+      const dentro = r.periodos.filter((p) => p.hasta.replace(/-/g, '') >= limite);
+      check('walk-forward football: ningún partido del holdout final', dentro.length === 0, dentro.map((p) => p.periodo).join(', '));
+    }
+    console.log(`  ${sport}: ${r.periodos.length} periodos · ${r.global.modelo.n} partidos`);
+  }
 }
 
 /**
@@ -4000,6 +4039,7 @@ function main(): void {
   auditHomeBias();
   auditOddsSnapshots();
   auditPrematch();
+  auditWalkForward();
   auditVersions();
   auditLiveEvaluation();
   auditDixonColes();

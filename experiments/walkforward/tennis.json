@@ -1,0 +1,3072 @@
+{
+ "sport": "tennis",
+ "generado": "2026-10-05T00:36:03.475Z",
+ "model_version": "tennis-b77b55265fb3",
+ "data_version": "20260117·30853",
+ "holdoutExcluido": 0,
+ "ventanas": "ventana creciente: cada periodo se evalúa con todo lo anterior; periodos de un trimestre",
+ "periodos": [
+  {
+   "periodo": "2015-T1",
+   "n": 9,
+   "desde": "20150312",
+   "hasta": "20150325",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 9,
+    "logLoss": 0.551722,
+    "brier": 0.181277,
+    "accuracy": 0.777778,
+    "ece": 0.172592,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 9,
+    "logLoss": 0.551722,
+    "brier": 0.181277,
+    "accuracy": 0.777778,
+    "ece": 0.172592,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "identidad (menos de 300 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 9,
+     "logLoss": 0.610758,
+     "brier": 0.209167,
+     "accuracy": 0.777778,
+     "ece": 0.195588,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2015-T2",
+   "n": 280,
+   "desde": "20150406",
+   "hasta": "20150629",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 280,
+    "logLoss": 0.58624,
+    "brier": 0.200663,
+    "accuracy": 0.7,
+    "ece": 0.055736,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 280,
+    "logLoss": 0.58624,
+    "brier": 0.200663,
+    "accuracy": 0.7,
+    "ece": 0.055736,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "identidad (menos de 300 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 280,
+     "logLoss": 0.588052,
+     "brier": 0.201417,
+     "accuracy": 0.685714,
+     "ece": 0.046326,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2015-T3",
+   "n": 403,
+   "desde": "20150713",
+   "hasta": "20150928",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 403,
+    "logLoss": 0.610302,
+    "brier": 0.212432,
+    "accuracy": 0.66005,
+    "ece": 0.019565,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 403,
+    "logLoss": 0.610302,
+    "brier": 0.212432,
+    "accuracy": 0.66005,
+    "ece": 0.019565,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "identidad (menos de 300 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 403,
+     "logLoss": 0.62303,
+     "brier": 0.217651,
+     "accuracy": 0.662531,
+     "ece": 0.034451,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2015-T4",
+   "n": 261,
+   "desde": "20151005",
+   "hasta": "20151127",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 261,
+    "logLoss": 0.580616,
+    "brier": 0.196426,
+    "accuracy": 0.712644,
+    "ece": 0.057248,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 261,
+    "logLoss": 0.576317,
+    "brier": 0.194074,
+    "accuracy": 0.708812,
+    "ece": 0.036327,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.026 b=1.201 (con 692 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 261,
+     "logLoss": 0.574268,
+     "brier": 0.193849,
+     "accuracy": 0.704981,
+     "ece": 0.052969,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 261,
+     "logLoss": 0.570752,
+     "brier": 0.193716,
+     "accuracy": 0.712644,
+     "ece": 0.031574,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2016-T1",
+   "n": 506,
+   "desde": "20160104",
+   "hasta": "20160321",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 506,
+    "logLoss": 0.58225,
+    "brier": 0.199247,
+    "accuracy": 0.695652,
+    "ece": 0.02207,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 506,
+    "logLoss": 0.584179,
+    "brier": 0.199772,
+    "accuracy": 0.6917,
+    "ece": 0.039304,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.050 b=1.223 (con 953 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 506,
+     "logLoss": 0.590742,
+     "brier": 0.202867,
+     "accuracy": 0.687747,
+     "ece": 0.018382,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 506,
+     "logLoss": 0.59765,
+     "brier": 0.205135,
+     "accuracy": 0.695652,
+     "ece": 0.022532,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2016-T2",
+   "n": 618,
+   "desde": "20160404",
+   "hasta": "20160627",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 618,
+    "logLoss": 0.58657,
+    "brier": 0.20076,
+    "accuracy": 0.68932,
+    "ece": 0.033012,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 618,
+    "logLoss": 0.584521,
+    "brier": 0.199834,
+    "accuracy": 0.690939,
+    "ece": 0.013646,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.003 b=1.166 (con 1459 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 618,
+     "logLoss": 0.596531,
+     "brier": 0.204529,
+     "accuracy": 0.661812,
+     "ece": 0.043234,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 618,
+     "logLoss": 0.610573,
+     "brier": 0.209882,
+     "accuracy": 0.668285,
+     "ece": 0.022655,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2016-T3",
+   "n": 501,
+   "desde": "20160711",
+   "hasta": "20160926",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 501,
+    "logLoss": 0.619043,
+    "brier": 0.215974,
+    "accuracy": 0.630739,
+    "ece": 0.037188,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 501,
+    "logLoss": 0.623559,
+    "brier": 0.217574,
+    "accuracy": 0.634731,
+    "ece": 0.055565,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.034 b=1.175 (con 2077 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 501,
+     "logLoss": 0.622086,
+     "brier": 0.217098,
+     "accuracy": 0.648703,
+     "ece": 0.037536,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 500,
+     "logLoss": 0.639623,
+     "brier": 0.221875,
+     "accuracy": 0.642,
+     "ece": 0.041264,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2016-T4",
+   "n": 292,
+   "desde": "20161003",
+   "hasta": "20161125",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 292,
+    "logLoss": 0.587872,
+    "brier": 0.200841,
+    "accuracy": 0.715753,
+    "ece": 0.048482,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 292,
+    "logLoss": 0.589024,
+    "brier": 0.201283,
+    "accuracy": 0.702055,
+    "ece": 0.027985,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.038 b=1.110 (con 2578 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 292,
+     "logLoss": 0.596927,
+     "brier": 0.20441,
+     "accuracy": 0.705479,
+     "ece": 0.058249,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 292,
+     "logLoss": 0.634611,
+     "brier": 0.220318,
+     "accuracy": 0.65411,
+     "ece": 0.037313,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2017-T1",
+   "n": 639,
+   "desde": "20170102",
+   "hasta": "20170320",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 639,
+    "logLoss": 0.602962,
+    "brier": 0.206379,
+    "accuracy": 0.671362,
+    "ece": 0.031207,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 639,
+    "logLoss": 0.604135,
+    "brier": 0.206338,
+    "accuracy": 0.672926,
+    "ece": 0.027626,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.015 b=1.107 (con 2870 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 639,
+     "logLoss": 0.603692,
+     "brier": 0.206958,
+     "accuracy": 0.672926,
+     "ece": 0.011066,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 639,
+     "logLoss": 0.627643,
+     "brier": 0.217806,
+     "accuracy": 0.663537,
+     "ece": 0.04165,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2017-T2",
+   "n": 612,
+   "desde": "20170407",
+   "hasta": "20170626",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 612,
+    "logLoss": 0.598431,
+    "brier": 0.205361,
+    "accuracy": 0.679739,
+    "ece": 0.022621,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 612,
+    "logLoss": 0.598595,
+    "brier": 0.205217,
+    "accuracy": 0.684641,
+    "ece": 0.030747,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.018 b=1.079 (con 3509 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 612,
+     "logLoss": 0.619134,
+     "brier": 0.213075,
+     "accuracy": 0.660131,
+     "ece": 0.031446,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 610,
+     "logLoss": 0.62486,
+     "brier": 0.215825,
+     "accuracy": 0.655738,
+     "ece": 0.02365,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2017-T3",
+   "n": 602,
+   "desde": "20170703",
+   "hasta": "20170925",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 602,
+    "logLoss": 0.626065,
+    "brier": 0.218971,
+    "accuracy": 0.63289,
+    "ece": 0.03064,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 602,
+    "logLoss": 0.628064,
+    "brier": 0.219737,
+    "accuracy": 0.627907,
+    "ece": 0.045498,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.006 b=1.074 (con 4121 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 602,
+     "logLoss": 0.64091,
+     "brier": 0.225627,
+     "accuracy": 0.599668,
+     "ece": 0.068874,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 602,
+     "logLoss": 0.654447,
+     "brier": 0.23186,
+     "accuracy": 0.599668,
+     "ece": 0.057154,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2017-T4",
+   "n": 301,
+   "desde": "20171002",
+   "hasta": "20171124",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 301,
+    "logLoss": 0.6197,
+    "brier": 0.215327,
+    "accuracy": 0.647841,
+    "ece": 0.030542,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 301,
+    "logLoss": 0.620061,
+    "brier": 0.21541,
+    "accuracy": 0.647841,
+    "ece": 0.025998,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.016 b=1.045 (con 4723 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 301,
+     "logLoss": 0.633912,
+     "brier": 0.220751,
+     "accuracy": 0.654485,
+     "ece": 0.027857,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 301,
+     "logLoss": 0.641488,
+     "brier": 0.225203,
+     "accuracy": 0.627907,
+     "ece": 0.036405,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2018-T1",
+   "n": 649,
+   "desde": "20180101",
+   "hasta": "20180319",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 649,
+    "logLoss": 0.623855,
+    "brier": 0.217102,
+    "accuracy": 0.654854,
+    "ece": 0.027987,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 649,
+    "logLoss": 0.624939,
+    "brier": 0.217469,
+    "accuracy": 0.651772,
+    "ece": 0.037606,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.017 b=1.039 (con 5024 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 649,
+     "logLoss": 0.636495,
+     "brier": 0.222055,
+     "accuracy": 0.642527,
+     "ece": 0.040181,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 649,
+     "logLoss": 0.646129,
+     "brier": 0.226241,
+     "accuracy": 0.650231,
+     "ece": 0.040535,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2018-T2",
+   "n": 621,
+   "desde": "20180406",
+   "hasta": "20180625",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 621,
+    "logLoss": 0.620844,
+    "brier": 0.217136,
+    "accuracy": 0.62963,
+    "ece": 0.031538,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 621,
+    "logLoss": 0.621098,
+    "brier": 0.21726,
+    "accuracy": 0.62963,
+    "ece": 0.033633,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.007 b=1.019 (con 5673 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 621,
+     "logLoss": 0.639341,
+     "brier": 0.224729,
+     "accuracy": 0.636071,
+     "ece": 0.033862,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 621,
+     "logLoss": 0.631836,
+     "brier": 0.222536,
+     "accuracy": 0.619968,
+     "ece": 0.038954,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2018-T3",
+   "n": 631,
+   "desde": "20180702",
+   "hasta": "20180924",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 631,
+    "logLoss": 0.627129,
+    "brier": 0.220237,
+    "accuracy": 0.62916,
+    "ece": 0.037488,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 631,
+    "logLoss": 0.627387,
+    "brier": 0.220343,
+    "accuracy": 0.62916,
+    "ece": 0.038979,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.000 b=1.011 (con 6294 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 631,
+     "logLoss": 0.629574,
+     "brier": 0.221077,
+     "accuracy": 0.622821,
+     "ece": 0.048267,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 631,
+     "logLoss": 0.651914,
+     "brier": 0.230704,
+     "accuracy": 0.602219,
+     "ece": 0.049993,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2018-T4",
+   "n": 384,
+   "desde": "20181001",
+   "hasta": "20181231",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 384,
+    "logLoss": 0.604376,
+    "brier": 0.208388,
+    "accuracy": 0.6875,
+    "ece": 0.045311,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 384,
+    "logLoss": 0.60479,
+    "brier": 0.208576,
+    "accuracy": 0.679688,
+    "ece": 0.038926,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.012 b=0.994 (con 6925 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 384,
+     "logLoss": 0.602419,
+     "brier": 0.207023,
+     "accuracy": 0.679688,
+     "ece": 0.04732,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 380,
+     "logLoss": 0.616905,
+     "brier": 0.212954,
+     "accuracy": 0.678947,
+     "ece": 0.049095,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2019-T1",
+   "n": 584,
+   "desde": "20190107",
+   "hasta": "20190318",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 584,
+    "logLoss": 0.615769,
+    "brier": 0.214265,
+    "accuracy": 0.630137,
+    "ece": 0.050376,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 584,
+    "logLoss": 0.615733,
+    "brier": 0.214248,
+    "accuracy": 0.630137,
+    "ece": 0.049321,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.005 b=0.999 (con 7309 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 584,
+     "logLoss": 0.641279,
+     "brier": 0.225225,
+     "accuracy": 0.618151,
+     "ece": 0.047263,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 583,
+     "logLoss": 0.658172,
+     "brier": 0.232949,
+     "accuracy": 0.600343,
+     "ece": 0.03812,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2019-T2",
+   "n": 577,
+   "desde": "20190408",
+   "hasta": "20190624",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 577,
+    "logLoss": 0.610427,
+    "brier": 0.212488,
+    "accuracy": 0.65338,
+    "ece": 0.010268,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 577,
+    "logLoss": 0.61048,
+    "brier": 0.2125,
+    "accuracy": 0.658579,
+    "ece": 0.008014,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.007 b=0.998 (con 7893 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 577,
+     "logLoss": 0.63876,
+     "brier": 0.225131,
+     "accuracy": 0.618718,
+     "ece": 0.050864,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 577,
+     "logLoss": 0.64322,
+     "brier": 0.227195,
+     "accuracy": 0.604853,
+     "ece": 0.043145,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2019-T3",
+   "n": 732,
+   "desde": "20190701",
+   "hasta": "20190930",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 732,
+    "logLoss": 0.630575,
+    "brier": 0.220833,
+    "accuracy": 0.637978,
+    "ece": 0.016425,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 732,
+    "logLoss": 0.63059,
+    "brier": 0.220836,
+    "accuracy": 0.639344,
+    "ece": 0.02081,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.006 b=1.003 (con 8470 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 732,
+     "logLoss": 0.633322,
+     "brier": 0.22248,
+     "accuracy": 0.628415,
+     "ece": 0.030261,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 732,
+     "logLoss": 0.641745,
+     "brier": 0.22594,
+     "accuracy": 0.607923,
+     "ece": 0.035003,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2019-T4",
+   "n": 290,
+   "desde": "20191007",
+   "hasta": "20191124",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 290,
+    "logLoss": 0.605182,
+    "brier": 0.20941,
+    "accuracy": 0.689655,
+    "ece": 0.073316,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 290,
+    "logLoss": 0.605385,
+    "brier": 0.209482,
+    "accuracy": 0.693103,
+    "ece": 0.077015,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.008 b=0.992 (con 9202 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 290,
+     "logLoss": 0.619744,
+     "brier": 0.215304,
+     "accuracy": 0.682759,
+     "ece": 0.061368,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 290,
+     "logLoss": 0.65035,
+     "brier": 0.230203,
+     "accuracy": 0.582759,
+     "ece": 0.058669,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2020-T1",
+   "n": 524,
+   "desde": "20200103",
+   "hasta": "20200306",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 524,
+    "logLoss": 0.612375,
+    "brier": 0.214268,
+    "accuracy": 0.64313,
+    "ece": 0.028605,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 524,
+    "logLoss": 0.612384,
+    "brier": 0.214264,
+    "accuracy": 0.645038,
+    "ece": 0.02958,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.007 b=0.997 (con 9492 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 524,
+     "logLoss": 0.621667,
+     "brier": 0.217964,
+     "accuracy": 0.650763,
+     "ece": 0.052745,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 521,
+     "logLoss": 0.629139,
+     "brier": 0.220813,
+     "accuracy": 0.646833,
+     "ece": 0.047868,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2020-T3",
+   "n": 333,
+   "desde": "20200822",
+   "hasta": "20200928",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 333,
+    "logLoss": 0.584703,
+    "brier": 0.202371,
+    "accuracy": 0.651652,
+    "ece": 0.052425,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 333,
+    "logLoss": 0.584771,
+    "brier": 0.20237,
+    "accuracy": 0.651652,
+    "ece": 0.054887,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.006 b=0.995 (con 10016 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 333,
+     "logLoss": 0.616042,
+     "brier": 0.215821,
+     "accuracy": 0.63964,
+     "ece": 0.050391,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 331,
+     "logLoss": 0.621622,
+     "brier": 0.217807,
+     "accuracy": 0.628399,
+     "ece": 0.046389,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2020-T4",
+   "n": 243,
+   "desde": "20201012",
+   "hasta": "20201116",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 243,
+    "logLoss": 0.627741,
+    "brier": 0.218855,
+    "accuracy": 0.654321,
+    "ece": 0.029399,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 243,
+    "logLoss": 0.627777,
+    "brier": 0.21887,
+    "accuracy": 0.654321,
+    "ece": 0.029061,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.005 b=0.997 (con 10349 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 243,
+     "logLoss": 0.645734,
+     "brier": 0.227308,
+     "accuracy": 0.625514,
+     "ece": 0.067193,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 243,
+     "logLoss": 0.657222,
+     "brier": 0.232803,
+     "accuracy": 0.584362,
+     "ece": 0.04996,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2021-T1",
+   "n": 512,
+   "desde": "20210104",
+   "hasta": "20210322",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 512,
+    "logLoss": 0.619214,
+    "brier": 0.216299,
+    "accuracy": 0.634766,
+    "ece": 0.03492,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 512,
+    "logLoss": 0.619318,
+    "brier": 0.216343,
+    "accuracy": 0.634766,
+    "ece": 0.030702,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.004 b=0.998 (con 10592 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 512,
+     "logLoss": 0.626097,
+     "brier": 0.218402,
+     "accuracy": 0.65625,
+     "ece": 0.038328,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 509,
+     "logLoss": 0.627371,
+     "brier": 0.21991,
+     "accuracy": 0.630648,
+     "ece": 0.02462,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2021-T2",
+   "n": 717,
+   "desde": "20210405",
+   "hasta": "20210628",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 717,
+    "logLoss": 0.6041,
+    "brier": 0.209469,
+    "accuracy": 0.654114,
+    "ece": 0.016316,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 717,
+    "logLoss": 0.604119,
+    "brier": 0.209474,
+    "accuracy": 0.654114,
+    "ece": 0.018289,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.001 b=0.996 (con 11104 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 717,
+     "logLoss": 0.613897,
+     "brier": 0.213541,
+     "accuracy": 0.647141,
+     "ece": 0.025423,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 717,
+     "logLoss": 0.622962,
+     "brier": 0.217645,
+     "accuracy": 0.637378,
+     "ece": 0.01664,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2021-T3",
+   "n": 558,
+   "desde": "20210712",
+   "hasta": "20210927",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 558,
+    "logLoss": 0.608605,
+    "brier": 0.211398,
+    "accuracy": 0.65233,
+    "ece": 0.011089,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 558,
+    "logLoss": 0.608545,
+    "brier": 0.211375,
+    "accuracy": 0.654122,
+    "ece": 0.011817,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.005 b=1.001 (con 11821 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 558,
+     "logLoss": 0.616188,
+     "brier": 0.214546,
+     "accuracy": 0.65233,
+     "ece": 0.009426,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 558,
+     "logLoss": 0.62452,
+     "brier": 0.218588,
+     "accuracy": 0.648746,
+     "ece": 0.026139,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2021-T4",
+   "n": 317,
+   "desde": "20211004",
+   "hasta": "20211205",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 317,
+    "logLoss": 0.595413,
+    "brier": 0.205206,
+    "accuracy": 0.675079,
+    "ece": 0.024979,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 317,
+    "logLoss": 0.595249,
+    "brier": 0.20516,
+    "accuracy": 0.675079,
+    "ece": 0.030143,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.007 b=1.007 (con 12379 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 317,
+     "logLoss": 0.595837,
+     "brier": 0.205986,
+     "accuracy": 0.66877,
+     "ece": 0.019068,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 317,
+     "logLoss": 0.618988,
+     "brier": 0.215276,
+     "accuracy": 0.649842,
+     "ece": 0.032292,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2022-T1",
+   "n": 729,
+   "desde": "20220103",
+   "hasta": "20220321",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 729,
+    "logLoss": 0.605911,
+    "brier": 0.209307,
+    "accuracy": 0.670782,
+    "ece": 0.023261,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 729,
+    "logLoss": 0.606069,
+    "brier": 0.209366,
+    "accuracy": 0.672154,
+    "ece": 0.024327,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.007 b=1.011 (con 12696 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 729,
+     "logLoss": 0.614964,
+     "brier": 0.21254,
+     "accuracy": 0.659808,
+     "ece": 0.019697,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 729,
+     "logLoss": 0.625156,
+     "brier": 0.218087,
+     "accuracy": 0.640604,
+     "ece": 0.013419,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2022-T2",
+   "n": 704,
+   "desde": "20220404",
+   "hasta": "20220627",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 704,
+    "logLoss": 0.601358,
+    "brier": 0.208028,
+    "accuracy": 0.671875,
+    "ece": 0.013405,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 704,
+    "logLoss": 0.601257,
+    "brier": 0.207995,
+    "accuracy": 0.671875,
+    "ece": 0.014111,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.002 b=1.010 (con 13425 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 704,
+     "logLoss": 0.617945,
+     "brier": 0.215281,
+     "accuracy": 0.636364,
+     "ece": 0.049035,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 704,
+     "logLoss": 0.61649,
+     "brier": 0.214278,
+     "accuracy": 0.65625,
+     "ece": 0.015044,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2022-T3",
+   "n": 592,
+   "desde": "20220711",
+   "hasta": "20220926",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 592,
+    "logLoss": 0.63103,
+    "brier": 0.221612,
+    "accuracy": 0.618243,
+    "ece": 0.036445,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 592,
+    "logLoss": 0.631052,
+    "brier": 0.221634,
+    "accuracy": 0.618243,
+    "ece": 0.039228,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.005 b=1.013 (con 14129 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 592,
+     "logLoss": 0.641353,
+     "brier": 0.22534,
+     "accuracy": 0.614865,
+     "ece": 0.050646,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 592,
+     "logLoss": 0.663806,
+     "brier": 0.234773,
+     "accuracy": 0.619932,
+     "ece": 0.040671,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2022-T4",
+   "n": 291,
+   "desde": "20221003",
+   "hasta": "20221127",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 291,
+    "logLoss": 0.594384,
+    "brier": 0.203646,
+    "accuracy": 0.670103,
+    "ece": 0.063731,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 291,
+    "logLoss": 0.593566,
+    "brier": 0.203321,
+    "accuracy": 0.676976,
+    "ece": 0.058603,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.009 b=1.009 (con 14721 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 291,
+     "logLoss": 0.604706,
+     "brier": 0.208177,
+     "accuracy": 0.67354,
+     "ece": 0.041311,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 291,
+     "logLoss": 0.643839,
+     "brier": 0.224918,
+     "accuracy": 0.646048,
+     "ece": 0.03046,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2023-T1",
+   "n": 687,
+   "desde": "20230102",
+   "hasta": "20230320",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 687,
+    "logLoss": 0.62101,
+    "brier": 0.216334,
+    "accuracy": 0.650655,
+    "ece": 0.021898,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 687,
+    "logLoss": 0.621633,
+    "brier": 0.216572,
+    "accuracy": 0.646288,
+    "ece": 0.026891,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.015 b=1.014 (con 15012 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 687,
+     "logLoss": 0.630806,
+     "brier": 0.22016,
+     "accuracy": 0.640466,
+     "ece": 0.044391,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 684,
+     "logLoss": 0.640225,
+     "brier": 0.2252,
+     "accuracy": 0.616959,
+     "ece": 0.028675,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2023-T2",
+   "n": 630,
+   "desde": "20230403",
+   "hasta": "20230626",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 630,
+    "logLoss": 0.629693,
+    "brier": 0.220044,
+    "accuracy": 0.625397,
+    "ece": 0.031323,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 630,
+    "logLoss": 0.62965,
+    "brier": 0.220032,
+    "accuracy": 0.628571,
+    "ece": 0.028764,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.009 b=1.007 (con 15699 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 630,
+     "logLoss": 0.66118,
+     "brier": 0.231455,
+     "accuracy": 0.622222,
+     "ece": 0.062428,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 628,
+     "logLoss": 0.638191,
+     "brier": 0.223687,
+     "accuracy": 0.632166,
+     "ece": 0.027009,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2023-T3",
+   "n": 657,
+   "desde": "20230703",
+   "hasta": "20230927",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 657,
+    "logLoss": 0.615637,
+    "brier": 0.214856,
+    "accuracy": 0.636225,
+    "ece": 0.035287,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 657,
+    "logLoss": 0.615689,
+    "brier": 0.214905,
+    "accuracy": 0.628615,
+    "ece": 0.043336,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.010 b=1.005 (con 16329 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 657,
+     "logLoss": 0.627858,
+     "brier": 0.219956,
+     "accuracy": 0.633181,
+     "ece": 0.040113,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 656,
+     "logLoss": 0.637201,
+     "brier": 0.222939,
+     "accuracy": 0.625,
+     "ece": 0.041519,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2023-T4",
+   "n": 316,
+   "desde": "20231002",
+   "hasta": "20231127",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 316,
+    "logLoss": 0.640284,
+    "brier": 0.225025,
+    "accuracy": 0.636076,
+    "ece": 0.039921,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 316,
+    "logLoss": 0.640393,
+    "brier": 0.22511,
+    "accuracy": 0.632911,
+    "ece": 0.041005,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.010 b=1.004 (con 16986 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 316,
+     "logLoss": 0.647808,
+     "brier": 0.228013,
+     "accuracy": 0.623418,
+     "ece": 0.044555,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 316,
+     "logLoss": 0.65664,
+     "brier": 0.232138,
+     "accuracy": 0.623418,
+     "ece": 0.015256,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2024-T1",
+   "n": 658,
+   "desde": "20240101",
+   "hasta": "20240318",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 658,
+    "logLoss": 0.607274,
+    "brier": 0.21094,
+    "accuracy": 0.665653,
+    "ece": 0.040189,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 658,
+    "logLoss": 0.607209,
+    "brier": 0.21094,
+    "accuracy": 0.668693,
+    "ece": 0.042823,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.009 b=1.002 (con 17302 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 658,
+     "logLoss": 0.60459,
+     "brier": 0.209671,
+     "accuracy": 0.659574,
+     "ece": 0.02704,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 658,
+     "logLoss": 0.606491,
+     "brier": 0.21006,
+     "accuracy": 0.671733,
+     "ece": 0.054444,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2024-T2",
+   "n": 638,
+   "desde": "20240401",
+   "hasta": "20240624",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 638,
+    "logLoss": 0.626233,
+    "brier": 0.21931,
+    "accuracy": 0.644201,
+    "ece": 0.024688,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 638,
+    "logLoss": 0.626008,
+    "brier": 0.219215,
+    "accuracy": 0.645768,
+    "ece": 0.026171,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.010 b=1.002 (con 17960 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 638,
+     "logLoss": 0.630084,
+     "brier": 0.22083,
+     "accuracy": 0.62069,
+     "ece": 0.059394,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 638,
+     "logLoss": 0.633033,
+     "brier": 0.222153,
+     "accuracy": 0.623824,
+     "ece": 0.041651,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2024-T3",
+   "n": 707,
+   "desde": "20240701",
+   "hasta": "20240926",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 707,
+    "logLoss": 0.606092,
+    "brier": 0.211049,
+    "accuracy": 0.646393,
+    "ece": 0.03432,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 707,
+    "logLoss": 0.606374,
+    "brier": 0.211166,
+    "accuracy": 0.649222,
+    "ece": 0.029807,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.014 b=1.000 (con 18598 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 707,
+     "logLoss": 0.617325,
+     "brier": 0.216233,
+     "accuracy": 0.639321,
+     "ece": 0.042136,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 706,
+     "logLoss": 0.643736,
+     "brier": 0.22698,
+     "accuracy": 0.617564,
+     "ece": 0.031983,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2024-T4",
+   "n": 415,
+   "desde": "20241002",
+   "hasta": "20241229",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 415,
+    "logLoss": 0.638305,
+    "brier": 0.224058,
+    "accuracy": 0.626506,
+    "ece": 0.030582,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 415,
+    "logLoss": 0.639042,
+    "brier": 0.224383,
+    "accuracy": 0.624096,
+    "ece": 0.031505,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.010 b=1.002 (con 19305 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 415,
+     "logLoss": 0.655897,
+     "brier": 0.231713,
+     "accuracy": 0.607229,
+     "ece": 0.063032,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 414,
+     "logLoss": 0.666163,
+     "brier": 0.236944,
+     "accuracy": 0.601449,
+     "ece": 0.060635,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2025-T1",
+   "n": 647,
+   "desde": "20250106",
+   "hasta": "20250331",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 647,
+    "logLoss": 0.630018,
+    "brier": 0.220619,
+    "accuracy": 0.656878,
+    "ece": 0.047086,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 647,
+    "logLoss": 0.630001,
+    "brier": 0.220607,
+    "accuracy": 0.656878,
+    "ece": 0.046766,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.003 b=0.999 (con 19720 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 647,
+     "logLoss": 0.634341,
+     "brier": 0.222148,
+     "accuracy": 0.638331,
+     "ece": 0.028863,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 645,
+     "logLoss": 0.649899,
+     "brier": 0.227982,
+     "accuracy": 0.64031,
+     "ece": 0.033897,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2025-T2",
+   "n": 692,
+   "desde": "20250407",
+   "hasta": "20250630",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 692,
+    "logLoss": 0.596466,
+    "brier": 0.205996,
+    "accuracy": 0.65896,
+    "ece": 0.059401,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 692,
+    "logLoss": 0.596463,
+    "brier": 0.205987,
+    "accuracy": 0.660405,
+    "ece": 0.056996,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.003 b=0.997 (con 20367 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 692,
+     "logLoss": 0.610656,
+     "brier": 0.211907,
+     "accuracy": 0.654624,
+     "ece": 0.030456,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 692,
+     "logLoss": 0.615345,
+     "brier": 0.21406,
+     "accuracy": 0.66185,
+     "ece": 0.017942,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2025-T3",
+   "n": 636,
+   "desde": "20250714",
+   "hasta": "20250924",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 636,
+    "logLoss": 0.650729,
+    "brier": 0.231316,
+    "accuracy": 0.603774,
+    "ece": 0.061134,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 636,
+    "logLoss": 0.650706,
+    "brier": 0.231301,
+    "accuracy": 0.602201,
+    "ece": 0.062685,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.005 b=1.000 (con 21059 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 636,
+     "logLoss": 0.653943,
+     "brier": 0.232342,
+     "accuracy": 0.597484,
+     "ece": 0.077521,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 636,
+     "logLoss": 0.645316,
+     "brier": 0.227805,
+     "accuracy": 0.610063,
+     "ece": 0.034402,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2025-T4",
+   "n": 237,
+   "desde": "20251013",
+   "hasta": "20251222",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 237,
+    "logLoss": 0.583688,
+    "brier": 0.199717,
+    "accuracy": 0.696203,
+    "ece": 0.04379,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 237,
+    "logLoss": 0.583859,
+    "brier": 0.199741,
+    "accuracy": 0.696203,
+    "ece": 0.044992,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.005 b=0.990 (con 21695 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 237,
+     "logLoss": 0.581155,
+     "brier": 0.198601,
+     "accuracy": 0.683544,
+     "ece": 0.025143,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 237,
+     "logLoss": 0.599269,
+     "brier": 0.20609,
+     "accuracy": 0.679325,
+     "ece": 0.049887,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2026-T1",
+   "n": 130,
+   "desde": "20260102",
+   "hasta": "20260117",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 130,
+    "logLoss": 0.690248,
+    "brier": 0.247918,
+    "accuracy": 0.546154,
+    "ece": 0.088527,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 130,
+    "logLoss": 0.690471,
+    "brier": 0.248011,
+    "accuracy": 0.553846,
+    "ece": 0.079064,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.007 b=0.994 (con 21932 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 130,
+     "logLoss": 0.703182,
+     "brier": 0.251531,
+     "accuracy": 0.561538,
+     "ece": 0.09758,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Ranking ATP": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 127,
+     "logLoss": 0.704039,
+     "brier": 0.253267,
+     "accuracy": 0.551181,
+     "ece": 0.104013,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  }
+ ],
+ "resumen": {
+  "Recalibrado (solo pasado)": {
+   "periodos": 44,
+   "ganaModelo": 28,
+   "ganaRival": 16
+  },
+  "Elo básico": {
+   "periodos": 44,
+   "ganaModelo": 40,
+   "ganaRival": 4
+  },
+  "Ranking ATP": {
+   "periodos": 41,
+   "ganaModelo": 38,
+   "ganaRival": 3
+  }
+ },
+ "global": {
+  "modelo": {
+   "origen": "backtest",
+   "deporte": "tennis",
+   "n": 22062,
+   "logLoss": 0.61331,
+   "brier": 0.213224,
+   "accuracy": 0.652842,
+   "ece": 0.006446,
+   "mercado": null,
+   "logLossUniforme": 0.693147,
+   "brierUniforme": 0.25
+  },
+  "recalibrado": {
+   "origen": "backtest",
+   "deporte": "tennis",
+   "n": 22062,
+   "logLoss": 0.613549,
+   "brier": 0.213277,
+   "accuracy": 0.652842,
+   "ece": 0.009955,
+   "mercado": null,
+   "logLossUniforme": 0.693147,
+   "brierUniforme": 0.25
+  },
+  "baselines": {
+   "Elo básico": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 22062,
+    "logLoss": 0.62392,
+    "brier": 0.217549,
+    "accuracy": 0.643777,
+    "ece": 0.027499,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "Ranking ATP": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 21341,
+    "logLoss": 0.63409,
+    "brier": 0.222003,
+    "accuracy": 0.635069,
+    "ece": 0.013299,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   }
+  },
+  "mercado": null
+ },
+ "porRegimen": {
+  "resto de la temporada": {
+   "n": 20027,
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 20027,
+    "logLoss": 0.615995,
+    "brier": 0.214371,
+    "accuracy": 0.650771,
+    "ece": 0.006251,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "mercado": null
+  },
+  "inicio de temporada (enero)": {
+   "n": 2035,
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 2035,
+    "logLoss": 0.586883,
+    "brier": 0.201939,
+    "accuracy": 0.673219,
+    "ece": 0.018122,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "mercado": null
+  }
+ },
+ "porSegmento": {
+  "superficie": {
+   "hard": {
+    "n": 13414,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 13414,
+     "logLoss": 0.612608,
+     "brier": 0.212758,
+     "accuracy": 0.65618,
+     "ece": 0.006466,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "clay": {
+    "n": 6206,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 6206,
+     "logLoss": 0.61613,
+     "brier": 0.214707,
+     "accuracy": 0.647277,
+     "ece": 0.011574,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "grass": {
+    "n": 2441,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 2441,
+     "logLoss": 0.60989,
+     "brier": 0.211964,
+     "accuracy": 0.648914,
+     "ece": 0.022581,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   }
+  },
+  "formato": {
+   "mejor de 3": {
+    "n": 17751,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 17751,
+     "logLoss": 0.632143,
+     "brier": 0.221238,
+     "accuracy": 0.636302,
+     "ece": 0.008615,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "mejor de 5": {
+    "n": 4311,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 4311,
+     "logLoss": 0.535765,
+     "brier": 0.180226,
+     "accuracy": 0.720946,
+     "ece": 0.020379,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   }
+  },
+  "nivel": {
+   "250": {
+    "n": 7712,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 7712,
+     "logLoss": 0.654109,
+     "brier": 0.231167,
+     "accuracy": 0.60529,
+     "ece": 0.019596,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "500": {
+    "n": 3617,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 3617,
+     "logLoss": 0.610197,
+     "brier": 0.211143,
+     "accuracy": 0.665192,
+     "ece": 0.013125,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "M": {
+    "n": 5320,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 5320,
+     "logLoss": 0.622045,
+     "brier": 0.216589,
+     "accuracy": 0.655827,
+     "ece": 0.014134,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "G": {
+    "n": 4096,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 4096,
+     "logLoss": 0.532229,
+     "brier": 0.17872,
+     "accuracy": 0.724854,
+     "ece": 0.021506,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "D": {
+    "n": 595,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 595,
+     "logLoss": 0.608162,
+     "brier": 0.211621,
+     "accuracy": 0.648739,
+     "ece": 0.02446,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "A": {
+    "n": 379,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 379,
+     "logLoss": 0.616618,
+     "brier": 0.214528,
+     "accuracy": 0.654354,
+     "ece": 0.022923,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   }
+  },
+  "diferencia de ranking": {
+   "media": {
+    "n": 9316,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 9316,
+     "logLoss": 0.641697,
+     "brier": 0.225353,
+     "accuracy": 0.628274,
+     "ece": 0.011119,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "grande": {
+    "n": 6051,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 6051,
+     "logLoss": 0.503963,
+     "brier": 0.164919,
+     "accuracy": 0.772765,
+     "ece": 0.015959,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "pequeña": {
+    "n": 6666,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 6666,
+     "logLoss": 0.672867,
+     "brier": 0.240101,
+     "accuracy": 0.578158,
+     "ece": 0.01806,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   }
+  },
+  "fuerza del favorito": {
+   "60–75 %": {
+    "n": 9210,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 9210,
+     "logLoss": 0.630721,
+     "brier": 0.219662,
+     "accuracy": 0.666775,
+     "ece": 0.006306,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "50–60 %": {
+    "n": 8128,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 8128,
+     "logLoss": 0.689389,
+     "brier": 0.248122,
+     "accuracy": 0.537525,
+     "ece": 0.011788,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "≥ 75 %": {
+    "n": 4724,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "tennis",
+     "n": 4724,
+     "logLoss": 0.448464,
+     "brier": 0.140628,
+     "accuracy": 0.82409,
+     "ece": 0.006519,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   }
+  }
+ },
+ "cobertura": [
+  {
+   "cobertura": 1,
+   "n": 22062,
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 22062,
+    "logLoss": 0.61331,
+    "brier": 0.213224,
+    "accuracy": 0.652842,
+    "ece": 0.006446,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "mercado": null
+  },
+  {
+   "cobertura": 0.75,
+   "n": 16547,
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 16547,
+    "logLoss": 0.607977,
+    "brier": 0.210894,
+    "accuracy": 0.657038,
+    "ece": 0.00989,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "mercado": null
+  },
+  {
+   "cobertura": 0.5,
+   "n": 11031,
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 11031,
+    "logLoss": 0.604368,
+    "brier": 0.209341,
+    "accuracy": 0.661227,
+    "ece": 0.009212,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "mercado": null
+  },
+  {
+   "cobertura": 0.25,
+   "n": 5516,
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "tennis",
+    "n": 5516,
+    "logLoss": 0.601422,
+    "brier": 0.207908,
+    "accuracy": 0.66715,
+    "ece": 0.01154,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "mercado": null
+  }
+ ]
+}

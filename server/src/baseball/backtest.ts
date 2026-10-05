@@ -28,6 +28,7 @@
 //   --extra <p>         home win rate in extra innings
 
 import { informeComun } from '../evaluation/report.ts';
+import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
 import type { Prediccion } from '../evaluation/metrics.ts';
 import { baseballConfig } from '../config.ts';
 import {
@@ -127,6 +128,8 @@ export function runBacktest(opts: {
   favs?: { p: number; hit: boolean }[];
   /** Cada predicción con su temporada: para elegir y validar en tramos distintos. */
   preds?: { season: number; p: number; y: number }[];
+  /** El flujo completo, en orden, para el walk-forward por periodos. */
+  flujo?: Juego[];
 }): BacktestTotals {
   const warmup = opts.warmup ?? 60;
   const dispersion = opts.dispersion ?? RUN_DISPERSION;
@@ -179,7 +182,7 @@ export function runBacktest(opts: {
       pitcherRegressionStarts: opts.pitcherRegressionStarts,
       pitcherCarryover: opts.pitcherCarryover,
       runsAnchor: anchor,
-      onGame: ({ game, home, away, lambda }) => {
+      onGame: ({ game, home, away, lambda, pitchers }) => {
         // The park accumulator has to be fed for EVERY game, including the ones
         // skipped by the warm-up: those games happened, and the stadium's record
         // of them is real information.
@@ -192,6 +195,27 @@ export function runBacktest(opts: {
           parkAcc.set(game.site, a);
           parkDirty = true;
         }
+        const calidad = (r: number | null) => (r == null ? 'sin datos' : r < 0.9 ? 'bueno' : r > 1.1 ? 'flojo' : 'normal');
+        const juego: Juego | null = opts.flujo
+          ? {
+              fecha: game.game_date,
+              temporada: Number(game.season),
+              a: game.home_id,
+              b: game.away_id,
+              local: true,
+              y: game.home_runs > game.away_runs ? 0 : 1,
+              K: 2,
+              modelo: null,
+              regimen: Number(game.game_date.slice(4, 6)) <= 4 ? 'inicio de temporada (marzo–abril)' : 'resto de la temporada',
+              segmento: {
+                'abridor local': calidad(pitchers.home),
+                'abridor visitante': calidad(pitchers.away),
+                estadio: game.site ?? 'desconocido',
+              },
+              profundidad: Math.min(home.games, away.games),
+            }
+          : null;
+        if (juego) opts.flujo!.push(juego);
         if (home.games < warmup || away.games < warmup) return;
         const dist = runDistribution(
           lambda.home * factor,
@@ -202,6 +226,7 @@ export function runBacktest(opts: {
         );
         const win = winProbability(dist);
         const homeWon = game.home_runs > game.away_runs ? 1 : 0;
+        if (juego) juego.modelo = [win.home, 1 - win.home];
 
         n++;
         brier += (win.home - homeWon) ** 2;
@@ -290,7 +315,8 @@ function main() {
   const bands = new Map<string, { n: number; pred: number; obs: number }>();
   const favs: { p: number; hit: boolean }[] = [];
   const preds: { season: number; p: number; y: number }[] = [];
-  const r = runBacktest({ ...cfg, bands, favs, preds });
+  const flujo: Juego[] = [];
+  const r = runBacktest({ ...cfg, bands, favs, preds, flujo });
 
   if (r.n === 0) {
     console.log('\nSin partidos evaluables. Corre `npm run update-data:bsb` primero.');
@@ -311,6 +337,14 @@ function main() {
     console.log,
     !cfg.league || cfg.league === 'mlb',
   );
+  {
+    const wf = walkForward('baseball', flujo);
+    imprimirWalkForward(wf);
+    // Solo la corrida de referencia se guarda: con parámetros cambiados sería otro modelo.
+    if ((!cfg.league || cfg.league === 'mlb') && Object.keys(args).every((k) => k === 'league')) {
+      console.log(`  guardado en ${guardarWalkForward(wf)}`);
+    }
+  }
   console.log(`\nCarreras:`);
   console.log(`  Error absoluto medio del total: ${r.runMae.toFixed(2)} carreras`);
   console.log(

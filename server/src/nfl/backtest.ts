@@ -33,11 +33,13 @@
 //   --per-point 25       Elo points per point of margin
 
 import { informeComun } from '../evaluation/report.ts';
+import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
 import type { Prediccion } from '../evaluation/metrics.ts';
 import { getDb } from '../db.ts';
 import { nflConfig } from '../config.ts';
 import { listGamesWithMarket } from './repo.ts';
 import { replayGames, type ReplayGame } from './ratings.ts';
+import { splitOf, unlockFinalHoldout, FINAL_HOLDOUT_FROM } from '../experiments/holdout.ts';
 import {
   buildDistribution,
   coverProbability,
@@ -56,6 +58,8 @@ interface Args {
   carry?: number;
   k?: number;
   perPoint?: number;
+  /** Motivo para abrir el holdout final. Sin él, 2024+ no se puntúa. */
+  unlock?: string;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -79,6 +83,7 @@ function parseArgs(argv: string[]): Args {
     carry: num('--carry'),
     k: num('--k'),
     perPoint: num('--per-point'),
+    unlock: get('--unlock'),
   };
 }
 
@@ -106,6 +111,13 @@ function main(): void {
     return;
   }
 
+  // EL HOLDOUT FINAL NO SE PUNTÚA. Este backtest lo puntuaba: no consultaba el candado
+  // que el fútbol sí respeta, y sus cifras de 2024+ acabaron en backtest_metrics.json.
+  // Abrirlo exige `--unlock "motivo"`, que queda escrito en el registro.
+  if (args.unlock) unlockFinalHoldout(args.unlock);
+  const holdoutOpen = !!args.unlock;
+  let skippedHoldout = 0;
+
   const rows = listGamesWithMarket(league.id);
   if (rows.length === 0) {
     console.error('No hay partidos. Ejecuta primero: npm run update-data:naf');
@@ -119,6 +131,10 @@ function main(): void {
   let brier = 0;
   /** Cada predicción, para la capa común de métricas (evaluation/). */
   const comun: Prediccion[] = [];
+  /** El flujo completo, en orden, para el walk-forward por periodos. */
+  const flujo: Juego[] = [];
+  /** Salidas como titular de cada QB hasta ese partido (para «QB nuevo»). */
+  const salidasQb = new Map<string, number>();
   let hits = 0;
   const marginResid: number[] = [];
   const totalResid: number[] = [];
@@ -176,7 +192,40 @@ function main(): void {
     homeAdvantage: args.home,
     mov: args.mov,
     onGame: ({ game, expectedMargin, expectedTotal }) => {
+      const row0 = marketByKey.get(`${game.season}|${game.week}|${game.home_id}|${game.away_id}`);
+      const qbH = game.home_qb_id ? salidasQb.get(game.home_qb_id) ?? 0 : null;
+      const qbA = game.away_qb_id ? salidasQb.get(game.away_qb_id) ?? 0 : null;
+      if (game.home_qb_id) salidasQb.set(game.home_qb_id, (qbH ?? 0) + 1);
+      if (game.away_qb_id) salidasQb.set(game.away_qb_id, (qbA ?? 0) + 1);
+      const sp = row0?.close_spread ?? null;
+      const juego: Juego = {
+        fecha: game.game_date,
+        temporada: game.season,
+        a: game.home_id,
+        b: game.away_id,
+        local: !game.neutral,
+        y: game.home_points > game.away_points ? 0 : 1,
+        K: 2,
+        modelo: null,
+        regimen: game.playoff ? 'playoffs' : (game.week ?? 99) <= 4 ? 'primeras 4 semanas' : 'temporada regular',
+        segmento: {
+          'QB local': qbH == null ? 'sin dato' : qbH < 8 ? 'con menos de 8 salidas' : 'titular asentado',
+          'QB visitante': qbA == null ? 'sin dato' : qbA < 8 ? 'con menos de 8 salidas' : 'titular asentado',
+          viento: game.wind == null ? 'sin dato o cubierto' : game.wind >= 15 ? '≥ 15 mph' : '< 15 mph',
+          techo: game.roof ?? 'sin dato',
+          'tamaño del favorito': sp == null ? 'sin línea' : Math.abs(sp) >= 7 ? 'claro (≥ 7)' : Math.abs(sp) >= 3 ? 'medio (3–6,5)' : 'parejo (< 3)',
+          'línea en número clave': sp == null ? 'sin línea' : [3, 7].includes(Math.abs(sp)) ? 'sí (3 o 7)' : 'no',
+        },
+      };
+      // Los empates no puntúan (el moneyline se devuelve), pero mueven el Elo básico.
+      if (game.home_points === game.away_points) juego.empate = true;
+      flujo.push(juego);
       if (game.season < args.from) return;
+      // El holdout alimenta los ratings (la reproducción es cronológica) pero no se puntúa.
+      if (!holdoutOpen && splitOf('nfl', game.season) === 'holdout') {
+        skippedHoldout++;
+        return;
+      }
 
       const d = buildDistribution(expectedMargin, expectedTotal, {
         marginWeights: args.keyNumbers,
@@ -220,6 +269,11 @@ function main(): void {
         const da = row?.close_ml_away != null ? americanToDecimal(row.close_ml_away) : null;
         const mh = dh && da ? 1 / dh / (1 / dh + 1 / da) : null;
         comun.push({ p: [pHome, 1 - pHome], y: margin > 0 ? 0 : 1, mercado: mh == null ? null : [mh, 1 - mh] });
+        juego.modelo = [pHome, 1 - pHome];
+        if (mh != null && dh && da) {
+          juego.mercado = [mh, 1 - mh];
+          juego.cuotas = [dh, da];
+        }
       }
       if (!row) return;
 
@@ -275,6 +329,11 @@ function main(): void {
   console.log(`\n🏈 Backtest ${league.name} — temporadas ${args.from}+`);
   console.log('='.repeat(62));
   console.log(`Partidos evaluados: ${n}`);
+  if (skippedHoldout > 0) {
+    console.log(
+      `  ${skippedHoldout} partidos de ${FINAL_HOLDOUT_FROM.nfl}+ NO se han puntuado: son el holdout final y el candado está cerrado.`,
+    );
+  }
   console.log(
     'Configuración: ' +
       [
@@ -292,6 +351,12 @@ function main(): void {
   // La capa común excluye los empates (el moneyline se devuelve), como la evaluación en
   // vivo; las cifras de arriba los cuentan como medio acierto. De ahí la diferencia mínima.
   informeComun('nfl', comun);
+  {
+    const wf = walkForward('nfl', flujo);
+    imprimirWalkForward(wf);
+    const cambiados = ['home', 'k', 'carry', 'per-point', 'from', 'unlock'].some((x) => process.argv.includes(`--${x}`)) || !args.keyNumbers || !args.totalWeights || !args.mov;
+    if (args.league === 'nfl' && !cambiados) console.log(`  guardado en ${guardarWalkForward(wf)}`);
+  }
 
   console.log('\nMargen y total:');
   console.log(`  Error del margen: sd ${sd(marginResid).toFixed(2)}  ·  medio ${mean(marginResid).toFixed(2)} (0 = sin sesgo)`);

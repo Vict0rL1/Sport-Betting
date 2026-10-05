@@ -48,6 +48,7 @@
 //   --rest <elo>          Elo lost at full fixture congestion (0 = off)
 
 import { informeComun } from '../evaluation/report.ts';
+import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
 import type { Prediccion } from '../evaluation/metrics.ts';
 import { footballConfig } from '../config.ts';
 import {
@@ -153,10 +154,18 @@ function main() {
   const drawBands = new Map<string, { n: number; pred: number; obs: number }>();
   /** Cada predicción, para la capa común de métricas (evaluation/). */
   const comun: Prediccion[] = [];
+  /** El flujo de todas las ligas, para el walk-forward (se ordena por fecha al final). */
+  const flujo: (Juego & { orden: number })[] = [];
 
   for (const league of leagues) {
     const matches = loadMatches(league, fromSeason);
     if (matches.length === 0) continue;
+    // Para los segmentos: la primera temporada de cada equipo EN ESTA LIGA (recién
+    // ascendido = su primera temporada aquí, si la liga ya tenía temporadas antes) y los
+    // partidos que lleva cada uno en la temporada (régimen «primeras jornadas»).
+    const primeraTemporadaLiga = Math.min(...matches.map((m) => Number(m.season)));
+    const primeraDelEquipo = new Map<string, number>();
+    const jugadosEnTemporada = new Map<string, number>();
 
     // The goals anchor must be known BEFORE the walk-forward, and it must not
     // come from the future: the league's average over the earliest season
@@ -198,6 +207,34 @@ function main() {
       // λ comes FROM the replay, not from a second call to expectedGoals here:
       // the backtest must score the arithmetic the app runs, not a copy of it.
       onMatch: ({ match, home, away, lambda }) => {
+        const temporada = Number(match.season);
+        for (const id of [match.home_id, match.away_id]) if (!primeraDelEquipo.has(id)) primeraDelEquipo.set(id, temporada);
+        const ascendido = (id: string) => temporada > primeraTemporadaLiga && primeraDelEquipo.get(id) === temporada;
+        const kh = `${temporada}|${match.home_id}`;
+        const ka = `${temporada}|${match.away_id}`;
+        const jh = jugadosEnTemporada.get(kh) ?? 0;
+        const ja = jugadosEnTemporada.get(ka) ?? 0;
+        jugadosEnTemporada.set(kh, jh + 1);
+        jugadosEnTemporada.set(ka, ja + 1);
+        const juego: Juego & { orden: number } = {
+          orden: flujo.length,
+          fecha: match.match_date,
+          temporada,
+          a: `${league}:${match.home_id}`,
+          b: `${league}:${match.away_id}`,
+          local: true,
+          y: match.result === 'H' ? 0 : match.result === 'D' ? 1 : 2,
+          K: 3,
+          modelo: null,
+          regimen: Math.min(jh, ja) < 5 ? 'primeras 5 jornadas' : 'resto de la temporada',
+          segmento: {
+            liga: league,
+            'recién ascendido': ascendido(match.home_id) || ascendido(match.away_id) ? 'alguno' : 'ninguno',
+            'con cuotas': match.odds_home && match.odds_draw && match.odds_away ? 'sí' : 'no',
+          },
+          profundidad: Math.min(home.matches, away.matches),
+        };
+        flujo.push(juego);
         if (home.matches < warmup || away.matches < warmup) return;
         // El holdout alimenta los ratings —la reproducción es cronológica, así que un
         // partido nunca influye en otro anterior— pero no entra en el número.
@@ -234,6 +271,11 @@ function main() {
             y: actual === 'H' ? 0 : actual === 'D' ? 1 : 2,
             mercado: imp ? [imp.home, imp.draw, imp.away] : null,
           });
+          juego.modelo = [probs.home / t, probs.draw / t, probs.away / t];
+          if (imp) {
+            juego.mercado = [imp.home, imp.draw, imp.away];
+            juego.cuotas = [match.odds_home as number, match.odds_draw as number, match.odds_away as number];
+          }
         }
 
         scored++;
@@ -329,6 +371,13 @@ function main() {
   );
   // Solo se guarda la corrida completa (todas las ligas): una de una sola liga no es la ficha.
   informeComun('football', comun, console.log, !onlyLeague);
+  {
+    // Las ligas se reprodujeron una tras otra: el walk-forward necesita UNA línea de tiempo.
+    flujo.sort((x, y) => x.fecha.localeCompare(y.fecha) || x.orden - y.orden);
+    const wf = walkForward('football', flujo);
+    imprimirWalkForward(wf);
+    if (!onlyLeague && !holdoutOpen && Object.keys(args).length === 0) console.log(`  guardado en ${guardarWalkForward(wf)}`);
+  }
   console.log(
     `\nGoles:\n  over/under 2.5 acertado: ${((allOverCorrect / Math.max(1, allOverScored)) * 100).toFixed(1)}%` +
       `\n  error absoluto medio del total: ${(allGoalErr / Math.max(1, allOverScored)).toFixed(2)} goles`,

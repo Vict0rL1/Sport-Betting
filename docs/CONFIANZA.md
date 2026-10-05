@@ -54,3 +54,10 @@ de reproducción, línea temporal de auditoría, página de transparencia e info
    predicciones del backtest usan solo partidos anteriores para los ratings, pero esos
    parámetros vieron el futuro. El walk-forward por periodos de esta fase lo hace visible
    recalibrando solo con el pasado.
+5. **El backtest de la NFL puntuaba el holdout final.** `nfl/backtest.ts` no consultaba el
+   candado que el de fútbol sí respeta: 600 partidos de 2024+ entraban en sus cifras y en
+   `experiments/backtest_metrics.json`. Ahora se excluyen salvo apertura registrada
+   (`--unlock "motivo"`). Las cifras de la NFL pasan de 4.380 a 3.781 partidos (log loss
+   0,6277 → 0,6284; el mercado sigue siendo mejor). `scripts/_baselines.ts` tampoco lo
+   respeta; queda como estudio antiguo y el benchmark nuevo (`npm run benchmark:report`) sí
+   lo excluye.

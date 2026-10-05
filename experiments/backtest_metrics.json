@@ -10,7 +10,7 @@
     "mercado": null,
     "logLossUniforme": 0.6931471805599453,
     "brierUniforme": 0.25,
-    "medidoEn": "2026-09-29T17:00:10.639Z",
+    "medidoEn": "2026-10-05T00:37:36.325Z",
     "model_version": "baseball-f35897cd0bb7",
     "data_version": "20250928·15394"
   },
@@ -25,7 +25,7 @@
     "mercado": null,
     "logLossUniforme": 0.6931471805599453,
     "brierUniforme": 0.25,
-    "medidoEn": "2026-09-29T16:59:26.839Z",
+    "medidoEn": "2026-10-05T00:36:51.405Z",
     "model_version": "basketball-a8743885d625",
     "data_version": "20260614·86305"
   },
@@ -40,29 +40,29 @@
     "mercado": null,
     "logLossUniforme": 1.0986122886681096,
     "brierUniforme": 0.3333333333333333,
-    "medidoEn": "2026-09-29T17:00:09.707Z",
+    "medidoEn": "2026-10-05T00:39:15.912Z",
     "model_version": "football-f94f15fb676c",
     "data_version": "20260917·30713"
   },
   "nfl": {
     "origen": "backtest",
     "deporte": "nfl",
-    "n": 4380,
-    "logLoss": 0.6276511098696973,
-    "brier": 0.21909224905694014,
-    "accuracy": 0.6472602739726028,
-    "ece": 0.009827770936035981,
+    "n": 3781,
+    "logLoss": 0.6284136332089296,
+    "brier": 0.2194363593157677,
+    "accuracy": 0.6432160804020101,
+    "ece": 0.004588940034410042,
     "mercado": {
-      "n": 4379,
-      "logLoss": 0.6099754192631655,
-      "brier": 0.2112342625634275,
-      "accuracy": 0.6643069193879881,
-      "modeloLogLoss": 0.6277446913249448,
-      "modeloBrier": 0.21913353020670245
+      "n": 3780,
+      "logLoss": 0.6113776851003213,
+      "brier": 0.21187444215543064,
+      "accuracy": 0.6611111111111111,
+      "modeloLogLoss": 0.6285222458321752,
+      "modeloBrier": 0.21948427314250527
     },
     "logLossUniforme": 0.6931471805599453,
     "brierUniforme": 0.25,
-    "medidoEn": "2026-09-29T17:00:11.599Z",
+    "medidoEn": "2026-10-05T00:38:23.613Z",
     "model_version": "nfl-83927eee63b4",
     "data_version": "20260920·7306"
   },
@@ -77,7 +77,7 @@
     "mercado": null,
     "logLossUniforme": 0.6931471805599453,
     "brierUniforme": 0.25,
-    "medidoEn": "2026-09-29T16:59:23.248Z",
+    "medidoEn": "2026-10-05T00:36:02.711Z",
     "model_version": "tennis-b77b55265fb3",
     "data_version": "20260117·30853"
   }
