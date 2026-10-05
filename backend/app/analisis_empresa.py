@@ -548,6 +548,67 @@ def _resultados_proximos(service, symbol: str, ahora: datetime) -> str | None:
     )
 
 
+def seccion_riesgo(session: Session, service, symbol: str, mercado: dict, decision: dict, ahora: datetime) -> dict:
+    """Su riesgo DENTRO de tu cartera: lo que aporta si la tienes, o lo que
+    aportaría al peso que el motor propone si no. Solo con histórico en caché:
+    abrir una empresa no descarga décadas de precios de toda la cartera."""
+    from app import contexto_cartera
+    from app.analysis import portfolio_risk
+    from app.analysis.sizing import MAX_POR_POSICION_PCT
+
+    try:
+        ctx = contexto_cartera.construir(session, service, descargar=False, ahora=ahora)
+    except Exception:  # noqa: BLE001 — sección aislada
+        log("calculo").exception("análisis: no se pudo construir el contexto de cartera")
+        return {"estado": ERROR, "motivo": "no se pudo leer la cartera", "huella": None}
+    if not any(p.get("peso") for p in ctx["posiciones"]):
+        return {"estado": "sin_cartera", "huella": None,
+                "nota": "No hay posiciones valoradas: no hay riesgo de cartera que medir."}
+
+    total = portfolio_risk.contribucion_al_riesgo(ctx["posiciones"], ctx["series"], mercado=ctx["mercado"])
+    propia = next((x for x in total.get("posiciones") or [] if x["symbol"] == symbol), None)
+    en_cartera = any(p["symbol"] == symbol for p in ctx["posiciones"])
+    if en_cartera:
+        if propia is None:
+            motivo = next((d["motivo"] for d in total.get("desconocidas") or [] if d["symbol"] == symbol), None)
+            return {"estado": DESCONOCIDO, "en_cartera": True, "motivo": motivo, "huella": "desconocido"}
+        return {
+            "estado": VALIDO, "en_cartera": True, "peso": propia["peso"], "contribucion": propia["contribucion"],
+            "volatilidad": propia["volatilidad"], "correlacion_con_cartera": propia["correlacion_con_cartera"],
+            "beta_mercado": propia["beta_mercado"], "cluster_nivel": propia["cluster_nivel"],
+            "riesgo_por_peso": propia["riesgo_por_peso"], "cobertura_peso": total.get("cobertura_peso"),
+            "desde": total.get("desde"), "hasta": total.get("hasta"),
+            "huella": f"{round(propia['contribucion'], 2)}:{propia['cluster_nivel']}",
+        }
+    # No la tienes: ¿qué aportaría al peso propuesto (o al tope por posición)?
+    historia, _ = _traer(service, "price_history", symbol=symbol, interval="1day", outputsize=252)
+    moneda = (mercado.get("precio") or {}).get("moneda")
+    if moneda is None:
+        return {"estado": DESCONOCIDO, "en_cartera": False, "huella": "desconocido",
+                "motivo": "moneda de cotización desconocida: no se supone dólar"}
+    serie = [(date.fromisoformat(str(b["ts"])[:10]), float(b["close"]))
+             for b in (historia or {}).get("bars") or [] if datos.precio(b.get("close")) is not None
+             and pit.disponible_en(str(b.get("ts"))[:10], ahora.date()) is not False]
+    serie = contexto_cartera.convertir_serie(serie, moneda, ctx["fx_series"]) if serie else None
+    peso = min((((decision.get("levels") or {}).get("peso_bruto_pct")) or MAX_POR_POSICION_PCT), MAX_POR_POSICION_PCT) / 100
+    if not serie:
+        return {"estado": DESCONOCIDO, "en_cartera": False, "huella": "desconocido",
+                "motivo": f"sin histórico en {moneda} convertible a dólares"}
+    hipotesis = portfolio_risk.riesgo_de_anadir(ctx["posiciones"], ctx["series"], symbol, serie, peso)
+    if not hipotesis.get("disponible"):
+        return {"estado": DESCONOCIDO, "en_cartera": False, "motivo": hipotesis.get("motivo"), "huella": "desconocido"}
+    return {
+        "estado": VALIDO, "en_cartera": False, "peso_supuesto": peso,
+        "contribucion": hipotesis["contribucion_del_candidato"],
+        "correlacion_con_cartera": hipotesis["correlacion_con_cartera"],
+        "cluster_nivel": hipotesis["cluster_nivel"], "riesgo_por_peso": hipotesis["riesgo_por_peso"],
+        "volatilidad_cartera_antes": hipotesis["volatilidad_antes"],
+        "volatilidad_cartera_despues": hipotesis["volatilidad_despues"],
+        "nota": f"Si la añadieras al {peso * 100:.1f} % (lo que propone el motor, con el tope por posición).",
+        "huella": f"{round(hipotesis['contribucion_del_candidato'], 2)}:{hipotesis['cluster_nivel']}",
+    }
+
+
 # --- El análisis --------------------------------------------------------------
 
 
@@ -605,6 +666,8 @@ def analizar(
         "decision": decision,
         "generado_por": "app",  # determinista: ninguna línea de esto sale de un LLM
     }
+    analisis["riesgo"] = seccion_riesgo(session, service, symbol, mercado, decision, ahora)
+
     # Resultados frente a lo esperado: solo lo registrado hasta `ahora`.
     from app import expectativas as seguimiento
 

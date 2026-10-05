@@ -682,3 +682,247 @@ def _leer_cobertura(cobertura: float, sin_datos: list[str], c: dict, retorno: fl
             "S&P 500."
         )
     return f"{parte} {comparacion}"
+
+
+# --- Contribución al riesgo ------------------------------------------------------
+#
+# «AAPL es el 15 % de la cartera» dice dónde está el DINERO. La pregunta de
+# riesgo es otra: ¿cuánto de lo que se mueve la cartera lo mueve AAPL? Una
+# posición pequeña y muy volátil, correlacionada con el resto, puede aportar
+# más riesgo que una grande y tranquila. Se usa la descomposición estándar de
+# la volatilidad de la cartera (Euler):
+#
+#     σ_p = √(wᵀ Σ w)
+#     marginal_i   = (Σw)_i / σ_p          cuánto sube σ_p por unidad de peso
+#     componente_i = w_i · marginal_i      su parte de σ_p; suman σ_p exactamente
+#     %_i          = componente_i / σ_p    suman 100 %
+#
+# Lo que NO se puede medir no aporta cero: queda DESCONOCIDO y fuera, y el
+# total dice qué parte de la cartera describe.
+
+SESIONES_ANO = 252
+UMBRAL_CLUSTER_CORRELACION = 0.70
+UMBRAL_BETA_ALTA = 1.3
+
+
+def _comunes(series: dict[str, list[tuple[date, float]]], minimo: int) -> tuple[list[str], list[str], list[date]]:
+    """Qué posiciones comparten histórico suficiente, quitando de una en una la
+    más corta hasta que el tramo común alcance el mínimo. Devuelve (dentro,
+    fuera por histórico, fechas comunes)."""
+    dentro = [s for s, p in series.items() if len(p) >= minimo + 1]
+    fuera = [s for s in series if s not in dentro]
+    while dentro:
+        comunes = None
+        for s in dentro:
+            fechas = {d for d, _ in series[s]}
+            comunes = fechas if comunes is None else comunes & fechas
+        if comunes is not None and len(comunes) >= minimo + 1:
+            return dentro, fuera, sorted(comunes)
+        corta = min(dentro, key=lambda s: len(series[s]))
+        dentro.remove(corta)
+        fuera.append(corta)
+    return [], fuera, []
+
+
+def contribucion_al_riesgo(
+    posiciones: list[dict],
+    series: dict[str, list[tuple[date, float]]],
+    *,
+    mercado: list[tuple[date, float]] | None = None,
+    minimo: int = MIN_OBSERVACIONES,
+    sesiones: int = VENTANA_CORRELACION,
+) -> dict:
+    """Cuánto riesgo aporta cada posición, no cuánto pesa.
+
+    `posiciones`: [{symbol, peso (fracción del TOTAL de la cartera), sector,
+    industria, moneda}]. `series`: cierres EN LA MONEDA BASE (si no, una
+    posición canadiense mediría su riesgo sin el del tipo de cambio).
+    `mercado`: cierres de un índice para la beta; opcional.
+    """
+    pesos = {p["symbol"]: datos_peso for p in posiciones if (datos_peso := p.get("peso")) is not None}
+    con_serie = {s: sorted(series[s])[-sesiones - 1:] for s in pesos if series.get(s)}
+    dentro, fuera, fechas = _comunes(con_serie, minimo)
+    desconocidas = [
+        {"symbol": p["symbol"], "peso": p.get("peso"), "estado": "desconocido",
+         "motivo": p.get("motivo") or (
+             "sin histórico de precios" if p["symbol"] not in con_serie
+             else "histórico insuficiente para el tramo común" if p["symbol"] in fuera
+             else "sin peso")}
+        for p in posiciones if p["symbol"] not in dentro
+    ]
+    peso_medido = sum(pesos[s] for s in dentro)
+    peso_total = sum(v for v in pesos.values()) or None
+    base = {
+        "metodo": "descomposición de Euler de la volatilidad: σ_p = √(wᵀΣw), componente_i = w_i·(Σw)_i/σ_p",
+        "desconocidas": desconocidas,
+        "cobertura_peso": round(peso_medido / peso_total, 4) if peso_total else None,
+    }
+    if len(dentro) < 1 or not fechas:
+        return {**base, "disponible": False, "posiciones": [],
+                "nota": "Ninguna posición tiene histórico suficiente: el riesgo es DESCONOCIDO, no cero."}
+
+    simbolos = sorted(dentro)
+    filas = []
+    for s in simbolos:
+        precios = dict(con_serie[s])
+        v = [precios[d] for d in fechas]
+        filas.append([v[i] / v[i - 1] - 1 if v[i - 1] else 0.0 for i in range(1, len(v))])
+    r = np.array(filas)
+    cov = np.atleast_2d(np.cov(r)) * SESIONES_ANO
+    w = np.array([pesos[s] for s in simbolos])
+    var_p = float(w @ cov @ w)
+    if not np.isfinite(var_p) or var_p <= 0:
+        return {**base, "disponible": False, "posiciones": [],
+                "nota": "La covarianza no es utilizable (series planas): riesgo desconocido."}
+    sigma = var_p ** 0.5
+    sw = cov @ w
+    vols = np.sqrt(np.diag(cov))
+
+    betas_mercado: dict[str, float | None] = {}
+    if mercado:
+        m = dict(sorted(mercado))
+        if all(d in m for d in fechas):
+            mv = [m[d] for d in fechas]
+            rm = np.array([mv[i] / mv[i - 1] - 1 if mv[i - 1] else 0.0 for i in range(1, len(mv))])
+            var_m = float(np.var(rm, ddof=1))
+            for i, s in enumerate(simbolos):
+                betas_mercado[s] = round(float(np.cov(r[i], rm)[0, 1] / var_m), 3) if var_m > 0 else None
+
+    meta = {p["symbol"]: p for p in posiciones}
+    resultado = []
+    for i, s in enumerate(simbolos):
+        componente = float(w[i] * sw[i] / sigma)
+        pct = componente / sigma
+        peso_rel = pesos[s] / peso_medido if peso_medido else None
+        resultado.append({
+            "symbol": s,
+            "estado": "valido",
+            "sector": meta[s].get("sector"),
+            "industria": meta[s].get("industria"),
+            "moneda": meta[s].get("moneda"),
+            "peso": round(pesos[s], 6),
+            "volatilidad": round(float(vols[i]), 6),
+            "marginal": round(float(sw[i] / sigma), 6),
+            "componente": round(componente, 6),
+            "contribucion": round(pct, 6),
+            "correlacion_con_cartera": round(float(sw[i] / (vols[i] * sigma)), 4) if vols[i] > 0 else None,
+            "beta_a_la_cartera": round(float(sw[i] / var_p), 4),
+            "beta_mercado": betas_mercado.get(s),
+            # >1: aporta más riesgo que dinero. Es la frase que distingue peso de riesgo.
+            "riesgo_por_peso": round(pct / peso_rel, 3) if peso_rel else None,
+        })
+    resultado.sort(key=lambda x: -x["contribucion"])
+
+    corr = np.corrcoef(r) if len(simbolos) > 1 else np.array([[1.0]])
+    parejas = {(simbolos[i], simbolos[j]): float(corr[i, j])
+               for i in range(len(simbolos)) for j in range(i + 1, len(simbolos))}
+    for x in resultado:
+        otras = [c for (a, b), c in parejas.items() if x["symbol"] in (a, b)]
+        x["cluster_nivel"] = (
+            None if not otras else "alto" if max(otras) >= UMBRAL_CLUSTER_CORRELACION
+            else "moderado" if sum(otras) / len(otras) >= 0.4 else "bajo"
+        )
+
+    por_peso = sorted((p for p in posiciones if p.get("peso") is not None), key=lambda p: -p["peso"])[:3]
+    return {
+        **base,
+        "disponible": True,
+        "volatilidad_cartera_medida": round(sigma, 6),
+        "posiciones": resultado,
+        "observaciones": len(fechas) - 1,
+        "desde": fechas[0].isoformat(),
+        "hasta": fechas[-1].isoformat(),
+        "concentracion": {
+            "top3_capital": {"symbols": [p["symbol"] for p in por_peso],
+                             "peso": round(sum(p["peso"] for p in por_peso) / (peso_total or 1), 4)},
+            "top3_riesgo": {"symbols": [x["symbol"] for x in resultado[:3]],
+                            "contribucion": round(sum(x["contribucion"] for x in resultado[:3]), 4)},
+        },
+        "clusters": clusters_de_riesgo(resultado, desconocidas, parejas, posiciones),
+        "nota": (
+            f"Riesgo medido sobre el {peso_medido / (peso_total or 1) * 100:.0f} % de la cartera "
+            f"({len(fechas) - 1} sesiones comunes, {fechas[0].isoformat()} → {fechas[-1].isoformat()}). "
+            + (f"{len(desconocidas)} posición(es) con riesgo DESCONOCIDO quedan fuera: el riesgo "
+               "real es mayor que el medido, no igual." if desconocidas else "Todas las posiciones medidas.")
+        ),
+    }
+
+
+def clusters_de_riesgo(
+    medidas: list[dict], desconocidas: list[dict], parejas: dict[tuple[str, str], float], posiciones: list[dict]
+) -> list[dict]:
+    """Grupos que se mueven juntos o comparten exposición, con su riesgo.
+
+    Modular a propósito: cada dimensión es un criterio objetivo que ya existe
+    (sector, industria, moneda, correlación medida, beta). Un modelo de factores
+    sería mejor y no hay infraestructura para él; esto no lo finge.
+    """
+    por_symbol = {x["symbol"]: x for x in medidas}
+    meta = {p["symbol"]: p for p in posiciones}
+    salida = []
+
+    def grupo(dimension: str, etiqueta: str, miembros: list[str], criterio: str):
+        if len(miembros) < 2:
+            return
+        conocidos = [m for m in miembros if m in por_symbol]
+        salida.append({
+            "dimension": dimension, "etiqueta": etiqueta, "miembros": sorted(miembros),
+            "peso": round(sum(meta[m].get("peso") or 0.0 for m in miembros), 4),
+            "contribucion": round(sum(por_symbol[m]["contribucion"] for m in conocidos), 4),
+            "desconocidos": sorted(m for m in miembros if m not in por_symbol),
+            "criterio": criterio,
+        })
+
+    for campo, dimension in (("sector", "sector"), ("industria", "industria"), ("moneda", "moneda")):
+        valores: dict[str, list[str]] = {}
+        for p in posiciones:
+            if p.get(campo):
+                valores.setdefault(p[campo], []).append(p["symbol"])
+        for valor, miembros in valores.items():
+            grupo(dimension, valor, miembros, f"mismo {dimension}")
+
+    from app.analysis.sizing import agrupar_por_correlacion
+
+    for i, miembros in enumerate(agrupar_por_correlacion(list(por_symbol), parejas, UMBRAL_CLUSTER_CORRELACION)):
+        grupo("correlacion", f"Se mueven juntas #{i + 1}", miembros,
+              f"correlación ≥ {UMBRAL_CLUSTER_CORRELACION} con al menos otra del grupo")
+    altas = [x["symbol"] for x in medidas if (x.get("beta_mercado") or 0) >= UMBRAL_BETA_ALTA]
+    grupo("beta", "Muy sensibles al mercado", altas, f"beta frente al índice ≥ {UMBRAL_BETA_ALTA}")
+    salida.sort(key=lambda g: -g["contribucion"])
+    return salida
+
+
+def riesgo_de_anadir(
+    posiciones: list[dict],
+    series: dict[str, list[tuple[date, float]]],
+    candidato: str,
+    serie_candidato: list[tuple[date, float]],
+    peso_candidato: float,
+) -> dict:
+    """¿Qué le hace a la cartera añadir `candidato` con este peso?
+
+    Los pesos actuales se reescalan por (1 − peso nuevo): el dinero sale de
+    alguna parte. Es una foto con las covarianzas medidas, no una predicción.
+    """
+    antes = contribucion_al_riesgo(posiciones, series)
+    escaladas = [{**p, "peso": (p.get("peso") or 0.0) * (1 - peso_candidato)} for p in posiciones if p.get("peso") is not None]
+    despues = contribucion_al_riesgo(
+        escaladas + [{"symbol": candidato, "peso": peso_candidato}],
+        {**series, candidato: serie_candidato},
+    )
+    fila = next((x for x in despues.get("posiciones") or [] if x["symbol"] == candidato), None)
+    if not antes.get("disponible") or fila is None:
+        return {"disponible": False, "estado": "desconocido",
+                "motivo": "sin histórico común suficiente entre la cartera y el candidato"}
+    return {
+        "disponible": True,
+        "peso_supuesto": peso_candidato,
+        "volatilidad_antes": antes["volatilidad_cartera_medida"],
+        "volatilidad_despues": despues["volatilidad_cartera_medida"],
+        "contribucion_del_candidato": fila["contribucion"],
+        "correlacion_con_cartera": fila["correlacion_con_cartera"],
+        "riesgo_por_peso": fila["riesgo_por_peso"],
+        "cluster_nivel": fila["cluster_nivel"],
+        "desconocidas": despues["desconocidas"],
+        "nota": "Con las covarianzas del último periodo medido; las posiciones sin histórico quedan fuera y se nombran.",
+    }

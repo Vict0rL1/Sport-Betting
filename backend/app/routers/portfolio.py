@@ -1197,6 +1197,30 @@ def riesgo_de_cartera(
     }
 
 
+@router.get("/contribucion")
+def contribucion_al_riesgo(
+    descargar: bool = False,
+    session: Session = Depends(get_session),
+    service: MarketDataService = Depends(get_service),
+):
+    """Cuánto riesgo aporta cada posición —no cuánto pesa— y qué se mueve junto.
+
+    Pesos y series en dólares (cada fecha con su tipo). Lo que no se puede
+    medir queda DESCONOCIDO y fuera, y el total dice qué parte describe.
+    """
+    from app import contexto_cartera
+
+    ctx = contexto_cartera.construir(session, service, descargar=descargar)
+    if not any(p.get("peso") for p in ctx["posiciones"]):
+        return {"disponible": False, "posiciones": [], "desconocidas": ctx["sin_peso"],
+                "nota": "Ninguna posición abierta tiene precio y moneda conocidos: no hay pesos que descomponer."}
+    return {
+        **portfolio_risk.contribucion_al_riesgo(ctx["posiciones"], ctx["series"], mercado=ctx["mercado"]),
+        "total_usd": ctx["total_usd"],
+        "indice_beta": contexto_cartera.INDICE_MERCADO if ctx["mercado"] else None,
+    }
+
+
 @router.get("/alerts")
 def list_alerts(
     session: Session = Depends(get_session),
