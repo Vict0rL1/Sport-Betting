@@ -54,7 +54,7 @@ def analizar_y_congelar(
     )
     cambios = (
         {**diff.comparar((anterior.contexto or {}).get("analisis") or {}, analisis),
-         "contra": {"id": anterior.id, "creado_en": anterior.creado_en.isoformat()}}
+         "contra": {"id": anterior.id, "creado_en": sn.iso_utc(anterior.creado_en)}}
         if anterior is not None
         else {"primer_analisis": True,
               "nota": "Primer análisis comparable de esta empresa: no hay contra qué comparar."}
@@ -64,11 +64,11 @@ def analizar_y_congelar(
         "analisis": {k: v for k, v in analisis.items() if not k.startswith("_")},
         "instantanea": (
             {"id": instantanea.id, "nueva": nueva, "origen": instantanea.origen,
-             "creado_en": instantanea.creado_en.isoformat()}
+             "creado_en": sn.iso_utc(instantanea.creado_en)}
             if instantanea is not None else None
         ),
         "anterior": (
-            {"id": anterior.id, "creado_en": anterior.creado_en.isoformat(), "accion": anterior.accion}
+            {"id": anterior.id, "creado_en": sn.iso_utc(anterior.creado_en), "accion": anterior.accion}
             if anterior is not None else None
         ),
     }
@@ -106,7 +106,7 @@ def cambios_entre(symbol: str, snap_id: int, contra: int | None = None, session:
         return {"primer_analisis": True}
     return {
         **diff.comparar((otra.contexto or {}).get("analisis") or {}, (snap.contexto or {}).get("analisis") or {}),
-        "contra": {"id": otra.id, "creado_en": otra.creado_en.isoformat()},
+        "contra": {"id": otra.id, "creado_en": sn.iso_utc(otra.creado_en)},
     }
 
 
@@ -183,7 +183,7 @@ def historial(symbol: str, limite: int = Query(50, ge=1, le=500), session: Sessi
         "decisiones": [
             {
                 "id": s.id, "fecha": s.fecha,
-                "creado_en": s.creado_en.isoformat() if s.creado_en else None,
+                "creado_en": sn.iso_utc(s.creado_en),
                 "origen": s.origen, "accion": s.accion, "precio": s.precio,
                 "moneda": s.moneda, "score": s.score, "reglas_version": s.reglas_version,
                 "replay": (s.contexto or {}).get("esquema") == sn.ESQUEMA_ANALISIS,

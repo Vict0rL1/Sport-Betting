@@ -113,6 +113,16 @@ def _limpio(valor):
     return valor
 
 
+def iso_utc(cuando) -> str | None:
+    """ISO con zona SIEMPRE. SQLite la pierde al guardar, y sin marcarla el
+    navegador lee el instante como hora local."""
+    if cuando is None:
+        return None
+    if cuando.tzinfo is None:
+        cuando = cuando.replace(tzinfo=timezone.utc)
+    return cuando.isoformat()
+
+
 def _huella(contenido: dict) -> str:
     canonico = json.dumps(contenido, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(canonico.encode()).hexdigest()
@@ -444,7 +454,7 @@ def reproducir(snap: DecisionSnapshot, resultados: list[DecisionOutcome] | None 
     return {
         **base,
         "esquema": ESQUEMA_ANALISIS,
-        "momento": momento.isoformat() if momento else None,
+        "momento": iso_utc(momento),
         "secciones": {s: a.get(s) for s in SECCIONES_ANALISIS},
         "faltaban": a.get("faltan") or [],
         "versiones": {"reglas": snap.reglas_version, "esquema": ctx.get("esquema"),
@@ -512,7 +522,7 @@ def reconstruir(snap: DecisionSnapshot, resultados: list[DecisionOutcome] | None
     return {
         "id": snap.id,
         "fecha": snap.fecha,
-        "creado_en": snap.creado_en.isoformat() if snap.creado_en else None,
+        "creado_en": iso_utc(snap.creado_en),
         "origen": snap.origen,
         "symbol": snap.symbol,
         "accion": snap.accion,
@@ -547,7 +557,7 @@ def reconstruir(snap: DecisionSnapshot, resultados: list[DecisionOutcome] | None
         },
         "resultados": [
             {
-                "evaluado_en": r.evaluado_en.isoformat() if r.evaluado_en else None,
+                "evaluado_en": iso_utc(r.evaluado_en),
                 "dias": r.dias,
                 "precio": r.precio,
                 "retorno_pct": r.retorno_pct,

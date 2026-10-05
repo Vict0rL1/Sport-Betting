@@ -1,4 +1,14 @@
 import type {
+  AnalisisEmpresaResponse,
+  CalibracionExpectativas,
+  CalidadBeneficios,
+  CambiosAnalisis,
+  ContribucionAlRiesgo,
+  DecisionHistorica,
+  EventoCatalizador,
+  LecturaEvento,
+  ReplayDecision,
+  SaldosEfectivo,
   DcfResponse,
   EarningsEvent,
   EtfComparison,
@@ -162,6 +172,42 @@ async function deleteJson<T>(path: string): Promise<T> {
 }
 
 export const api = {
+  // Evolución: análisis congelable, replay, expectativas, calidad, riesgo, coste de oportunidad
+  analisisEmpresa: (symbol: string, tipoImpositivo?: number | null) =>
+    fetchJson<AnalisisEmpresaResponse>(
+      `/api/empresa/${symbol}/analisis${tipoImpositivo != null ? `?tipo_impositivo=${tipoImpositivo}` : ''}`,
+      120_000,
+    ),
+  historialEmpresa: (symbol: string) =>
+    fetchJson<{ symbol: string; decisiones: DecisionHistorica[]; reglas_version_actual: string }>(
+      `/api/empresa/${symbol}/historial`,
+    ),
+  replay: (id: number) => fetchJson<ReplayDecision>(`/api/snapshots/${id}/replay`),
+  calidad: (symbol: string) => fetchJson<CalidadBeneficios & { symbol: string }>(`/api/empresa/${symbol}/calidad`),
+  resumenCambiosIa: (symbol: string, cambios: CambiosAnalisis) =>
+    postJson<{ generado_por: 'ia'; content_md: string; model: string; aviso: string }>(
+      `/api/empresa/${symbol}/cambios/resumen-ia`,
+      cambios,
+    ),
+  eventos: (symbol: string) =>
+    fetchJson<{ eventos: EventoCatalizador[] }>(`/api/expectativas/eventos?symbol=${symbol}`),
+  evento: (id: number) => fetchJson<LecturaEvento>(`/api/expectativas/eventos/${id}`),
+  prepararResultados: (symbol: string) =>
+    postJson<{ evento: EventoCatalizador; captura: { registradas: unknown[]; sin_fuente: string[] } }>(
+      `/api/expectativas/${symbol}/proximos-resultados`,
+      {},
+    ),
+  capturarExpectativas: (id: number) =>
+    postJson<{ registradas: unknown[]; sin_fuente: string[] }>(`/api/expectativas/eventos/${id}/capturar`, {}),
+  registrarResultados: (id: number) =>
+    postJson<{ registrados: string[]; motivo?: string }>(`/api/expectativas/eventos/${id}/resultados`, {}),
+  calibracion: (symbol?: string) =>
+    fetchJson<CalibracionExpectativas>(`/api/expectativas/calibracion${symbol ? `?symbol=${symbol}` : ''}`),
+  contribucion: (descargar: boolean) =>
+    fetchJson<ContribucionAlRiesgo>(`/api/portfolio/contribucion?descargar=${descargar}`, 120_000),
+  efectivo: () => fetchJson<SaldosEfectivo>('/api/portfolio/efectivo'),
+  anotarEfectivo: (body: { moneda: string; importe: number; as_of?: string; nota?: string }) =>
+    postJson<{ id: number }>('/api/portfolio/efectivo', body),
   quote: (symbol: string) => fetchJson<Quote>(`/api/stocks/${symbol}/quote`),
   profile: (symbol: string) => fetchJson<Profile>(`/api/stocks/${symbol}/profile`),
   fundamentals: (symbol: string) =>

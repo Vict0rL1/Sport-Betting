@@ -263,3 +263,35 @@ def test_los_endpoints(session_factory, servicio):
         assert lista["instantaneas"][0]["origen"].startswith("analisis:")
     finally:
         app.dependency_overrides.clear()
+
+
+def test_las_fechas_se_sirven_siempre_con_zona(session_factory, servicio):
+    """SQLite pierde la zona: sin marcarla, el navegador lee el instante como
+    hora LOCAL y una decisión de las 14:35 UTC aparece a otra hora."""
+    from fastapi.testclient import TestClient
+
+    from app.db.engine import get_session
+    from app.deps import get_service
+    from app.main import app
+
+    def override():
+        s = session_factory()
+        try:
+            yield s
+        finally:
+            s.close()
+
+    app.dependency_overrides[get_session] = override
+    app.dependency_overrides[get_service] = lambda: servicio
+    try:
+        c = TestClient(app)
+        r = c.get("/api/empresa/AAPL/analisis?pares=false").json()
+        c.get("/api/empresa/AAPL/analisis?pares=false")
+        h = c.get("/api/empresa/AAPL/historial").json()["decisiones"][0]
+        rep = c.get(f"/api/snapshots/{r['instantanea']['id']}/replay").json()
+        det = c.get(f"/api/snapshots/{r['instantanea']['id']}").json()
+        lista = c.get("/api/snapshots").json()["instantaneas"][0]
+    finally:
+        app.dependency_overrides.clear()
+    for valor in (h["creado_en"], rep["creado_en"], rep["momento"], det["creado_en"], lista["creado_en"]):
+        assert valor.endswith("+00:00"), valor

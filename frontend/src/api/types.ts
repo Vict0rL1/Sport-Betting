@@ -688,6 +688,36 @@ export interface Decision {
   /** Si ya tienes la empresa en cartera: cambia la pregunta a sostener o soltar. */
   owned: boolean
   pnl_pct?: number | null
+  /** La traza del motor: qué reglas se evaluaron y cuál decidió. */
+  reglas?: ReglaTraza[]
+  /** Qué tendría que pasar para que la acción fuera otra, con los mismos umbrales. */
+  cambiaria?: AlternativaDecision[]
+}
+
+export interface ReglaTraza {
+  id: string
+  regla: string
+  resultado: 'cumple' | 'no_cumple' | 'desconocido'
+  efecto: string | null
+  /** decide · bloquea · a_favor · modifica · informa · evaluada */
+  papel: string
+  datos: { valor?: number | null; umbral?: number | null; [k: string]: unknown }
+}
+
+export interface CondicionDecision {
+  regla: string
+  condicion: string
+  actual: number | string | null
+  umbral: number | null
+  distancia: number | null
+  unidad: string | null
+  nota?: string
+}
+
+export interface AlternativaDecision {
+  hacia: string
+  requiere: 'todas' | 'alguna'
+  condiciones: CondicionDecision[]
 }
 
 /** Señal de la lista diaria: como QuantSignal, más su sector y su precio. */
@@ -1917,4 +1947,361 @@ export interface HistorialDeCartera {
     indice_final?: number
     rendimiento_pct?: number
   }
+}
+
+
+// ---------------------------------------------------------------------------
+// Evolución: análisis de empresa, replay, qué cambió, expectativas, calidad,
+// contribución al riesgo y coste de oportunidad. Los análisis se tipan por
+// sección y con campos opcionales: una sección desconocida llega sin datos,
+// nunca con ceros.
+// ---------------------------------------------------------------------------
+
+export interface Linaje {
+  valor: number | null
+  fuente?: string
+  etiqueta?: string | null
+  formulario?: string | null
+  accn?: string | null
+  publicado?: string | null
+  periodo_fin?: string | null
+  derivado?: string
+}
+
+export interface MetricaDerivada {
+  valor: number | null
+  unidad: string
+  metodo: string
+  entradas: Record<string, Linaje | null>
+  estado: string
+}
+
+export interface FactorConfianza {
+  id: string
+  factor: string
+  estado: 'ok' | 'debil' | 'critico' | 'desconocido'
+  detalle: string
+}
+
+export interface ConfianzaEvidencia {
+  nivel: 'alta' | 'media' | 'baja'
+  factores: FactorConfianza[]
+  razones: string[]
+  regla: string
+  nota: string
+}
+
+export interface FilaRevision {
+  symbol: string
+  peso: number | null
+  accion: string | null
+  tesis: string | null
+  valoracion: string | null
+  confianza: string | null
+  contribucion_riesgo: number | null
+  correlacion_con_candidata: number | null
+  dias_en_cartera: number | null
+  lectura_de: string | null
+  prioridad: { puntos: number; desglose: { criterio: string; valor: unknown; puntos: number; nota: string }[] }
+  atractivo: { puntos: number; desglose: { criterio: string; valor: unknown; puntos: number; nota: string }[] }
+  coste_del_cambio: {
+    transaccion_pct: number
+    impuestos_pct: number | null
+    impuestos: string
+    plusvalia_no_realizada: number | null
+    total_conocido_pct: number
+    nota: string | null
+  }
+  mejora: number
+  mejora_requerida: number
+  elegible: boolean
+  supera_umbral?: boolean
+  motivo?: string
+}
+
+export interface CosteOportunidad {
+  estado?: string
+  motivo?: string
+  candidata?: { symbol: string; accion: string; atractivo: { puntos: number; desglose: FilaRevision['atractivo']['desglose'] } }
+  tamano?: { maximo_permitido: number; efectivo_disponible?: number | null; financiacion_necesaria?: number }
+  candidatos_a_revisar?: FilaRevision[]
+  veredicto?: { accion: string; motivo: string; revisar?: string; si_no_hubiera_efectivo?: string | null }
+  efectivo?: { usd: number | null; estado: string; motivo?: string }
+  impuestos?: { tipo: number | null; nota?: string }
+  sizing?: { controles?: unknown[]; recortes?: string[] }
+  parametros?: Record<string, unknown>
+}
+
+export interface RiesgoEnCartera {
+  estado: string
+  en_cartera?: boolean
+  peso?: number
+  peso_supuesto?: number
+  contribucion?: number | null
+  correlacion_con_cartera?: number | null
+  cluster_nivel?: string | null
+  riesgo_por_peso?: number | null
+  volatilidad_cartera_antes?: number
+  volatilidad_cartera_despues?: number
+  motivo?: string
+  nota?: string
+}
+
+export interface EvidenciaCalidad {
+  categoria: string
+  estado: 'bueno' | 'normal' | 'aviso' | 'desconocido'
+  regla: string
+  umbral: Record<string, number> | null
+  valor: number | null
+  periodo: string | null
+  entradas: Record<string, Linaje>
+  fuente: string
+  motivo?: string
+  metodo?: string
+  persistente?: boolean
+  [k: string]: unknown
+}
+
+export interface CalidadBeneficios {
+  estado: string
+  global: string
+  regla_global?: string
+  ejercicio?: string
+  evidencias: EvidenciaCalidad[]
+  puntuacion?: { valor: number; evaluables: number; regla: string }
+  historia?: Record<string, number | string | null>[]
+  trimestral?: Record<string, number | string | null>[]
+  limite?: string
+  motivo?: string
+}
+
+export interface AnalisisEmpresa {
+  esquema: number
+  symbol: string
+  nombre: string | null
+  sector: string | null
+  analizado_en: string
+  mercado: {
+    estado: string
+    precio: { valor: number | null; moneda: string | null; fuente: string | null; publicado: string | null; estado: string; motivo: string | null }
+    sma200: number | null
+    vol_diaria_pct: number | null
+  }
+  fundamentales: {
+    estado: string
+    ejercicio?: string
+    publicado?: string
+    metricas: Record<string, MetricaDerivada & Linaje>
+    trimestre?: { periodo: string | null; publicado: string | null } | null
+    motivo?: string
+  }
+  valoracion: {
+    estado: string
+    pe?: MetricaDerivada
+    fcf_yield?: MetricaDerivada
+    dcf_inverso?: { estado: string; crecimiento_implicito?: number | null; rango?: { bajo: number; alto: number } | null; motivo?: string | null; nota?: string }
+  }
+  tesis: {
+    estado: string
+    id?: number
+    titulo?: string
+    cuerpo?: string
+    disparadores?: { id: number; descripcion: string; salta: boolean; medible: boolean; detalle: string | null }[]
+    resumen?: string
+    motivo?: string
+  }
+  noticias: { items: { headline: string; url: string; source: string; published_at: string }[]; excluidas_futuras: number; excluidas_sin_fecha: number }
+  senal: { estado: string; score: number | null; origen?: string; publicado?: string; motivo?: string }
+  posicion: { quantity: number; cost_basis: number | null; stop: number | null } | null
+  decision: Decision & { faltan?: string[] }
+  confianza: ConfianzaEvidencia
+  riesgo: RiesgoEnCartera
+  calidad: CalidadBeneficios
+  expectativas: { estado: string; ultimo?: { evento: EventoCatalizador; clasificacion: string; a_favor: string[]; en_contra: string[]; guidance: string | null } | null; proximo?: { evento: EventoCatalizador; expectativas: number } | null }
+  coste_oportunidad: CosteOportunidad
+  faltan: { dato: string; seccion: string; motivo: string | null }[]
+  generado_por: string
+}
+
+export interface CambioMetrica {
+  clave: string
+  etiqueta: string
+  tipo: 'material' | 'dato_nuevo' | 'dato_perdido' | 'categorico'
+  antes: number | string | null
+  ahora: number | string | null
+  unidad?: string
+  absoluto?: number
+  relativo?: number | null
+  direccion?: 'sube' | 'baja'
+  umbral?: { tipo: string; valor: number }
+  nota?: string
+}
+
+export interface ReglaQueCambio {
+  regla: string
+  texto: string
+  antes: { resultado: string; papel: string; valor?: number; umbral?: number } | null
+  ahora: { resultado: string; papel: string; valor?: number; umbral?: number } | null
+}
+
+export interface CambiosAnalisis {
+  primer_analisis?: boolean
+  nota?: string
+  categorias?: Record<string, CambioMetrica[]>
+  tesis?: {
+    confirmados: { punto: string; detalle?: string }[]
+    deteriorados: { punto: string; detalle?: string }[]
+    invalidaciones: { punto: string; detalle?: string }[]
+    nuevos_riesgos: { punto: string; motivo?: string }[]
+    estado: { antes: string | null; ahora: string | null }
+  }
+  decision?: {
+    antes: string
+    ahora: string
+    cambio: boolean
+    reglas_que_cambiaron: ReglaQueCambio[]
+    papeles_que_cambiaron: { regla: string; texto: string; antes: string; ahora: string }[]
+    explicacion: string[]
+  }
+  materiales?: number
+  irrelevantes?: number
+  umbrales?: { version: string }
+  contra?: { id: number; creado_en: string }
+}
+
+export interface AnalisisEmpresaResponse {
+  cambios: CambiosAnalisis
+  analisis: AnalisisEmpresa
+  instantanea: { id: number; nueva: boolean; origen: string; creado_en: string } | null
+  anterior: { id: number; creado_en: string; accion: string } | null
+}
+
+export interface DecisionHistorica {
+  id: number
+  fecha: string
+  creado_en: string | null
+  origen: string
+  accion: string
+  precio: number | null
+  moneda: string | null
+  score: number | null
+  reglas_version: string
+  replay: boolean
+}
+
+export interface ReplayDecision {
+  id: number
+  fecha: string
+  creado_en: string | null
+  origen: string
+  symbol: string
+  accion: string
+  esquema: number
+  completo: boolean
+  momento?: string
+  secciones: Partial<AnalisisEmpresa> & Record<string, unknown>
+  faltaban?: AnalisisEmpresa['faltan']
+  no_congelado: string[]
+  incompletas?: string[]
+  nota?: string
+  integridad: { huella_coincide: boolean; nota: string | null }
+  proteccion_anticipacion?: {
+    regla: string
+    marcas_comprobadas: number
+    retiradas_por_fecha_futura: string[]
+    sin_fecha_verificable: string[]
+    nota: string
+  }
+  reglas_version: string
+  versiones?: { reglas: string; esquema: number; generado_por: string }
+  resultados: { evaluado_en: string; dias: number; retorno_pct: number | null; estado: string }[]
+}
+
+export interface EventoCatalizador {
+  id: number
+  symbol: string
+  tipo: string
+  periodo: string | null
+  periodo_fin: string | null
+  fecha_prevista: string | null
+  descripcion: string | null
+  creado_en: string
+  expectativas?: number
+  reales?: number
+}
+
+export interface ComparacionMetrica {
+  metrica: string
+  etiqueta: string
+  fuente_tipo: string
+  fuente: string
+  esperado: { valor: number | null; bajo: number | null; alto: number | null; operador: string | null }
+  real: number | null
+  unidad: string | null
+  lectura: string
+  sorpresa?: number
+  tipo_sorpresa?: string
+  motivo?: string
+}
+
+export interface LecturaEvento {
+  evento: EventoCatalizador
+  corte: string | null
+  por_fuente: Record<string, ComparacionMetrica[]>
+  excluidas_por_fecha: { metrica: string; fuente_tipo: string; fuente: string; motivo: string }[]
+  guidance: string | null
+  clasificacion: string
+  a_favor: string[]
+  en_contra: string[]
+  parcial: boolean
+  sin_resultado: string[]
+  regla_clasificacion: string
+  impacto_en_tesis: { punto: string; estado: string; real?: number | null; umbral?: number | null; motivo?: string }[]
+  expectativas_por_fuente: Record<string, { metrica: string; fuente: string; valor: number | null; bajo: number | null; alto: number | null; operador: string | null; registrado_en: string; detalle: Record<string, unknown> | null }[]>
+}
+
+export interface CalibracionExpectativas {
+  por_fuente: Record<string, { total: { n: number; error_medio_abs?: number; sesgo?: number; cerca_pct?: number; suficiente?: boolean }; mejor_prevista: string | null; empresas_menos_previsibles: string[] }>
+  pares: number
+  nota: string
+}
+
+export interface ContribucionPosicion {
+  symbol: string
+  sector: string | null
+  industria: string | null
+  moneda: string | null
+  peso: number
+  volatilidad: number
+  marginal: number
+  componente: number
+  contribucion: number
+  correlacion_con_cartera: number | null
+  beta_a_la_cartera: number
+  beta_mercado: number | null
+  riesgo_por_peso: number | null
+  cluster_nivel: string | null
+}
+
+export interface ContribucionAlRiesgo {
+  disponible: boolean
+  metodo?: string
+  volatilidad_cartera_medida?: number
+  posiciones: ContribucionPosicion[]
+  desconocidas: { symbol: string; peso?: number | null; motivo: string }[]
+  cobertura_peso?: number | null
+  concentracion?: {
+    top3_capital: { symbols: string[]; peso: number }
+    top3_riesgo: { symbols: string[]; contribucion: number }
+  }
+  clusters?: { dimension: string; etiqueta: string; miembros: string[]; peso: number; contribucion: number; desconocidos: string[]; criterio: string }[]
+  desde?: string
+  hasta?: string
+  nota?: string
+  indice_beta?: string | null
+}
+
+export interface SaldosEfectivo {
+  saldos: { moneda: string; importe: number; as_of: string; nota: string | null }[]
+  nota: string | null
 }

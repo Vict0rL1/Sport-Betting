@@ -24,6 +24,7 @@ from app import punto_en_el_tiempo as pit
 from app.analysis import fx
 from app.analysis import historial as hist
 from app.db.models import Instrument, Position
+from app.snapshots import iso_utc
 
 INDICE_MERCADO = "SPY"
 
@@ -107,7 +108,7 @@ def construir(session: Session, service, *, descargar: bool = False, ahora: date
             "coste_medio": a["coste"] / a["cantidad"] if a["cantidad"] else None,
             "precio": a["precio"], "precio_estado": a["precio_estado"],
             "stop": max(a["stops"]) if a["stops"] and all(s is not None for s in a["stops"]) else None,
-            "abierta_desde": a["abierta_desde"].isoformat() if a["abierta_desde"] else None,
+            "abierta_desde": iso_utc(a["abierta_desde"]),
             **({"motivo": f"sin histórico: {fallos.get(a['symbol'])}"} if a["symbol"] not in series else {}),
         }
         for a in valoradas

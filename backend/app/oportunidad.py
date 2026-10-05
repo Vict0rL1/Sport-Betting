@@ -53,7 +53,7 @@ def efectivo_usd(session: Session, ctx: dict, ahora: datetime) -> dict:
             usd = c.importe / tipo
         total += usd
         detalle.append({"moneda": c.moneda, "importe": c.importe, "usd": round(usd, 2),
-                        "as_of": c.as_of.isoformat() if c.as_of else None})
+                        "as_of": sn.iso_utc(c.as_of)})
     return {"usd": round(total, 2), "estado": "valido", "detalle": detalle}
 
 
@@ -72,7 +72,7 @@ def _lectura_congelada(session: Session, symbol: str, ahora: datetime) -> dict:
         "tesis": (a.get("tesis") or {}).get("estado"),
         "valoracion": valoracion_de(a),
         "confianza": (a.get("confianza") or {}).get("nivel"),
-        "lectura_de": snap.creado_en.isoformat() if snap.creado_en else None,
+        "lectura_de": sn.iso_utc(snap.creado_en),
     }
 
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { DecisionExplicada } from '../components/DecisionExplicada'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { CompanyLogo } from '../components/CompanyLogo'
@@ -102,6 +103,8 @@ function DecisionPlan({ decision }: { decision: Decision }) {
           <li key={i}>· {r}</li>
         ))}
       </ul>
+
+      <DecisionExplicada decision={decision} />
 
       {levels && (
         // Sobre una posición abierta no hay zona de compra ni peso que sugerir:

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { ContribucionAlRiesgoPanel, CosteOportunidadPanel } from '../components/cartera/RiesgoYOportunidad'
 import { api } from '../api/client'
 import { CompanyLogo } from '../components/CompanyLogo'
 import { CurvaDeCrisis } from '../components/Sparkline'
@@ -498,6 +499,11 @@ export function CarteraPage() {
           {cargando ? 'Descargando…' : 'Descargar histórico completo'}
         </button>
       </div>
+
+      {/* Riesgo por posición y coste de oportunidad: piden lo suyo y no dependen
+          de la descarga de décadas de precios de abajo. */}
+      <ContribucionAlRiesgoPanel />
+      <CosteOportunidadPanel />
 
       {error && (
         <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">

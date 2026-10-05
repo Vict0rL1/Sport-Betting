@@ -12,6 +12,10 @@ import { FinancialsSection } from '../components/ticker/FinancialsSection'
 import { HealthSection } from '../components/ticker/HealthSection'
 import { OptionsSection } from '../components/ticker/OptionsSection'
 import { ValuationSection } from '../components/ticker/ValuationSection'
+import { QueCambioSection } from '../components/ticker/QueCambioSection'
+import { ExpectativasSection } from '../components/ticker/ExpectativasSection'
+import { CalidadSection } from '../components/ticker/CalidadSection'
+import { HistorialSection } from '../components/ticker/HistorialSection'
 import { fmtBig, fmtChangePct, fmtNumber } from '../lib/format'
 
 const RANGES: HistoryRange[] = ['1M', '3M', '6M', 'YTD', '1Y', '5Y', '10Y']
@@ -24,6 +28,10 @@ type TabName =
   | 'opciones'
   | 'salud'
   | 'filings'
+  | 'cambios'
+  | 'expectativas'
+  | 'calidad'
+  | 'historial'
 
 // Las pestañas cargan sus datos solo al abrirse: no se gastan llamadas de API
 // en análisis que no estás mirando.
@@ -35,6 +43,10 @@ const TABS: { id: TabName; label: string }[] = [
   { id: 'opciones', label: 'Opciones' },
   { id: 'salud', label: 'Salud y riesgo' },
   { id: 'filings', label: 'Filings' },
+  { id: 'cambios', label: 'Qué cambió' },
+  { id: 'expectativas', label: 'Resultados vs expectativas' },
+  { id: 'calidad', label: 'Calidad de beneficios' },
+  { id: 'historial', label: 'Decisiones y replay' },
 ]
 
 interface TickerData {
@@ -186,7 +198,7 @@ export function TickerPage() {
             </div>
           </header>
 
-          <nav className="flex gap-1 border-b border-slate-200">
+          <nav className="flex flex-wrap gap-1 border-b border-slate-200">
             {TABS.map(({ id, label }) => (
               <button
                 key={id}
@@ -208,6 +220,10 @@ export function TickerPage() {
           {tab === 'opciones' && <OptionsSection symbol={symbol} />}
           {tab === 'salud' && <HealthSection symbol={symbol} />}
           {tab === 'filings' && <FilingsSection symbol={symbol} />}
+          {tab === 'cambios' && <QueCambioSection symbol={symbol} />}
+          {tab === 'expectativas' && <ExpectativasSection symbol={symbol} />}
+          {tab === 'calidad' && <CalidadSection symbol={symbol} />}
+          {tab === 'historial' && <HistorialSection symbol={symbol} />}
 
           <section
             className={`rounded-xl border border-slate-200 bg-white p-4 ${tab === 'resumen' ? '' : 'hidden'}`}

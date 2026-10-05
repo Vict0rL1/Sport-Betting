@@ -58,7 +58,7 @@ def listar(
             {
                 "id": snap.id,
                 "fecha": snap.fecha,
-                "creado_en": snap.creado_en.isoformat() if snap.creado_en else None,
+                "creado_en": sn.iso_utc(snap.creado_en),
                 "origen": snap.origen,
                 "symbol": snap.symbol,
                 "accion": snap.accion,
