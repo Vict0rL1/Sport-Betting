@@ -174,11 +174,18 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
               <p className="text-[#5c636c]">{c.sensibilidad.metodo}</p>
             </Fila>
             <Fila titulo="Calidad de mercado (proxy)" valor={<Etiqueta texto={c.mercado.calidad} />}>
-              {c.mercado.lineas.map((l) => (
-                <p key={l.seleccion}>
-                  {l.seleccion}: mejor {l.mejor.toFixed(2)} ({l.mejorCasa}) · mediana {l.mediana.toFixed(2)} · peor {l.peor.toFixed(2)} · {l.casas} casas · dispersión {l.dispersionPp} pp
-                </p>
-              ))}
+              {c.mercado.lineas.map((l, i) => {
+                // La ventaja con cada cuota, con la probabilidad del modelo para esa selección.
+                const p = c.probs[i];
+                const ev = (o: number) => pp((p * o - 1) * 100);
+                return (
+                  <p key={l.seleccion}>
+                    {l.seleccion}: mejor {l.mejor.toFixed(2)} ({l.mejorCasa}, ventaja {ev(l.mejor)}) · mediana {l.mediana.toFixed(2)} ({ev(l.mediana)}) · peor{' '}
+                    {l.peor.toFixed(2)} ({ev(l.peor)}) · {l.casas} casas · dispersión {l.dispersionPp} pp
+                  </p>
+                );
+              })}
+              {c.mercado.lineas.length > 0 && <p className="text-[#5c636c]">La mejor cuota es una cota superior: no siempre se puede apostar en todas las casas.</p>}
               {c.mercado.ultimaActualizacionMin != null && <p>Última observación: hace {c.mercado.ultimaActualizacionMin} min · {c.mercado.observaciones24h} descargas en 24 h</p>}
               {c.mercado.motivos.map((m) => <p key={m}>⚠ {m}</p>)}
               <p className="text-[#5c636c]">{c.mercado.etiqueta}.</p>

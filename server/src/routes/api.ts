@@ -5,6 +5,8 @@ import { validacionEnVivo } from '../evaluation/validation.ts';
 import { evaluacionEnVivo } from '../evaluation/live.ts';
 import { rendimientoEnVivo } from '../evaluation/betting.ts';
 import { calidadSeleccion } from '../trust/evaluation.ts';
+import { resumenMercado, durabilidad } from '../odds/edgeAnalysis.ts';
+import { getDb } from '../db.ts';
 import { versionsFor } from '../versions.ts';
 import type { FastifyInstance } from 'fastify';
 import { env, toursConfig, tournamentsConfig } from '../config.ts';
@@ -425,6 +427,22 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // ¿Mejora el modelo cerca del partido? Emparejado sobre los mismos partidos.
   app.get('/prematch/evaluacion', async () => ({ origen: 'live', deportes: evaluacionPorHorizonte() }));
 
+  // --- el mercado alrededor de las ventajas: duración, slippage y mejor línea ---
+  app.get('/market/analysis', async () => {
+    const senales = getDb()
+      .prepare(
+        `SELECT id, sport, selection, provider_event_id AS ev, provider_selection AS sel, model_probability_calibrated AS p,
+                commence_time, created_at, decision, edge
+           FROM edge_signals WHERE provider_event_id IS NOT NULL AND commence_time IS NOT NULL AND edge > 0
+          ORDER BY id DESC LIMIT 40`,
+      )
+      .all() as { id: number; sport: string; selection: string; ev: string; sel: string; p: number; commence_time: string; created_at: string; decision: string; edge: number }[];
+    return {
+      ...resumenMercado(),
+      durabilidad: senales.map((s) => ({ ...s, ...durabilidad(s.ev, s.sel, s.p, s.commence_time) })),
+    };
+  });
+
   // --- qué se juega hoy, en los cinco deportes ---
   app.get('/today', async () => partidosDeHoy());
 
@@ -661,7 +679,6 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 }
 
 // Small local helper (kept here to avoid widening the repo surface).
-import { getDb } from '../db.ts';
 import { findTennisResult, hasStarted } from '../results.ts';
 function countRowsWhere(table: string, col: string, value: string): number {
   const row = getDb()
