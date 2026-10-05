@@ -197,3 +197,18 @@ def test_sobre_lo_que_tienes_un_precio_viejo_no_calla_un_stop_perforado():
 def test_un_precio_valido_sigue_permitiendo_comprar():
     d = decision.decide(SENAL, _precio(last=100.0, sma200=90.0, estado="valido"))
     assert d["action"] == "comprar"
+
+
+def test_una_posicion_de_coste_cero_con_stop_perforado_dice_vender():
+    """Coste 0 es válido en la base (CHECK cost_basis >= 0: acciones recibidas
+    en un spin-off). Con un stop fijado, el cálculo del objetivo multiplicaba
+    None y la decisión reventaba con TypeError; la lista la convertía en «Sin
+    datos» y el stop perforado dejaba de avisarse."""
+    r = decision.decide(
+        {"score": 0.5},
+        {"last": 80.0, "sma200": 90.0},
+        {"cost_basis": 0.0, "quantity": 10, "stop": 85.0},
+    )
+    assert r["action"] == "vender"
+    assert r["levels"]["stop"] == 85.0
+    assert r["levels"]["objetivo"] is None  # sin coste no hay objetivo anclado a él

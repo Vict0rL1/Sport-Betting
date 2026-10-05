@@ -137,6 +137,9 @@ def decide(
     # producía una orden de compra dimensionada. Toda comparación con NaN
     # devuelve False, así que los `elif` encadenados caen en la rama final sin
     # que nada lo señale.
+    # `reglas` (el parámetro) es el resumen del backtest de reglas, que decide
+    # la validación; aquí dentro `reglas` pasa a ser la TRAZA de esta decisión.
+    reglas_ext = reglas
     ultimo = datos.precio((price or {}).get("last"))
     score = datos.numero(signal.get("score"))
     faltan = datos.faltantes({"precio": ultimo, "puntuación": score})
@@ -150,6 +153,21 @@ def decide(
             "triggers": [],
             "confidence": "ninguna",
             "owned": position is not None,
+            "reglas": [
+                {**_regla("datos_minimos", "Precio y puntuación válidos", NO_CUMPLE,
+                          efecto="sin_datos", faltan=faltan), "papel": "decide"}
+            ],
+            "cambiaria": [
+                {
+                    "hacia": "cualquier acción",
+                    "requiere": "todas",
+                    "condiciones": [
+                        {"regla": "datos_minimos", "condicion": f"que haya {f} válido",
+                         "actual": None, "umbral": None}
+                        for f in faltan
+                    ],
+                }
+            ],
         }
 
     sma200 = datos.numero(price.get("sma200"))
@@ -167,15 +185,18 @@ def decide(
     # crudo aquí anularía la banda entera. Aguas abajo, None no basta para
     # entrar (se va a "vigilar") ni basta para salir (se queda en "mantener"),
     # que es exactamente la asimetría que corta el vaivén.
-    sobre_media = _tendencia(
-        ultimo,
-        sma200,
-        price.get("above_sma200"),
-        corrupta=price.get("sma200") is not None and sma200 is None,
+    corrupta = price.get("sma200") is not None and sma200 is None
+    sobre_media = _tendencia(ultimo, sma200, price.get("above_sma200"), corrupta=corrupta)
+    # Distinguir «dentro de la banda» (se sabe: ni encima ni debajo) de «no se
+    # sabe» (sin media utilizable). Para la decisión dan lo mismo; para la
+    # traza no: una regla desconocida no es una regla que no se cumple.
+    tendencia_desconocida = sobre_media is None and (
+        sma200 is None and (price.get("above_sma200") is None or corrupta)
     )
     niveles = _niveles(ultimo, price.get("daily_vol_pct"), clase)
     razones: list[str] = []
     disparadores: list[str] = []
+    tendencia = {"sma200": sma200, "precio": ultimo, "desconocida": tendencia_desconocida}
 
     # --- Ya se tiene la empresa: la pregunta es si sostenerla o soltarla ---
     if position:
@@ -201,26 +222,33 @@ def decide(
                 round(coste * (1 - niveles["stop_pct"] / 100), 2) if coste else None
             )
 
-        if score <= desfavorable_max:
-            accion = "vender"
+        # Las reglas, en su orden de prioridad. La acción SALE de esta lista:
+        # la primera que se cumple decide. Antes la traza no existía y el «por
+        # qué» había que deducirlo leyendo frases.
+        reglas = _reglas_con_posicion(
+            score, ultimo, stop_posicion, sobre_media, tendencia, desfavorable_max
+        )
+        decisiva = next((r for r in reglas if r["resultado"] == CUMPLE), None)
+        accion = decisiva["efecto"] if decisiva else "mantener"
+        for r in reglas:
+            r["papel"] = "decide" if r is decisiva else "evaluada"
+
+        if decisiva and decisiva["id"] == "puntuacion_desfavorable":
             razones.append(
                 f"La puntuación cayó a {score:+.2f}: la razón por la que se "
                 "compró ya no se sostiene frente a sus comparables."
             )
-        elif stop_posicion is not None and ultimo <= stop_posicion:
-            accion = "vender"
+        elif decisiva and decisiva["id"] == "stop_perforado":
             razones.append(
                 f"El precio ({ultimo}) perforó el stop de la posición "
                 f"({stop_posicion}), un {niveles['stop_pct']} % bajo tu coste."
             )
-        elif sobre_media is False:
-            accion = "reducir"
+        elif decisiva and decisiva["id"] == "tendencia_perdida":
             razones.append(
                 f"Cotiza por debajo de su media de 200 sesiones ({sma200}): la "
                 "tendencia se giró en contra aunque los fundamentales aguanten."
             )
         else:
-            accion = "mantener"
             razones.append(
                 f"Puntuación {score:+.2f} y precio sobre su media de 200 "
                 "sesiones: no hay motivo para tocar la posición."
@@ -235,6 +263,8 @@ def decide(
                 f"Precio viejo (de hace {minutos_viejo} min: las fuentes fallaron). "
                 "Compruébalo en tu broker antes de actuar."
             )
+            reglas.append({**_regla("precio_viejo", "Precio rescatado de caché", CUMPLE,
+                                    minutos=minutos_viejo), "papel": "informa"})
         if stop_fijado is None and stop_posicion is not None:
             razones.append(
                 "El stop de esta posición se recalcula con la volatilidad de hoy "
@@ -248,14 +278,18 @@ def decide(
         # precio actual, que es la distancia que de verdad te queda.
         niveles_posicion = None
         if stop_posicion is not None:
-            objetivo = round(coste * (1 + niveles["objetivo_pct"] / 100), 2)
+            # Sin coste utilizable (coste 0 es legal: acciones recibidas en un
+            # spin-off) no hay objetivo anclado a él. Antes esto multiplicaba
+            # None, la decisión reventaba y la lista la daba por «sin datos»:
+            # un stop perforado dejaba de avisarse.
+            objetivo = round(coste * (1 + niveles["objetivo_pct"] / 100), 2) if coste else None
             niveles_posicion = {
                 "entrada_desde": None,
                 "entrada_hasta": None,
                 "stop": stop_posicion,
                 "stop_pct": round((stop_posicion / ultimo - 1) * 100, 1),
                 "objetivo": objetivo,
-                "objetivo_pct": round((objetivo / ultimo - 1) * 100, 1),
+                "objetivo_pct": round((objetivo / ultimo - 1) * 100, 1) if objetivo else None,
                 "ratio": niveles["ratio"],
                 "peso_bruto_pct": None,
                 "stop_fijado_al_abrir": stop_fijado is not None,
@@ -272,21 +306,30 @@ def decide(
             "reasons": razones,
             "levels": niveles_posicion,
             "triggers": disparadores,
-            "confidence": _confianza(signal, reglas),
-            "escenarios": _escenarios(reglas),
+            "confidence": _confianza(signal, reglas_ext),
+            "escenarios": _escenarios(reglas_ext),
             "owned": True,
             "pnl_pct": pnl_pct,
+            "reglas": reglas,
+            "cambiaria": _cambiaria_con_posicion(
+                accion, score, ultimo, stop_posicion, tendencia, desfavorable_max
+            ),
         }
 
     # --- No se tiene: la pregunta es si entrar, esperar o descartar ---
-    if score <= desfavorable_max:
+    reglas = _reglas_sin_posicion(score, sobre_media, tendencia, favorable_min, desfavorable_max)
+    por_id = {r["id"]: r for r in reglas}
+    if por_id["puntuacion_desfavorable"]["resultado"] == CUMPLE:
         accion = "evitar"
+        por_id["puntuacion_desfavorable"]["papel"] = "decide"
         razones.append(
             f"Puntuación {score:+.2f}: queda por detrás de sus comparables de "
             "sector en valor, calidad y momentum."
         )
-    elif score >= favorable_min and sobre_media:
+    elif por_id["puntuacion_favorable"]["resultado"] == CUMPLE and por_id["tendencia_a_favor"]["resultado"] == CUMPLE:
         accion = "comprar"
+        por_id["puntuacion_favorable"]["papel"] = "decide"
+        por_id["tendencia_a_favor"]["papel"] = "decide"
         razones.append(
             f"Puntuación {score:+.2f} — mejor que sus comparables de sector."
         )
@@ -299,8 +342,12 @@ def decide(
             f"Salir si cierra bajo {niveles['stop']} (−{niveles['stop_pct']} %)",
             f"Tomar beneficios en {niveles['objetivo']} (+{niveles['objetivo_pct']} %)",
         ]
-    elif score >= favorable_min:
+    elif por_id["puntuacion_favorable"]["resultado"] == CUMPLE:
         accion = "vigilar"
+        # «Decide» solo la regla cuyo efecto ES la acción. Aquí la puntuación
+        # empuja a comprar y la tendencia lo impide: vigilar es ese empate.
+        por_id["puntuacion_favorable"]["papel"] = "a_favor"
+        por_id["tendencia_a_favor"]["papel"] = "bloquea"
         razones.append(
             f"Puntuación {score:+.2f}, pero cotiza bajo su media de 200 "
             f"sesiones ({sma200}): buena empresa en tendencia bajista."
@@ -318,6 +365,7 @@ def decide(
         # espera hasta volverla inútil: vigilar es para empresas buenas
         # esperando que la tendencia gire, no para el montón.
         accion = "ninguna"
+        por_id["puntuacion_favorable"]["papel"] = "bloquea"
         razones.append(
             f"Puntuación {score:+.2f}: ni destaca ni preocupa frente a sus "
             "comparables. No hay motivo para actuar."
@@ -328,8 +376,13 @@ def decide(
     # apuesta de factores en cara o cruz: el precio se moverá por una noticia
     # que el modelo no conoce y que no está en ningún múltiplo. La idea no se
     # descarta, se aplaza — que es justo lo que hace "vigilar".
+    r_resultados = _regla(
+        "resultados_proximos", "Presenta resultados en los próximos 7 días",
+        CUMPLE if resultados_en else NO_CUMPLE, efecto="vigilar", fecha=resultados_en,
+    )
     if resultados_en and accion == "comprar":
         accion = "vigilar"
+        r_resultados["papel"] = "modifica"
         razones.insert(
             0,
             f"Presenta resultados el {resultados_en}. La idea es buena, pero "
@@ -341,10 +394,17 @@ def decide(
             *disparadores[1:],
         ]
     elif resultados_en:
+        r_resultados["papel"] = "informa"
         razones.append(f"Presenta resultados el {resultados_en}: espera volatilidad.")
+    reglas.append(r_resultados)
 
+    r_viejo = _regla(
+        "precio_viejo", "Precio rescatado de caché (todas las fuentes fallaron)",
+        CUMPLE if precio_viejo else NO_CUMPLE, efecto="vigilar", minutos=minutos_viejo if precio_viejo else None,
+    )
     if precio_viejo and accion == "comprar":
         accion = "vigilar"
+        r_viejo["papel"] = "modifica"
         razones.insert(
             0,
             f"El precio es viejo (de hace {minutos_viejo} min: todas las fuentes "
@@ -352,6 +412,9 @@ def decide(
             "compra contra un precio que quizá ya no existe.",
         )
         disparadores = ["Reevaluar cuando vuelva a haber precio actual", *disparadores[1:]]
+    reglas.append(r_viejo)
+    for r in reglas:
+        r.setdefault("papel", "evaluada")
 
     if price.get("drawdown_pct") is not None and price["drawdown_pct"] < -25:
         razones.append(
@@ -365,10 +428,176 @@ def decide(
         "reasons": razones,
         "levels": niveles if accion in {"comprar", "vigilar"} else None,
         "triggers": disparadores,
-        "confidence": _confianza(signal, reglas),
-        "escenarios": _escenarios(reglas),
+        "confidence": _confianza(signal, reglas_ext),
+        "escenarios": _escenarios(reglas_ext),
         "owned": False,
+        "reglas": reglas,
+        "cambiaria": _cambiaria_sin_posicion(
+            accion, score, tendencia, favorable_min, desfavorable_max,
+            resultados_en, precio_viejo,
+        ),
     }
+
+
+# --- Traza de reglas y «qué la cambiaría» ------------------------------------
+#
+# La atribución sale de AQUÍ, del mismo motor que decide, no de un sistema
+# aparte. Este motor no suma puntos: es una lista de reglas con prioridad —la
+# primera que se cumple decide— y así se enseña. Inventar «+2 por valoración,
+# +1 por riesgo» sería un segundo motor con aspecto de explicación del primero.
+
+CUMPLE = "cumple"
+NO_CUMPLE = "no_cumple"
+DESCONOCIDO = "desconocido"
+
+
+def _regla(id_: str, texto: str, resultado: str, efecto: str | None = None, **datos_) -> dict:
+    return {"id": id_, "regla": texto, "resultado": resultado, "efecto": efecto, "datos": datos_}
+
+
+def _umbral_entrar(sma200: float | None) -> float | None:
+    return round(sma200 * (1 + BANDA_TENDENCIA_ENTRAR_PCT / 100), 2) if sma200 else None
+
+
+def _umbral_salir(sma200: float | None) -> float | None:
+    return round(sma200 * (1 - BANDA_TENDENCIA_SALIR_PCT / 100), 2) if sma200 else None
+
+
+def _reglas_con_posicion(score, ultimo, stop, sobre_media, tendencia, desfavorable_max) -> list[dict]:
+    return [
+        _regla(
+            "puntuacion_desfavorable", f"Puntuación ≤ {desfavorable_max:+.2f}",
+            CUMPLE if score <= desfavorable_max else NO_CUMPLE, efecto="vender",
+            valor=score, umbral=desfavorable_max,
+        ),
+        _regla(
+            "stop_perforado", "Precio en o bajo el stop de la posición",
+            DESCONOCIDO if stop is None else CUMPLE if ultimo <= stop else NO_CUMPLE,
+            efecto="vender", valor=ultimo, umbral=stop,
+        ),
+        _regla(
+            "tendencia_perdida",
+            f"Precio ≤ media de 200 sesiones − {BANDA_TENDENCIA_SALIR_PCT:g} %",
+            DESCONOCIDO if tendencia["desconocida"] else CUMPLE if sobre_media is False else NO_CUMPLE,
+            efecto="reducir", valor=ultimo, umbral=_umbral_salir(tendencia["sma200"]),
+        ),
+    ]
+
+
+def _reglas_sin_posicion(score, sobre_media, tendencia, favorable_min, desfavorable_max) -> list[dict]:
+    return [
+        _regla(
+            "puntuacion_desfavorable", f"Puntuación ≤ {desfavorable_max:+.2f}",
+            CUMPLE if score <= desfavorable_max else NO_CUMPLE, efecto="evitar",
+            valor=score, umbral=desfavorable_max,
+        ),
+        _regla(
+            "puntuacion_favorable", f"Puntuación ≥ {favorable_min:+.2f}",
+            CUMPLE if score >= favorable_min else NO_CUMPLE, efecto="comprar",
+            valor=score, umbral=favorable_min,
+        ),
+        _regla(
+            "tendencia_a_favor",
+            f"Precio ≥ media de 200 sesiones + {BANDA_TENDENCIA_ENTRAR_PCT:g} %",
+            DESCONOCIDO if tendencia["desconocida"] else CUMPLE if sobre_media else NO_CUMPLE,
+            efecto="comprar", valor=tendencia["precio"], umbral=_umbral_entrar(tendencia["sma200"]),
+        ),
+    ]
+
+
+def _c_score(op: str, umbral: float, score: float, id_: str) -> dict:
+    return {
+        "regla": id_,
+        "condicion": f"puntuación {op} {umbral:+.2f}",
+        "actual": round(score, 3),
+        "umbral": umbral,
+        "distancia": round(umbral - score, 3),
+        "unidad": "puntos",
+    }
+
+
+def _c_precio(op: str, umbral: float | None, ultimo: float, id_: str, que: str) -> dict:
+    if umbral is None:
+        return {"regla": id_, "condicion": f"precio {op} {que}", "actual": ultimo,
+                "umbral": None, "distancia": None, "unidad": "%",
+                "nota": "desconocido: no hay media de 200 sesiones utilizable"}
+    return {
+        "regla": id_,
+        "condicion": f"precio {op} {umbral} ({que})",
+        "actual": ultimo,
+        "umbral": umbral,
+        "distancia": round((umbral / ultimo - 1) * 100, 2),
+        "unidad": "%",
+    }
+
+
+def _cambiaria_con_posicion(accion, score, ultimo, stop, tendencia, desfavorable_max) -> list[dict]:
+    """Qué tendría que pasar para que la acción sobre tu posición fuera otra."""
+    sma = tendencia["sma200"]
+    salir = _umbral_salir(sma)
+    vender = {
+        "hacia": "vender",
+        "requiere": "alguna",
+        "condiciones": [_c_score("≤", desfavorable_max, score, "puntuacion_desfavorable")]
+        + ([_c_precio("≤", stop, ultimo, "stop_perforado", "stop")] if stop is not None else []),
+    }
+    if accion == "mantener":
+        return [
+            vender,
+            {"hacia": "reducir", "requiere": "alguna",
+             "condiciones": [_c_precio("≤", salir, ultimo, "tendencia_perdida", "media 200 − 1 %")]},
+        ]
+    mantener = {
+        "hacia": "mantener",
+        "requiere": "todas",
+        "condiciones": [_c_score(">", desfavorable_max, score, "puntuacion_desfavorable")]
+        + ([_c_precio(">", stop, ultimo, "stop_perforado", "stop")] if stop is not None else [])
+        + [_c_precio(">", salir, ultimo, "tendencia_perdida", "media 200 − 1 %")],
+    }
+    if accion == "reducir":
+        return [mantener, vender]
+    return [mantener]  # vender
+
+
+def _cambiaria_sin_posicion(
+    accion, score, tendencia, favorable_min, desfavorable_max, resultados_en, precio_viejo
+) -> list[dict]:
+    """Qué tendría que pasar para pasar a cada una de las otras acciones."""
+    ultimo, entrar = tendencia["precio"], _umbral_entrar(tendencia["sma200"])
+    comprar = [_c_score("≥", favorable_min, score, "puntuacion_favorable"),
+               _c_precio("≥", entrar, ultimo, "tendencia_a_favor", "media 200 + 2 %")]
+    extra = []
+    if resultados_en:
+        extra.append({"regla": "resultados_proximos", "condicion": f"que pasen los resultados del {resultados_en}",
+                      "actual": resultados_en, "umbral": None, "distancia": None, "unidad": None})
+    if precio_viejo:
+        extra.append({"regla": "precio_viejo", "condicion": "volver a tener precio actual",
+                      "actual": "viejo", "umbral": None, "distancia": None, "unidad": None})
+    evitar = {"hacia": "evitar", "requiere": "todas",
+              "condiciones": [_c_score("≤", desfavorable_max, score, "puntuacion_desfavorable")]}
+    salida = []
+    if accion != "comprar":
+        pendientes = [
+            c for c in comprar
+            if not (c["regla"] == "puntuacion_favorable" and score >= favorable_min)
+            and not (c["regla"] == "tendencia_a_favor" and c.get("distancia") is not None and c["distancia"] <= 0)
+        ]
+        salida.append({"hacia": "comprar", "requiere": "todas", "condiciones": pendientes + extra})
+    if accion == "comprar":
+        salida.append({"hacia": "vigilar", "requiere": "alguna", "condiciones": [
+            _c_precio("<", entrar, ultimo, "tendencia_a_favor", "media 200 + 2 %"),
+            {"regla": "resultados_proximos", "condicion": "anuncio de resultados en los próximos 7 días",
+             "actual": None, "umbral": None, "distancia": None, "unidad": None},
+        ]})
+    if accion in ("comprar", "vigilar"):
+        salida.append({"hacia": "ninguna", "requiere": "todas",
+                       "condiciones": [_c_score("<", favorable_min, score, "puntuacion_favorable")]})
+    if accion != "evitar":
+        salida.append(evitar)
+    else:
+        salida.append({"hacia": "ninguna", "requiere": "todas",
+                       "condiciones": [_c_score(">", desfavorable_max, score, "puntuacion_desfavorable")]})
+    return salida
 
 
 def _escenarios(reglas: dict | None) -> dict | None:
