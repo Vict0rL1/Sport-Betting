@@ -61,6 +61,8 @@ export const PAPER_BET_COLUMNS: Record<string, string> = {
   confidence: 'TEXT',
   data_quality: 'INTEGER',
   trust_stake_factor: 'REAL',
+  /** Grupos de correlación (staking/risk.ts): el primero, el evento; luego cada participante. */
+  correlation_groups: 'TEXT',
 };
 
 /** Congeladas desde el INSERT. */
@@ -71,7 +73,7 @@ const CONGELADAS = [
   'bookmaker', 'books', 'line', 'stake_pct_bankroll', 'kelly_raw', 'kelly_fraction_used',
   'model_version', 'model_config_version', 'calibration_version', 'data_version', 'strategy_version', 'git_commit',
   'prediction_timestamp', 'odds_timestamp', 'opening_odds', 'opening_observed_at', 'signal_odds', 'signal_observed_at',
-  'assessment_id', 'confidence', 'data_quality', 'trust_stake_factor',
+  'assessment_id', 'confidence', 'data_quality', 'trust_stake_factor', 'correlation_groups',
 ];
 /** Se escriben al liquidar, una sola vez. */
 const LIQUIDACION = ['status', 'settled_at', 'profit', 'event_result', 'bankroll_after', 'roi'];

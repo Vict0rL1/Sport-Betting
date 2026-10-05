@@ -40,6 +40,7 @@ import { closingLine, marketAt, openingLine } from '../odds/snapshots.ts';
 import { versionsFor, type SportId } from '../versions.ts';
 import { captureSignalClosing, recordSignal } from './signals.ts';
 import { devig } from '../market/devig.ts';
+import { gruposDe, cabeEnGrupos } from '../staking/risk.ts';
 
 /** El banco inicial del experimento. Se guarda para que cambiarlo sea deliberado. */
 export const BANCO_INICIAL = 1000;
@@ -274,6 +275,8 @@ interface Candidato {
   /** Cuándo se descargaron las cuotas de la fila de próximos. */
   oddsAt: string | null;
   books: number | null;
+  /** Los participantes (ids de equipos o jugadores): para los grupos de correlación. */
+  participantes: string[];
   salidas: Salida[];
 }
 
@@ -288,7 +291,7 @@ const AHORA = () => new Date().toISOString();
 function candidatasTenis(): Candidato[] {
   const rows = getDb()
     .prepare(
-      `SELECT l.match_key, l.upcoming_id, l.p1_name, l.p2_name, l.prob1, l.market_prob1, l.predicted_at,
+      `SELECT l.match_key, l.upcoming_id, l.p1_id, l.p2_id, l.p1_name, l.p2_name, l.prob1, l.market_prob1, l.predicted_at,
               l.tournament_name, u.p1_odds, u.p2_odds, u.commence_time, u.updated_at, u.books
          FROM prediction_log l
          JOIN upcoming_matches u ON u.id = l.upcoming_id
@@ -300,7 +303,7 @@ function candidatasTenis(): Candidato[] {
           AND l.upcoming_id NOT IN (SELECT event_id FROM paper_bets)`,
     )
     .all(AHORA()) as unknown as {
-    match_key: string; upcoming_id: string; p1_name: string; p2_name: string; prob1: number;
+    match_key: string; upcoming_id: string; p1_id: number; p2_id: number; p1_name: string; p2_name: string; prob1: number;
     market_prob1: number; predicted_at: string; tournament_name: string | null;
     p1_odds: number; p2_odds: number; commence_time: string; updated_at: string | null; books: number | null;
   }[];
@@ -317,6 +320,7 @@ function candidatasTenis(): Candidato[] {
     predictedAt: r.predicted_at,
     oddsAt: r.updated_at,
     books: r.books,
+    participantes: [String(r.p1_id), String(r.p2_id)],
     salidas: [
       { label: r.p1_name, proveedor: r.p1_name, p: r.prob1, pRaw: r.prob1, odds: r.p1_odds, pMarket: r.market_prob1 },
       { label: r.p2_name, proveedor: r.p2_name, p: 1 - r.prob1, pRaw: 1 - r.prob1, odds: r.p2_odds, pMarket: 1 - r.market_prob1 },
@@ -344,7 +348,7 @@ function candidatasDosSalidas(cfg: {
   const cal = cfg.mostrada ? `COALESCE(l.${cfg.mostrada}, l.prob_home)` : 'l.prob_home';
   const rows = getDb()
     .prepare(
-      `SELECT l.${cfg.clave} AS match_key, l.upcoming_id, l.home_name, l.away_name, l.league,
+      `SELECT l.${cfg.clave} AS match_key, l.upcoming_id, l.home_id, l.away_id, l.home_name, l.away_name, l.league,
               l.prob_home AS raw, ${cal} AS cal, l.market_prob_home, l.predicted_at,
               u.${cfg.oddsCasa} AS odds_home, u.${cfg.oddsFuera} AS odds_away,
               u.commence_time, u.updated_at, u.books
@@ -358,7 +362,7 @@ function candidatasDosSalidas(cfg: {
           AND l.upcoming_id NOT IN (SELECT event_id FROM paper_bets)`,
     )
     .all(AHORA()) as unknown as {
-    match_key: string; upcoming_id: string; home_name: string; away_name: string; league: string | null;
+    match_key: string; upcoming_id: string; home_id: string; away_id: string; home_name: string; away_name: string; league: string | null;
     raw: number; cal: number; market_prob_home: number; predicted_at: string;
     odds_home: number; odds_away: number; commence_time: string; updated_at: string | null; books: number | null;
   }[];
@@ -373,6 +377,7 @@ function candidatasDosSalidas(cfg: {
     predictedAt: r.predicted_at,
     oddsAt: r.updated_at,
     books: r.books,
+    participantes: [r.home_id, r.away_id],
     salidas: [
       { label: r.home_name, proveedor: r.home_name, p: r.cal, pRaw: r.raw, odds: r.odds_home, pMarket: r.market_prob_home },
       { label: r.away_name, proveedor: r.away_name, p: 1 - r.cal, pRaw: 1 - r.raw, odds: r.odds_away, pMarket: 1 - r.market_prob_home },
@@ -387,7 +392,7 @@ function candidatasDosSalidas(cfg: {
 function candidatasFutbol(): Candidato[] {
   const rows = getDb()
     .prepare(
-      `SELECT l.match_key, l.upcoming_id, l.home_name, l.away_name, l.league, l.predicted_at,
+      `SELECT l.match_key, l.upcoming_id, l.home_id, l.away_id, l.home_name, l.away_name, l.league, l.predicted_at,
               l.prob_home, l.prob_draw, l.prob_away,
               COALESCE(l.shown_home, l.prob_home) AS cal_home,
               COALESCE(l.shown_draw, l.prob_draw) AS cal_draw,
@@ -404,7 +409,7 @@ function candidatasFutbol(): Candidato[] {
           AND l.upcoming_id NOT IN (SELECT event_id FROM paper_bets)`,
     )
     .all(AHORA()) as unknown as {
-    match_key: string; upcoming_id: string; home_name: string; away_name: string; league: string | null; predicted_at: string;
+    match_key: string; upcoming_id: string; home_id: string; away_id: string; home_name: string; away_name: string; league: string | null; predicted_at: string;
     prob_home: number; prob_draw: number; prob_away: number; cal_home: number; cal_draw: number; cal_away: number;
     market_prob_home: number; market_prob_draw: number; market_prob_away: number;
     odds_home: number; odds_draw: number; odds_away: number; commence_time: string; updated_at: string | null; books: number | null;
@@ -420,6 +425,7 @@ function candidatasFutbol(): Candidato[] {
     predictedAt: r.predicted_at,
     oddsAt: r.updated_at,
     books: r.books,
+    participantes: [r.home_id, r.away_id],
     salidas: [
       { label: r.home_name, proveedor: r.home_name, p: r.cal_home, pRaw: r.prob_home, odds: r.odds_home, pMarket: r.market_prob_home },
       { label: 'Empate', proveedor: 'Draw', p: r.cal_draw, pRaw: r.prob_draw, odds: r.odds_draw, pMarket: r.market_prob_draw },
@@ -542,12 +548,14 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
        bookmaker, books, line, stake_pct_bankroll, kelly_raw, kelly_fraction_used,
        model_version, model_config_version, calibration_version, data_version, strategy_version, git_commit,
        prediction_timestamp, odds_timestamp, opening_odds, opening_observed_at, signal_odds, signal_observed_at,
-       assessment_id, confidence, data_quality, trust_stake_factor
-     ) VALUES (?,?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?)`,
+       assessment_id, confidence, data_quality, trust_stake_factor, correlation_groups
+     ) VALUES (?,?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?)`,
   );
   const ahora = AHORA();
   const banco = bancoActual();
   let abierto = expuesto();
+  /** Lo decidido en esta pasada por grupo de correlación (aún no está en la base). */
+  const enGrupos = new Map<string, number>();
   let colocadas = 0;
   const detalle: string[] = [];
   const rechazos: Record<string, number> = {};
@@ -580,7 +588,17 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
     }
     // La capa de confianza (trust/): puede abstenerse o recortar, nunca subir el importe.
     const juicio = juicioDeConfianza(c, d.label, ahora);
-    const stakeConfianza = Math.floor(d.stake * juicio.factor * 100) / 100;
+    // Topes por grupo de correlación (mismo evento, equipo o jugador): solo recortan.
+    const grupos = gruposDe(c.sport, c.event_id, c.participantes);
+    const { cabe, limitante } = cabeEnGrupos(grupos, banco, enGrupos);
+    const stakeConfianza = Math.floor(Math.min(d.stake * juicio.factor, cabe) * 100) / 100;
+    if (juicio.apostar && stakeConfianza <= 0 && cabe < d.stake * juicio.factor) {
+      const motivoRechazo = `tope de grupo de correlación alcanzado (${limitante})`;
+      rechazos['tope de grupo'] = (rechazos['tope de grupo'] ?? 0) + 1;
+      detalle.push(`${c.label}: no se apuesta — ${motivoRechazo}`);
+      senalDe('rechazada', 0, null, motivoRechazo);
+      continue;
+    }
     if (!juicio.apostar || stakeConfianza <= 0) {
       const motivoRechazo = juicio.razon ?? 'abstención: el recorte de confianza deja el importe en cero';
       rechazos[motivoRechazo.split(':')[0]] = (rechazos[motivoRechazo.split(':')[0]] ?? 0) + 1;
@@ -610,8 +628,9 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
       `consenso (mediana de ${c.books ?? '?'} casas)`, c.books, null, stake / banco, fullKelly(e.p, e.odds), DEFAULT_CONFIG.kellyFraction,
       v.model_version, v.model_config_version, v.calibration_version, v.data_version, v.strategy_version, v.git_commit,
       c.predictedAt, c.oddsAt, apertura?.consensus ?? null, apertura?.at ?? null, senal?.consensus ?? null, senal ? c.predictedAt : null,
-      juicio.id, juicio.confianza, juicio.calidad, juicio.factor,
+      juicio.id, juicio.confianza, juicio.calidad, juicio.factor, JSON.stringify(grupos),
     );
+    for (const g of grupos) enGrupos.set(g, (enGrupos.get(g) ?? 0) + stake);
     senalDe('apostada', stake, Number(alta.changes) ? Number(alta.lastInsertRowid) : null);
     // La exposición se acumula DENTRO del bucle: sin esto, veinte candidatas se
     // dimensionarían todas como si fueran la primera y los topes no servirían.

@@ -37,7 +37,8 @@ import { refreshOdds } from '../ingest/odds.ts';
 import { ejecutar } from '../ask/router.ts';
 import { responderAgente } from '../ask/agent.ts';
 import { enrutarConModelo } from '../ask/llm.ts';
-import { place, settle, resumen } from '../paper/bankroll.ts';
+import { place, settle, resumen, bancoActual } from '../paper/bankroll.ts';
+import { riesgoCartera } from '../staking/risk.ts';
 import { partidosDeHoy, resultadosRecientes } from '../today.ts';
 import { evaluate } from '../live/engine.ts';
 import { matchupServe } from '../live/serve.ts';
@@ -524,6 +525,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
           : null,
     };
   });
+
+  // --- riesgo de la cartera abierta: total, por deporte y por grupo de correlación ---
+  app.get('/risk', async () => riesgoCartera(bancoActual()));
 
   // --- el banco de papel del modelo ---
   app.get('/paper', async () => {

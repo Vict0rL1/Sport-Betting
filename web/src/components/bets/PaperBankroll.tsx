@@ -8,6 +8,8 @@ import { useEffect, useState } from 'react';
 import { BREAK_EVEN_COLOR, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 
 interface Apuesta {
+  /** Grupos de correlación (server/src/staking/risk.ts), en JSON: el primero es el evento. */
+  correlation_groups?: string | null;
   id: number;
   placed_at: string;
   sport: string;
@@ -194,6 +196,11 @@ export default function PaperBankroll() {
                 <tr key={a.id} className="border-t border-white/[0.05]">
                   <td className="px-4 py-2.5 text-[#c3c9d1]">
                     {a.label}
+                    {a.correlation_groups && (
+                      <span className="block text-[11px] text-[#5c636c]" title={(JSON.parse(a.correlation_groups) as string[]).join(' · ')}>
+                        grupo {(JSON.parse(a.correlation_groups) as string[])[0]}
+                      </span>
+                    )}
                     {/* Qué versión exacta del modelo tomó la decisión. */}
                     {a.model_version && (
                       <span className="block text-[11px] text-[#5c636e]" title={a.git_commit ? `commit ${a.git_commit}` : undefined}>

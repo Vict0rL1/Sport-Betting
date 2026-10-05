@@ -34,7 +34,7 @@ export function getDb(): DatabaseSync {
   // Un trigger de congelación de una versión anterior no conoce las columnas nuevas, y
   // «IF NOT EXISTS» no lo actualizaría: se rehace si no las nombra.
   const congelada = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'paper_bets_congelada'").get() as { sql: string } | undefined;
-  if (congelada && !congelada.sql.includes('trust_stake_factor')) db.exec('DROP TRIGGER paper_bets_congelada');
+  if (congelada && !congelada.sql.includes('correlation_groups')) db.exec('DROP TRIGGER paper_bets_congelada');
   db.exec(PAPER_TRIGGERS);
   db.exec(EDGE_SIGNALS_SCHEMA);
   db.exec(PREDICTION_LOG_TRIGGERS);
