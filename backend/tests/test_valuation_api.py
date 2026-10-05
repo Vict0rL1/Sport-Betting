@@ -338,3 +338,28 @@ def test_el_precio_implicito_no_se_contradice_con_el_multiplo(client):
         f"múltiplo dice {'dentro' if dentro_por_multiplo else 'fuera'} y precio "
         f"dice {comp['precio_implicito']['posicion']}"
     )
+
+
+def test_un_crecimiento_medido_de_cero_no_se_convierte_en_un_tres_por_ciento(client, monkeypatch):
+    """`revenue_cagr or 0.03` convertía un 0,0 REAL en un 3 % no declarado
+    (por ser *falsy*), y lo mismo hacía con la ausencia del dato."""
+    import tests.test_valuation_api as t
+
+    planos = [{**p, "revenue": 5000e6} for p in _periodos()]
+    monkeypatch.setattr(t, "_periodos", lambda n=8: planos)
+    c, _ = client(precio=PRECIO * 2)
+    m = _valorar(c)["dcf_inverso"]["margen"]
+    assert m["revenue_growth_supuesto"] == 0.0
+    assert m["crecimiento_de_ingresos"] == {"valor": 0.0, "supuesto": False}
+
+
+def test_sin_crecimiento_medido_el_supuesto_se_declara(client, monkeypatch):
+    import tests.test_valuation_api as t
+
+    sin_ingresos_previos = [{**p, "revenue": None} for p in _periodos()[:-1]] + [_periodos()[-1]]
+    monkeypatch.setattr(t, "_periodos", lambda n=8: sin_ingresos_previos)
+    c, _ = client(precio=PRECIO * 2)
+    m = _valorar(c)["dcf_inverso"]["margen"]
+    assert m["crecimiento_de_ingresos"]["supuesto"] is True
+    assert "supuesto" in m["crecimiento_de_ingresos"]["motivo"]
+    assert "SUPUESTO" in m["nota"]  # y se ve en pantalla, que es donde importa

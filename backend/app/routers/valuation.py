@@ -28,6 +28,7 @@ reutilizan `peers` (cacheado 7 días) y `fundamentals` de hasta 6 pares (24 h).
 from __future__ import annotations
 
 from app import datos
+from app.datos import numero as datos_numero
 
 import re
 
@@ -388,11 +389,22 @@ def valorar(
             terminal_growth=base["terminal_growth"], years=request.years, net_debt=net_debt,
         )
         contraste = juzgar_contra_el_pasado(curva, datos["crecimiento"])
+        # El crecimiento de ingresos con el que se despeja el margen: el MEDIDO,
+        # y si no lo hay, el supuesto DECLARADO. Antes era `revenue_cagr or 0.03`:
+        # un 0,0 real se convertía en 3 % por ser *falsy*, y la ausencia del dato
+        # en un 3 % que nadie veía.
+        medido = datos_numero(datos["crecimiento"].get("revenue_cagr"))
+        crecimiento_ingresos = (
+            {"valor": medido, "supuesto": False}
+            if medido is not None
+            else {"valor": CRECIMIENTO_SUPUESTO, "supuesto": True,
+                  "motivo": "sin crecimiento histórico de ingresos medible: supuesto del 3 %"}
+        )
         margen = (
             margen_implicito(
                 market_cap=market_cap, revenue=datos["revenue"],
                 margen_actual=base_fcf / datos["revenue"],
-                revenue_growth=datos["crecimiento"].get("revenue_cagr") or 0.03,
+                revenue_growth=crecimiento_ingresos["valor"],
                 discount_rate=base["discount_rate"],
                 terminal_growth=base["terminal_growth"],
                 years=request.years, net_debt=net_debt,
@@ -400,6 +412,10 @@ def valorar(
             if datos["revenue"]
             else {"disponible": False, "motivo": "Sin ingresos en el último ejercicio."}
         )
+        if margen.get("disponible"):
+            margen["crecimiento_de_ingresos"] = crecimiento_ingresos
+            if crecimiento_ingresos["supuesto"]:
+                margen["nota"] += " Ese crecimiento es un SUPUESTO: la empresa no tiene histórico de ingresos medible."
         inverso = {
             "disponible": True,
             "market_cap": market_cap,
