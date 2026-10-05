@@ -100,7 +100,7 @@ cp backend/data/app.db backend/data/app.db.antes-rc1   # copia de seguridad
 ./start.sh
 ```
 
-La migración no borra nada. Si encuentra posiciones imposibles (cantidad ≤ 0 o
+Las migraciones son 0001–0008 y ninguna borra datos. Si encuentra posiciones imposibles (cantidad ≤ 0 o
 coste negativo) se niega a seguir y dice cuáles: corrígelas y vuelve a
 arrancar. Para mirar o mover versiones a mano: `cd backend && alembic current`.
 
@@ -1863,6 +1863,38 @@ Lo que cambia para quien usa la app:
 
 Lo que sigue pendiente —sobre todo, ejecutar todo esto contra las APIs reales
 y contrastarlo con tu broker— está en `docs/RC1_CHECKLIST.md`.
+
+## Evolución: qué cambió, por qué, qué cuesta y si se cumplió
+
+Cuatro preguntas que la app no sabía contestar, y las piezas que las contestan
+reutilizando lo que ya había (el registro inmutable de decisiones, el motor de
+reglas, EDGAR, la tesis, el dimensionador):
+
+1. **¿Qué cambió desde la última vez?** — pestaña «Qué cambió» de cada empresa.
+   El análisis completo se congela cuando cambia algo material y se compara con
+   el anterior: solo lo que supera su umbral de materialidad, la aparición o
+   pérdida de un dato siempre, la tesis en cuatro listas y, si cambió la acción,
+   **qué reglas** cambiaron de resultado, con su valor y umbral.
+2. **¿Por qué el sistema decidió esto?** — cada decisión trae la traza del motor
+   («¿Por qué?») y lo que tendría que pasar para que fuera otra («¿Qué la
+   cambiaría?»), también en la vista Hoy. «Decisiones y replay» reconstruye
+   cualquier decisión congelada con lo que se sabía ENTONCES: nada publicado
+   después entra (`docs/DECISION_REPLAY.md`).
+3. **¿Qué riesgo y qué coste de oportunidad supone añadirla?** — cuánto riesgo
+   aporta cada posición (no solo cuánto pesa), clústeres, y un motor que compara la
+   idea con lo que ya tienes y puede concluir NO TRADE (`docs/PORTFOLIO_RISK.md`).
+4. **¿Se cumplió lo que se esperaba?** — expectativas capturadas antes de los
+   resultados, cada fuente por separado, comparadas después con los reales de
+   EDGAR, con impacto en la tesis y calibración (`docs/EXPECTATION_TRACKING.md`).
+
+Además: **calidad de beneficios** con nueve reglas transparentes y el linaje de
+cada cifra hasta su filing, y **confianza por calidad de evidencia** (no
+convicción) que el dimensionador usa como entrada declarada. Nada de esto usa un
+LLM, salvo el resumen opcional del diff y el guidance extraído de filings, que
+van marcados.
+
+Migraciones nuevas: **0007** (eventos, expectativas inmutables, resultados reales)
+y **0008** (efectivo anotado). Se aplican solas al arrancar, como las anteriores.
 
 ## Estado
 

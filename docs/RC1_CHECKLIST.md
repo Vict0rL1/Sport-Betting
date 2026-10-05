@@ -189,3 +189,37 @@ registro fiel de datos mal leídos.
 # Forward testing: medir las instantáneas una vez al día, tras el cierre
 30 22 * * 1-5       cd /ruta/al/repo/backend && /usr/bin/python3 scripts/evaluar_instantaneas.py >> ~/.instantaneas.log 2>&1
 ```
+
+---
+
+## Evolución posterior al RC1 (replay, cambios, expectativas, riesgo, calidad, oportunidad)
+
+### Automatizado y verificado
+- [x] Una sola regla anti-anticipación (`punto_en_el_tiempo`), usada por análisis,
+      replay, expectativas y backtest; «mismo día sin hora» = no se puede probar
+- [x] Replay: no cambia aunque cambien fundamentales, precio o tesis de hoy; retira
+      lo fechado después; una instantánea incompleta lo dice y no inventa
+- [x] Análisis a una fecha pasada: sin filings, cotizaciones, tesis, posiciones,
+      señales ni backtests posteriores
+- [x] 60 000 casos: el motor con traza decide exactamente igual que antes
+- [x] What Changed: materialidad, disponibilidad, BUY→HOLD con las reglas exactas
+- [x] Expectativas inmutables (ORM + triggers + CHECK); fuentes separadas; lo
+      registrado tras el resultado o el mismo día no cuenta; captura tardía negada
+- [x] Contribución al riesgo: suma exacta de Euler; desconocido ≠ cero; divisa
+      convertida con el tipo de cada fecha
+- [x] Calidad de beneficios: nueve reglas con linaje; ausente = desconocido
+- [x] Coste de oportunidad: efectivo suficiente, cartera llena, superior, mejora
+      pequeña → NO TRADE, tesis invalidada, correlación, costes e impuestos
+- [x] E2E: análisis → instantánea → expectativas → resultados → lectura MIXTA →
+      cambio de decisión explicado → riesgo y oportunidad → instantáneas íntegras
+- [x] Interfaz verificada en el navegador con datos ficticios
+
+### Requiere verificación manual
+- [ ] **Trimestres de EDGAR contra un 10-Q real**, en especial el CFO del 2.º y
+      3.er trimestre (derivado de acumulados) y el 4.º (año − nueve meses).
+- [ ] **Consenso del calendario de Finnhub**: que `eps_estimate` y
+      `revenue_estimate` lleguen y en qué unidades (la app los toma tal cual).
+- [ ] **Un análisis completo de una empresa real** y su replay al día siguiente.
+- [ ] **Migraciones 0007 y 0008 sobre tu base real**: copia antes de arrancar.
+- [ ] **Anotar el efectivo** y, si procede, el tipo sobre plusvalías: sin ellos el
+      coste de oportunidad responde INDETERMINADO o advierte de impuestos.
