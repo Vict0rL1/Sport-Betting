@@ -77,6 +77,7 @@ def parametros_de_reglas() -> dict:
             "objetivo_vol_anual_pct": sizing.OBJETIVO_VOL_ANUAL_PCT,
             "vol_supuesta_pct": sizing.VOL_SUPUESTA_PCT,
             "correlacion_supuesta": sizing.CORRELACION_SUPUESTA,
+            "factor_evidencia_baja": sizing.FACTOR_EVIDENCIA_BAJA,
         },
         "riesgo": {
             "heat_maximo_pct": risk_budget.HEAT_MAXIMO_PCT,
@@ -276,7 +277,7 @@ def huella_material(analisis: dict) -> str:
                   [(x.get("id"), x.get("salta"), x.get("medible")) for x in tesis.get("disparadores") or []]],
         "senal": round(score, 2) if score is not None else None,
         "posicion": [pos.get("quantity"), pos.get("cost_basis"), pos.get("stop")],
-        **{k: analisis.get(k, {}).get("huella") for k in ("calidad", "expectativas", "riesgo")
+        **{k: analisis.get(k, {}).get("huella") for k in ("calidad", "expectativas", "riesgo", "coste_oportunidad")
            if isinstance(analisis.get(k), dict)},
     })
 
@@ -338,7 +339,9 @@ def congelar_analisis(session: Session, analisis: dict, ahora: datetime) -> tupl
         stop=datos.precio(niveles.get("stop")),
         objetivo=datos.precio(niveles.get("objetivo")),
         peso_bruto_pct=datos.numero(niveles.get("peso_bruto_pct")),
-        peso_final_pct=datos.numero(((limpio.get("sizing") or {}).get("peso_final_pct"))),
+        # El tamaño que la cartera de ese momento permitía, si se calculó.
+        peso_final_pct=(lambda t: t * 100 if t is not None else None)(
+            datos.numero(((limpio.get("coste_oportunidad") or {}).get("tamano") or {}).get("maximo_permitido"))),
         horizonte_dias=HORIZONTE_DIAS,
         reglas_version=version_de_reglas(),
         contexto=contexto,
@@ -390,7 +393,7 @@ ESQUEMA_ANALISIS = 2
 
 SECCIONES_ANALISIS = (
     "mercado", "fundamentales", "valoracion", "tesis", "noticias", "senal",
-    "posicion", "decision", "sizing", "riesgo", "calidad", "expectativas", "confianza",
+    "posicion", "decision", "riesgo", "calidad", "expectativas", "confianza", "coste_oportunidad",
 )
 
 

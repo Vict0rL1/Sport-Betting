@@ -537,18 +537,40 @@ def _resultados_proximos(service, symbol: str, ahora: datetime) -> str | None:
     )
 
 
-def seccion_riesgo(session: Session, service, symbol: str, mercado: dict, decision: dict, ahora: datetime) -> dict:
-    """Su riesgo DENTRO de tu cartera: lo que aporta si la tienes, o lo que
-    aportaría al peso que el motor propone si no. Solo con histórico en caché:
-    abrir una empresa no descarga décadas de precios de toda la cartera."""
+def contexto(session: Session, service, ahora: datetime) -> dict | None:
+    """La cartera para las secciones que la necesitan. Solo caché: abrir una
+    empresa no descarga décadas de precios de toda la cartera."""
     from app import contexto_cartera
+
+    try:
+        return contexto_cartera.construir(session, service, descargar=False, ahora=ahora)
+    except Exception:  # noqa: BLE001 — secciones aisladas
+        log("calculo").exception("análisis: no se pudo construir el contexto de cartera")
+        return None
+
+
+def serie_en_dolares(service, symbol: str, moneda: str | None, ctx: dict, ahora: datetime) -> list | None:
+    from app import contexto_cartera
+
+    if symbol in (ctx or {}).get("series", {}):
+        return ctx["series"][symbol]
+    if moneda is None:
+        return None
+    historia, _ = _traer(service, "price_history", symbol=symbol, interval="1day", outputsize=252)
+    serie = [(date.fromisoformat(str(b["ts"])[:10]), float(b["close"]))
+             for b in (historia or {}).get("bars") or [] if datos.precio(b.get("close")) is not None
+             and pit.disponible_en(str(b.get("ts"))[:10], ahora.date()) is not False]
+    return contexto_cartera.convertir_serie(serie, moneda, (ctx or {}).get("fx_series") or {}) if serie else None
+
+
+def seccion_riesgo(session: Session, service, symbol: str, mercado: dict, decision: dict, ahora: datetime,
+                   ctx: dict | None = None, serie: list | None = None) -> dict:
+    """Su riesgo DENTRO de tu cartera: lo que aporta si la tienes, o lo que
+    aportaría al peso que el motor propone si no."""
     from app.analysis import portfolio_risk
     from app.analysis.sizing import MAX_POR_POSICION_PCT
 
-    try:
-        ctx = contexto_cartera.construir(session, service, descargar=False, ahora=ahora)
-    except Exception:  # noqa: BLE001 — sección aislada
-        log("calculo").exception("análisis: no se pudo construir el contexto de cartera")
+    if ctx is None:
         return {"estado": ERROR, "motivo": "no se pudo leer la cartera", "huella": None}
     if not any(p.get("peso") for p in ctx["posiciones"]):
         return {"estado": "sin_cartera", "huella": None,
@@ -570,15 +592,10 @@ def seccion_riesgo(session: Session, service, symbol: str, mercado: dict, decisi
             "huella": f"{round(propia['contribucion'], 2)}:{propia['cluster_nivel']}",
         }
     # No la tienes: ¿qué aportaría al peso propuesto (o al tope por posición)?
-    historia, _ = _traer(service, "price_history", symbol=symbol, interval="1day", outputsize=252)
     moneda = (mercado.get("precio") or {}).get("moneda")
     if moneda is None:
         return {"estado": DESCONOCIDO, "en_cartera": False, "huella": "desconocido",
                 "motivo": "moneda de cotización desconocida: no se supone dólar"}
-    serie = [(date.fromisoformat(str(b["ts"])[:10]), float(b["close"]))
-             for b in (historia or {}).get("bars") or [] if datos.precio(b.get("close")) is not None
-             and pit.disponible_en(str(b.get("ts"))[:10], ahora.date()) is not False]
-    serie = contexto_cartera.convertir_serie(serie, moneda, ctx["fx_series"]) if serie else None
     peso = min((((decision.get("levels") or {}).get("peso_bruto_pct")) or MAX_POR_POSICION_PCT), MAX_POR_POSICION_PCT) / 100
     if not serie:
         return {"estado": DESCONOCIDO, "en_cartera": False, "huella": "desconocido",
@@ -608,6 +625,7 @@ def analizar(
     *,
     ahora: datetime | None = None,
     con_pares: bool = True,
+    tipo_impositivo: float | None = None,
 ) -> dict:
     """El análisis completo de una empresa, con todo lo que entra en la decisión."""
     from app.routers.signals import _stored_rule_backtest
@@ -655,7 +673,9 @@ def analizar(
         "decision": decision,
         "generado_por": "app",  # determinista: ninguna línea de esto sale de un LLM
     }
-    analisis["riesgo"] = seccion_riesgo(session, service, symbol, mercado, decision, ahora)
+    ctx = contexto(session, service, ahora)
+    serie_usd = serie_en_dolares(service, symbol, mercado["precio"].get("moneda"), ctx, ahora) if ctx else None
+    analisis["riesgo"] = seccion_riesgo(session, service, symbol, mercado, decision, ahora, ctx, serie_usd)
     analisis["calidad"] = calidad_beneficios.analizar(
         fund.get("_periodos") or [], fund.get("_trimestres") or [], fund.get("obtenido_en"))
 
@@ -670,6 +690,18 @@ def analizar(
     analisis["faltan"] = datos_desconocidos(analisis)
     # La confianza se mide sobre la evidencia que hay, después de saber qué falta.
     analisis["confianza"] = confianza.evaluar(analisis, ahora)
+    # ¿Es mejor que lo que ya tienes? Con la confianza ya medida: entra en el tamaño.
+    if ctx is None:
+        analisis["coste_oportunidad"] = {"estado": ERROR, "motivo": "no se pudo leer la cartera", "huella": None}
+    else:
+        from app import oportunidad
+
+        try:
+            analisis["coste_oportunidad"] = oportunidad.evaluar(
+                session, analisis, ctx, serie_usd, ahora, tipo_impositivo=tipo_impositivo)
+        except Exception:  # noqa: BLE001 — sección aislada
+            log("calculo").exception("análisis: fallo en el coste de oportunidad de %s", symbol)
+            analisis["coste_oportunidad"] = {"estado": ERROR, "motivo": "fallo al evaluar", "huella": None}
     analisis["marcas"] = marcas_de_tiempo(analisis)
     analisis["_fund"] = fund  # para secciones posteriores; no se congela
     return analisis

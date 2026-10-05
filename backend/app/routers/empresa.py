@@ -38,12 +38,13 @@ def _validar(symbol: str) -> str:
 
 def analizar_y_congelar(
     symbol: str, service, session: Session, *, ahora: datetime | None = None,
-    congelar: bool = True, con_pares: bool = True,
+    congelar: bool = True, con_pares: bool = True, tipo_impositivo: float | None = None,
 ) -> dict:
     """El caso de uso entero, independiente de la API: analizar, congelar y
     comparar con el último análisis comparable."""
     ahora = ahora or datetime.now(timezone.utc)
-    analisis = analisis_empresa.analizar(symbol, service, session, ahora=ahora, con_pares=con_pares)
+    analisis = analisis_empresa.analizar(symbol, service, session, ahora=ahora, con_pares=con_pares,
+                                         tipo_impositivo=tipo_impositivo)
     instantanea, nueva = (None, False)
     if congelar:
         instantanea, nueva = sn.congelar_analisis(session, analisis, ahora)
@@ -78,10 +79,12 @@ def analisis(
     symbol: str,
     congelar: bool = Query(True, description="Guardar la instantánea si cambió algo material"),
     pares: bool = Query(True, description="Puntuar contra pares si no está en ninguna lista diaria"),
+    tipo_impositivo: float | None = Query(None, ge=0, le=0.6, description="Tipo sobre plusvalías; sin él, impuestos DESCONOCIDOS"),
     service: MarketDataService = Depends(get_service),
     session: Session = Depends(get_session),
 ):
-    return analizar_y_congelar(_validar(symbol), service, session, congelar=congelar, con_pares=pares)
+    return analizar_y_congelar(_validar(symbol), service, session, congelar=congelar, con_pares=pares,
+                               tipo_impositivo=tipo_impositivo)
 
 
 @router.get("/materialidad")

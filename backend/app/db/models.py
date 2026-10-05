@@ -689,3 +689,30 @@ def _expectativa_sin_borrado(mapper, connection, target):
 @event.listens_for(EventActual, "before_update")
 def _real_inmutable(mapper, connection, target):
     raise ValueError("Un resultado real no se modifica: una reexpresión es una fila nueva con su fecha.")
+
+
+# ---------------------------------------------------------------------------
+# Efectivo (migración 0008)
+# ---------------------------------------------------------------------------
+
+
+class CashBalance(Base):
+    """El efectivo disponible, anotado por el usuario con su fecha.
+
+    La app no conoce tu cuenta: sin este dato, «¿hace falta vender algo para
+    comprar esto?» no tiene respuesta. Se guarda la historia (cada anotación es
+    una fila) y se usa la última de cada moneda; no anotada = DESCONOCIDO, no 0.
+    """
+
+    __tablename__ = "cash_balances"
+    __table_args__ = (
+        CheckConstraint("importe >= 0", name="ck_efectivo_no_negativo"),
+        Index("ix_efectivo_moneda_fecha", "moneda", "as_of"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    moneda: Mapped[str] = mapped_column(String(8))
+    importe: Mapped[float] = mapped_column(Float)
+    as_of: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    registrado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    nota: Mapped[str | None] = mapped_column(Text)

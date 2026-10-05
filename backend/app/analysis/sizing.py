@@ -63,6 +63,12 @@ SESIONES_ANO = 252
 # Es un supuesto, no un dato, y por eso viaja declarado en `controles`.
 VOL_SUPUESTA_PCT = 35.0
 
+# Una idea cuya EVIDENCIA es baja (datos que faltan, precio viejo, valoración
+# muy sensible, resultados inminentes: `analysis/confianza.py`) entra a la mitad
+# de su peso bruto. No es una fórmula escondida: es un recorte con nombre que
+# aparece en `controles` y en los recortes de cada idea.
+FACTOR_EVIDENCIA_BAJA = 0.5
+
 # Correlación que se supone entre dos posiciones cuyo par no se pudo medir.
 # Ni independencia (que subestima) ni movimiento idéntico (que paraliza).
 CORRELACION_SUPUESTA = 0.5
@@ -259,6 +265,21 @@ def dimensionar(
     }
     sin_volatilidad = sorted(set(pesos) - set(vols))
     recortes: list[str] = []
+
+    # 0) Evidencia baja → la mitad del peso bruto. Solo si la candidata trae su
+    #    nivel de confianza; sin él no se recorta ni se infla: se dice.
+    con_confianza = [c for c in candidatas if c.get("confianza") is not None]
+    for c in con_confianza:
+        if c["confianza"] == "baja" and pesos.get(c["symbol"]):
+            nuevo = pesos[c["symbol"]] * FACTOR_EVIDENCIA_BAJA
+            recortes.append(
+                f"{c['symbol']}: {pesos[c['symbol']]:.1f} % → {nuevo:.1f} % (evidencia BAJA: "
+                f"× {FACTOR_EVIDENCIA_BAJA}). Menos base para la decisión, menos tamaño."
+            )
+            pesos[c["symbol"]] = nuevo
+    if con_confianza:
+        controles.append({"limite": "evidencia", "factor_baja": FACTOR_EVIDENCIA_BAJA, "aplicado": True,
+                          "motivo": None})
 
     # 1) Tope por posición. Lo que ya tienes de ese mismo símbolo cuenta contra
     #    el mismo tope: reforzar una posición hasta el 10 % teniendo ya un 8 %

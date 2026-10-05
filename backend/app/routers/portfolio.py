@@ -1197,6 +1197,49 @@ def riesgo_de_cartera(
     }
 
 
+class EfectivoAnotar(BaseModel):
+    moneda: str = Field("USD", min_length=3, max_length=8)
+    importe: float = Field(ge=0, allow_inf_nan=False)
+    as_of: str | None = Field(None, description="Fecha del saldo (ISO); por defecto, ahora")
+    nota: str | None = None
+
+
+@router.post("/efectivo")
+def anotar_efectivo(body: EfectivoAnotar, session: Session = Depends(get_session)):
+    """Anota el efectivo disponible en una moneda. Se guarda la historia; manda
+    la última anotación. Sin anotación, el efectivo es desconocido, no cero."""
+    from app.db.models import CashBalance
+
+    moneda = _moneda_legible(body.moneda)
+    try:
+        cuando = datetime.fromisoformat(body.as_of.replace("Z", "+00:00")) if body.as_of else datetime.now(timezone.utc)
+    except ValueError:
+        raise HTTPException(status_code=422, detail=f"Fecha inválida: {body.as_of!r}") from None
+    if cuando.tzinfo is None:
+        cuando = cuando.replace(tzinfo=timezone.utc)
+    if cuando > datetime.now(timezone.utc) + timedelta(minutes=5):
+        raise HTTPException(status_code=422, detail="Un saldo no puede estar fechado en el futuro.")
+    fila = CashBalance(moneda=moneda, importe=body.importe, as_of=cuando, nota=body.nota)
+    session.add(fila)
+    session.commit()
+    return {"id": fila.id, "moneda": moneda, "importe": fila.importe, "as_of": _utc_iso(fila.as_of)}
+
+
+@router.get("/efectivo")
+def ver_efectivo(session: Session = Depends(get_session)):
+    from sqlalchemy import func
+
+    from app.db.models import CashBalance
+
+    filas = session.execute(
+        select(CashBalance).where(CashBalance.id.in_(select(func.max(CashBalance.id)).group_by(CashBalance.moneda)))
+    ).scalars().all()
+    return {
+        "saldos": [{"moneda": c.moneda, "importe": c.importe, "as_of": _utc_iso(c.as_of), "nota": c.nota} for c in filas],
+        "nota": None if filas else "Sin efectivo anotado: el motor de coste de oportunidad lo trata como DESCONOCIDO.",
+    }
+
+
 @router.get("/contribucion")
 def contribucion_al_riesgo(
     descargar: bool = False,
