@@ -12,6 +12,7 @@ import {
   benjaminiHochberg,
   REGISTRY_PATH,
   type Experiment,
+  interpretarExperimento,
 } from '../experiments/registry.ts';
 import { FINAL_HOLDOUT_FROM, VALIDATION_SEASON } from '../experiments/holdout.ts';
 
@@ -170,6 +171,22 @@ for (const [key, fam] of [...families].sort()) {
     console.log('    No significa que estén mal. Significa que esta evidencia no las sostiene');
     console.log('    y que el sitio donde se deciden es el holdout final, no aquí.');
   }
+}
+
+// RESULTADOS NEGATIVOS: los candidatos rechazados se quedan en el registro y se enseñan.
+// Un registro que solo lista lo que salió bien cuenta mal el denominador.
+{
+  const rechazados = experiments
+    .map((e) => ({ e, i: interpretarExperimento(e) }))
+    .filter((x) => x.i.candidato === 'rechazado')
+    .sort((a, b) => b.e.date.localeCompare(a.e.date));
+  console.log(`\n${'='.repeat(96)}\nRESULTADOS NEGATIVOS — ${rechazados.length} candidatos rechazados (se conservan todos)\n${'='.repeat(96)}`);
+  for (const { e, i } of rechazados) {
+    console.log(`  ${e.date.slice(0, 10)} · ${e.dataset.sport} · Experimento rechazado: ${e.hypothesis}`);
+    console.log(`      Motivo: ${i.motivo}`);
+  }
+  const nc = experiments.filter((e) => interpretarExperimento(e).candidato === 'no concluyente').length;
+  console.log(`  …y ${nc} no concluyentes, que tampoco cambiaron nada en producción.`);
 }
 
 console.log(`\nRegistro: ${REGISTRY_PATH}`);

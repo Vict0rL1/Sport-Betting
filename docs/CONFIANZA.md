@@ -61,3 +61,8 @@ de reproducción, línea temporal de auditoría, página de transparencia e info
    0,6277 → 0,6284; el mercado sigue siendo mejor). `scripts/_baselines.ts` tampoco lo
    respeta; queda como estudio antiguo y el benchmark nuevo (`npm run benchmark:report`) sí
    lo excluye.
+6. **La huella de versión dependía de la máquina.** `versions.ts` metía la ruta ABSOLUTA de
+   cada fichero en el hash, así que el mismo código daba otro `model_version` en un Mac y en
+   este contenedor. Ahora usa la ruta relativa al repositorio. Las predicciones ya
+   registradas conservan la versión con la que se guardaron (no se reescriben); las nuevas
+   llevan la huella estable, y la evaluación por versión las separa.

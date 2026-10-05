@@ -84,6 +84,45 @@ export interface Experiment {
   result: ExperimentResult;
   verdict: 'shipped' | 'rejected' | 'inconclusive';
   notes?: string;
+  // ---- Campos añadidos en la fase de confianza. Opcionales: las entradas viejas no los
+  // tienen y NO se les inventan; `interpretarExperimento` las lee con lo que hay. ----
+  /** La versión del modelo contra la que se midió (versions.ts). */
+  modelVersion?: string;
+  /** Qué cambia el candidato, en una frase. */
+  featureChange?: string;
+  trainPeriod?: string;
+  validationPeriod?: string;
+  /** Métricas absolutas del modelo actual y del candidato en la validación. */
+  metricsBefore?: Record<string, number>;
+  metricsAfter?: Record<string, number>;
+  /**
+   * ¿Se acepta el CANDIDATO? Sin ambigüedad: en las entradas viejas, `verdict: 'shipped'`
+   * en una ablación («quitar X…») significaba que se quedaba lo publicado, es decir, que
+   * el candidato se rechazó.
+   */
+  accepted?: boolean;
+  reason?: string;
+}
+
+/**
+ * Qué pasó con el CANDIDATO de un experimento, y por qué, en una frase.
+ *
+ * Para las entradas nuevas lo dicen `accepted` y `reason`. Para las viejas se deduce de lo
+ * que hay, y la deducción se dice: en una ablación («quitar …», «sin …») con la métrica
+ * empeorando, `shipped` quiere decir «se mantiene lo publicado», o sea, candidato
+ * rechazado.
+ */
+export function interpretarExperimento(e: Experiment): { candidato: 'aceptado' | 'rechazado' | 'no concluyente'; motivo: string } {
+  const r = e.result;
+  const ic = `[${r.ciLo.toFixed(4)}, ${r.ciHi.toFixed(4)}]`;
+  const cifra = `Δ ${e.metric} ${r.delta >= 0 ? '+' : ''}${r.delta.toFixed(4)} ${ic}, p ${r.p.toFixed(3)}, n ${r.n}`;
+  if (e.accepted != null) return { candidato: e.accepted ? 'aceptado' : 'rechazado', motivo: `${e.reason ?? ''} (${cifra})`.trim() };
+  if (e.verdict === 'inconclusive') return { candidato: 'no concluyente', motivo: `el intervalo no permite decidir (${cifra})` };
+  const ablacion = /^(quitar|sin |eliminar|apagar)/i.test(e.hypothesis.trim());
+  const empeora = (e.metric === 'logloss' || e.metric === 'brier' || e.metric === 'rps') && r.delta > 0;
+  if (e.verdict === 'rejected') return { candidato: 'rechazado', motivo: `${empeora ? 'empeora' : 'no mejora lo suficiente'}: ${cifra}` };
+  if (ablacion && empeora) return { candidato: 'rechazado', motivo: `quitarlo empeora el ${e.metric}; se mantiene lo publicado (${cifra})` };
+  return { candidato: 'aceptado', motivo: `${r.delta < 0 ? 'mejora' : 'aceptado con salvedades (ver notas)'}: ${cifra}` };
 }
 
 /** Una apertura del holdout final. Va en el mismo fichero, con su propio tipo. */

@@ -1,8 +1,8 @@
 {
   "tennis": {
     "sport": "tennis",
-    "generado": "2026-10-05T05:00:43.142Z",
-    "model_version": "tennis-b77b55265fb3",
+    "generado": "2026-10-05T05:08:43.215Z",
+    "model_version": "tennis-849b50464243",
     "data_version": "20260117·30853",
     "componentes": [
       "elo-de-superficie",
@@ -21,7 +21,12 @@
         "validacion": {
           "n": 21369,
           "logLoss": 0.614187,
-          "logLossCampeon": 0.613735
+          "logLossCampeon": 0.613735,
+          "ic": [
+            -0.000069,
+            0.000968
+          ],
+          "p": 0.087912
         }
       },
       "stacking": {
@@ -34,7 +39,12 @@
         "validacion": {
           "n": 21369,
           "logLoss": 0.614276,
-          "logLossCampeon": 0.613735
+          "logLossCampeon": 0.613735,
+          "ic": [
+            -0.000072,
+            0.001143
+          ],
+          "p": 0.07992
         }
       },
       "mezcla calibrada": {
@@ -50,7 +60,12 @@
         "validacion": {
           "n": 21369,
           "logLoss": 0.614351,
-          "logLossCampeon": 0.613735
+          "logLossCampeon": 0.613735,
+          "ic": [
+            0.00005,
+            0.001148
+          ],
+          "p": 0.041958
         }
       }
     },
@@ -59,8 +74,8 @@
   },
   "football": {
     "sport": "football",
-    "generado": "2026-10-05T05:02:07.223Z",
-    "model_version": "football-f94f15fb676c",
+    "generado": "2026-10-05T05:09:47.061Z",
+    "model_version": "football-355e6732ee07",
     "data_version": "20260917·30713",
     "componentes": [
       "dixon-coles",
@@ -77,7 +92,12 @@
         "validacion": {
           "n": 18852,
           "logLoss": 1.012047,
-          "logLossCampeon": 1.011507
+          "logLossCampeon": 1.011507,
+          "ic": [
+            -0.000128,
+            0.001165
+          ],
+          "p": 0.10989
         }
       },
       "stacking": {
@@ -89,7 +109,12 @@
         "validacion": {
           "n": 18852,
           "logLoss": 1.010549,
-          "logLossCampeon": 1.011507
+          "logLossCampeon": 1.011507,
+          "ic": [
+            -0.001724,
+            -0.00013
+          ],
+          "p": 0.027972
         }
       },
       "mezcla calibrada": {
@@ -103,7 +128,12 @@
         "validacion": {
           "n": 18852,
           "logLoss": 1.01061,
-          "logLossCampeon": 1.011507
+          "logLossCampeon": 1.011507,
+          "ic": [
+            -0.001704,
+            -0.000042
+          ],
+          "p": 0.041958
         }
       }
     },

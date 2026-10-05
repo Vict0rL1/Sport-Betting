@@ -34,7 +34,7 @@ export { isSportId } from './sports.ts';
 const SRC = path.join(ROOT, 'server', 'src');
 
 /** El código que DEFINE cada modelo. Si se añade un fichero al modelo, va aquí. */
-const MODEL_FILES: Record<SportId, string[]> = {
+export const MODEL_FILES: Record<SportId, string[]> = {
   tennis: ['model/elo.ts', 'model/predict.ts', 'model/form.ts', 'model/h2h.ts', 'model/reliability.ts', 'model/scoreline.ts', 'model/market.ts'],
   football: ['football/model.ts', 'football/predict.ts', 'football/ratings.ts', 'football/strength.ts', 'football/momentum.ts', 'football/promotion.ts', 'football/bayes/dixonColes.ts', 'football/bayes/walkforward.ts', 'postprocess/apply.ts'],
   basketball: ['basketball/elo.ts', 'basketball/predict.ts', 'basketball/ratings.ts'],
@@ -51,19 +51,36 @@ const CONFIG_FILE: Record<SportId, string> = {
 const STRATEGY_FILES = ['staking/policy.ts', 'staking/calibration.ts', 'paper/bankroll.ts'];
 
 /** Huella corta de una lista de ficheros. Un fichero que falta cuenta como «(falta)». */
-export function fingerprint(files: string[]): string {
+/**
+ * La huella de un conjunto de ficheros: sha256 de (ruta relativa al repo, contenido).
+ *
+ * Relativa y no absoluta: con la ruta absoluta dentro del hash, el MISMO código daba otra
+ * versión en cada máquina (/Users/… en un Mac, /home/… en otra), y «qué versión produjo
+ * esta predicción» dejaba de poder compararse entre instalaciones.
+ */
+export function fingerprintDe(entradas: { nombre: string; contenido: Buffer | string | null }[]): string {
   const h = createHash('sha256');
-  for (const f of files) {
-    h.update(f);
+  for (const e of entradas) {
+    h.update(e.nombre);
     h.update('\0');
-    try {
-      h.update(fs.readFileSync(f));
-    } catch {
-      h.update('(falta)');
-    }
+    h.update(e.contenido ?? '(falta)');
     h.update('\0');
   }
   return h.digest('hex').slice(0, 12);
+}
+
+export function fingerprint(files: string[]): string {
+  return fingerprintDe(
+    files.map((f) => {
+      let contenido: Buffer | null = null;
+      try {
+        contenido = fs.readFileSync(f);
+      } catch {
+        contenido = null;
+      }
+      return { nombre: path.relative(ROOT, f).split(path.sep).join('/'), contenido };
+    }),
+  );
 }
 
 let commit: string | null | undefined;

@@ -49,7 +49,7 @@
 
 import { informeComun } from '../evaluation/report.ts';
 import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
-import { entrenarEnsemble, guardarEnsemble } from '../shadow/ensemble.ts';
+import { entrenarEnsemble, guardarEnsemble, registrarEnsemble } from '../shadow/ensemble.ts';
 import type { Prediccion } from '../evaluation/metrics.ts';
 import { footballConfig } from '../config.ts';
 import {
@@ -389,6 +389,7 @@ function main() {
       const ens = entrenarEnsemble('football', flujo);
       if (ens) {
         guardarEnsemble(ens);
+        registrarEnsemble(ens, ens.metodos[ens.mejor].validacion.n);
         console.log(`  ensemble (sombra): mejor fuera de muestra = ${ens.mejor}; ` +
           Object.entries(ens.metodos).map(([k, v]) => `${k} ${v.validacion.logLoss.toFixed(4)}`).join(' · ') +
           ` · campeón ${ens.metodos[ens.mejor].validacion.logLossCampeon.toFixed(4)}`);

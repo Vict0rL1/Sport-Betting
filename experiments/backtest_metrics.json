@@ -10,8 +10,8 @@
     "mercado": null,
     "logLossUniforme": 0.6931471805599453,
     "brierUniforme": 0.25,
-    "medidoEn": "2026-10-05T00:37:36.325Z",
-    "model_version": "baseball-f35897cd0bb7",
+    "medidoEn": "2026-10-05T05:09:57.140Z",
+    "model_version": "baseball-1e7d64aa4aa5",
     "data_version": "20250928·15394"
   },
   "basketball": {
@@ -25,8 +25,8 @@
     "mercado": null,
     "logLossUniforme": 0.6931471805599453,
     "brierUniforme": 0.25,
-    "medidoEn": "2026-10-05T00:36:51.405Z",
-    "model_version": "basketball-a8743885d625",
+    "medidoEn": "2026-10-05T05:09:51.859Z",
+    "model_version": "basketball-5bff821da691",
     "data_version": "20260614·86305"
   },
   "football": {
@@ -40,8 +40,8 @@
     "mercado": null,
     "logLossUniforme": 1.0986122886681096,
     "brierUniforme": 0.3333333333333333,
-    "medidoEn": "2026-10-05T00:39:15.912Z",
-    "model_version": "football-f94f15fb676c",
+    "medidoEn": "2026-10-05T05:08:52.220Z",
+    "model_version": "football-355e6732ee07",
     "data_version": "20260917·30713"
   },
   "nfl": {
@@ -62,8 +62,8 @@
     },
     "logLossUniforme": 0.6931471805599453,
     "brierUniforme": 0.25,
-    "medidoEn": "2026-10-05T00:38:23.613Z",
-    "model_version": "nfl-83927eee63b4",
+    "medidoEn": "2026-10-05T05:09:58.351Z",
+    "model_version": "nfl-01c4731bbc1a",
     "data_version": "20260920·7306"
   },
   "tennis": {
@@ -77,8 +77,8 @@
     "mercado": null,
     "logLossUniforme": 0.6931471805599453,
     "brierUniforme": 0.25,
-    "medidoEn": "2026-10-05T00:36:02.711Z",
-    "model_version": "tennis-b77b55265fb3",
+    "medidoEn": "2026-10-05T05:06:19.421Z",
+    "model_version": "tennis-849b50464243",
     "data_version": "20260117·30853"
   }
 }

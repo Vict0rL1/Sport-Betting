@@ -28,6 +28,7 @@ import { versionsFor } from '../versions.ts';
 import { periodoDe, ajustarPlatt, ajustarPotencia, MIN_PASADO, type Juego } from '../evaluation/walkforward.ts';
 import type { SportId } from '../sports.ts';
 import type { EventoConfianza } from '../trust/types.ts';
+import { pairedBootstrap, recordExperiment } from '../experiments/registry.ts';
 
 export type Metodo = 'media ponderada' | 'stacking' | 'mezcla calibrada';
 export const METODOS: Metodo[] = ['media ponderada', 'stacking', 'mezcla calibrada'];
@@ -117,7 +118,7 @@ export interface EnsembleRegistrado {
   /** Componentes, en el orden de los pesos (ids estables: ver shadow/shadows.ts). */
   componentes: string[];
   ventana: string;
-  metodos: Record<Metodo, { parametros: number[]; calibracion: number[] | null; validacion: { n: number; logLoss: number; logLossCampeon: number } }>;
+  metodos: Record<Metodo, { parametros: number[]; calibracion: number[] | null; validacion: { n: number; logLoss: number; logLossCampeon: number; ic: [number, number]; p: number } }>;
   /** El de mejor log loss FUERA DE MUESTRA. Corre como sombra; no sustituye a nadie. */
   mejor: Metodo;
   nota: string;
@@ -136,6 +137,8 @@ export function entrenarEnsemble(sport: SportId, juegos: (Juego & { componentes?
   const metodos = {} as EnsembleRegistrado['metodos'];
   for (const metodo of METODOS) {
     let n = 0, s = 0, sc = 0;
+    const lc: number[] = [];
+    const le: number[] = [];
     let pasado: Obs[] = [];
     for (const per of periodos) {
       const xs = obs.filter((o) => o.periodo === per);
@@ -143,15 +146,25 @@ export function entrenarEnsemble(sport: SportId, juegos: (Juego & { componentes?
         // Para no tardar minutos, el ajuste usa como mucho los 20.000 partidos más recientes.
         const m = ajustar(metodo, pasado.slice(-20_000));
         for (const o of xs) {
-          s += ll(aplicar(m, o.x.ps), o.x.y);
-          sc += ll(o.campeon, o.x.y);
+          const a = ll(aplicar(m, o.x.ps), o.x.y);
+          const c = ll(o.campeon, o.x.y);
+          s += a;
+          sc += c;
+          le.push(a);
+          lc.push(c);
           n++;
         }
       }
       pasado = pasado.concat(xs.map((o) => o.x));
     }
     const final = ajustar(metodo, obs.map((o) => o.x).slice(-20_000));
-    metodos[metodo] = { parametros: final.parametros, calibracion: final.calibracion, validacion: { n, logLoss: n ? s / n : NaN, logLossCampeon: n ? sc / n : NaN } };
+    // Intervalo emparejado (ensemble − campeón, partido a partido) de los tramos fuera de muestra.
+    const bs = n ? pairedBootstrap(lc, le, 1000) : { lo: NaN, hi: NaN, p: NaN };
+    metodos[metodo] = {
+      parametros: final.parametros,
+      calibracion: final.calibracion,
+      validacion: { n, logLoss: n ? s / n : NaN, logLossCampeon: n ? sc / n : NaN, ic: [bs.lo, bs.hi], p: bs.p },
+    };
   }
   const mejor = METODOS.reduce((a, b) => (metodos[b].validacion.logLoss < metodos[a].validacion.logLoss ? b : a));
   const v = versionsFor(sport);
@@ -207,3 +220,37 @@ export const idEstable = (nombre: string) =>
     .replace(/\(.*?\)/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
+
+/**
+ * Apunta la medición en el registro de experimentos, gane o pierda. El candidato NUNCA se
+ * acepta aquí (accepted: false): un ensemble que mejora en validación pasa a sombra, y
+ * cambiar de campeón es otra decisión, con muestra en vivo.
+ */
+export function registrarEnsemble(r: EnsembleRegistrado, n: number): void {
+  const v = r.metodos[r.mejor].validacion;
+  const delta = v.logLoss - v.logLossCampeon;
+  const mejora = v.ic[1] < 0;
+  const empeora = v.ic[0] > 0;
+  recordExperiment({
+    hypothesis: `${r.sport}: un ensemble (${r.mejor}) de ${r.componentes.join(' + ')} mejora el log loss del campeón`,
+    dataset: { sport: r.sport, split: 'validation', n },
+    features: r.componentes,
+    hyperparams: { metodo: r.mejor },
+    metric: 'logloss',
+    baseline: 'campeón (modelo publicado, mismo flujo)',
+    result: { delta, ciLo: v.ic[0], ciHi: v.ic[1], p: v.p, n: v.n },
+    verdict: empeora ? 'rejected' : 'inconclusive',
+    modelVersion: r.model_version,
+    featureChange: `sustituir la probabilidad por la combinación ${r.mejor} de los componentes`,
+    trainPeriod: 'ventana creciente: todos los periodos anteriores al evaluado',
+    validationPeriod: 'cada periodo del walk-forward, fuera de muestra (sin holdout)',
+    metricsBefore: { logLoss: v.logLossCampeon },
+    metricsAfter: { logLoss: v.logLoss },
+    accepted: false,
+    reason: empeora
+      ? 'empeora al campeón fuera de muestra'
+      : mejora
+        ? 'mejora en validación walk-forward; NO se promociona: corre como sombra hasta tener muestra en vivo'
+        : 'el intervalo incluye el cero: corre como sombra, sin cambiar nada',
+  });
+}

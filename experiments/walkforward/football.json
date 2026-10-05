@@ -1,7 +1,7 @@
 {
  "sport": "football",
- "generado": "2026-10-05T00:39:25.286Z",
- "model_version": "football-f94f15fb676c",
+ "generado": "2026-10-05T05:08:59.338Z",
+ "model_version": "football-355e6732ee07",
  "data_version": "20260917·30713",
  "holdoutExcluido": 3966,
  "ventanas": "ventana creciente: cada periodo se evalúa con todo lo anterior; periodos de media temporada",

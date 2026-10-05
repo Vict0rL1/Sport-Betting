@@ -39,7 +39,7 @@ import { computeReliability } from '../model/reliability.ts';
 import { VALUE_THRESHOLD } from '../model/market.ts';
 import { readCalibration, writeCalibration } from '../staking/calibration.ts';
 import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
-import { entrenarEnsemble, guardarEnsemble } from '../shadow/ensemble.ts';
+import { entrenarEnsemble, guardarEnsemble, registrarEnsemble } from '../shadow/ensemble.ts';
 
 interface Row {
   id: number;
@@ -484,6 +484,7 @@ function main() {
         const ens = entrenarEnsemble('tennis', flujo.filter((j) => j.componentes && Object.keys(j.componentes).length === 3));
         if (ens) {
           guardarEnsemble(ens);
+          registrarEnsemble(ens, ens.metodos[ens.mejor].validacion.n);
           console.log(`  ensemble (sombra): mejor fuera de muestra = ${ens.mejor}; ` +
             Object.entries(ens.metodos).map(([k, v]) => `${k} ${v.validacion.logLoss.toFixed(4)}`).join(' · ') +
             ` · campeón ${ens.metodos[ens.mejor].validacion.logLossCampeon.toFixed(4)}`);

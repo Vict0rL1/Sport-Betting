@@ -1,7 +1,7 @@
 {
  "sport": "baseball",
- "generado": "2026-10-05T00:37:36.558Z",
- "model_version": "baseball-f35897cd0bb7",
+ "generado": "2026-10-05T05:09:57.314Z",
+ "model_version": "baseball-1e7d64aa4aa5",
  "data_version": "20250928·15394",
  "holdoutExcluido": 0,
  "ventanas": "ventana creciente: cada periodo se evalúa con todo lo anterior; periodos de media temporada",

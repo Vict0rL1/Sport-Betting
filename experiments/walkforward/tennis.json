@@ -1,7 +1,7 @@
 {
  "sport": "tennis",
- "generado": "2026-10-05T00:36:03.475Z",
- "model_version": "tennis-b77b55265fb3",
+ "generado": "2026-10-05T05:06:20.078Z",
+ "model_version": "tennis-849b50464243",
  "data_version": "20260117·30853",
  "holdoutExcluido": 0,
  "ventanas": "ventana creciente: cada periodo se evalúa con todo lo anterior; periodos de un trimestre",
