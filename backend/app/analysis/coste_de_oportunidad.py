@@ -194,7 +194,7 @@ def evaluar(
                        "Anota tu efectivo para saber si de verdad no cabe."),
         }}
     if tamano_maximo <= 0:
-        return {**base, "tamano": {"maximo_permitido": 0.0}, "veredicto": {
+        return {**base, "tamano": {"maximo_permitido": 0.0, "efectivo_disponible": round(efectivo, 4)}, "veredicto": {
             "accion": NO_TRADE,
             "motivo": "No cabe: los límites de la cartera (posición, sector, correlación, volatilidad) le dejan 0 %.",
         }}
@@ -238,7 +238,9 @@ def evaluar(
         if dias is not None and dias < TENENCIA_MINIMA_DIAS:
             fila["elegible"], fila["motivo"] = False, f"tenencia mínima: comprada hace {dias} días (< {TENENCIA_MINIMA_DIAS})"
         elif fila["atractivo"]["desconocidos"] and len(fila["atractivo"]["desconocidos"]) >= 3:
-            fila["elegible"], fila["motivo"] = False, "casi todo desconocido: no se puede comparar con honestidad"
+            fila["elegible"], fila["motivo"] = False, (
+                "casi todo desconocido: no se puede comparar con honestidad"
+                + ("; no tiene ninguna lectura congelada: analízala primero" if not p.get("lectura_de") else ""))
         else:
             fila["elegible"] = True
             fila["supera_umbral"] = fila["mejora"] >= requerida
@@ -277,7 +279,8 @@ def _veredicto(candidata: dict, revisables: list[dict], necesidad: float | None)
             ),
         }
     if not elegibles:
-        return {"accion": NO_TRADE, "motivo": "Ninguna posición es elegible para financiarla (tenencia mínima o datos insuficientes)."}
+        motivos = sorted({f.get("motivo", "") for f in revisables})
+        return {"accion": NO_TRADE, "motivo": "Ninguna posición es elegible para financiarla: " + " / ".join(motivos) + "."}
     mejor = max(elegibles, key=lambda f: f["mejora"])
     return {
         "accion": NO_TRADE,

@@ -455,6 +455,7 @@ def resumen_para_analisis(session: Session, symbol: str, ahora: datetime) -> dic
             ultimo = {
                 "evento": serializar_evento(e),
                 "clasificacion": lectura["clasificacion"],
+                "impacto_en_tesis": lectura["impacto_en_tesis"],
                 "a_favor": lectura["a_favor"], "en_contra": lectura["en_contra"],
                 "guidance": lectura["guidance"],
                 "sorpresa_ingresos": (consenso or {}).get("sorpresa"),

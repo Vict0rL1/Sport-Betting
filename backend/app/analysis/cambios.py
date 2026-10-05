@@ -178,7 +178,8 @@ def comparar(anterior: dict, actual: dict, umbrales: dict | None = None) -> dict
             {"clave": clave, "etiqueta": conf["etiqueta"], "antes": antes, "ahora": ahora, "tipo": tipo}
         )
 
-    tesis = comparar_tesis((anterior or {}).get("tesis") or {}, (actual or {}).get("tesis") or {})
+    tesis = comparar_tesis((anterior or {}).get("tesis") or {}, (actual or {}).get("tesis") or {},
+                           _impacto_nuevo(anterior, actual))
     decision = comparar_decisiones((anterior or {}).get("decision") or {}, (actual or {}).get("decision") or {},
                                    (anterior or {}).get("posicion"), (actual or {}).get("posicion"))
     total = sum(len(v) for v in categorias.values())
@@ -198,7 +199,21 @@ def comparar(anterior: dict, actual: dict, umbrales: dict | None = None) -> dict
     }
 
 
-def comparar_tesis(antes: dict, ahora: dict) -> dict:
+def _impacto_nuevo(anterior: dict | None, actual: dict | None) -> list[dict]:
+    """El impacto en la tesis del último evento, si es un evento NUEVO entre los
+    dos análisis. La vigilancia de la tesis mira ratios ANUALES; un trimestre
+    que cruza el umbral llega antes por aquí, y sin esto la pantalla decía
+    «tesis intacta» al lado de una revisión que la daba por invalidada."""
+    def ultimo(a):
+        return ((a or {}).get("expectativas") or {}).get("ultimo") or {}
+    nuevo, viejo = ultimo(actual), ultimo(anterior)
+    if not nuevo or (nuevo.get("evento") or {}).get("id") == (viejo.get("evento") or {}).get("id"):
+        return []
+    periodo = (nuevo.get("evento") or {}).get("periodo")
+    return [{**i, "periodo": periodo} for i in nuevo.get("impacto_en_tesis") or []]
+
+
+def comparar_tesis(antes: dict, ahora: dict, impacto_evento: list[dict] | None = None) -> dict:
     """Puntos confirmados, deteriorados, invalidados y nuevos riesgos.
 
     Un punto de invalidación que SALTA es una invalidación —la que tú
@@ -234,6 +249,14 @@ def comparar_tesis(antes: dict, ahora: dict) -> dict:
                     salida["confirmados"].append(
                         {"punto": texto, "antes": va, "ahora": vb, "umbral": u,
                          "detalle": f"se aleja de su umbral ({va:.3f} → {vb:.3f})"})
+    destino = {"invalidado": "invalidaciones", "debilitado": "deteriorados", "confirmado": "confirmados"}
+    for i in impacto_evento or []:
+        if i.get("estado") in destino:
+            salida[destino[i["estado"]]].append({
+                "punto": i.get("punto"), "antes": i.get("previo"), "ahora": i.get("real"), "umbral": i.get("umbral"),
+                "detalle": f"según los resultados de {i.get('periodo')} (trimestre, no ejercicio)",
+                "origen": "resultados",
+            })
     return salida
 
 

@@ -123,7 +123,10 @@ class ServicioFalso:
             return {"items": list(self.noticias.get(symbol, [])), "source": "finnhub",
                     "as_of": self.ahora.isoformat()}
         if tipo == "earnings_calendar":
-            return {"events": list(self.calendario), "as_of": self.ahora.isoformat()}
+            # Como el proveedor real: solo los eventos dentro de la ventana pedida.
+            desde, hasta = kw.get("start") or "0000", kw.get("end") or "9999"
+            return {"events": [e for e in self.calendario if desde <= e.get("date", "") <= hasta],
+                    "as_of": self.ahora.isoformat()}
         if tipo == "fundamentals":
             if symbol not in self.fundamentales:
                 raise DataNotFoundError("sin fundamentales")
