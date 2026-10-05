@@ -178,6 +178,10 @@ export interface BbTeamInfo {
 }
 
 export interface BbGameWithPrediction {
+  /** ¿Cuánto fiarse? La evaluación de server/src/trust. */
+  confianza?: import('./trust').EvaluacionConfianza | null;
+  /** Para pedir sus instantáneas pre-partido. */
+  prePartido?: import('./trust').PrePartidoRef | null;
   outcome: MatchOutcome;
   game: BbUpcomingGame;
   prediction: BbPrediction | null;

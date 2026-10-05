@@ -105,6 +105,10 @@ export interface BsbTeamInfo {
 }
 
 export interface BsbGameWithPrediction {
+  /** ¿Cuánto fiarse? La evaluación de server/src/trust. */
+  confianza?: import('./trust').EvaluacionConfianza | null;
+  /** Para pedir sus instantáneas pre-partido. */
+  prePartido?: import('./trust').PrePartidoRef | null;
   outcome: MatchOutcome;
   game: BsbGame;
   prediction: BsbPrediction | null;

@@ -256,6 +256,10 @@ export interface PlayerInfo {
 }
 
 export interface UpcomingWithPrediction {
+  /** ¿Cuánto fiarse? La evaluación de server/src/trust. */
+  confianza?: import('./trust').EvaluacionConfianza | null;
+  /** Para pedir sus instantáneas pre-partido. */
+  prePartido?: import('./trust').PrePartidoRef | null;
   outcome: TennisOutcome;
   match: UpcomingMatch;
   prediction: Prediction | null;

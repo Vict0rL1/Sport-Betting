@@ -6,6 +6,7 @@ import MatchDetail from './MatchDetail';
 import LivePanel from './LivePanel';
 import PointsMarkets from './PointsMarkets';
 import { Badge, Card, Flag, MatchTime, ResultBanner, SeriesDot } from './ui';
+import EventTrustPanel from './trust/EventTrustPanel';
 
 export default function MatchCard({
   item,
@@ -125,6 +126,7 @@ export default function MatchCard({
             <Bullets items={prediction.summary.bullets} />
           </div>
 
+          <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
           <button
             onClick={() => setOpen((o) => !o)}
             className="mt-3 text-[14px] text-[#9aa1ac] hover:text-[#e8eaed]"

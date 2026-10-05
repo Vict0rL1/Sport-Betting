@@ -1,6 +1,7 @@
 import type { NflGameWithPrediction, NflPrediction, NflSpreadQuote } from '../../lib/nfl';
 import { AWAY_COLOR, HOME_COLOR, NEUTRAL_COLOR, pct } from '../../lib/theme';
 import { PostprocessPanel } from '../PostprocessPanel';
+import EventTrustPanel from '../trust/EventTrustPanel';
 
 /**
  * El moneyline es a dos bandas: el empate anula la apuesta. La cruda del modelo viene a
@@ -254,6 +255,7 @@ export default function GameCard({
                 </div>
               </div>
 
+              <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
               <div className="mt-1">
                 <Disclosure summary="Ver desglose · números clave, márgenes, marcadores y mercado">
                   <Detail prediction={prediction} />

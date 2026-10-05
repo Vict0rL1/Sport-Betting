@@ -32,6 +32,7 @@ import {
 } from '../ui';
 import RunMatrix from './RunMatrix';
 import { realMarket } from '../../lib/picks';
+import EventTrustPanel from '../trust/EventTrustPanel';
 
 export default function GameCard({
   item,
@@ -284,6 +285,7 @@ export default function GameCard({
                 </div>
               </div>
 
+              <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
               <div className="mt-1">
                 <Disclosure summary="Ver desglose · abridores, carreras, marcadores y mercado">
                   <Detail

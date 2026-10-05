@@ -19,6 +19,7 @@ import {
 } from '../ui';
 import GameDetail from './GameDetail';
 import { realMarket } from '../../lib/picks';
+import EventTrustPanel from '../trust/EventTrustPanel';
 
 /**
  * A readable label for a margin band.
@@ -257,6 +258,7 @@ export default function GameCard({
             </div>
           </div>
 
+          <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
           <div className="mt-1">
             <Disclosure summary="Ver desglose · Elo, campo, descanso y mercado">
               <div className="space-y-3">

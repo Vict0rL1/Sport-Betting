@@ -151,6 +151,10 @@ export interface NflTeamInfo {
 }
 
 export interface NflGameWithPrediction {
+  /** ¿Cuánto fiarse? La evaluación de server/src/trust. */
+  confianza?: import('./trust').EvaluacionConfianza | null;
+  /** Para pedir sus instantáneas pre-partido. */
+  prePartido?: import('./trust').PrePartidoRef | null;
   game: NflGameRow;
   outcome: MatchOutcome;
   prediction: NflPrediction | null;
