@@ -20,6 +20,7 @@ import { confianza, decidir, type Confianza, type Decision } from './decision.ts
 import { derivaReciente } from './drift.ts';
 import { DEFAULT_CONFIG } from '../staking/policy.ts';
 import type { EventoConfianza } from './types.ts';
+import { registrarSombras } from '../shadow/shadows.ts';
 
 export { ASSESSMENT_SCHEMA } from './schema.ts';
 
@@ -152,7 +153,11 @@ export function evaluarParaServir(e: EventoConfianza | null, registrar: boolean)
   if (!e) return null;
   try {
     const ev = evaluar(e);
-    if (registrar) registrarEvaluacion(e, ev);
+    if (registrar) {
+      registrarEvaluacion(e, ev);
+      // Las sombras, en el mismo instante y solo la primera vez (ver shadow/shadows.ts).
+      registrarSombras(e);
+    }
     return ev;
   } catch {
     return null;

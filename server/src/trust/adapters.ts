@@ -73,7 +73,7 @@ export function confianzaTenis(row: UpcomingRow, p: Prediction, now = new Date()
   const curva = (a: number, b: number) => 1 / (1 + 10 ** (((b - a) * escala) / 400));
   const componentes = [{ nombre: 'Elo general (sin superficie, forma ni H2H)', probs: [curva(p.ratings.p1.overall, p.ratings.p2.overall), 0] }];
   if (p.ratings.p1.surface != null && p.ratings.p2.surface != null) {
-    componentes.push({ nombre: `Elo de ${p.surface.toLowerCase()}`, probs: [curva(p.ratings.p1.surface, p.ratings.p2.surface), 0] });
+    componentes.push({ nombre: `Elo de superficie (${p.surface.toLowerCase()})`, probs: [curva(p.ratings.p1.surface, p.ratings.p2.surface), 0] });
   }
   componentes.push({ nombre: 'Modelo completo', probs: [p.model.prob1, 0] });
   for (const c of componentes) c.probs[1] = 1 - c.probs[0];

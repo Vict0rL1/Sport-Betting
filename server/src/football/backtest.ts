@@ -49,6 +49,7 @@
 
 import { informeComun } from '../evaluation/report.ts';
 import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
+import { entrenarEnsemble, guardarEnsemble } from '../shadow/ensemble.ts';
 import type { Prediccion } from '../evaluation/metrics.ts';
 import { footballConfig } from '../config.ts';
 import {
@@ -155,7 +156,7 @@ function main() {
   /** Cada predicción, para la capa común de métricas (evaluation/). */
   const comun: Prediccion[] = [];
   /** El flujo de todas las ligas, para el walk-forward (se ordena por fecha al final). */
-  const flujo: (Juego & { orden: number })[] = [];
+  const flujo: (Juego & { orden: number; componentes?: Record<string, number[]> })[] = [];
 
   for (const league of leagues) {
     const matches = loadMatches(league, fromSeason);
@@ -216,7 +217,7 @@ function main() {
         const ja = jugadosEnTemporada.get(ka) ?? 0;
         jugadosEnTemporada.set(kh, jh + 1);
         jugadosEnTemporada.set(ka, ja + 1);
-        const juego: Juego & { orden: number } = {
+        const juego: Juego & { orden: number; componentes?: Record<string, number[]> } = {
           orden: flujo.length,
           fecha: match.match_date,
           temporada,
@@ -272,6 +273,13 @@ function main() {
             mercado: imp ? [imp.home, imp.draw, imp.away] : null,
           });
           juego.modelo = [probs.home / t, probs.draw / t, probs.away / t];
+          // Componentes con los ids de las sombras en vivo: Elo con el empate del modelo y
+          // el Dixon-Coles (que en el backtest es el propio modelo, sin calibrar).
+          {
+            const e = 1 / (1 + 10 ** (-(home.elo + homeAdvantage - away.elo) / 400));
+            const d = probs.draw / t;
+            juego.componentes = { elo: [(1 - d) * e, d, (1 - d) * (1 - e)], 'dixon-coles': juego.modelo };
+          }
           if (imp) {
             juego.mercado = [imp.home, imp.draw, imp.away];
             juego.cuotas = [match.odds_home as number, match.odds_draw as number, match.odds_away as number];
@@ -376,7 +384,16 @@ function main() {
     flujo.sort((x, y) => x.fecha.localeCompare(y.fecha) || x.orden - y.orden);
     const wf = walkForward('football', flujo);
     imprimirWalkForward(wf);
-    if (!onlyLeague && !holdoutOpen && Object.keys(args).length === 0) console.log(`  guardado en ${guardarWalkForward(wf)}`);
+    if (!onlyLeague && !holdoutOpen && Object.keys(args).length === 0) {
+      console.log(`  guardado en ${guardarWalkForward(wf)}`);
+      const ens = entrenarEnsemble('football', flujo);
+      if (ens) {
+        guardarEnsemble(ens);
+        console.log(`  ensemble (sombra): mejor fuera de muestra = ${ens.mejor}; ` +
+          Object.entries(ens.metodos).map(([k, v]) => `${k} ${v.validacion.logLoss.toFixed(4)}`).join(' · ') +
+          ` · campeón ${ens.metodos[ens.mejor].validacion.logLossCampeon.toFixed(4)}`);
+      }
+    }
   }
   console.log(
     `\nGoles:\n  over/under 2.5 acertado: ${((allOverCorrect / Math.max(1, allOverScored)) * 100).toFixed(1)}%` +

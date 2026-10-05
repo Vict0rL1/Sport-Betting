@@ -39,6 +39,7 @@ import { computeReliability } from '../model/reliability.ts';
 import { VALUE_THRESHOLD } from '../model/market.ts';
 import { readCalibration, writeCalibration } from '../staking/calibration.ts';
 import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
+import { entrenarEnsemble, guardarEnsemble } from '../shadow/ensemble.ts';
 
 interface Row {
   id: number;
@@ -201,7 +202,7 @@ function main() {
     /** Cada predicción, para la capa común de métricas (evaluation/). */
     const comun: Prediccion[] = [];
     /** El flujo completo, en orden, para el walk-forward por periodos (evaluation/walkforward.ts). */
-    const flujo: Juego[] = [];
+    const flujo: (Juego & { componentes?: Record<string, number[]> })[] = [];
     // Does the reliability tier shown in the UI mean anything? Score each tier
     // separately: if the label is informative, "low" must be measurably worse.
     const tiers = new Map<string, { n: number; correct: number; brier: number; margin: number }>();
@@ -231,7 +232,7 @@ function main() {
       // En el flujo el orden es por id, no ganador/perdedor: con el ganador siempre primero,
       // cualquier baseline que mirase la posición acertaría siempre.
       const ganaA = m.winner_id < m.loser_id;
-      const juego: Juego = {
+      const juego: Juego & { componentes?: Record<string, number[]> } = {
         fecha: m.tourney_date,
         a: String(Math.min(m.winner_id, m.loser_id)),
         b: String(Math.max(m.winner_id, m.loser_id)),
@@ -282,6 +283,16 @@ function main() {
         {
           const pa = ganaA ? pWinnerWins : 1 - pWinnerWins;
           juego.modelo = [pa, 1 - pa];
+          // Los componentes que en vivo corren como sombras (mismos ids: shadow/ensemble.ts).
+          {
+            const [sa, sb] = ganaA ? [w, l] : [l, w];
+            const general = calibratedExpectedScore(sa.overall, sb.overall, scaleFor(m.best_of));
+            juego.componentes = { 'elo-general': [general, 1 - general], 'modelo-completo': [pa, 1 - pa] };
+            if (sk) {
+              const sup = calibratedExpectedScore(sa[sk], sb[sk], scaleFor(m.best_of));
+              juego.componentes['elo-de-superficie'] = [sup, 1 - sup];
+            }
+          }
           if (m.w_odds && m.l_odds && m.w_odds > 1 && m.l_odds > 1) {
             const oa = ganaA ? m.w_odds : m.l_odds;
             const ob = ganaA ? m.l_odds : m.w_odds;
@@ -467,7 +478,17 @@ function main() {
     {
       const wf = walkForward('tennis', flujo);
       imprimirWalkForward(wf);
-      if (tour.id === 'atp' && !conParametrosCambiados(args)) console.log(`  guardado en ${guardarWalkForward(wf)}`);
+      if (tour.id === 'atp' && !conParametrosCambiados(args)) {
+        console.log(`  guardado en ${guardarWalkForward(wf)}`);
+        // Solo partidos con los tres componentes: el ensemble necesita el mismo juego de entradas.
+        const ens = entrenarEnsemble('tennis', flujo.filter((j) => j.componentes && Object.keys(j.componentes).length === 3));
+        if (ens) {
+          guardarEnsemble(ens);
+          console.log(`  ensemble (sombra): mejor fuera de muestra = ${ens.mejor}; ` +
+            Object.entries(ens.metodos).map(([k, v]) => `${k} ${v.validacion.logLoss.toFixed(4)}`).join(' · ') +
+            ` · campeón ${ens.metodos[ens.mejor].validacion.logLossCampeon.toFixed(4)}`);
+        }
+      }
     }
     // ===========================================================================
     // EL TECHO: HASTA DÓNDE PUEDE LLEGAR CUALQUIER MODELO CON ESTOS PARTIDOS

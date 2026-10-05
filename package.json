@@ -27,6 +27,7 @@
     "check-publishable": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/check-publishable.mjs",
     "backtest": "npm run backtest --workspace server --",
     "benchmark:report": "npm run benchmark:report --workspace server --",
+    "shadow:report": "npm run shadow:report --workspace server --",
     "build": "npm run build --workspace web && npm run typecheck --workspace server",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "lint": "oxlint --config .oxlintrc.json server/src web/src scripts",

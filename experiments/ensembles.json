@@ -1,0 +1,113 @@
+{
+  "tennis": {
+    "sport": "tennis",
+    "generado": "2026-10-05T05:00:43.142Z",
+    "model_version": "tennis-b77b55265fb3",
+    "data_version": "20260117·30853",
+    "componentes": [
+      "elo-de-superficie",
+      "elo-general",
+      "modelo-completo"
+    ],
+    "ventana": "walk-forward por periodos (44); cada periodo con los anteriores; los pesos finales, con todo el flujo abierto (sin holdout)",
+    "metodos": {
+      "media ponderada": {
+        "parametros": [
+          0.272788,
+          0.356023,
+          0.371189
+        ],
+        "calibracion": null,
+        "validacion": {
+          "n": 21369,
+          "logLoss": 0.614187,
+          "logLossCampeon": 0.613735
+        }
+      },
+      "stacking": {
+        "parametros": [
+          0.177146,
+          0.337411,
+          0.497678
+        ],
+        "calibracion": null,
+        "validacion": {
+          "n": 21369,
+          "logLoss": 0.614276,
+          "logLossCampeon": 0.613735
+        }
+      },
+      "mezcla calibrada": {
+        "parametros": [
+          0.272788,
+          0.356023,
+          0.371189
+        ],
+        "calibracion": [
+          -0.009623,
+          1.029383
+        ],
+        "validacion": {
+          "n": 21369,
+          "logLoss": 0.614351,
+          "logLossCampeon": 0.613735
+        }
+      }
+    },
+    "mejor": "media ponderada",
+    "nota": "Corre como sombra. No sustituye al campeón: cambiarlo exige un experimento registrado."
+  },
+  "football": {
+    "sport": "football",
+    "generado": "2026-10-05T05:02:07.223Z",
+    "model_version": "football-f94f15fb676c",
+    "data_version": "20260917·30713",
+    "componentes": [
+      "dixon-coles",
+      "elo"
+    ],
+    "ventana": "walk-forward por periodos (12); cada periodo con los anteriores; los pesos finales, con todo el flujo abierto (sin holdout)",
+    "metodos": {
+      "media ponderada": {
+        "parametros": [
+          0.600931,
+          0.399069
+        ],
+        "calibracion": null,
+        "validacion": {
+          "n": 18852,
+          "logLoss": 1.012047,
+          "logLossCampeon": 1.011507
+        }
+      },
+      "stacking": {
+        "parametros": [
+          0.732524,
+          0.419277
+        ],
+        "calibracion": null,
+        "validacion": {
+          "n": 18852,
+          "logLoss": 1.010549,
+          "logLossCampeon": 1.011507
+        }
+      },
+      "mezcla calibrada": {
+        "parametros": [
+          0.600931,
+          0.399069
+        ],
+        "calibracion": [
+          1.16
+        ],
+        "validacion": {
+          "n": 18852,
+          "logLoss": 1.01061,
+          "logLossCampeon": 1.011507
+        }
+      }
+    },
+    "mejor": "stacking",
+    "nota": "Corre como sombra. No sustituye al campeón: cambiarlo exige un experimento registrado."
+  }
+}
