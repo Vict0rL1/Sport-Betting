@@ -59,7 +59,11 @@ test('se registra con TODO lo que se sabía al apostar', () => {
   assert.equal(a.model_probability_calibrated, 0.52, 'se decide con la probabilidad ENSEÑADA');
   assert.equal(a.model_probability_raw, 0.54);
   assert.equal(a.p_model, 0.52);
-  assert.equal(a.market_probability_no_vig, 0.385);
+  // El mercado sin margen es el de las MISMAS cuotas que se apuestan (2,5 / 3,4 / 3,0), no
+  // el 0,385 que el registro guardó cuando el modelo hizo su predicción.
+  const sinMargen = 1 / 2.5 / (1 / 2.5 + 1 / 3.4 + 1 / 3.0);
+  assert.ok(Math.abs((a.market_probability_no_vig as number) - sinMargen) < 1e-12, String(a.market_probability_no_vig));
+  assert.notEqual(a.market_probability_no_vig, 0.385);
   assert.ok(Math.abs((a.market_probability_raw as number) - 0.4) < 1e-12);
   assert.ok((a.edge as number) > 0);
   assert.equal(a.opening_odds, 2.6, 'apertura: el primer snapshot');

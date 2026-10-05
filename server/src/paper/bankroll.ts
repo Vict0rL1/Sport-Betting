@@ -39,6 +39,7 @@ import { fullKelly } from '../staking/kelly.ts';
 import { closingLine, marketAt, openingLine } from '../odds/snapshots.ts';
 import { versionsFor, type SportId } from '../versions.ts';
 import { captureSignalClosing, recordSignal } from './signals.ts';
+import { devig } from '../market/devig.ts';
 
 /** El banco inicial del experimento. Se guarda para que cambiarlo sea deliberado. */
 export const BANCO_INICIAL = 1000;
@@ -440,6 +441,15 @@ const BEISBOL = {
   clave: 'match_key', resuelto: 'home_runs', oddsCasa: 'odds_home', oddsFuera: 'odds_away',
 };
 
+/**
+ * La probabilidad de mercado sin margen de cada salida, sacada de las cuotas que se van a
+ * apostar (las de la fila de próximos, ahora), con el mismo método que el resto de la app.
+ */
+export function conMercadoActual<T extends { salidas: { odds: number; pMarket: number }[] }>(c: T): T {
+  const { probs } = devig(c.salidas.map((s) => s.odds));
+  return { ...c, salidas: c.salidas.map((s, i) => ({ ...s, pMarket: probs[i] })) };
+}
+
 /** El id del evento en The Odds API. La NFL lo guarda con prefijo `odds-`. */
 export function providerId(eventId: string): string {
   return eventId.replace(/^odds-/, '');
@@ -474,6 +484,11 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
       detalle: [],
     };
   }
+
+  // El mercado del MISMO momento que la cuota. El registro guarda el mercado de cuando el
+  // modelo hizo su primera predicción —a veces días antes—; con él, la fila decía una
+  // cuota de ahora y una probabilidad de mercado de otro día (ver docs/CONFIANZA.md).
+  candidatas = candidatas.map(conMercadoActual);
 
   // Ordenadas por la mejor ventaja del partido: si los topes cortan, que corten las peores.
   const ventaja = (c: Candidato) => Math.max(...c.salidas.map((s) => s.p - s.pMarket));
