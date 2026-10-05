@@ -253,12 +253,14 @@ def _cash_reading(fcf: float | None, conversion: float | None) -> str:
         return "Flujo de caja libre negativo: el negocio consume caja."
     if conversion is None:
         return "Genera flujo de caja libre positivo."
-    if conversion > 1.1:
+    from app.analysis.calidad_beneficios import FCF_NI_DEBIL, FCF_NI_FUERTE
+
+    if conversion > FCF_NI_FUERTE:
         return (
             f"Convierte el {conversion * 100:.0f} % del beneficio en caja: el "
             "beneficio contable subestima la generación real."
         )
-    if conversion < 0.6:
+    if conversion < FCF_NI_DEBIL:
         return (
             f"Solo el {conversion * 100:.0f} % del beneficio llega a caja libre. "
             "Conviene mirar si es capex de crecimiento o deterioro de la calidad "

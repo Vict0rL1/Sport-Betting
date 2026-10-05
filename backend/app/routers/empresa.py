@@ -151,6 +151,19 @@ RESUMEN_SYSTEM = (
 )
 
 
+@router.get("/{symbol}/calidad")
+def calidad(symbol: str, service: MarketDataService = Depends(get_service)):
+    """Calidad de los beneficios: evidencias con regla, umbral, valor, periodo y fuente."""
+    from app.analysis import calidad_beneficios
+
+    symbol = _validar(symbol)
+    financials, fallo = analisis_empresa._traer(service, "financials", symbol=symbol)
+    if not financials or not financials.get("periods"):
+        raise HTTPException(status_code=404, detail=f"Sin estados financieros de la SEC para {symbol}: {fallo}")
+    return {"symbol": symbol,
+            **calidad_beneficios.analizar(financials["periods"], financials.get("quarters"), financials.get("as_of"))}
+
+
 @router.get("/{symbol}/historial")
 def historial(symbol: str, limite: int = Query(50, ge=1, le=500), session: Session = Depends(get_session)):
     """Todo lo que el sistema dijo de esta empresa, de la lista diaria y de los

@@ -36,9 +36,9 @@ from sqlalchemy.orm import Session
 
 from app import datos
 from app import punto_en_el_tiempo as pit
-from app.analysis import confianza, thesis_watch
+from app.analysis import calidad_beneficios, confianza, thesis_watch
 from app.analysis.decision import decide
-from app.analysis.fundamentals import derive_ratio_series, free_cash_flow, growth_summary, total_debt
+from app.analysis.fundamentals import derive_ratio_series, free_cash_flow, growth_summary, partida, total_debt
 from app.analysis.reverse_dcf import curva_de_crecimiento_implicito
 from app.analysis.signal import FAVORABLE_MIN, UNFAVORABLE_MAX
 from app.db.models import Instrument, Position, Thesis, ThesisTrigger
@@ -88,19 +88,7 @@ def _traer(service, tipo: str, **kw) -> tuple[dict | None, str | None]:
 
 
 def _partida(periodo: dict, campo: str, obtenido_en: str | None) -> dict:
-    """Un número de los estados financieros con su linaje completo."""
-    linaje = (periodo.get("fuentes") or {}).get(campo) or {}
-    return {
-        "valor": datos.numero(periodo.get(campo)),
-        "fuente": "edgar",
-        "etiqueta": linaje.get("etiqueta"),
-        "formulario": linaje.get("formulario"),
-        "accn": linaje.get("accn"),
-        "publicado": linaje.get("presentado") or periodo.get("filed_at"),
-        "periodo_fin": linaje.get("fin") or periodo.get("end_date"),
-        "obtenido_en": obtenido_en,
-        **({"derivado": linaje["derivado"]} if linaje.get("derivado") else {}),
-    }
+    return partida(periodo, campo, obtenido_en)
 
 
 def _metrica(valor, unidad: str, metodo: str, entradas: dict) -> dict:
@@ -278,6 +266,7 @@ def seccion_fundamentales(financials: dict | None, fallo: str | None, ahora: dat
         "trimestre": trimestre,
         "crecimiento_5a": growth_summary(periodos),
         "_periodos": periodos,  # para otras secciones; no se congela
+        "_trimestres": trimestres,
     }
 
 
@@ -667,6 +656,8 @@ def analizar(
         "generado_por": "app",  # determinista: ninguna línea de esto sale de un LLM
     }
     analisis["riesgo"] = seccion_riesgo(session, service, symbol, mercado, decision, ahora)
+    analisis["calidad"] = calidad_beneficios.analizar(
+        fund.get("_periodos") or [], fund.get("_trimestres") or [], fund.get("obtenido_en"))
 
     # Resultados frente a lo esperado: solo lo registrado hasta `ahora`.
     from app import expectativas as seguimiento

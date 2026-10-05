@@ -43,6 +43,29 @@ def free_cash_flow(period: dict) -> float | None:
     return cfo - capex
 
 
+def partida(periodo: dict, campo: str, obtenido_en: str | None = None) -> dict:
+    """Un número de los estados financieros con su linaje completo.
+
+    Toda métrica derivada se construye con esto: sin etiqueta XBRL, formulario,
+    número de acceso y fecha de publicación, «CFO / beneficio = 1,20×» no se
+    podría reconstruir hasta el filing.
+    """
+    from app import datos
+
+    linaje = ((periodo or {}).get("fuentes") or {}).get(campo) or {}
+    return {
+        "valor": datos.numero((periodo or {}).get(campo)),
+        "fuente": "edgar",
+        "etiqueta": linaje.get("etiqueta"),
+        "formulario": linaje.get("formulario"),
+        "accn": linaje.get("accn"),
+        "publicado": linaje.get("presentado") or (periodo or {}).get("filed_at"),
+        "periodo_fin": linaje.get("fin") or (periodo or {}).get("end_date"),
+        "obtenido_en": obtenido_en,
+        **({"derivado": linaje["derivado"]} if linaje.get("derivado") else {}),
+    }
+
+
 def derive_ratio_series(periods: list[dict]) -> list[dict]:
     """Serie anual de ratios; cada elemento conserva el año y el fin de periodo."""
     out = []
