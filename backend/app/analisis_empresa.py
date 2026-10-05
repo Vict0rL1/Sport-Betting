@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session
 
 from app import datos
 from app import punto_en_el_tiempo as pit
-from app.analysis import thesis_watch
+from app.analysis import confianza, thesis_watch
 from app.analysis.decision import decide
 from app.analysis.fundamentals import derive_ratio_series, free_cash_flow, growth_summary, total_debt
 from app.analysis.reverse_dcf import curva_de_crecimiento_implicito
@@ -179,6 +179,7 @@ def seccion_mercado(service, symbol: str, ahora: datetime) -> tuple[dict, dict]:
             "fuente": (historia or {}).get("source"),
             "sesiones": len(barras),
             "hasta": str(barras[-1].get("ts"))[:10] if barras else None,
+            "ultimo_cierre": (resumen or {}).get("last"),
             "obtenido_en": (historia or {}).get("as_of"),
             "motivo": None if barras else (fallo_h or "sin histórico"),
         },
@@ -266,6 +267,7 @@ def seccion_fundamentales(financials: dict | None, fallo: str | None, ahora: dat
     return {
         "estado": VALIDO,
         "excluidos_por_fecha": excluidos,
+        "ejercicios_disponibles": len(periodos),
         "fuente": (financials or {}).get("source", "edgar"),
         "ejercicio": ultimo.get("fiscal_year"),
         "periodo_fin": ultimo.get("end_date"),
@@ -604,6 +606,8 @@ def analizar(
         "generado_por": "app",  # determinista: ninguna línea de esto sale de un LLM
     }
     analisis["faltan"] = datos_desconocidos(analisis)
+    # La confianza se mide sobre la evidencia que hay, después de saber qué falta.
+    analisis["confianza"] = confianza.evaluar(analisis, ahora)
     analisis["marcas"] = marcas_de_tiempo(analisis)
     analisis["_fund"] = fund  # para secciones posteriores; no se congela
     return analisis
