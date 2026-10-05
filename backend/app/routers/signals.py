@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import punto_en_el_tiempo as pit
 from app import snapshots
 from app.analysis.decision import decide
 from app.analysis.backtest import (
@@ -311,7 +312,7 @@ def _cartera_actual(
     ], aviso
 
 
-def _stored_rule_backtest(session: Session) -> dict | None:
+def _stored_rule_backtest(session: Session, hasta: datetime | None = None) -> dict | None:
     """Último backtest de reglas VÁLIDO. Convierte «razonable» en «probada».
 
     Solo cuentan los que declaran su partición desarrollo/holdout. Los guardados
@@ -321,11 +322,16 @@ def _stored_rule_backtest(session: Session) -> dict | None:
     """
     import json
 
-    for record in session.execute(
+    consulta = (
         select(LlmOutput)
         .where(LlmOutput.kind == "rule_backtest")
         .order_by(LlmOutput.created_at.desc())
-    ).scalars():
+    )
+    for record in session.execute(consulta).scalars():
+        # Un análisis a una fecha pasada no puede apoyarse en un backtest
+        # ejecutado después: su «calibrada» o «refutada» aún no se sabía.
+        if hasta is not None and pit.disponible_en(record.created_at, hasta) is False:
+            continue
         try:
             contenido = json.loads(record.content_md)
         except json.JSONDecodeError:

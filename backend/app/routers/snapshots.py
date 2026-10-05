@@ -32,6 +32,7 @@ def _resultados(session: Session, snap_id: int) -> list[DecisionOutcome]:
 @router.get("")
 def listar(
     symbol: str | None = None,
+    origen: str | None = Query(None, description="prefijo: «hoy» o «analisis»"),
     desde: str | None = Query(None, description="AAAA-MM-DD"),
     hasta: str | None = Query(None, description="AAAA-MM-DD"),
     limite: int = Query(100, ge=1, le=1000),
@@ -44,6 +45,8 @@ def listar(
     q = select(DecisionSnapshot).order_by(DecisionSnapshot.creado_en.desc()).limit(limite)
     if symbol:
         q = q.where(DecisionSnapshot.symbol == symbol.strip().upper())
+    if origen:
+        q = q.where(DecisionSnapshot.origen.like(f"{origen}%"))
     if desde:
         q = q.where(DecisionSnapshot.fecha >= desde)
     if hasta:
@@ -55,6 +58,8 @@ def listar(
             {
                 "id": snap.id,
                 "fecha": snap.fecha,
+                "creado_en": snap.creado_en.isoformat() if snap.creado_en else None,
+                "origen": snap.origen,
                 "symbol": snap.symbol,
                 "accion": snap.accion,
                 "precio": snap.precio,
@@ -76,6 +81,19 @@ def listar(
             "agregan como si fueran el mismo sistema."
         ),
     }
+
+
+@router.get("/{snap_id}/replay")
+def replay(snap_id: int, session: Session = Depends(get_session)):
+    """Decision Replay: lo que el sistema sabía en ese momento, y nada posterior.
+
+    Solo lee la instantánea congelada. Lo fechado después de la decisión se
+    retira y se lista; lo que no se congeló se dice, no se rellena.
+    """
+    snap = session.get(DecisionSnapshot, snap_id)
+    if snap is None:
+        raise HTTPException(status_code=404, detail="Instantánea no encontrada")
+    return sn.reproducir(snap, _resultados(session, snap_id))
 
 
 @router.get("/{snap_id}")

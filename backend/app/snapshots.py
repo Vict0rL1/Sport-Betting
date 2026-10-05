@@ -38,6 +38,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app import datos
+from app import punto_en_el_tiempo as pit
 from app.analysis import decision as motor
 from app.analysis import risk_budget, sizing
 from app.db.models import DecisionOutcome, DecisionSnapshot
@@ -240,6 +241,259 @@ def congelar_lista_diaria(session: Session, payload: dict, origen: str, ahora: d
         log("db").error("no se pudieron congelar las decisiones de %s: %s", origen, exc)
         return {"guardadas": 0, "ya_existian": ya, "error": str(exc)[:300]}
     return {"guardadas": guardadas, "ya_existian": ya, "error": None}
+
+
+# --- Análisis de empresa ---------------------------------------------------
+#
+# Mismo registro (`DecisionSnapshot`), otro origen. La lista diaria congela la
+# PRIMERA decisión del día porque es un experimento de forward testing: dejar
+# que la tarde reescriba la mañana sería elegir el resultado. El análisis de una
+# empresa es otra cosa —es lo que tú abriste y leíste— y se congela cada vez que
+# lo que el sistema sabe CAMBIA de forma material: otra decisión, un filing
+# nuevo, una tesis editada. Si solo se ha movido el precio, no hay instantánea
+# nueva: sería ruido con forma de registro.
+
+ORIGEN_ANALISIS = "analisis"
+
+
+def huella_material(analisis: dict) -> str:
+    """Lo que, si cambia, merece una instantánea nueva. El precio no está."""
+    d = analisis.get("decision") or {}
+    fund = analisis.get("fundamentales") or {}
+    tesis = analisis.get("tesis") or {}
+    pos = analisis.get("posicion") or {}
+    score = datos.numero((analisis.get("senal") or {}).get("score"))
+    return _huella({
+        "esquema": analisis.get("esquema"),
+        "accion": d.get("action"),
+        "reglas": {r.get("id"): r.get("resultado") for r in d.get("reglas") or []},
+        "fundamentales": {
+            k: (round(v["valor"], 6) if isinstance(v.get("valor"), (int, float)) else None)
+            for k, v in (fund.get("metricas") or {}).items()
+        },
+        "trimestre": (fund.get("trimestre") or {}).get("periodo"),
+        "tesis": [tesis.get("estado"), tesis.get("cuerpo_sha256"),
+                  [(x.get("id"), x.get("salta"), x.get("medible")) for x in tesis.get("disparadores") or []]],
+        "senal": round(score, 2) if score is not None else None,
+        "posicion": [pos.get("quantity"), pos.get("cost_basis"), pos.get("stop")],
+        **{k: analisis.get(k, {}).get("huella") for k in ("calidad", "expectativas", "riesgo")
+           if isinstance(analisis.get(k), dict)},
+    })
+
+
+def anomalias_temporales(marcas: list[dict], decision_ts) -> dict:
+    """Comprueba cada marca contra el momento de la decisión. No modifica nada."""
+    futuras, sin_fecha = [], []
+    for m in marcas or []:
+        r = pit.disponible_en(m.get("publicado"), decision_ts, m.get("obtenido_en"))
+        if r is False:
+            futuras.append(m)
+        elif r is None:
+            sin_fecha.append(m)
+    return {"futuras": futuras, "sin_fecha_verificable": sin_fecha}
+
+
+def congelar_analisis(session: Session, analisis: dict, ahora: datetime) -> tuple[DecisionSnapshot, bool]:
+    """(instantánea, ¿es nueva?). Hace commit: el análisis se congela entero o nada.
+
+    Si la última instantánea de análisis de hoy tiene la misma huella material,
+    se devuelve esa y no se crea otra: abrir la misma empresa diez veces en una
+    tarde no son diez decisiones.
+    """
+    limpio = _limpio({k: v for k, v in analisis.items() if not str(k).startswith("_")})
+    huella_m = huella_material(limpio)
+    symbol = limpio["symbol"]
+    fecha = ahora.astimezone(timezone.utc).date().isoformat()
+
+    ultimo = session.execute(
+        select(DecisionSnapshot)
+        .where(DecisionSnapshot.symbol == symbol, DecisionSnapshot.origen.like(f"{ORIGEN_ANALISIS}:%"))
+        .order_by(DecisionSnapshot.creado_en.desc(), DecisionSnapshot.id.desc())
+    ).scalars().first()
+    if ultimo is not None and ultimo.fecha == fecha and (ultimo.contexto or {}).get("huella_material") == huella_m:
+        return ultimo, False
+
+    # Lo que llegara fechado después de la decisión se anota al congelar: la
+    # instantánea guarda lo que el sistema vio, pero el replay no lo enseñará
+    # como conocido.
+    limpio["anomalias_temporales"] = anomalias_temporales(limpio.get("marcas"), ahora)
+    d = limpio.get("decision") or {}
+    niveles = d.get("levels") or {}
+    precio = (limpio.get("mercado") or {}).get("precio") or {}
+    contexto = {
+        "esquema": limpio.get("esquema"),
+        "analisis": limpio,
+        "reglas": parametros_de_reglas(),
+        "huella_material": huella_m,
+    }
+    snap = DecisionSnapshot(
+        creado_en=ahora,
+        fecha=fecha,
+        origen=f"{ORIGEN_ANALISIS}:{ahora.astimezone(timezone.utc):%H:%M:%S}",
+        symbol=symbol,
+        accion=d.get("action") or "sin_datos",
+        score=datos.numero((limpio.get("senal") or {}).get("score")),
+        precio=datos.precio(precio.get("valor")),
+        moneda=precio.get("moneda"),
+        stop=datos.precio(niveles.get("stop")),
+        objetivo=datos.precio(niveles.get("objetivo")),
+        peso_bruto_pct=datos.numero(niveles.get("peso_bruto_pct")),
+        peso_final_pct=datos.numero(((limpio.get("sizing") or {}).get("peso_final_pct"))),
+        horizonte_dias=HORIZONTE_DIAS,
+        reglas_version=version_de_reglas(),
+        contexto=contexto,
+        huella=_huella(contexto),
+    )
+    session.add(snap)
+    try:
+        session.commit()
+    except IntegrityError:
+        # Dos análisis de la misma empresa en el mismo segundo: el primero gana.
+        session.rollback()
+        existente = session.execute(
+            select(DecisionSnapshot).where(
+                DecisionSnapshot.symbol == symbol, DecisionSnapshot.fecha == fecha,
+                DecisionSnapshot.origen == snap.origen,
+            )
+        ).scalars().first()
+        return existente, False
+    return snap, True
+
+
+def anterior_comparable(session: Session, snap_o_symbol, antes_de: datetime | None = None) -> DecisionSnapshot | None:
+    """La instantánea de análisis anterior con el MISMO esquema. Las de la lista
+    diaria solo traen la señal: no son comparables con un análisis completo."""
+    if isinstance(snap_o_symbol, DecisionSnapshot):
+        symbol, antes_de, excluir = snap_o_symbol.symbol, snap_o_symbol.creado_en, snap_o_symbol.id
+    else:
+        symbol, excluir = snap_o_symbol, None
+    q = (
+        select(DecisionSnapshot)
+        .where(DecisionSnapshot.symbol == symbol, DecisionSnapshot.origen.like(f"{ORIGEN_ANALISIS}:%"))
+        .order_by(DecisionSnapshot.creado_en.desc(), DecisionSnapshot.id.desc())
+    )
+    for s in session.execute(q).scalars():
+        if excluir is not None and s.id == excluir:
+            continue
+        if antes_de is not None and pit.disponible_en(s.creado_en, antes_de) is False:
+            continue
+        if (s.contexto or {}).get("esquema") == ESQUEMA_ANALISIS:
+            return s
+    return None
+
+
+ESQUEMA_ANALISIS = 2
+
+
+# --- Replay ------------------------------------------------------------------
+
+
+SECCIONES_ANALISIS = (
+    "mercado", "fundamentales", "valoracion", "tesis", "noticias", "senal",
+    "posicion", "decision", "sizing", "riesgo", "calidad", "expectativas", "confianza",
+)
+
+
+def reproducir(snap: DecisionSnapshot, resultados: list[DecisionOutcome] | None = None) -> dict:
+    """«¿Qué sabía el sistema en ese momento?», SOLO con lo congelado.
+
+    No consulta nada actual: ni precios, ni fundamentales, ni la tesis de hoy.
+    Y antes de enseñar nada aplica la regla común: lo que esté fechado después
+    del momento de la decisión se RETIRA del replay y se lista aparte. Lo que no
+    se congeló se dice que no se congeló — un replay incompleto que lo admite es
+    un registro; uno que rellena los huecos con lo de hoy es una reconstrucción
+    con sesgo de anticipación.
+    """
+    base = reconstruir(snap, resultados)
+    ctx = snap.contexto or {}
+    if ctx.get("esquema") != ESQUEMA_ANALISIS or not isinstance(ctx.get("analisis"), dict):
+        return {
+            **base,
+            "esquema": ctx.get("esquema", 1),
+            "completo": False,
+            "secciones": {
+                "decision": {"accion": snap.accion, "razones": base["razones"],
+                             "reglas": (ctx.get("senal") or {}).get("decision", {}).get("reglas")},
+                "senal": {"score": snap.score},
+                "mercado": {"precio": base["precio"]},
+            },
+            "no_congelado": [s for s in SECCIONES_ANALISIS if s not in ("decision", "senal", "mercado")],
+            "nota": (
+                "Esta instantánea es de la lista diaria y solo congeló la señal, el "
+                "precio y el tamaño. Fundamentales, valoración, tesis y noticias de "
+                "aquel momento NO se guardaron, y no se rellenan con los de hoy."
+            ),
+        }
+
+    import copy
+
+    a = copy.deepcopy(ctx["analisis"])
+    momento = snap.creado_en
+    revision = anomalias_temporales(a.get("marcas"), momento)
+    futuras = {m.get("dato") for m in revision["futuras"]}
+    retirado = _retirar_futuro(a, futuras, momento)
+
+    no_congelado = [s for s in SECCIONES_ANALISIS if s not in a or a.get(s) is None]
+    incompletas = [
+        s for s in SECCIONES_ANALISIS
+        if isinstance(a.get(s), dict) and a[s].get("estado") in ("desconocido", "error")
+    ]
+    return {
+        **base,
+        "esquema": ESQUEMA_ANALISIS,
+        "momento": momento.isoformat() if momento else None,
+        "secciones": {s: a.get(s) for s in SECCIONES_ANALISIS},
+        "faltaban": a.get("faltan") or [],
+        "versiones": {"reglas": snap.reglas_version, "esquema": ctx.get("esquema"),
+                      "generado_por": a.get("generado_por")},
+        "proteccion_anticipacion": {
+            "regla": "information_available_at <= decision_timestamp",
+            "marcas_comprobadas": len(a.get("marcas") or []),
+            "retiradas_por_fecha_futura": retirado,
+            "sin_fecha_verificable": [m.get("dato") for m in revision["sin_fecha_verificable"]],
+            "nota": (
+                "Los datos sin fecha verificable estaban DENTRO de la instantánea al "
+                "congelarse (la huella lo garantiza), así que el sistema los tenía; lo "
+                "que no se puede probar es cuándo se publicaron."
+            ),
+        },
+        "no_congelado": no_congelado,
+        "incompletas": incompletas,
+        "completo": not no_congelado and not incompletas and not retirado and base["integridad"]["huella_coincide"],
+    }
+
+
+def _retirar_futuro(a: dict, futuras: set[str], momento) -> list[str]:
+    """Quita del documento lo fechado después de la decisión. Devuelve qué quitó."""
+    retirado: list[str] = []
+    noticias = a.get("noticias") or {}
+    if noticias.get("items"):
+        quedan = []
+        for n in noticias["items"]:
+            if pit.disponible_en(n.get("published_at"), momento, noticias.get("obtenido_en")) is False:
+                retirado.append(f"noticia: {(n.get('headline') or '')[:60]}")
+            else:
+                quedan.append(n)
+        noticias["items"] = quedan
+    fund = a.get("fundamentales") or {}
+    for clave, m in (fund.get("metricas") or {}).items():
+        afectadas = [n for n in futuras if n == clave or n.startswith(f"{clave}:")]
+        if afectadas:
+            fund["metricas"][clave] = {
+                "valor": None, "estado": "excluido_por_fecha",
+                "motivo": "una de sus entradas se publicó después de la decisión",
+            }
+            retirado.append(clave)
+    precio = (a.get("mercado") or {}).get("precio") or {}
+    if "precio" in futuras and precio:
+        a["mercado"]["precio"] = {"valor": None, "estado": "excluido_por_fecha",
+                                   "motivo": "cotización fechada después de la decisión"}
+        retirado.append("precio")
+    if "puntuación" in futuras and a.get("senal"):
+        a["senal"] = {"estado": "excluido_por_fecha", "score": None,
+                      "motivo": "la puntuación es de una lista posterior a la decisión"}
+        retirado.append("puntuación")
+    return retirado
 
 
 # --- Reconstruir -----------------------------------------------------------

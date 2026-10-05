@@ -16,6 +16,7 @@ from app.mantenimiento import mantener
 from app.registro import configurar as configurar_registro
 from app.routers import (
     deep_dive,
+    empresa,
     earnings,
     etfs,
     market,
@@ -99,5 +100,6 @@ app.include_router(deep_dive.router)
 app.include_router(earnings.router)
 app.include_router(valuation.router)
 app.include_router(snapshots.router)
+app.include_router(empresa.router)
 app.include_router(options.router)
 app.include_router(meta.router)

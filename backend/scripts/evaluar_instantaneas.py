@@ -69,8 +69,15 @@ def evaluar(solo_cache: bool = False, ahora: datetime | None = None) -> dict:
                 select(DecisionOutcome.snapshot_id).where(DecisionOutcome.estado.in_(sn.CERRADOS))
             ).scalars()
         )
+        # Solo las AFIRMACIONES (comprar, vender, reducir, evitar). Un análisis
+        # de empresa también congela «mantener» o «sin acción» para poder
+        # reconstruirlo, pero eso no es una apuesta que medir: contarla
+        # mezclaría el forward testing con el diario de lecturas.
         pendientes = [
-            s for s in session.execute(select(DecisionSnapshot)).scalars() if s.id not in cerradas
+            s for s in session.execute(
+                select(DecisionSnapshot).where(DecisionSnapshot.accion.in_(sn.ACCIONES_CONGELADAS))
+            ).scalars()
+            if s.id not in cerradas
         ]
         cuenta["ya_cerradas"] = len(cerradas)
         historicos: dict[str, list | None] = {}
