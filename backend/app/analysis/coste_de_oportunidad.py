@@ -171,8 +171,13 @@ def evaluar(
     coste_por_lado_pct: float,
     tipo_impositivo: float | None = None,
     max_posicion: float | None = None,
+    recortes: list[str] | None = None,
 ) -> dict:
-    """La comparación entera. Todo en FRACCIONES del capital total."""
+    """La comparación entera. Todo en FRACCIONES del capital total.
+
+    `recortes`: lo que el dimensionador dijo al recortar esta idea; si la deja
+    en 0 %, el veredicto cita QUÉ límite lo hizo en vez de enumerarlos todos.
+    """
     base = {"candidata": {**candidata, "atractivo": atractivo(candidata)},
             "parametros": parametros(), "generado_por": "app"}
 
@@ -194,9 +199,11 @@ def evaluar(
                        "Anota tu efectivo para saber si de verdad no cabe."),
         }}
     if tamano_maximo <= 0:
+        porque = " ".join(r for r in recortes or [] if "0 %" in r or candidata.get("symbol", "") in r)
         return {**base, "tamano": {"maximo_permitido": 0.0, "efectivo_disponible": round(efectivo, 4)}, "veredicto": {
             "accion": NO_TRADE,
-            "motivo": "No cabe: los límites de la cartera (posición, sector, correlación, volatilidad) le dejan 0 %.",
+            "motivo": "No cabe: los límites de la cartera le dejan 0 %. " + (
+                porque or "Ninguno de los límites (posición, sector, correlación, volatilidad) deja hueco."),
         }}
 
     tamano = {"maximo_permitido": round(tamano_maximo, 4)}

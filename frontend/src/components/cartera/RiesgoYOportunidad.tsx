@@ -53,7 +53,7 @@ export function ContribucionAlRiesgoPanel() {
                   </div>
                 )}
                 <div className="overflow-x-auto">
-                  <table className="w-full text-right text-xs tabular-nums">
+                  <table className="w-full text-right text-xs tabular-nums [&_td]:px-1.5 [&_th]:px-1.5">
                     <thead className="text-[10px] uppercase tracking-wide text-slate-400">
                       <tr>
                         <th className="text-left">Posición</th><th>Peso</th><th>Volatilidad</th><th>Riesgo</th><th>Riesgo/peso</th>

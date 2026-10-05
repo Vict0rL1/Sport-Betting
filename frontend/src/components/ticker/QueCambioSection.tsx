@@ -47,7 +47,10 @@ function Cambio({ c }: { c: CambioMetrica }) {
         {c.tipo === 'material' && c.unidad === 'fracción' && c.absoluto !== undefined && (
           <span className="ml-1 text-slate-400">({c.absoluto >= 0 ? '+' : ''}{fmtNumber(c.absoluto * 100, 1)} pp)</span>
         )}
-        {c.tipo === 'material' && c.unidad !== 'fracción' && c.relativo != null && (
+        {c.tipo === 'material' && c.unidad === 'puntos' && c.absoluto !== undefined && (
+          <span className="ml-1 text-slate-400">({c.absoluto >= 0 ? '+' : ''}{fmtNumber(c.absoluto, 2)} puntos)</span>
+        )}
+        {c.tipo === 'material' && c.unidad !== 'fracción' && c.unidad !== 'puntos' && c.relativo != null && (
           <span className="ml-1 text-slate-400">({c.relativo >= 0 ? '+' : ''}{fmtNumber(c.relativo * 100, 1)} %)</span>
         )}
         {c.tipo === 'dato_nuevo' && <span className="ml-1 rounded bg-sky-100 px-1 text-[10px] text-sky-800">dato nuevo</span>}
@@ -130,7 +133,7 @@ export function CosteOportunidadResumen({ oc }: { oc: CosteOportunidad }) {
                 </td>
                 <td className="text-slate-500">
                   {f.elegible
-                    ? f.prioridad.desglose.map((d) => `${d.nota} (+${d.puntos})`).join(' · ') || '—'
+                    ? f.prioridad.desglose.map((d) => `${d.nota} (${d.puntos >= 0 ? '+' : '−'}${Math.abs(d.puntos)})`).join(' · ') || '—'
                     : <span className="text-amber-700">{f.motivo}</span>}
                 </td>
               </tr>

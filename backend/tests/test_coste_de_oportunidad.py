@@ -106,8 +106,10 @@ def test_sin_senal_de_compra_no_hay_nada_que_financiar():
     assert r["veredicto"]["accion"] == "NO_ACCION"
 
 
-def test_si_no_cabe_por_limites_no_trade():
+def test_si_no_cabe_por_limites_no_trade_y_dice_que_limite():
     assert _evaluar([_pos()], tamano=0.0)["veredicto"]["accion"] == "NO_TRADE"
+    r = _evaluar([_pos()], tamano=0.0, recortes=["Ideas nuevas al 0 %: la cartera que YA tienes estima un 30 % de volatilidad"])
+    assert "volatilidad" in r["veredicto"]["motivo"]
 
 
 def test_si_no_cabe_pero_el_efectivo_es_desconocido_no_se_concluye():

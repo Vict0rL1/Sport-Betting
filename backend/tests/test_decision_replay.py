@@ -295,3 +295,12 @@ def test_las_fechas_se_sirven_siempre_con_zona(session_factory, servicio):
         app.dependency_overrides.clear()
     for valor in (h["creado_en"], rep["creado_en"], rep["momento"], det["creado_en"], lista["creado_en"]):
         assert valor.endswith("+00:00"), valor
+
+
+def test_no_tener_posicion_es_un_dato_congelado_no_una_seccion_ausente(session_factory, servicio):
+    with session_factory() as s:
+        snap, r = _congelar(s, servicio)
+        rep = sn.reproducir(snap)
+    assert r["analisis"]["posicion"] is None
+    assert "posicion" not in rep["no_congelado"]
+    assert rep["completo"] is True, (rep["no_congelado"], rep["incompletas"])

@@ -446,7 +446,9 @@ def reproducir(snap: DecisionSnapshot, resultados: list[DecisionOutcome] | None 
     futuras = {m.get("dato") for m in revision["futuras"]}
     retirado = _retirar_futuro(a, futuras, momento)
 
-    no_congelado = [s for s in SECCIONES_ANALISIS if s not in a or a.get(s) is None]
+    # Una sección ausente no se congeló; una sección `null` SÍ se congeló, y
+    # dice que no había nada (p. ej. ninguna posición abierta).
+    no_congelado = [s for s in SECCIONES_ANALISIS if s not in a]
     incompletas = [
         s for s in SECCIONES_ANALISIS
         if isinstance(a.get(s), dict) and a[s].get("estado") in ("desconocido", "error")

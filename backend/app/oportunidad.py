@@ -176,6 +176,7 @@ def evaluar(
         coste_por_lado_pct=costes_por_lado(con_divisa=moneda_c not in (None, "USD")),
         tipo_impositivo=tipo_impositivo,
         max_posicion=MAX_POR_POSICION_PCT / 100,
+        recortes=(sizing or {}).get("recortes"),
     )
     resultado["efectivo"] = efectivo
     resultado["sizing"] = {k: (sizing or {}).get(k) for k in ("controles", "recortes", "todos_los_limites_aplicados")}
