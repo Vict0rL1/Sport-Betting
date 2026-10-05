@@ -42,6 +42,28 @@ export function informeBenchmark(log: (s: string) => void = console.log): number
     for (const [rival, c] of Object.entries(r.resumen)) {
       log(`  periodos contra ${rival}: modelo ${c.ganaModelo} · ${rival} ${c.ganaRival} (de ${c.periodos})`);
     }
+    // Régimen y segmentos: solo los que tienen ≥ MIN_SEGMENTO partidos (el resto no se publica).
+    const seg = (titulo: string, g: Record<string, { n: number; modelo: Informe; mercado: Informe | null }>) => {
+      const ks = Object.keys(g);
+      if (!ks.length) return;
+      log(`  ${titulo}:`);
+      for (const k of ks) {
+        const x = g[k];
+        const m = x.modelo.mercado;
+        log(
+          `    ${k.padEnd(34)} n ${String(x.n).padStart(6)} · log loss ${f4(x.modelo.logLoss)} · Brier ${f4(x.modelo.brier)}` +
+            (m ? ` · mercado ${f4(m.logLoss)} (${m.modeloLogLoss < m.logLoss ? 'gana el modelo' : 'gana el mercado'})` : ''),
+        );
+      }
+    };
+    seg('por régimen', r.porRegimen);
+    for (const [dim, g] of Object.entries(r.porSegmento)) seg(`por ${dim}`, g);
+    if (r.cobertura.length) {
+      log('  cobertura contra rendimiento (por profundidad de datos; el Brier baja también por ser partidos más fáciles):');
+      for (const c of r.cobertura) {
+        log(`    ${String(Math.round(c.cobertura * 100)).padStart(3)} %  n ${String(c.n).padStart(6)} · log loss ${f4(c.modelo.logLoss)} · Brier ${f4(c.modelo.brier)} · ECE ${c.modelo.ece == null ? '—' : (c.modelo.ece * 100).toFixed(2) + ' pp'}`);
+      }
+    }
     log('');
   }
   return faltan;
