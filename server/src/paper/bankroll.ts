@@ -41,6 +41,7 @@ import { versionsFor, type SportId } from '../versions.ts';
 import { captureSignalClosing, recordSignal } from './signals.ts';
 import { devig } from '../market/devig.ts';
 import { gruposDe, cabeEnGrupos } from '../staking/risk.ts';
+import { emitirAlerta } from '../alerts/engine.ts';
 
 /** El banco inicial del experimento. Se guarda para que cambiarlo sea deliberado. */
 export const BANCO_INICIAL = 1000;
@@ -594,6 +595,7 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
     const stakeConfianza = Math.floor(Math.min(d.stake * juicio.factor, cabe) * 100) / 100;
     if (juicio.apostar && stakeConfianza <= 0 && cabe < d.stake * juicio.factor) {
       const motivoRechazo = `tope de grupo de correlación alcanzado (${limitante})`;
+      emitirAlerta({ type: 'limite_riesgo', severity: 'aviso', sport: c.sport, matchKey: c.match_key, title: `${c.label}: tope de riesgo`, body: motivoRechazo });
       rechazos['tope de grupo'] = (rechazos['tope de grupo'] ?? 0) + 1;
       detalle.push(`${c.label}: no se apuesta — ${motivoRechazo}`);
       senalDe('rechazada', 0, null, motivoRechazo);

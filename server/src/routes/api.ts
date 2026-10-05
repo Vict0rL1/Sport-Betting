@@ -39,6 +39,10 @@ import { responderAgente } from '../ask/agent.ts';
 import { enrutarConModelo } from '../ask/llm.ts';
 import { place, settle, resumen, bancoActual } from '../paper/bankroll.ts';
 import { riesgoCartera } from '../staking/risk.ts';
+import { lineaTemporal } from '../audit/timeline.ts';
+import { reproducir } from '../audit/reproduce.ts';
+import { alertas } from '../alerts/engine.ts';
+import { confianzaDelSistema } from '../evaluation/system.ts';
 import { partidosDeHoy, resultadosRecientes } from '../today.ts';
 import { evaluate } from '../live/engine.ts';
 import { matchupServe } from '../live/serve.ts';
@@ -525,6 +529,17 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
           : null,
     };
   });
+
+  // --- auditoría: línea temporal de un partido, reproducción de un id y alertas ---
+  app.get<{ Params: { sport: string; key: string } }>('/timeline/:sport/:key', async (req, reply) => {
+    if (!isSportId(req.params.sport)) return reply.code(400).send({ error: 'deporte desconocido' });
+    return lineaTemporal(req.params.sport, req.params.key);
+  });
+  app.get<{ Params: { id: string } }>('/reproduce/:id', async (req) => reproducir(req.params.id));
+  app.get<{ Querystring: { limit?: string } }>('/alerts', async (req) => alertas({ limit: Math.min(500, Number(req.query.limit) || 100) }));
+
+  // --- ¿podemos confiar en el modelo? La página de transparencia ---
+  app.get('/system-trust', async () => confianzaDelSistema());
 
   // --- riesgo de la cartera abierta: total, por deporte y por grupo de correlación ---
   app.get('/risk', async () => riesgoCartera(bancoActual()));

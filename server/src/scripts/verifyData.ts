@@ -1431,7 +1431,7 @@ function auditTrust(): void {
   console.log('\n▸ Evaluaciones de confianza (abstención)');
   const db = getDb();
   const triggers = new Set((db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as { name: string }[]).map((r) => r.name));
-  for (const t of ['prediction_assessments_no_update', 'prediction_assessments_no_delete']) {
+  for (const t of ['prediction_assessments_no_update', 'prediction_assessments_no_delete', 'shadow_predictions_no_update', 'shadow_predictions_no_delete', 'alerts_no_update', 'alerts_no_delete']) {
     check(`confianza: el trigger ${t} existe`, triggers.has(t), 'sin él, una abstención se podría reescribir a posteriori');
   }
   const congelada = (db.prepare("SELECT sql FROM sqlite_master WHERE name = 'paper_bets_congelada'").get() as { sql: string } | undefined)?.sql ?? '';

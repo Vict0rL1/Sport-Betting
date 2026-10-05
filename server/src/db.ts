@@ -9,6 +9,7 @@ import { ODDS_SNAPSHOT_SCHEMA } from './odds/schema.ts';
 import { PREMATCH_SCHEMA } from './prematch/schema.ts';
 import { ASSESSMENT_SCHEMA } from './trust/schema.ts';
 import { SHADOW_SCHEMA } from './shadow/schema.ts';
+import { ALERTS_SCHEMA } from './alerts/schema.ts';
 import { EDGE_SIGNALS_SCHEMA, PAPER_BET_COLUMNS, PAPER_TRIGGERS, PREDICTION_LOG_TRIGGERS } from './paper/schema.ts';
 
 let db: DatabaseSync | null = null;
@@ -44,6 +45,8 @@ export function getDb(): DatabaseSync {
   db.exec(ASSESSMENT_SCHEMA);
   // Modelos en sombra: ver shadow/shadows.ts.
   db.exec(SHADOW_SCHEMA);
+  // Alertas internas: ver alerts/engine.ts.
+  db.exec(ALERTS_SCHEMA);
   return db;
 }
 

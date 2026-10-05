@@ -21,6 +21,8 @@ import { derivaReciente } from './drift.ts';
 import { DEFAULT_CONFIG } from '../staking/policy.ts';
 import type { EventoConfianza } from './types.ts';
 import { registrarSombras } from '../shadow/shadows.ts';
+import { emitirAlerta } from '../alerts/engine.ts';
+import { deEvaluacion } from '../alerts/detectors.ts';
 
 export { ASSESSMENT_SCHEMA } from './schema.ts';
 
@@ -121,6 +123,10 @@ export function registrarEvaluacion(e: EventoConfianza, ev: Evaluacion, now = ne
       ev.incertidumbre.totalPp, ev.estabilidad.nivel, ev.estabilidad.anchoPp, ev.desacuerdo.nivel, ev.desacuerdo.rangoPp,
       ev.mercado.calidad, dec.desaparece, JSON.stringify(e.ood), e.regimen.etiqueta, JSON.stringify(dec.razones), versionsFor(e.sport).model_version,
     );
+    const partido = e.outcomes.filter((o) => o !== 'Empate').join(' vs ');
+    for (const a of deEvaluacion(ultima ?? null, { decision: dec.decision, data_quality: ev.calidadDatos.puntuacion, razones: dec.razones, deriva: ev.deriva.startsWith('log loss') ? ev.deriva : null, seleccion: dec.seleccion?.nombre ?? null, edge: dec.seleccion?.edge ?? null }, partido)) {
+      emitirAlerta({ ...a, sport: e.sport, matchKey: a.type === 'deriva' ? null : e.matchKey }, now);
+    }
     return 'nueva';
   } catch {
     return 'rechazada';

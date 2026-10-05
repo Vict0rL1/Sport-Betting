@@ -93,6 +93,31 @@ function HistorialPrePartido({ refP }: { refP: PrePartidoRef }) {
   );
 }
 
+function LineaTemporal({ refP }: { refP: PrePartidoRef }) {
+  const [d, setD] = useState<{ hitos: { at: string; tipo: string; texto: string }[]; nota: string } | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    fetch(`/api/timeline/${refP.sport}/${encodeURIComponent(refP.matchKey)}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j) => vivo && setD(j))
+      .catch(() => vivo && setD({ hitos: [], nota: 'No se pudo leer la línea temporal.' }));
+    return () => {
+      vivo = false;
+    };
+  }, [refP.sport, refP.matchKey]);
+  if (!d) return <p>Cargando…</p>;
+  return (
+    <>
+      {d.hitos.map((h, i) => (
+        <p key={i}>
+          <span className="text-[#5c636c]">{new Date(h.at).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span> {h.texto}
+        </p>
+      ))}
+      <p className="text-[#5c636c]">{d.nota}</p>
+    </>
+  );
+}
+
 export default function EventTrustPanel({ confianza, prePartido }: { confianza?: EvaluacionConfianza | null; prePartido?: PrePartidoRef | null }) {
   const [open, setOpen] = useState(false);
   if (!confianza) return null;
@@ -200,6 +225,11 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
             {prePartido && (
               <Fila titulo="Historial pre-partido" valor="T-24h → final">
                 <HistorialPrePartido refP={prePartido} />
+              </Fila>
+            )}
+            {prePartido && (
+              <Fila titulo="Línea temporal de auditoría" valor="hechos guardados">
+                <LineaTemporal refP={prePartido} />
               </Fila>
             )}
             <p className="mt-1 text-[11px] text-[#5c636c]">{c.nota}</p>

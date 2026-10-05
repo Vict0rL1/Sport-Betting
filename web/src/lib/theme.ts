@@ -134,7 +134,7 @@ export const RELIABILITY_STYLE: Record<'high' | 'medium' | 'low', string> = {
 // ---------------------------------------------------------------------------
 // 'bets' rides in this union because it is a TAB, and the tab bar is typed by it.
 // It is not a sport: nothing under it has a model, a league or a prediction.
-export type SportId = 'football' | 'basketball' | 'baseball' | 'nfl' | 'tennis' | 'bets';
+export type SportId = 'football' | 'basketball' | 'baseball' | 'nfl' | 'tennis' | 'bets' | 'trust';
 
 export interface SportTheme {
   id: SportId;
@@ -162,6 +162,7 @@ export const SPORT_THEMES: Record<SportId, SportTheme> = {
   // Slate, deliberately the quietest accent of the six: this tab is about the
   // reader's own money, and the five saturated hues belong to the sports.
   bets: { id: 'bets', label: 'Apuestas', emoji: '🎟️', accent: '#94a3b8', accentSoft: 'rgba(148,163,184,0.14)' },
+  trust: { id: 'trust', label: 'Confianza', emoji: '📊', accent: '#a78bfa', accentSoft: 'rgba(167,139,250,0.14)' },
 };
 
 // ---------------------------------------------------------------------------

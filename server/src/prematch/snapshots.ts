@@ -24,6 +24,8 @@ import { getDb } from '../db.ts';
 import { versionsFor } from '../versions.ts';
 import { devig } from '../market/devig.ts';
 import type { SportId } from '../sports.ts';
+import { emitirAlerta } from '../alerts/engine.ts';
+import { deInstantanea } from '../alerts/detectors.ts';
 
 /** Una entrada del modelo con nombre legible, para poder decir QUÉ cambió. */
 export interface Entrada {
@@ -185,6 +187,11 @@ export function recordSnapshot(s: Instantanea, now = new Date()): ResultadoRegis
         s.odds ? JSON.stringify(s.odds) : null, s.oddsAt, dataAsOf, inputs,
         v.model_version, v.calibration_version, v.data_version, v.git_commit,
       );
+    // Alertas: cambios grandes de predicción o de mercado, alineaciones, abridores, QB.
+    if (u) {
+      const partido = s.outcomes.filter((o) => o !== 'Empate').join(' vs ');
+      for (const a of deInstantanea(u, { ...s, market_probs: marketProbs }, partido)) emitirAlerta({ ...a, sport: s.sport, matchKey: s.matchKey }, now);
+    }
     return 'nueva';
   } catch {
     return 'rechazada';
