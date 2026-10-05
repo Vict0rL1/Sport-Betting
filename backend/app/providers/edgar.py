@@ -51,6 +51,35 @@ _FLOW_TAGS: dict[str, list[str]] = {
         "PaymentsToAcquirePropertyPlantAndEquipment",
         "PaymentsToAcquireProductiveAssets",
     ],
+    # --- Calidad de beneficios. Cada partida es evidencia, no un total: con
+    # «la primera etiqueta con datos gana», una empresa que reporta deterioro
+    # de fondo de comercio Y de activos aparece solo con el primero. Por eso
+    # el análisis las usa para avisar, nunca para restar del beneficio.
+    "sbc": ["ShareBasedCompensation", "AllocatedShareBasedCompensationExpense"],
+    "pretax_income": [
+        "IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+        "IncomeLossFromContinuingOperationsBeforeIncomeTaxesMinorityInterestAndIncomeLossFromEquityMethodInvestments",
+    ],
+    "income_tax": ["IncomeTaxExpenseBenefit"],
+    "restructuring": ["RestructuringCharges", "RestructuringCosts"],
+    "impairment": [
+        "GoodwillImpairmentLoss",
+        "AssetImpairmentCharges",
+        "ImpairmentOfLongLivedAssetsHeldForUse",
+    ],
+    "gain_on_asset_sales": [
+        "GainLossOnSaleOfPropertyPlantEquipment",
+        "GainLossOnDispositionOfAssets",
+        "GainLossOnSaleOfBusiness",
+    ],
+    "litigation": ["LitigationSettlementExpense", "LossContingencyLossInPeriod"],
+    # Variaciones de circulante tal como las da el estado de flujos. Convenio
+    # XBRL: un AUMENTO de cuentas por cobrar o de inventario es positivo y
+    # RESTA caja; un aumento de proveedores es positivo y SUMA caja.
+    "change_receivables": ["IncreaseDecreaseInAccountsReceivable"],
+    "change_inventory": ["IncreaseDecreaseInInventories"],
+    "change_payables": ["IncreaseDecreaseInAccountsPayable"],
+    "capitalized_software": ["PaymentsToDevelopSoftware", "PaymentsForSoftware"],
 }
 
 _BALANCE_TAGS: dict[str, list[str]] = {
@@ -69,6 +98,9 @@ _BALANCE_TAGS: dict[str, list[str]] = {
     "retained_earnings": ["RetainedEarningsAccumulatedDeficit"],
     "long_term_debt": ["LongTermDebtNoncurrent", "LongTermDebt"],
     "short_term_debt": ["LongTermDebtCurrent", "DebtCurrent"],
+    "accounts_receivable": ["AccountsReceivableNetCurrent", "ReceivablesNetCurrent"],
+    "inventory": ["InventoryNet"],
+    "accounts_payable": ["AccountsPayableCurrent"],
 }
 
 _INSIDER_FORMS = {"3", "4", "5"}
@@ -120,6 +152,182 @@ def _annual_entries(units: list[dict], is_flow: bool) -> dict[str, dict]:
     return out
 
 
+def procedencia(entry: dict, etiqueta: str) -> dict:
+    """De dónde sale un número: etiqueta XBRL, formulario, fecha y documento."""
+    return {
+        "etiqueta": etiqueta,
+        "formulario": entry.get("form"),
+        "presentado": entry.get("filed"),
+        "accn": entry.get("accn"),
+        "inicio": entry.get("start"),
+        "fin": entry.get("end"),
+    }
+
+
+# Duraciones en días de cada tipo de hecho de flujo. Un 10-Q trae el trimestre
+# Y el acumulado del año (6 y 9 meses) con la misma etiqueta: sin filtrar por
+# duración se mezclarían.
+_DIAS_TRIMESTRE = (75, 105)
+_DIAS_NUEVE_MESES = (250, 290)
+_DIAS_ANO = (300, 400)
+
+
+def _dias(entry: dict) -> float | None:
+    try:
+        return (
+            time.mktime(time.strptime(entry["end"], "%Y-%m-%d"))
+            - time.mktime(time.strptime(entry["start"], "%Y-%m-%d"))
+        ) / 86400
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _originales(units: list[dict], rango: tuple[int, int] | None) -> dict[tuple, dict]:
+    """El hecho PUBLICADO PRIMERO para cada periodo exacto (inicio, fin).
+
+    Misma disciplina que `_annual_entries`: una reexpresión posterior no
+    sustituye a la cifra que se conoció en su momento.
+    """
+    salida: dict[tuple, dict] = {}
+    for e in units:
+        if not e.get("end") or e.get("val") is None:
+            continue
+        if rango is None:
+            if e.get("start"):
+                continue
+        else:
+            d = _dias(e)
+            if d is None or not rango[0] <= d <= rango[1]:
+                continue
+        clave = (e.get("start"), e["end"])
+        previo = salida.get(clave)
+        if previo is None or (e.get("filed") or "9999") < (previo.get("filed") or "9999"):
+            salida[clave] = e
+    return salida
+
+
+def _etiqueta_fiscal(entry: dict, mes_cierre: int | None) -> tuple[str | None, str | None]:
+    """(año fiscal, trimestre) de un hecho trimestral.
+
+    `fy`/`fp` de EDGAR describen el FILING, no el hecho: la cifra comparativa
+    del año anterior viaja con la etiqueta del año actual. Solo se fían cuando
+    el hecho es el original (publicado en los 120 días siguientes a su cierre);
+    si no, se deduce del mes de cierre del ejercicio.
+    """
+    try:
+        fin = time.strptime(entry["end"], "%Y-%m-%d")
+        publicado = time.strptime(entry.get("filed") or "", "%Y-%m-%d")
+        retraso = (time.mktime(publicado) - time.mktime(fin)) / 86400
+    except (KeyError, TypeError, ValueError):
+        retraso = None
+    if retraso is not None and retraso <= 120 and entry.get("fy") and entry.get("fp"):
+        return str(entry["fy"]), entry["fp"]
+    if mes_cierre is None:
+        return None, None
+    try:
+        fin = time.strptime(entry["end"], "%Y-%m-%d")
+    except (KeyError, TypeError, ValueError):
+        return None, None
+    trimestre = ((fin.tm_mon - mes_cierre - 1) % 12) // 3 + 1
+    ano = fin.tm_year if fin.tm_mon <= mes_cierre else fin.tm_year + 1
+    return str(ano), f"Q{trimestre}"
+
+
+def parse_quarters(facts_json: dict, maximo: int = 12) -> list[dict]:
+    """Trimestres normalizados, con su fecha de publicación y su linaje.
+
+    El cuarto trimestre casi nunca se presenta suelto: el 10-K da el AÑO. Se
+    deriva como año menos nueve meses —y se marca `derivado`— solo para
+    partidas de flujo que se suman; el BPA no se deriva así (el número de
+    acciones cambia entre trimestres y la resta daría un número falso).
+    """
+    gaap = (facts_json.get("facts") or {}).get("us-gaap") or {}
+    por_fin: dict[str, dict] = {}
+    meses_cierre: list[int] = []
+
+    def flujo(campo: str, etiquetas: list[str], unidades: tuple[str, ...], derivar_q4: bool):
+        for tag in etiquetas:
+            por_unidad = (gaap.get(tag) or {}).get("units") or {}
+            units = next((por_unidad[u] for u in unidades if u in por_unidad), None)
+            if not units:
+                continue
+            trimestres = _originales(units, _DIAS_TRIMESTRE)
+            anos = _originales(units, _DIAS_ANO)
+            nueve = _originales(units, _DIAS_NUEVE_MESES)
+            if not trimestres and not anos:
+                continue
+            for (_, fin), e in trimestres.items():
+                q = por_fin.setdefault(fin, {"end_date": fin, "_hechos": {}})
+                if campo not in q:
+                    q[campo] = e["val"]
+                    q.setdefault("fuentes", {})[campo] = procedencia(e, tag)
+                    q["_hechos"][campo] = e
+            for (inicio, fin), fy in anos.items():
+                try:
+                    meses_cierre.append(time.strptime(fin, "%Y-%m-%d").tm_mon)
+                except ValueError:
+                    pass
+                if not derivar_q4:
+                    continue
+                q = por_fin.setdefault(fin, {"end_date": fin, "_hechos": {}})
+                if campo in q:
+                    continue
+                nm = next((e for (i, _), e in nueve.items() if i == inicio), None)
+                if nm is None:
+                    continue
+                q[campo] = fy["val"] - nm["val"]
+                q.setdefault("fuentes", {})[campo] = {
+                    **procedencia(fy, tag),
+                    "derivado": "año (10-K) − nueve meses (10-Q)",
+                    "nueve_meses": procedencia(nm, tag),
+                }
+                q["_hechos"][campo] = {**fy, "fp": "Q4", "_derivado": True}
+            return
+
+    for campo, etiquetas in _FLOW_TAGS.items():
+        flujo(campo, etiquetas, ("USD",), derivar_q4=True)
+    flujo("eps_diluted", ["EarningsPerShareDiluted"], ("USD/shares",), derivar_q4=False)
+
+    for campo, etiquetas in _BALANCE_TAGS.items():
+        for tag in etiquetas:
+            units = ((gaap.get(tag) or {}).get("units") or {}).get("USD")
+            if not units:
+                continue
+            instantes = _originales(units, None)
+            if not instantes:
+                continue
+            for (_, fin), e in instantes.items():
+                if fin in por_fin and campo not in por_fin[fin]:
+                    por_fin[fin][campo] = e["val"]
+                    por_fin[fin].setdefault("fuentes", {})[campo] = procedencia(e, tag)
+            break
+
+    mes_cierre = max(set(meses_cierre), key=meses_cierre.count) if meses_cierre else None
+    salida = []
+    for fin in sorted(por_fin):
+        q = por_fin[fin]
+        hechos = q.pop("_hechos")
+        if q.get("revenue") is None and q.get("net_income") is None:
+            continue
+        # La fecha de publicación del trimestre es la MÁS TARDÍA de sus
+        # partidas: el trimestre completo no se conoció antes que su último dato.
+        publicadas = [f.get("presentado") for f in (q.get("fuentes") or {}).values() if f.get("presentado")]
+        q["filed_at"] = max(publicadas) if publicadas else None
+        referencia = hechos.get("revenue") or hechos.get("net_income") or {}
+        if referencia.get("_derivado"):
+            ano, _ = _etiqueta_fiscal({**referencia, "fp": None}, mes_cierre)
+            q["fiscal_year"], q["fiscal_period"] = ano, "Q4"
+        else:
+            q["fiscal_year"], q["fiscal_period"] = _etiqueta_fiscal(referencia, mes_cierre)
+        q["periodo"] = (
+            f"{q['fiscal_year']}-{q['fiscal_period']}"
+            if q.get("fiscal_year") and q.get("fiscal_period")
+            else None
+        )
+        salida.append(q)
+    return salida[-maximo:]
+
+
 def parse_companyfacts(facts_json: dict) -> list[dict]:
     """Convierte el companyfacts de EDGAR en periodos anuales normalizados.
 
@@ -147,6 +355,10 @@ def parse_companyfacts(facts_json: dict) -> list[dict]:
                 period = per_year.setdefault(year, {"end_date": entry["end"]})
                 if field not in period:
                     period[field] = entry.get("val")
+                    # Linaje por partida: de qué etiqueta, de qué documento y de
+                    # qué fecha sale ESTE número. Sin esto, «CFO / beneficio =
+                    # 1,20×» no se podía reconstruir hasta el filing.
+                    period.setdefault("fuentes", {})[field] = procedencia(entry, tag)
                     if entry["end"] > period["end_date"]:
                         period["end_date"] = entry["end"]
                 # La fecha de publicación más tardía entre los campos del
@@ -172,6 +384,9 @@ def parse_companyfacts(facts_json: dict) -> list[dict]:
         year = (entry.get("end") or "")[:4]
         if year in per_year and "shares_outstanding" not in per_year[year]:
             per_year[year]["shares_outstanding"] = entry.get("val")
+            per_year[year].setdefault("fuentes", {})["shares_outstanding"] = procedencia(
+                entry, "dei:EntityCommonStockSharesOutstanding"
+            )
 
     periods = [
         {"fiscal_year": year, **fields}
@@ -261,6 +476,9 @@ class EdgarProvider(DataProvider):
             "cik": cik,
             "entity": facts.get("entityName"),
             "periods": periods,
+            # Trimestres con fecha de publicación y linaje: los resultados de
+            # cada trimestre frente a lo que se esperaba de él.
+            "quarters": parse_quarters(facts),
             "as_of": iso_utc(),
         }
 

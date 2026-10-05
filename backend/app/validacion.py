@@ -143,10 +143,17 @@ NO_NEGATIVAS = frozenset({
     "revenue", "total_assets", "total_liabilities", "current_assets",
     "current_liabilities", "cash", "long_term_debt", "short_term_debt",
     "capex", "interest_expense", "depreciation_amortization",
+    # Calidad de beneficios: saldos y pagos que no pueden ser negativos.
+    "accounts_receivable", "inventory", "accounts_payable", "sbc",
+    "impairment", "capitalized_software",
 })
 # Y las que tienen que ser estrictamente positivas.
 POSITIVAS = frozenset({"shares_outstanding"})
-_NO_NUMERICAS = frozenset({"fiscal_year", "end_date", "filed", "filed_at", "form", "accession_no"})
+_NO_NUMERICAS = frozenset({
+    "fiscal_year", "end_date", "filed", "filed_at", "form", "accession_no",
+    # Linaje y etiquetas de trimestre: texto o diccionarios, no cifras.
+    "fuentes", "fiscal_period", "periodo",
+})
 
 
 def _financieros(payload: dict) -> dict:
@@ -161,9 +168,28 @@ def _financieros(payload: dict) -> dict:
     if not isinstance(periodos, list) or not periodos:
         raise PayloadInvalido("estados financieros sin periodos")
 
+    limpios, descartadas = _sanear_periodos(periodos, "fiscal_year")
+    if not limpios:
+        raise PayloadInvalido("estados financieros sin ningún ejercicio identificable")
+    salida = {**payload, "periods": limpios}
+    if isinstance(payload.get("quarters"), list):
+        # Los trimestres pasan por la MISMA frontera. Se identifican por su
+        # fecha de cierre: la etiqueta fiscal puede no deducirse y no por eso
+        # el trimestre deja de existir.
+        trimestres, en_trimestres = _sanear_periodos(payload["quarters"], "end_date")
+        salida["quarters"] = trimestres
+        descartadas += en_trimestres
+    if descartadas:
+        # Se dice cuántas partidas se tiraron: un balance al que le falta la
+        # deuda porque venía rota no puede parecer uno de una empresa sin deuda.
+        salida["partidas_descartadas"] = descartadas
+    return salida
+
+
+def _sanear_periodos(periodos: list, clave_id: str) -> tuple[list[dict], int]:
     limpios, descartadas = [], 0
     for periodo in periodos:
-        if not isinstance(periodo, dict) or not periodo.get("fiscal_year"):
+        if not isinstance(periodo, dict) or not periodo.get(clave_id):
             continue
         fila = {}
         for clave, valor in periodo.items():
@@ -179,15 +205,7 @@ def _financieros(payload: dict) -> dict:
                 descartadas += 1
             fila[clave] = numero
         limpios.append(fila)
-
-    if not limpios:
-        raise PayloadInvalido("estados financieros sin ningún ejercicio identificable")
-    salida = {**payload, "periods": limpios}
-    if descartadas:
-        # Se dice cuántas partidas se tiraron: un balance al que le falta la
-        # deuda porque venía rota no puede parecer uno de una empresa sin deuda.
-        salida["partidas_descartadas"] = descartadas
-    return salida
+    return limpios, descartadas
 
 
 VALIDADORES = {
