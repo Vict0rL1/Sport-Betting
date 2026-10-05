@@ -1060,9 +1060,9 @@ backtest, métricas rotas o la referencia equivocada. Cifras actuales:
 | Fútbol | 20.824 | 1,0143 (1,0986) | 0,3037 (0,3333) | 0,78 pp | 49,4 % |
 | Baloncesto (NBA) | 85.562 | 0,5919 (0,6931) | 0,2033 (0,2500) | 0,12 pp | 68,3 % |
 | Béisbol (MLB) | 14.428 | 0,6756 (0,6931) | 0,2414 (0,2500) | 0,58 pp | 57,3 % |
-| NFL | 4.380 | 0,6277 (0,6931) | 0,2191 (0,2500) | 0,98 pp | 64,7 % |
+| NFL | 3.781 | 0,6284 (0,6931) | 0,2194 (0,2500) | 0,46 pp | 64,3 % |
 
-En la NFL, contra el cierre real sobre los mismos 4.379 partidos: modelo 0,6277, mercado 0,6100.
+En la NFL, contra el cierre real sobre los mismos 3.780 partidos: modelo 0,6285, mercado 0,6114 (sin el holdout final 2024+, que el backtest de la NFL antes puntuaba por error; ver docs/CONFIANZA.md).
 El mercado es mejor, y así se dice. (La capa común deja fuera los empates, cuyo moneyline se
 devuelve; las cifras propias del backtest de la NFL los cuentan como medio acierto, de ahí que
 difieran en la cuarta cifra.)
@@ -3947,3 +3947,27 @@ Fútbol: **[docs/FOOTBALL.md](docs/FOOTBALL.md)** · Béisbol: **[docs/BASEBALL.
 Tenis: **[docs/MODEL.md](docs/MODEL.md)** para la explicación completa del cálculo del Elo, cómo
 se combinan las señales y las limitaciones. La lógica también está comentada en el código
 (`server/src/model/`).
+
+## ¿Cuándo fiarse del modelo? (abstención, incertidumbre y auditoría)
+
+Cada predicción lleva un panel **«¿Cuánto fiarse?»** y la app tiene una pestaña
+**📊 Confianza**. La idea: no solo «qué cree el modelo», sino si ese número merece confianza y
+por qué. El detalle, los criterios y el estado de cada fase están en
+[`docs/CONFIANZA.md`](docs/CONFIANZA.md).
+
+- **Decisión BET / NO BET con razones**: la ventaja tiene que sobrevivir a la incertidumbre y
+  a las simulaciones de sensibilidad, con datos suficientes, sin señales de fuera de
+  distribución, estable, con un mercado de calidad y un precio reciente. El banco de papel
+  aplica la misma decisión y se abstiene si no hay evaluación (falla cerrado).
+- **Calidad de datos /100** explicable punto por punto (lo que la app no sabe sale como
+  DESCONOCIDO), **incertidumbre** (no es un IC del 95 %), **estabilidad**, **desacuerdo entre
+  componentes**, **qué mueve la predicción** y el **contrafactual** («deja de apostarse si…»).
+- **Predicción final pre-partido congelada** y las de T-24h, T-6h y T-1h, con los cambios y su
+  causa cuando consta.
+- **Walk-forward por periodos** contra baselines sencillos y el mercado, sin holdout:
+  `npm run benchmark:report`. **Modelos en sombra** y **ensembles** con validación temporal:
+  `npm run shadow:report`. **Salud de los modelos**: `npm run model:report`. **Historia de
+  versiones** desde git: `npm run model:history`. **Reproducir** lo guardado de una
+  apuesta, señal, evaluación o predicción: `npm run reproduce -- apuesta:12`.
+- **Alertas internas**, **línea temporal** de cada partido y **riesgo de cartera** con grupos
+  de correlación (mismo evento, equipo o jugador).
