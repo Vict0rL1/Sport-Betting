@@ -94,7 +94,7 @@ function ActionChip({ decision }: { decision: Decision }) {
 }
 
 /** El plan completo: por qué, a qué precio, y cuándo salir. */
-function DecisionPlan({ decision }: { decision: Decision }) {
+function DecisionPlan({ decision, symbol }: { decision: Decision; symbol?: string }) {
   const { levels } = decision
   return (
     <div className="space-y-3">
@@ -105,6 +105,15 @@ function DecisionPlan({ decision }: { decision: Decision }) {
       </ul>
 
       <DecisionExplicada decision={decision} />
+      {decision.traza_en_ficha && symbol && (
+        <p className="text-[11px] text-slate-500">
+          El porqué regla a regla y qué cambiaría esta decisión están en la{' '}
+          <Link to={`/ticker/${symbol}`} className="font-medium underline">
+            ficha de {symbol}
+          </Link>{' '}
+          (pestaña «Qué cambió»).
+        </p>
+      )}
 
       {levels && (
         // Sobre una posición abierta no hay zona de compra ni peso que sugerir:
@@ -723,7 +732,7 @@ function SignalRow({
           <div className="md:hidden">
             <FactorBars families={signal.families} withLabels />
           </div>
-          <DecisionPlan decision={signal.decision} />
+          <DecisionPlan decision={signal.decision} symbol={signal.symbol} />
 
           {signal.price && (
             <div className="max-w-md">

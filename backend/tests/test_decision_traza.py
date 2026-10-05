@@ -117,3 +117,20 @@ def test_la_accion_sale_siempre_de_la_regla_decisiva():
                     else:
                         # Las acciones «por defecto»: ninguna regla las dispara.
                         assert r["action"] in ("mantener", "ninguna", "vigilar")
+
+
+def test_la_lista_diaria_lleva_la_traza_donde_se_actua_y_no_en_la_cola():
+    from app.routers.signals import _aligerar_trazas
+
+    def senal(sym, accion="ninguna", owned=False):
+        return {"symbol": sym, "decision": {"action": accion, "owned": owned,
+                                            "reglas": [{"id": "x"}], "cambiaria": [{"hacia": "comprar"}]}}
+
+    idea, cola, mia = senal("IDEA", "comprar"), senal("COLA"), senal("MIA", "mantener", owned=True)
+    corta_idea = {**idea}  # la lista corta copia la señal y comparte la decisión
+    payload = {"signals": [idea, cola, mia], "shortlist": {"ideas": [corta_idea], "evitar": []}}
+    _aligerar_trazas(payload)
+    assert "reglas" in idea["decision"] and "reglas" in mia["decision"]
+    assert "reglas" not in cola["decision"] and cola["decision"]["traza_en_ficha"] is True
+    assert cola["decision"]["action"] == "ninguna"
+    assert "reglas" in corta_idea["decision"]

@@ -692,6 +692,8 @@ export interface Decision {
   reglas?: ReglaTraza[]
   /** Qué tendría que pasar para que la acción fuera otra, con los mismos umbrales. */
   cambiaria?: AlternativaDecision[]
+  /** En la cola de la lista diaria la traza no viaja: está en la ficha. */
+  traza_en_ficha?: boolean
 }
 
 export interface ReglaTraza {

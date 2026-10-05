@@ -1100,10 +1100,35 @@ def _today(
     payload["instantaneas"] = snapshots.congelar_lista_diaria(
         session, payload, f"hoy:{market}", datetime.now(timezone.utc)
     )
+    # Después de congelar —las instantáneas guardan la traza entera—, la
+    # respuesta se aligera: la traza viaja donde se actúa, no en la cola.
+    _aligerar_trazas(payload)
 
     service.cache.set("daily_picks", cache_params, payload)
     payload["cached"] = False
     return payload
+
+
+def _aligerar_trazas(payload: dict) -> None:
+    """La traza de reglas y «qué la cambiaría», solo donde se actúa.
+
+    Son ~1,6 KB por empresa: con 500, casi un megabyte más en cada lista y en
+    su caché, para una cola de señales neutras que casi nadie despliega. Se
+    conservan en las ideas de la lista corta, en lo que dice evitar y en tus
+    posiciones; el resto lleva `traza_en_ficha` y la ficha de la empresa la
+    calcula completa. Se REEMPLAZA el dict de la decisión, no se modifica: la
+    lista corta comparte la referencia original y debe conservarla.
+    """
+    corta = payload.get("shortlist") or {}
+    conservar = {s["symbol"] for s in (corta.get("ideas") or []) + (corta.get("evitar") or [])}
+    for senal in payload.get("signals") or []:
+        decision = senal.get("decision") or {}
+        if senal.get("symbol") in conservar or decision.get("owned") or "reglas" not in decision:
+            continue
+        senal["decision"] = {
+            **{k: v for k, v in decision.items() if k not in ("reglas", "cambiaria")},
+            "traza_en_ficha": True,
+        }
 
 
 @router.post("/backtest")
