@@ -605,6 +605,14 @@ def analizar(
         "decision": decision,
         "generado_por": "app",  # determinista: ninguna línea de esto sale de un LLM
     }
+    # Resultados frente a lo esperado: solo lo registrado hasta `ahora`.
+    from app import expectativas as seguimiento
+
+    try:
+        analisis["expectativas"] = seguimiento.resumen_para_analisis(session, symbol, ahora)
+    except Exception:  # noqa: BLE001 — sección aislada: su fallo no tumba el análisis
+        log("calculo").exception("análisis: no se pudo leer el seguimiento de expectativas de %s", symbol)
+        analisis["expectativas"] = {"estado": ERROR, "huella": None}
     analisis["faltan"] = datos_desconocidos(analisis)
     # La confianza se mide sobre la evidencia que hay, después de saber qué falta.
     analisis["confianza"] = confianza.evaluar(analisis, ahora)

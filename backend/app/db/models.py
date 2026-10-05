@@ -577,3 +577,115 @@ class HoldoutCorte(Base):
     corte: Mapped[str] = mapped_column(String(10))  # AAAA-MM-DD: primer día del holdout
     definido_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     motivo: Mapped[str] = mapped_column(Text)
+
+
+# ---------------------------------------------------------------------------
+# Expectativas frente a resultados (migración 0007)
+# ---------------------------------------------------------------------------
+
+TIPOS_DE_EVENTO = ("earnings", "investor_day", "guidance_update", "regulatorio", "lanzamiento", "otro")
+TIPOS_DE_FUENTE = ("consenso", "guidance", "modelo_interno", "reglas", "usuario")
+
+
+class CatalystEvent(Base):
+    """Un acontecimiento sobre el que el sistema tenía expectativas.
+
+    Resultados trimestrales primero; la misma forma sirve para un investor day,
+    una actualización de guidance, una decisión regulatoria o un lanzamiento.
+    """
+
+    __tablename__ = "catalyst_events"
+    __table_args__ = (
+        UniqueConstraint("symbol", "tipo", "periodo", name="uq_evento_periodo"),
+        CheckConstraint(
+            "tipo IN ('earnings','investor_day','guidance_update','regulatorio','lanzamiento','otro')",
+            name="ck_evento_tipo",
+        ),
+        Index("ix_evento_symbol_fecha", "symbol", "fecha_prevista"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    symbol: Mapped[str] = mapped_column(String(16))
+    tipo: Mapped[str] = mapped_column(String(24))
+    periodo: Mapped[str | None] = mapped_column(String(16))      # «2026-Q3»
+    periodo_fin: Mapped[str | None] = mapped_column(String(10))  # cierre del trimestre, si se sabe
+    fecha_prevista: Mapped[str | None] = mapped_column(String(10))  # cuándo se publica
+    descripcion: Mapped[str | None] = mapped_column(Text)
+    creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class Expectation(Base):
+    """Lo que se esperaba de una métrica ANTES del evento, y de quién.
+
+    Consenso, guidance de la dirección, modelo interno, reglas de la tesis y
+    lo que anote el usuario son fuentes distintas y viajan separadas: mezclar el
+    consenso con una estimación propia sería medir la calibración de nadie.
+
+    Inmutable (ORM + triggers): una expectativa que se puede reescribir después
+    del resultado ya no mide lo que se esperaba.
+    """
+
+    __tablename__ = "expectations"
+    __table_args__ = (
+        UniqueConstraint("event_id", "metrica", "fuente_tipo", "fuente", name="uq_expectativa"),
+        CheckConstraint(
+            "fuente_tipo IN ('consenso','guidance','modelo_interno','reglas','usuario')",
+            name="ck_expectativa_fuente",
+        ),
+        CheckConstraint(
+            "valor IS NOT NULL OR bajo IS NOT NULL OR alto IS NOT NULL",
+            name="ck_expectativa_con_cifra",
+        ),
+        Index("ix_expectativa_evento", "event_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event_id: Mapped[int] = mapped_column(ForeignKey("catalyst_events.id"))
+    metrica: Mapped[str] = mapped_column(String(48))
+    fuente_tipo: Mapped[str] = mapped_column(String(16))
+    fuente: Mapped[str] = mapped_column(String(96))
+    valor: Mapped[float | None] = mapped_column(Float)
+    bajo: Mapped[float | None] = mapped_column(Float)
+    alto: Mapped[float | None] = mapped_column(Float)
+    operador: Mapped[str | None] = mapped_column(String(4))  # gte|lte|gt|lt para umbrales de la tesis
+    unidad: Mapped[str | None] = mapped_column(String(24))
+    # Cuándo era cierta la información de la fuente, y cuándo la registró el
+    # sistema. Solo la SEGUNDA prueba que la expectativa es anterior al evento.
+    informacion_hasta: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    registrado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    detalle: Mapped[dict | None] = mapped_column(JSON)
+
+
+class EventActual(Base):
+    """Lo que de verdad salió, con su documento. Solo se añaden filas."""
+
+    __tablename__ = "event_actuals"
+    __table_args__ = (
+        UniqueConstraint("event_id", "metrica", "fuente", name="uq_resultado_real"),
+        Index("ix_real_evento", "event_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event_id: Mapped[int] = mapped_column(ForeignKey("catalyst_events.id"))
+    metrica: Mapped[str] = mapped_column(String(48))
+    valor: Mapped[float | None] = mapped_column(Float)
+    unidad: Mapped[str | None] = mapped_column(String(24))
+    fuente: Mapped[str] = mapped_column(String(96))
+    publicado: Mapped[str] = mapped_column(String(25))  # fecha (o instante) de publicación
+    registrado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    detalle: Mapped[dict | None] = mapped_column(JSON)
+
+
+@event.listens_for(Expectation, "before_update")
+def _expectativa_inmutable(mapper, connection, target):
+    raise ValueError("Una expectativa no se modifica: medir la calibración exige saber qué se esperaba ANTES.")
+
+
+@event.listens_for(Expectation, "before_delete")
+def _expectativa_sin_borrado(mapper, connection, target):
+    raise ValueError("Una expectativa no se borra: borrar las que fallaron es la forma clásica de calibrarse bien.")
+
+
+@event.listens_for(EventActual, "before_update")
+def _real_inmutable(mapper, connection, target):
+    raise ValueError("Un resultado real no se modifica: una reexpresión es una fila nueva con su fecha.")
