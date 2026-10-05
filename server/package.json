@@ -13,6 +13,7 @@
     "shadow:report": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/shadowReport.ts",
     "model:history": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/modelHistory.ts",
     "reproduce": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/reproduce.ts",
+    "model:report": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/modelReport.ts",
     "benchmark:report": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/benchmark.ts",
     "backtest": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/backtest.ts",
     "typecheck": "tsc --noEmit",
