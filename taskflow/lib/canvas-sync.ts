@@ -17,6 +17,7 @@ import type { Ctx } from "./data";
 import { type ErrorCode, IntegrationError, errorCodeOf, logEvent, safeMessage } from "./log";
 import { recordRun } from "./sync-state";
 import { type ActivityEntry, logActivity, q, shortDate } from "./activity";
+import { fetchAll } from "./paginate";
 
 /** Ventana que se pide a Canvas, en días alrededor de hoy. */
 const DAYS_BACK = 14;
@@ -74,12 +75,20 @@ export async function syncCanvas(ctx: Ctx): Promise<SyncResult> {
   // El filtro por `user_id` es explícito a propósito. Con la sesión bastaría la
   // RLS, pero el reloj corre con la service role, que la salta: sin esto leería
   // y pisaría las filas de cualquier otro usuario.
-  const { data: existing, error: readError } = await ctx.supabase
-    .from("tasks")
-    .select("id, external_id, title, user_edited_at, done, deleted_at, due_date, due_time")
-    .eq("user_id", ctx.userId)
-    .eq("source", "canvas")
-    .returns<(ExistingRow & { id: string })[]>();
+  //
+  // Y de a mil: si esta lectura se queda corta (el tope de PostgREST), lo que
+  // no vino parece nuevo y el upsert completo pisa la fila: una tarea hecha
+  // vuelve a quedar pendiente.
+  const { data: existing, error: readError } = await fetchAll<ExistingRow & { id: string }>((from, to) =>
+    ctx.supabase
+      .from("tasks")
+      .select("id, external_id, title, user_edited_at, done, deleted_at, due_date, due_time")
+      .eq("user_id", ctx.userId)
+      .eq("source", "canvas")
+      .order("id")
+      .range(from, to)
+      .returns<(ExistingRow & { id: string })[]>(),
+  );
 
   // Si no se pudo leer lo que hay, NO se sigue. Antes, una lectura fallida
   // dejaba la lista en blanco, todo parecía nuevo, y el upsert completo pisaba

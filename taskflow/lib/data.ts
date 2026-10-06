@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "./supabase/server";
 import { DEFAULT_TIMEZONE, addDays, todayInTz, weekdayOf, zonedDayMinute } from "./date";
 import type { Block, DayEvent, EventRow, Habit, Note, Profile, Task } from "./types";
+import { fetchAll } from "./paginate";
 
 const DEFAULT_AREAS = ["SFU", "FINSA", "Badminton", "Proyectos", "Personal"];
 
@@ -101,16 +102,22 @@ export const TASK_COLS =
 export const NOTE_COLS = "id, user_id, body, pinned, deleted_at, created_at";
 
 export async function loadTasks(ctx: Ctx): Promise<Task[]> {
-  const { data } = await ctx.supabase
-    .from("tasks")
-    .select(TASK_COLS)
-    .eq("user_id", ctx.userId)
-    .is("deleted_at", null)
-    .order("due_date", { ascending: true, nullsFirst: false })
-    .order("priority", { ascending: true })
-    .order("created_at", { ascending: false })
-    .returns<Task[]>();
-  return data ?? [];
+  // Todas, de a mil: con unos semestres de Canvas se pasa del tope de
+  // PostgREST, y lo que quedaba fuera eran justo las de fecha más nueva.
+  const { data } = await fetchAll<Task>((from, to) =>
+    ctx.supabase
+      .from("tasks")
+      .select(TASK_COLS)
+      .eq("user_id", ctx.userId)
+      .is("deleted_at", null)
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .order("priority", { ascending: true })
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, to)
+      .returns<Task[]>(),
+  );
+  return data;
 }
 
 /* -------------------------------------------------------------- calendario */
@@ -178,15 +185,19 @@ export async function loadEvents(ctx: Ctx, from: string, to: string): Promise<Da
 
 /** Fuentes `.ics` importadas, con su conteo. Para la vista de Ajustes. */
 export async function loadIcsSources(ctx: Ctx): Promise<{ name: string; count: number }[]> {
-  const { data } = await ctx.supabase
-    .from("events")
-    .select("course_ref")
-    .eq("user_id", ctx.userId)
-    .eq("source", "ics")
-    .returns<{ course_ref: string | null }[]>();
+  const { data } = await fetchAll<{ course_ref: string | null }>((from, to) =>
+    ctx.supabase
+      .from("events")
+      .select("course_ref")
+      .eq("user_id", ctx.userId)
+      .eq("source", "ics")
+      .order("id")
+      .range(from, to)
+      .returns<{ course_ref: string | null }[]>(),
+  );
 
   const counts = new Map<string, number>();
-  for (const row of data ?? []) {
+  for (const row of data) {
     const name = row.course_ref || "Calendario";
     counts.set(name, (counts.get(name) ?? 0) + 1);
   }
@@ -196,15 +207,19 @@ export async function loadIcsSources(ctx: Ctx): Promise<{ name: string; count: n
 /* ------------------------------------------------------- notas y rutinas */
 
 export async function loadNotes(ctx: Ctx): Promise<Note[]> {
-  const { data } = await ctx.supabase
-    .from("notes")
-    .select(NOTE_COLS)
-    .eq("user_id", ctx.userId)
-    .is("deleted_at", null)
-    .order("pinned", { ascending: false })
-    .order("created_at", { ascending: false })
-    .returns<Note[]>();
-  return data ?? [];
+  const { data } = await fetchAll<Note>((from, to) =>
+    ctx.supabase
+      .from("notes")
+      .select(NOTE_COLS)
+      .eq("user_id", ctx.userId)
+      .is("deleted_at", null)
+      .order("pinned", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, to)
+      .returns<Note[]>(),
+  );
+  return data;
 }
 
 /** Las rutinas activas; con `paused`, las que están en pausa. */
@@ -222,16 +237,22 @@ export async function loadHabits(ctx: Ctx, opts: { paused?: boolean } = {}): Pro
 
 /** Marcas de rutinas por día: { "2026-09-15": Set<habitId> }. */
 export async function loadHabitLog(ctx: Ctx, from: string, to: string): Promise<Map<string, Set<string>>> {
-  const { data } = await ctx.supabase
-    .from("habit_log")
-    .select("habit_id, day")
-    .eq("user_id", ctx.userId)
-    .gte("day", from)
-    .lte("day", to)
-    .returns<{ habit_id: string; day: string }[]>();
+  // 120 días por rutina: con nueve rutinas diarias ya pasa de mil filas.
+  const { data } = await fetchAll<{ habit_id: string; day: string }>((a, b) =>
+    ctx.supabase
+      .from("habit_log")
+      .select("habit_id, day")
+      .eq("user_id", ctx.userId)
+      .gte("day", from)
+      .lte("day", to)
+      .order("day")
+      .order("habit_id")
+      .range(a, b)
+      .returns<{ habit_id: string; day: string }[]>(),
+  );
 
   const map = new Map<string, Set<string>>();
-  for (const row of data ?? []) {
+  for (const row of data) {
     const set = map.get(row.day) ?? new Set<string>();
     set.add(row.habit_id);
     map.set(row.day, set);

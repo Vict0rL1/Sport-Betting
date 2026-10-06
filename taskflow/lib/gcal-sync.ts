@@ -17,6 +17,7 @@ import {
 import { type ActivityEntry, logActivity } from "./activity";
 import { type ErrorCode, errorCodeOf, logEvent, safeMessage } from "./log";
 import { recordRun } from "./sync-state";
+import { fetchAll } from "./paginate";
 
 export type GcalSyncResult = {
   items: number;
@@ -30,23 +31,22 @@ export type GcalSyncResult = {
 
 const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno : varios}`;
 
-/** Lo que hay de Google en la ventana, para saber qué entró y qué sobra. De a mil, que es el tope de PostgREST. */
+/** Lo que hay de Google en la ventana, para saber qué entró y qué sobra. */
 async function existentes(ctx: Ctx, w: ReturnType<typeof gcalWindow>): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   for (const tipo of ["con hora", "día completo"] as const) {
-    for (let desde = 0; ; desde += 1000) {
+    const { data, error } = await fetchAll<{ id: string; external_id: string }>((from, to) => {
       const q = ctx.supabase.from("events").select("id, external_id").eq("user_id", ctx.userId).eq("source", "gcal");
-      const { data, error } = await (tipo === "con hora"
+      return (tipo === "con hora"
         ? q.gte("starts_at", w.timeMin).lt("starts_at", w.timeMax)
         : q.gte("all_day_date", w.fromDay).lte("all_day_date", w.toDay)
       )
         .order("id")
-        .range(desde, desde + 999)
+        .range(from, to)
         .returns<{ id: string; external_id: string }[]>();
-      if (error) throw new GcalError("GCAL_DB_FAILED", "No se pudieron leer los eventos guardados: " + error.message, true);
-      for (const r of data ?? []) out.set(r.external_id, r.id);
-      if ((data ?? []).length < 1000) break;
-    }
+    });
+    if (error) throw new GcalError("GCAL_DB_FAILED", "No se pudieron leer los eventos guardados: " + error.message, true);
+    for (const r of data) out.set(r.external_id, r.id);
   }
   return out;
 }

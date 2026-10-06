@@ -19,6 +19,7 @@ import { HABIT_WINDOW } from "@/lib/habits";
 import { TASK_KINDS } from "@/lib/types";
 import { elapsedSec } from "@/lib/timing";
 import { purgeNotes, purgeTasks } from "@/lib/trash";
+import { fetchAll } from "@/lib/paginate";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -1226,14 +1227,19 @@ export async function importIcs(_prev: ActionResult | null, fd: FormData): Promi
   if (error) return fail("No se pudieron guardar los eventos; lo que tenías sigue igual");
 
   const nuevos = new Set(rows.map((r) => r.external_id));
-  const { data: previos } = await ctx.supabase
-    .from("events")
-    .select("id, external_id")
-    .eq("user_id", ctx.userId)
-    .eq("source", "ics")
-    .eq("course_ref", source)
-    .returns<{ id: string; external_id: string }[]>();
-  const sobran = (previos ?? []).filter((e) => !nuevos.has(e.external_id)).map((e) => e.id);
+  // De a mil: con la lista corta, lo que no vino no se podaría nunca.
+  const { data: previos } = await fetchAll<{ id: string; external_id: string }>((from, to) =>
+    ctx.supabase
+      .from("events")
+      .select("id, external_id")
+      .eq("user_id", ctx.userId)
+      .eq("source", "ics")
+      .eq("course_ref", source)
+      .order("id")
+      .range(from, to)
+      .returns<{ id: string; external_id: string }[]>(),
+  );
+  const sobran = previos.filter((e) => !nuevos.has(e.external_id)).map((e) => e.id);
   // De a 100: una lista de ids muy larga no cabe en la URL de PostgREST.
   for (let i = 0; i < sobran.length; i += 100) {
     await ctx.supabase.from("events").delete().eq("user_id", ctx.userId).in("id", sobran.slice(i, i + 100));

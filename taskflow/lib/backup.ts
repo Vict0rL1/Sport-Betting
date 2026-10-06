@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import type { Ctx } from "./data";
+import { fetchAll } from "./paginate";
 
 /**
  * Respaldo: el JSON que baja "Descargar todo" y lo que vuelve a entrar con
@@ -199,15 +200,20 @@ const k = (...xs: unknown[]) => xs.map((x) => String(x ?? "")).join("|");
  * nombre (rutinas).
  */
 export async function planImport(ctx: Pick<Ctx, "supabase" | "userId">, b: ParsedBackup): Promise<Plan> {
+  // Todo, de a mil: si "lo que ya tienes" se queda corto, lo que falta no
+  // cuenta como duplicado y el respaldo lo vuelve a insertar.
+  const todo = <T>(tabla: string, cols: string) =>
+    fetchAll<T>((from, to) =>
+      ctx.supabase.from(tabla).select(cols).eq("user_id", ctx.userId).order(ORDEN[tabla] ?? "id").range(from, to).returns<T[]>(),
+    );
   const [t, n, h, hl, e, bl] = await Promise.all([
-    ctx.supabase.from("tasks").select("id, title, due_date, source, external_id").eq("user_id", ctx.userId)
-      .returns<{ id: string; title: string; due_date: string | null; source: string; external_id: string | null }[]>(),
-    ctx.supabase.from("notes").select("id, body").eq("user_id", ctx.userId).returns<{ id: string; body: string }[]>(),
-    ctx.supabase.from("habits").select("id, name").eq("user_id", ctx.userId).returns<{ id: string; name: string }[]>(),
-    ctx.supabase.from("habit_log").select("habit_id, day").eq("user_id", ctx.userId).returns<{ habit_id: string; day: string }[]>(),
-    ctx.supabase.from("events").select("source, external_id").eq("user_id", ctx.userId).returns<{ source: string; external_id: string }[]>(),
-    ctx.supabase.from("blocks").select("id, day, start_min, end_min, title").eq("user_id", ctx.userId)
-      .returns<{ id: string; day: string; start_min: number; end_min: number; title: string }[]>(),
+    todo<{ id: string; title: string; due_date: string | null; source: string; external_id: string | null }>(
+      "tasks", "id, title, due_date, source, external_id"),
+    todo<{ id: string; body: string }>("notes", "id, body"),
+    todo<{ id: string; name: string }>("habits", "id, name"),
+    todo<{ habit_id: string; day: string }>("habit_log", "habit_id, day"),
+    todo<{ source: string; external_id: string }>("events", "id, source, external_id"),
+    todo<{ id: string; day: string; start_min: number; end_min: number; title: string }>("blocks", "id, day, start_min, end_min, title"),
   ]);
   for (const r of [t, n, h, hl, e, bl]) {
     if (r.error) throw new BackupError("No se pudo leer lo que ya tienes: " + r.error.message);
@@ -359,6 +365,9 @@ export async function applyImport(ctx: Pick<Ctx, "supabase" | "userId">, plan: P
 
 const EXPORT_TABLES = ["tasks", "events", "notes", "habits", "habit_log", "blocks", "sync_state"] as const;
 
+/** Un orden único por tabla, para paginar sin saltar ni repetir filas. */
+const ORDEN: Record<string, string> = { habit_log: "habit_id,day", sync_state: "source" };
+
 /**
  * El respaldo completo, en el formato de siempre más `schemaVersion`. Las
  * lápidas de Canvas no van (son una marca interna), ni las columnas de
@@ -373,14 +382,17 @@ export async function buildExport(ctx: Pick<Ctx, "supabase" | "userId" | "profil
     perfil: ctx.profile,
   };
   for (const tabla of EXPORT_TABLES) {
-    let q = ctx.supabase
-      .from(tabla)
-      .select(tabla === "tasks" ? cols.tasks : tabla === "notes" ? cols.notes : "*")
-      .eq("user_id", ctx.userId);
-    if (tabla === "tasks") q = q.is("purged_at", null);
-    const { data, error } = await q;
+    // De a mil: un respaldo al que le faltan filas sin decirlo es peor que ninguno.
+    const { data, error } = await fetchAll((from, to) => {
+      let q = ctx.supabase
+        .from(tabla)
+        .select(tabla === "tasks" ? cols.tasks : tabla === "notes" ? cols.notes : "*")
+        .eq("user_id", ctx.userId);
+      if (tabla === "tasks") q = q.is("purged_at", null);
+      return q.order(ORDEN[tabla] ?? "id").range(from, to);
+    });
     if (error) throw new BackupError(`No se pudo leer ${tabla}: ${error.message}`);
-    out[tabla] = data ?? [];
+    out[tabla] = data;
   }
   return out;
 }

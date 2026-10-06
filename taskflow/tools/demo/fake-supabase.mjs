@@ -136,9 +136,13 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
  * Levanta un Postgres en memoria con el esquema de la app y devuelve el
  * manejador. `users` son las cuentas que existen desde el arranque.
  *
- * @param {{ serviceKey?: string | null, users?: { email: string, password: string }[] }} [opts]
+ * `maxRows` imita el `max-rows` de PostgREST, que en Supabase es 1000: una
+ * lectura nunca devuelve más filas que eso, aunque haya más, y no avisa. Sin
+ * este tope el harness escondía justo esa clase de bug.
+ *
+ * @param {{ serviceKey?: string | null, users?: { email: string, password: string }[], maxRows?: number }} [opts]
  */
-export async function createFakeSupabase({ serviceKey = null, users = [DEMO_USER] } = {}) {
+export async function createFakeSupabase({ serviceKey = null, users = [DEMO_USER], maxRows = 1000 } = {}) {
   const db = await PGlite.create({
     parsers: {
       1082: RAW, // date
@@ -290,10 +294,10 @@ export async function createFakeSupabase({ serviceKey = null, users = [DEMO_USER
               count = c.rows[0].n;
             }
             if (req.method === "HEAD") return { rows: [], count };
-            const limit = url.searchParams.get("limit");
+            const limit = Math.min(Number(url.searchParams.get("limit") ?? maxRows), maxRows);
             const offset = url.searchParams.get("offset");
             const sql = `select ${cols || "*"} from public."${table}"${where}${buildOrder(url.searchParams)}` +
-              (limit ? ` limit ${Number(limit)}` : "") +
+              ` limit ${limit}` +
               (offset ? ` offset ${Number(offset)}` : "");
             const r = await tx.query(sql, args);
             return { rows: r.rows, count };
