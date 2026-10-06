@@ -35,7 +35,18 @@ interface Fila {
 
 export interface Grupo {
   nombre: string;
+  /**
+   * Métricas del grupo. Si mezcla deportes de 2 y 3 resultados, el log loss y el Brier
+   * dependen de la mezcla: para comparar grupos se usa `ganancia` (o el desglose por deporte).
+   */
   informe: Informe;
+  /**
+   * Ganancia media sobre «no saber nada», en nats: ln K + ln p(lo que pasó). Comparable entre
+   * deportes con distinto número de resultados; más alta es mejor; 0 = no aporta nada.
+   */
+  ganancia: number | null;
+  /** Deportes del grupo y cuántos partidos de cada uno: para ver si la mezcla cambia. */
+  mezcla: Record<string, number>;
   aviso: AvisoMuestra;
   /** Una unidad a la selección de la evaluación, a su cuota, si tenía ventaja. */
   roiHipotetico: { apuestas: number; roi: number | null; aviso: AvisoMuestra } | null;
@@ -45,7 +56,9 @@ export interface CalidadSeleccion {
   origen: 'live';
   partidos: number;
   grupos: Grupo[];
-  cobertura: { cobertura: number; n: number; informe: Informe; aviso: AvisoMuestra }[];
+  cobertura: { cobertura: number; n: number; informe: Informe; ganancia: number | null; aviso: AvisoMuestra }[];
+  /** Los mismos grupos, deporte a deporte: aquí el log loss sí es comparable. */
+  porDeporte: Record<string, Grupo[]>;
   clv: { apostadas: { n: number; media: number | null }; abstenidas: { n: number; media: number | null } };
   lectura: string;
 }
@@ -97,6 +110,15 @@ const informe = (xs: Fila[]) => {
   return evaluate('live', 'todos', valid.map((x) => ({ p: x.probs, y: x.y })));
 };
 
+const ganancia = (xs: Fila[]) =>
+  xs.length ? xs.reduce((a, x) => a + Math.log(x.probs.length) + Math.log(Math.max(x.probs[x.y], 1e-15)), 0) / xs.length : null;
+
+const mezcla = (xs: Fila[]) => {
+  const m: Record<string, number> = {};
+  for (const x of xs) m[x.sport] = (m[x.sport] ?? 0) + 1;
+  return m;
+};
+
 function roi(xs: Fila[]): Grupo['roiHipotetico'] {
   const ap = xs.filter((x) => x.selection != null && x.odds != null && (x.edge ?? 0) > 0);
   if (!ap.length) return null;
@@ -109,6 +131,8 @@ export function calidadSeleccion(): CalidadSeleccion {
   const grupo = (nombre: string, ys: Fila[], conRoi: boolean): Grupo => ({
     nombre,
     informe: informe(ys),
+    ganancia: ganancia(ys),
+    mezcla: mezcla(ys),
     aviso: avisoMuestra(ys.length, 'predicciones'),
     roiHipotetico: conRoi ? roi(ys) : null,
   });
@@ -118,19 +142,26 @@ export function calidadSeleccion(): CalidadSeleccion {
   );
   const cobertura = [1, 0.75, 0.5, 0.25].map((c) => {
     const s = orden.slice(0, Math.round(orden.length * c));
-    return { cobertura: c, n: s.length, informe: informe(s), aviso: avisoMuestra(s.length, 'predicciones') };
+    return { cobertura: c, n: s.length, informe: informe(s), ganancia: ganancia(s), aviso: avisoMuestra(s.length, 'predicciones') };
   });
   const clvDe = (where: string) => {
     const r = getDb().prepare(`SELECT COUNT(*) AS n, AVG(clv) AS m FROM edge_signals WHERE clv IS NOT NULL AND edge > 0 AND ${where}`).get() as { n: number; m: number | null };
     return { n: r.n, media: r.m };
   };
-  const apostadas = xs.filter((x) => x.decision === 'BET');
-  const abstenidas = xs.filter((x) => x.decision === 'NO BET');
+  const grupos = (ys: Fila[]) => [
+    grupo('Todas las predicciones', ys, false),
+    grupo('Apostables (BET)', ys.filter((x) => x.decision === 'BET'), true),
+    grupo('Abstenidas (NO BET)', ys.filter((x) => x.decision === 'NO BET'), true),
+    grupo('Sin mercado', ys.filter((x) => x.decision === 'SIN MERCADO'), false),
+  ];
+  const porDeporte: Record<string, Grupo[]> = {};
+  for (const d of new Set(xs.map((x) => x.sport))) porDeporte[d] = grupos(xs.filter((x) => x.sport === d));
   return {
     origen: 'live',
     partidos: xs.length,
-    grupos: [grupo('Todas las predicciones', xs, false), grupo('Apostables (BET)', apostadas, true), grupo('Abstenidas (NO BET)', abstenidas, true), grupo('Sin mercado', xs.filter((x) => x.decision === 'SIN MERCADO'), false)],
+    grupos: grupos(xs),
     cobertura,
+    porDeporte,
     clv: { apostadas: clvDe("decision = 'apostada'"), abstenidas: clvDe("reason LIKE 'abstención:%'") },
     lectura:
       xs.length === 0

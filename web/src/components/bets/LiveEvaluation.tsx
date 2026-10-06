@@ -48,13 +48,16 @@ interface Tramo {
 interface GrupoSeleccion {
   nombre: string;
   informe: { n: number; logLoss: number | null; brier: number | null; ece: number | null; accuracy: number | null };
+  ganancia?: number | null;
+  mezcla?: Record<string, number>;
   aviso: { nivel: string; texto: string | null };
   roiHipotetico: { apuestas: number; roi: number | null; aviso: { nivel: string; texto: string | null } } | null;
 }
 interface CalidadSeleccion {
   partidos: number;
   grupos: GrupoSeleccion[];
-  cobertura: { cobertura: number; n: number; informe: { logLoss: number | null; brier: number | null }; aviso: { texto: string | null } }[];
+  cobertura: { cobertura: number; n: number; informe: { logLoss: number | null; brier: number | null }; ganancia?: number | null; aviso: { texto: string | null } }[];
+  porDeporte?: Record<string, GrupoSeleccion[]>;
   clv: { apostadas: { n: number; media: number | null }; abstenidas: { n: number; media: number | null } };
   lectura: string;
 }
@@ -299,7 +302,8 @@ export default function LiveEvaluation() {
               <ul className="mt-1 space-y-1 text-[#9aa1ac]">
                 {sel.grupos.filter((g) => g.informe.n > 0).map((g) => (
                   <li key={g.nombre}>
-                    <span className="text-[#c3c9d1]">{g.nombre}</span>: {g.informe.n} partidos · log loss {f3(g.informe.logLoss)} · Brier {f3(g.informe.brier)} · calibración ±{pct(g.informe.ece)}
+                    <span className="text-[#c3c9d1]">{g.nombre}</span>: {g.informe.n} partidos · ganancia sobre no saber nada {f3(g.ganancia ?? null)} nats
+                    {g.mezcla && Object.keys(g.mezcla).length > 1 && ` (${Object.entries(g.mezcla).map(([d, n]) => `${NOMBRE[d] ?? d} ${n}`).join(', ')})`}
                     {g.roiHipotetico && ` · ROI hipotético ${signo(g.roiHipotetico.roi)} (${g.roiHipotetico.apuestas})`}
                     {g.aviso.texto && <span className="block text-[12px]" style={{ color: '#d9a441' }}>{g.aviso.texto}</span>}
                   </li>
@@ -307,7 +311,20 @@ export default function LiveEvaluation() {
               </ul>
               <p className="mt-2 text-[#9aa1ac]">
                 Cobertura contra rendimiento (de más a menos confianza):{' '}
-                {sel.cobertura.map((c) => `${Math.round(c.cobertura * 100)} %: log loss ${f3(c.informe.logLoss)} (${c.n})`).join(' · ')}
+                {sel.cobertura.map((c) => `${Math.round(c.cobertura * 100)} %: ganancia ${f3(c.ganancia ?? null)} (${c.n})`).join(' · ')}
+              </p>
+              {sel.porDeporte &&
+                Object.entries(sel.porDeporte).map(([d, gs]) => (
+                  <p key={d} className="text-[#9aa1ac]">
+                    {NOMBRE[d] ?? d}:{' '}
+                    {gs
+                      .filter((g) => g.informe.n > 0)
+                      .map((g) => `${g.nombre.split(' (')[0].toLowerCase()} ${g.informe.n} · log loss ${f3(g.informe.logLoss)} · Brier ${f3(g.informe.brier)}`)
+                      .join(' | ')}
+                  </p>
+                ))}
+              <p className="text-[12px] text-[#5c636c]">
+                La ganancia (ln K + ln p del resultado) se puede comparar entre deportes con 2 y 3 resultados; el log loss, solo dentro de cada deporte.
               </p>
               <p className="text-[#9aa1ac]">
                 CLV de las señales con ventaja: apostadas {signo(sel.clv.apostadas.media)} ({sel.clv.apostadas.n}) · abstenidas {signo(sel.clv.abstenidas.media)} ({sel.clv.abstenidas.n})
