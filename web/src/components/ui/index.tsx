@@ -17,6 +17,7 @@ import {
 } from '../../lib/countries';
 import { relativeTime, shortTime } from '../../lib/format';
 import type { SlateRow } from '../../lib/slate';
+import { CheckIcon, CrossIcon, StatusMark } from '../icons';
 
 // ---------------------------------------------------------------------------
 // Surfaces
@@ -841,7 +842,10 @@ export function ResultBanner({
             className="text-[13px] font-medium"
             style={{ color: modelCalledIt ? PROFIT_COLOR : LOSS_COLOR }}
           >
-            {modelCalledIt ? '✓ el modelo acertó' : '✕ el modelo falló'}
+            <span className="inline-flex items-center gap-1">
+              {modelCalledIt ? <CheckIcon size={14} strokeWidth={2.4} /> : <CrossIcon size={14} strokeWidth={2.4} />}
+              {modelCalledIt ? 'el modelo acertó' : 'el modelo falló'}
+            </span>
           </span>
         )}
       </div>
@@ -1021,7 +1025,7 @@ export function StaleHistoryWarning({
   return (
     <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] p-4 text-[15px] leading-relaxed text-amber-100/90">
       <p className="font-semibold text-amber-100">
-        ⚠️ El historial termina en {when} — hace {gap}
+        <StatusMark estado="aviso" color="#fcd34d" size={16} />El historial termina en {when} — hace {gap}
       </p>
       <p className="mt-1">
         {what} no reflejan a los equipos actuales, así que estas predicciones son poco fiables.
@@ -1086,7 +1090,7 @@ function CaveatNote({ text }: { text: string }) {
   return (
     <div className="px-4 py-3">
       <p className="text-[13px] leading-relaxed text-amber-200/80">
-        <span aria-hidden>⚠️ </span>
+        <StatusMark estado="aviso" color="#fcd34d" />
         {primera}
       </p>
       {resto && (
@@ -1409,7 +1413,7 @@ export function DashboardHeader({
             className="shrink-0 rounded-full bg-amber-500/[0.12] px-2.5 py-1 text-[13px] font-medium text-amber-200/90"
             title="Los ratings no describen a los equipos actuales. Abre los detalles para ver cómo arreglarlo."
           >
-            ⚠️ {alert}
+            <StatusMark estado="aviso" color="#fcd34d" size={13} />{alert}
           </span>
         )}
         <button

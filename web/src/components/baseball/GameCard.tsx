@@ -33,6 +33,7 @@ import {
 import RunMatrix from './RunMatrix';
 import { realMarket } from '../../lib/picks';
 import EventTrustPanel from '../trust/EventTrustPanel';
+import { StadiumIcon } from '../icons';
 
 export default function GameCard({
   item,
@@ -223,7 +224,7 @@ export default function GameCard({
                   reader to skip the row. Coors reads +1.9; most parks say nothing. */}
               {prediction.park && Math.abs(prediction.park.factor - 1) >= 0.02 && (
                 <p className="mt-2 text-[14px] leading-snug text-[#9aa1ac]">
-                  <span aria-hidden className="mr-1">🏟️</span>
+                  <span aria-hidden className="mr-1.5 inline-flex align-[-3px] text-[#9aa1ac]"><StadiumIcon size={16} /></span>
                   <strong className="font-semibold text-[#c3c9d1]">{prediction.park.name}</strong>{' '}
                   {prediction.park.runsVsNeutral > 0 ? 'sube' : 'baja'} el total{' '}
                   <strong className="font-semibold tabular-nums text-[#c3c9d1]">

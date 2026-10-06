@@ -147,22 +147,22 @@ export interface SportTheme {
    * stays and the row scrolls instead of inventing an abbreviation nobody uses.
    */
   shortLabel?: string;
-  emoji: string;
   /** Tab underline, active league pill, focus ring. Never a bar or a cell. */
   accent: string;
   accentSoft: string;
 }
 
 export const SPORT_THEMES: Record<SportId, SportTheme> = {
-  football: { id: 'football', label: 'Fútbol', emoji: '⚽', accent: '#4ade80', accentSoft: 'rgba(74,222,128,0.12)' },
-  basketball: { id: 'basketball', label: 'Baloncesto', shortLabel: 'Basket', emoji: '🏀', accent: '#fb923c', accentSoft: 'rgba(251,146,60,0.12)' },
-  baseball: { id: 'baseball', label: 'Béisbol', emoji: '⚾', accent: '#facc15', accentSoft: 'rgba(250,204,21,0.12)' },
-  nfl: { id: 'nfl', label: 'NFL', emoji: '🏈', accent: '#f472b6', accentSoft: 'rgba(244,114,182,0.12)' },
-  tennis: { id: 'tennis', label: 'Tenis', emoji: '🎾', accent: '#a78bfa', accentSoft: 'rgba(167,139,250,0.12)' },
+  football: { id: 'football', label: 'Fútbol', accent: '#4ade80', accentSoft: 'rgba(74,222,128,0.12)' },
+  basketball: { id: 'basketball', label: 'Baloncesto', shortLabel: 'Basket', accent: '#fb923c', accentSoft: 'rgba(251,146,60,0.12)' },
+  baseball: { id: 'baseball', label: 'Béisbol', accent: '#facc15', accentSoft: 'rgba(250,204,21,0.12)' },
+  nfl: { id: 'nfl', label: 'NFL', accent: '#f472b6', accentSoft: 'rgba(244,114,182,0.12)' },
+  tennis: { id: 'tennis', label: 'Tenis', accent: '#a78bfa', accentSoft: 'rgba(167,139,250,0.12)' },
   // Slate, deliberately the quietest accent of the six: this tab is about the
   // reader's own money, and the five saturated hues belong to the sports.
-  bets: { id: 'bets', label: 'Apuestas', emoji: '🎟️', accent: '#94a3b8', accentSoft: 'rgba(148,163,184,0.14)' },
-  trust: { id: 'trust', label: 'Confianza', emoji: '📊', accent: '#a78bfa', accentSoft: 'rgba(167,139,250,0.14)' },
+  bets: { id: 'bets', label: 'Apuestas', accent: '#94a3b8', accentSoft: 'rgba(148,163,184,0.14)' },
+  // Cian y no el violeta del tenis: dos pestañas con el mismo acento se confundían.
+  trust: { id: 'trust', label: 'Confianza', accent: '#38bdf8', accentSoft: 'rgba(56,189,248,0.12)' },
 };
 
 // ---------------------------------------------------------------------------

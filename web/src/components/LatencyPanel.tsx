@@ -33,6 +33,7 @@ import {
   type StageReport,
 } from '../lib/liveOdds';
 import { Panel, SectionTitle, Disclosure } from './ui';
+import { AlertIcon, CheckIcon } from './icons';
 
 function fmt(ms: number): string {
   if (ms >= 60_000) return `${(ms / 60_000).toFixed(1)} min`;
@@ -60,7 +61,7 @@ function StageRow({ s }: { s: StageReport }) {
         <>
           <span className={s.overBudget ? 'text-amber-300' : 'text-[#e8eaed]'}>
             p95 {fmt(s.p95)}
-            {s.overBudget && <span aria-hidden> ⚠</span>}
+            {s.overBudget && <span aria-hidden className="ml-1 inline-flex align-[-2px]"><AlertIcon size={13} /></span>}
           </span>
           <span className="text-[#5c636c]">
             de {fmt(s.budgetMs)} · {s.owner}
@@ -116,7 +117,7 @@ export default function LatencyPanel() {
   const { alert, total, target, transport, schedule } = report;
   // Un ✓ sobre una medición incompleta es peor que no decir nada: parece que se cumple
   // el objetivo cuando lo que pasa es que no se ha medido.
-  const mark = !total.complete ? '·' : alert.breached ? '⚠' : '✓';
+  const mark = !total.complete ? '·' : alert.breached ? <AlertIcon size={15} /> : <CheckIcon size={15} strokeWidth={2.4} />;
   const markTone = !total.complete
     ? 'text-[#7b828d]'
     : alert.breached
@@ -140,7 +141,7 @@ export default function LatencyPanel() {
       </SectionTitle>
 
       <p className={`text-[14px] leading-relaxed ${markTone}`}>
-        <span aria-hidden className="mr-1.5">{mark}</span>
+        <span aria-hidden className="mr-1.5 inline-flex align-[-2px]">{mark}</span>
         {alert.message}
       </p>
 

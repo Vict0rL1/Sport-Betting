@@ -14,7 +14,7 @@
 // que cambia de deporte, y una cabecera que no se puede quitar acaba siendo un peaje.
 
 import { useEffect, useState } from 'react';
-import RecentResults, { EMOJI, lineaResumen, useHistorial } from './RecentResults';
+import RecentResults, { DeporteIcono, lineaResumen, useHistorial } from './RecentResults';
 
 interface Partido {
   deporte: string;
@@ -162,7 +162,7 @@ export default function TodayPanel() {
                         <td className="whitespace-nowrap py-2 pl-4 pr-2 text-[#9aa1ac]">
                           {new Date(p.cuando).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
                         </td>
-                        <td className="py-2 pr-2"><span title={p.deporte}>{EMOJI[p.deporte] ?? '•'}</span></td>
+                        <td className="py-2 pr-2"><span title={p.deporte} className="inline-flex"><DeporteIcono nombre={p.deporte} size={24} tile /></span></td>
                         <td className="py-2 pr-3 text-[#c3c9d1]">{p.partido}</td>
                         <td className="whitespace-nowrap py-2 pr-4 text-right">
                           {p.favorito && p.probabilidad != null ? (

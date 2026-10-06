@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { nflApi, type NflTeamInfo } from '../../lib/nfl';
 import { AWAY_COLOR, HOME_COLOR, NEUTRAL_COLOR, pct } from '../../lib/theme';
 import { FormDots, TeamCrest } from '../ui';
+import { CrossIcon } from '../icons';
 
 /** Full dossier for one team, opened from any game card or the power ranking. */
 export default function TeamProfile({
@@ -54,8 +55,8 @@ export default function TeamProfile({
             )}
             </div>
           </div>
-          <button onClick={onClose} className="text-[#9aa1ac] hover:text-[#d5d9df]">
-            ✕
+          <button onClick={onClose} aria-label="Cerrar" className="grid h-8 w-8 place-items-center rounded-lg text-[#9aa1ac] transition hover:bg-white/[0.06] hover:text-[#e8eaed]">
+            <CrossIcon size={18} />
           </button>
         </div>
 

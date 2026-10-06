@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
+import { AlertIcon, DeporteIcono } from '../icons';
 
 interface Informe {
   origen: 'live';
@@ -80,7 +81,14 @@ const COLOR_VEREDICTO: Record<Prueba['veredicto'], string> = {
   'muestra insuficiente': '#7b828d',
 };
 
-const NOMBRE: Record<string, string> = { tennis: '🎾 Tenis', football: '⚽ Fútbol', basketball: '🏀 Baloncesto', baseball: '⚾ Béisbol', nfl: '🏈 NFL' };
+const NOMBRE: Record<string, string> = { tennis: 'Tenis', football: 'Fútbol', basketball: 'Baloncesto', baseball: 'Béisbol', nfl: 'NFL' };
+/** El deporte con su icono, para celdas y títulos (NOMBRE se queda para el texto corrido). */
+const Dep = ({ id }: { id: string }) => (
+  <span className="inline-flex items-center gap-1.5">
+    <DeporteIcono nombre={id} size={15} />
+    {NOMBRE[id] ?? id}
+  </span>
+);
 const f3 = (x: number | null | undefined) => (x == null ? '—' : x.toFixed(3).replace('.', ','));
 const pct = (x: number | null | undefined) => (x == null ? '—' : `${(x * 100).toFixed(1).replace('.', ',')} %`);
 const signo = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '+' : '−'}${Math.abs(x * 100).toFixed(1).replace('.', ',')} %`);
@@ -146,10 +154,10 @@ export default function LiveEvaluation() {
                 const mejor = x.mercado ? x.mercado.modeloLogLoss < x.mercado.logLoss : null;
                 return (
                   <tr key={x.deporte} className="border-t border-white/[0.05]">
-                    <td className="px-4 py-2.5 text-[#c3c9d1]">{NOMBRE[x.deporte] ?? x.deporte}</td>
+                    <td className="px-4 py-2.5 text-[#c3c9d1]"><Dep id={x.deporte} /></td>
                     <td className="px-4 py-2.5 text-right text-[#9aa1ac]" title={x.aviso?.texto ?? undefined}>
                       {x.n}
-                      {x.aviso?.nivel === 'insuficiente' && <span style={{ color: '#d9a441' }}> ⚠</span>}
+                      {x.aviso?.nivel === 'insuficiente' && <span className="ml-1 inline-flex align-[-2px]" style={{ color: '#d9a441' }} title="muestra insuficiente"><AlertIcon size={14} /></span>}
                     </td>
                     <td className="px-4 py-2.5 text-right font-semibold text-[#e8eaed]">{f3(x.logLoss)}</td>
                     <td className="px-4 py-2.5 text-right text-[#9aa1ac]">
@@ -183,7 +191,7 @@ export default function LiveEvaluation() {
                 .filter((x) => (x.porVersion?.length ?? 0) > 1)
                 .map((x) => (
                   <p key={x.deporte}>
-                    {NOMBRE[x.deporte] ?? x.deporte}:{' '}
+                    <Dep id={x.deporte} />:{' '}
                     {x.porVersion!.map((v, i) => (
                       <span key={v.version ?? 'sin'}>
                         {i > 0 && ' · '}
@@ -254,7 +262,7 @@ export default function LiveEvaluation() {
                           <td className="py-1.5 pr-2 sm:pr-3 text-[#c3c9d1]">{t.etiqueta}</td>
                           <td className="py-1.5 pr-2 sm:pr-3 text-right text-[#9aa1ac]" title={t.aviso?.texto ?? undefined}>
                             {t.n}
-                            {t.aviso?.nivel === 'insuficiente' && <span style={{ color: '#d9a441' }}> ⚠</span>}
+                            {t.aviso?.nivel === 'insuficiente' && <span className="ml-1 inline-flex align-[-2px]" style={{ color: '#d9a441' }} title="muestra insuficiente"><AlertIcon size={14} /></span>}
                           </td>
                           <td className="py-1.5 pr-2 sm:pr-3 text-right" style={{ color: (t.roi ?? 0) >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
                             {signo(t.roi)}
@@ -316,7 +324,7 @@ export default function LiveEvaluation() {
               {sel.porDeporte &&
                 Object.entries(sel.porDeporte).map(([d, gs]) => (
                   <p key={d} className="text-[#9aa1ac]">
-                    {NOMBRE[d] ?? d}:{' '}
+                    <Dep id={d} />:{' '}
                     {gs
                       .filter((g) => g.informe.n > 0)
                       .map((g) => `${g.nombre.split(' (')[0].toLowerCase()} ${g.informe.n} · log loss ${f3(g.informe.logLoss)} · Brier ${f3(g.informe.brier)}`)

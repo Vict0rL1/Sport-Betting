@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { BREAK_EVEN_COLOR, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
+import { StatusMark } from '../icons';
 
 interface Apuesta {
   /** Grupos de correlación (server/src/staking/risk.ts), en JSON: el primero es el evento. */
@@ -146,7 +147,7 @@ export default function PaperBankroll() {
             no una prueba: el veredicto con intervalo está en «¿Es real?». */}
         {r.roi !== null && r.liquidadas < 300 && (
           <span className="block" style={{ color: '#d9a441' }}>
-            ⚠ {r.liquidadas} apuestas liquidadas:{' '}
+            <StatusMark estado="aviso" color="#d9a441" />{r.liquidadas} apuestas liquidadas:{' '}
             {r.liquidadas < 30 ? 'muestra demasiado pequeña para sacar conclusiones del ROI.' : 'el ROI es orientativo; el azar todavía lo mueve mucho.'}
           </span>
         )}

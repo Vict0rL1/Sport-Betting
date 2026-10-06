@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fbApi, type FbAvailability, type FbSquad, type FbSquadPlayer } from '../../lib/football';
+import { BanIcon } from '../icons';
 
 /**
  * Who is playing — the one input the user has and the model does not.
@@ -148,7 +149,7 @@ function PlayerRow({
         <span className={`min-w-0 flex-1 truncate ${isOut ? 'line-through' : ''}`}>
           {player.name}
         </span>
-        {player.flaggedOut && <span title={player.flagReason ?? 'baja'}>⛔</span>}
+        {player.flaggedOut && <span title={player.flagReason ?? 'baja'} className="inline-flex text-rose-400" aria-label="baja"><BanIcon size={14} strokeWidth={2.2} /></span>}
         {player.regular && player.attackShare > 0.005 && (
           <span
             className="shrink-0 tabular-nums text-[#7b828d]"

@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
+import { DeporteIcono, ShieldCheckIcon, StatusMark } from '../icons';
 
 interface Sistema {
   prediccionesEnVivo: number;
@@ -34,7 +35,11 @@ interface Riesgo {
   nota: string;
 }
 
-const NOMBRE: Record<string, string> = { tennis: '🎾 Tenis', football: '⚽ Fútbol', basketball: '🏀 NBA', baseball: '⚾ MLB', nfl: '🏈 NFL' };
+const NOMBRE_TXT: Record<string, string> = { tennis: 'Tenis', football: 'Fútbol', basketball: 'NBA', baseball: 'MLB', nfl: 'NFL' };
+/** El deporte con su icono. */
+const NOMBRE: Record<string, React.ReactNode> = Object.fromEntries(
+  Object.entries(NOMBRE_TXT).map(([k, v]) => [k, <span key={k} className="inline-flex items-center gap-1.5"><DeporteIcono nombre={k} size={15} />{v}</span>]),
+);
 const f3 = (x: number | null | undefined) => (x == null ? '—' : x.toFixed(3).replace('.', ','));
 const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '' : '−'}${Math.abs(x * 100).toFixed(1).replace('.', ',')} %`);
 const AMBAR = '#d9a441';
@@ -73,7 +78,7 @@ function Reproducir() {
           {r.campos.map(([k, v]) => (
             <p key={k}><span className="text-[#c3c9d1]">{k}:</span> {v}</p>
           ))}
-          {r.avisos.map((a) => <p key={a} style={{ color: AMBAR }}>⚠ {a}</p>)}
+          {r.avisos.map((a) => <p key={a} style={{ color: AMBAR }}><StatusMark estado="aviso" color={AMBAR} />{a}</p>)}
         </div>
       )}
       <p className="mt-1 text-[12px] text-[#5c636c]">Devuelve lo que se guardó en su momento; no recalcula nada con los datos de hoy. También en terminal: npm run reproduce -- &lt;id&gt;.</p>
@@ -114,7 +119,7 @@ function ModelosSombra() {
         d.sombras.map((x) => (
           <p key={x.sport + x.nombre}>
             {NOMBRE[x.sport]} · {x.nombre}: N {x.n} · log loss sombra {f3(x.sombra.logLoss)} contra campeón {f3(x.campeon.logLoss)} · {x.diferencia.veredicto}
-            {x.aviso.texto && <span style={{ color: AMBAR }}> · ⚠ muestra pequeña</span>}
+            {x.aviso.texto && <span style={{ color: AMBAR }}> · <StatusMark estado="aviso" color={AMBAR} size={13} />muestra pequeña</span>}
           </p>
         ))
       )}
@@ -210,7 +215,12 @@ export default function SystemTrust() {
   ];
   return (
     <div>
-      <h2 className="mb-1 text-[20px] font-semibold text-[#e8eaed]">📊 ¿Podemos confiar en el modelo?</h2>
+      <h2 className="mb-1 flex items-center gap-2.5 text-[20px] font-semibold text-[#e8eaed]">
+          <span className="grid h-9 w-9 place-items-center rounded-xl" style={{ color: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.12)' }}>
+            <ShieldCheckIcon size={21} />
+          </span>
+          ¿Podemos confiar en el modelo?
+        </h2>
       <p className="mb-4 text-[13px] text-[#7b828d]">
         Lo que está demostrado, lo que todavía no, y las cifras detrás. Las listas se generan con reglas sobre las muestras reales: cambian solas cuando hay más datos.
       </p>
@@ -223,10 +233,10 @@ export default function SystemTrust() {
         ))}
       </div>
       <Bloque titulo="Lo que sabemos">
-        <ul className="space-y-1">{s.sabemos.map((x) => <li key={x}><span style={{ color: PROFIT_COLOR }}>✓</span> {x}</li>)}</ul>
+        <ul className="space-y-1">{s.sabemos.map((x) => <li key={x}><StatusMark estado="ok" color={PROFIT_COLOR} />{x}</li>)}</ul>
       </Bloque>
       <Bloque titulo="Lo que todavía no podemos concluir">
-        <ul className="space-y-1">{s.noSabemos.map((x) => <li key={x}><span style={{ color: AMBAR }}>⚠</span> {x}</li>)}</ul>
+        <ul className="space-y-1">{s.noSabemos.map((x) => <li key={x}><StatusMark estado="aviso" color={AMBAR} />{x}</li>)}</ul>
       </Bloque>
       <Bloque titulo="Histórico (walk-forward): modelo, mejor baseline y mercado">
         <div className="overflow-x-auto">
@@ -257,13 +267,13 @@ export default function SystemTrust() {
         {s.brier.map((b) => (
           <p key={b.deporte}>
             {NOMBRE[b.deporte]}: {b.n} partidos · Brier {f3(b.brier)} · calibración ±{pct(b.ece)}
-            {b.n < 100 && <span style={{ color: AMBAR }}> · ⚠ muestra pequeña</span>}
+            {b.n < 100 && <span style={{ color: AMBAR }}> · <StatusMark estado="aviso" color={AMBAR} size={13} />muestra pequeña</span>}
           </p>
         ))}
       </Bloque>
       {riesgo && (
         <Bloque titulo="Riesgo abierto">
-          <p>Total: {pct(riesgo.total.pct)} del banco (tope {pct(riesgo.total.limite)}){riesgo.porDeporte.length ? ` · ${riesgo.porDeporte.map((d) => `${NOMBRE[d.deporte] ?? d.deporte} ${pct(d.pct)}`).join(' · ')}` : ''}</p>
+          <p>Total: {pct(riesgo.total.pct)} del banco (tope {pct(riesgo.total.limite)}){riesgo.porDeporte.length ? ` · ${riesgo.porDeporte.map((d) => `${NOMBRE_TXT[d.deporte] ?? d.deporte} ${pct(d.pct)}`).join(' · ')}` : ''}</p>
           {riesgo.grupos.map((g) => (
             <p key={g.grupo} style={{ color: g.excede ? LOSS_COLOR : undefined }}>{g.grupo}: {g.apuestas} apuestas, {pct(g.pct)} (tope {pct(g.limite)})</p>
           ))}

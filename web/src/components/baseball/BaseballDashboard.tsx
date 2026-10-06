@@ -18,6 +18,7 @@ import {
 import GameCard from './GameCard';
 import EloRanking from '../EloRanking';
 import { formatDate, formatDateTime, dayChipLabel, groupByDay } from '../../lib/format';
+import { CrossIcon } from '../icons';
 
 /**
  * The whole baseball tab. Holds its own state and talks only to /api/baseball/*,
@@ -432,7 +433,7 @@ function TeamProfile({ league, id, onClose }: { league: string; id: string; onCl
       >
         <div className="mb-3 flex items-start justify-between">
           <h3 className="text-[20px] font-semibold text-[#e8eaed]">{info?.name ?? 'Cargando…'}</h3>
-          <button onClick={onClose} className="text-[#9aa1ac] hover:text-[#d5d9df]">✕</button>
+          <button onClick={onClose} aria-label="Cerrar" className="grid h-8 w-8 place-items-center rounded-lg text-[#9aa1ac] transition hover:bg-white/[0.06] hover:text-[#e8eaed]"><CrossIcon size={18} /></button>
         </div>
         {!info ? (
           <p className="text-[16px] text-[#7b828d]">Cargando ficha…</p>

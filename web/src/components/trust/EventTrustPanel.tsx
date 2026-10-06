@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
+import { StatusMark } from '../icons';
 import type { EvaluacionConfianza, PrePartido, PrePartidoRef } from '../../lib/trust';
 
 const pct = (p: number) => `${(p * 100).toFixed(1).replace('.', ',')} %`;
@@ -45,7 +46,6 @@ function Fila({ titulo, valor, children }: { titulo: string; valor: React.ReactN
   );
 }
 
-const ICONO = { ok: '✓', aviso: '⚠', desconocido: '?' } as const;
 const COLOR_ICONO = { ok: PROFIT_COLOR, aviso: AMBAR, desconocido: GRIS } as const;
 
 function HistorialPrePartido({ refP }: { refP: PrePartidoRef }) {
@@ -163,14 +163,14 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
           <div className="mt-2">
             <Fila titulo="Confianza" valor={<Etiqueta texto={c.confianza.nivel} />}>
               {c.confianza.porQue.map((s) => (
-                <p key={s.texto}><span style={{ color: s.ok ? PROFIT_COLOR : AMBAR }}>{s.ok ? '✓' : '⚠'}</span> {s.texto}</p>
+                <p key={s.texto}><StatusMark estado={s.ok ? 'ok' : 'aviso'} color={s.ok ? PROFIT_COLOR : AMBAR} />{s.texto}</p>
               ))}
               <p className="text-[#5c636c]">{c.confianza.criterio}</p>
             </Fila>
             <Fila titulo="Calidad de datos" valor={`${c.calidadDatos.puntuacion} / 100`}>
               {c.calidadDatos.items.map((i) => (
                 <p key={i.texto}>
-                  <span style={{ color: COLOR_ICONO[i.estado] }}>{ICONO[i.estado]}</span> {i.texto}
+                  <StatusMark estado={i.estado} color={COLOR_ICONO[i.estado]} />{i.texto}
                   {i.estado === 'desconocido' ? <span className="text-[#5c636c]"> (DESCONOCIDO)</span> : <span className="text-[#5c636c]"> ({i.puntos}/{i.max})</span>}
                 </p>
               ))}
@@ -212,11 +212,11 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
               })}
               {c.mercado.lineas.length > 0 && <p className="text-[#5c636c]">La mejor cuota es una cota superior: no siempre se puede apostar en todas las casas.</p>}
               {c.mercado.ultimaActualizacionMin != null && <p>Última observación: hace {c.mercado.ultimaActualizacionMin} min · {c.mercado.observaciones24h} descargas en 24 h</p>}
-              {c.mercado.motivos.map((m) => <p key={m}>⚠ {m}</p>)}
+              {c.mercado.motivos.map((m) => <p key={m}><StatusMark estado="aviso" color={AMBAR} />{m}</p>)}
               <p className="text-[#5c636c]">{c.mercado.etiqueta}.</p>
             </Fila>
             <Fila titulo="Fuera de distribución" valor={c.ood.length ? `${c.ood.length} aviso(s)` : 'no'}>
-              {c.ood.length ? c.ood.map((o) => <p key={o.texto}>⚠ {o.texto}{o.grave ? ' (grave)' : ''}</p>) : <p>Nada fuera de lo que el modelo ha visto.</p>}
+              {c.ood.length ? c.ood.map((o) => <p key={o.texto}><StatusMark estado={o.grave ? 'error' : 'aviso'} color={o.grave ? LOSS_COLOR : AMBAR} />{o.texto}{o.grave ? ' (grave)' : ''}</p>) : <p>Nada fuera de lo que el modelo ha visto.</p>}
             </Fila>
             <Fila titulo="Régimen" valor={c.regimen.etiqueta}>
               {c.regimen.nota && <p>{c.regimen.nota}</p>}

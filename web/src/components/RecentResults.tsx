@@ -12,6 +12,10 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { STATUS } from '../lib/theme';
+import { DeporteIcono, Verdict } from './icons';
+
+export { DeporteIcono };
+import { TeamCrest } from './ui';
 
 type Origen = 'en vivo' | 'reconstruida';
 
@@ -21,6 +25,10 @@ interface Resultado {
   dia: string;
   cuando: string | null;
   partido: string;
+  casa: string;
+  fuera: string;
+  casaId: string | null;
+  fueraId: string | null;
   favorito: string;
   probabilidad: number;
   ganador: string;
@@ -57,13 +65,6 @@ export interface Historial {
   sinHistoria: number;
 }
 
-export const EMOJI: Record<string, string> = {
-  'Fútbol': '⚽',
-  'Baloncesto': '🏀',
-  'Béisbol': '⚾',
-  'NFL': '🏈',
-  'Tenis': '🎾',
-};
 
 const CLAVE_VENTANA = 'predictor.results.window';
 
@@ -186,22 +187,38 @@ function FranjaDias({ porDia, max, diaSel, onDia }: { porDia: Historial['porDia'
 }
 
 function Fila({ r }: { r: Resultado }) {
+  // En la NFL se escribe «visitante @ local»; en los demás, el local primero.
+  const lados = [
+    { nombre: r.casa, id: r.casaId },
+    { nombre: r.fuera, id: r.fueraId },
+  ];
+  if (r.deporte === 'NFL') lados.reverse();
+  const empate = r.ganador === 'Empate';
   return (
-    <li className="flex items-start gap-3 px-4 py-2.5">
-      <span className="mt-0.5 shrink-0 text-[15px]" title={r.deporte} aria-label={r.deporte}>
-        {EMOJI[r.deporte] ?? '•'}
+    <li className="flex items-start gap-3 px-4 py-3">
+      <span title={r.deporte} className="mt-0.5">
+        <DeporteIcono nombre={r.deporte} size={30} tile />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="break-words text-[14px] leading-snug text-[#e8eaed]">{r.partido}</div>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12.5px] text-[#9aa1ac]">
+        <div className="flex flex-col gap-1">
+          {lados.map((l, i) => {
+            const gano = l.nombre === r.ganador;
+            return (
+              <div key={i} className="flex min-w-0 items-center gap-2">
+                <TeamCrest league={r.liga ?? ''} name={l.nombre} code={l.id} size={24} />
+                <span className={`min-w-0 break-words text-[14px] leading-snug ${gano ? 'font-medium text-[#e8eaed]' : 'text-[#9aa1ac]'}`}>{l.nombre}</span>
+                {r.deporte === 'NFL' && i === 0 && <span className="-ml-1 text-[12px] text-[#5c636c]">@</span>}
+                {gano && <span className="shrink-0 rounded bg-white/[0.06] px-1.5 py-px text-[10.5px] uppercase tracking-wide text-[#9aa1ac]">ganó</span>}
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-[#9aa1ac]">
           <span>
-            dijo <span className="text-[#c3c9d1]">{r.favorito}</span>{' '}
+            el modelo dijo <span className="text-[#c3c9d1]">{r.favorito}</span>{' '}
             <span className="font-semibold tabular-nums text-[#e8eaed]">{Math.round(r.probabilidad * 100)} %</span>
           </span>
-          <span className="text-[#5c636c]">·</span>
-          <span>
-            ganó <span className="text-[#c3c9d1]">{r.ganador}</span>
-          </span>
+          {empate && <span className="text-[#c3c9d1]">· acabó en empate</span>}
           {r.origen === 'reconstruida' && (
             <span
               className="rounded px-1.5 py-px text-[11px] text-[#9aa1ac] ring-1 ring-white/10"
@@ -210,19 +227,16 @@ function Fila({ r }: { r: Resultado }) {
               reconstruida
             </span>
           )}
-          {r.origen === 'en vivo' && r.cuando && (
-            <span className="text-[11.5px] text-[#7b828d]">
-              {new Date(r.cuando).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+          {r.origen === 'en vivo' && (
+            <span className="rounded px-1.5 py-px text-[11px]" style={{ color: STATUS.good, background: 'rgba(25,158,112,0.1)' }}>
+              en vivo{r.cuando ? ` · ${new Date(r.cuando).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}` : ''}
             </span>
           )}
         </div>
       </div>
       {/* El veredicto lleva palabra y símbolo, nunca solo color. */}
-      <span
-        className="mt-0.5 shrink-0 rounded-md px-2 py-0.5 text-[12px] font-semibold"
-        style={{ color: r.acerto ? STATUS.good : STATUS.critical, background: r.acerto ? 'rgba(25,158,112,0.12)' : 'rgba(230,103,103,0.12)' }}
-      >
-        {r.acerto ? '✓ acertó' : '✗ falló'}
+      <span className="mt-0.5 shrink-0">
+        <Verdict ok={r.acerto} />
       </span>
     </li>
   );
@@ -329,7 +343,7 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
           </Chip>
           {Object.entries(h.porDeporte).map(([d, s]) => (
             <Chip key={d} activo={deporte === d} onClick={() => setDeporte(deporte === d ? null : d)}>
-              {EMOJI[d] ?? '•'} {s.aciertos}/{s.total} · {pctTxt(s.tasa)}
+              <DeporteIcono nombre={d} size={15} /> {s.aciertos}/{s.total} · {pctTxt(s.tasa)}
             </Chip>
           ))}
         </div>
@@ -374,7 +388,7 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
             {avisos.map((a) => (
               <li key={a.deporte} className="flex flex-wrap items-baseline gap-x-2">
                 <span>
-                  {EMOJI[a.deporte]} {a.deporte}:{' '}
+                  <DeporteIcono nombre={a.deporte} size={15} /> {a.deporte}:{' '}
                   {a.hasta ? `resultados guardados hasta el ${fechaDe(a.hasta).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'sin resultados guardados'}
                   {a.sinResultado > 0 && <span style={{ color: STATUS.warning }}> · {a.sinResultado} jugado(s) esperan resultado</span>}
                   {!a.reconstruye && ' · el archivo solo trae la fecha del torneo: no se reconstruye'}

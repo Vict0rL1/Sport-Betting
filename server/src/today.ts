@@ -129,6 +129,11 @@ export interface ResultadoReciente {
   /** ISO de inicio; las reconstruidas solo saben el día (el archivo no guarda la hora). */
   cuando: string | null;
   partido: string;
+  /** Los dos lados por separado, para los escudos de la pantalla. */
+  casa: string;
+  fuera: string;
+  casaId: string | null;
+  fueraId: string | null;
   favorito: string;
   probabilidad: number;
   ganador: string;
@@ -278,6 +283,7 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
         ? (db
             .prepare(
               `SELECT l.commence_time AS cuando, l.league AS liga, l.${f.casa} AS casa, l.${f.fuera} AS fuera,
+                      l.home_id AS casaId, l.away_id AS fueraId,
                       ${probSql(f, 'l.')} AS p ${f.empate ? `, ${empateSql(f, 'l.')} AS pEmpate` : ''},
                       l.${f.marcador[0]} AS gc, l.${f.marcador[1]} AS gf,
                       g.${f.enlace!.fecha} AS gFecha, g.home_id AS gCasa, g.away_id AS gFuera
@@ -287,19 +293,20 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
                 ORDER BY l.commence_time DESC`,
             )
             .all(desde) as unknown as {
-            cuando: string; liga: string | null; casa: string; fuera: string; p: number; pEmpate?: number;
+            cuando: string; liga: string | null; casa: string; fuera: string; casaId: string | null; fueraId: string | null; p: number; pEmpate?: number;
             gc: number; gf: number; gFecha: string | null; gCasa: string | null; gFuera: string | null;
           }[])
         : (db
             .prepare(
               `SELECT l.commence_time AS cuando, l.tour AS liga, l.p1_name AS casa, l.p2_name AS fuera,
+                      CAST(l.p1_id AS TEXT) AS casaId, CAST(l.p2_id AS TEXT) AS fueraId,
                       l.prob1 AS p, l.winner_id, l.p1_id
                  FROM prediction_log l
                 WHERE l.winner_id IS NOT NULL AND l.commence_time >= ?
                 ORDER BY l.commence_time DESC`,
             )
             .all(desde) as unknown as {
-            cuando: string; liga: string | null; casa: string; fuera: string; p: number; winner_id: number; p1_id: number;
+            cuando: string; liga: string | null; casa: string; fuera: string; casaId: string | null; fueraId: string | null; p: number; winner_id: number; p1_id: number;
           }[]);
 
       for (const r of rows as (typeof rows)[number][]) {
@@ -326,6 +333,10 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
           dia: diaLocal(new Date(r.cuando)),
           cuando: r.cuando,
           partido: f.deporte === 'NFL' ? `${r.fuera} @ ${r.casa}` : `${r.casa} vs ${r.fuera}`,
+          casa: r.casa,
+          fuera: r.fuera,
+          casaId: r.casaId,
+          fueraId: r.fueraId,
           favorito: fav.favorito,
           probabilidad: fav.probabilidad,
           ganador,
@@ -354,6 +365,10 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
       dia: diaDeArchivo(p.fecha),
       cuando: null,
       partido: p.deporte === 'NFL' ? `${fuera} @ ${casa}` : `${casa} vs ${fuera}`,
+      casa,
+      fuera,
+      casaId: p.casaId,
+      fueraId: p.fueraId,
       favorito: fav.favorito,
       probabilidad: fav.probabilidad,
       ganador,

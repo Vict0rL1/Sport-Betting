@@ -8,6 +8,7 @@ import BetsDashboard from './components/bets/BetsDashboard';
 import SystemTrust from './components/trust/SystemTrust';
 import { SPORT_THEMES, type SportId } from './lib/theme';
 import TodayPanel from './components/TodayPanel';
+import { AppMark, SportIcon } from './components/icons';
 
 /**
  * Sports are separate tabs, not a merged feed.
@@ -66,7 +67,6 @@ function initialSport(): SportId {
 
 export default function App() {
   const [sport, setSport] = useState<SportId>(initialSport);
-  const theme = SPORT_THEMES[sport];
   const headerRef = useRef<HTMLElement>(null);
   const activeTabRef = useRef<HTMLButtonElement>(null);
 
@@ -134,13 +134,9 @@ export default function App() {
             long list of cards, which is the same reason the top bar was sticky. */}
         <div className="sticky top-0 flex h-screen flex-col pl-[env(safe-area-inset-left)] pt-[env(safe-area-inset-top)]">
           <div className="flex items-center gap-2.5 px-4 pb-5 pt-5">
-            <span
-              aria-hidden
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-[17px]"
-              style={{ backgroundColor: theme.accentSoft }}
-            >
-              {theme.emoji}
-            </span>
+            {/* La marca de la app (la barra de probabilidad del favicon), no el balón de
+                un deporte: la app son siete pestañas y ninguna la representa sola. */}
+            <AppMark size={34} className="shrink-0" />
             <div className="min-w-0">
               <h1 className="truncate text-[16px] font-semibold leading-tight text-[#e8eaed]">
                 Sports Predictor
@@ -169,13 +165,7 @@ export default function App() {
         >
           <div className={`mx-auto ${SHELL_WIDTH} px-4 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]`}>
             <div className="flex items-center gap-3 pb-1 pt-4">
-              <span
-                aria-hidden
-                className="grid h-8 w-8 shrink-0 place-items-center rounded-xl text-[17px]"
-                style={{ backgroundColor: theme.accentSoft }}
-              >
-                {theme.emoji}
-              </span>
+              <AppMark size={32} className="shrink-0" />
               <div className="min-w-0">
                 <h1 className="truncate text-[17px] font-semibold leading-tight text-[#e8eaed]">
                   Sports Predictor
@@ -278,7 +268,13 @@ function SportNav({
                 className="absolute inset-y-1.5 left-0 w-[3px] rounded-full transition"
                 style={{ backgroundColor: active ? s.accent : 'transparent' }}
               />
-              <span aria-hidden className="text-[16px]">{s.emoji}</span>
+              <span
+                aria-hidden
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-lg transition"
+                style={{ color: active ? s.accent : 'currentColor', backgroundColor: active ? s.accentSoft : 'transparent' }}
+              >
+                <SportIcon sport={id} size={18} />
+              </span>
               <span className="min-w-0 truncate">{s.label}</span>
             </button>
           );
@@ -290,15 +286,14 @@ function SportNav({
             aria-selected={active}
             ref={active ? activeRef : undefined}
             onClick={() => onSelect(id)}
-            className={`relative shrink-0 rounded-t-lg px-1.5 py-2.5 text-[14px] font-medium transition md:px-3 md:text-[15px] ${
+            className={`relative flex shrink-0 flex-col items-center gap-0.5 rounded-t-lg px-2 pb-2 pt-1.5 text-[12px] font-medium transition md:flex-row md:gap-0 md:px-3 md:py-2.5 md:text-[15px] ${
               active ? 'text-[#e8eaed]' : 'text-[#7b828d] hover:text-[#c3c9d1]'
             }`}
           >
-            {/* Decorative, and the first thing to go when six tabs have to share a
-                phone's width — the word identifies the sport, the accent line
-                underneath carries the colour. */}
-            <span className="mr-1.5 hidden md:inline" aria-hidden>
-              {s.emoji}
+            {/* En el móvil, icono encima del nombre (como la barra de una app); desde md,
+                en línea. */}
+            <span className="inline-flex md:mr-1.5" aria-hidden style={{ color: active ? s.accent : 'currentColor' }}>
+              <SportIcon sport={id} size={18} />
             </span>
             {/* Two spans rather than JS width detection: CSS decides, so there is no
                 resize listener and no flash of the wrong one. */}

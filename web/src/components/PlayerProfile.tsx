@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, type Profile } from '../lib/api';
 import { formatDate, surfaceLabelEs, surfaceColor } from '../lib/format';
 import { Flag } from './ui';
+import { CrossIcon } from './icons';
 
 /** Slide-over panel showing a player's Elo (overall + per surface) and recent results. */
 export default function PlayerProfile({
@@ -59,8 +60,8 @@ export default function PlayerProfile({
               </div>
             )}
           </div>
-          <button onClick={onClose} className="text-[#9aa1ac] hover:text-[#d5d9df]">
-            ✕
+          <button onClick={onClose} aria-label="Cerrar" className="grid h-8 w-8 place-items-center rounded-lg text-[#9aa1ac] transition hover:bg-white/[0.06] hover:text-[#e8eaed]">
+            <CrossIcon size={18} />
           </button>
         </div>
 

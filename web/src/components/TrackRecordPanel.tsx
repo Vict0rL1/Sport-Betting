@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, type TrackRecord } from '../lib/api';
+import { CheckIcon, CrossIcon } from './icons';
 
 /**
  * The app's own scorecard.
@@ -187,8 +188,8 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
               <ul className="space-y-1">
                 {data.recent.map((r, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span className={r.hit ? 'text-emerald-400' : 'text-rose-400'}>
-                      {r.hit ? '✓' : '✗'}
+                    <span className={`mt-[3px] inline-flex ${r.hit ? 'text-emerald-400' : 'text-rose-400'}`} aria-label={r.hit ? 'acertó' : 'falló'}>
+                      {r.hit ? <CheckIcon size={15} strokeWidth={2.4} /> : <CrossIcon size={15} strokeWidth={2.4} />}
                     </span>
                     <span className="text-[#c3c9d1]">
                       {r.p1} vs {r.p2}

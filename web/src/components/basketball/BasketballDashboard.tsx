@@ -18,6 +18,7 @@ import {
 import GameCard from './GameCard';
 import TeamProfile from './TeamProfile';
 import EloRanking from '../EloRanking';
+import { CheckIcon, CrossIcon } from '../icons';
 
 /**
  * The whole basketball tab. Holds its own state and talks only to
@@ -424,8 +425,8 @@ function BbTrackRecordPanel({ league }: { league: string }) {
               <ul className="space-y-1">
                 {data.recent.map((r, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span className={r.hit ? 'text-emerald-400' : 'text-rose-400'}>
-                      {r.hit ? '✓' : '✗'}
+                    <span className={`mt-[3px] inline-flex ${r.hit ? 'text-emerald-400' : 'text-rose-400'}`} aria-label={r.hit ? 'acertó' : 'falló'}>
+                      {r.hit ? <CheckIcon size={15} strokeWidth={2.4} /> : <CrossIcon size={15} strokeWidth={2.4} />}
                     </span>
                     <span className="text-[#c3c9d1]">
                       {r.away} @ {r.home}
