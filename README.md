@@ -146,6 +146,27 @@ cd backend && .venv/bin/python -m pytest   # lógica financiera, caché, router,
 cd frontend && npm run build               # type-check estricto + build
 ```
 
+### Validación con datos reales
+
+Los tests usan datos fabricados; no pueden ver si EDGAR etiqueta los trimestres
+como el parser supone o si el consenso llega en otra escala. Esto sí, con tus
+claves y sin necesitar ninguna verdad externa (los datos se cruzan entre sí):
+
+```bash
+cd backend && .venv/bin/python scripts/validar_con_datos_reales.py            # AAPL MSFT JPM, CAD y EUR
+cd backend && .venv/bin/python scripts/validar_con_datos_reales.py NVDA --solo-cache
+```
+
+Comprueba que los cuatro trimestres sumen el año, que cada periodo se publicara
+después de cerrar y a tiempo de ser la primera publicación, la escala del
+consenso, el tipo de cambio de FRED (banda y frescura), la cotización frente al
+último cierre, que analizar → congelar → reproducir devuelva lo mismo y que un
+análisis a una fecha pasada no contenga nada posterior. Cada fila sale PASS,
+FAIL o UNKNOWN (no se pudo comprobar; nunca cuenta como PASS) y el código de
+salida es 1 si hay algún FAIL. Usa la caché y la cuota de la app; la ida y
+vuelta congela en una base en memoria, no en la tuya. Las comprobaciones viven
+en `app/coherencia.py`.
+
 ## Fuentes de datos y sus límites (verificado 2026)
 
 | Fuente | Uso | Tier gratuito |
