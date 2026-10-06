@@ -218,7 +218,7 @@ export type GcalCalendar = { id: string; name: string };
 
 /**
  * Los calendarios que tienes visibles en Google (los marcados en la columna
- * de la izquierda). El principal primero.
+ * de la izquierda), y el principal siempre. El principal primero.
  */
 export async function listCalendars(token: string, opts: GetOptions = {}): Promise<GcalCalendar[]> {
   const out: (GcalCalendar & { primary: boolean })[] = [];
@@ -228,7 +228,10 @@ export async function listCalendars(token: string, opts: GetOptions = {}): Promi
     if (pageToken) p.set("pageToken", pageToken);
     const json = await gcalGet(`${API}/users/me/calendarList?${p}`, token, opts);
     for (const c of (Array.isArray(json.items) ? json.items : []) as Record<string, unknown>[]) {
-      if (typeof c.id !== "string" || c.selected !== true || c.deleted === true || c.hidden === true) continue;
+      // `selected` vale false si no viene, y hay cuentas donde el principal no lo
+      // trae: el principal entra siempre, los demás sólo si los tienes visibles.
+      const visible = c.selected === true || c.primary === true;
+      if (typeof c.id !== "string" || !visible || c.deleted === true || c.hidden === true) continue;
       const name = String(c.summaryOverride ?? c.summary ?? c.id).trim().slice(0, 60) || "Google";
       out.push({ id: c.id, name, primary: c.primary === true });
     }

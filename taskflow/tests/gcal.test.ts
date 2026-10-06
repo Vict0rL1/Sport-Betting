@@ -248,6 +248,14 @@ describe("sync de Google Calendar", () => {
     expect(await syncGcal(state.ctx as never, fast)).toMatchObject({ added: 0, removed: 0 });
   });
 
+  it("el calendario principal se lee aunque Google no mande `selected`", async () => {
+    await link(a);
+    delete g.calendars[0].selected;
+    const r = await syncGcal(state.ctx as never, fast);
+    expect(r.calendars.map((c) => c.name)).toEqual(["Personal", "SFU"]);
+    expect(await gcalRows()).toHaveLength(4);
+  });
+
   it("pagina hasta el final", async () => {
     await link(a);
     g.pageSize = 1;
