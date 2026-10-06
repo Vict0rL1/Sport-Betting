@@ -4,9 +4,8 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { capture } from "@/app/actions";
 import { fmtDur, fmtDate, minsToHHMM } from "@/lib/date";
 import { parseInput } from "@/lib/parse";
+import { type Mode, flushQueue, readQueue, writeQueue } from "@/lib/offline-queue";
 import { Toast } from "./Toast";
-
-type Mode = "tarea" | "nota" | "bloque";
 
 const PLACEHOLDER: Record<Mode, string> = {
   tarea: "Escribe y presiona Enter…",
@@ -15,66 +14,6 @@ const PLACEHOLDER: Record<Mode, string> = {
 };
 
 const PRIO = ["", "alta", "media", "baja"];
-
-/* ------------------------------------------------- cola sin conexión */
-
-/** La misma clave que usa `public/offline.html`. */
-const QUEUE = "taskflow.offlineQueue";
-type Queued = { cid: string; text: string; mode: Mode; at: string };
-
-function readQueue(): Queued[] {
-  try {
-    const q = JSON.parse(localStorage.getItem(QUEUE) || "[]");
-    return Array.isArray(q) ? q : [];
-  } catch {
-    return [];
-  }
-}
-function writeQueue(q: Queued[]): boolean {
-  try {
-    if (q.length) localStorage.setItem(QUEUE, JSON.stringify(q));
-    else localStorage.removeItem(QUEUE);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Para que dos pestañas (o el doble efecto de desarrollo) no suban lo mismo a la vez. */
-let subiendo = false;
-
-/**
- * Sube lo que se anotó sin conexión, de a uno y en orden. Cada uno lleva su
- * id (`cid`), así que si una subida llegó pero la respuesta no, repetirla no
- * duplica: el servidor contesta "ya estaba". Si se corta la red a la mitad,
- * lo que falta se queda para la próxima.
- */
-async function flushQueue(): Promise<number> {
-  if (subiendo || !navigator.onLine) return 0;
-  subiendo = true;
-  let subidas = 0;
-  try {
-    for (const it of readQueue()) {
-      const fd = new FormData();
-      fd.set("text", it.text);
-      fd.set("mode", it.mode);
-      fd.set("cid", it.cid);
-      let r;
-      try {
-        r = await capture(null, fd);
-      } catch {
-        break; // sin red otra vez: se reintenta después
-      }
-      // Bien, o repetida: se quita de la cola. Con un error de validación
-      // ("falta el texto") también: reintentarla para siempre no la arregla.
-      writeQueue(readQueue().filter((x) => x.cid !== it.cid));
-      if (r.ok) subidas++;
-    }
-  } finally {
-    subiendo = false;
-  }
-  return subidas;
-}
 
 const nuevoId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -93,8 +32,14 @@ export function Capture({ areas, today }: { areas: string[]; today: string }) {
   // la página offline).
   useEffect(() => {
     async function subir() {
-      const n = await flushQueue();
-      if (n) setLocal({ ok: true, message: `Se subieron ${n} captura${n > 1 ? "s" : ""} guardada${n > 1 ? "s" : ""} sin conexión` });
+      const { subidas: n, comoNota } = await flushQueue(capture);
+      if (n) {
+        setLocal({
+          ok: true,
+          message: `Se subieron ${n} captura${n > 1 ? "s" : ""} guardada${n > 1 ? "s" : ""} sin conexión` +
+            (comoNota ? ` (${comoNota} como nota, porque no se podía${comoNota > 1 ? "n" : ""} guardar como estaba${comoNota > 1 ? "n" : ""})` : ""),
+        });
+      }
     }
     void subir();
     window.addEventListener("online", subir);

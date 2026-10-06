@@ -21,10 +21,12 @@ import { elapsedSec } from "@/lib/timing";
 import { purgeNotes, purgeTasks } from "@/lib/trash";
 import { fetchAll } from "@/lib/paginate";
 
-export type ActionResult = { ok: boolean; message: string };
+/** `retry`: falló la base, no lo que mandaste; vale la pena reintentar después. */
+export type ActionResult = { ok: boolean; message: string; retry?: boolean };
 
 const ok = (message: string): ActionResult => ({ ok: true, message });
 const fail = (message: string): ActionResult => ({ ok: false, message });
+const failRetry = (message: string): ActionResult => ({ ok: false, message, retry: true });
 
 function refresh() {
   // Revalida el layout entero: los contadores del riel salen de ahí.
@@ -66,7 +68,7 @@ export async function capture(_prev: ActionResult | null, fd: FormData): Promise
   if (mode === "nota") {
     const { error } = await ctx.supabase.from("notes").insert({ id, user_id: ctx.userId, body: raw });
     if (yaEstaba(error)) return ok("Esa nota ya estaba guardada");
-    if (error) return fail("No se pudo guardar la nota");
+    if (error) return failRetry("No se pudo guardar la nota");
     refresh();
     return ok("Nota guardada");
   }
@@ -85,7 +87,7 @@ export async function capture(_prev: ActionResult | null, fd: FormData): Promise
       kind: "tarea",
     });
     if (yaEstaba(error)) return ok("Ese bloque ya estaba guardado");
-    if (error) return fail("No se pudo crear el bloque");
+    if (error) return failRetry("No se pudo crear el bloque");
     refresh();
     return ok("Bloque agendado");
   }
@@ -104,7 +106,7 @@ export async function capture(_prev: ActionResult | null, fd: FormData): Promise
     ...EDITED(),
   });
   if (yaEstaba(error)) return ok("Esa tarea ya estaba guardada");
-  if (error) return fail("No se pudo crear la tarea");
+  if (error) return failRetry("No se pudo crear la tarea");
   refresh();
   return ok("Tarea agregada");
 }
