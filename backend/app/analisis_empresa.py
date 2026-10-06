@@ -134,8 +134,10 @@ def seccion_mercado(service, symbol: str, ahora: datetime) -> tuple[dict, dict]:
     quote, fallo_q = _traer(service, "quote", symbol=symbol)
     historia, fallo_h = _traer(service, "price_history", symbol=symbol, interval="1day", outputsize=252)
     barras = [b for b in (historia or {}).get("bars") or [] if datos.precio(b.get("close")) is not None]
-    # Solo el pasado: una barra fechada después del análisis no existe todavía.
-    barras = [b for b in barras if pit.disponible_en(str(b.get("ts"))[:10], ahora.date()) is not False]
+    # Solo el pasado: una barra fechada después del análisis no existe todavía,
+    # y la del mismo día solo si se descargó antes (su cierre llega por la tarde).
+    obtenida = (historia or {}).get("as_of")
+    barras = [b for b in barras if pit.barra_disponible(b.get("ts"), ahora, obtenida)]
     resumen = _price_summary(pd.Series([float(b["close"]) for b in barras], dtype="float64")) if barras else None
 
     if quote is not None and pit.disponible_en(quote.get("as_of"), ahora) is False:
@@ -559,7 +561,7 @@ def serie_en_dolares(service, symbol: str, moneda: str | None, ctx: dict, ahora:
     historia, _ = _traer(service, "price_history", symbol=symbol, interval="1day", outputsize=252)
     serie = [(date.fromisoformat(str(b["ts"])[:10]), float(b["close"]))
              for b in (historia or {}).get("bars") or [] if datos.precio(b.get("close")) is not None
-             and pit.disponible_en(str(b.get("ts"))[:10], ahora.date()) is not False]
+             and pit.barra_disponible(b.get("ts"), ahora, (historia or {}).get("as_of"))]
     return contexto_cartera.convertir_serie(serie, moneda, (ctx or {}).get("fx_series") or {}) if serie else None
 
 

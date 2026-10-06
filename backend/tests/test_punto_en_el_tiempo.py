@@ -89,3 +89,14 @@ def test_el_backtest_usa_la_regla_comun():
     pasado = [{"ts": f"2021-{1 + i // 28:02d}-{1 + i % 28:02d}", "close": 100.0} for i in range(150)]
     futuro = [{"ts": f"2022-{1 + i // 28:02d}-{1 + i % 28:02d}", "close": 200.0} for i in range(100)]
     assert momentum_12_1(pasado + futuro, date(2021, 12, 31)) is None
+
+
+def test_una_barra_diaria_del_mismo_dia_necesita_prueba_de_descarga():
+    decision = datetime(2026, 5, 15, 14, 35, tzinfo=timezone.utc)
+    assert pit.barra_disponible("2026-05-14", decision) is True
+    assert pit.barra_disponible("2026-05-15", decision) is False  # sin prueba: fuera
+    assert pit.barra_disponible("2026-05-15", decision, "2026-05-15T14:00:00+00:00") is True
+    assert pit.barra_disponible("2026-05-15", decision, "2026-09-12T14:00:00+00:00") is False
+    assert pit.barra_disponible("2026-05-16", decision, "2026-05-15T14:00:00+00:00") is False
+    # Decisión por día (backtest al cierre): la convención de siempre, <=.
+    assert pit.barra_disponible("2026-05-15", date(2026, 5, 15)) is True

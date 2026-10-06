@@ -140,7 +140,7 @@ def construir(session: Session, service, *, descargar: bool = False, ahora: date
         s = crudas.get(a["symbol"])
         conv = convertir_serie(s, a["moneda"], fx_series) if s else None
         if conv:
-            series[a["symbol"]] = [(d, p) for d, p in conv if pit.disponible_en(d, ahora.date()) is not False]
+            series[a["symbol"]] = [(d, p) for d, p in conv if pit.barra_disponible(d, ahora)]
 
     posiciones = [
         {

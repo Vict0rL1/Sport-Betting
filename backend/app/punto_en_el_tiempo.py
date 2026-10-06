@@ -94,6 +94,20 @@ def disponible_en(publicado, decision, obtenido_en=None) -> bool | None:
     return None
 
 
+def barra_disponible(ts, decision, obtenido_en=None) -> bool:
+    """¿Se conocía el cierre de esta barra diaria en el momento `decision`?
+
+    Una barra diaria se fecha por DÍA y su cierre llega al final de la sesión:
+    a las 14:35 el cierre de ese mismo día no existía. Antes se filtraba con
+    `disponible_en(dia, decision.date()) is not False` —comparación por día— y
+    un análisis a una fecha pasada metía el cierre de esa tarde. Con la regla
+    común, la barra del mismo día solo entra con prueba de que el sistema la
+    tenía antes (`obtenido_en`: la descarga en vivo de hoy). Lo que no se puede
+    probar, fuera.
+    """
+    return disponible_en(str(ts)[:10], decision, obtenido_en) is True
+
+
 def estado(publicado, decision, obtenido_en=None) -> str:
     r = disponible_en(publicado, decision, obtenido_en)
     return DISPONIBLE if r else FUTURO if r is False else DESCONOCIDO

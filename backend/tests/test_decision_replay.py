@@ -321,3 +321,28 @@ def test_una_deuda_parcial_no_se_lee_como_completa(session_factory):
     assert any(f["dato"] == "deuda_neta (parcial)" for f in a["faltan"])
     assert a["valoracion"]["dcf_inverso"]["deuda_parcial"] == ["short_term_debt"]
     assert "PARCIAL" in a["valoracion"]["dcf_inverso"]["nota"]
+
+
+def test_un_analisis_pasado_con_hora_no_ve_el_cierre_de_esa_tarde(session_factory, servicio):
+    """Encontrado por `scripts/validar_con_datos_reales.py`. Las barras se
+    filtraban por DÍA: un análisis a las 14:35 de un día pasado metía el cierre
+    de esa misma tarde. Con la regla común, la barra del mismo día solo entra si
+    se descargó antes de la decisión."""
+    momento = datetime(2026, 5, 15, 14, 35, tzinfo=timezone.utc)
+    servicio.historias["AAPL"] = [
+        {"ts": "2026-05-14", "close": 100.0},
+        {"ts": "2026-05-15", "close": 150.0},  # el cierre de esa tarde
+    ]
+    with session_factory() as s:
+        a = analisis_empresa.analizar("AAPL", servicio, s, ahora=momento, con_pares=False)
+    assert a["mercado"]["historico"]["hasta"] == "2026-05-14"
+    assert a["mercado"]["precio"]["valor"] == 100.0
+
+
+def test_en_vivo_la_barra_de_hoy_descargada_antes_si_entra(session_factory, servicio):
+    servicio.historias["AAPL"][-1]["ts"] = AHORA.date().isoformat()
+    servicio.quotes.pop("AAPL")  # sin cotización: el precio sale del histórico
+    with session_factory() as s:
+        a = analisis_empresa.analizar("AAPL", servicio, s, ahora=AHORA + timedelta(minutes=5), con_pares=False)
+    # El histórico se obtuvo a las 14:35 (`as_of`) y se analiza a las 14:40.
+    assert a["mercado"]["historico"]["hasta"] == AHORA.date().isoformat()
