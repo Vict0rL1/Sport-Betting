@@ -136,3 +136,19 @@ test('una cuota re-observada (misma cuota, hora nueva) obliga a guardar una eval
   // Sin nueva descarga, sigue sin duplicarse.
   assert.equal(registrarEvaluacion(e2, evaluar(e2, { now: t1 }), new Date(t1.getTime() + 60_000)), 'igual');
 });
+
+// Las dos piezas juntas: lo que la capa de confianza guarda es lo que el banco acepta, también
+// después de un refresco de cuotas sin movimiento de precio.
+test('integración: evaluación → refresco sin movimiento → el banco sigue pudiendo apostar', async () => {
+  const { juicioDeConfianza } = await import('../paper/bankroll.ts');
+  const t0 = new Date(ahora.getTime() - 2 * 3_600_000);
+  const e = bueno({ matchKey: 'atp|5|6|int', oddsAt: new Date(t0.getTime() - 60_000).toISOString() });
+  registrarEvaluacion(e, evaluar(e, { now: t0 }), t0);
+  const refresco = new Date(ahora.getTime() - 30 * 60_000);
+  const e2 = { ...e, oddsAt: refresco.toISOString() };
+  registrarEvaluacion(e2, evaluar(e2, { now: new Date(refresco.getTime() + 60_000) }), new Date(refresco.getTime() + 60_000));
+  const candidato = { sport: 'tennis', match_key: 'atp|5|6|int', oddsAt: refresco.toISOString(), salidas: [{ label: 'A', p: e.probs[0], odds: 1.8 }, { label: 'B', p: e.probs[1], odds: 2.1 }] };
+  const j = juicioDeConfianza(candidato, 'A');
+  assert.equal(j.apostar, true, j.razon ?? '');
+  assert.equal(j.factor, 1);
+});
