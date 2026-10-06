@@ -119,3 +119,20 @@ test('las abstenciones se registran (append-only, solo si cambian, nunca tras el
   assert.throws(() => getDb().prepare("UPDATE prediction_assessments SET decision = 'BET'").run(), /no se reescribe/);
   assert.throws(() => getDb().prepare('DELETE FROM prediction_assessments').run(), /no se borra/);
 });
+
+// FALLO ENCONTRADO: cada refresco reescribe la hora de las cuotas aunque el precio no cambie.
+// Si la evaluación no se vuelve a guardar, el banco la ve «anterior a las cuotas actuales» y
+// se abstiene para siempre. Una cuota re-observada exige una evaluación nueva.
+test('una cuota re-observada (misma cuota, hora nueva) obliga a guardar una evaluación nueva', () => {
+  const t0 = new Date(ahora.getTime() - 3 * 3_600_000);
+  const e1 = bueno({ matchKey: 'atp|9|8|r', oddsAt: new Date(t0.getTime() - 60_000).toISOString() });
+  assert.equal(registrarEvaluacion(e1, evaluar(e1, { now: t0 }), t0), 'nueva');
+  const t1 = new Date(ahora.getTime() - 3_600_000);
+  // Mismo partido y mismas cuotas, descargadas otra vez después de la evaluación.
+  const e2 = { ...e1, oddsAt: new Date(t1.getTime() - 60_000).toISOString() };
+  assert.equal(registrarEvaluacion(e2, evaluar(e2, { now: t1 }), t1), 'nueva');
+  const u = ultimaEvaluacion('tennis', 'atp|9|8|r');
+  assert.ok(u && u.assessed_at >= (e2.oddsAt as string), 'la última evaluación es posterior a las cuotas vigentes');
+  // Sin nueva descarga, sigue sin duplicarse.
+  assert.equal(registrarEvaluacion(e2, evaluar(e2, { now: t1 }), new Date(t1.getTime() + 60_000)), 'igual');
+});

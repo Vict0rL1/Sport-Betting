@@ -67,6 +67,13 @@ de reproducción, línea temporal de auditoría, página de transparencia e info
    registradas conservan la versión con la que se guardaron (no se reescriben); las nuevas
    llevan la huella estable, y la evaluación por versión las separa.
 
+7. **(Encontrado después de terminar las fases) El banco se habría abstenido tras cada
+   refresco de cuotas sin movimiento.** Cada refresco reescribe la hora de las cuotas aunque
+   el precio no cambie; la evaluación de confianza no se volvía a guardar si nada más
+   cambiaba, y el banco exige una evaluación posterior a las cuotas vigentes. Ahora una
+   descarga posterior a la última evaluación obliga a guardar otra. Test en
+   `trust/decision.test.ts` que fallaba con el código anterior.
+
 ## 3. Qué se construyó y con qué criterio
 
 Todo lo nuevo vive en `server/src/` y se ve en la app en el panel **«¿Cuánto fiarse?»** de

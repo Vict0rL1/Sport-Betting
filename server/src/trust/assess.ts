@@ -99,8 +99,8 @@ export function registrarEvaluacion(e: EventoConfianza, ev: Evaluacion, now = ne
   try {
     const db = getDb();
     const ultima = db
-      .prepare('SELECT decision, confidence, data_quality, stability, probs, odds FROM prediction_assessments WHERE sport = ? AND match_key = ? ORDER BY id DESC LIMIT 1')
-      .get(e.sport, e.matchKey) as { decision: string; confidence: string; data_quality: number; stability: string; probs: string; odds: number | null } | undefined;
+      .prepare('SELECT assessed_at, decision, confidence, data_quality, stability, probs, odds FROM prediction_assessments WHERE sport = ? AND match_key = ? ORDER BY id DESC LIMIT 1')
+      .get(e.sport, e.matchKey) as { assessed_at: string; decision: string; confidence: string; data_quality: number; stability: string; probs: string; odds: number | null } | undefined;
     const probs = JSON.stringify(e.probs.map((p) => Math.round(p * 1e4) / 1e4));
     const dec = ev.decision;
     if (
@@ -110,7 +110,11 @@ export function registrarEvaluacion(e: EventoConfianza, ev: Evaluacion, now = ne
       ultima.data_quality === ev.calidadDatos.puntuacion &&
       ultima.stability === ev.estabilidad.nivel &&
       ultima.probs === probs &&
-      (ultima.odds ?? null) === (dec.seleccion?.cuota ?? null)
+      (ultima.odds ?? null) === (dec.seleccion?.cuota ?? null) &&
+      // Una descarga de cuotas POSTERIOR a la última evaluación exige otra, aunque el precio
+      // sea el mismo: el banco solo apuesta con una evaluación posterior a las cuotas
+      // vigentes, y sin esto se abstendría tras cada refresco sin movimiento.
+      !(e.oddsAt && e.oddsAt > ultima.assessed_at)
     ) return 'igual';
     db.prepare(
       `INSERT INTO prediction_assessments (sport, match_key, event_id, commence_time, assessed_at, probs, decision, selection, odds, edge,
