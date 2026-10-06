@@ -109,6 +109,17 @@ export function HealthSection({ symbol }: { symbol: string }) {
           <div>
             <dt className="text-xs text-slate-400">Deuda neta</dt>
             <dd className="text-lg font-semibold tabular-nums">{fmtBig(health.net_debt)}</dd>
+            {health.deuda_parcial && (
+              <dd
+                className="text-[11px] text-amber-700"
+                title="El filing no trae una de las partidas de deuda: cuenta como cero. Si existe, la deuda neta real es mayor."
+              >
+                parcial: falta{' '}
+                {health.deuda_parcial
+                  .map((c) => (c === 'short_term_debt' ? 'deuda a corto' : 'deuda a largo'))
+                  .join(' y ')}
+              </dd>
+            )}
           </div>
           <div>
             <dt className="text-xs text-slate-400">FCF (último ejercicio)</dt>

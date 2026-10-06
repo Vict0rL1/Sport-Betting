@@ -36,7 +36,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.analysis.fundamentals import free_cash_flow, growth_summary, total_debt
+from app.analysis.fundamentals import deuda_total, free_cash_flow, growth_summary, nota_deuda_parcial
 from app.analysis.relative_value import (
     ajustar_por_crecimiento_y_calidad,
     rango_de_precio_implicito,
@@ -116,7 +116,8 @@ def _cimientos(service: MarketDataService, symbol: str) -> dict:
         )
     periodos = financials["periods"]
     ultimo = periodos[-1]
-    deuda = total_debt(ultimo)
+    deuda_d = deuda_total(ultimo)
+    deuda = deuda_d["valor"]
     quote = _traer(service, "quote", symbol=symbol)
 
     return {
@@ -128,6 +129,8 @@ def _cimientos(service: MarketDataService, symbol: str) -> dict:
         # como cero, porque ese error va en dirección prudente: sube la deuda
         # neta y BAJA el valor.
         "net_debt": (deuda - (ultimo.get("cash") or 0.0)) if deuda is not None else None,
+        # Con una sola pata de deuda, la otra cuenta como cero: se dice.
+        "deuda_parcial": deuda_d["falta"] if deuda_d["parcial"] else None,
         "shares_outstanding": ultimo.get("shares_outstanding"),
         "revenue": ultimo.get("revenue"),
         "eps": ultimo.get("eps_diluted"),
@@ -438,6 +441,12 @@ def valorar(
         "entradas": {
             "base_fcf": base_fcf,
             "net_debt": net_debt,
+            # Si mandas tu deuda neta, manda la tuya y no hay nada parcial que avisar.
+            "deuda_parcial": datos["deuda_parcial"] if request.net_debt is None else None,
+            "nota_deuda": (
+                nota_deuda_parcial(datos["deuda_parcial"])
+                if request.net_debt is None and datos["deuda_parcial"] else None
+            ),
             "shares_outstanding": acciones,
             "revenue": datos["revenue"],
             "eps": datos["eps"],

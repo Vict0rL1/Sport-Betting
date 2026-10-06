@@ -363,3 +363,29 @@ def test_sin_crecimiento_medido_el_supuesto_se_declara(client, monkeypatch):
     assert m["crecimiento_de_ingresos"]["supuesto"] is True
     assert "supuesto" in m["crecimiento_de_ingresos"]["motivo"]
     assert "SUPUESTO" in m["nota"]  # y se ve en pantalla, que es donde importa
+
+
+# --- Deuda parcial: una pata ausente cuenta como cero, y se dice --------------------
+
+
+def test_sin_deuda_a_corto_el_valor_lo_dice(client, monkeypatch):
+    """Antes la suma salía limpia: 2 000 M de deuda a largo y nada a corto se
+    leían igual que una empresa que declara cero a corto."""
+    import tests.test_valuation_api as t
+
+    sin_corto = [{**p, "short_term_debt": None} for p in _periodos()]
+    monkeypatch.setattr(t, "_periodos", lambda n=8: sin_corto)
+    c, _ = client()
+    entradas = _valorar(c)["entradas"]
+    assert entradas["net_debt"] == pytest.approx(2000e6 - 1000e6)
+    assert entradas["deuda_parcial"] == ["short_term_debt"]
+    assert "deuda a corto plazo" in entradas["nota_deuda"] and "sobreestimado" in entradas["nota_deuda"]
+    # Con tu propia deuda neta, manda la tuya: no hay nada parcial que avisar.
+    tuya = _valorar(c, net_debt=1500e6)["entradas"]
+    assert tuya["deuda_parcial"] is None and tuya["nota_deuda"] is None
+
+
+def test_con_las_dos_patas_no_hay_aviso(client):
+    c, _ = client()
+    entradas = _valorar(c)["entradas"]
+    assert entradas["deuda_parcial"] is None and entradas["nota_deuda"] is None

@@ -6,7 +6,7 @@ el desglose invita a confiar a ciegas, que es justo lo que esta app evita.
 
 from __future__ import annotations
 
-from app.analysis.fundamentals import _div, free_cash_flow, total_debt
+from app.analysis.fundamentals import _div, deuda_total, free_cash_flow
 
 
 def altman_z(period: dict, market_cap: float | None) -> dict:
@@ -111,15 +111,18 @@ def piotroski_f(periods: list[dict]) -> dict:
 
 def health_snapshot(periods: list[dict], market_cap: float | None) -> dict:
     latest = periods[-1] if periods else {}
+    deuda = deuda_total(latest)
     return {
         "altman_z": altman_z(latest, market_cap),
         "piotroski_f": piotroski_f(periods),
         "interest_coverage": _div(latest.get("operating_income"), latest.get("interest_expense")),
         "net_debt": (
-            (total_debt(latest) - (latest.get("cash") or 0.0))
-            if total_debt(latest) is not None
+            (deuda["valor"] - (latest.get("cash") or 0.0))
+            if deuda["valor"] is not None
             else None
         ),
+        # Una pata de deuda ausente cuenta como cero: se dice cuál.
+        "deuda_parcial": deuda["falta"] if deuda["parcial"] else None,
         "fcf": free_cash_flow(latest),
         "fiscal_year": latest.get("fiscal_year"),
     }

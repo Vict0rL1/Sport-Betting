@@ -126,3 +126,13 @@ def test_snapshot_cobertura_de_intereses_calculada_a_mano():
     assert snap["interest_coverage"] == pytest.approx(8.0)   # 200 / 25
     assert snap["net_debt"] == pytest.approx(230.0)          # 350 − 120
     assert snap["fcf"] == pytest.approx(120.0)               # 180 − 60
+
+
+def test_la_deuda_neta_dice_si_es_parcial():
+    from app.analysis.health import health_snapshot
+
+    completo = {"fiscal_year": "2025", "long_term_debt": 300.0, "short_term_debt": 0.0, "cash": 100.0}
+    assert health_snapshot([completo], None)["deuda_parcial"] is None
+    sin_corto = {**completo, "short_term_debt": None}
+    h = health_snapshot([sin_corto], None)
+    assert h["net_debt"] == 200.0 and h["deuda_parcial"] == ["short_term_debt"]

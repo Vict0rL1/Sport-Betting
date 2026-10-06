@@ -118,7 +118,9 @@ class ScenarioAssumptions(BaseModel):
 class DcfRequest(BaseModel):
     base_fcf: float
     years: int = 5
-    net_debt: float = 0.0
+    # Sin valor por defecto: un 0.0 aquí valoraba a una empresa de deuda
+    # DESCONOCIDA como si no debiera nada. Sin deuda neta, el endpoint lo dice.
+    net_debt: float | None = None
     shares_outstanding: float | None = None
     # bajista / base / alcista; la UI manda los tres, pero se acepta cualquiera.
     scenarios: dict[str, ScenarioAssumptions]

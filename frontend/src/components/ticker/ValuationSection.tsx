@@ -23,6 +23,12 @@ function pctInput(value: number): string {
   return (value * 100).toFixed(1)
 }
 
+/** Un campo vacío o ilegible es «no sé», no cero. */
+function numeroOVacio(texto: string): number | null {
+  const v = parseFloat(texto)
+  return texto.trim() !== '' && Number.isFinite(v) ? v : null
+}
+
 export function ValuationSection({ symbol }: { symbol: string }) {
   const [defaults, setDefaults] = useState<ValuationDefaults | null>(null)
   const [inputs, setInputs] = useState<Inputs | null>(null)
@@ -40,7 +46,9 @@ export function ValuationSection({ symbol }: { symbol: string }) {
       const g = d.suggested_growth_capped ?? 0.05
       setInputs({
         base_fcf: d.base_fcf !== null ? String(Math.round(d.base_fcf)) : '',
-        net_debt: d.net_debt !== null ? String(Math.round(d.net_debt)) : '0',
+        // Deuda desconocida = campo vacío, nunca '0': con cero la empresa se
+        // valoraba como si no debiera nada. Hay que escribirla para calcular.
+        net_debt: d.net_debt !== null ? String(Math.round(d.net_debt)) : '',
         shares_outstanding:
           d.shares_outstanding !== null ? String(Math.round(d.shares_outstanding)) : '',
         years: '5',
@@ -70,7 +78,7 @@ export function ValuationSection({ symbol }: { symbol: string }) {
       const resp = await api.dcf(symbol, {
         base_fcf: parseFloat(inputs.base_fcf),
         years: parseInt(inputs.years, 10) || 5,
-        net_debt: parseFloat(inputs.net_debt) || 0,
+        net_debt: numeroOVacio(inputs.net_debt),
         shares_outstanding: inputs.shares_outstanding
           ? parseFloat(inputs.shares_outstanding)
           : null,
@@ -132,6 +140,7 @@ export function ValuationSection({ symbol }: { symbol: string }) {
             <input
               className={inputCls}
               value={inputs.net_debt}
+              placeholder="desconocida: escríbela"
               onChange={(e) => setInputs({ ...inputs, net_debt: e.target.value })}
             />
           </label>
@@ -187,10 +196,23 @@ export function ValuationSection({ symbol }: { symbol: string }) {
           ))}
         </div>
 
+        {defaults.net_debt === null && (
+          <p className="mt-3 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+            El filing no trae deuda a largo ni a corto plazo: la deuda neta es desconocida. Sin
+            ella no hay valor por acción, y suponerla cero valoraría la empresa como si no debiera
+            nada. Escríbela para calcular.
+          </p>
+        )}
+        {defaults.nota_deuda && (
+          <p className="mt-3 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+            Deuda parcial. {defaults.nota_deuda}
+          </p>
+        )}
+
         <div className="mt-3 flex items-center gap-3">
           <button
             onClick={run}
-            disabled={busy || !inputs.base_fcf}
+            disabled={busy || !inputs.base_fcf || numeroOVacio(inputs.net_debt) === null}
             className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
           >
             {busy ? 'Calculando…' : 'Calcular rango de valor'}

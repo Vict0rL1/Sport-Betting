@@ -181,3 +181,16 @@ def test_parse_companyfacts_prefiere_primera_etiqueta_con_datos():
 
 def test_parse_companyfacts_vacio():
     assert parse_companyfacts({"facts": {}}) == []
+
+
+def test_la_deuda_dice_que_le_falta():
+    from app.analysis.fundamentals import deuda_total, total_debt
+
+    assert deuda_total({"long_term_debt": 300.0, "short_term_debt": 0.0}) == {
+        "valor": 300.0, "parcial": False, "falta": []}
+    # Una pata ausente cuenta como cero, pero se marca: no es lo mismo que un 0 reportado.
+    d = deuda_total({"long_term_debt": 300.0})
+    assert d == {"valor": 300.0, "parcial": True, "falta": ["short_term_debt"]}
+    assert deuda_total({"short_term_debt": 50.0})["falta"] == ["long_term_debt"]
+    # Sin ninguna, desconocida: nunca cero.
+    assert deuda_total({})["valor"] is None and total_debt({}) is None

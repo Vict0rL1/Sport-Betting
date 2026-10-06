@@ -226,7 +226,7 @@ export const api = {
     body: {
       base_fcf: number
       years: number
-      net_debt: number
+      net_debt: number | null
       shares_outstanding: number | null
       scenarios: Record<string, ScenarioAssumptions>
     },

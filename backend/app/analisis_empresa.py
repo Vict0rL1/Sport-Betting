@@ -38,7 +38,14 @@ from app import datos
 from app import punto_en_el_tiempo as pit
 from app.analysis import calidad_beneficios, confianza, thesis_watch
 from app.analysis.decision import decide
-from app.analysis.fundamentals import derive_ratio_series, free_cash_flow, growth_summary, partida, total_debt
+from app.analysis.fundamentals import (
+    deuda_total,
+    derive_ratio_series,
+    free_cash_flow,
+    growth_summary,
+    nota_deuda_parcial,
+    partida,
+)
 from app.analysis.reverse_dcf import curva_de_crecimiento_implicito
 from app.analysis.signal import FAVORABLE_MIN, UNFAVORABLE_MAX
 from app.db.models import Instrument, Position, Thesis, ThesisTrigger
@@ -244,12 +251,16 @@ def seccion_fundamentales(financials: dict | None, fallo: str | None, ahora: dat
         ),
         "eps_diluted": {**p["eps_diluted"], "unidad": "USD/acción"},
     }
-    deuda = total_debt(ultimo)
+    deuda = deuda_total(ultimo)
     m["deuda_neta"] = _metrica(
-        (deuda - (datos.numero(ultimo.get("cash")) or 0.0)) if deuda is not None else None,
+        (deuda["valor"] - (datos.numero(ultimo.get("cash")) or 0.0)) if deuda["valor"] is not None else None,
         "USD", "deuda a largo + a corto − caja (caja ausente = 0: error en dirección prudente)",
         {"deuda_largo": p["long_term_debt"], "deuda_corto": p["short_term_debt"], "caja": p["cash"]},
     )
+    if deuda["parcial"]:
+        # Una pata ausente cuenta como cero, pero en dirección imprudente: se dice.
+        m["deuda_neta"]["parcial"] = deuda["falta"]
+        m["deuda_neta"]["nota"] = nota_deuda_parcial(deuda["falta"])
 
     trimestre = _ultimo_trimestre(trimestres, obtenido)
     return {
@@ -344,6 +355,11 @@ def seccion_valoracion(fund: dict, precio: float | None) -> dict:
         "motivo": None if curva.get("disponible") else curva.get("nota"),
         "nota": "Crecimiento anual del FCF que justifica el precio de hoy CON estos supuestos. No es un dato de la empresa.",
     }
+    if m["deuda_neta"].get("parcial"):
+        seccion["dcf_inverso"]["deuda_parcial"] = m["deuda_neta"]["parcial"]
+        seccion["dcf_inverso"]["nota"] += (
+            " Deuda PARCIAL: si existe la que falta, el crecimiento que exige el precio es mayor que este."
+        )
     return seccion
 
 
@@ -711,6 +727,8 @@ def datos_desconocidos(a: dict) -> list[dict]:
                 metodo = m.get("metodo")
                 faltan.append({"dato": clave, "seccion": "fundamentales",
                                "motivo": f"falta una entrada ({metodo})" if metodo else "no reportado en el filing"})
+            elif m.get("parcial"):
+                faltan.append({"dato": f"{clave} (parcial)", "seccion": "fundamentales", "motivo": m.get("nota")})
     val = a["valoracion"]
     if (val.get("dcf_inverso") or {}).get("estado") == DESCONOCIDO:
         faltan.append({"dato": "DCF inverso", "seccion": "valoracion", "motivo": val["dcf_inverso"].get("motivo")})

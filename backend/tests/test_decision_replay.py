@@ -304,3 +304,20 @@ def test_no_tener_posicion_es_un_dato_congelado_no_una_seccion_ausente(session_f
     assert r["analisis"]["posicion"] is None
     assert "posicion" not in rep["no_congelado"]
     assert rep["completo"] is True, (rep["no_congelado"], rep["incompletas"])
+
+
+def test_una_deuda_parcial_no_se_lee_como_completa(session_factory):
+    """Sin deuda a corto en el filing cuenta como cero, pero en dirección
+    imprudente: la métrica, la lista de lo que falta y el DCF inverso lo dicen."""
+    periodos = financieros_base()
+    for p in periodos:
+        p["short_term_debt"] = None
+    servicio = ServicioFalso(AHORA).empresa("AAPL", precio=104.0, score=0.6, periodos=periodos)
+    with session_factory() as s:
+        a = analisis_empresa.analizar("AAPL", servicio, s, ahora=AHORA, con_pares=False)
+    neta = a["fundamentales"]["metricas"]["deuda_neta"]
+    assert neta["valor"] == pytest.approx(300.0 - 120.0)
+    assert neta["parcial"] == ["short_term_debt"] and "sobreestimado" in neta["nota"]
+    assert any(f["dato"] == "deuda_neta (parcial)" for f in a["faltan"])
+    assert a["valoracion"]["dcf_inverso"]["deuda_parcial"] == ["short_term_debt"]
+    assert "PARCIAL" in a["valoracion"]["dcf_inverso"]["nota"]

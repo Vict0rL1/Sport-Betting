@@ -554,7 +554,12 @@ export function ValuationPage() {
             <dl className="mt-2 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               {[
                 ['FCF de partida', fmtNumber(data.entradas.base_fcf / 1e6, 0) + ' M'],
-                ['Deuda neta', fmtNumber(data.entradas.net_debt / 1e6, 0) + ' M'],
+                [
+                  'Deuda neta',
+                  fmtNumber(data.entradas.net_debt / 1e6, 0) +
+                    ' M' +
+                    (data.entradas.deuda_parcial ? ' (parcial)' : ''),
+                ],
                 [
                   'Acciones',
                   data.entradas.shares_outstanding
@@ -571,6 +576,11 @@ export function ValuationPage() {
                 </div>
               ))}
             </dl>
+            {data.entradas.nota_deuda && (
+              <p className="mt-2 rounded border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                Deuda parcial. {data.entradas.nota_deuda}
+              </p>
+            )}
             <p className="mt-2 text-[11px] text-slate-400">
               Estados financieros de {data.entradas.source}, ejercicio{' '}
               {String(data.entradas.fiscal_year)}. Crecimiento histórico:{' '}

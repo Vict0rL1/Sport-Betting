@@ -154,6 +154,7 @@ export interface Health extends Sourced {
   }
   interest_coverage: number | null
   net_debt: number | null
+  deuda_parcial?: string[] | null
   fcf: number | null
   fiscal_year?: string
   market_cap_used: number | null
@@ -163,6 +164,9 @@ export interface ValuationDefaults extends Sourced {
   symbol: string
   base_fcf: number | null
   net_debt: number | null
+  /** Partidas de deuda que el filing no trae y cuentan como cero (null: ninguna). */
+  deuda_parcial?: string[] | null
+  nota_deuda?: string | null
   shares_outstanding: number | null
   historical_growth: Financials['growth']
   suggested_growth_capped: number | null
@@ -1512,6 +1516,8 @@ export interface Valoracion {
   entradas: {
     base_fcf: number
     net_debt: number
+    deuda_parcial?: string[] | null
+    nota_deuda?: string | null
     shares_outstanding: number | null
     revenue: number | null
     eps: number | null

@@ -10,9 +10,10 @@ from fastapi.responses import FileResponse
 
 from app.analysis.fundamentals import (
     derive_ratio_series,
+    deuda_total,
     free_cash_flow,
     growth_summary,
-    total_debt,
+    nota_deuda_parcial,
 )
 from app.analysis.health import health_snapshot
 from app.analysis import logos
@@ -238,8 +239,14 @@ def get_valuation_defaults(symbol: str, service: MarketDataService = Depends(get
         pass
 
     fcf = free_cash_flow(latest)
-    debt = total_debt(latest)
-    suggested_growth = growth.get("fcf_cagr") or growth.get("revenue_cagr")
+    deuda = deuda_total(latest)
+    debt = deuda["valor"]
+    # `is None`, no `or`: un crecimiento medido de 0,0 es un dato (la empresa
+    # estancada) y con `or` se cambiaba por el de ingresos. Mismo fallo que se
+    # corrigió en `routers/valuation.py`.
+    suggested_growth = growth.get("fcf_cagr")
+    if suggested_growth is None:
+        suggested_growth = growth.get("revenue_cagr")
     if suggested_growth is not None:
         # El pasado no se extrapola alegremente: se acota a [0 %, 15 %].
         suggested_growth = max(0.0, min(suggested_growth, 0.15))
@@ -250,6 +257,8 @@ def get_valuation_defaults(symbol: str, service: MarketDataService = Depends(get
         "cached": financials.get("cached", False),
         "base_fcf": fcf,
         "net_debt": (debt - (latest.get("cash") or 0.0)) if debt is not None else None,
+        "deuda_parcial": deuda["falta"] if deuda["parcial"] else None,
+        "nota_deuda": nota_deuda_parcial(deuda["falta"]) if deuda["parcial"] else None,
         "shares_outstanding": latest.get("shares_outstanding"),
         "historical_growth": growth,
         "suggested_growth_capped": suggested_growth,
@@ -274,6 +283,15 @@ def post_dcf(
     un único número.
     """
     symbol = _validate_symbol(symbol)
+    if request.net_debt is None or request.net_debt != request.net_debt:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Falta la deuda neta. Sin ella no hay valor por acción: suponerla "
+                "cero valoraría la empresa como si no debiera nada. Escríbela "
+                "(puede ser negativa si tiene más caja que deuda)."
+            ),
+        )
     try:
         scenarios = scenario_set(
             {
