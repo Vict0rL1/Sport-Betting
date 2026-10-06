@@ -81,6 +81,109 @@ function Reproducir() {
   );
 }
 
+interface Sombras {
+  sombras: { sport: string; nombre: string; n: number; sombra: { logLoss: number | null; brier: number | null }; campeon: { logLoss: number | null; brier: number | null }; diferencia: { veredicto: string; lectura: string }; aviso: { texto: string | null } }[];
+  ensembles: Record<string, { componentes: string[]; mejor: string; metodos: Record<string, { validacion: { n: number; logLoss: number; logLossCampeon: number; ic?: [number, number] } }> } | undefined>;
+}
+interface Version {
+  version: string;
+  activada: string;
+  desactivada: string | null;
+  motivo: string;
+  git_commit: string;
+  metricas: string;
+}
+interface Experimentos {
+  total: number;
+  aceptados: number;
+  noConcluyentes: number;
+  rechazados: { id: string; date: string; sport: string; hypothesis: string; motivo: string }[];
+}
+
+function ModelosSombra() {
+  const [d, setD] = useState<Sombras | null>(null);
+  useEffect(() => {
+    fetch('/api/shadows').then((r) => r.json()).then(setD).catch(() => {});
+  }, []);
+  if (!d) return <p>Cargando…</p>;
+  return (
+    <>
+      {d.sombras.length === 0 ? (
+        <p>Todavía no hay sombras con partidos resueltos: se guardan al servir cada partido real, en el mismo instante que el modelo principal.</p>
+      ) : (
+        d.sombras.map((x) => (
+          <p key={x.sport + x.nombre}>
+            {NOMBRE[x.sport]} · {x.nombre}: N {x.n} · log loss sombra {f3(x.sombra.logLoss)} contra campeón {f3(x.campeon.logLoss)} · {x.diferencia.veredicto}
+            {x.aviso.texto && <span style={{ color: AMBAR }}> · ⚠ muestra pequeña</span>}
+          </p>
+        ))
+      )}
+      {Object.entries(d.ensembles).map(([sport, e]) =>
+        e ? (
+          <p key={sport}>
+            Ensemble {NOMBRE[sport]} ({e.componentes.join(' + ')}): mejor fuera de muestra «{e.mejor}», log loss {f3(e.metodos[e.mejor].validacion.logLoss)} contra
+            campeón {f3(e.metodos[e.mejor].validacion.logLossCampeon)} en {e.metodos[e.mejor].validacion.n} partidos del histórico.
+          </p>
+        ) : null,
+      )}
+      <p className="text-[12px] text-[#5c636c]">Ninguna sombra apuesta ni se promociona sola: cambiar de modelo exige un experimento registrado.</p>
+    </>
+  );
+}
+
+function HistoriaVersiones() {
+  const [d, setD] = useState<{ historial: Record<string, Version[]>; nota: string | null } | null>(null);
+  useEffect(() => {
+    fetch('/api/model-history').then((r) => r.json()).then(setD).catch(() => {});
+  }, []);
+  if (!d) return <p>Cargando…</p>;
+  if (d.nota) return <p>{d.nota}</p>;
+  return (
+    <>
+      {Object.entries(d.historial).map(([sport, vs]) => (
+        <details key={sport} className="mb-1">
+          <summary className="cursor-pointer text-[#c3c9d1]">
+            {NOMBRE[sport]}: {vs.length} versiones · activa {vs[vs.length - 1]?.version}
+          </summary>
+          <ul className="ml-3 mt-1">
+            {[...vs].reverse().map((v, i) => (
+              <li key={v.version}>
+                v{vs.length - i} <span className="text-[#c3c9d1]">{v.version}</span> · {v.activada.slice(0, 10)} → {v.desactivada ? v.desactivada.slice(0, 10) : 'activa'} · {v.git_commit} — {v.motivo}
+                <span className="text-[#5c636c]"> ({v.metricas})</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ))}
+    </>
+  );
+}
+
+function Rechazados() {
+  const [d, setD] = useState<Experimentos | null>(null);
+  useEffect(() => {
+    fetch('/api/experiments').then((r) => r.json()).then(setD).catch(() => {});
+  }, []);
+  if (!d) return <p>Cargando…</p>;
+  return (
+    <>
+      <p>
+        {d.total} experimentos registrados: {d.aceptados} aceptados, {d.rechazados.length} rechazados y {d.noConcluyentes} no concluyentes. Los rechazados no se
+        borran:
+      </p>
+      <ul className="mt-1 space-y-1">
+        {d.rechazados.slice(0, 12).map((x) => (
+          <li key={x.id}>
+            <span className="text-[#5c636c]">{x.date.slice(0, 10)}</span> <span className="text-[#c3c9d1]">{x.hypothesis}</span>
+            <span className="block text-[12px]">Rechazado. Motivo: {x.motivo}</span>
+          </li>
+        ))}
+      </ul>
+      {d.rechazados.length > 12 && <p className="text-[12px] text-[#5c636c]">…y {d.rechazados.length - 12} más (npm run experiments).</p>}
+    </>
+  );
+}
+
 export default function SystemTrust() {
   const [s, setS] = useState<Sistema | null>(null);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
@@ -174,6 +277,15 @@ export default function SystemTrust() {
             <span style={{ color: a.severity === 'importante' ? LOSS_COLOR : a.severity === 'aviso' ? AMBAR : undefined }}>{a.title}</span> — {a.body}
           </p>
         ))}
+      </Bloque>
+      <Bloque titulo="Modelos en sombra y ensembles">
+        <ModelosSombra />
+      </Bloque>
+      <Bloque titulo="Evolución de los modelos (desde git)">
+        <HistoriaVersiones />
+      </Bloque>
+      <Bloque titulo="Experimentos rechazados">
+        <Rechazados />
       </Bloque>
       <Bloque titulo="Reproducir una predicción o apuesta">
         <Reproducir />

@@ -32,3 +32,14 @@ test('el registro real se puede leer y ningún candidato queda sin interpretar',
   assert.ok(experiments.length > 0);
   for (const e of experiments) assert.ok(['aceptado', 'rechazado', 'no concluyente'].includes(interpretarExperimento(e).candidato));
 });
+
+test('no promocionado y pendiente de muestra en vivo es «no concluyente», no «rechazado»', () => {
+  const i = interpretarExperimento(base({ accepted: false, verdict: 'inconclusive', reason: 'mejora en validación; corre como sombra', result: { delta: -0.001, ciLo: -0.0017, ciHi: -0.0001, p: 0.03, n: 100 } }));
+  assert.equal(i.candidato, 'no concluyente');
+  assert.equal(interpretarExperimento(base({ accepted: false, verdict: 'rejected', reason: 'empeora' })).candidato, 'rechazado');
+});
+
+test('un estudio de correlación rechazado no dice «no mejora», dice que los datos no lo sostienen', () => {
+  const i = interpretarExperimento(base({ metric: 'corr', verdict: 'rejected', result: { delta: 0.0013, ciLo: -0.002, ciHi: 0.005, p: 0.5, n: 1000 } }));
+  assert.match(i.motivo, /no sostienen la hipótesis/);
+});

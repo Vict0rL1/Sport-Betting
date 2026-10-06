@@ -43,6 +43,12 @@ import { lineaTemporal } from '../audit/timeline.ts';
 import { reproducir } from '../audit/reproduce.ts';
 import { alertas } from '../alerts/engine.ts';
 import { confianzaDelSistema } from '../evaluation/system.ts';
+import { informeSombras } from '../shadow/evaluation.ts';
+import { leerEnsembles } from '../shadow/ensemble.ts';
+import { readRegistry, distinctExperiments, interpretarExperimento } from '../experiments/registry.ts';
+import fs from 'node:fs';
+import path from 'node:path';
+import { ROOT } from '../config.ts';
 import { partidosDeHoy, resultadosRecientes } from '../today.ts';
 import { evaluate } from '../live/engine.ts';
 import { matchupServe } from '../live/serve.ts';
@@ -540,6 +546,29 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
   // --- ¿podemos confiar en el modelo? La página de transparencia ---
   app.get('/system-trust', async () => confianzaDelSistema());
+
+  // --- modelos en sombra y ensembles registrados (no apuestan; solo se comparan) ---
+  app.get('/shadows', async () => ({ sombras: informeSombras(), ensembles: leerEnsembles() }));
+
+  // --- cuándo y por qué cambió cada modelo (experiments/model_history.json, de git) ---
+  app.get('/model-history', async () => {
+    try {
+      return { historial: JSON.parse(fs.readFileSync(path.join(ROOT, 'experiments', 'model_history.json'), 'utf8')), nota: null };
+    } catch {
+      return { historial: {}, nota: 'Sin historial guardado: ejecuta npm run model:history.' };
+    }
+  });
+
+  // --- el registro de experimentos, con los rechazados a la vista ---
+  app.get('/experiments', async () => {
+    const xs = distinctExperiments(readRegistry().experiments).map((e) => ({ ...interpretarExperimento(e), id: e.id, date: e.date, sport: e.dataset.sport, hypothesis: e.hypothesis }));
+    return {
+      total: xs.length,
+      aceptados: xs.filter((x) => x.candidato === 'aceptado').length,
+      rechazados: xs.filter((x) => x.candidato === 'rechazado').sort((a, b) => b.date.localeCompare(a.date)),
+      noConcluyentes: xs.filter((x) => x.candidato === 'no concluyente').length,
+    };
+  });
 
   // --- riesgo de la cartera abierta: total, por deporte y por grupo de correlación ---
   app.get('/risk', async () => riesgoCartera(bancoActual()));

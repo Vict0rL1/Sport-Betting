@@ -116,11 +116,20 @@ export function interpretarExperimento(e: Experiment): { candidato: 'aceptado' |
   const r = e.result;
   const ic = `[${r.ciLo.toFixed(4)}, ${r.ciHi.toFixed(4)}]`;
   const cifra = `Δ ${e.metric} ${r.delta >= 0 ? '+' : ''}${r.delta.toFixed(4)} ${ic}, p ${r.p.toFixed(3)}, n ${r.n}`;
-  if (e.accepted != null) return { candidato: e.accepted ? 'aceptado' : 'rechazado', motivo: `${e.reason ?? ''} (${cifra})`.trim() };
+  if (e.accepted === true) return { candidato: 'aceptado', motivo: `${e.reason ?? ''} (${cifra})`.trim() };
+  // No promocionado no es lo mismo que rechazado: un candidato que mejora en validación y
+  // espera muestra en vivo (verdict 'inconclusive') está pendiente, no descartado.
+  if (e.accepted === false) {
+    return { candidato: e.verdict === 'inconclusive' ? 'no concluyente' : 'rechazado', motivo: `${e.reason ?? ''} (${cifra})`.trim() };
+  }
   if (e.verdict === 'inconclusive') return { candidato: 'no concluyente', motivo: `el intervalo no permite decidir (${cifra})` };
   const ablacion = /^(quitar|sin |eliminar|apagar)/i.test(e.hypothesis.trim());
   const empeora = (e.metric === 'logloss' || e.metric === 'brier' || e.metric === 'rps') && r.delta > 0;
-  if (e.verdict === 'rejected') return { candidato: 'rechazado', motivo: `${empeora ? 'empeora' : 'no mejora lo suficiente'}: ${cifra}` };
+  // Los estudios que no son una mejora de modelo (correlación, escala de un parámetro) no
+  // «empeoran» ni «mejoran»: o los datos sostienen la hipótesis o no.
+  const esPerdida = e.metric === 'logloss' || e.metric === 'brier' || e.metric === 'rps';
+  if (e.verdict === 'rejected' && !esPerdida) return { candidato: 'rechazado', motivo: `los datos no sostienen la hipótesis: ${cifra}` };
+  if (e.verdict === 'rejected') return { candidato: 'rechazado', motivo: `${empeora ? 'empeora' : 'la mejora no es significativa con el umbral exigido (ver notas del experimento)'}: ${cifra}` };
   if (ablacion && empeora) return { candidato: 'rechazado', motivo: `quitarlo empeora el ${e.metric}; se mantiene lo publicado (${cifra})` };
   return { candidato: 'aceptado', motivo: `${r.delta < 0 ? 'mejora' : 'aceptado con salvedades (ver notas)'}: ${cifra}` };
 }
