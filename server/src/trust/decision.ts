@@ -44,6 +44,42 @@ export const RECORTES = {
   deriva: 0.5,
 };
 
+/**
+ * Familias de motivo de abstención, para agruparlos (doctor, informes). Los textos llevan
+ * números («calidad de datos 42/100») y contados tal cual nunca se repiten.
+ *
+ * `tuberia`: el motivo no habla del partido sino de que algo no estaba al día (cuotas sin
+ * refrescar, evaluación anterior a las cuotas). Una abstención así es un fallo de
+ * operación, no una decisión del modelo, y se diagnostica distinto.
+ *
+ * Incluye las del banco (paper/bankroll.ts → juicioDeConfianza). Un test fija que todo
+ * texto que generan las reglas cae en alguna familia: un texto nuevo sin familia saldría
+ * como «otro» y el diagnóstico dejaría de verlo.
+ */
+export const FAMILIAS_MOTIVO: { familia: string; re: RegExp; tuberia: boolean }[] = [
+  { familia: 'sin ventaja mínima', re: /por debajo del mínimo de la política/, tuberia: false },
+  { familia: 'no sobrevive a la incertidumbre', re: /no sobrevive a la incertidumbre/, tuberia: false },
+  { familia: 'desaparece en la sensibilidad', re: /desaparece en el \d+ % de las simulaciones/, tuberia: false },
+  { familia: 'calidad de datos', re: /^calidad de datos \d+\/100/, tuberia: false },
+  { familia: 'fuera de distribución', re: /^fuera de distribución/, tuberia: false },
+  { familia: 'predicción inestable', re: /^predicción inestable/, tuberia: false },
+  { familia: 'componentes en contra', re: /^componentes en contra/, tuberia: false },
+  { familia: 'mercado de calidad baja', re: /^mercado de calidad baja/, tuberia: false },
+  { familia: 'predicción desfasada', re: /está desfasada de la actual/, tuberia: false },
+  { familia: 'sin mercado', re: /^(partido de demostración|sin cuotas para este partido)/, tuberia: false },
+  { familia: 'recorte a cero', re: /^el recorte de confianza deja el importe en cero/, tuberia: false },
+  { familia: 'precio viejo', re: /^precio de hace \d+ h/, tuberia: true },
+  { familia: 'sin evaluación', re: /^sin evaluación de confianza registrada/, tuberia: true },
+  { familia: 'evaluación anterior a las cuotas', re: /evaluación de confianza es anterior a las cuotas/, tuberia: true },
+  { familia: 'evaluación con otra cuota', re: /evaluación de confianza se hizo con otra selección o con otra cuota/, tuberia: true },
+];
+
+export function familiaDeMotivo(texto: string): { familia: string; tuberia: boolean } {
+  const limpio = texto.replace(/^abstención:\s*/, '');
+  const f = FAMILIAS_MOTIVO.find((x) => x.re.test(limpio));
+  return f ? { familia: f.familia, tuberia: f.tuberia } : { familia: 'otro', tuberia: false };
+}
+
 export interface Senal {
   ok: boolean;
   texto: string;

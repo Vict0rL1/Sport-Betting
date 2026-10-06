@@ -8,7 +8,8 @@ import { predecirProximosFutbol } from '../routes/football.ts';
 import { predecirProximosBaloncesto } from '../routes/basketball.ts';
 import { predecirProximosBeisbol } from '../routes/baseball.ts';
 import { predecirProximosNfl } from '../routes/nfl.ts';
-import { freezeFinals } from './snapshots.ts';
+import { freezeFinals, META_CICLO } from './snapshots.ts';
+import { setMeta } from '../db.ts';
 
 export function cicloPrePartido(log: (m: string) => void = () => {}): { congeladas: number } {
   for (const [nombre, f] of [
@@ -21,7 +22,12 @@ export function cicloPrePartido(log: (m: string) => void = () => {}): { congelad
       log(`Pre-partido (${nombre}): ${(e as Error).message}`);
     }
   }
-  const r = freezeFinals();
+  const ahora = new Date();
+  const r = freezeFinals(ahora);
   if (r.congeladas) log(`Pre-partido: ${r.congeladas} predicción(es) final(es) congelada(s).`);
+  // Se escribe al FINAL (si algo de arriba lanzara, el latido no diría que el ciclo pasó) y
+  // con la MISMA hora con la que se congeló: «empezado antes del último ciclo y sin
+  // congelar» tiene que ser un fallo de verdad, no milisegundos de diferencia.
+  setMeta(META_CICLO, ahora.toISOString());
   return r;
 }

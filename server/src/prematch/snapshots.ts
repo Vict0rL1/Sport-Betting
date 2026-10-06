@@ -85,6 +85,10 @@ export const MARCAS = [
 /** Movimiento mínimo que cuenta como cambio: 0,1 pp. */
 export const CAMBIO_MIN = 0.001;
 
+/** Meta con la hora del último ciclo pre-partido completo (prematch/job.ts): el latido
+ *  que lee `npm run doctor`. Vive aquí y no en job.ts para no arrastrar las rutas. */
+export const META_CICLO = 'prematch_cycle_at';
+
 const H = 3_600_000;
 
 /** «20250928·15394» → «2025-09-28T00:00:00.000Z»: hasta dónde llegan los datos. */

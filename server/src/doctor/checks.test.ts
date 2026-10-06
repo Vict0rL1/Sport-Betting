@@ -169,3 +169,85 @@ test('resultado: error manda, luego avisos; y la misma acción se dice una vez',
   assert.equal(resultado([{ seccion: 'BASE DE DATOS', nivel: 'ok', texto: 'x' }]).nivel, 'ok');
   assert.equal(resultado([{ seccion: 'BASE DE DATOS', nivel: 'error', texto: 'x' }]).nivel, 'error');
 });
+
+// ---------------------------------------------------------------------------
+// CONFIANZA
+// ---------------------------------------------------------------------------
+const { comprobarConfianza, CICLO_MAX_MIN } = await import('./checks.ts');
+const AHORA = new Date('2026-10-06T12:00:00Z');
+const minAtras = (m: number) => new Date(AHORA.getTime() - m * 60_000).toISOString();
+const estado = (over: Partial<Parameters<typeof comprobarConfianza>[0]> = {}): Parameters<typeof comprobarConfianza>[0] => ({
+  ultimoCiclo: minAtras(10),
+  conCuotaPorEmpezar: 12,
+  sinCongelarTrasCiclo: 0,
+  pendientesDeCongelar: 0,
+  congeladas: 40,
+  evaluaciones24h: { BET: 2, 'NO BET': 8, 'SIN MERCADO': 2 },
+  motivos24h: [{ familia: 'sin ventaja mínima', tuberia: false, n: 7 }, { familia: 'calidad de datos', tuberia: false, n: 2 }],
+  banco7d: { total: 0, familias: [] },
+  alertas24h: { importante: 0, aviso: 0, info: 0 },
+  deriva7d: null,
+  ...over,
+});
+
+test('confianza: ciclo al día y abstenciones por decisión del modelo → sin avisos', () => {
+  const hs = comprobarConfianza(estado(), AHORA);
+  assert.deepEqual(niveles(hs).filter((n) => n === 'aviso' || n === 'error'), []);
+  assert.ok(buscar(hs, /Ciclo pre-partido: último hace 10 min · 12 partido/));
+  const r = buscar(hs, /Últimas 24 h: 12 partido\(s\) evaluado\(s\)/)!;
+  assert.match(r.detalle![0], /88 % de las NO BET: sin ventaja mínima$/, 'sin la marca de «operación»');
+});
+
+test('confianza: ciclo parado con partidos con cuota → aviso y npm run dev; sin partidos, solo informa', () => {
+  const parado = comprobarConfianza(estado({ ultimoCiclo: minAtras(CICLO_MAX_MIN + 30) }), AHORA);
+  const a = buscar(parado, /Último ciclo pre-partido hace 75 min/)!;
+  assert.equal(a.nivel, 'aviso');
+  assert.deepEqual(a.accion, ['npm run dev']);
+  assert.equal(buscar(comprobarConfianza(estado({ ultimoCiclo: null }), AHORA), /nunca ha corrido/)?.nivel, 'aviso');
+  // Sin nada que evaluar, que el ciclo no corra no es un problema.
+  const vacio = comprobarConfianza(estado({ ultimoCiclo: minAtras(600), conCuotaPorEmpezar: 0 }), AHORA);
+  assert.equal(buscar(vacio, /Ciclo pre-partido/)?.nivel, 'info');
+  assert.ok(!niveles(vacio).includes('aviso'));
+});
+
+test('confianza: empezado ANTES del último ciclo y sin congelar es un error; después, pendiente', () => {
+  const mal = comprobarConfianza(estado({ sinCongelarTrasCiclo: 3 }), AHORA);
+  assert.equal(buscar(mal, /3 partido\(s\) empezados antes del último ciclo/)?.nivel, 'error');
+  const pendiente = comprobarConfianza(estado({ pendientesDeCongelar: 2 }), AHORA);
+  assert.match(buscar(pendiente, /congelada/)!.texto, /2 empezado\(s\) se congelarán en el próximo ciclo/);
+  assert.ok(!niveles(pendiente).includes('error'));
+});
+
+test('confianza: si la mayoría de abstenciones son de operación (precio viejo), avisa con qué hacer', () => {
+  const hs = comprobarConfianza(estado({ motivos24h: [{ familia: 'precio viejo', tuberia: true, n: 6 }, { familia: 'sin ventaja mínima', tuberia: false, n: 2 }] }), AHORA);
+  const a = buscar(hs, /75 % de las abstenciones son por «precio viejo»/)!;
+  assert.equal(a.nivel, 'aviso');
+  assert.equal(a.accion![0], 'npm run odds');
+  assert.match(buscar(hs, /Últimas 24 h/)!.detalle![0], /\(operación, no el partido\)/);
+});
+
+// TEST NEGATIVO: abstenerse mucho por falta de ventaja es la política funcionando. Si esto
+// avisara, el doctor enseñaría a ignorar sus avisos.
+test('confianza: el 100 % de NO BET por falta de ventaja NO es un aviso; 3 abstenciones no son un patrón', () => {
+  const todo = comprobarConfianza(estado({ evaluaciones24h: { BET: 0, 'NO BET': 30, 'SIN MERCADO': 0 }, motivos24h: [{ familia: 'sin ventaja mínima', tuberia: false, n: 30 }] }), AHORA);
+  assert.ok(!niveles(todo).includes('aviso'));
+  const pocas = comprobarConfianza(estado({ evaluaciones24h: { BET: 0, 'NO BET': 3, 'SIN MERCADO': 0 }, motivos24h: [{ familia: 'precio viejo', tuberia: true, n: 3 }] }), AHORA);
+  assert.ok(!niveles(pocas).includes('aviso'), 'por debajo de MIN_PATRON no se habla de «la mayoría»');
+});
+
+test('confianza: el banco descartando por evaluación desfasada es un aviso; por calidad de datos, información', () => {
+  const ciego = comprobarConfianza(estado({ banco7d: { total: 6, familias: [{ familia: 'evaluación anterior a las cuotas', tuberia: true, n: 5 }, { familia: 'calidad de datos', tuberia: false, n: 1 }] } }), AHORA);
+  const a = buscar(ciego, /El banco descartó 5 de 6 partido/)!;
+  assert.equal(a.nivel, 'aviso');
+  assert.ok(a.accion!.some((l) => l.startsWith('npm run paper')));
+  const prudente = comprobarConfianza(estado({ banco7d: { total: 6, familias: [{ familia: 'calidad de datos', tuberia: false, n: 6 }] } }), AHORA);
+  assert.equal(buscar(prudente, /El banco descartó 6 partido/)?.nivel, 'info');
+});
+
+test('confianza: una deriva reciente se avisa y remite al informe del modelo', () => {
+  const hs = comprobarConfianza(estado({ deriva7d: 'tennis: log loss 0.640 en vivo contra 0.610', alertas24h: { importante: 1, aviso: 2, info: 0 } }), AHORA);
+  const d = buscar(hs, /Deriva reciente del modelo: tennis/)!;
+  assert.equal(d.nivel, 'aviso');
+  assert.deepEqual(d.accion, ['npm run model:report']);
+  assert.ok(buscar(hs, /Alertas internas \(24 h\): 1 importante/));
+});

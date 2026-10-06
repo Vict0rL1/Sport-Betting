@@ -74,6 +74,19 @@ de reproducción, línea temporal de auditoría, página de transparencia e info
    descarga posterior a la última evaluación obliga a guardar otra. Test en
    `trust/decision.test.ts` que fallaba con el código anterior.
 
+8. **`npm run paper` apostaba sin evaluar antes.** El servidor pasa el ciclo pre-partido
+   (predicción, instantánea, evaluación de confianza) antes de `place()`; la terminal no.
+   Tras un `npm run odds` con el servidor apagado, las cuotas eran más nuevas que cualquier
+   evaluación y el banco se abstenía de todo por «evaluación anterior a las cuotas»: un
+   fallo de operación que se leía como prudencia. Ahora `npm run paper` pasa el ciclo
+   primero. Para que un fallo así no vuelva a pasar desapercibido, `npm run doctor` tiene
+   una sección **CONFIANZA**: latido del ciclo pre-partido (meta `prematch_cycle_at`),
+   partidos empezados sin final congelada, decisión más reciente por partido y motivos de
+   abstención agrupados por familia (`FAMILIAS_MOTIVO` en `trust/decision.ts`). Solo avisa
+   si la mayoría de abstenciones son de *operación* (precio viejo, evaluación desfasada);
+   abstenerse por falta de ventaja es la política funcionando y no se avisa (test negativo
+   en `doctor/checks.test.ts`).
+
 ## 3. Qué se construyó y con qué criterio
 
 Todo lo nuevo vive en `server/src/` y se ve en la app en el panel **«¿Cuánto fiarse?»** de

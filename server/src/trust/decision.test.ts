@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import '../test/setup.ts';
 
 const { evaluar, registrarEvaluacion, ultimaEvaluacion } = await import('./assess.ts');
-const { ABSTENCION } = await import('./decision.ts');
+const { ABSTENCION, familiaDeMotivo, FAMILIAS_MOTIVO } = await import('./decision.ts');
 const { DEFAULT_CONFIG } = await import('../staking/policy.ts');
 const { getDb } = await import('../db.ts');
 type Ev = Parameters<typeof evaluar>[0];
@@ -151,4 +151,44 @@ test('integración: evaluación → refresco sin movimiento → el banco sigue p
   const j = juicioDeConfianza(candidato, 'A');
   assert.equal(j.apostar, true, j.razon ?? '');
   assert.equal(j.factor, 1);
+});
+
+// El doctor agrupa los motivos por familia (FAMILIAS_MOTIVO). Si una regla cambia su texto y
+// deja de caer en una familia, saldría como «otro» y el diagnóstico de «el banco está ciego
+// por cuotas viejas» dejaría de dispararse sin que nada fallara. Aquí se generan los textos
+// con las reglas DE VERDAD, no copiados a mano.
+test('todo motivo de abstención que generan las reglas cae en una familia', async () => {
+  const { juicioDeConfianza } = await import('../paper/bankroll.ts');
+  const casos = [
+    bueno({ odds: [1.55, 2.6] }),
+    bueno({ oddsAt: enHoras(-(ABSTENCION.precioViejoHoras + 1)) }),
+    bueno({ demo: true }),
+    bueno({ odds: null }),
+    bueno({
+      datos: [{ estado: 'aviso', texto: 'pocos partidos', max: 50, puntos: 0 }, { estado: 'ok', texto: 'cuotas', max: 20, puntos: 20 }],
+      ood: [{ grave: true, texto: 'jugador con solo 4 partidos registrados' }],
+      fiabilidad: { nivel: 'low', margenPp: 10, motivos: [] },
+      sigmaHueco: 160,
+      componentes: [{ nombre: 'Elo general', probs: [0.72, 0.28] }, { nombre: 'Elo de superficie', probs: [0.4, 0.6] }],
+    }),
+  ];
+  const razones = casos.flatMap((e) => evaluar(e, { now: ahora }).decision.razones);
+  razones.push(...evaluar(bueno(), { now: ahora, pRegistrada: [0.75, 0.25] }).decision.razones);
+  // Las del banco: sin evaluación, evaluación anterior a las cuotas y con otra cuota.
+  const cand = (k: string, oddsAt: string | null, cuota = 1.8) => ({ sport: 'tennis', match_key: k, oddsAt, salidas: [{ label: 'A', p: p0, odds: cuota }, { label: 'B', p: 1 - p0, odds: 2.1 }] });
+  razones.push(juicioDeConfianza(cand('nunca|evaluado', null), 'A').razon!);
+  const t0 = new Date(ahora.getTime() - 2 * 3_600_000);
+  const e = bueno({ matchKey: 'atp|fam|1|x', oddsAt: new Date(t0.getTime() - 60_000).toISOString() });
+  registrarEvaluacion(e, evaluar(e, { now: t0 }), t0);
+  razones.push(juicioDeConfianza(cand('atp|fam|1|x', new Date(t0.getTime() + 60_000).toISOString()), 'A').razon!);
+  razones.push(juicioDeConfianza(cand('atp|fam|1|x', e.oddsAt as string, 1.95), 'A').razon!);
+
+  const familias = new Set(razones.map((r) => familiaDeMotivo(r).familia));
+  for (const r of razones) assert.notEqual(familiaDeMotivo(r).familia, 'otro', `sin familia: «${r}»`);
+  for (const f of ['sin ventaja mínima', 'precio viejo', 'sin mercado', 'calidad de datos', 'fuera de distribución', 'predicción desfasada', 'sin evaluación', 'evaluación anterior a las cuotas', 'evaluación con otra cuota']) {
+    assert.ok(familias.has(f), `ningún caso genera «${f}»`);
+  }
+  assert.equal(familiaDeMotivo('abstención: precio de hace 9 h (máximo 6 h)').tuberia, true, 'el prefijo del banco no cambia la familia');
+  assert.equal(familiaDeMotivo('algo que nadie ha escrito').familia, 'otro');
+  assert.equal(new Set(FAMILIAS_MOTIVO.map((f) => f.familia)).size, FAMILIAS_MOTIVO.length, 'familias sin repetir');
 });

@@ -18,6 +18,7 @@ export type Seccion =
   | 'DEPORTES'
   | 'BASE DE DATOS'
   | 'ACTUALIZACIÓN'
+  | 'CONFIANZA'
   | 'SERVIDOR Y PANTALLA';
 
 export interface Hallazgo {
@@ -419,6 +420,157 @@ export function comprobarFrescura(
         }),
       );
     }
+  }
+  return out;
+}
+
+// ===========================================================================
+// CONFIANZA — la capa que decide BET / NO BET (trust/, prematch/)
+// ===========================================================================
+
+/** Tres ciclos de 15 min sin latido: el servidor no está corriendo el ciclo pre-partido. */
+export const CICLO_MAX_MIN = 45;
+
+/** Por debajo de esto no se habla de «la mayoría»: con 3 abstenciones no hay patrón. */
+export const MIN_PATRON = 5;
+
+export interface FamiliaContada {
+  familia: string;
+  tuberia: boolean;
+  /** En cuántas abstenciones aparece (una abstención puede tener varios motivos). */
+  n: number;
+}
+
+export interface EstadoConfianza {
+  /** Último ciclo pre-partido completo (meta), o null si nunca corrió. */
+  ultimoCiclo: string | null;
+  /** Partidos reales con cuota y por empezar: lo que el ciclo debería estar evaluando. */
+  conCuotaPorEmpezar: number;
+  /** Empezados ANTES del último ciclo con instantáneas y sin final congelada. */
+  sinCongelarTrasCiclo: number;
+  /** Empezados después del último ciclo, pendientes de congelar en el siguiente. */
+  pendientesDeCongelar: number;
+  congeladas: number;
+  /** Partidos evaluados en las últimas 24 h, por su decisión MÁS RECIENTE (un partido
+   *  se reevalúa cada vez que algo cambia; contar filas contaría refrescos, no partidos). */
+  evaluaciones24h: { BET: number; 'NO BET': number; 'SIN MERCADO': number };
+  /** Motivos de esas NO BET, por familia (trust/decision.ts → FAMILIAS_MOTIVO). */
+  motivos24h: FamiliaContada[];
+  /** Partidos que el banco descartó por abstención en 7 días (último motivo de cada uno). */
+  banco7d: { total: number; familias: FamiliaContada[] };
+  alertas24h: { importante: number; aviso: number; info: number };
+  /** El texto de la última alerta de deriva de los últimos 7 días, si la hay. */
+  deriva7d: string | null;
+}
+
+/** Qué hacer cuando una familia «de tubería» domina. */
+const ACCION_TUBERIA: Record<string, string[]> = {
+  'precio viejo': ['npm run odds', 'npm run dev   (con el servidor arrancado las cuotas se refrescan solas)'],
+  'sin evaluación': ['npm run dev   (el ciclo pre-partido evalúa cada 15 min)', 'npm run paper (o una pasada a mano: evalúa y después apuesta)'],
+  'evaluación anterior a las cuotas': ['npm run dev   (el ciclo pre-partido evalúa cada 15 min)', 'npm run paper (o una pasada a mano: evalúa y después apuesta)'],
+  'evaluación con otra cuota': ['npm run dev   (el ciclo pre-partido evalúa cada 15 min)', 'npm run paper (o una pasada a mano: evalúa y después apuesta)'],
+};
+
+export function comprobarConfianza(e: EstadoConfianza, ahora: Date): Hallazgo[] {
+  const S: Seccion = 'CONFIANZA';
+  const out: Hallazgo[] = [];
+  const hace = (iso: string): string => {
+    const min = Math.round((ahora.getTime() - Date.parse(iso)) / 60_000);
+    if (min < 1) return 'hace menos de un minuto';
+    if (min < 120) return `hace ${min} min`;
+    if (min < 48 * 60) return `hace ${Math.round(min / 60)} h`;
+    return `hace ${Math.round(min / 1440)} días`;
+  };
+  const pct = (n: number, d: number) => `${Math.round((n / d) * 100)} %`;
+
+  // 1. El latido del ciclo pre-partido. Sin él no hay instantáneas T-24h/T-6h/T-1h ni
+  //    evaluación con las cuotas nuevas, y el banco —que falla cerrado— no apuesta nada.
+  const minCiclo = e.ultimoCiclo ? (ahora.getTime() - Date.parse(e.ultimoCiclo)) / 60_000 : null;
+  if (e.conCuotaPorEmpezar > 0 && minCiclo === null) {
+    out.push(
+      h(S, 'aviso', `El ciclo pre-partido nunca ha corrido y hay ${e.conCuotaPorEmpezar} partido(s) con cuota real por empezar`, {
+        detalle: ['Sin evaluación de confianza el banco se abstiene de todo: falla cerrado a propósito.'],
+        accion: ['npm run dev'],
+      }),
+    );
+  } else if (e.conCuotaPorEmpezar > 0 && minCiclo !== null && minCiclo > CICLO_MAX_MIN) {
+    out.push(
+      h(S, 'aviso', `Último ciclo pre-partido ${hace(e.ultimoCiclo!)} con ${e.conCuotaPorEmpezar} partido(s) con cuota real por empezar`, {
+        detalle: [
+          `Corre cada 15 min con el servidor arrancado; más de ${CICLO_MAX_MIN} min sin él es que el servidor está apagado.`,
+          'Mientras tanto no se guardan instantáneas T-24h/T-6h/T-1h y lo que cambie no queda registrado.',
+        ],
+        accion: ['npm run dev'],
+      }),
+    );
+  } else if (e.ultimoCiclo) {
+    out.push(
+      h(S, e.conCuotaPorEmpezar > 0 ? 'ok' : 'info', `Ciclo pre-partido: último ${hace(e.ultimoCiclo)}` + (e.conCuotaPorEmpezar > 0 ? ` · ${e.conCuotaPorEmpezar} partido(s) con cuota real por empezar` : ' · ningún partido con cuota real por empezar')),
+    );
+  } else {
+    out.push(h(S, 'info', 'El ciclo pre-partido no ha corrido nunca, pero tampoco hay partidos con cuota real que evaluar'));
+  }
+
+  // 2. La final congelada. Se congela con la última instantánea ANTERIOR al inicio, así
+  //    que congelar tarde no pierde nada; lo que no puede pasar es que un ciclo que ya
+  //    corrió deje sin congelar lo que había empezado antes que él.
+  if (e.sinCongelarTrasCiclo > 0) {
+    out.push(
+      h(S, 'error', `${e.sinCongelarTrasCiclo} partido(s) empezados antes del último ciclo siguen sin predicción final congelada`, {
+        detalle: ['El ciclo debería haberlos congelado. Alguna fila incumple las restricciones de prematch_final y se descarta en silencio.'],
+        accion: ['npm run verify:data'],
+      }),
+    );
+  } else if (e.congeladas > 0 || e.pendientesDeCongelar > 0) {
+    out.push(
+      h(S, 'ok', `${e.congeladas} predicción(es) final(es) congelada(s)` + (e.pendientesDeCongelar ? ` · ${e.pendientesDeCongelar} empezado(s) se congelarán en el próximo ciclo` : '')),
+    );
+  }
+
+  // 3. Las decisiones de las últimas 24 h y por qué se abstiene.
+  const ev = e.evaluaciones24h;
+  const total = ev.BET + ev['NO BET'] + ev['SIN MERCADO'];
+  if (total > 0) {
+    const detalle = [...e.motivos24h]
+      .sort((a, b) => b.n - a.n)
+      .slice(0, 4)
+      .map((m) => `${pct(m.n, Math.max(ev['NO BET'], 1)).padStart(5)} de las NO BET: ${m.familia}${m.tuberia ? '  (operación, no el partido)' : ''}`);
+    out.push(h(S, 'info', `Últimas 24 h: ${total} partido(s) evaluado(s) — ahora ${ev.BET} BET · ${ev['NO BET']} NO BET · ${ev['SIN MERCADO']} sin mercado`, { detalle: detalle.length ? detalle : undefined }));
+    const tuberia = e.motivos24h.filter((m) => m.tuberia).sort((a, b) => b.n - a.n)[0];
+    if (tuberia && ev['NO BET'] >= MIN_PATRON && tuberia.n / ev['NO BET'] >= 0.5) {
+      out.push(
+        h(S, 'aviso', `El ${pct(tuberia.n, ev['NO BET'])} de las abstenciones son por «${tuberia.familia}»: no habla del partido, sino de algo sin actualizar`, {
+          accion: ACCION_TUBERIA[tuberia.familia] ?? ['npm run dev'],
+        }),
+      );
+    }
+  }
+
+  // 4. El banco: lo que descartó por abstención. Si la mayoría es de tubería, el banco
+  //    no está siendo prudente: está ciego.
+  if (e.banco7d.total > 0) {
+    const t = e.banco7d.familias.filter((f) => f.tuberia).reduce((a, f) => a + f.n, 0);
+    const principal = [...e.banco7d.familias].sort((a, b) => b.n - a.n)[0];
+    if (e.banco7d.total >= MIN_PATRON && t / e.banco7d.total >= 0.5) {
+      const peor = e.banco7d.familias.filter((f) => f.tuberia).sort((a, b) => b.n - a.n)[0];
+      out.push(
+        h(S, 'aviso', `El banco descartó ${t} de ${e.banco7d.total} partido(s) en 7 días porque la evaluación no estaba al día (${peor.familia})`, {
+          detalle: ['No es prudencia: el banco no tenía una evaluación hecha con las cuotas que iba a apostar.'],
+          accion: ACCION_TUBERIA[peor.familia] ?? ['npm run dev'],
+        }),
+      );
+    } else {
+      out.push(h(S, 'info', `El banco descartó ${e.banco7d.total} partido(s) por abstención en 7 días · motivo principal: ${principal.familia}`));
+    }
+  }
+
+  // 5. Alertas internas. La deriva es la única que pide mirar algo fuera de la pantalla.
+  const a = e.alertas24h;
+  if (a.importante + a.aviso + a.info > 0) {
+    out.push(h(S, 'info', `Alertas internas (24 h): ${a.importante} importante(s) · ${a.aviso} aviso(s) · ${a.info} informativa(s)`, { detalle: ['Detalle en la pestaña 📊 Confianza.'] }));
+  }
+  if (e.deriva7d) {
+    out.push(h(S, 'aviso', `Deriva reciente del modelo: ${e.deriva7d}`, { detalle: ['Mientras dure, las apuestas de ese deporte van a la mitad de importe (RECORTES.deriva).'], accion: ['npm run model:report'] }));
   }
   return out;
 }

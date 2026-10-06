@@ -4,8 +4,15 @@
 // consulta más de lo que se toca: abrir un navegador para leer cuatro cifras es más
 // trabajo del que valen. No gasta ni una petición del plan: solo lee la base, liquida lo
 // que ya tenga resultado y coloca lo que la política apruebe.
+//
+// Antes de colocar pasa el ciclo pre-partido (predicción, instantánea y evaluación de
+// confianza), igual que el servidor en cada refresco. Sin él, tras un `npm run odds` con el
+// servidor apagado las cuotas son más nuevas que cualquier evaluación y el banco se
+// abstiene de todo por «evaluación anterior a las cuotas»: un fallo de operación que se
+// leería como prudencia.
 
 import { place, settle, resumen, BANCO_INICIAL } from '../paper/bankroll.ts';
+import { cicloPrePartido } from '../prematch/job.ts';
 
 const C = { bold: '\x1b[1m', dim: '\x1b[2m', red: '\x1b[31m', green: '\x1b[32m', amber: '\x1b[33m', off: '\x1b[0m' };
 const dinero = (n: number) => `${n >= 0 ? '' : '−'}${Math.abs(n).toFixed(2)}`;
@@ -15,6 +22,7 @@ console.log(`\n${C.bold}El modelo apostando solo${C.off}`);
 const liq = settle();
 if (liq.liquidadas > 0) console.log(`${C.dim}Liquidadas ${liq.liquidadas} apuesta(s) con su resultado real.${C.off}`);
 
+cicloPrePartido((m) => console.log(`${C.dim}${m}${C.off}`));
 const col = place();
 if (col.colocadas > 0) console.log(`${C.green}Colocadas ${col.colocadas} apuesta(s) nueva(s):${C.off}`);
 for (const d of col.detalle.slice(0, 12)) console.log(`  ${C.dim}${d}${C.off}`);

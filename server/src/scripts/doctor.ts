@@ -7,7 +7,7 @@
 //
 // Recorre el flujo entero, en el orden en que viaja una cuota:
 //
-//   .env → The Odds API → competiciones → base de datos → frescura → backend → pantalla
+//   .env → The Odds API → competiciones → base de datos → frescura → confianza → backend → pantalla
 //
 // y termina con un RESULTADO y una lista numerada de qué hacer. Las comprobaciones viven
 // en doctor/checks.ts (y tienen tests); aquí solo se reúnen los datos y se imprimen.
@@ -39,6 +39,7 @@ import {
   comprobarDeportes,
   comprobarBaseDeDatos,
   comprobarFrescura,
+  comprobarConfianza,
   comprobarServidor,
   resultado,
   type Hallazgo,
@@ -46,7 +47,11 @@ import {
   type Seccion,
   type DeporteConfig,
   type ConteoDeporte,
+  type EstadoConfianza,
+  type FamiliaContada,
 } from '../doctor/checks.ts';
+import { META_CICLO } from '../prematch/snapshots.ts';
+import { familiaDeMotivo } from '../trust/decision.ts';
 
 const SIN_RED = process.argv.includes('--sin-red') || process.argv.includes('--no-net');
 const PROBAR = process.argv.includes('--probar') || process.argv.includes('--probe');
@@ -214,6 +219,104 @@ hallazgos.push(...comprobarBaseDeDatos(DB_PATH, dbExistia, conteos, !!env.oddsAp
 if (dbExistia) hallazgos.push(...comprobarFrescura(frescura, new Date(), !!env.oddsApiKey));
 
 // ---------------------------------------------------------------------------
+// CONFIANZA — ¿corre el ciclo pre-partido y por qué se abstiene?
+// ---------------------------------------------------------------------------
+if (dbExistia) {
+  const db = getDb();
+  const ahora = new Date();
+  const iso = (msAtras: number) => new Date(ahora.getTime() - msAtras).toISOString();
+  const uno = <T>(f: () => T, porDefecto: T): T => {
+    try {
+      return f();
+    } catch {
+      // Una base anterior a la capa de confianza no tiene las tablas: se cuenta cero.
+      return porDefecto;
+    }
+  };
+  const ultimoCiclo = getMeta(META_CICLO);
+  let conCuotaPorEmpezar = 0;
+  for (const d of DEPORTES) {
+    conCuotaPorEmpezar += uno(
+      () => (db.prepare(`SELECT COUNT(*) AS n FROM ${d.tabla} WHERE source <> 'fixture' AND ${d.precio} IS NOT NULL AND commence_time > ?`).get(ahora.toISOString()) as { n: number }).n,
+      0,
+    );
+  }
+  const sinFinal = (desde: string | null, hasta: string) =>
+    uno(
+      () =>
+        (
+          db
+            .prepare(
+              `SELECT COUNT(*) AS n FROM (SELECT DISTINCT sport, match_key FROM prediction_snapshots s
+                WHERE s.commence_time <= ? AND (? IS NULL OR s.commence_time > ?)
+                  AND NOT EXISTS (SELECT 1 FROM prematch_final f WHERE f.sport = s.sport AND f.match_key = s.match_key))`,
+            )
+            .get(hasta, desde, desde) as { n: number }
+        ).n,
+      0,
+    );
+  const contar = (filas: string[][]): FamiliaContada[] => {
+    const m = new Map<string, FamiliaContada>();
+    for (const motivos of filas) {
+      // Una abstención con dos motivos de la misma familia cuenta una vez en ella.
+      for (const f of new Map(motivos.map((x) => { const g = familiaDeMotivo(x); return [g.familia, g]; })).values()) {
+        const e = m.get(f.familia) ?? { ...f, n: 0 };
+        e.n++;
+        m.set(f.familia, e);
+      }
+    }
+    return [...m.values()];
+  };
+  // La decisión MÁS RECIENTE de cada partido evaluado en 24 h.
+  const recientes = uno(
+    () =>
+      db
+        .prepare(
+          `SELECT a.decision, a.reasons FROM prediction_assessments a
+            WHERE a.assessed_at >= ?
+              AND a.id = (SELECT MAX(b.id) FROM prediction_assessments b WHERE b.sport = a.sport AND b.match_key = a.match_key)`,
+        )
+        .all(iso(24 * 3_600_000)) as { decision: 'BET' | 'NO BET' | 'SIN MERCADO'; reasons: string }[],
+    [],
+  );
+  const evaluaciones24h = { BET: 0, 'NO BET': 0, 'SIN MERCADO': 0 };
+  for (const r of recientes) evaluaciones24h[r.decision]++;
+  // El ÚLTIMO motivo de abstención del banco por partido, en 7 días.
+  const banco = uno(
+    () =>
+      db
+        .prepare(
+          `SELECT s.reason FROM edge_signals s
+            WHERE s.created_at >= ? AND s.decision = 'rechazada' AND s.reason LIKE 'abstención:%'
+              AND s.id = (SELECT MAX(x.id) FROM edge_signals x WHERE x.sport = s.sport AND x.event_id = s.event_id AND x.created_at >= ?)`,
+        )
+        .all(iso(7 * 86_400_000), iso(7 * 86_400_000)) as { reason: string }[],
+    [],
+  );
+  const alertas = uno(
+    () => db.prepare('SELECT severity, COUNT(*) AS n FROM alerts WHERE created_at >= ? GROUP BY severity').all(iso(24 * 3_600_000)) as { severity: 'info' | 'aviso' | 'importante'; n: number }[],
+    [],
+  );
+  const deriva = uno(
+    () => db.prepare("SELECT sport, body FROM alerts WHERE type = 'deriva' AND created_at >= ? ORDER BY id DESC LIMIT 1").get(iso(7 * 86_400_000)) as { sport: string | null; body: string } | undefined,
+    undefined,
+  );
+  const estado: EstadoConfianza = {
+    ultimoCiclo,
+    conCuotaPorEmpezar,
+    sinCongelarTrasCiclo: ultimoCiclo ? sinFinal(null, ultimoCiclo) : 0,
+    pendientesDeCongelar: sinFinal(ultimoCiclo, ahora.toISOString()),
+    congeladas: uno(() => (db.prepare('SELECT COUNT(*) AS n FROM prematch_final').get() as { n: number }).n, 0),
+    evaluaciones24h,
+    motivos24h: contar(recientes.filter((r) => r.decision === 'NO BET').map((r) => JSON.parse(r.reasons) as string[])),
+    banco7d: { total: banco.length, familias: contar(banco.map((b) => [b.reason])) },
+    alertas24h: { importante: 0, aviso: 0, info: 0, ...Object.fromEntries(alertas.map((a) => [a.severity, a.n])) },
+    deriva7d: deriva ? `${deriva.sport ? `${deriva.sport}: ` : ''}${deriva.body}` : null,
+  };
+  hallazgos.push(...comprobarConfianza(estado, ahora));
+}
+
+// ---------------------------------------------------------------------------
 // SERVIDOR Y PANTALLA — ¿llega hasta la pantalla lo que hay en la base?
 // ---------------------------------------------------------------------------
 let puertos = { api: env.port, web: 7373 as number | null };
@@ -252,7 +355,7 @@ hallazgos.push(...comprobarServidor({ puertoApi: puertos.api, puertoWeb: puertos
 // Impresión
 // ---------------------------------------------------------------------------
 const marca = { ok: `${C.green}✓${C.off}`, aviso: `${C.amber}⚠${C.off}`, error: `${C.red}✗${C.off}`, info: `${C.dim}·${C.off}` };
-const orden: Seccion[] = ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'ACTUALIZACIÓN', 'SERVIDOR Y PANTALLA'];
+const orden: Seccion[] = ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'ACTUALIZACIÓN', 'CONFIANZA', 'SERVIDOR Y PANTALLA'];
 for (const s of orden) {
   const hs = hallazgos.filter((x) => x.seccion === s);
   if (hs.length === 0) continue;
