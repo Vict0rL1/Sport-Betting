@@ -384,6 +384,50 @@ def valor_en_unidad(valor, unidad: str | None, metrica: str) -> float | None:
     return v
 
 
+# --- Escala del dato ------------------------------------------------------------------
+#
+# Un consenso o un guidance en otra escala (miles frente a unidades, céntimos
+# frente a dólares, «billion» leído como «million») no es una expectativa: es un
+# error de unidades que la lectura convertiría en una «sorpresa» del ±99 % y que
+# envenenaría la calibración de la fuente. Antes de registrarlo se compara con el
+# último trimestre conocido de la misma métrica. Las bandas son anchas a
+# propósito: detectan escalas, no juzgan previsiones.
+ESCALA_PLAUSIBLE = {"revenue": (0.2, 5.0), "eps_diluted": (0.02, 50.0)}
+
+
+def comprobar_escala(x: dict, trimestres: list[dict]) -> dict:
+    """¿Está la cifra en la escala de lo último publicado? → `ok`, `dudosa` o
+    `sin_referencia` (sin trimestre comparable, o un BPA con signo que no se
+    puede comparar: un BPA que pasa de pérdida a beneficio es legítimo)."""
+    metrica = x.get("metrica")
+    banda = ESCALA_PLAUSIBLE.get(metrica)
+    if banda is None:
+        return {"estado": "sin_referencia", "motivo": "métrica sin banda de escala"}
+    bajo, alto = datos.numero(x.get("bajo")), datos.numero(x.get("alto"))
+    cifra = datos.numero(x.get("valor"))
+    if cifra is None:
+        cifra = (bajo + alto) / 2 if bajo is not None and alto is not None else (bajo if bajo is not None else alto)
+    if cifra is None:
+        return {"estado": "sin_referencia", "motivo": "sin cifra"}
+    if metrica == "revenue" and cifra <= 0:
+        return {"estado": "dudosa", "cifra": cifra, "motivo": "unos ingresos esperados no positivos no son una escala posible"}
+    ref = next(((q, v) for q in reversed(trimestres) if (v := datos.numero(q.get(metrica))) is not None), None)
+    if ref is None:
+        return {"estado": "sin_referencia", "cifra": cifra, "motivo": "ningún trimestre publicado con esta métrica"}
+    q, v = ref
+    if v <= 0 or cifra <= 0:
+        return {"estado": "sin_referencia", "cifra": cifra, "referencia": v, "periodo_referencia": q.get("end_date"),
+                "motivo": "con pérdidas en un lado la proporción no mide escala"}
+    ratio = cifra / v
+    estado = "ok" if banda[0] <= ratio <= banda[1] else "dudosa"
+    r = {"estado": estado, "cifra": cifra, "referencia": v, "periodo_referencia": q.get("end_date"),
+         "ratio": round(ratio, 4), "banda": list(banda)}
+    if estado == "dudosa":
+        r["motivo"] = (f"{cifra:g} frente a {v:g} del trimestre cerrado el {q.get('end_date')} "
+                       f"(×{ratio:.3g}, fuera de {banda[0]:g}–{banda[1]:g}): parece otra escala")
+    return r
+
+
 def guidance_como_expectativas(extracciones: list[dict], periodo: str) -> dict:
     """Las previsiones de la dirección para `periodo`, de extracciones ya hechas.
 

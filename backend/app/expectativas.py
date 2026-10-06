@@ -194,9 +194,18 @@ def capturar(session: Session, service, evento: CatalystEvent, ahora: datetime |
             "expectativa algo que ya se sabe."
         )
     registradas, ya, sin = [], 0, []
+    trimestres = _trimestres(service, evento.symbol, ahora)
 
     def anotar(x: dict, tipo: str):
         nonlocal ya
+        if tipo in ("consenso", "guidance"):
+            # Las fuentes de fuera pasan por la comprobación de escala: un
+            # consenso en miles se leería como una sorpresa del 99 %.
+            escala = ev.comprobar_escala(x, trimestres)
+            if escala["estado"] == "dudosa":
+                sin.append(f"{tipo}: {x['metrica']} con escala dudosa, no se registra: {escala['motivo']}")
+                return
+            x = {**x, "detalle": {**(x.get("detalle") or {}), "escala": escala}}
         if _guardar(session, evento, x, tipo, ahora):
             registradas.append({"metrica": x["metrica"], "fuente_tipo": tipo, "fuente": x["fuente"]})
         else:
@@ -240,7 +249,6 @@ def capturar(session: Session, service, evento: CatalystEvent, ahora: datetime |
             sin.append("guidance: ninguna previsión verificada para este periodo en los reportes ya analizados")
 
     # 3) Modelo interno (determinista).
-    trimestres = _trimestres(service, evento.symbol, ahora)
     fin = _fin_objetivo(evento, trimestres)
     internas = ev.estimacion_interna(trimestres, fin) if fin else []
     for x in internas:

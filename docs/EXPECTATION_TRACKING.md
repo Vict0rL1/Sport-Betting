@@ -28,6 +28,14 @@ reglas.
 
 Cada fuente tiene su columna en la lectura y su propia calibración.
 
+**Escala.** El consenso y el guidance, que vienen de fuera, se comparan antes de
+registrarse con el último trimestre publicado de la misma métrica
+(`comprobar_escala`): ingresos entre 0,2× y 5×, BPA entre 0,02× y 50×. Fuera de
+la banda, «escala dudosa»: no se registra y se dice por qué (un consenso en miles
+se leería como una sorpresa del −99,9 % y estropearía la calibración). Sin
+trimestre comparable, o con pérdidas en un lado, `sin_referencia`: se registra
+sin juzgar. El resultado de la comprobación viaja en `detalle.escala`.
+
 ## Sin información futura
 
 La validez se mide sobre `registrado_en` —la única prueba que tiene el sistema de

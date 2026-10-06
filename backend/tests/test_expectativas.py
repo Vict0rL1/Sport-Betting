@@ -360,3 +360,49 @@ def test_los_endpoints(session_factory, servicio):
         assert "por_fuente" in c.get("/api/expectativas/calibracion").json()
     finally:
         app.dependency_overrides.clear()
+
+
+# --- Escala del consenso y del guidance --------------------------------------------------
+
+
+def test_un_consenso_en_otra_escala_no_se_registra_y_se_dice(session_factory, servicio):
+    """Ingresos esperados de 115 000 con trimestres de ~112: miles frente a
+    unidades. Registrarlo daría una «sorpresa» del −99,9 % en la lectura y en
+    la calibración del consenso."""
+    servicio.calendario[0]["revenue_estimate"] = 115_000.0
+    with session_factory() as s:
+        e = svc.crear_evento(s, "AAPL", "earnings", periodo="2026-Q3", fecha_prevista="2026-10-30", ahora=AHORA)
+        cap = svc.capturar(s, servicio, e, AHORA)
+        consenso = {x.metrica: x for x in s.query(Expectation).filter_by(fuente_tipo="consenso")}
+    assert "revenue" not in consenso
+    assert any("revenue con escala dudosa" in m and "×1.03e+03" in m for m in cap["sin_fuente"])
+    # El BPA, en su escala, entra con la comprobación a la vista.
+    assert consenso["eps_diluted"].detalle["escala"]["estado"] == "ok"
+    assert consenso["eps_diluted"].detalle["escala"]["periodo_referencia"] == "2026-06-30"
+
+
+def test_un_guidance_en_otra_escala_que_los_trimestres_no_entra(session_factory, servicio):
+    with session_factory() as s:
+        s.add(EarningsAnalysis(symbol="AAPL", kind="extraccion", form_type="8-K", accession_no="G-2",
+                               source_url="https://www.sec.gov/x", filed_at="2026-07-30", doc_hash="h2", model="m",
+                               datos={"guidance": [{"metrica": "Revenue", "periodo": "Q3 2026", "valor_bajo": 110,
+                                                    "valor_alto": 116, "unidad": "million USD", "texto_literal": "x",
+                                                    "cita_verificada": True}]}))
+        s.commit()
+        e = svc.crear_evento(s, "AAPL", "earnings", periodo="2026-Q3", fecha_prevista="2026-10-30", ahora=AHORA)
+        cap = svc.capturar(s, servicio, e, AHORA)
+        assert s.query(Expectation).filter_by(fuente_tipo="guidance").count() == 0
+    assert any(m.startswith("guidance: revenue con escala dudosa") for m in cap["sin_fuente"])
+
+
+def test_la_escala_sin_referencia_o_con_perdidas_no_se_juzga():
+    qs = _trimestres_historicos()
+    assert ev.comprobar_escala({"metrica": "revenue", "valor": 115.0}, [])["estado"] == "sin_referencia"
+    # De pérdida a beneficio es legítimo: la proporción no mide escala.
+    perdidas = [{**qs[-1], "eps_diluted": -0.4}]
+    assert ev.comprobar_escala({"metrica": "eps_diluted", "valor": 0.3}, perdidas)["estado"] == "sin_referencia"
+    # Un rango se mide por su punto medio; unos ingresos no positivos, nunca.
+    assert ev.comprobar_escala({"metrica": "revenue", "bajo": 100.0, "alto": 120.0}, qs)["estado"] == "ok"
+    assert ev.comprobar_escala({"metrica": "revenue", "valor": 0.0}, qs)["estado"] == "dudosa"
+    # Céntimos frente a dólares en el BPA: ×100.
+    assert ev.comprobar_escala({"metrica": "eps_diluted", "valor": 112.0}, qs)["estado"] == "dudosa"
