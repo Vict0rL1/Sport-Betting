@@ -12,7 +12,7 @@
      que va encima. En oscuro estaban en verde (#111312: G por encima de R y B),
      así que el riel y el fondo se veían verdosos sin que nadie lo hubiera pedido. */
   --ground:#FAFAF9; --surface:#FFFFFF; --surface-2:#F3F3F1; --surface-3:#E9E9E5;
-  --ink:#1A1A19; --ink-2:#63635F; --ink-3:#97978F;
+  --ink:#1A1A19; --ink-2:#575753; --ink-3:#6F6F6A;
   --line:#EAEAE6; --line-2:#DBDBD5;
 
   /* El acento es la marca y lo interactivo, nada más. Bajo en saturación
@@ -38,7 +38,7 @@
   :root:not([data-theme="light"]){
     color-scheme: dark;
     --ground:#121211; --surface:#1A1A19; --surface-2:#222221; --surface-3:#2B2B29;
-    --ink:#E9E9E5; --ink-2:#9A9A94; --ink-3:#6E6E69;
+    --ink:#E9E9E5; --ink-2:#ABABA5; --ink-3:#898984;
     --line:#272725; --line-2:#363631;
     --accent:#8FBFB2; --accent-on:#12201C; --accent-soft:#1B2A26; --accent-line:#2B403A;
     --danger:#E8897E; --danger-soft:#2B1A18; --danger-line:#422824;
@@ -51,7 +51,7 @@
 :root[data-theme="dark"]{
   color-scheme: dark;
     --ground:#121211; --surface:#1A1A19; --surface-2:#222221; --surface-3:#2B2B29;
-  --ink:#E9E9E5; --ink-2:#9A9A94; --ink-3:#6E6E69;
+  --ink:#E9E9E5; --ink-2:#ABABA5; --ink-3:#898984;
   --line:#272725; --line-2:#363631;
   --accent:#8FBFB2; --accent-on:#12201C; --accent-soft:#1B2A26; --accent-line:#2B403A;
   --danger:#E8897E; --danger-soft:#2B1A18; --danger-line:#422824;
@@ -122,9 +122,9 @@ main{min-width:0;padding:22px 26px 90px;max-width:1180px}
 
 /* ---- tasks ---- */
 .tgroup{margin-bottom:6px}
-.tgroup > h3{font-family:var(--body);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);padding:10px 8px 6px;display:flex;gap:8px;align-items:center}
-.tgroup > h3 em{font-style:normal;font-family:var(--mono);color:var(--ink-3);font-weight:400}
-.tgroup.danger > h3{color:var(--danger)}
+.tgroup > .tghead{font-family:var(--body);font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);padding:10px 8px 6px;display:flex;gap:8px;align-items:center}
+.tgroup > .tghead em{font-style:normal;font-family:var(--mono);color:var(--ink-3);font-weight:400}
+.tgroup.danger > .tghead{color:var(--danger)}
 .task{display:flex;gap:10px;align-items:flex-start;padding:8px;border-radius:8px;position:relative}
 .task:hover{background:var(--surface-2)}
 .task + .task{box-shadow:inset 0 1px 0 var(--line)}
@@ -190,6 +190,8 @@ main{min-width:0;padding:22px 26px 90px;max-width:1180px}
 .note .when{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);display:block;margin-top:4px}
 .pin{flex:0 0 auto;color:var(--ink-3);font-size:13px;opacity:.45}
 .note.pinned{background:var(--warn-soft)}
+/* Sobre el fondo ámbar, el gris tenue no llega a 4.5:1 en oscuro. */
+.note.pinned .when{color:var(--ink-2)}
 .note.pinned .pin{opacity:1;color:var(--warn)}
 
 /* ---- week ---- */
@@ -266,7 +268,8 @@ main{min-width:0;padding:22px 26px 90px;max-width:1180px}
 .empty b{display:block;color:var(--ink-2);font-weight:600;font-size:14px;margin-bottom:3px;font-family:var(--disp)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chip{font-size:12px;padding:3.5px 10px;border-radius:99px;border:1px solid var(--line-2);color:var(--ink-2);background:var(--surface)}
-.chip[aria-pressed="true"]{background:var(--surface-3);color:var(--ink);border-color:var(--line-2);font-weight:600}
+/* Los filtros son enlaces: el elegido lleva aria-current, no aria-pressed (eso es de botones). */
+.chip[aria-pressed="true"],.chip[aria-current="page"],.chip.on{background:var(--surface-3);color:var(--ink);border-color:var(--line-2);font-weight:600}
 .field{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
 .field label{font-size:12px;font-weight:600;color:var(--ink-2)}
 .field input,.field select,.field textarea{background:var(--ground);border:1px solid var(--line-2);border-radius:7px;padding:8px 10px;width:100%}

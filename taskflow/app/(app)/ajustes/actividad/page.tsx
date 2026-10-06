@@ -44,9 +44,9 @@ export default async function ActividadPage({ searchParams }: Props) {
       />
 
       <nav className="chips" aria-label="Filtrar por quién lo hizo" style={{ marginBottom: 14 }}>
-        <Link className="chip" href="/ajustes/actividad" aria-pressed={!actor}>Todo</Link>
+        <Link className="chip" href="/ajustes/actividad" aria-current={!actor ? "page" : undefined}>Todo</Link>
         {ACTORS.map((a) => (
-          <Link key={a} className="chip" href={`/ajustes/actividad?actor=${a}`} aria-pressed={actor === a}>
+          <Link key={a} className="chip" href={`/ajustes/actividad?actor=${a}`} aria-current={actor === a ? "page" : undefined}>
             {QUIEN[a]}
           </Link>
         ))}

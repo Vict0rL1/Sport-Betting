@@ -79,7 +79,18 @@ export default async function EstadoPage({ searchParams }: Props) {
       ) : null}
 
       <div className="stgrid">
-        <Row item={h("cron")}>
+        <Row
+          item={h("cron")}
+          help={
+            h("cron").level === "warn" || h("cron").level === "error" ? (
+              <>
+                El reloj es un workflow de GitHub Actions. Si se detuvo, revisa la pestaña <b>Actions</b> del
+                repositorio: GitHub desactiva los workflows programados después de 60 días sin commits, y
+                falla si faltan los secretos <code>APP_URL</code> o <code>CRON_SECRET</code>.
+              </>
+            ) : null
+          }
+        >
           <dt>Última ejecución recibida</dt>
           <dd>{when(states.cron?.last_synced_at)}</dd>
           <dt>Última completa</dt>
@@ -87,13 +98,6 @@ export default async function EstadoPage({ searchParams }: Props) {
           <dt>Próxima esperada</dt>
           <dd>hacia las {fmtClock(nextClockTick(now), ctx.tz)} (cada hora, al minuto 7 UTC)</dd>
           <LastError s={states.cron} tz={ctx.tz} now={now} />
-          {h("cron").level === "warn" || h("cron").level === "error" ? (
-            <p className="sthelp">
-              El reloj es un workflow de GitHub Actions. Si se detuvo, revisa la pestaña <b>Actions</b> del
-              repositorio: GitHub desactiva los workflows programados después de 60 días sin commits, y
-              falla si faltan los secretos <code>APP_URL</code> o <code>CRON_SECRET</code>.
-            </p>
-          ) : null}
         </Row>
 
         <Row
@@ -127,6 +131,16 @@ export default async function EstadoPage({ searchParams }: Props) {
 
         <Row
           item={h("gcal")}
+          help={
+            !gcalConfigured() ? (
+              <>
+                Para conectarlo: en Google Cloud Console habilita <b>Google Calendar API</b>, crea un ID de cliente de
+                OAuth (aplicación web) y agrega como URI de redireccionamiento autorizado{" "}
+                <code>{origin}/api/gcal/callback</code>. Luego pon <code>GOOGLE_CLIENT_ID</code> y{" "}
+                <code>GOOGLE_CLIENT_SECRET</code> en las variables del servidor. Sólo se pide permiso de lectura.
+              </>
+            ) : null
+          }
           actions={
             gcalConfigured() ? (
               status.gcal ? (
@@ -170,14 +184,6 @@ export default async function EstadoPage({ searchParams }: Props) {
             </>
           ) : null}
           <LastError s={states.gcal} tz={ctx.tz} now={now} />
-          {!gcalConfigured() ? (
-            <p className="sthelp">
-              Para conectarlo: en Google Cloud Console habilita <b>Google Calendar API</b>, crea un ID de cliente de
-              OAuth (aplicación web) y agrega como URI de redireccionamiento autorizado{" "}
-              <code>{origin}/api/gcal/callback</code>. Luego pon <code>GOOGLE_CLIENT_ID</code> y{" "}
-              <code>GOOGLE_CLIENT_SECRET</code> en las variables del servidor. Sólo se pide permiso de lectura.
-            </p>
-          ) : null}
         </Row>
 
         <Row
@@ -243,7 +249,18 @@ export default async function EstadoPage({ searchParams }: Props) {
   );
 }
 
-function Row({ item, actions, children }: { item: IntegrationHealth; actions?: React.ReactNode; children: React.ReactNode }) {
+/** Una integración. `children` va dentro del <dl>, así que sólo pares <dt>/<dd>; la ayuda, en `help`. */
+function Row({
+  item,
+  actions,
+  help,
+  children,
+}: {
+  item: IntegrationHealth;
+  actions?: React.ReactNode;
+  help?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   const id = "st-" + item.key;
   return (
     <section className={"panel strow " + item.level} aria-labelledby={id}>
@@ -254,6 +271,7 @@ function Row({ item, actions, children }: { item: IntegrationHealth; actions?: R
       <div className="pb">
         <p className="stsum">{item.summary}</p>
         <dl className="kv">{children}</dl>
+        {help ? <p className="sthelp">{help}</p> : null}
         {actions ? <div className="stactions">{actions}</div> : null}
       </div>
     </section>

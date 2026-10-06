@@ -47,11 +47,11 @@ export default async function TareasPage({ searchParams }: Props) {
 
   const chips = (
     <div className="chips">
-      <Link className="chip" href="/tareas" aria-pressed={!area && !curso}>
+      <Link className="chip" href="/tareas" aria-current={!area && !curso ? "page" : undefined}>
         Todas
       </Link>
       {curso ? (
-        <Link className="chip" href="/tareas" aria-pressed aria-label={`Quitar el filtro del curso ${curso}`}>
+        <Link className="chip on" href="/tareas" aria-label={`Quitar el filtro del curso ${curso}`}>
           {curso} ×
         </Link>
       ) : null}
@@ -60,7 +60,7 @@ export default async function TareasPage({ searchParams }: Props) {
           key={a}
           className="chip"
           href={"/tareas?area=" + encodeURIComponent(a)}
-          aria-pressed={area === a}
+          aria-current={area === a ? "page" : undefined}
         >
           {a}
         </Link>
@@ -89,11 +89,11 @@ export default async function TareasPage({ searchParams }: Props) {
         <div className="pb tight">
           {hasAny ? (
             <>
-              <TaskGroup title="Atrasadas" list={late} today={d} danger openId={abrir} />
-              <TaskGroup title="Hoy" list={hoy} today={d} openId={abrir} />
-              <TaskGroup title="Próximos 7 días" list={week} today={d} openId={abrir} />
-              <TaskGroup title="Más adelante" list={later} today={d} openId={abrir} />
-              <TaskGroup title="Sin fecha" list={none} today={d} openId={abrir} />
+              <TaskGroup level={2} title="Atrasadas" list={late} today={d} danger openId={abrir} />
+              <TaskGroup level={2} title="Hoy" list={hoy} today={d} openId={abrir} />
+              <TaskGroup level={2} title="Próximos 7 días" list={week} today={d} openId={abrir} />
+              <TaskGroup level={2} title="Más adelante" list={later} today={d} openId={abrir} />
+              <TaskGroup level={2} title="Sin fecha" list={none} today={d} openId={abrir} />
             </>
           ) : (
             <EmptyBox

@@ -11,7 +11,7 @@ export default async function LoginPage({ searchParams }: Props) {
   const configured = isConfigured();
 
   return (
-    <div className="authwrap">
+    <main className="authwrap">
       <div className="authcard">
         <div className="brand">
           <b>TaskFlow</b>
@@ -54,6 +54,6 @@ export default async function LoginPage({ searchParams }: Props) {
           </>
         )}
       </div>
-    </div>
+    </main>
   );
 }

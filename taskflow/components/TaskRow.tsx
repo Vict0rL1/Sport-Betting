@@ -102,6 +102,7 @@ export function TaskGroup({
   today,
   danger,
   openId,
+  level = 3,
 }: {
   title: string;
   list: Task[];
@@ -109,13 +110,16 @@ export function TaskGroup({
   danger?: boolean;
   /** La tarea que llega abierta (desde la paleta). */
   openId?: string;
+  /** h2 cuando el grupo es lo primero bajo el título de la vista (Tareas); h3 dentro de un panel. */
+  level?: 2 | 3;
 }) {
   if (!list.length) return null;
+  const H = level === 2 ? "h2" : "h3";
   return (
     <div className={"tgroup" + (danger ? " danger" : "")}>
-      <h3>
+      <H className="tghead">
         {title} <em>{list.length}</em>
-      </h3>
+      </H>
       {list.map((t) => (
         <TaskRow key={t.id} task={t} today={today} open={t.id === openId} />
       ))}
