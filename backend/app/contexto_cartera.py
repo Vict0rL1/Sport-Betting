@@ -29,6 +29,48 @@ from app.snapshots import iso_utc
 INDICE_MERCADO = "SPY"
 
 
+def agregar_lotes(lotes: list) -> dict | None:
+    """Varios lotes abiertos del mismo símbolo, como UNA posición para decidir.
+
+    - cantidad: la suma; coste: el medio ponderado;
+    - stop: el MÁS PROTECTOR de los fijados (el más alto). Si un lote de 95 está
+      perforado a 93, la posición tiene un stop perforado aunque otro lote no
+      tenga stop guardado. Los lotes sin stop se cuentan y se dicen.
+    """
+    if not lotes:
+        return None
+    cantidad = sum(l.quantity for l in lotes)
+    fijados = [l.stop for l in lotes if l.stop is not None]
+    return {
+        "quantity": cantidad,
+        "cost_basis": sum(l.quantity * l.cost_basis for l in lotes) / cantidad if cantidad else None,
+        "stop": max(fijados) if fijados else None,
+        "lotes": len(lotes),
+        "lotes_sin_stop": sum(1 for l in lotes if l.stop is None),
+        "abierta_desde": iso_utc(min(l.opened_at for l in lotes)),
+    }
+
+
+def posiciones_para_decidir(session: Session, ahora: datetime | None = None) -> dict[str, dict]:
+    """{símbolo: posición agregada} de lo abierto en `ahora` (por defecto, hoy).
+
+    Antes la lista diaria hacía un dict por símbolo sobre las filas de lotes y
+    se quedaba con el último: con dos lotes, el coste y el stop del otro se
+    perdían en silencio.
+    """
+    filas = session.execute(
+        select(Position, Instrument.symbol).join(Instrument, Position.instrument_id == Instrument.id)
+    ).all()
+    por_simbolo: dict[str, list] = {}
+    for lote, symbol in filas:
+        if ahora is not None and pit.disponible_en(lote.opened_at, ahora) is False:
+            continue
+        cerrada = lote.closed_at is not None and (ahora is None or pit.disponible_en(lote.closed_at, ahora) is not False)
+        if not cerrada:
+            por_simbolo.setdefault(symbol, []).append(lote)
+    return {s: agregar_lotes(l) for s, l in por_simbolo.items()}
+
+
 def convertir_serie(serie: list[tuple[date, float]], moneda: str | None, fx_series: dict) -> list[tuple[date, float]] | None:
     """Cierres en moneda local → en dólares, con el tipo vigente en cada fecha."""
     if moneda == fx.BASE:

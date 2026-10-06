@@ -500,29 +500,13 @@ def seccion_senal(service, symbol: str, con_pares: bool, ahora: datetime) -> dic
 
 
 def _posicion(session: Session, instrument: Instrument | None, ahora: datetime) -> dict | None:
-    """La posición abierta, agregando lotes. El stop: el más alto de los fijados,
-    y solo si TODOS los lotes lo tienen (si no, se recalcula y se dice)."""
+    """La posición abierta en `ahora`, con los lotes agregados por la misma regla
+    que la lista diaria (el stop más protector de los fijados)."""
+    from app.contexto_cartera import posiciones_para_decidir
+
     if instrument is None:
         return None
-    lotes = [
-        l for l in session.execute(
-            select(Position).where(Position.instrument_id == instrument.id)
-        ).scalars().all()
-        if pit.disponible_en(l.opened_at, ahora) is not False
-        and (l.closed_at is None or pit.disponible_en(l.closed_at, ahora) is False)
-    ]
-    if not lotes:
-        return None
-    cantidad = sum(l.quantity for l in lotes)
-    coste = sum(l.quantity * l.cost_basis for l in lotes) / cantidad if cantidad else None
-    stops = [l.stop for l in lotes]
-    return {
-        "quantity": cantidad,
-        "cost_basis": coste,
-        "stop": max(stops) if stops and all(s is not None for s in stops) else None,
-        "lotes": len(lotes),
-        "abierta_desde": _iso(min(l.opened_at for l in lotes)),
-    }
+    return posiciones_para_decidir(session, ahora).get(instrument.symbol)
 
 
 def _resultados_proximos(service, symbol: str, ahora: datetime) -> str | None:

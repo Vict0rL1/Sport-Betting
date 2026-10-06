@@ -307,3 +307,20 @@ def test_la_geografia_se_declara_como_domicilio_y_no_como_exposicion(client):
     r = c.get("/api/portfolio/riesgo").json()
     assert "DOMICILIO" in r["nota_geografia"]
     assert r["exposicion"]["geografia"]["filas"][0]["etiqueta"] == "US"
+
+
+def test_varios_lotes_del_mismo_simbolo_son_una_posicion(client, session_factory):
+    """Dos compras de AAPL no son dos posiciones a medio peso: la concentración
+    se mide sobre lo que de verdad hay en cada empresa."""
+    c, _ = client()
+    with session_factory() as s:
+        aapl = s.query(Instrument).filter_by(symbol="AAPL").one()
+        s.add(Position(instrument_id=aapl.id, quantity=30, cost_basis=80.0,
+                       opened_at=datetime.now(timezone.utc)))
+        s.commit()
+    r = c.get("/api/portfolio/riesgo").json()
+    pesos = {p["symbol"]: p["peso_pct"] for p in r["posiciones"]}
+    assert [p["symbol"] for p in r["posiciones"]].count("AAPL") == 1
+    # AAPL 40 acciones, MSFT 10, todas a 100: 80 % frente a 20 %.
+    assert pesos["AAPL"] == pytest.approx(80.0)
+    assert pesos["MSFT"] == pytest.approx(20.0)

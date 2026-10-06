@@ -940,16 +940,13 @@ def _today(
 
     # Lo que ya tienes cambia la pregunta: sobre una posición abierta no se
     # decide si comprar, sino si sostenerla o soltarla.
-    posiciones = {
-        # El stop viaja con la posición: el que se fijó al abrirla, no uno
-        # recalculado con la volatilidad de hoy.
-        symbol: {"cost_basis": coste, "quantity": cantidad, "stop": stop}
-        for symbol, coste, cantidad, stop in session.execute(
-            select(Instrument.symbol, Position.cost_basis, Position.quantity, Position.stop)
-            .join(Position, Position.instrument_id == Instrument.id)
-            .where(Position.closed_at.is_(None))
-        ).all()
-    }
+    # Los LOTES se agregan por símbolo: antes un dict se quedaba con el último
+    # y el coste y el stop de los demás desaparecían. El stop que viaja es el
+    # más protector de los fijados al abrir, no uno recalculado con la
+    # volatilidad de hoy.
+    from app.contexto_cartera import posiciones_para_decidir
+
+    posiciones = posiciones_para_decidir(session)
 
     # Si hay un backtest de reglas guardado, cada decisión puede decir si su
     # sistema está probado, refutado o solo es razonable.

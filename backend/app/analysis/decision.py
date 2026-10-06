@@ -212,9 +212,15 @@ def decide(
         # la volatilidad, la volatilidad ensancha el stop— y un precio que ya
         # lo había perforado seguía «por encima». Solo si la posición es
         # anterior a este cambio (no guarda stop) se recalcula, y se dice.
+        #
+        # Un stop fijado POR ENCIMA del coste también manda: es el que se sube
+        # desde la cartera para asegurar beneficio («Fijar stop» deja subirlo,
+        # nunca bajarlo), o el del lote más caro cuando hay varios. Antes se
+        # ignoraba («no protege») y se recalculaba uno bajo el coste: el precio
+        # perforaba el stop que el usuario veía en la cartera y aquí salía
+        # «mantener». Abrir con un stop sobre el coste sí se rechaza, en la
+        # entrada: el día de la compra no protege de nada.
         stop_fijado = datos.precio(position.get("stop"))
-        if stop_fijado is not None and coste and stop_fijado >= coste:
-            stop_fijado = None  # un stop por encima del coste no protege: se ignora
         if stop_fijado is not None:
             stop_posicion = round(stop_fijado, 2)
         else:
@@ -239,9 +245,15 @@ def decide(
                 "compró ya no se sostiene frente a sus comparables."
             )
         elif decisiva and decisiva["id"] == "stop_perforado":
+            if coste and stop_posicion >= coste:
+                respecto_coste = "por encima de tu coste: protegía beneficio"
+            elif coste:
+                respecto_coste = f"un {round((1 - stop_posicion / coste) * 100, 1)} % bajo tu coste"
+            else:
+                respecto_coste = "sin coste utilizable con el que compararlo"
             razones.append(
                 f"El precio ({ultimo}) perforó el stop de la posición "
-                f"({stop_posicion}), un {niveles['stop_pct']} % bajo tu coste."
+                f"({stop_posicion}), {respecto_coste}."
             )
         elif decisiva and decisiva["id"] == "tendencia_perdida":
             razones.append(
@@ -265,6 +277,15 @@ def decide(
             )
             reglas.append({**_regla("precio_viejo", "Precio rescatado de caché", CUMPLE,
                                     minutos=minutos_viejo), "papel": "informa"})
+        lotes = position.get("lotes") or 1
+        if lotes > 1:
+            sin_stop = position.get("lotes_sin_stop") or 0
+            razones.append(
+                f"La posición son {lotes} lotes: coste medio ponderado y, de stop, "
+                "el más protector de los fijados"
+                + (f"; {sin_stop} sin stop guardado" if sin_stop and stop_fijado is not None else "")
+                + ". Revisa en tu broker qué lote cruza el stop."
+            )
         if stop_fijado is None and stop_posicion is not None:
             razones.append(
                 "El stop de esta posición se recalcula con la volatilidad de hoy "

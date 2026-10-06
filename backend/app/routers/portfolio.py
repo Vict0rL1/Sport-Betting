@@ -1086,19 +1086,28 @@ def riesgo_de_cartera(
             "nota": "No hay posiciones abiertas que analizar como cartera.",
         }
 
-    crudas = []
+    # Varios lotes del mismo símbolo son UNA posición. Antes salían como filas
+    # separadas, cada una con su parte del peso: dos compras de AAPL al 20 %
+    # se leían como dos posiciones del 20 % y no como una del 40 %, y la
+    # concentración parecía menor de lo que era.
+    por_simbolo: dict[str, dict] = {}
     for position, instrument in rows:
-        price, divisa = _precio_y_divisa(service, instrument.symbol)
-        crudas.append(
-            {
+        fila = por_simbolo.get(instrument.symbol)
+        if fila is None:
+            price, divisa = _precio_y_divisa(service, instrument.symbol)
+            fila = por_simbolo[instrument.symbol] = {
                 "symbol": instrument.symbol,
                 "name": instrument.name,
                 "sector": instrument.sector,
                 "currency": _resolver_divisa(session, service, instrument, divisa),
-                "market_value": price * position.quantity if price else None,
-                "invested": position.cost_basis * position.quantity,
+                "market_value": 0.0 if price else None,
+                "invested": 0.0,
+                "_precio": price,
             }
-        )
+        if fila["_precio"]:
+            fila["market_value"] += fila["_precio"] * position.quantity
+        fila["invested"] += position.cost_basis * position.quantity
+    crudas = [{k: v for k, v in f.items() if k != "_precio"} for f in por_simbolo.values()]
 
     sin_precio = [p["symbol"] for p in crudas if not p["market_value"]]
     # CONVERTIR ANTES DE PESAR. Este endpoint es anterior a la conversión de

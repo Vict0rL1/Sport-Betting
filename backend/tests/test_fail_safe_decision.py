@@ -155,6 +155,21 @@ def test_un_stop_fijado_al_abrir_no_se_aleja_con_la_volatilidad():
     assert d["levels"]["stop_fijado_al_abrir"] is True
 
 
+def test_un_stop_subido_sobre_el_coste_tambien_manda():
+    """«Fijar stop» deja subirlo para asegurar beneficio. Antes `decide()` lo
+    ignoraba por estar sobre el coste y recalculaba uno por debajo: el precio
+    perforaba el stop que la cartera enseñaba y aquí salía «mantener»."""
+    pos = {"cost_basis": 100.0, "quantity": 10, "stop": 110.0}
+    d = decision.decide(
+        SENAL, {"last": 108.0, "daily_vol_pct": 1.5, "sma200": 95.0, "above_sma200": True},
+        position=pos,
+    )
+    assert d["action"] == "vender"
+    assert d["levels"]["stop"] == 110.0
+    assert d["levels"]["stop_fijado_al_abrir"] is True
+    assert any("protegía beneficio" in r for r in d["reasons"])
+
+
 def test_sin_stop_guardado_se_recalcula_y_se_dice():
     """Posiciones antiguas, anteriores al stop fijado: se recalcula, avisando."""
     d = decision.decide(SENAL, _precio(), position={"cost_basis": 90.0, "quantity": 10})

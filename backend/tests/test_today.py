@@ -611,3 +611,33 @@ def test_con_precios_viejos_la_lista_no_recomienda_comprar(client, session_facto
     with session_factory() as s:
         for snap in s.query(DecisionSnapshot):
             assert sn.reconstruir(snap)["precio"]["estado"] == "viejo"
+
+
+def test_varios_lotes_del_mismo_simbolo_cuentan_todos(session_factory):
+    """La lista diaria indexaba las posiciones por símbolo con un dict: con dos
+    lotes abiertos de la misma empresa solo quedaba el ÚLTIMO, con su coste y
+    su stop. Si el stop perforado era el del otro lote, no avisaba nadie."""
+    from datetime import datetime, timezone
+
+    from app.contexto_cartera import posiciones_para_decidir
+    from app.db.models import Instrument, Position
+
+    with session_factory() as s:
+        inst = Instrument(symbol="AAPL")
+        s.add(inst)
+        s.commit()
+        cuando = datetime(2026, 1, 5, tzinfo=timezone.utc)
+        s.add(Position(instrument_id=inst.id, quantity=10, cost_basis=100.0, stop=95.0, opened_at=cuando))
+        s.add(Position(instrument_id=inst.id, quantity=30, cost_basis=80.0, stop=None, opened_at=cuando))
+        s.commit()
+        p = posiciones_para_decidir(s)["AAPL"]
+    assert p["quantity"] == 40
+    assert p["cost_basis"] == pytest.approx((10 * 100 + 30 * 80) / 40)
+    # El stop más protector de los fijados manda: a 93, el lote de 95 está perforado.
+    assert p["stop"] == 95.0 and p["lotes"] == 2 and p["lotes_sin_stop"] == 1
+
+    from app.analysis.decision import decide
+
+    d = decide({"score": 0.5}, {"last": 93.0, "sma200": 90.0}, p)
+    assert d["action"] == "vender"
+    assert any("2 lotes" in r and "1 sin stop" in r for r in d["reasons"])
