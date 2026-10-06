@@ -1,0 +1,53 @@
+# Las comprobaciones de TaskFlow en cada PR que toque taskflow/: tests,
+# tipos, lint, build y que ningún secreto llegue al navegador.
+#
+# Son las mismas que se corren a mano antes de cada commit. Aquí existen para
+# que un PR no pueda mezclarse con algo roto sin que se vea en rojo.
+#
+# No usa ningún secreto: los tests corren contra un Postgres en memoria y un
+# Supabase de mentira, y `check:secrets` compila con valores centinela.
+
+name: taskflow ci
+
+on:
+  pull_request:
+    paths: ["taskflow/**", ".github/workflows/taskflow-ci.yml"]
+  push:
+    # La rama por defecto del repo. Las demás ya pasan por el PR.
+    branches: [claude/budget-app-j968ek]
+    paths: ["taskflow/**", ".github/workflows/taskflow-ci.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Un push nuevo al mismo PR cancela la corrida anterior.
+concurrency:
+  group: taskflow-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: taskflow
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: taskflow/package-lock.json
+      - run: npm ci
+      - name: tests
+        run: npm test
+      - name: tipos
+        run: npm run typecheck
+      - name: lint
+        run: npm run lint
+      - name: build
+        run: npm run build
+      - name: ningún secreto en el navegador
+        run: npm run check:secrets
