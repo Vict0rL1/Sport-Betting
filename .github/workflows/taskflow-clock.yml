@@ -2,8 +2,9 @@
 #
 # Existe por una limitación concreta: Victor pidió dos avisos al día — el
 # resumen de la mañana y el de la noche anterior — y el plan gratis de Vercel
-# permite UN cron al día. Además, dos horas fijas en UTC se irían de sitio en
-# noviembre, cuando Vancouver pasa de UTC-7 a UTC-8.
+# permite UN cron al día. Además, dos horas fijas en UTC se irían de sitio con
+# cada cambio de horario o de zona (BC dejó de cambiar la hora en 2026, pero
+# la zona del perfil puede ser otra).
 #
 # La solución es separar el reloj de la decisión: esto llama a /api/sync cada
 # hora y es la app la que mira la hora local del perfil y decide si toca. Que

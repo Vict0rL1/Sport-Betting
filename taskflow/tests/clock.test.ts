@@ -229,14 +229,25 @@ describe("Telegram", () => {
 });
 
 describe("horario de verano y viajes", () => {
-  it("el día del cambio de hora (1 nov) el aviso sale una vez, y la hora repetida no cuenta como mañana", async () => {
+  // El último atraso de hora de Vancouver (2 nov 2025): desde 2026 BC ya no cambia.
+  it("el día del cambio de hora el aviso sale una vez, y la hora repetida no cuenta como mañana", async () => {
     const s = await setup();
-    await s.p.as(A).from("tasks").insert({ user_id: s.a, title: "PS5", due_date: "2026-11-01" });
-    await s.run(new Date("2026-11-01T08:30:00Z")); // 1:30 PDT
-    await s.run(new Date("2026-11-01T09:30:00Z")); // 1:30 PST, otra vez
+    await s.p.as(A).from("tasks").insert({ user_id: s.a, title: "PS5", due_date: "2025-11-02" });
+    await s.run(new Date("2025-11-02T08:30:00Z")); // 1:30 PDT
+    await s.run(new Date("2025-11-02T09:30:00Z")); // 1:30 PST, otra vez
     expect(tgSent).toHaveLength(0);
-    await s.run(new Date("2026-11-01T15:30:00Z")); // 7:30 PST
-    await s.run(new Date("2026-11-01T16:30:00Z")); // 8:30 PST
+    await s.run(new Date("2025-11-02T15:30:00Z")); // 7:30 PST
+    await s.run(new Date("2025-11-02T16:30:00Z")); // 8:30 PST
+    expect(tgSent).toHaveLength(1);
+  });
+
+  it("desde noviembre de 2026 Vancouver se queda en UTC-7: la ventana de la mañana abre a las 7:00 de UTC-7", async () => {
+    const s = await setup();
+    await s.p.as(A).from("tasks").insert({ user_id: s.a, title: "PS7", due_date: "2026-11-09" });
+    await s.run(new Date("2026-11-09T13:30:00Z")); // 6:30
+    expect(tgSent).toHaveLength(0);
+    // 7:10 en UTC-7. Con la regla vieja (UTC-8) serían las 6:10 y no saldría.
+    await s.run(new Date("2026-11-09T14:10:00Z"));
     expect(tgSent).toHaveLength(1);
   });
 

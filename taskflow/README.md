@@ -233,9 +233,9 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 ```
 
 **Sobre la hora.** El cron de Vercel se programa en UTC, así que `0 15 * * *`
-son las 8:00 en Vancouver en horario de verano y las 7:00 en invierno. Las dos
-caen dentro de la ventana de la mañana, que es lo único que importa: el número
-exacto no, porque quien decide es la app mirando tu hora local, no el cron.
+son las 8:00 en Vancouver, todo el año desde que BC dejó de cambiar la hora
+(noviembre de 2026). Si cambias de zona, puede caer a otra hora; da igual,
+porque quien decide es la app mirando tu hora local, no el cron.
 
 ### 6. Avisos en el teléfono (fase 4)
 
@@ -273,8 +273,13 @@ desde el teléfono).
 #### El reloj: por qué hace falta GitHub Actions
 
 Son dos avisos al día y **el plan gratis de Vercel permite un cron**. Dos horas
-fijas en UTC tampoco servirían: en noviembre Vancouver pasa de UTC-7 a UTC-8 y
-los dos avisos se correrían una hora.
+fijas en UTC tampoco servirían: con cada cambio de horario (o de zona, si
+viajas) los dos avisos se correrían una hora.
+
+**British Columbia dejó de cambiar la hora**: desde el 1 de noviembre de 2026
+se queda en UTC-7 todo el año. `lib/date.ts` lo fija a mano a partir de esa
+fecha, porque un Node con una base de zonas anterior al cambio seguiría
+atrasando la hora y mostraría todo una hora corrido.
 
 Así que el reloj se separa de la decisión. `.github/workflows/taskflow-clock.yml`
 llama a `/api/sync` **cada hora** y la app mira tu hora local y decide. El cron

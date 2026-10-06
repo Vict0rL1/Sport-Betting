@@ -196,8 +196,17 @@ export function addDays(ymd, n) {
 
 export const weekdayOf = (ymd) => new Date(`${ymd}T00:00:00Z`).getUTCDay();
 
+/**
+ * BC dejó de cambiar la hora: desde el 1 nov 2026 se queda en UTC-7. Un Node
+ * con una base de zonas vieja todavía la atrasa, así que desde ese instante
+ * el desfase es fijo. Es la misma regla que `FIXED_OFFSET_FROM` en
+ * `lib/date.ts` (un test comprueba que los dos den lo mismo).
+ */
+const BC_FIJO = { from: Date.UTC(2026, 10, 1, 9, 0), offsetMin: -7 * 60 };
+
 /** Minutos al este de UTC para ese instante en esa zona. */
 function tzOffsetMinutes(date, tz) {
+  if ((tz === "America/Vancouver" || tz === "Canada/Pacific") && date.getTime() >= BC_FIJO.from) return BC_FIJO.offsetMin;
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-US", {
       timeZone: tz,
@@ -226,10 +235,9 @@ function tzOffsetMinutes(date, tz) {
 /**
  * "2026-11-10" + "10:30" en Vancouver → el instante real en ISO.
  *
- * Importa hacerlo bien: el horario de verano termina el 1 de noviembre, así
- * que las clases de septiembre y octubre van en UTC-7 y las de noviembre y
- * diciembre en UTC-8. Fijar un `-07:00` a mano, como hacía el seed viejo,
- * corre una hora todo el último mes del semestre.
+ * Importa hacerlo bien: el desfase lo decide la fecha, no un `-07:00` puesto
+ * a mano. Hasta 2025 Vancouver pasaba a UTC-8 en noviembre; desde 2026 BC se
+ * queda en UTC-7 todo el año (ver `BC_FIJO`).
  */
 export function wallTimeToInstant(ymd, hhmm, tz = TZ) {
   const [h, m] = hhmm.split(":").map(Number);

@@ -61,7 +61,33 @@ export const yearOf = (s: string) => Number(String(s).slice(0, 4));
 
 type Parts = { year: number; month: number; day: number; hour: number; minute: number; second: number };
 
+/**
+ * Cambios de reglas que el ICU del servidor puede no conocer todavía.
+ *
+ * British Columbia dejó de cambiar la hora: el 8 de marzo de 2026 fue el
+ * último cambio, y el 1 de noviembre de 2026 los relojes ya no se atrasan:
+ * la provincia se queda en UTC-7 todo el año (gobierno de BC, comunicado
+ * 2026AG0013-000209). Un Node con una base de zonas anterior a ese cambio
+ * (tzdata 2025c, por ejemplo) seguiría pasando a UTC-8, y TaskFlow mostraría
+ * las clases, los deadlines y los avisos una hora corridos. Desde el instante
+ * en que se habría atrasado la hora, el desfase es fijo, diga lo que diga ICU;
+ * con un ICU al día da exactamente lo mismo.
+ */
+export const FIXED_OFFSET_FROM: Record<string, { from: number; offsetMin: number }> = {
+  "America/Vancouver": { from: Date.UTC(2026, 10, 1, 9, 0), offsetMin: -7 * 60 },
+  "Canada/Pacific": { from: Date.UTC(2026, 10, 1, 9, 0), offsetMin: -7 * 60 },
+};
+
 function partsInTz(instant: Date | number, timeZone: string): Parts {
+  const ms = +new Date(instant);
+  const fijo = FIXED_OFFSET_FROM[timeZone];
+  if (fijo && ms >= fijo.from) {
+    const d = new Date(ms + fijo.offsetMin * 60_000);
+    return {
+      year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(),
+      hour: d.getUTCHours(), minute: d.getUTCMinutes(), second: d.getUTCSeconds(),
+    };
+  }
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone,
     hourCycle: "h23",
