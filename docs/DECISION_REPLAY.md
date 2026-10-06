@@ -51,6 +51,11 @@ Tres respuestas:
   a las 21:00; a las 14:35 no se conocía. Solo cuenta si el sistema lo obtuvo
   antes (`obtenido_en`).
 
+Las barras diarias pasan por `barra_disponible`: el cierre de un día no existe
+hasta la tarde, así que la barra del mismo día de una decisión con hora solo
+entra si el histórico se descargó antes (en vivo, sí; en un análisis a una fecha
+pasada, no).
+
 Cada sección del análisis la aplica: un análisis a una fecha pasada no ve
 cotizaciones, ejercicios o trimestres publicados después, tesis creadas o
 editadas después (si se editó, su texto de entonces es **desconocido**: no se

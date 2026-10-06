@@ -214,11 +214,32 @@ registro fiel de datos mal leídos.
       cambio de decisión explicado → riesgo y oportunidad → instantáneas íntegras
 - [x] Interfaz verificada en el navegador con datos ficticios
 
+### Ronda 2 (fallos encontrados y corregidos, con test)
+- [x] Varios lotes del mismo símbolo: la lista diaria se quedaba con el último lote
+      (coste y stop de los demás perdidos) y `/api/portfolio/riesgo` los pesaba
+      como posiciones separadas. Ahora se agregan en los dos sitios
+- [x] Un stop subido sobre el coste («Fijar stop», para asegurar beneficio) lo
+      ignoraba `decide()`: perforado, salía «mantener». Ahora manda
+- [x] Consenso y guidance en otra escala se registraban y daban sorpresas del
+      ±99 %: comprobación de escala antes de registrar
+- [x] Una partida de deuda ausente contaba como cero en silencio: ahora `parcial`
+      y avisado (análisis, valoración, DCF, salud)
+- [x] El DCF de la ficha valoraba con deuda neta 0 si era desconocida (la pantalla
+      prellenaba «0» y el endpoint lo tomaba por defecto): ahora 422 y campo vacío
+- [x] Un análisis a una fecha pasada con hora veía el cierre de esa misma tarde
+      (filtro por día): `punto_en_el_tiempo.barra_disponible`
+- [x] `scripts/validar_con_datos_reales.py`: coherencia de los datos reales,
+      PASS/FAIL/UNKNOWN (no ejecutado aquí: el contenedor no tiene claves y la red
+      bloquea a los proveedores)
+
 ### Requiere verificación manual
+- [ ] **Correr `scripts/validar_con_datos_reales.py` con tus claves** y revisar
+      cada FAIL y cada UNKNOWN. Cubre los dos puntos siguientes en parte.
 - [ ] **Trimestres de EDGAR contra un 10-Q real**, en especial el CFO del 2.º y
       3.er trimestre (derivado de acumulados) y el 4.º (año − nueve meses).
 - [ ] **Consenso del calendario de Finnhub**: que `eps_estimate` y
-      `revenue_estimate` lleguen y en qué unidades (la app los toma tal cual).
+      `revenue_estimate` lleguen en dólares (la comprobación de escala descarta los
+      que no, pero conviene confirmarlo con un caso real).
 - [ ] **Un análisis completo de una empresa real** y su replay al día siguiente.
 - [ ] **Migraciones 0007 y 0008 sobre tu base real**: copia antes de arrancar.
 - [ ] **Anotar el efectivo** y, si procede, el tipo sobre plusvalías: sin ellos el

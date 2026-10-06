@@ -8,7 +8,9 @@ mejor que lo que ya tengo, por lo suficiente como para pagar el cambio?**
 
 Pesos y series en dólares, una sola vez, con las reglas de la cartera:
 
-- varios lotes del mismo símbolo = una posición;
+- varios lotes del mismo símbolo = una posición (también en `/api/portfolio/riesgo`
+  y, para decidir, en `posiciones_para_decidir`: cantidad sumada, coste medio
+  ponderado y el stop más protector de los fijados);
 - sin precio → sin peso, fuera y nombrada (no vale cero);
 - sin moneda o sin tipo de cambio → fuera y nombrada (no se supone dólar);
 - cada serie se convierte con el tipo de **su** fecha: una acción canadiense mide
