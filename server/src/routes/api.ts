@@ -49,7 +49,7 @@ import { readRegistry, distinctExperiments, interpretarExperimento } from '../ex
 import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from '../config.ts';
-import { partidosDeHoy, resultadosRecientes } from '../today.ts';
+import { partidosDeHoy, historialReciente, VENTANAS } from '../today.ts';
 import { evaluate } from '../live/engine.ts';
 import { matchupServe } from '../live/serve.ts';
 import { describe as describeState, type LiveState } from '../live/state.ts';
@@ -505,35 +505,14 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
-  app.get('/recent-results', async () => {
-    const r = resultadosRecientes();
-    const aciertos = r.filter((x) => x.acerto).length;
-    // ===========================================================================
-    // CUÁNTO CABÍA ESPERAR
-    // ===========================================================================
-    // «8 de 15, 53 %» no dice si eso es bueno o malo. Lo dice compararlo con lo que el
-    // propio modelo prometió: si daba a cada favorito su probabilidad, el número de
-    // aciertos esperado es la SUMA de esas probabilidades, y su dispersión la suma de
-    // p·(1−p). Con quince partidos esa dispersión es enorme —de seis a doce aciertos
-    // es lo normal para un modelo perfectamente calibrado—, y enseñarlo es lo que
-    // separa «el modelo va mal» de «ha sido una semana corta».
-    const esperado = r.reduce((a, x) => a + x.probabilidad, 0);
-    const sd = Math.sqrt(r.reduce((a, x) => a + x.probabilidad * (1 - x.probabilidad), 0));
-    return {
-      resultados: r,
-      total: r.length,
-      aciertos,
-      // Sin partidos no hay porcentaje: enseñar «0 %» se leería como «no acierta
-      // ninguno» cuando lo que pasa es que aún no hay ninguno resuelto.
-      tasa: r.length > 0 ? aciertos / r.length : null,
-      esperado: r.length > 0 ? esperado : null,
-      tasaEsperada: r.length > 0 ? esperado / r.length : null,
-      // El rango del 95 %, en aciertos enteros y dentro de [0, total].
-      rangoNormal:
-        r.length > 0
-          ? [Math.max(0, Math.ceil(esperado - 1.96 * sd)), Math.min(r.length, Math.floor(esperado + 1.96 * sd))]
-          : null,
-    };
+  // --- ¿acertó? Los partidos de los últimos días: registro en vivo + reconstruidos ---
+  // `dias` solo admite las ventanas que ofrece la pantalla (7, 14, 30): reconstruir cuesta
+  // ~1 s por deporte y se guarda por ventana, así que una ventana arbitraria por petición
+  // sería una forma barata de tener el servidor ocupado.
+  app.get<{ Querystring: { dias?: string } }>('/recent-results', async (req) => {
+    const pedido = Number(req.query.dias);
+    const dias = (VENTANAS as readonly number[]).includes(pedido) ? pedido : VENTANAS[0];
+    return { ventanas: VENTANAS, ...historialReciente(new Date(), dias) };
   });
 
   // --- auditoría: línea temporal de un partido, reproducción de un id y alertas ---

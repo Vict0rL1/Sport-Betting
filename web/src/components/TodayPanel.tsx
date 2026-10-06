@@ -14,6 +14,7 @@
 // que cambia de deporte, y una cabecera que no se puede quitar acaba siendo un peaje.
 
 import { useEffect, useState } from 'react';
+import RecentResults, { EMOJI, lineaResumen, useHistorial } from './RecentResults';
 
 interface Partido {
   deporte: string;
@@ -25,39 +26,13 @@ interface Partido {
   empezado: boolean;
 }
 
-const EMOJI: Record<string, string> = {
-  'Fútbol': '⚽',
-  'Baloncesto': '🏀',
-  'Béisbol': '⚾',
-  'NFL': '🏈',
-  'Tenis': '🎾',
-};
-
-interface Resultado {
-  deporte: string;
-  cuando: string;
-  partido: string;
-  favorito: string;
-  probabilidad: number;
-  ganador: string;
-  acerto: boolean;
-}
-
 const CLAVE = 'predictor.today.open';
 const CLAVE_VISTA = 'predictor.today.view';
 
 export default function TodayPanel() {
   const [datos, setDatos] = useState<{ partidos: Partido[]; nota: string | null } | null>(null);
-  const [res, setRes] = useState<{
-    resultados: Resultado[];
-    aciertos: number;
-    total: number;
-    tasa: number | null;
-    /** Aciertos que el propio modelo esperaba, y el rango normal por azar (95 %). */
-    esperado?: number | null;
-    tasaEsperada?: number | null;
-    rangoNormal?: [number, number] | null;
-  } | null>(null);
+  // Los resultados recientes (registro en vivo + reconstruidos), con su ventana.
+  const historial = useHistorial();
   const [vista, setVista] = useState<'hoy' | 'resultados'>(() => {
     try {
       return localStorage.getItem(CLAVE_VISTA) === 'resultados' ? 'resultados' : 'hoy';
@@ -81,13 +56,8 @@ export default function TodayPanel() {
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j) => vivo && setDatos(j))
       .catch(() => vivo && setDatos({ partidos: [], nota: null }));
-    // Las dos vistas se piden a la vez y no al cambiar de pestaña: son dos consultas
-    // baratas a la base y pedirlas al alternar metería una espera en un gesto que tiene
-    // que ser instantáneo.
-    fetch('/api/recent-results')
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j) => vivo && setRes(j))
-      .catch(() => vivo && setRes({ resultados: [], aciertos: 0, total: 0, tasa: null }));
+    // Los resultados se piden a la vez (useHistorial), no al cambiar de vista: alternar
+    // tiene que ser instantáneo.
     return () => {
       vivo = false;
     };
@@ -112,11 +82,12 @@ export default function TodayPanel() {
     }
   }
 
-  // Se esconde solo si NO hay nada que enseñar en NINGUNA de las dos vistas. Con cero
-  // partidos hoy pero resultados de ayer, el panel sigue teniendo algo que decir — y es
-  // justo el día en que más apetece mirar si acertó.
+  // Se esconde solo si NO hay nada que enseñar en NINGUNA de las dos vistas. Los
+  // resultados siempre tienen algo que decir una vez cargados: o los partidos, o por qué
+  // faltan (el archivo sin actualizar). Esconderlos con la lista vacía era justo lo que
+  // hacía parecer que el historial de la semana no existía.
   const hayHoy = (datos?.partidos.length ?? 0) > 0;
-  const hayRes = (res?.resultados.length ?? 0) > 0;
+  const hayRes = historial.h != null;
   if (!hayHoy && !hayRes) return null;
   const activa: 'hoy' | 'resultados' = vista === 'resultados' && hayRes ? 'resultados' : hayHoy ? 'hoy' : 'resultados';
 
@@ -143,12 +114,8 @@ export default function TodayPanel() {
                 {conPrecio > 0 && ` · ${conPrecio} con cuotas reales`}
               </>
             ) : (
-              <>
-                {res?.aciertos} de {res?.total} en los últimos 7 días
-                {res?.tasa != null && ` · ${(res.tasa * 100).toFixed(0)} %`}
-                {/* Sin esto, un 53 % no dice nada: puede ser justo lo que tocaba. */}
-                {res?.tasaEsperada != null && ` · esperaba ${(res.tasaEsperada * 100).toFixed(0)} %`}
-              </>
+              // Sin «esperaba», un 53 % no dice nada: puede ser justo lo que tocaba.
+              <>{lineaResumen(historial.h)}</>
             )}
           </span>
         </span>
@@ -177,11 +144,14 @@ export default function TodayPanel() {
             </div>
           )}
 
-          <div className="max-h-[22rem] overflow-y-auto">
-            <table className="w-full border-collapse text-[14px]">
-              <tbody>
-                {activa === 'hoy'
-                  ? (datos?.partidos ?? []).map((p, i) => (
+          {activa === 'resultados' ? (
+            <RecentResults estado={historial} />
+          ) : (
+            <>
+              <div className="max-h-[22rem] overflow-y-auto">
+                <table className="w-full border-collapse text-[14px]">
+                  <tbody>
+                    {(datos?.partidos ?? []).map((p, i) => (
                       <tr
                         key={i}
                         className="border-t border-white/[0.05] first:border-t-0"
@@ -207,55 +177,16 @@ export default function TodayPanel() {
                           )}
                         </td>
                       </tr>
-                    ))
-                  : (res?.resultados ?? []).map((r, i) => (
-                      <tr key={i} className="border-t border-white/[0.05] first:border-t-0">
-                        <td className="whitespace-nowrap py-2 pl-4 pr-2 text-[#9aa1ac]">
-                          {new Date(r.cuando).toLocaleDateString('es', { day: 'numeric', month: 'short' })}
-                        </td>
-                        <td className="py-2 pr-2"><span title={r.deporte}>{EMOJI[r.deporte] ?? '•'}</span></td>
-                        <td className="py-2 pr-3 text-[#c3c9d1]">{r.partido}</td>
-                        <td className="whitespace-nowrap py-2 pr-2 text-right text-[#9aa1ac]">
-                          dijo {r.favorito} {(r.probabilidad * 100).toFixed(0)}%
-                        </td>
-                        {/* El resultado, y el acierto al lado. Enseñar solo el ✓/✗ sin
-                            quién ganó lo volvería incomprobable, que es lo contrario de
-                            para lo que existe esta vista. */}
-                        <td className="whitespace-nowrap py-2 pr-4 text-right">
-                          <span className="text-[#9aa1ac]">ganó {r.ganador}</span>{' '}
-                          <span style={{ color: r.acerto ? '#4ea672' : '#c46262' }}>
-                            {r.acerto ? '✓' : '✗'}
-                          </span>
-                        </td>
-                      </tr>
                     ))}
-              </tbody>
-            </table>
-          </div>
-          {activa === 'hoy' && datos?.nota && (
-            <p className="border-t border-white/[0.05] px-4 py-2 text-[12px] text-[#7b828d]">
-              {datos.nota}
-            </p>
-          )}
-          {activa === 'resultados' && (
-            <p className="border-t border-white/[0.05] px-4 py-2 text-[12px] text-[#7b828d]">
-              {res?.rangoNormal && res.esperado != null && (
-                <>
-                  Con las probabilidades que dio, el modelo esperaba acertar unos{' '}
-                  {res.esperado.toFixed(1).replace('.', ',')} de {res.total}. Por puro azar, entre{' '}
-                  {res.rangoNormal[0]} y {res.rangoNormal[1]} aciertos es lo normal con tan pocos
-                  partidos, así que {res.aciertos}{' '}
-                  {res.aciertos >= res.rangoNormal[0] && res.aciertos <= res.rangoNormal[1]
-                    ? 'está dentro de lo esperado.'
-                    : res.aciertos < res.rangoNormal[0]
-                      ? 'está por debajo de lo normal: merece mirarse.'
-                      : 'está por encima: buena racha, no un modelo mejor.'}{' '}
-                </>
+                  </tbody>
+                </table>
+              </div>
+              {datos?.nota && (
+                <p className="border-t border-white/[0.05] px-4 py-2 text-[12px] text-[#7b828d]">
+                  {datos.nota}
+                </p>
               )}
-              Partido a partido, para que lo puedas comprobar con tu propia memoria. El
-              porcentaje que sirve para juzgar al modelo es el del historial de cada
-              pestaña, medido sobre miles de partidos y no sobre estos {res?.total}.
-            </p>
+            </>
           )}
         </div>
       )}

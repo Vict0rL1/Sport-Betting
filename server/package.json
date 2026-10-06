@@ -17,6 +17,7 @@
     "benchmark:report": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/benchmark.ts",
     "backtest": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/backtest.ts",
     "typecheck": "tsc --noEmit",
+    "update-results": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/updateResults.ts",
     "update-data:bb": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/basketball/scripts/updateData.ts",
     "backtest:bb": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/basketball/backtest.ts",
     "seed:bb": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/basketball/scripts/seed.ts",

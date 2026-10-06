@@ -107,6 +107,18 @@ Detalle en [«Quiero las cuotas reales»](#quiero-las-cuotas-reales-npm-run-odds
 
 Y si algo sigue sin cuadrar, **`npm run doctor`** diagnostica sin gastar ni una petición.
 
+**«¿Acertó?» (arriba de cada pestaña)** enseña los partidos de los últimos 7, 14 o 30 días:
+los que la app registró antes de jugarse (**en vivo**) y, para no quedarse en una muestra
+de 19, el resto de partidos jugados del archivo con la predicción **reconstruida** por el
+modelo del backtest, solo con datos anteriores a cada partido (`server/src/recent/`). Los
+dos se cuentan por separado y un partido nunca dos veces. Si salen días vacíos es casi
+siempre el archivo de resultados sin actualizar; se ponen al día los cuatro deportes de
+equipo de una vez, sin gastar créditos de cuotas, con:
+
+```bash
+npm run update-results
+```
+
 ### El modelo apostando solo: 1.000 $ de papel
 
 En la pestaña de Apuestas, separado de tu propio registro. El modelo arranca con 1.000 $
