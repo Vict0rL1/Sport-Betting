@@ -21,6 +21,7 @@ export type Seccion =
   | 'CONFIANZA'
   | 'DATOS Y COPIAS'
   | 'ANALÍTICA E INTERFAZ'
+  | 'PRODUCTO'
   | 'SEGURIDAD'
   | 'SERVIDOR Y PANTALLA';
 
@@ -865,5 +866,40 @@ export function comprobarAnalitica(e: EstadoAnalitica, ahora: Date): Hallazgo[] 
   // Interfaz.
   if (e.anulaciones.length) out.push(h(S, 'info', `Interruptores anulados desde Ajustes: ${e.anulaciones.join(', ')} (mandan sobre config/features.json)`));
   out.push(h(S, 'info', e.seguidos ? `Seguimiento: ${e.seguidos} equipo(s), jugador(es) o partido(s); las notificaciones de línea movida solo salen para ellos` : 'Seguimiento vacío: con la estrella ☆ en tarjetas y fichas se sigue un equipo, jugador o partido'));
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// PRODUCTO (Fase 6): laboratorio de estrategias, bandeja, informes, líneas y archivo
+// ---------------------------------------------------------------------------
+export interface EstadoProducto {
+  estrategias: { activas: number; archivadas: number; apuestas: number; pendientes: number; ultimaApuesta: string | null; laboratorio: boolean };
+  /** Partidos con cuota guardados para «¿qué habría pasado?», por deporte. */
+  historicos: { sport: string; partidos: number; generado: string | null }[];
+  hayCuotasReales: boolean;
+}
+
+export function comprobarProducto(e: EstadoProducto, ahora: Date): Hallazgo[] {
+  const S: Seccion = 'PRODUCTO';
+  const out: Hallazgo[] = [];
+  const st = e.estrategias;
+  if (!st.laboratorio) out.push(h(S, 'info', 'Laboratorio de estrategias apagado (features.json: estrategias.laboratorio)'));
+  else if (st.activas + st.archivadas === 0) out.push(h(S, 'info', 'Laboratorio de estrategias: ninguna creada todavía (Apuestas › Laboratorio)'));
+  else {
+    const dias = st.ultimaApuesta ? Math.floor((ahora.getTime() - Date.parse(st.ultimaApuesta)) / 86_400_000) : null;
+    const quieto = st.activas > 0 && e.hayCuotasReales && (dias == null || dias > 7);
+    out.push(
+      h(
+        S,
+        quieto ? 'aviso' : 'ok',
+        `Laboratorio: ${st.activas} estrategia(s) activa(s) y ${st.archivadas} archivada(s); ${st.apuestas} apuesta(s), ${st.pendientes} pendiente(s)` +
+          (st.ultimaApuesta ? `; la última hace ${dias} día(s)` : '; ninguna apuesta todavía'),
+        quieto ? { accion: ['Hay cuotas reales y ninguna estrategia ha apostado en una semana: mira los rechazos en `npm run paper` o sube la ventaja mínima esperada.'] } : undefined,
+      ),
+    );
+  }
+  const con = e.historicos.filter((x) => x.partidos > 0);
+  if (con.length === 0) out.push(h(S, 'info', '«¿Qué habría pasado?» sin histórico: lo escribe la corrida de referencia de los backtests de tenis, fútbol y NFL (experiments/estrategias/)'));
+  else out.push(h(S, 'ok', `«¿Qué habría pasado?»: ${con.map((x) => `${x.sport} ${x.partidos.toLocaleString('es')} partidos`).join(' · ')} (sin holdout)`));
   return out;
 }

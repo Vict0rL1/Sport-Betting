@@ -141,3 +141,30 @@ export function validar(valor: unknown, esquema: Esquema, ruta = '$'): string[] 
   if (tipoReal === 'array' && esquema.items) (valor as unknown[]).forEach((x, i) => problemas.push(...validar(x, esquema.items!, `${ruta}[${i}]`)));
   return problemas;
 }
+
+// --- Fase 6: laboratorio de estrategias ---
+const objetoLibre: Esquema = { type: 'object', additionalProperties: true };
+const objetoLibreONulo: Esquema = { type: 'object', additionalProperties: true, nullable: true };
+const ESQUEMA_AVISO = o({ nivel: { type: 'string', enum: ['insuficiente', 'orientativa', 'suficiente'] }, texto: nullable('string') });
+export const ESQUEMA_ESTRATEGIA = o({ id: int, created_at: str, nombre: str, config: objetoLibre, hash: str, nota: nullable('string'), archived_at: nullable('string') });
+export const ESQUEMA_FILA_COMPARACION = o({
+  id: nullable('integer'), nombre: str, archivada: bool, config: objetoLibreONulo, banco: num, beneficio: num, apuestas: int, liquidadas: int,
+  pendientes: int, ganadas: int, perdidas: int, roi: nullable('number'), acierto: nullable('number'), clvMedio: nullable('number'), conCierre: int,
+  drawdown: objetoLibreONulo, aviso: ESQUEMA_AVISO, comparable: bool, curva: { type: 'array', items: o({ t: str, banco: num }) },
+});
+export const ESQUEMA_ESTRATEGIAS = o({
+  estrategias: { type: 'array', items: ESQUEMA_ESTRATEGIA },
+  comparacion: o({ filas: { type: 'array', items: ESQUEMA_FILA_COMPARACION }, nota: str }),
+  historicos: { type: 'array', items: o({ sport: str, partidos: int, generado: nullable('string'), fuente: nullable('string') }) },
+  limites: o({ maxActivas: int, deportes: { type: 'array', items: str }, mercados: { type: 'array', items: str } }),
+  politica: objetoLibre,
+});
+export const ESQUEMA_HISTORICO_ESTRATEGIA = o({
+  sport: str, disponible: bool, motivo: nullable('string'), fuente: nullable('string'), generado: nullable('string'), partidos: int,
+  desde: nullable('string'), hasta: nullable('string'), temporadas: objetoLibreONulo, apuestas: int, ganadas: int, beneficio: num, bancoFinal: num, roi: nullable('number'),
+  acierto: nullable('number'), drawdown: objetoLibreONulo, clvMedio: nullable('number'), conClv: int, aviso: ESQUEMA_AVISO,
+  curva: { type: 'array', items: o({ fecha: str, banco: num }) },
+  porTemporada: { type: 'array', items: o({ temporada: str, apuestas: int, beneficio: num, roi: nullable('number') }) },
+  notas: { type: 'array', items: str },
+});
+export const ESQUEMA_APUESTAS_ESTRATEGIA = o({ apuestas: { type: 'array', items: objetoLibre } });

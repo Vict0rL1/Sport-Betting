@@ -13,6 +13,8 @@ export interface Serie {
 }
 
 const fmt = (v: number, d = 2) => (Number.isInteger(v) ? String(v) : v.toFixed(d).replace('.', ','));
+/** Las etiquetas del eje: sin decimales a partir de 100, que con el margen izquierdo no caben. */
+const fmtEje = (v: number) => (Math.abs(v) >= 100 ? String(Math.round(v)) : fmt(v));
 
 /** Marco común: título, resumen accesible y el SVG. */
 function Marco({ titulo, resumen, children, alto = 180 }: { titulo?: string; resumen: string; children: ReactNode; alto?: number }) {
@@ -59,7 +61,7 @@ export function LineChart({ series, titulo, unidad = '', formatoX = (x) => Strin
         {ticks.map((t) => (
           <g key={t}>
             <line x1={m.l} x2={ancho - m.r} y1={sy(t)} y2={sy(t)} stroke="var(--line)" />
-            <text x={m.l - 6} y={sy(t) + 4} textAnchor="end" fontSize="11" fill="var(--ink-muted)">{fmt(t)}{unidad}</text>
+            <text x={m.l - 6} y={sy(t) + 4} textAnchor="end" fontSize="11" fill="var(--ink-muted)">{fmtEje(t)}{unidad}</text>
           </g>
         ))}
         {referencia && (

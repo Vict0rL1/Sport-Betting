@@ -54,6 +54,8 @@ import { prediccionFutbolEnReplay } from '../evaluation/replay.ts';
 import { eloExternoEn, hayEloExterno, probsClubElo } from './ingest/clubelo.ts';
 import { featureEncendida } from '../features.ts';
 import { registrarRecalibracion } from '../experiments/recalibracion.ts';
+import { guardarHistorico } from '../estrategias/historico.ts';
+import { versionsFor } from '../versions.ts';
 import { getDb } from '../db.ts';
 import { evaluate } from '../evaluation/metrics.ts';
 import { VALUE_THRESHOLD } from '../model/market.ts';
@@ -316,6 +318,7 @@ function main() {
             if (shin) vsPinnacle.push({ p: juego.modelo, y: juego.y, mercado: shin });
             if (match.ps_home && match.ps_draw && match.ps_away) {
               conPinnacle.push({ modelo: juego.modelo, ps: [match.ps_home, match.ps_draw, match.ps_away], psc, y: juego.y });
+              juego.pinnacle = { temprana: [match.ps_home, match.ps_draw, match.ps_away], cierre: psc };
             }
           }
         }
@@ -436,6 +439,8 @@ function main() {
     imprimirWalkForward(wf);
     if (!onlyLeague && !holdoutOpen && Object.keys(args).length === 0) {
       console.log(`  guardado en ${guardarWalkForward(wf)}`);
+      const hist = guardarHistorico('football', flujo, { fuente: fuenteMercado() ?? 'football-data.co.uk', modelVersion: versionsFor('football').model_version });
+      console.log(hist ? `  histórico para estrategias en ${hist}` : '  sin cuotas históricas: no se guarda histórico para estrategias.');
       const rec = registrarRecalibracion('football', wf);
       if (rec) console.log(`  recalibración registrada como experimento: ${rec.reason}`);
       const ens = entrenarEnsemble('football', flujo);

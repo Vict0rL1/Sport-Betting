@@ -29,6 +29,9 @@ export const TABLAS_LEDGER: readonly string[] = [
   'alerts',
   // Seguimiento de la persona (Fase 5).
   'watchlist',
+  // Laboratorio de estrategias (Fase 6).
+  'strategies',
+  'strategy_bets',
   // Operación.
   'sessions',
   'error_log',

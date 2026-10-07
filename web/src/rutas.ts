@@ -40,6 +40,7 @@ export const rutaLiga = (sport: string, league: string) => `/liga/${sport}/${enc
 export const RUTA_AJUSTES = '/ajustes';
 export const RUTA_DIAGNOSTICO = '/confianza/diagnostico';
 export const RUTA_GLOSARIO = '/glosario';
+export const RUTA_LABORATORIO = '/apuestas/laboratorio';
 
 const CLAVE_ULTIMA = 'predictor.sport';
 

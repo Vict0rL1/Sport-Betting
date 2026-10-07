@@ -43,6 +43,7 @@ import { ejecutar } from '../ask/router.ts';
 import { responderAgente } from '../ask/agent.ts';
 import { enrutarConModelo } from '../ask/llm.ts';
 import { place, settle, resumen, bancoActual } from '../paper/bankroll.ts';
+import { colocarEstrategias, liquidarEstrategias } from '../estrategias/index.ts';
 import { riesgoCartera } from '../staking/risk.ts';
 import { lineaTemporal } from '../audit/timeline.ts';
 import { reproducir } from '../audit/reproduce.ts';
@@ -597,6 +598,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     // con una evaluación de confianza posterior a las cuotas, y esas las deja el ciclo de
     // cada 15 minutos y el que corre tras cada refresco de cuotas.
     const r = place();
+    liquidarEstrategias();
+    colocarEstrategias();
     return resumen(r.motivo);
   });
 

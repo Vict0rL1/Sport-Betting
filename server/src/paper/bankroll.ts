@@ -251,7 +251,7 @@ export function resumen(motivo: string | null = null): Resumen {
  * `proveedor` es el nombre de la selección tal cual lo da The Odds API («Draw», no
  * «Empate»): es la clave con la que se buscan sus snapshots de apertura y cierre.
  */
-interface Salida {
+export interface Salida {
   label: string;
   proveedor: string;
   p: number;
@@ -266,7 +266,7 @@ interface Salida {
  * Elige la política (`bestSelection` en staking/policy.ts): dos copias de esa regla
  * acabarían discrepando sobre qué lado del mismo partido se juega.
  */
-interface Candidato {
+export interface Candidato {
   sport: SportId;
   league: string | null;
   match_key: string;
@@ -291,7 +291,7 @@ const AHORA = () => new Date().toISOString();
  * Del log porque ahí está la probabilidad TAL COMO SE MOSTRÓ, con su fecha; recalcularla
  * aquí daría la de hoy, y la apuesta quedaría con una probabilidad que nunca se enseñó.
  */
-function candidatasTenis(): Candidato[] {
+function candidatasTenis(excluir = true): Candidato[] {
   const rows = getDb()
     .prepare(
       `SELECT l.match_key, l.upcoming_id, l.p1_id, l.p2_id, l.p1_name, l.p2_name, l.prob1, l.market_prob1, l.predicted_at,
@@ -303,7 +303,7 @@ function candidatasTenis(): Candidato[] {
           AND u.source <> 'fixture'
           AND u.p1_odds IS NOT NULL AND u.p2_odds IS NOT NULL
           AND u.commence_time > ?
-          AND l.upcoming_id NOT IN (SELECT event_id FROM paper_bets)`,
+          ${excluir ? 'AND l.upcoming_id NOT IN (SELECT event_id FROM paper_bets)' : ''}`,
     )
     .all(AHORA()) as unknown as {
     match_key: string; upcoming_id: string; p1_id: number; p2_id: number; p1_name: string; p2_name: string; prob1: number;
@@ -338,7 +338,7 @@ function candidatasTenis(): Candidato[] {
  * `mostrada` es la columna con la probabilidad enseñada, donde existe (NFL: la final, casi
  * el precio). Sin ella, la calibrada es la cruda.
  */
-function candidatasDosSalidas(cfg: {
+function candidatasDosSalidas(excluir: boolean, cfg: {
   sport: SportId;
   tablaLog: string;
   tablaUp: string;
@@ -362,7 +362,7 @@ function candidatasDosSalidas(cfg: {
           AND u.source <> 'fixture'
           AND u.${cfg.oddsCasa} IS NOT NULL AND u.${cfg.oddsFuera} IS NOT NULL
           AND u.commence_time > ?
-          AND l.upcoming_id NOT IN (SELECT event_id FROM paper_bets)`,
+          ${excluir ? 'AND l.upcoming_id NOT IN (SELECT event_id FROM paper_bets)' : ''}`,
     )
     .all(AHORA()) as unknown as {
     match_key: string; upcoming_id: string; home_id: string; away_id: string; home_name: string; away_name: string; league: string | null;
@@ -392,7 +392,7 @@ function candidatasDosSalidas(cfg: {
  * Candidatas del fútbol: TRES salidas. El empate es el resultado de uno de cada cuatro
  * partidos y suele tener la cuota más alta; que compita en igualdad lo decide la política.
  */
-function candidatasFutbol(): Candidato[] {
+function candidatasFutbol(excluir = true): Candidato[] {
   const rows = getDb()
     .prepare(
       `SELECT l.match_key, l.upcoming_id, l.home_id, l.away_id, l.home_name, l.away_name, l.league, l.predicted_at,
@@ -409,7 +409,7 @@ function candidatasFutbol(): Candidato[] {
           AND u.source <> 'fixture'
           AND u.odds_home IS NOT NULL AND u.odds_draw IS NOT NULL AND u.odds_away IS NOT NULL
           AND u.commence_time > ?
-          AND l.upcoming_id NOT IN (SELECT event_id FROM paper_bets)`,
+          ${excluir ? 'AND l.upcoming_id NOT IN (SELECT event_id FROM paper_bets)' : ''}`,
     )
     .all(AHORA()) as unknown as {
     match_key: string; upcoming_id: string; home_id: string; away_id: string; home_name: string; away_name: string; league: string | null; predicted_at: string;
@@ -449,6 +449,23 @@ const BEISBOL = {
   sport: 'baseball' as const, tablaLog: 'bsb_prediction_log', tablaUp: 'bsb_upcoming',
   clave: 'match_key', resuelto: 'home_runs', oddsCasa: 'odds_home', oddsFuera: 'odds_away',
 };
+
+/**
+ * Todas las candidatas con cuotas REALES y partido por delante, de los cinco deportes.
+ *
+ * `excluirApostadas` quita las que el banco principal ya apostó (lo que necesita `place`). El
+ * laboratorio de estrategias (Fase 6.1) las pide todas: cada estrategia lleva su propio
+ * registro de qué ha apostado.
+ */
+export function candidatasPapel(excluirApostadas = true): Candidato[] {
+  return [
+    ...candidatasTenis(excluirApostadas),
+    ...candidatasDosSalidas(excluirApostadas, NFL),
+    ...candidatasFutbol(excluirApostadas),
+    ...candidatasDosSalidas(excluirApostadas, BALONCESTO),
+    ...candidatasDosSalidas(excluirApostadas, BEISBOL),
+  ];
+}
 
 /**
  * La probabilidad de mercado sin margen de cada salida, sacada de las cuotas que se van a
@@ -508,13 +525,7 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
 
   let candidatas: Candidato[] = [];
   try {
-    candidatas = [
-      ...candidatasTenis(),
-      ...candidatasDosSalidas(NFL),
-      ...candidatasFutbol(),
-      ...candidatasDosSalidas(BALONCESTO),
-      ...candidatasDosSalidas(BEISBOL),
-    ];
+    candidatas = candidatasPapel(true);
   } catch (e) {
     return { colocadas: 0, motivo: `no pude leer las candidatas: ${(e as Error).message}`, detalle: [] };
   }
@@ -696,7 +707,7 @@ export function captureClosing(now = new Date()): { fijados: number } {
 /** Días sin resultado tras el inicio a partir de los cuales una apuesta se da por cancelada. */
 export const DIAS_CANCELACION = 14;
 
-type Liquidacion = { status: 'won' | 'lost' | 'push' | 'void' | 'cancelled'; resultado: string };
+export type Liquidacion = { status: 'won' | 'lost' | 'push' | 'void' | 'cancelled'; resultado: string };
 
 /**
  * Liquida contra el resultado REAL, leyéndolo del log de predicciones (que ya sabe
@@ -710,21 +721,7 @@ export function settle(now = new Date()): { liquidadas: number } {
   const pend = db.prepare("SELECT * FROM paper_bets WHERE status = 'pending' ORDER BY id").all() as unknown as ApuestaPapel[];
   if (pend.length === 0) return { liquidadas: 0 };
 
-  const tenis = db.prepare(
-    `SELECT l.winner_id, l.p1_id, p1.name AS p1, p2.name AS p2
-       FROM prediction_log l
-       LEFT JOIN players p1 ON p1.tour = l.tour AND p1.id = l.p1_id
-       LEFT JOIN players p2 ON p2.tour = l.tour AND p2.id = l.p2_id
-      WHERE l.match_key = ? AND l.resolved_at IS NOT NULL`,
-  );
-  const futbol = db.prepare(
-    'SELECT home_name, away_name, home_goals AS pc, away_goals AS pf FROM fb_prediction_log WHERE match_key = ? AND resolved_at IS NOT NULL',
-  );
-  const dosSalidas = (log: string, clave: string, casa: string, fuera: string) =>
-    db.prepare(`SELECT home_name, away_name, ${casa} AS pc, ${fuera} AS pf FROM ${log} WHERE ${clave} = ? AND ${casa} IS NOT NULL`);
-  const bb = dosSalidas('bb_prediction_log', 'game_key', 'home_pts', 'away_pts');
-  const bsb = dosSalidas('bsb_prediction_log', 'match_key', 'home_runs', 'away_runs');
-  const nfl = dosSalidas('naf_prediction_log', 'match_key', 'home_points', 'away_points');
+  const resultado = liquidador();
   const upd = db.prepare(
     'UPDATE paper_bets SET status = ?, settled_at = ?, profit = ?, event_result = ?, bankroll_after = ?, roi = ? WHERE id = ?',
   );
@@ -733,7 +730,7 @@ export function settle(now = new Date()): { liquidadas: number } {
   let banco = bancoActual();
   let liquidadas = 0;
   for (const a of pend) {
-    const l = liquidar(a, { tenis, futbol, bb, bsb, nfl });
+    const l = resultado(a);
     let final = l;
     if (!final) {
       // Sin resultado mucho después del inicio: el partido no se jugó (o la fuente no lo
@@ -756,8 +753,32 @@ export function settle(now = new Date()): { liquidadas: number } {
 
 type Stmt = ReturnType<ReturnType<typeof getDb>['prepare']>;
 
+/**
+ * La regla de liquidación, preparada una vez: dada una apuesta (deporte, partido y selección),
+ * su resultado o null si aún no lo hay. La comparten el banco principal y las estrategias.
+ */
+export function liquidador(): (a: Pick<ApuestaPapel, 'sport' | 'match_key' | 'selection'>) => Liquidacion | null {
+  const db = getDb();
+  const tenis = db.prepare(
+    `SELECT l.winner_id, l.p1_id, p1.name AS p1, p2.name AS p2
+       FROM prediction_log l
+       LEFT JOIN players p1 ON p1.tour = l.tour AND p1.id = l.p1_id
+       LEFT JOIN players p2 ON p2.tour = l.tour AND p2.id = l.p2_id
+      WHERE l.match_key = ? AND l.resolved_at IS NOT NULL`,
+  );
+  const futbol = db.prepare(
+    'SELECT home_name, away_name, home_goals AS pc, away_goals AS pf FROM fb_prediction_log WHERE match_key = ? AND resolved_at IS NOT NULL',
+  );
+  const dosSalidas = (log: string, clave: string, casa: string, fuera: string) =>
+    db.prepare(`SELECT home_name, away_name, ${casa} AS pc, ${fuera} AS pf FROM ${log} WHERE ${clave} = ? AND ${casa} IS NOT NULL`);
+  const bb = dosSalidas('bb_prediction_log', 'game_key', 'home_pts', 'away_pts');
+  const bsb = dosSalidas('bsb_prediction_log', 'match_key', 'home_runs', 'away_runs');
+  const nfl = dosSalidas('naf_prediction_log', 'match_key', 'home_points', 'away_points');
+  return (a) => liquidar(a, { tenis, futbol, bb, bsb, nfl });
+}
+
 /** El resultado de una apuesta, o null si su partido aún no tiene resultado. */
-function liquidar(a: ApuestaPapel, q: { tenis: Stmt; futbol: Stmt; bb: Stmt; bsb: Stmt; nfl: Stmt }): Liquidacion | null {
+function liquidar(a: Pick<ApuestaPapel, 'sport' | 'match_key' | 'selection'>, q: { tenis: Stmt; futbol: Stmt; bb: Stmt; bsb: Stmt; nfl: Stmt }): Liquidacion | null {
   if (a.sport === 'tennis') {
     const r = q.tenis.get(a.match_key) as { winner_id: number; p1_id: number; p1: string; p2: string } | undefined;
     if (!r) return null;

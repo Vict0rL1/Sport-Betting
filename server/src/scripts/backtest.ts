@@ -41,6 +41,8 @@ import { readCalibration, writeCalibration } from '../staking/calibration.ts';
 import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
 import { entrenarEnsemble, guardarEnsemble, registrarEnsemble } from '../shadow/ensemble.ts';
 import { registrarRecalibracion } from '../experiments/recalibracion.ts';
+import { guardarHistorico } from '../estrategias/historico.ts';
+import { versionsFor } from '../versions.ts';
 
 interface Row {
   id: number;
@@ -481,6 +483,8 @@ function main() {
       imprimirWalkForward(wf);
       if (tour.id === 'atp' && !conParametrosCambiados(args)) {
         console.log(`  guardado en ${guardarWalkForward(wf)}`);
+        const hist = guardarHistorico('tennis', flujo, { fuente: 'tennis-data.co.uk (media de casas, cierre)', modelVersion: versionsFor('tennis').model_version });
+        console.log(hist ? `  histórico para estrategias en ${hist}` : '  sin cuotas históricas: no se guarda histórico para estrategias.');
         const rec = registrarRecalibracion('tennis', wf);
         if (rec) console.log(`  recalibración registrada como experimento: ${rec.reason}`);
         // Solo partidos con los tres componentes: el ensemble necesita el mismo juego de entradas.

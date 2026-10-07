@@ -43,6 +43,8 @@ import {
   comprobarAlmacenamiento,
   comprobarAnalitica,
   type EstadoAnalitica,
+  comprobarProducto,
+  type EstadoProducto,
   type EstadoAlmacenamiento,
   comprobarServidor,
   resultado,
@@ -67,6 +69,7 @@ import { configS3 } from '../db/s3.ts';
 import { marcarMuertas, ultimasEjecuciones } from '../ingest/runs.ts';
 import { sesionesActivas } from '../auth/sessions.ts';
 import { featureEncendida } from '../features.ts';
+import { historicosDisponibles } from '../estrategias/historico.ts';
 import { origenesPermitidos } from '../security/cors.ts';
 import { monitorizacion as monitorizacionDe } from '../monitoring/series.ts';
 import { predicciones as prediccionesEnVivo } from '../evaluation/live.ts';
@@ -421,6 +424,30 @@ if (dbExistia) {
 }
 
 // ---------------------------------------------------------------------------
+// PRODUCTO — laboratorio de estrategias, bandeja, informes, líneas y archivo (Fase 6)
+// ---------------------------------------------------------------------------
+{
+  const db = getDb();
+  const uno = <T,>(fn: () => T, porDefecto: T): T => {
+    try {
+      return fn();
+    } catch {
+      return porDefecto;
+    }
+  };
+  const estadoP: EstadoProducto = {
+    estrategias: uno(() => {
+      const e = db.prepare('SELECT SUM(archived_at IS NULL) AS a, SUM(archived_at IS NOT NULL) AS b FROM strategies').get() as { a: number | null; b: number | null };
+      const b = db.prepare("SELECT COUNT(*) AS n, SUM(status = 'pending') AS p, MAX(placed_at) AS u FROM strategy_bets").get() as { n: number; p: number | null; u: string | null };
+      return { activas: e.a ?? 0, archivadas: e.b ?? 0, apuestas: b.n, pendientes: b.p ?? 0, ultimaApuesta: b.u, laboratorio: featureEncendida('estrategias.laboratorio') };
+    }, { activas: 0, archivadas: 0, apuestas: 0, pendientes: 0, ultimaApuesta: null, laboratorio: featureEncendida('estrategias.laboratorio') }),
+    historicos: uno(() => historicosDisponibles(), []),
+    hayCuotasReales: !!env.oddsApiKey,
+  };
+  hallazgos.push(...comprobarProducto(estadoP, new Date()));
+}
+
+// ---------------------------------------------------------------------------
 // SEGURIDAD — la puerta, las cabeceras y los secretos
 // ---------------------------------------------------------------------------
 {
@@ -528,7 +555,7 @@ hallazgos.push(...comprobarServidor({ puertoApi: puertos.api, puertoWeb: puertos
 // Impresión
 // ---------------------------------------------------------------------------
 const marca = { ok: `${C.green}✓${C.off}`, aviso: `${C.amber}⚠${C.off}`, error: `${C.red}✗${C.off}`, info: `${C.dim}·${C.off}` };
-const orden: Seccion[] = ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'ACTUALIZACIÓN', 'CONFIANZA', 'DATOS Y COPIAS', 'ANALÍTICA E INTERFAZ', 'SEGURIDAD', 'SERVIDOR Y PANTALLA'];
+const orden: Seccion[] = ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'ACTUALIZACIÓN', 'CONFIANZA', 'DATOS Y COPIAS', 'ANALÍTICA E INTERFAZ', 'PRODUCTO', 'SEGURIDAD', 'SERVIDOR Y PANTALLA'];
 for (const s of orden) {
   const hs = hallazgos.filter((x) => x.seccion === s);
   if (hs.length === 0) continue;

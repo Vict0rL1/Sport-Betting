@@ -75,6 +75,8 @@ export interface Juego {
   externos?: Record<string, number[]>;
   /** Dos resultados y acabó en empate (NFL): no se puntúa, y el Elo básico lo cuenta como medio. */
   empate?: boolean;
+  /** Fútbol: Pinnacle temprano y de cierre, mismo orden. Para el CLV del histórico de estrategias (Fase 6.1). */
+  pinnacle?: { temprana: number[]; cierre: number[] } | null;
 }
 
 /** Elo básico de manual, por deporte. */

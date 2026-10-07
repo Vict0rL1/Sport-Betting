@@ -8,7 +8,7 @@ import '../test/setup.ts';
 const { buildApp } = await import('../app.ts');
 const { configAuth } = await import('../auth/mode.ts');
 const { LimiteDeIntentos } = await import('../auth/rateLimit.ts');
-const { validar, ESQUEMA_HEALTH, ESQUEMA_READY, ESQUEMA_FEATURES, ESQUEMA_DATOS_ESTADO, ESQUEMA_INGESTION_RUNS, ESQUEMA_SCHEDULER, ESQUEMA_POLICY, ESQUEMA_CANALES, ESQUEMA_EXPORT_JSON, ESQUEMA_FIABILIDAD, ESQUEMA_SEGMENTOS, ESQUEMA_MONITORIZACION, ESQUEMA_SIMULACION, ESQUEMA_TORNEO, ESQUEMA_COMBINADA, ESQUEMA_INTEL, ESQUEMA_ESTADO, ESQUEMA_ERRORES, ESQUEMA_AJUSTES, ESQUEMA_WATCHLIST, ESQUEMA_HISTORIA_ELO, ESQUEMA_HISTORIAL_SIMULACION, ESQUEMA_BUSQUEDA, ESQUEMA_CUOTAS_POR_CASA } = await import('./schemas.ts');
+const { validar, ESQUEMA_HEALTH, ESQUEMA_READY, ESQUEMA_FEATURES, ESQUEMA_DATOS_ESTADO, ESQUEMA_INGESTION_RUNS, ESQUEMA_SCHEDULER, ESQUEMA_POLICY, ESQUEMA_CANALES, ESQUEMA_EXPORT_JSON, ESQUEMA_FIABILIDAD, ESQUEMA_SEGMENTOS, ESQUEMA_MONITORIZACION, ESQUEMA_SIMULACION, ESQUEMA_TORNEO, ESQUEMA_COMBINADA, ESQUEMA_INTEL, ESQUEMA_ESTADO, ESQUEMA_ERRORES, ESQUEMA_AJUSTES, ESQUEMA_WATCHLIST, ESQUEMA_HISTORIA_ELO, ESQUEMA_HISTORIAL_SIMULACION, ESQUEMA_BUSQUEDA, ESQUEMA_CUOTAS_POR_CASA, ESQUEMA_ESTRATEGIAS, ESQUEMA_ESTRATEGIA, ESQUEMA_HISTORICO_ESTRATEGIA, ESQUEMA_APUESTAS_ESTRATEGIA } = await import('./schemas.ts');
 const { reiniciarRegistro, registrar, arrancar, parar } = await import('../scheduler/registry.ts');
 
 const rutas: { method: string | string[]; url: string }[] = [];
@@ -72,6 +72,8 @@ test('cada ruta con esquema responde algo que lo cumple', async () => {
     ['/api/simulation/season/football/epl/historial', ESQUEMA_HISTORIAL_SIMULACION],
     ['/api/buscar?q=ars', ESQUEMA_BUSQUEDA],
     ['/api/odds/casas/no-existe', ESQUEMA_CUOTAS_POR_CASA],
+    ['/api/estrategias', ESQUEMA_ESTRATEGIAS],
+    ['/api/estrategias/historico?sport=nfl', ESQUEMA_HISTORICO_ESTRATEGIA],
   ];
   for (const [url, esquema] of casos) {
     const res = await app.inject({ method: 'GET', url });
@@ -110,6 +112,21 @@ test('cada ruta con esquema responde algo que lo cumple', async () => {
   const sug = await app.inject({ method: 'GET', url: '/api/bets/sugerencia?odds=2.1&prob=0.55' });
   assert.equal(sug.statusCode, 200);
   assert.ok((sug.json() as { fraccion: number }).fraccion > 0);
+  // Laboratorio de estrategias (Fase 6.1): crear, listar sus apuestas, vista previa y archivar.
+  const est = await app.inject({ method: 'POST', url: '/api/estrategias', payload: { nombre: 'Contrato', deportes: ['nfl'], staking: { minEdge: 0.04 } } });
+  assert.equal(est.statusCode, 200, est.body);
+  assert.deepEqual(validar(est.json(), ESQUEMA_ESTRATEGIA), [], 'POST /api/estrategias');
+  const idEst = (est.json() as { id: number }).id;
+  assert.equal((await app.inject({ method: 'POST', url: '/api/estrategias', payload: { nombre: 'Mala', staking: { kellyFraction: 1 } } })).statusCode, 400);
+  const apE = await app.inject({ method: 'GET', url: `/api/estrategias/${idEst}/apuestas` });
+  assert.deepEqual(validar(apE.json(), ESQUEMA_APUESTAS_ESTRATEGIA), [], 'apuestas de una estrategia');
+  const prev = await app.inject({ method: 'POST', url: '/api/estrategias/historico', payload: { sport: 'nfl', staking: { minEdge: 0.05 }, calibracion: false } });
+  assert.equal(prev.statusCode, 200, prev.body);
+  assert.deepEqual(validar(prev.json(), ESQUEMA_HISTORICO_ESTRATEGIA), [], 'POST /api/estrategias/historico');
+  assert.equal((await app.inject({ method: 'GET', url: '/api/estrategias/historico?sport=basketball' })).statusCode, 400, 'sin cuotas históricas');
+  assert.equal((await app.inject({ method: 'GET', url: `/api/estrategias/historico?sport=football&id=${idEst}` })).statusCode, 400, 'la estrategia no apuesta fútbol');
+  assert.equal((await app.inject({ method: 'POST', url: `/api/estrategias/${idEst}/archivar` })).statusCode, 200);
+  assert.equal((await app.inject({ method: 'POST', url: `/api/estrategias/${idEst}/archivar` })).statusCode, 400);
   const cad = await app.inject({ method: 'PATCH', url: '/api/scheduler/contrato', payload: { cadenciaMin: 30 } });
   assert.equal(cad.statusCode, 200, cad.body);
   assert.equal((cad.json() as { cadenciaMin: number; cadenciaPorDefecto: number }).cadenciaMin, 30);

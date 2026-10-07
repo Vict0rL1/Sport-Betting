@@ -140,6 +140,14 @@ export interface StakeRequest {
    * dimensionarían todas como si fueran la primera.
    */
   openExposure?: number;
+  /**
+   * Pérdidas realizadas de HOY y de ESTA SEMANA del banco que apuesta (negativas si se pierde).
+   *
+   * Sin ellas, los límites leen el registro personal (`bets`), que es lo que han hecho siempre.
+   * Las pasa el laboratorio de estrategias (Fase 6.1): cada banco tiene que mirar sus propias
+   * pérdidas, no las de otro.
+   */
+  perdidas?: { hoy: number; semana: number };
 }
 
 export interface StakeDecision {
@@ -241,6 +249,13 @@ export function lossState(bankroll: number, cfg: StakingConfig, now = new Date()
   };
 }
 
+/** El mismo estado que `lossState`, con unas pérdidas ya calculadas por quien llama. */
+export function estadoDePerdidas(bankroll: number, cfg: StakingConfig, p: { hoy: number; semana: number }): LossState {
+  const dayLimit = -bankroll * cfg.dailyLossLimit;
+  const weekLimit = -bankroll * cfg.weeklyLossLimit;
+  return { today: p.hoy, week: p.semana, dayLimit, weekLimit, dayBreached: p.hoy <= dayLimit, weekBreached: p.semana <= weekLimit };
+}
+
 /**
  * Cuánto arriesgar en una selección, y por qué.
  *
@@ -301,7 +316,7 @@ export function decideStake(
   });
 
   // --- 5. Límites de pérdida ---
-  const loss = lossState(req.bankroll, cfg, now);
+  const loss = req.perdidas ? estadoDePerdidas(req.bankroll, cfg, req.perdidas) : lossState(req.bankroll, cfg, now);
   steps.push({
     gate: '5 · límites de pérdida',
     result:

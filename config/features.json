@@ -36,6 +36,8 @@
     "interfaz.recorrido": { "on": true, "descripcion": "Recorrido corto de primer uso (píldora, insignia de confianza, modo demo), descartable y recordado." },
     "interfaz.glosario": { "on": true, "descripcion": "Glosario (CLV, Kelly, de-vig, Brier, ECE, log loss, abstención, walk-forward, holdout) y tooltips." },
     "apuestas.importacion": { "on": true, "descripcion": "Importar el registro personal desde un CSV (POST /api/bets/import), etiquetas, CLV propio y sugerencia de stake con la política Kelly (solo sugerencia)." },
+    "estrategias.laboratorio": { "on": true, "descripcion": "Laboratorio de estrategias: bancos de papel con nombre y su propia configuración, en paralelo sobre las mismas candidatas, comparados en CLV, ROI, drawdown y acierto con los avisos de muestra (GET/POST /api/estrategias)." },
+    "estrategias.historico": { "on": true, "descripcion": "«¿Qué habría pasado?»: una estrategia reproducida sobre el histórico con cuotas de tenis, fútbol y NFL, sin el holdout (GET/POST /api/estrategias/historico)." },
     "interfaz.muestras": { "on": false, "descripcion": "Galería de componentes con datos de EJEMPLO (/_muestras) para las capturas de Playwright. Apagada por defecto: no es una pantalla de uso." }
   }
 }

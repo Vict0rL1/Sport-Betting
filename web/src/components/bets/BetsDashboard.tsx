@@ -11,6 +11,9 @@ import { CLAVE_BORRADOR } from '../picks/acciones';
 import { useSearchParams } from 'react-router';
 import PaperBankroll from './PaperBankroll';
 import { Headline, ModelAgreement, Breakdown, DayTotal, BetRow } from './BetsDashboardPartes';
+import { SubNav } from '../nav/SubNav';
+import { useSubnavApuestas } from '../../pages/subnav';
+import { useI18n } from '../../i18n';
 
 /**
  * The bet log.
@@ -33,6 +36,8 @@ export default function BetsDashboard() {
   const [borrador, setBorrador] = useState<Record<string, unknown> | null>(null);
   const [minEdge, setMinEdge] = useState<number | null>(null);
   const [q, setQ] = useSearchParams();
+  const { t } = useI18n();
+  const subnav = useSubnavApuestas();
   // Un borrador desde «Mi selección» (Fase 5.15): se abre el formulario con él, una vez.
   useEffect(() => {
     if (q.get('borrador') !== '1') return;
@@ -93,6 +98,7 @@ export default function BetsDashboard() {
 
   return (
     <div className="space-y-4">
+      <SubNav etiqueta={t('nav.subApuestas')} enlaces={subnav} />
       <div>
         <p className="mb-2 text-[15px] leading-relaxed text-(--ink-body)">
           Tus apuestas: cuánto pusiste, qué volvió y qué días te costaron dinero. Lo que registras

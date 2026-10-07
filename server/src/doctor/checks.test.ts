@@ -309,3 +309,18 @@ test('comprobarAnalitica: deriva avisa; serie vieja avisa; sin datos solo inform
   assert.ok(ui.some((x) => /Seguimiento: 2/.test(x.texto)));
   assert.ok(ui.some((x) => x.nivel === 'ok' && /300 partidos/.test(x.texto)));
 });
+
+// ---- PRODUCTO (Fase 6) ----
+test('producto: laboratorio quieto con cuotas reales avisa; sin histórico es información', async () => {
+  const { comprobarProducto } = await import('./checks.ts');
+  const ahora = new Date('2026-10-07T12:00:00Z');
+  const base = { estrategias: { activas: 2, archivadas: 1, apuestas: 0, pendientes: 0, ultimaApuesta: null, laboratorio: true }, historicos: [{ sport: 'nfl', partidos: 0, generado: null }], hayCuotasReales: true };
+  const a = comprobarProducto(base, ahora);
+  assert.equal(a.find((x) => x.texto.startsWith('Laboratorio'))?.nivel, 'aviso');
+  assert.equal(a.find((x) => x.texto.includes('sin histórico'))?.nivel, 'info');
+  const b = comprobarProducto({ ...base, estrategias: { ...base.estrategias, apuestas: 3, ultimaApuesta: '2026-10-06T10:00:00Z' }, historicos: [{ sport: 'nfl', partidos: 3780, generado: 'x' }] }, ahora);
+  assert.equal(b.find((x) => x.texto.startsWith('Laboratorio'))?.nivel, 'ok');
+  assert.match(b.find((x) => x.texto.includes('habría pasado'))!.texto, /nfl 3\.?780 partidos/);
+  const c = comprobarProducto({ ...base, hayCuotasReales: false }, ahora);
+  assert.equal(c.find((x) => x.texto.startsWith('Laboratorio'))?.nivel, 'ok', 'sin cuotas reales no se puede apostar: no es avería');
+});

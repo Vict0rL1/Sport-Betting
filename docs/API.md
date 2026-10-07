@@ -54,6 +54,17 @@ una tiene interruptor en `config/features.json` (404 si está apagada) y esquema
 | `POST /api/picks/tarjeta.svg` | La tarjeta de «Mi selección» en SVG |
 | `POST /api/bets/import`, `GET /api/bets/sugerencia`, `GET /api/bets/:id/clv` | Registro personal: CSV, sugerencia Kelly, CLV propio |
 
+## Rutas de producto (Fase 6)
+
+| Ruta | Qué |
+|---|---|
+| `GET /api/estrategias` | Estrategias, comparación con el banco principal, históricos disponibles y la política de partida |
+| `POST /api/estrategias` | Crear una estrategia (`nombre`, `deportes`, `staking`, `confianza`, `calibracion`); no se edita |
+| `POST /api/estrategias/:id/archivar` | Archivar una vez: deja de apostar |
+| `GET /api/estrategias/:id/apuestas` | Sus apuestas, las últimas primero |
+| `GET /api/estrategias/historico?sport=&id=` | «¿Qué habría pasado?» con la política vigente (`id=principal`) o una estrategia |
+| `POST /api/estrategias/historico` | Lo mismo con una configuración sin guardar (vista previa) |
+
 ## API REST (puerto 7374)
 
 Los tres deportes viven en espacios de nombres distintos: ningún endpoint puede devolver dos.

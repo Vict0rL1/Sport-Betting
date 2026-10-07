@@ -6,6 +6,7 @@ import path from 'node:path';
 import { readOddsReason, type SportPrefix } from './oddsReason.ts';
 import { inspectEnvFile } from './envFile.ts';
 import { place, settle } from './paper/bankroll.ts';
+import { colocarEstrategias, liquidarEstrategias } from './estrategias/index.ts';
 import { getDb } from './db.ts';
 import { countRows } from './repo.ts';
 import { refreshOdds } from './ingest/odds.ts';
@@ -324,10 +325,13 @@ function startAutoRefresh(log: (msg: string) => void): void {
     // actualizado y no el de antes de saber cómo acabaron los partidos del fin de semana.
     try {
       settle();
+      liquidarEstrategias();
       // Evaluación de confianza con las cuotas recién descargadas: sin ella, la
       // abstención de `place()` no se fía de nada y no apuesta.
       cicloPrePartido(log);
       place();
+      // El laboratorio (Fase 6.1): las mismas candidatas, cada estrategia con su configuración.
+      colocarEstrategias();
     } catch (e) {
       log(`Banco de papel: ${(e as Error).message}`);
     }

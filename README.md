@@ -92,6 +92,7 @@ de una vez.
 | Operación: doctor, despliegue, trabajos, métricas, exportaciones | [docs/OPERACION.md](docs/OPERACION.md) |
 | Notificaciones | [docs/NOTIFICACIONES.md](docs/NOTIFICACIONES.md) |
 | La interfaz: rutas, navegación, tema, idiomas, accesibilidad | [docs/INTERFAZ.md](docs/INTERFAZ.md) |
+| Funciones de producto: laboratorio de estrategias, bandeja, informes, líneas, archivo | [docs/PRODUCTO.md](docs/PRODUCTO.md) |
 | API (y `/docs` en el servidor) | [docs/API.md](docs/API.md) |
 | Experimentos, métricas y estudios | [docs/EXPERIMENTOS.md](docs/EXPERIMENTOS.md) |
 | Base de datos y copias | [docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md) |

@@ -13,6 +13,7 @@
 
 import { place, settle, resumen, BANCO_INICIAL } from '../paper/bankroll.ts';
 import { cicloPrePartido } from '../prematch/job.ts';
+import { colocarEstrategias, liquidarEstrategias } from '../estrategias/index.ts';
 
 const C = { bold: '\x1b[1m', dim: '\x1b[2m', red: '\x1b[31m', green: '\x1b[32m', amber: '\x1b[33m', off: '\x1b[0m' };
 const dinero = (n: number) => `${n >= 0 ? '' : '−'}${Math.abs(n).toFixed(2)}`;
@@ -26,6 +27,13 @@ cicloPrePartido((m) => console.log(`${C.dim}${m}${C.off}`));
 const col = place();
 if (col.colocadas > 0) console.log(`${C.green}Colocadas ${col.colocadas} apuesta(s) nueva(s):${C.off}`);
 for (const d of col.detalle.slice(0, 12)) console.log(`  ${C.dim}${d}${C.off}`);
+
+// El laboratorio de estrategias (Fase 6.1): mismas candidatas, cada una con su configuración.
+const liqE = liquidarEstrategias();
+for (const p of colocarEstrategias()) {
+  console.log(`${C.dim}Estrategia «${p.nombre}»: ${p.colocadas} colocada(s) de ${p.evaluadas} evaluada(s).${C.off}`);
+}
+if (liqE.liquidadas > 0) console.log(`${C.dim}Estrategias: ${liqE.liquidadas} apuesta(s) liquidada(s).${C.off}`);
 
 const r = resumen(col.motivo);
 const signo = r.beneficio > 0 ? C.green : r.beneficio < 0 ? C.red : C.dim;

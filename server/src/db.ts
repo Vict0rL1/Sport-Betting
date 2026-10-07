@@ -21,6 +21,7 @@ import { NOTIFICATIONS_SCHEMA } from './notifications/schema.ts';
 import { MONITORING_SCHEMA } from './monitoring/schema.ts';
 import { SIMULATION_SCHEMA } from './simulation/schema.ts';
 import { WATCHLIST_SCHEMA } from './watchlist/schema.ts';
+import { STRATEGIES_SCHEMA } from './estrategias/schema.ts';
 import { ERROR_LOG_SCHEMA } from './security/errors.ts';
 import { HISTORY_DB_PATH, LAYOUT, LEDGER_DB_PATH, LEDGER_SCHEMA, LEGACY_DB_PATH, rutaPrincipal } from './db/layout.ts';
 import { ledgerize, masterDe } from './db/ledgerize.ts';
@@ -185,6 +186,8 @@ export const MIGRACIONES: Migracion[] = [
       d.exec(ledgerize(WATCHLIST_SCHEMA, ctx.ledger));
     },
   },
+  // Fase 6: laboratorio de estrategias (bancos de papel con nombre y sus apuestas).
+  { version: 10, nombre: 'estrategias-fase-6', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(STRATEGIES_SCHEMA, ctx.ledger)) },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {

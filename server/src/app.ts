@@ -33,6 +33,7 @@ import swaggerUi from '@fastify/swagger-ui';
 import { registerOperacionRoutes } from './routes/operacion.ts';
 import { registerAnaliticaRoutes } from './routes/analitica.ts';
 import { registerAjustesRoutes } from './routes/ajustes.ts';
+import { registerEstrategiasRoutes } from './routes/estrategias.ts';
 import { conLectorDeAnulaciones } from './features.ts';
 import { incrementar, grupoDeRuta } from './observability/metrics.ts';
 import { registroArrancado } from './scheduler/registry.ts';
@@ -152,6 +153,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   await app.register(registerOperacionRoutes);
   await app.register(registerAnaliticaRoutes);
   await app.register(registerAjustesRoutes);
+  await app.register(registerEstrategiasRoutes);
 
   await app.register(registerRoutes, { prefix: '/api' });
   // Basketball lives in its own namespace: no endpoint can return both sports.

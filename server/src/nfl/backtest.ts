@@ -36,6 +36,8 @@ import { informeComun } from '../evaluation/report.ts';
 import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
 import { prediccionNflEnReplay } from '../evaluation/replay.ts';
 import { registrarRecalibracion } from '../experiments/recalibracion.ts';
+import { guardarHistorico } from '../estrategias/historico.ts';
+import { versionsFor } from '../versions.ts';
 import { entrenarEnsemble, guardarEnsemble, registrarEnsemble, idEstable } from '../shadow/ensemble.ts';
 import type { Prediccion } from '../evaluation/metrics.ts';
 import { getDb } from '../db.ts';
@@ -366,6 +368,8 @@ function main(): void {
     const cambiados = ['home', 'k', 'carry', 'per-point', 'from', 'unlock'].some((x) => process.argv.includes(`--${x}`)) || !args.keyNumbers || !args.totalWeights || !args.mov;
     if (args.league === 'nfl' && !cambiados) {
       console.log(`  guardado en ${guardarWalkForward(wf)}`);
+      const hist = guardarHistorico('nfl', flujo, { fuente: 'nflverse (moneyline de cierre)', modelVersion: versionsFor('nfl').model_version });
+      console.log(hist ? `  histórico para estrategias en ${hist}` : '  sin cuotas históricas: no se guarda histórico para estrategias.');
       const rec = registrarRecalibracion('nfl', wf);
       if (rec) console.log(`  recalibración registrada como experimento: ${rec.reason}`);
       const ens = entrenarEnsemble('nfl', flujo);
