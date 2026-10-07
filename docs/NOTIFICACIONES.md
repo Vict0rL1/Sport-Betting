@@ -45,6 +45,26 @@ duración. `GET /api/notifications/canales` devuelve los canales y los últimos 
 Una suscripción Web Push que falla cinco veces (o que el navegador da de baja: 404/410) se
 descarta.
 
+## El asistente por Telegram
+
+Fase 8.3, interruptor `asistente.telegram` (apagado por defecto). Con el mismo bot de las
+notificaciones (`TELEGRAM_BOT_TOKEN`), el trabajo `asistente-telegram` pide a Telegram cada minuto
+los mensajes nuevos y contesta con **el mismo asistente determinista de la app**: las mismas
+plantillas permitidas, ningún modelo de lenguaje y ninguna consulta libre a la base. Lo que no sabe,
+lo dice. `/start` o `/ayuda` explican qué se le puede preguntar.
+
+- **Solo contesta a quien debe**: los chats de `TELEGRAM_CHAT_ID` y, si se quieren más, los de
+  `TELEGRAM_ASISTENTE_CHATS` (separados por comas). Un mensaje de cualquier otro chat se lee para no
+  volver a pedirlo y no se contesta: un bot que responde a cualquiera abre los datos del libro mayor.
+- **No contesta dos veces**: el último mensaje leído se guarda en el libro mayor (`telegram:offset`).
+- **Texto plano**, sin formato: un nombre con un asterisco no rompe el mensaje.
+- **Nunca tumba el servidor**: si Telegram no contesta, el trabajo lo registra y lo vuelve a
+  intentar al minuto siguiente.
+
+El doctor dice si está encendido sin token o sin chats permitidos (no contestaría a nadie) y cuál
+fue la última actualización leída. Está probado con un Telegram simulado; el entorno donde se
+construyó no alcanza `api.telegram.org`.
+
 ## API
 
 - `GET /api/notifications/canales`

@@ -65,7 +65,7 @@ export function esLedger(tabla: string): boolean {
  * viajen a la base publicada.
  */
 export const CLAVES_LEDGER: readonly string[] = ['paper:startedAt', 'paper:lastRun', 'prematch_cycle_at'];
-const PREFIJOS_LEDGER = ['backup:', 'retention:', 'policy:', 'scheduler:'];
+const PREFIJOS_LEDGER = ['backup:', 'retention:', 'policy:', 'scheduler:', 'telegram:'];
 
 export function claveEsLedger(clave: string): boolean {
   return CLAVES_LEDGER.includes(clave) || PREFIJOS_LEDGER.some((p) => clave.startsWith(p));

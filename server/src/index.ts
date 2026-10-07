@@ -9,6 +9,7 @@ import { place, settle } from './paper/bankroll.ts';
 import { colocarEstrategias, liquidarEstrategias } from './estrategias/index.ts';
 import { cicloResumenDiario, cicloInformeSemanal } from './informes/index.ts';
 import { calentar } from './cache/respuestas.ts';
+import { cicloAsistenteTelegram } from './telegram/asistente.ts';
 import { getDb } from './db.ts';
 import { countRows } from './repo.ts';
 import { refreshOdds } from './ingest/odds.ts';
@@ -583,6 +584,18 @@ async function main() {
       primeraEnMin: 11,
       cuando: () => featureEncendida('informes.semanal'),
       fn: (log) => cicloInformeSemanal(log),
+    });
+    // El asistente por Telegram (Fase 8.3, apagado por defecto): una pasada por minuto, sin esperar.
+    registrar({
+      nombre: 'asistente-telegram',
+      descripcion: 'Contesta en Telegram con el asistente determinista, solo a los chats permitidos',
+      cadenciaMin: 1,
+      primeraEnMin: 1,
+      cuando: () => featureEncendida('asistente.telegram') && !!process.env.TELEGRAM_BOT_TOKEN?.trim(),
+      fn: async (log) => {
+        const r = await cicloAsistenteTelegram({ log });
+        if (r.error) log(`Asistente de Telegram: ${r.error}`);
+      },
     });
     registrar({ nombre: 'cierre-cuotas', descripcion: 'Observa el cierre de los partidos con apuesta o señal abierta (gasta cuota)', cadenciaMin: 10, primeraEnMin: 10, cuando: () => !!env.oddsApiKey, fn: (log) => captureClosingOdds(log) });
 
