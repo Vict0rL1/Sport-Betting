@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../../lib/rutas';
 import {
   pillClass, SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader,
-  EmptySlate, LeagueFlag, DemoOddsNote, SlateTable, VacioPorqueNoHayCuotas} from '../ui';
+  EmptySlate, LeagueFlag, SlateTable, VacioPorqueNoHayCuotas} from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, baseballPicks } from '../../lib/picks';
 import { baseballSlate } from '../../lib/slate';
@@ -28,7 +29,7 @@ import { CrossIcon } from '../icons';
 export default function BaseballDashboard() {
   const [meta, setMeta] = useState<BsbMeta | null>(null);
   const [leagues, setLeagues] = useState<BsbLeague[]>([]);
-  const [league, setLeague] = useState<string | null>(null);
+  const [league, setLeague] = useLigaEnRuta('/beisbol', 'predictor.baseball.league');
   const [games, setGames] = useState<BsbGameWithPrediction[]>([]);
   const [power, setPower] = useState<BsbPowerTeam[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,7 +38,7 @@ export default function BaseballDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   // null = every day, which is the default: someone who has not asked to filter
   // should see the whole schedule.
-  const [day, setDay] = useState<string | null>(null);
+  const [day, setDay] = useFiltroQuery('dia');
 
   useEffect(() => {
     Promise.all([bsbApi.meta(), bsbApi.leagues()])
@@ -55,10 +56,16 @@ export default function BaseballDashboard() {
     [leagues],
   );
   useEffect(() => {
+    if (leagues.length === 0) return;
     if (league && selectable.some((l) => l.id === league)) return;
+    const recordada = ligaRecordada('predictor.baseball.league');
+    if (recordada && selectable.some((l) => l.id === recordada)) {
+      setLeague(recordada);
+      return;
+    }
     const withGames = selectable.find((l) => l.hasUpcoming) ?? selectable[0];
     setLeague(withGames?.id ?? null);
-  }, [selectable, league]);
+  }, [selectable, league, leagues.length, setLeague]);
 
   useEffect(() => {
     if (!league) {
@@ -156,15 +163,6 @@ export default function BaseballDashboard() {
       {/* The ranked-markets panel. Built from the SAME rows the cards below
           render, so the two can never disagree about a number. */}
       <PicksPanel {...picks} caveat={CAVEATS.baseball} demoOdds={demoOdds} stake={stake} onStakeChange={setStake} />
-
-      {demoOdds && (
-        <DemoOddsNote
-          reason={meta?.oddsFallbackReason}
-          detail={meta?.oddsFallbackDetail}
-          hasKey={meta?.hasOddsKey ?? false}
-          comando="npm run odds"
-        />
-      )}
 
       <SlateTable rows={slate} demoOdds={demoOdds} refrescadas={meta?.oddsRefreshedAt} bands={meta?.bands} />
 

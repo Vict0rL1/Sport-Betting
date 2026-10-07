@@ -23,7 +23,21 @@ const int: Esquema = { type: 'integer' };
 export const ESQUEMA_ERROR = o({ error: str });
 export const ESQUEMA_HEALTH = o({ ok: bool });
 export const ESQUEMA_READY = o({ ok: bool, migraciones: str, trabajos: str, detalle: { type: 'array', items: str } });
-export const ESQUEMA_FEATURES = o({ features: { type: 'object', additionalProperties: o({ on: bool, activa: bool, descripcion: str, falta: nullable('string') }) } });
+export const ESQUEMA_FEATURE = o({ on: bool, activa: bool, descripcion: str, falta: nullable('string'), anulada: bool });
+export const ESQUEMA_FEATURES = o({ features: { type: 'object', additionalProperties: ESQUEMA_FEATURE } });
+export const ESQUEMA_ESTADO = o({
+  generado: str,
+  cuotas: o({ modo: { type: 'string', enum: ['real', 'demo'] }, clave: bool, restantes: nullable('number'), plan: nullable('number'), ultimaConsulta: nullable('string'), error: nullable('string') }),
+  deportes: { type: 'array', items: o({ sport: str, datosHasta: nullable('string'), proximos: int, ultimaCuota: nullable('string') }) },
+  resultados: o({ ultima: nullable('string'), estado: nullable('string') }),
+  copia: o({ ultima: nullable('string') }),
+  errores24h: int,
+  trabajosConError: int,
+});
+export const ESQUEMA_ERRORES = o({ errores: { type: 'array', items: o({ id: int, created_at: str, request_id: nullable('string'), method: nullable('string'), url: nullable('string'), status: int, message: str }) }, total24h: int });
+export const ESQUEMA_AJUSTES = o({ ajustes: o({ deportesOcultos: { type: 'array', items: str }, tema: { type: 'string', enum: ['auto', 'oscuro', 'claro'] }, idioma: { type: 'string', enum: ['es', 'en'] }, bancoPersonal: nullable('number'), recorridoVisto: bool }), idiomaNavegador: { type: 'string', enum: ['es', 'en'] } });
+export const ESQUEMA_SEGUIDO = o({ id: int, kind: { type: 'string', enum: ['equipo', 'jugador', 'partido'] }, sport: str, league: nullable('string'), ref_id: str, label: str, created_at: str });
+export const ESQUEMA_WATCHLIST = o({ seguidos: { type: 'array', items: ESQUEMA_SEGUIDO } });
 export const ESQUEMA_DATOS_ESTADO = o({
   layout: { type: 'string', enum: ['split', 'single'] },
   history: o({ ruta: str, mb: nullable('number') }),
@@ -37,7 +51,7 @@ export const ESQUEMA_EJECUCION = o({
 });
 export const ESQUEMA_INGESTION_RUNS = o({ ultimas: { type: 'array', items: ESQUEMA_EJECUCION }, historial: { type: 'array', items: ESQUEMA_EJECUCION } });
 export const ESQUEMA_TRABAJO = o({
-  nombre: str, descripcion: str, cadenciaMin: num, enabled: bool, lastRunAt: nullable('string'), lastDurationMs: nullable('integer'),
+  nombre: str, descripcion: str, cadenciaMin: num, cadenciaPorDefecto: num, enabled: bool, lastRunAt: nullable('string'), lastDurationMs: nullable('integer'),
   lastStatus: nullable('string'), lastError: nullable('string'), nextRunAt: nullable('string'), runsOk: int, runsError: int,
 });
 export const ESQUEMA_SCHEDULER = o({ arrancado: bool, trabajos: { type: 'array', items: ESQUEMA_TRABAJO } });

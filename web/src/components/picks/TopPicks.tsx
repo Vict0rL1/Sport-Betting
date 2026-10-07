@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AWAY_COLOR, DRAW_COLOR, HOME_COLOR, PROFIT_COLOR, LOSS_COLOR, SPORT_THEMES, type SportId } from '../../lib/theme';
 import { DeporteIcono, StarIcon, StatusMark, CrossIcon } from '../icons';
 import { TeamCrest } from '../ui';
+import { useFiltrosQuery } from '../../lib/rutas';
 
 interface Opcion {
   nombre: string;
@@ -433,15 +434,22 @@ function Mercado() {
 }
 
 export default function TopPicks() {
-  const [horas, setHorasState] = useState<number>(() => leer(CLAVE_HORAS, 48));
+  // Los filtros viven en la URL (Fase 5.2): el enlace copiado abre la misma lista.
+  const [q, setQ] = useFiltrosQuery();
+  const horas = Number(q.get('horas')) || leer(CLAVE_HORAS, 48);
+  const orden = (q.get('orden') as Orden | null) ?? 'confianza';
+  const deportes = (q.get('deportes')?.split(',').filter(Boolean) ?? []) as SportId[];
+  const minP = Number(q.get('min')) || 0;
+  const soloAlta = q.get('alta') === '1';
+  const soloCuota = q.get('cuota') === '1';
+  const setOrden = (o: Orden) => setQ({ orden: o === 'confianza' ? null : o });
+  const setDeportes = (d: SportId[]) => setQ({ deportes: d.length ? d.join(',') : null });
+  const setMinP = (m: number) => setQ({ min: m ? String(m) : null });
+  const setSoloAlta = (b: boolean) => setQ({ alta: b ? '1' : null });
+  const setSoloCuota = (b: boolean) => setQ({ cuota: b ? '1' : null });
   const [datos, setDatos] = useState<Respuesta | null>(null);
   const [error, setError] = useState(false);
   const [cargando, setCargando] = useState(true);
-  const [orden, setOrden] = useState<Orden>('confianza');
-  const [deportes, setDeportes] = useState<SportId[]>([]);
-  const [minP, setMinP] = useState(0);
-  const [soloAlta, setSoloAlta] = useState(false);
-  const [soloCuota, setSoloCuota] = useState(false);
   const [sel, setSel] = useState<string[]>(() => leer<string[]>(CLAVE_SEL, []));
 
   useEffect(() => {
@@ -462,8 +470,8 @@ export default function TopPicks() {
   }, [horas]);
 
   const setHoras = (h: number) => {
-    setHorasState(h);
     guardar(CLAVE_HORAS, h);
+    setQ({ horas: String(h) });
   };
   const alternar = (p: Pick) => {
     const k = clave(p);
@@ -615,7 +623,7 @@ export default function TopPicks() {
       {/* En el móvil el panel queda debajo de toda la lista: una barra fija con el
           resumen, y un toque lleva hasta él. */}
       {elegidos.length > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-[#14161b]/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:hidden">
+        <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 border-t border-(--line) bg-(--surface-card)/95 px-4 pb-3 pt-3 backdrop-blur lg:hidden">
           <a href="#mi-seleccion" className="flex items-center justify-between gap-3 text-[14px]">
             <span className="flex items-center gap-2 text-[#e8eaed]">
               <span style={{ color: '#f5b544' }}>

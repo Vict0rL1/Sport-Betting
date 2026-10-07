@@ -24,6 +24,16 @@
     "simulacion.torneo": { "on": true, "descripcion": "Simulación de cuadro de tenis cuando hay cuadro; si no, lo dice (GET /api/simulation/torneo)." },
     "picks.combinadasCorrelacion": { "on": true, "descripcion": "La probabilidad conjunta de «Mi selección» descuenta la correlación medida entre patas (POST /api/picks/parlay)." },
     "mercado.inteligencia": { "on": true, "descripcion": "Steam moves, surebets entre casas y referencia afilada, etiquetados como aproximación (GET /api/odds/intel)." },
-    "confianza.queSi": { "on": true, "descripcion": "Deslizadores «qué pasaría si» en la ficha: simulación en el navegador, nunca predicción publicada." }
+    "confianza.queSi": { "on": true, "descripcion": "Deslizadores «qué pasaría si» en la ficha: simulación en el navegador, nunca predicción publicada." },
+    "interfaz.estado": { "on": true, "descripcion": "Píldora de estado global (modo de cuotas, frescura por deporte, resultados, cuota) en la barra lateral y la cabecera; sustituye a los avisos de demo por pestaña." },
+    "interfaz.diagnostico": { "on": true, "descripcion": "Sección Diagnóstico bajo Confianza: latencia, ingestas, errores, trabajos, copia y cuota (GET /api/errores)." },
+    "interfaz.ajustes": { "on": true, "descripcion": "Página Ajustes: política, interruptores, deportes visibles, cadencias, notificaciones, tema, idioma y banco personal (PUT /api/ajustes, PATCH /api/features/:nombre)." },
+    "interfaz.seguimiento": { "on": true, "descripcion": "Seguir equipos, jugadores y partidos; sección «Seguimiento» en Destacados; las notificaciones de línea movida solo para lo seguido." },
+    "interfaz.busqueda": { "on": true, "descripcion": "Búsqueda global (Ctrl/Cmd+K) de equipos, jugadores, partidos, ligas y páginas." },
+    "interfaz.temaClaro": { "on": true, "descripcion": "Tema claro con los mismos tokens; sigue a prefers-color-scheme y se puede fijar en Ajustes." },
+    "interfaz.idiomas": { "on": true, "descripcion": "Catálogo de textos con el español como fuente de verdad y el inglés al lado; idioma en Ajustes o por Accept-Language." },
+    "interfaz.sinConexion": { "on": true, "descripcion": "El service worker guarda el armazón y las últimas predicciones; banner «Sin conexión: datos de HH:MM»." },
+    "interfaz.recorrido": { "on": true, "descripcion": "Recorrido corto de primer uso (píldora, insignia de confianza, modo demo), descartable y recordado." },
+    "interfaz.glosario": { "on": true, "descripcion": "Glosario (CLV, Kelly, de-vig, Brier, ECE, log loss, abstención, walk-forward, holdout) y tooltips." }
   }
 }

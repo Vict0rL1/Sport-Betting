@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { reportClientLatency } from '../../lib/liveOdds';
 import {
   pillClass, SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader,
-  EmptySlate, LeagueFlag, DemoOddsNote, SlateTable, VacioPorqueNoHayCuotas} from '../ui';
+  EmptySlate, LeagueFlag, SlateTable, VacioPorqueNoHayCuotas} from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, footballPicks } from '../../lib/picks';
 import { footballSlate } from '../../lib/slate';
@@ -19,6 +19,7 @@ import MatchCard from './MatchCard';
 import EloRanking from '../EloRanking';
 import { formatDate, dayChipLabel, groupByDay } from '../../lib/format';
 import { CrossIcon } from '../icons';
+import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../../lib/rutas';
 
 /**
  * The ⚽ tab.
@@ -33,7 +34,7 @@ const STORAGE_KEY = 'predictor.football.league';
 export default function FootballDashboard() {
   const [meta, setMeta] = useState<FbMeta | null>(null);
   const [leagues, setLeagues] = useState<FbLeague[]>([]);
-  const [league, setLeague] = useState<string | null>(null);
+  const [league, setLeague] = useLigaEnRuta('/futbol', STORAGE_KEY);
   const [fixtures, setFixtures] = useState<FbFixtureWithPrediction[]>([]);
   const [power, setPower] = useState<FbPowerTeam[]>([]);
   const [loading, setLoading] = useState(false);
@@ -42,7 +43,7 @@ export default function FootballDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   // null = every day, which is the default: someone who has not asked to filter
   // should see the whole schedule.
-  const [day, setDay] = useState<string | null>(null);
+  const [day, setDay] = useFiltroQuery('dia');
   /**
    * Cuándo llegó la respuesta, para poder medir lo que tarda en verse.
    *
@@ -69,27 +70,20 @@ export default function FootballDashboard() {
   );
 
   useEffect(() => {
+    // Hasta que no llegan las ligas no se toca la URL: un enlace profundo no puede perderse
+    // en el primer render.
+    if (leagues.length === 0) return;
     if (league && selectable.some((l) => l.id === league)) return;
-    let saved: string | null = null;
-    try {
-      saved = localStorage.getItem(STORAGE_KEY);
-    } catch {
-      // storage disabled — fall through to the default
-    }
+    const saved = ligaRecordada(STORAGE_KEY);
     // `saved &&` would yield the empty string when nothing is stored, so the
     // lookup is written as an explicit null to keep the type a league or null.
     const remembered = saved ? selectable.find((l) => l.id === saved) : undefined;
     const pick = remembered ?? selectable.find((l) => l.hasUpcoming) ?? selectable[0];
     setLeague(pick?.id ?? null);
-  }, [selectable, league]);
+  }, [selectable, league, leagues.length, setLeague]);
 
   useEffect(() => {
     if (!league) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, league);
-    } catch {
-      // Only affects which sub-tab opens next time.
-    }
     setLoading(true);
     Promise.all([fbApi.upcoming(league), fbApi.power(league, 40)])
       .then(([f, p]) => {
@@ -271,15 +265,6 @@ export default function FootballDashboard() {
       {/* The ranked-markets panel. Built from the SAME rows the cards below render,
           so the two can never disagree about a number. */}
       <PicksPanel {...picks} caveat={CAVEATS.football} demoOdds={demoOdds} stake={stake} onStakeChange={setStake} />
-
-      {demoOdds && (
-        <DemoOddsNote
-          reason={meta?.oddsFallbackReason}
-          detail={meta?.oddsFallbackDetail}
-          hasKey={meta?.hasOddsKey ?? false}
-          comando="npm run odds"
-        />
-      )}
 
       <SlateTable rows={slate} demoOdds={demoOdds} refrescadas={meta?.oddsRefreshedAt} bands={meta?.bands} />
 

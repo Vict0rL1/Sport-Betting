@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../../lib/rutas';
 import {
   pillClass, SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader,
-  EmptySlate, LeagueFlag, DemoOddsNote, SlateTable, VacioPorqueNoHayCuotas} from '../ui';
+  EmptySlate, LeagueFlag, SlateTable, VacioPorqueNoHayCuotas} from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, basketballPicks } from '../../lib/picks';
 import { basketballSlate } from '../../lib/slate';
@@ -28,7 +29,7 @@ import { CheckIcon, CrossIcon } from '../icons';
 export default function BasketballDashboard() {
   const [meta, setMeta] = useState<BbMeta | null>(null);
   const [leagues, setLeagues] = useState<BbLeague[]>([]);
-  const [league, setLeague] = useState<string | null>(null);
+  const [league, setLeague] = useLigaEnRuta('/baloncesto', 'predictor.basketball.league');
   const [games, setGames] = useState<BbGameWithPrediction[]>([]);
   const [power, setPower] = useState<BbPowerTeam[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,7 +38,7 @@ export default function BasketballDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   // null = every day, which is the default: someone who has not asked to filter
   // should see the whole schedule.
-  const [day, setDay] = useState<string | null>(null);
+  const [day, setDay] = useFiltroQuery('dia');
 
   useEffect(() => {
     Promise.all([bbApi.meta(), bbApi.leagues()])
@@ -58,10 +59,16 @@ export default function BasketballDashboard() {
     [leagues],
   );
   useEffect(() => {
+    if (leagues.length === 0) return;
     if (league && selectable.some((l) => l.id === league)) return;
+    const recordada = ligaRecordada('predictor.basketball.league');
+    if (recordada && selectable.some((l) => l.id === recordada)) {
+      setLeague(recordada);
+      return;
+    }
     const withGames = selectable.find((l) => l.hasUpcoming) ?? selectable[0];
     setLeague(withGames?.id ?? null);
-  }, [selectable, league]);
+  }, [selectable, league, leagues.length, setLeague]);
 
   useEffect(() => {
     if (!league) {
@@ -152,15 +159,6 @@ export default function BasketballDashboard() {
       {/* The ranked-markets panel. Built from the SAME rows the cards below
           render, so the two can never disagree about a number. */}
       <PicksPanel {...picks} caveat={CAVEATS.basketball} demoOdds={demoOdds} stake={stake} onStakeChange={setStake} />
-
-      {demoOdds && (
-        <DemoOddsNote
-          reason={meta?.oddsFallbackReason}
-          detail={meta?.oddsFallbackDetail}
-          hasKey={meta?.hasOddsKey ?? false}
-          comando="npm run odds"
-        />
-      )}
 
       <SlateTable rows={slate} demoOdds={demoOdds} refrescadas={meta?.oddsRefreshedAt} bands={meta?.bands} />
 

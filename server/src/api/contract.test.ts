@@ -8,7 +8,7 @@ import '../test/setup.ts';
 const { buildApp } = await import('../app.ts');
 const { configAuth } = await import('../auth/mode.ts');
 const { LimiteDeIntentos } = await import('../auth/rateLimit.ts');
-const { validar, ESQUEMA_HEALTH, ESQUEMA_READY, ESQUEMA_FEATURES, ESQUEMA_DATOS_ESTADO, ESQUEMA_INGESTION_RUNS, ESQUEMA_SCHEDULER, ESQUEMA_POLICY, ESQUEMA_CANALES, ESQUEMA_EXPORT_JSON, ESQUEMA_FIABILIDAD, ESQUEMA_SEGMENTOS, ESQUEMA_MONITORIZACION, ESQUEMA_SIMULACION, ESQUEMA_TORNEO, ESQUEMA_COMBINADA, ESQUEMA_INTEL } = await import('./schemas.ts');
+const { validar, ESQUEMA_HEALTH, ESQUEMA_READY, ESQUEMA_FEATURES, ESQUEMA_DATOS_ESTADO, ESQUEMA_INGESTION_RUNS, ESQUEMA_SCHEDULER, ESQUEMA_POLICY, ESQUEMA_CANALES, ESQUEMA_EXPORT_JSON, ESQUEMA_FIABILIDAD, ESQUEMA_SEGMENTOS, ESQUEMA_MONITORIZACION, ESQUEMA_SIMULACION, ESQUEMA_TORNEO, ESQUEMA_COMBINADA, ESQUEMA_INTEL, ESQUEMA_ESTADO, ESQUEMA_ERRORES, ESQUEMA_AJUSTES, ESQUEMA_WATCHLIST } = await import('./schemas.ts');
 const { reiniciarRegistro, registrar, arrancar, parar } = await import('../scheduler/registry.ts');
 
 const rutas: { method: string | string[]; url: string }[] = [];
@@ -64,6 +64,10 @@ test('cada ruta con esquema responde algo que lo cumple', async () => {
     ['/api/simulation/season/football/epl', ESQUEMA_SIMULACION],
     ['/api/simulation/torneo', ESQUEMA_TORNEO],
     ['/api/odds/intel', ESQUEMA_INTEL],
+    ['/api/estado', ESQUEMA_ESTADO],
+    ['/api/errores', ESQUEMA_ERRORES],
+    ['/api/ajustes', ESQUEMA_AJUSTES],
+    ['/api/watchlist', ESQUEMA_WATCHLIST],
   ];
   for (const [url, esquema] of casos) {
     const res = await app.inject({ method: 'GET', url });
@@ -75,6 +79,26 @@ test('cada ruta con esquema responde algo que lo cumple', async () => {
   assert.deepEqual(validar(parlay.json(), ESQUEMA_COMBINADA), [], '/api/picks/parlay');
   const malo = await app.inject({ method: 'POST', url: '/api/picks/parlay', payload: { patas: [] } });
   assert.equal(malo.statusCode, 400);
+  // Ajustes, interruptores y seguimiento: escribir y leer, con lo inválido rechazado.
+  const aj = await app.inject({ method: 'PUT', url: '/api/ajustes', payload: { tema: 'claro', deportesOcultos: ['tennis'] } });
+  assert.equal(aj.statusCode, 200, aj.body);
+  assert.equal((aj.json() as { ajustes: { tema: string } }).ajustes.tema, 'claro');
+  assert.equal((await app.inject({ method: 'PUT', url: '/api/ajustes', payload: { tema: 'rosa' } })).statusCode, 400);
+  const ff = await app.inject({ method: 'PATCH', url: '/api/features/api.docs', payload: { on: false } });
+  assert.equal(ff.statusCode, 200, ff.body);
+  const feats = (await app.inject({ method: 'GET', url: '/api/features' })).json() as { features: Record<string, { on: boolean; anulada: boolean }> };
+  assert.equal(feats.features['api.docs'].on, false);
+  assert.equal(feats.features['api.docs'].anulada, true);
+  assert.equal((await app.inject({ method: 'PATCH', url: '/api/features/api.docs', payload: { on: null } })).statusCode, 200);
+  assert.equal((await app.inject({ method: 'PATCH', url: '/api/features/no.existe', payload: { on: true } })).statusCode, 404);
+  const w = await app.inject({ method: 'POST', url: '/api/watchlist', payload: { kind: 'equipo', sport: 'football', league: 'epl', ref_id: 'arsenal', label: 'Arsenal' } });
+  assert.equal(w.statusCode, 200, w.body);
+  assert.equal((await app.inject({ method: 'GET', url: '/api/watchlist' })).json().seguidos.length, 1);
+  assert.equal((await app.inject({ method: 'DELETE', url: `/api/watchlist/${(w.json() as { id: number }).id}` })).statusCode, 200);
+  const cad = await app.inject({ method: 'PATCH', url: '/api/scheduler/contrato', payload: { cadenciaMin: 30 } });
+  assert.equal(cad.statusCode, 200, cad.body);
+  assert.equal((cad.json() as { cadenciaMin: number; cadenciaPorDefecto: number }).cadenciaMin, 30);
+  assert.equal((cad.json() as { cadenciaPorDefecto: number }).cadenciaPorDefecto, 0);
   parar();
   const r = await app.inject({ method: 'GET', url: '/ready' });
   assert.equal(r.statusCode, 503, 'sin el registro de trabajos, no está listo');

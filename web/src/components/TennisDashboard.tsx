@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../lib/rutas';
 import {
   api,
   type Meta,
@@ -25,15 +26,18 @@ export default function TennisDashboard() {
   const [meta, setMeta] = useState<Meta | null>(null);
   const [tours, setTours] = useState<Tour[]>([]);
   const [tournaments, setTournaments] = useState<TournamentInfo[]>([]);
-  const [tour, setTour] = useState<string>('atp');
-  const [tournamentId, setTournamentId] = useState<string | null>(null);
+  // El tour va en la ruta (/tenis/atp) y el torneo en la query (?torneo=): un enlace copiado
+  // abre lo mismo.
+  const [tourRuta, setTour] = useLigaEnRuta('/tenis', 'predictor.tennis.tour');
+  const tour = tourRuta ?? ligaRecordada('predictor.tennis.tour') ?? 'atp';
+  const [tournamentId, setTournamentId] = useFiltroQuery('torneo');
   const [matches, setMatches] = useState<UpcomingWithPrediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [profile, setProfile] = useState<{ tour: string; id: number } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   // null = every day. See the note in the other dashboards.
-  const [day, setDay] = useState<string | null>(null);
+  const [day, setDay] = useFiltroQuery('dia');
 
   async function handleRefresh() {
     setRefreshing(true);

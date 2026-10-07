@@ -27,13 +27,16 @@ import { registerSecurityHeaders } from './security/headers.ts';
 import { origenesPermitidos, politicaCors } from './security/cors.ts';
 import { registerErrorHandler } from './security/errors.ts';
 import { estadoFeatures, featureEncendida } from './features.ts';
+
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
 import { registerOperacionRoutes } from './routes/operacion.ts';
 import { registerAnaliticaRoutes } from './routes/analitica.ts';
+import { registerAjustesRoutes } from './routes/ajustes.ts';
+import { conLectorDeAnulaciones } from './features.ts';
 import { incrementar, grupoDeRuta } from './observability/metrics.ts';
 import { registroArrancado } from './scheduler/registry.ts';
-import { getDb, MIGRACIONES } from './db.ts';
+import { getDb, getMeta, MIGRACIONES } from './db.ts';
 import { estadoPorVersion } from './db/migrations.ts';
 import { LAYOUT } from './db/layout.ts';
 import { ESQUEMA_HEALTH, ESQUEMA_READY, ESQUEMA_FEATURES } from './api/schemas.ts';
@@ -116,6 +119,12 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   // corriendo antes que ellas —Fastify ordena por ciclo de vida, no por orden de
   // registro—, pero ponerlo aquí hace que al leer el fichero se vea que está puesto, y
   // que nadie añada una ruta «arriba» creyendo que la esquiva.
+  // Las anulaciones de interruptores hechas desde Ajustes (Fase 5.7) se leen de la base.
+  try {
+    conLectorDeAnulaciones(getMeta);
+  } catch {
+    // Sin base todavía: los interruptores valen lo que diga el fichero.
+  }
   registerAuth(app, auth);
 
   if (featureEncendida('seguridad.cabeceras')) registerSecurityHeaders(app, { hsts: auth.config.produccion });
@@ -142,6 +151,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   app.get('/api/features', { schema: { tags: ['operación'], summary: 'Interruptores de funciones', response: { 200: ESQUEMA_FEATURES } } }, async () => ({ features: estadoFeatures(entorno) }));
   await app.register(registerOperacionRoutes);
   await app.register(registerAnaliticaRoutes);
+  await app.register(registerAjustesRoutes);
 
   await app.register(registerRoutes, { prefix: '/api' });
   // Basketball lives in its own namespace: no endpoint can return both sports.

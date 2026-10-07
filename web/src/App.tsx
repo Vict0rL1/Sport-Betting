@@ -1,4 +1,9 @@
+// El armazón (Fase 5): rutas reales, barra lateral desde 1024 px y barra inferior debajo, la
+// píldora de estado una sola vez, y «Hoy / Cómo le fue al modelo» solo en los deportes y en
+// Destacados. Cada pestaña sigue hablando solo con su trozo de la API.
+
 import { useEffect, useRef, useState } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
 import TennisDashboard from './components/TennisDashboard';
 import BasketballDashboard from './components/basketball/BasketballDashboard';
 import FootballDashboard from './components/football/FootballDashboard';
@@ -13,68 +18,44 @@ import { AppMark, SportIcon } from './components/icons';
 import Login from './components/auth/Login';
 import AccountPanel from './components/auth/AccountPanel';
 import { estadoAuth, EVENTO_AUTH, instalarDetector401, type EstadoAuth } from './lib/auth';
+import { DEPORTES, PESTANAS, RUTA_AJUSTES, RUTA_DE_PESTANA, pestanaDeRuta, recordarPestana, ultimaPestana } from './rutas';
+import StatusPill from './components/estado/StatusPill';
+import MobileNav from './components/nav/MobileNav';
+import Diagnostico from './pages/Diagnostico';
+import Ajustes from './pages/Ajustes';
+import NoEncontrada from './pages/NoEncontrada';
+import { I18nProvider, idiomaGuardado, useI18n } from './i18n';
+import { aplicarTema, temaGuardado, type Tema } from './lib/tema';
 
 /**
- * Sports are separate tabs, not a merged feed.
- *
- * The five differ in almost everything a card needs to show — tennis has a
- * surface and a head-to-head between two people; basketball a home court, a
- * spread and a total; football a DRAW, goals markets and likely scorelines;
- * baseball a STARTING PITCHER, a single named player who moves the forecast more
- * than anything except the teams themselves; American football a HANDICAP that
- * is the headline market and a margin that lumps on 3 and 7 rather than
- * following a curve. One shared list would mean a card that is mostly empty
- * whichever sport it happens to show.
- *
- * Each tab owns its own state and talks only to its own slice of the API, which
- * is also why switching back and forth doesn't refetch or disturb the others.
- *
- * Football then splits again into per-league sub-tabs (see FootballDashboard):
- * nobody reads a merged feed of the Premier League, LaLiga and the Brasileirão.
- *
- * The choice is remembered in localStorage: reopening the app on the tab you were
- * last using is the behaviour anyone expects from a tab bar.
- */
-const SPORTS: SportId[] = ['picks', 'football', 'basketball', 'baseball', 'nfl', 'tennis', 'bets', 'trust'];
-
-const STORAGE_KEY = 'predictor.sport';
-
-/**
- * How wide the app is allowed to get.
- *
- * This was `max-w-3xl` — 768px. On a laptop that is under half the window, and the
- * app looked like a phone screenshot pasted into the middle of a desktop browser.
- * 768px is the right measure for a column of PROSE; it is the wrong measure for a
- * page whose content is cards, score grids and league tables.
- *
- * 80rem (1280px) with the card lists going two-up on wide screens (see the `xl:`
- * grid in each dashboard). Widening alone would have been worse than the bug: one
- * 1280px-wide card puts "23.7 %" and "76.3 %" at opposite ends of the monitor with
- * a hand's width of nothing between them. The extra room has to buy a second
- * column, not a longer one.
- *
- * Declared once and used by the header, the main column and the footer, because
- * three literals are three chances for the sticky header to stop lining up with
- * the content underneath it.
+ * Ancho máximo del armazón: 80rem (1280px), con las listas de tarjetas a dos columnas en
+ * pantallas anchas. Declarado una vez y usado por cabecera, columna y pie: tres literales son
+ * tres ocasiones de que la cabecera deje de alinearse con el contenido.
  */
 const SHELL_WIDTH = 'max-w-[80rem]';
 
-function initialSport(): SportId {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (SPORTS.includes(saved as SportId)) return saved as SportId;
-  } catch {
-    // Private browsing / storage disabled — the default is fine.
-  }
-  return 'football';
+interface AjustesUsuario {
+  deportesOcultos: string[];
+  tema: Tema;
+  idioma: 'es' | 'en';
 }
 
 export default function App() {
-  const [sport, setSport] = useState<SportId>(initialSport);
-  // La puerta: si el servidor pide contraseña y no hay sesión, se enseña la entrada y
-  // nada más (ningún panel pide datos hasta entonces). Un 401 en cualquier llamada
-  // posterior —sesión revocada o caducada— vuelve a enseñarla.
+  return (
+    <I18nProvider>
+      <Armazon />
+    </I18nProvider>
+  );
+}
+
+function Armazon() {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { t, setIdioma } = useI18n();
+  const pestana = pestanaDeRuta(pathname);
+  // La puerta: si el servidor pide contraseña y no hay sesión, se enseña la entrada y nada más.
   const [auth, setAuth] = useState<EstadoAuth | null>(null);
+  const [ajustes, setAjustes] = useState<AjustesUsuario | null>(null);
   useEffect(() => {
     instalarDetector401();
     let vivo = true;
@@ -86,330 +67,218 @@ export default function App() {
       window.removeEventListener(EVENTO_AUTH, alPedir);
     };
   }, []);
-  const headerRef = useRef<HTMLElement>(null);
-  const activeTabRef = useRef<HTMLButtonElement>(null);
-
-  /**
-   * Publish the top bar's height so sticky day headings can sit exactly under it.
-   *
-   * Measured rather than hardcoded. The offset was a literal 86px until the type
-   * scale grew and the headings started sliding beneath the tab bar — a constant
-   * that describes the size of a different element is wrong the moment that
-   * element changes. A ResizeObserver also covers what a constant never could:
-   * a phone rotating, a notch's safe-area inset, and the browser's own font-size
-   * setting.
-   *
-   * It now covers one more case for free. Above 1024px the top bar is
-   * `display: none` (the nav moved to the left rail), so its measured height is 0 —
-   * and 0 is exactly the right offset there, because nothing is above the content
-   * any more. A hardcoded value would have left a gap the width of a header that
-   * is not on screen.
-   */
-  /**
-   * Scroll the selected tab fully into view.
-   *
-   * Six tabs do not fit a 360px phone, and a row that rests half-way through
-   * "Fútbol" looks broken rather than scrollable. `nearest` nudges only when the
-   * tab is actually clipped, so on a wide screen this does nothing at all.
-   */
+  // Los ajustes de la persona (tema, idioma, deportes visibles) una vez dentro.
   useEffect(() => {
-    activeTabRef.current?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
-  }, [sport]);
+    if (!auth || (auth.auth && !auth.dentro)) return;
+    let vivo = true;
+    fetch('/api/ajustes')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j: { ajustes: AjustesUsuario }) => {
+        if (!vivo) return;
+        setAjustes(j.ajustes);
+        // El tema fijado en Ajustes manda; con «auto» en el servidor vale lo que este navegador recuerde.
+        if (j.ajustes.tema !== 'auto' || temaGuardado() === 'auto') aplicarTema(j.ajustes.tema);
+        if (idiomaGuardado() == null || j.ajustes.idioma !== 'es') setIdioma(j.ajustes.idioma);
+      })
+      .catch(() => vivo && setAjustes({ deportesOcultos: [], tema: 'auto', idioma: 'es' }));
+    return () => {
+      vivo = false;
+    };
+  }, [auth, setIdioma]);
+  const headerRef = useRef<HTMLElement>(null);
 
+  // La altura de la barra superior, para que los encabezados pegajosos se coloquen debajo.
   useEffect(() => {
     const el = headerRef.current;
     if (!el) return;
-    const publish = () =>
-      document.documentElement.style.setProperty('--header-h', `${Math.round(el.getBoundingClientRect().height)}px`);
+    const publish = () => document.documentElement.style.setProperty('--header-h', `${Math.round(el.getBoundingClientRect().height)}px`);
     publish();
     if (typeof ResizeObserver === 'undefined') return;
     const ro = new ResizeObserver(publish);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [auth]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, sport);
-    } catch {
-      // Not worth surfacing: it only affects which tab opens next time.
-    }
-  }, [sport]);
+    if (pestana) recordarPestana(pestana);
+  }, [pestana]);
 
-  if (auth === null) return <div className="min-h-screen bg-[#0b0d11]" aria-busy="true" />;
+  // Atajos (Fase 5.17): 1–8 cambian de pestaña fuera de un campo de texto.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (e.metaKey || e.ctrlKey || e.altKey || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement | null)?.isContentEditable) return;
+      const n = Number(e.key);
+      if (n >= 1 && n <= PESTANAS.length) navigate(RUTA_DE_PESTANA[PESTANAS[n - 1]]);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [navigate]);
+
+  if (auth === null) return <div className="min-h-screen bg-(--surface-page)" aria-busy="true" />;
   if (auth.auth && !auth.dentro) {
     return <Login totp={auth.totp} onEntrar={() => void estadoAuth().then(setAuth)} />;
   }
   const alSalir = () => setAuth((a) => (a ? { ...a, dentro: false } : a));
+  const ocultos = ajustes?.deportesOcultos ?? [];
+  const conHoy = pestana === 'picks' || (pestana != null && DEPORTES.includes(pestana) && !pathname.startsWith('/partido') && !pathname.startsWith('/equipo') && !pathname.startsWith('/liga') && !pathname.startsWith('/jugador'));
 
   return (
     <div className="min-h-screen lg:flex">
-      {/*
-        NAVIGATION LIVES ON THE LEFT from 1024px, and across the top below it.
-        Two arrangements of one list, not two lists — see SportNav.
-
-        A vertical rail is the better shape for six items on a wide screen: the
-        labels read left-to-right at full length instead of competing for a strip of
-        horizontal space, and the whole of the page's own width is left for content.
-        Below 1024px it goes back to a top row, because a rail on a 390px phone
-        spends a third of the screen on navigation.
-      */}
-      <aside className="hidden shrink-0 border-r border-white/[0.07] bg-[#0d0f14] lg:block lg:w-[15rem]">
-        {/* Sticky and full-height: the nav must stay reachable after scrolling a
-            long list of cards, which is the same reason the top bar was sticky. */}
+      {/* La barra lateral desde 1024 px; debajo, la barra inferior (MobileNav). */}
+      <aside className="hidden shrink-0 border-r border-(--line) bg-(--surface-rail) lg:block lg:w-[15rem]">
         <div className="sticky top-0 flex h-screen flex-col pl-[env(safe-area-inset-left)] pt-[env(safe-area-inset-top)]">
-          <div className="flex items-center gap-2.5 px-4 pb-5 pt-5">
-            {/* La marca de la app (la barra de probabilidad del favicon), no el balón de
-                un deporte: la app son siete pestañas y ninguna la representa sola. */}
+          <div className="flex items-center gap-2.5 px-4 pb-3 pt-5">
             <AppMark size={34} className="shrink-0" />
             <div className="min-w-0">
-              <h1 className="truncate text-[16px] font-semibold leading-tight text-[#e8eaed]">
-                Sports Predictor
-              </h1>
-              {/* Wraps rather than truncates: a 15rem rail has room for two short
-                  lines and none for "medidos contra resultad…", which is a subtitle
-                  spending its width on an ellipsis. */}
-              <p className="text-[12px] leading-snug text-[#7b828d]">
-                medidos contra resultados reales
-              </p>
+              <h1 className="text-[16px] font-semibold leading-tight text-(--ink-strong)">{t('app.nombre')}</h1>
+              <p className="text-[12px] leading-snug text-(--ink-muted)">{t('app.lema')}</p>
             </div>
           </div>
-          <SportNav sport={sport} onSelect={setSport} vertical />
-          {auth.auth && auth.sesiones && <AccountPanel usuario={auth.usuario} onSalir={alSalir} />}
+          <div className="px-4 pb-3">
+            <StatusPill />
+          </div>
+          <SportNav pestana={pestana} ocultos={ocultos} vertical />
+          <div className="mt-auto px-2 pb-3">
+            <EnlacesSecundarios pathname={pathname} />
+            {auth.auth && auth.sesiones && <AccountPanel usuario={auth.usuario} onSalir={alSalir} />}
+          </div>
         </div>
       </aside>
 
       <div className="min-w-0 flex-1">
-        {/*
-          The top bar, phones and tablets only. Sticky, because the nav is the app's
-          primary control and scrolling a long card should not strand you at the
-          bottom of one sport with no way back.
-        */}
-        <header
-          ref={headerRef}
-          className="sticky top-0 z-40 border-b border-white/[0.07] bg-[#0b0d11]/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:hidden"
-        >
-          <div className={`mx-auto ${SHELL_WIDTH} px-4 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]`}>
-            <div className="flex items-center gap-3 pb-1 pt-4">
-              <AppMark size={32} className="shrink-0" />
-              <div className="min-w-0">
-                <h1 className="truncate text-[17px] font-semibold leading-tight text-[#e8eaed]">
-                  Sports Predictor
-                </h1>
-                {/* Hidden on the narrowest screens: at 390px it truncated to
-                    "…medidos contra resultados r…", which is header height spent on
-                    half a sentence. */}
-                <p className="hidden truncate text-[13px] leading-tight text-[#7b828d] md:block">
-                  Modelos explicables, medidos contra resultados reales
-                </p>
-              </div>
+        {/* La cabecera del móvil: marca y píldora. Las pestañas van en la barra inferior. */}
+        <header ref={headerRef} className="sticky top-0 z-40 border-b border-(--line) bg-(--surface-page)/85 pt-[env(safe-area-inset-top)] backdrop-blur-xl lg:hidden">
+          <div className={`mx-auto ${SHELL_WIDTH} flex items-center justify-between gap-3 px-4 py-2.5 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]`}>
+            <div className="flex min-w-0 items-center gap-2.5">
+              <AppMark size={30} className="shrink-0" />
+              <h1 className="text-[16px] font-semibold leading-tight text-(--ink-strong)">{t('app.nombre')}</h1>
             </div>
-            <SportNav sport={sport} onSelect={setSport} activeRef={activeTabRef} />
+            <StatusPill compacto />
           </div>
+          {pestana != null && DEPORTES.includes(pestana) && <SportNav pestana={pestana} ocultos={ocultos} soloDeportes />}
         </header>
 
-        <main className={`mx-auto ${SHELL_WIDTH} px-4 pb-16 pt-6`}>
-          {/* Mounted one at a time on purpose: the inactive sports do no fetching. */}
-          {/* Encima de la pestaña y fuera de ella: «qué hay hoy» cruza los cinco
-              deportes y la navegación por deporte no puede contestarla. */}
-          <TodayPanel />
-
-          {sport === 'bets' && <BetsDashboard />}
-          {sport === 'picks' && <TopPicks />}
-          {sport === 'trust' && <SystemTrust />}
-          {sport === 'football' && <FootballDashboard />}
-          {sport === 'basketball' && <BasketballDashboard />}
-          {sport === 'baseball' && <BaseballDashboard />}
-          {sport === 'nfl' && <NflDashboard />}
-          {sport === 'tennis' && <TennisDashboard />}
+        <main className={`mx-auto ${SHELL_WIDTH} px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 lg:pb-16`}>
+          {conHoy && <TodayPanel />}
+          <Routes>
+            <Route path="/" element={<Navigate to={RUTA_DE_PESTANA[ultimaPestana()]} replace />} />
+            <Route path="/destacados" element={<TopPicks />} />
+            <Route path="/futbol/:league?" element={<FootballDashboard />} />
+            <Route path="/baloncesto/:league?" element={<BasketballDashboard />} />
+            <Route path="/beisbol/:league?" element={<BaseballDashboard />} />
+            <Route path="/nfl/:league?" element={<NflDashboard />} />
+            <Route path="/tenis/:league?" element={<TennisDashboard />} />
+            <Route path="/apuestas" element={<BetsDashboard />} />
+            <Route path="/confianza" element={<SystemTrust />} />
+            <Route path="/confianza/diagnostico" element={<Diagnostico />} />
+            <Route path="/ajustes" element={<Ajustes />} />
+            <Route path="*" element={<NoEncontrada />} />
+          </Routes>
         </main>
 
-        <footer className={`mx-auto ${SHELL_WIDTH} px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))]`}>
-          {/* En el móvil no hay barra lateral: la cuenta va aquí, antes del pie. */}
+        <footer className={`mx-auto ${SHELL_WIDTH} px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-[max(2.5rem,env(safe-area-inset-bottom))]`}>
           {auth.auth && auth.sesiones && (
-            <div className="mb-3 rounded-xl border border-white/[0.07] lg:hidden">
+            <div className="mb-3 rounded-xl border border-(--line) lg:hidden">
               <AccountPanel usuario={auth.usuario} onSalir={alSalir} compacto />
             </div>
           )}
-          <p className="border-t border-white/[0.07] pt-4 text-[13px] leading-relaxed text-[#7b828d]">
-            Estimación estadística. Cada modelo se mide contra resultados reales y la app registra sus
-            propios aciertos, pero ninguno conoce las lesiones de última hora, el clima ni la
-            motivación. No es una recomendación para apostar.
-          </p>
-          <OddsQuotaLine />
+          <div className="border-t border-(--line) pt-4 text-[13px] leading-relaxed text-(--ink-muted)">
+            <p>{t('app.pie')}</p>
+            <p className="mt-2 lg:hidden">
+              <EnlacesSecundarios pathname={pathname} enLinea />
+            </p>
+          </div>
         </footer>
       </div>
+      <MobileNav ocultos={ocultos} />
     </div>
   );
+}
 
+/** Ajustes, Diagnóstico y Glosario: fuera de las pestañas, siempre a mano. */
+function EnlacesSecundarios({ pathname, enLinea = false }: { pathname: string; enLinea?: boolean }) {
+  const { t } = useI18n();
+  const navigate = useNavigate();
+  const enlaces: [string, string][] = [
+    [RUTA_AJUSTES, t('nav.ajustes')],
+    ['/confianza/diagnostico', t('nav.diagnostico')],
+  ];
+  return (
+    <span className={enLinea ? 'flex flex-wrap gap-x-3' : 'flex flex-col gap-0.5'}>
+      {enlaces.map(([ruta, etiqueta]) => (
+        <button
+          key={ruta}
+          onClick={() => navigate(ruta)}
+          aria-current={pathname === ruta ? 'page' : undefined}
+          className={enLinea ? `underline-offset-2 hover:underline ${pathname === ruta ? 'text-(--ink-body)' : ''}` : `rounded-lg px-3 py-1.5 text-left text-[13px] ${pathname === ruta ? 'bg-(--raised) text-(--ink-strong)' : 'text-(--ink-muted) hover:bg-(--raised) hover:text-(--ink-body)'}`}
+        >
+          {etiqueta}
+        </button>
+      ))}
+    </span>
+  );
 }
 
 /**
- * The sport list, in whichever direction it is asked for.
- *
- * ONE component and not two, because the two arrangements have to stay the same
- * list: the same six sports, the same order, the same accent colour marking the
- * active one, the same `role="tab"` semantics. Two copies would drift the first
- * time a sport is added.
- *
- * The accent line is the only place a sport's identity colour appears anywhere in
- * the app — data marks use the shared validated palette, so a blue bar means "home"
- * on every tab. Vertically it becomes a bar down the left edge, which is the
- * conventional shape for a rail and reads at a glance from the margin.
+ * La lista de pestañas, vertical (barra lateral) u horizontal (solo los deportes, en la
+ * cabecera del móvil cuando ya se está en un deporte). Una sola lista: los mismos deportes,
+ * el mismo orden, el mismo acento marcando la activa, los mismos roles.
+ * Con flechas se recorre (Fase 5.24): roving tabindex.
  */
-function SportNav({
-  sport,
-  onSelect,
-  vertical = false,
-  activeRef,
-}: {
-  sport: SportId;
-  onSelect: (id: SportId) => void;
-  vertical?: boolean;
-  /** Only the horizontal row needs this — see the scrollIntoView effect. */
-  activeRef?: React.RefObject<HTMLButtonElement | null>;
-}) {
+function SportNav({ pestana, ocultos, vertical = false, soloDeportes = false }: { pestana: SportId | null; ocultos: string[]; vertical?: boolean; soloDeportes?: boolean }) {
+  const navigate = useNavigate();
+  const { t } = useI18n();
+  const lista = (soloDeportes ? DEPORTES : PESTANAS).filter((id) => !ocultos.includes(id));
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const activeRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }, [pestana]);
+  const etiqueta = (id: SportId) => (id === 'picks' ? t('nav.destacados') : id === 'bets' ? t('nav.apuestas') : id === 'trust' ? t('nav.confianza') : SPORT_THEMES[id].label);
+  const onKey = (e: React.KeyboardEvent, i: number) => {
+    const sig = vertical ? 'ArrowDown' : 'ArrowRight';
+    const ant = vertical ? 'ArrowUp' : 'ArrowLeft';
+    let j = i;
+    if (e.key === sig) j = (i + 1) % lista.length;
+    else if (e.key === ant) j = (i - 1 + lista.length) % lista.length;
+    else if (e.key === 'Home') j = 0;
+    else if (e.key === 'End') j = lista.length - 1;
+    else return;
+    e.preventDefault();
+    refs.current[j]?.focus();
+    navigate(RUTA_DE_PESTANA[lista[j]]);
+  };
   return (
-    <nav
-      role="tablist"
-      aria-label="Deportes"
-      aria-orientation={vertical ? 'vertical' : 'horizontal'}
-      className={
-        vertical
-          ? 'flex flex-col gap-0.5 px-2'
-          : '-mb-px flex gap-0.5 overflow-x-auto md:gap-1'
-      }
-    >
-      {SPORTS.map((id) => {
+    <nav role="tablist" aria-label={t('nav.deportes')} aria-orientation={vertical ? 'vertical' : 'horizontal'} className={vertical ? 'flex flex-col gap-0.5 px-2' : `mx-auto ${SHELL_WIDTH} -mb-px flex gap-0.5 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
+      {lista.map((id, i) => {
         const s = SPORT_THEMES[id];
-        const active = sport === id;
+        const active = pestana === id;
+        const ref = (el: HTMLButtonElement | null) => {
+          refs.current[i] = el;
+          if (active) activeRef.current = el;
+        };
         if (vertical) {
           return (
-            <button
-              key={id}
-              role="tab"
-              aria-selected={active}
-              onClick={() => onSelect(id)}
-              className={`relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[15px] font-medium transition ${
-                active
-                  ? 'bg-white/[0.06] text-[#e8eaed]'
-                  : 'text-[#9aa1ac] hover:bg-white/[0.03] hover:text-[#c3c9d1]'
-              }`}
-            >
-              <span
-                aria-hidden
-                className="absolute inset-y-1.5 left-0 w-[3px] rounded-full transition"
-                style={{ backgroundColor: active ? s.accent : 'transparent' }}
-              />
-              <span
-                aria-hidden
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-lg transition"
-                style={{ color: active ? s.accent : 'currentColor', backgroundColor: active ? s.accentSoft : 'transparent' }}
-              >
+            <button key={id} ref={ref} role="tab" aria-selected={active} tabIndex={active || (pestana == null && i === 0) ? 0 : -1} onKeyDown={(e) => onKey(e, i)} onClick={() => navigate(RUTA_DE_PESTANA[id])} className={`relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[15px] font-medium transition ${active ? 'bg-(--raised-2) text-(--ink-strong)' : 'text-(--ink-soft) hover:bg-(--raised) hover:text-(--ink-body)'}`}>
+              <span aria-hidden className="absolute inset-y-1.5 left-0 w-[3px] rounded-full transition" style={{ backgroundColor: active ? s.accent : 'transparent' }} />
+              <span aria-hidden className="grid h-7 w-7 shrink-0 place-items-center rounded-lg transition" style={{ color: active ? s.accent : 'currentColor', backgroundColor: active ? s.accentSoft : 'transparent' }}>
                 <SportIcon sport={id} size={18} />
               </span>
-              <span className="min-w-0 truncate">{s.label}</span>
+              <span className="min-w-0">{etiqueta(id)}</span>
             </button>
           );
         }
         return (
-          <button
-            key={id}
-            role="tab"
-            aria-selected={active}
-            ref={active ? activeRef : undefined}
-            onClick={() => onSelect(id)}
-            className={`relative flex shrink-0 flex-col items-center gap-0.5 rounded-t-lg px-2 pb-2 pt-1.5 text-[12px] font-medium transition md:flex-row md:gap-0 md:px-3 md:py-2.5 md:text-[15px] ${
-              active ? 'text-[#e8eaed]' : 'text-[#7b828d] hover:text-[#c3c9d1]'
-            }`}
-          >
-            {/* En el móvil, icono encima del nombre (como la barra de una app); desde md,
-                en línea. */}
-            <span className="inline-flex md:mr-1.5" aria-hidden style={{ color: active ? s.accent : 'currentColor' }}>
-              <SportIcon sport={id} size={18} />
+          <button key={id} ref={ref} role="tab" aria-selected={active} tabIndex={active ? 0 : -1} onKeyDown={(e) => onKey(e, i)} onClick={() => navigate(RUTA_DE_PESTANA[id])} className={`relative flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-t-lg px-3 py-2 text-[13px] font-medium transition ${active ? 'text-(--ink-strong)' : 'text-(--ink-muted) hover:text-(--ink-body)'}`}>
+            <span className="inline-flex" aria-hidden style={{ color: active ? s.accent : 'currentColor' }}>
+              <SportIcon sport={id} size={16} />
             </span>
-            {/* Two spans rather than JS width detection: CSS decides, so there is no
-                resize listener and no flash of the wrong one. */}
-            <span className={s.shortLabel ? 'md:hidden' : ''}>{s.shortLabel ?? s.label}</span>
-            {s.shortLabel && <span className="hidden md:inline">{s.label}</span>}
-            <span
-              aria-hidden
-              className="absolute inset-x-1 -bottom-px h-0.5 rounded-full transition"
-              style={{ backgroundColor: active ? s.accent : 'transparent' }}
-            />
+            {etiqueta(id)}
+            <span aria-hidden className="absolute inset-x-1 -bottom-px h-0.5 rounded-full transition" style={{ backgroundColor: active ? s.accent : 'transparent' }} />
           </button>
         );
       })}
     </nav>
-  );
-}
-
-/**
- * How much of The Odds API's monthly allowance is left.
- *
- * In the footer, on every tab, because the free plan quietly running out is what
- * broke the live odds — and nothing in the app mentioned it until the numbers
- * simply stopped updating. One line of chrome is a cheap price for never being
- * surprised by that again.
- *
- * Hidden entirely when no key is configured: there is no quota to report, and a
- * line saying so would be noise on the majority of installs.
- */
-function OddsQuotaLine() {
-  const [q, setQ] = useState<{
-    remaining: number | null;
-    used: number | null;
-    hasKey: boolean;
-    reserve: number;
-    /** The plan's monthly allowance, learned from the API's own headers. */
-    plan: number | null;
-    creditsPerCycle: number | null;
-    autoRefreshMinutes: number;
-    /** What the server worked out it can afford; null until a cycle is measured. */
-    recommendedRefreshMinutes: number | null;
-    lastError: string | null;
-  } | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    fetch('/api/odds-quota')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => alive && setQ(d))
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  if (!q?.hasKey) return null;
-  const { remaining, used, reserve, plan, lastError } = q;
-  const low = remaining != null && remaining <= reserve;
-  // The live interval, which is the recommended one unless it has not been
-  // measured yet. Shown in whichever unit reads better: "cada 2 h" on a big plan,
-  // "cada 3 días" on the free one, where the honest answer really is days.
-  const minutes = q.recommendedRefreshMinutes ?? q.autoRefreshMinutes;
-  const every =
-    minutes >= 1440
-      ? `${Math.round(minutes / 1440)} día(s)`
-      : minutes >= 90
-        ? `${Math.round(minutes / 60)} h`
-        : `${minutes} min`;
-
-  return (
-    <p className={`mt-3 text-[13px] leading-relaxed ${low ? 'text-amber-300/90' : 'text-[#7b828d]'}`}>
-      Cuotas del mercado:{' '}
-      {remaining == null ? (
-        'sin consultar todavía'
-      ) : (
-        <>
-          <strong className="font-semibold tabular-nums">{remaining}</strong> peticiones restantes
-          este mes{plan != null && <> de {plan.toLocaleString('es')}</>}
-          {used != null && <> · {used} usadas</>} · se refresca cada {every}
-          {q.creditsPerCycle != null && <> · {q.creditsPerCycle} créditos por ciclo</>}
-        </>
-      )}
-      {low && ' · las últimas quedan reservadas para las actualizaciones que pidas a mano'}
-      {lastError && <> · {lastError}</>}
-    </p>
   );
 }

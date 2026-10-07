@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../../lib/rutas';
 import {
   pillClass, SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader,
   EmptySlate, LeagueFlag, NflNoLineNote, SlateTable, VacioPorqueNoHayCuotas} from '../ui';
@@ -32,7 +33,7 @@ import EloRanking from '../EloRanking';
 export default function NflDashboard() {
   const [meta, setMeta] = useState<NflMeta | null>(null);
   const [leagues, setLeagues] = useState<NflLeague[]>([]);
-  const [league, setLeague] = useState<string | null>(null);
+  const [league, setLeague] = useLigaEnRuta('/nfl', 'predictor.nfl.league');
   const [games, setGames] = useState<NflGameWithPrediction[]>([]);
   const [power, setPower] = useState<
     { id: string; name: string; elo: number; games: number; pf: number | null; pa: number | null }[]
@@ -43,7 +44,7 @@ export default function NflDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   // null = every day, which is the default: someone who has not asked to filter
   // should see the whole schedule.
-  const [day, setDay] = useState<string | null>(null);
+  const [day, setDay] = useFiltroQuery('dia');
 
   useEffect(() => {
     Promise.all([nflApi.meta(), nflApi.leagues()])
@@ -58,9 +59,15 @@ export default function NflDashboard() {
 
   const selectable = useMemo(() => leagues.filter((l) => l.hasUpcoming || l.games > 0), [leagues]);
   useEffect(() => {
+    if (leagues.length === 0) return;
     if (league && selectable.some((l) => l.id === league)) return;
+    const recordada = ligaRecordada('predictor.nfl.league');
+    if (recordada && selectable.some((l) => l.id === recordada)) {
+      setLeague(recordada);
+      return;
+    }
     setLeague((selectable.find((l) => l.hasUpcoming) ?? selectable[0])?.id ?? null);
-  }, [selectable, league]);
+  }, [selectable, league, leagues.length, setLeague]);
 
   useEffect(() => {
     if (!league) {

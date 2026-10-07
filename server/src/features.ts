@@ -23,6 +23,40 @@ interface Fichero {
 
 let cache: Record<string, Feature> | null = null;
 
+/** Anulaciones hechas desde Ajustes (Fase 5.7), guardadas en `settings` como un JSON. */
+export const CLAVE_ANULACIONES = 'features.anulaciones';
+let anulaciones: Record<string, boolean> | null = null;
+
+function cargarAnulaciones(): Record<string, boolean> {
+  if (anulaciones) return anulaciones;
+  try {
+    anulaciones = lector ? (JSON.parse(lector(CLAVE_ANULACIONES) ?? '{}') as Record<string, boolean>) : {};
+  } catch {
+    anulaciones = {};
+  }
+  return anulaciones;
+}
+
+/**
+ * De dónde se leen las anulaciones guardadas. Lo fija app.ts con `getMeta` al arrancar: así
+ * features.ts no importa la base (muchos scripts leen los interruptores sin abrirla).
+ */
+let lector: ((clave: string) => string | null) | null = null;
+export function conLectorDeAnulaciones(f: (clave: string) => string | null): void {
+  lector = f;
+  anulaciones = null;
+}
+
+/** Fija (o quita, con null) la anulación de un interruptor. Devuelve el estado resultante. */
+export function fijarAnulacion(nombre: string, on: boolean | null, guardar: (json: string) => void): Record<string, boolean> {
+  const a = { ...cargarAnulaciones() };
+  if (on == null) delete a[nombre];
+  else a[nombre] = on;
+  anulaciones = a;
+  guardar(JSON.stringify(a));
+  return a;
+}
+
 export function leerFeatures(): Record<string, Feature> {
   if (cache) return cache;
   try {
@@ -37,12 +71,15 @@ export function leerFeatures(): Record<string, Feature> {
 }
 
 /** Para los tests: olvidar el fichero leído y, opcionalmente, fijar otro contenido. */
-export function reiniciarFeatures(forzar?: Record<string, Feature>): void {
+export function reiniciarFeatures(forzar?: Record<string, Feature>, anuladas?: Record<string, boolean>): void {
   cache = forzar ?? null;
+  anulaciones = anuladas ?? null;
 }
 
 /** ¿Está la función encendida? Una función que no está en el fichero cuenta como encendida. */
 export function featureEncendida(nombre: string): boolean {
+  const a = cargarAnulaciones();
+  if (nombre in a) return a[nombre];
   const f = leerFeatures()[nombre];
   return f ? f.on : true;
 }
@@ -56,11 +93,13 @@ export function featureActiva(nombre: string, entorno: NodeJS.ProcessEnv = proce
 }
 
 /** Lo que ve la pantalla: estado de cada flag, sin valores de ninguna variable. */
-export function estadoFeatures(entorno: NodeJS.ProcessEnv = process.env): Record<string, { on: boolean; activa: boolean; descripcion: string; falta: string | null }> {
-  const out: Record<string, { on: boolean; activa: boolean; descripcion: string; falta: string | null }> = {};
+export function estadoFeatures(entorno: NodeJS.ProcessEnv = process.env): Record<string, { on: boolean; activa: boolean; descripcion: string; falta: string | null; anulada: boolean }> {
+  const out: Record<string, { on: boolean; activa: boolean; descripcion: string; falta: string | null; anulada: boolean }> = {};
+  const a = cargarAnulaciones();
   for (const [k, f] of Object.entries(leerFeatures())) {
+    const on = featureEncendida(k);
     const activa = featureActiva(k, entorno);
-    out[k] = { on: f.on, activa, descripcion: f.descripcion, falta: f.on && !activa && f.opcional ? f.opcional : null };
+    out[k] = { on, activa, descripcion: f.descripcion, falta: on && !activa && f.opcional ? f.opcional : null, anulada: k in a };
   }
   return out;
 }

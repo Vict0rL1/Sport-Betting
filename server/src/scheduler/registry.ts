@@ -24,7 +24,9 @@ export interface DefinicionTrabajo {
 export interface EstadoTrabajo {
   nombre: string;
   descripcion: string;
+  /** La cadencia vigente: la de Ajustes si la hay, si no la del código. */
   cadenciaMin: number;
+  cadenciaPorDefecto: number;
   enabled: boolean;
   lastRunAt: string | null;
   lastDurationMs: number | null;
@@ -76,8 +78,37 @@ export function habilitado(nombre: string): boolean {
 }
 
 export function habilitar(nombre: string, enabled: boolean): EstadoTrabajo | null {
+  return configurar(nombre, { enabled });
+}
+
+/** La cadencia vigente de un trabajo: la anulación de Ajustes si la hay, si no la del código. */
+export function cadenciaDe(nombre: string): number {
+  const f = fila(nombre) as (ReturnType<typeof fila> & { cadence_override?: number | null }) | undefined;
+  const def = trabajos.get(nombre);
+  return f?.cadence_override ?? def?.cadenciaMin ?? f?.cadence_minutes ?? 0;
+}
+
+/**
+ * Interruptor y cadencia desde la API (Fase 5.7). La cadencia del código no se toca: la
+ * anulación va en su propia columna y se puede quitar (null). Reprograma el temporizador.
+ */
+export function configurar(nombre: string, cambios: { enabled?: boolean; cadenciaMin?: number | null }): EstadoTrabajo | null {
   if (!trabajos.has(nombre) && !fila(nombre)) return null;
-  getDb().prepare('UPDATE scheduler_jobs SET enabled = ?, updated_at = ? WHERE name = ?').run(enabled ? 1 : 0, reloj().toISOString(), nombre);
+  const db = getDb();
+  const ahora = reloj().toISOString();
+  if (cambios.enabled !== undefined) db.prepare('UPDATE scheduler_jobs SET enabled = ?, updated_at = ? WHERE name = ?').run(cambios.enabled ? 1 : 0, ahora, nombre);
+  if (cambios.cadenciaMin !== undefined) {
+    if (cambios.cadenciaMin != null && !(cambios.cadenciaMin >= 1 && cambios.cadenciaMin <= 7 * 24 * 60)) throw new Error('cadenciaMin: entre 1 minuto y 7 días, o null para la del código');
+    db.prepare('UPDATE scheduler_jobs SET cadence_override = ?, updated_at = ? WHERE name = ?').run(cambios.cadenciaMin, ahora, nombre);
+    if (arrancado && trabajos.has(nombre)) {
+      const t = temporizadores.get(nombre);
+      if (t) clearTimeout(t);
+      temporizadores.delete(nombre);
+      const min = cadenciaDe(nombre);
+      if (min > 0) programarTic(nombre, min * 60_000);
+      db.prepare('UPDATE scheduler_jobs SET next_run_at = ?, updated_at = ? WHERE name = ?').run(min > 0 ? new Date(reloj().getTime() + min * 60_000).toISOString() : null, ahora, nombre);
+    }
+  }
   return estado().find((e) => e.nombre === nombre) ?? null;
 }
 
@@ -99,7 +130,8 @@ export async function ejecutar(nombre: string): Promise<{ ok: boolean; ms: numbe
     enMarcha.delete(nombre);
   }
   const ms = Math.max(0, reloj().getTime() - inicio.getTime());
-  const siguiente = def.cadenciaMin > 0 ? new Date(reloj().getTime() + def.cadenciaMin * 60_000).toISOString() : null;
+  const cadencia = cadenciaDe(nombre);
+  const siguiente = cadencia > 0 ? new Date(reloj().getTime() + cadencia * 60_000).toISOString() : null;
   db.prepare(
     `UPDATE scheduler_jobs SET last_status = ?, last_duration_ms = ?, last_error = ?, next_run_at = ?, runs_ok = runs_ok + ?, runs_error = runs_error + ?, updated_at = ? WHERE name = ?`,
   ).run(error ? 'error' : 'ok', ms, error, siguiente, error ? 0 : 1, error ? 1 : 0, reloj().toISOString(), nombre);
@@ -116,7 +148,8 @@ function programarTic(nombre: string, enMs: number): void {
     temporizadores.delete(nombre);
     if (habilitado(nombre)) await ejecutar(nombre);
     else registroLog(`Trabajo ${nombre}: apagado, no se ejecuta.`);
-    if (def.cadenciaMin > 0 && arrancado) programarTic(nombre, def.cadenciaMin * 60_000);
+    const cadencia = cadenciaDe(nombre);
+    if (cadencia > 0 && arrancado) programarTic(nombre, cadencia * 60_000);
   }, enMs);
   t.unref?.();
   temporizadores.set(nombre, t);
@@ -127,7 +160,7 @@ export function arrancar(log: (m: string) => void = () => {}): void {
   registroLog = log;
   arrancado = true;
   for (const def of trabajos.values()) {
-    const ms = def.cadenciaMin > 0 || def.primeraEnMin > 0 ? def.primeraEnMin * 60_000 : -1;
+    const ms = cadenciaDe(def.nombre) > 0 || def.primeraEnMin > 0 ? def.primeraEnMin * 60_000 : -1;
     if (ms >= 0) programarTic(def.nombre, ms);
     getDb().prepare('UPDATE scheduler_jobs SET next_run_at = ?, updated_at = ? WHERE name = ?').run(ms >= 0 ? new Date(reloj().getTime() + ms).toISOString() : null, reloj().toISOString(), def.nombre);
   }
@@ -155,7 +188,8 @@ export function estado(): EstadoTrabajo[] {
       return {
         nombre: f.name,
         descripcion: d.descripcion,
-        cadenciaMin: f.cadence_minutes,
+        cadenciaMin: (f as { cadence_override?: number | null }).cadence_override ?? f.cadence_minutes,
+        cadenciaPorDefecto: f.cadence_minutes,
         enabled: f.enabled === 1,
         lastRunAt: f.last_run_at,
         lastDurationMs: f.last_duration_ms,

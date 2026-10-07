@@ -20,6 +20,7 @@ import { POLICY_SCHEMA } from './staking/policySchema.ts';
 import { NOTIFICATIONS_SCHEMA } from './notifications/schema.ts';
 import { MONITORING_SCHEMA } from './monitoring/schema.ts';
 import { SIMULATION_SCHEMA } from './simulation/schema.ts';
+import { WATCHLIST_SCHEMA } from './watchlist/schema.ts';
 import { ERROR_LOG_SCHEMA } from './security/errors.ts';
 import { HISTORY_DB_PATH, LAYOUT, LEDGER_DB_PATH, LEDGER_SCHEMA, LEGACY_DB_PATH, rutaPrincipal } from './db/layout.ts';
 import { ledgerize, masterDe } from './db/ledgerize.ts';
@@ -45,7 +46,7 @@ let db: DatabaseSync | null = null;
 
 /** Todo el esquema (tablas, índices y triggers de los ocho módulos), ya con los prefijos. */
 export function esquemaCompleto(schema: string = LEDGER_SCHEMA): string {
-  return [ESQUEMA_BASE, ODDS_SNAPSHOT_SCHEMA, EDGE_SIGNALS_SCHEMA, PREMATCH_SCHEMA, ASSESSMENT_SCHEMA, SHADOW_SCHEMA, ALERTS_SCHEMA, SESSIONS_SCHEMA, ERROR_LOG_SCHEMA, SETTINGS_SCHEMA, INGESTION_RUNS_SCHEMA, EXTERNAL_ELO_SCHEMA, BULLPEN_SCHEMA, WEATHER_SCHEMA, SCHEDULER_SCHEMA, POLICY_SCHEMA, NOTIFICATIONS_SCHEMA, MONITORING_SCHEMA, SIMULATION_SCHEMA]
+  return [ESQUEMA_BASE, ODDS_SNAPSHOT_SCHEMA, EDGE_SIGNALS_SCHEMA, PREMATCH_SCHEMA, ASSESSMENT_SCHEMA, SHADOW_SCHEMA, ALERTS_SCHEMA, SESSIONS_SCHEMA, ERROR_LOG_SCHEMA, SETTINGS_SCHEMA, INGESTION_RUNS_SCHEMA, EXTERNAL_ELO_SCHEMA, BULLPEN_SCHEMA, WEATHER_SCHEMA, SCHEDULER_SCHEMA, POLICY_SCHEMA, NOTIFICATIONS_SCHEMA, MONITORING_SCHEMA, SIMULATION_SCHEMA, WATCHLIST_SCHEMA]
     .map((sql) => ledgerize(sql, schema))
     .join('\n');
 }
@@ -172,6 +173,16 @@ export const MIGRACIONES: Migracion[] = [
       addMissingColumns(d);
       d.exec(MONITORING_SCHEMA);
       d.exec(SIMULATION_SCHEMA);
+    },
+  },
+  // Fase 5: seguimiento, cadencias anuladas y etiquetas de apuestas (libro mayor).
+  {
+    version: 9,
+    nombre: 'interfaz-fase-5',
+    destino: 'ledger',
+    up: (d, ctx) => {
+      addMissingColumns(d);
+      d.exec(ledgerize(WATCHLIST_SCHEMA, ctx.ledger));
     },
   },
 ];
@@ -1161,6 +1172,10 @@ export function addMissingColumns(d: DatabaseSync): void {
     // nadie vio, y la peor de las dos.
     // El paper trading auditable: ver paper/schema.ts.
     paper_bets: { ...PAPER_BET_COLUMNS, policy_version_id: 'INTEGER' },
+    // Fase 5: cadencia anulada desde Ajustes (la del código sigue en cadence_minutes) y
+    // etiquetas del registro personal.
+    scheduler_jobs: { cadence_override: 'REAL' },
+    bets: { tags: 'TEXT' },
     // La versión de la política bajo la que se evaluó cada señal (Fase 3.5).
     edge_signals: { policy_version_id: 'INTEGER' },
     // Qué versión exacta produjo cada predicción (fase 5): ver versions.ts.

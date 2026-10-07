@@ -3,7 +3,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { renderPrometheus, fijar } from '../observability/metrics.ts';
-import { estado as estadoTrabajos, habilitar, ejecutar, registroArrancado } from '../scheduler/registry.ts';
+import { estado as estadoTrabajos, configurar, ejecutar, registroArrancado } from '../scheduler/registry.ts';
 import { getQuota } from '../oddsQuota.ts';
 import { getDb } from '../db.ts';
 import { contarErrores } from '../security/errors.ts';
@@ -38,13 +38,18 @@ export async function registerOperacionRoutes(app: FastifyInstance): Promise<voi
   });
 
   app.get('/api/scheduler', { schema: { tags: ['operación'], summary: 'Trabajos programados', response: { 200: ESQUEMA_SCHEDULER } } }, async () => ({ arrancado: registroArrancado(), trabajos: estadoTrabajos() }));
-  app.patch<{ Params: { nombre: string }; Body: { enabled?: boolean } }>(
+  app.patch<{ Params: { nombre: string }; Body: { enabled?: boolean; cadenciaMin?: number | null } }>(
     '/api/scheduler/:nombre',
-    { schema: { tags: ['operación'], summary: 'Encender o apagar un trabajo', body: { type: 'object', properties: { enabled: { type: 'boolean' } }, required: ['enabled'] }, response: { 200: ESQUEMA_TRABAJO, 404: ESQUEMA_ERROR } } },
+    { schema: { tags: ['operación'], summary: 'Encender o apagar un trabajo, o cambiar su cadencia (null = la del código)', body: { type: 'object', properties: { enabled: { type: 'boolean' }, cadenciaMin: { type: ['number', 'null'] } } }, response: { 200: ESQUEMA_TRABAJO, 400: ESQUEMA_ERROR, 404: ESQUEMA_ERROR } } },
     async (req, reply) => {
-      const r = habilitar(req.params.nombre, !!req.body.enabled);
-      if (!r) return reply.code(404).send({ error: 'trabajo desconocido' });
-      return r;
+      if (req.body.enabled === undefined && req.body.cadenciaMin === undefined) return reply.code(400).send({ error: 'nada que cambiar' });
+      try {
+        const r = configurar(req.params.nombre, { enabled: req.body.enabled, cadenciaMin: req.body.cadenciaMin });
+        if (!r) return reply.code(404).send({ error: 'trabajo desconocido' });
+        return r;
+      } catch (e) {
+        return reply.code(400).send({ error: (e as Error).message });
+      }
     },
   );
   app.post<{ Params: { nombre: string } }>('/api/scheduler/:nombre/ejecutar', { schema: { tags: ['operación'], summary: 'Ejecutar un trabajo ahora' } }, async (req, reply) => {
