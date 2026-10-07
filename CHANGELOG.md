@@ -4,6 +4,57 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Resumen de la hoja de ruta: antes y después
+
+Línea base: `docs/plans/00-baseline.md` (commit `e40abbf`, 7 de octubre de 2026). Cada fase tiene
+su plan en `docs/plans/phase-N.md` y su entrada abajo.
+
+| | Antes | Después |
+|---|---|---|
+| Tests | 202 (todos del servidor) | **467**: 393 del servidor, 17 unitarios de la web, 57 de Playwright, más la prueba de carga en CI |
+| `verify:data` | 494 comprobaciones | 514 |
+| Secciones del doctor | 7 | 12 (DATOS Y COPIAS, OPERACIÓN, ANALÍTICA E INTERFAZ, PRODUCTO, SEGURIDAD) |
+| Interruptores (`config/features.json`) | no existía | 50 (45 encendidos; las 4 ampliaciones de la Fase 8, apagadas) |
+| Migraciones versionadas | ninguna (`CREATE IF NOT EXISTS`) | 12, con `schema_version` y estado por fichero |
+| Próximos de fútbol, p95 (base completa, 6 a la vez) | 8.570 ms | 129 ms |
+| Lighthouse móvil, Destacados / Fútbol | 59 / 63 | 96 / 94 |
+| Desplazamiento de diseño (CLS) | 0,28 | ≤ 0,03 |
+
+**Los modelos no cambian.** Ninguna probabilidad publicada ni ningún parámetro se ha tocado fuera
+del registro de experimentos, y ningún experimento ha ganado en el holdout (que sigue cerrado):
+`experiments/backtest_metrics.json` es el mismo fichero que en la línea base.
+
+| Backtest | n | Log loss | Brier | ECE | Antes → después |
+|---|---|---|---|---|---|
+| Tenis | 22.062 | 0,6133 | 0,2132 | 0,64 pp | sin cambios |
+| Fútbol | 20.824 | 1,0143 | 0,3037 | 0,78 pp | sin cambios |
+| Baloncesto | 85.562 | 0,5919 | 0,2033 | 0,12 pp | sin cambios |
+| Béisbol | 14.428 | 0,6756 | 0,2414 | 0,58 pp | sin cambios |
+| NFL | 3.781 | 0,6284 | 0,2194 | 0,46 pp | sin cambios |
+
+- **Contra el mercado**: solo la NFL se puede medir con esta base. Sobre 3.780 partidos, el
+  mercado de cierre da log loss 0,6114 y el modelo 0,6285: **el mercado es mejor**, y por eso el
+  freno de calibración deja la NFL sin apostar. Fútbol y tenis no tienen ninguna cuota histórica
+  guardada (sus dos fuentes, football-data.co.uk y tennis-data.co.uk, están bloqueadas por la red
+  de este entorno): no hay comparación, y no se inventa.
+- **Tenis tras el cambio de fuente**: no hubo cambio. Sackmann sigue en 404, TML congelado desde el
+  17 de enero de 2026 y la alternativa bloqueada aquí; el doctor lo avisa ahora en OPERACIÓN.
+- **Lo pendiente, para la máquina del propietario** (con red): bajar fútbol y tenis con cuotas y
+  medirlos contra el mercado; la temporada 2026 de la MLB; la NHL en sombra; probar el asistente
+  de Telegram. `npm run doctor -- --fuentes` dice qué fuentes contestan.
+
+## Fase 9 — Cierre (2026-10-07)
+
+Tests: 464 → 467 (393 del servidor + 17 + 57). Plan en `docs/plans/phase-9.md`.
+
+- **Doctor, sección OPERACIÓN**: trabajos programados (fallo en la última pasada o colgados más
+  de 6 h), canales de notificación y envíos fallidos en 24 h, interruptores (inactivos por falta de
+  variable y anulaciones huérfanas), frescura de los resultados por deporte según su temporada
+  (aviso tras 21 días sin resultados en plena temporada) y `npm run doctor -- --fuentes`, que pide
+  algo ligero a cada fuente de datos. La tabla de secciones de `docs/OPERACION.md`, completa.
+- En este entorno el doctor pasa a **1 error y 4 avisos**: los dos nuevos son reales (tenis y
+  béisbol, meses atrasados en plena temporada).
+
 ## Fase 8 — Ampliaciones, apagadas por defecto (2026-10-07)
 
 Línea base: 442 tests. Después: 464 (390 del servidor + 17 unitarios de la web + 57 de
