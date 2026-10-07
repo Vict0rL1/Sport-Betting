@@ -10,7 +10,8 @@ import { getDb } from './db.ts';
 import { countRows } from './repo.ts';
 import { refreshOdds } from './ingest/odds.ts';
 import { conRegistro, marcarMuertas } from './ingest/runs.ts';
-import { horasDesdeEntorno, programarResultados } from './ingest/scheduler.ts';
+import { horasDesdeEntorno, cicloResultados, PRIMERA_PASADA_MIN } from './ingest/scheduler.ts';
+import { registrar, arrancar } from './scheduler/registry.ts';
 import { cicloClima } from './weather/openMeteo.ts';
 import { ingestBullpen } from './baseball/ingest/bullpen.ts';
 import { hacerCopia, ultimaCopia } from './db/backup.ts';
@@ -456,93 +457,90 @@ async function main() {
     app.log.info(`Tennis Predictor API listening on http://localhost:${env.port}`);
     startAutoRefresh((msg) => app.log.info(msg));
 
-    // Catch up on results that arrived while the server was down, then keep
-    // looking. Local queries only — no network, no quota — so a short interval
-    // costs nothing and means a finished game shows up in the track record
-    // within half an hour instead of at the next restart.
     const resolveLog = (msg: string) => app.log.info(msg);
     // Ingestas que se quedaron «running» porque el proceso anterior cayó: se marcan.
     const muertas = marcarMuertas();
     if (muertas > 0) resolveLog(`${muertas} ingesta(s) a medias del arranque anterior marcadas como error.`);
-    resolveAllPredictions(resolveLog);
-    setInterval(() => resolveAllPredictions(resolveLog), RESOLVE_EVERY_MINUTES * 60_000).unref();
 
-    // Las instantáneas pre-partido (T-24h, T-6h, T-1h y la final congelada): cada 15
-    // minutos se predice todo lo próximo —solo partidos reales; la instantánea solo se
-    // guarda si algo cambió o se cruzó una marca— y se congela la final de lo que ya
-    // empezó. Local, sin red ni cuota. Ver prematch/snapshots.ts.
-    const prePartido = () => cicloPrePartido(resolveLog);
-    prePartido();
-    setInterval(prePartido, 15 * 60_000).unref();
-
-    // La copia del libro mayor, programada: cada BACKUP_HOURS horas (24 por defecto; 0 la
-    // apaga; features.json: datos.backupProgramado). La primera, a los dos minutos de
-    // arrancar si la última es más vieja que el intervalo —un reinicio no dispara copias
-    // nuevas cada vez—. Solo ledger.db: la historia se vuelve a bajar. Ver db/backup.ts.
+    // =========================================================================
+    // LOS TRABAJOS PROGRAMADOS, EN UN REGISTRO (Fase 3.7)
+    // =========================================================================
+    // Antes eran temporizadores sueltos aquí; ahora cada uno es una entrada del registro
+    // (scheduler/registry.ts): cadencia, primera pasada, última ejecución, duración, estado y
+    // un interruptor por trabajo que se puede apagar desde la API sin reiniciar. Todos locales
+    // y sin cuota salvo el cierre de cuotas, que solo se registra con clave.
     const backupHoras = process.env.BACKUP_HOURS?.trim() ? Number(process.env.BACKUP_HOURS) || 0 : 24;
-    if (featureEncendida('datos.backupProgramado') && backupHoras > 0) {
-      const copiar = () =>
-        conRegistro('backup', async () => {
-          const c = await hacerCopia();
-          resolveLog(`Copia del libro mayor: ${c.fichero} (${(c.bytes / 1048576).toFixed(1)} MB)${c.s3 ? (c.s3.subido ? ' · subida a S3' : ` · S3 falló: ${c.s3.error}`) : ''}`);
-          return { rowsAdded: 1, detail: c.fichero };
-        }).catch((e) => resolveLog(`Copia del libro mayor falló: ${(e as Error).message}`));
-      const ultima = ultimaCopia();
-      if (!ultima || Date.now() - Date.parse(ultima.cuando) > backupHoras * 3_600_000) setTimeout(copiar, 2 * 60_000).unref();
-      setInterval(copiar, backupHoras * 3_600_000).unref();
-    } else {
-      resolveLog('Copia programada del libro mayor apagada (BACKUP_HOURS=0 o datos.backupProgramado off).');
-    }
-
-    // Los resultados de los cuatro deportes de equipo, programados: cada RESULTS_REFRESH_HOURS
-    // horas (6 por defecto; 0 apaga; features.json: datos.resultadosProgramados), deporte a
-    // deporte en procesos hijo y sin cuotas. Ver ingest/scheduler.ts.
     const horasResultados = horasDesdeEntorno();
-    if (featureEncendida('datos.resultadosProgramados') && horasResultados > 0) {
-      programarResultados({
-        horas: horasResultados,
-        log: resolveLog,
-        // Puntuar el registro en vivo con lo recién bajado, sin esperar al siguiente tic.
-        despues: () => resolveAllPredictions(resolveLog),
-      });
-      resolveLog(`Resultados programados cada ${horasResultados} h (primera pasada en 5 min, sin gastar cuota).`);
-    } else {
-      resolveLog('Resultados programados apagados (RESULTS_REFRESH_HOURS=0 o datos.resultadosProgramados off): usa npm run update-results.');
-    }
 
-    // Clima (Fase 2C): cada media hora, los partidos de NFL y MLB a menos de 24 h piden la
-    // previsión que les toque (T-24h, T-6h, T-1h) y los acabados, la observación. Gratis, sin
-    // clave, y SOLO informativo: no toca ninguna probabilidad. Ver weather/openMeteo.ts.
-    if (featureEncendida('fuentes.clima')) {
-      const clima = () =>
+    // Puntuar el registro en vivo con los resultados que lleguen (y al arrancar, lo atrasado).
+    registrar({ nombre: 'puntuar-en-vivo', descripcion: 'Puntúa las predicciones en vivo con los resultados del archivo', cadenciaMin: RESOLVE_EVERY_MINUTES, primeraEnMin: 0, fn: (log) => resolveAllPredictions(log) });
+    // Instantáneas pre-partido (T-24h, T-6h, T-1h y la final congelada). Ver prematch/snapshots.ts.
+    registrar({ nombre: 'pre-partido', descripcion: 'Predice lo próximo, guarda instantáneas y congela la final de lo que empezó', cadenciaMin: 15, primeraEnMin: 0, fn: (log) => cicloPrePartido(log) });
+    // Copia del libro mayor (ver db/backup.ts). La primera, a los dos minutos si la última es
+    // más vieja que el intervalo: reiniciar no dispara copias.
+    registrar({
+      nombre: 'copia-ledger',
+      descripcion: 'Copia de seguridad de ledger.db (local y, con BACKUP_S3_*, S3)',
+      cadenciaMin: backupHoras * 60,
+      primeraEnMin: 2,
+      cuando: () => featureEncendida('datos.backupProgramado') && backupHoras > 0,
+      fn: (log) =>
+        conRegistro('backup', async () => {
+          const ultima = ultimaCopia();
+          if (ultima && Date.now() - Date.parse(ultima.cuando) < backupHoras * 3_600_000 * 0.9) {
+            log(`Copia del libro mayor: la última es reciente (${ultima.cuando}); se deja para el siguiente tic.`);
+            return { rowsAdded: 0, detail: 'reciente, no hacía falta' };
+          }
+          const c = await hacerCopia();
+          log(`Copia del libro mayor: ${c.fichero} (${(c.bytes / 1048576).toFixed(1)} MB)${c.s3 ? (c.s3.subido ? ' · subida a S3' : ` · S3 falló: ${c.s3.error}`) : ''}`);
+          return { rowsAdded: 1, detail: c.fichero };
+        }),
+    });
+    // Resultados de los cuatro deportes de equipo, en procesos hijo (ver ingest/scheduler.ts).
+    registrar({
+      nombre: 'resultados',
+      descripcion: 'update-results: resultados de fútbol, baloncesto, béisbol y NFL en procesos hijo, sin cuota',
+      cadenciaMin: horasResultados * 60,
+      primeraEnMin: PRIMERA_PASADA_MIN,
+      cuando: () => featureEncendida('datos.resultadosProgramados') && horasResultados > 0,
+      fn: async (log) => {
+        await cicloResultados(undefined, log);
+        resolveAllPredictions(log);
+      },
+    });
+    // Clima (Fase 2C): previsión a tres horizontes y observación final. Solo informativo.
+    registrar({
+      nombre: 'clima',
+      descripcion: 'Previsión y observación de Open-Meteo para NFL y MLB (informativo)',
+      cadenciaMin: 30,
+      primeraEnMin: 3,
+      cuando: () => featureEncendida('fuentes.clima'),
+      fn: (log) =>
         conRegistro('clima', async () => {
-          const r = await cicloClima({ log: resolveLog });
+          const r = await cicloClima({ log });
           return { rowsAdded: r.guardados, detail: `${r.consultados} consultas · ${r.fallidos} fallidas · ${r.sinEstadio} sin estadio` };
-        }).catch((e) => resolveLog(`Clima: ${(e as Error).message}`));
-      setTimeout(clima, 3 * 60_000).unref();
-      setInterval(clima, 30 * 60_000).unref();
-    }
-    // Bullpen MLB (Fase 2C): dos veces al día, los boxscores de los últimos tres días.
-    if (featureEncendida('fuentes.bullpen') && countRows('bsb_teams') > 0) {
-      const bullpen = () =>
+        }),
+    });
+    // Bullpen MLB (Fase 2C): boxscores de los últimos tres días. Solo informativo.
+    registrar({
+      nombre: 'bullpen',
+      descripcion: 'Carga del bullpen MLB de los boxscores recientes (informativo)',
+      cadenciaMin: 12 * 60,
+      primeraEnMin: 4,
+      cuando: () => featureEncendida('fuentes.bullpen') && countRows('bsb_teams') > 0,
+      fn: (log) =>
         conRegistro('bullpen', async () => {
           const r = await ingestBullpen();
-          resolveLog(`Bullpen: ${r.partidos} boxscores, ${r.equipos} equipos, ${r.relevistas} relevistas (al día ${r.asOf}).`);
+          log(`Bullpen: ${r.partidos} boxscores, ${r.equipos} equipos, ${r.relevistas} relevistas (al día ${r.asOf}).`);
           return { rowsAdded: r.relevistas, detail: `${r.partidos} partidos · ${r.equipos} equipos` };
-        }).catch((e) => resolveLog(`Bullpen: ${(e as Error).message}`));
-      setTimeout(bullpen, 4 * 60_000).unref();
-      setInterval(bullpen, 12 * 3_600_000).unref();
-    }
+        }),
+    });
+    // La cuota de CIERRE de verdad: justo antes de que empiecen los partidos con una apuesta
+    // de papel o una señal abierta (1 crédito por liga, respetando el presupuesto).
+    registrar({ nombre: 'cierre-cuotas', descripcion: 'Observa el cierre de los partidos con apuesta o señal abierta (gasta cuota)', cadenciaMin: 10, primeraEnMin: 10, cuando: () => !!env.oddsApiKey, fn: (log) => captureClosingOdds(log) });
 
-    // La cuota de CIERRE de verdad: justo antes de que empiecen los partidos con una
-    // apuesta de papel o una señal abierta, se observa su competición (1 crédito por
-    // liga, respetando el presupuesto). Sin esto el «cierre» podía ser de doce horas
-    // antes. Ver odds/closingCapture.ts.
-    if (env.oddsApiKey) {
-      setInterval(() => {
-        captureClosingOdds(resolveLog).catch((e) => resolveLog(`Cierre: ${(e as Error).message}`));
-      }, 10 * 60_000).unref();
-    }
+    if (featureEncendida('operacion.registroTrabajos')) arrancar(resolveLog);
+    else resolveLog('Registro de trabajos apagado (features.json: operacion.registroTrabajos): nada programado salvo el refresco de cuotas.');
   } catch (err) {
     app.log.error(err);
     process.exit(1);

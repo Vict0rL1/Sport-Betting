@@ -3,6 +3,7 @@
 // resultados de la NBA y qué pasó?» sin buscar en logs.
 
 import { getDb } from '../db.ts';
+import { notificar } from '../notifications/index.ts';
 
 export interface Ejecucion {
   id: number;
@@ -46,6 +47,7 @@ export async function conRegistro<T extends ResultadoIngesta | void>(source: str
     return r;
   } catch (e) {
     terminarEjecucion(id, { error: (e as Error).message });
+    void notificar('trabajo_fallido', { titulo: `Trabajo de datos fallido: ${source}`, cuerpo: (e as Error).message.slice(0, 500) });
     throw e;
   }
 }

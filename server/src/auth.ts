@@ -49,7 +49,7 @@ export { isProduction } from './auth/mode.ts';
 export { assertAuthConfigured } from './auth/mode.ts';
 
 /** Rutas que se sirven sin credenciales. Solo lo imprescindible para entrar y para el monitor. */
-export const RUTAS_EXENTAS = new Set(['/healthz', '/ready', '/api/auth/login', '/api/auth/me']);
+export const RUTAS_EXENTAS = new Set(['/healthz', '/health', '/ready', '/api/auth/login', '/api/auth/me']);
 
 export function rutaExenta(url: string): boolean {
   const sinQuery = url.split('?')[0];

@@ -4,6 +4,49 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Fase 3 — Backend, API y observabilidad (2026-10-07)
+
+Línea base antes de la fase: 260 tests, 514 comprobaciones de `verify:data`.
+
+- **Un solo camino para predecir en una repetición** (`evaluation/replay.ts`): el backtest de fútbol
+  y la reconstrucción de «¿Acertó?» usan la misma función; test de equivalencia (fútbol y NFL).
+- **Salud y preparación**: `GET /health` (alias de `/healthz`) y `GET /ready` (migraciones al día y
+  registro de trabajos en marcha; 503 si no), sin contraseña. Logs pino con `reqId`, `LOG_LEVEL` y
+  redacción de autorización y cookies. `GET /api/metrics` en texto de Prometheus
+  (`observability/metrics.ts`).
+- **OpenAPI y contrato**: `@fastify/swagger` genera la especificación de todas las rutas;
+  Swagger UI en `/docs` (detrás de la contraseña) y `/openapi.json`. Esquemas de respuesta en las
+  rutas operativas y `api/contract.test.ts` (toda ruta en la especificación; toda respuesta cumple
+  su esquema). El test cazó un fallo real: `/api/datos/estado` e `/api/ingestion-runs` estaban
+  registradas bajo `/api/api/…` desde la Fase 2; corregido.
+- **Exportaciones**: `GET /api/export/:dataset` y `npm run export` (predicciones, apuestas, papel,
+  snapshots, benchmark) en CSV (RFC 4180) o JSON con filtros de fecha y deporte.
+- **Política versionada** (`policy_versions`, append-only): la v1 son las constantes del código;
+  `nuevaVersion` valida y encadena; `paper_bets` y `edge_signals` ganan `policy_version_id`
+  (congelada); el banco, la capa de confianza y los topes leen la vigente. `GET/POST /api/policy`,
+  `npm run policy -- show|set`.
+- **Notificaciones** (`notifications/`): Telegram, webhook (Discord/Slack), correo SMTP y Web Push
+  (VAPID, service worker, suscripción desde Cuenta → Notificaciones, «probar» por canal).
+  Eventos: valor, línea movida, papel apostada/liquidada, trabajo fallido, deriva. Cada intento en
+  `notification_log`. `npm run vapid:generar`.
+- **Registro de trabajos** (`scheduler/registry.ts`, `scheduler_jobs`): puntuar en vivo,
+  pre-partido, copia, resultados, clima, bullpen y cierre pasan por el registro con cadencia,
+  última ejecución, duración, estado e interruptor; `GET /api/scheduler`, `PATCH …/:nombre`,
+  `POST …/:nombre/ejecutar`, `npm run jobs`. Sin temporizadores sueltos en `index.ts`.
+- **Estudios, ayuda y puesta en marcha**: `npm run study -- <nombre>` (`--list`; los `study:*`
+  siguen como alias), `scripts/registry.mjs` + `npm run help` (test: cada script tiene línea),
+  `npm run setup` (asistente), `docker-compose.yml`.
+- **Documentación partida**: README de 4.011 líneas → 117 (qué es, empezar, diez comandos,
+  índice) y `docs/` por tema: ARQUITECTURA (con el árbol generado por `scripts/estructura.mjs`),
+  FUENTES, CUOTAS, DINERO_Y_RIESGO, EXPERIMENTOS, OPERACION, NOTIFICACIONES, API. Nada se borró.
+- **CI**: `ci.yml` (secretos, lint, tipos, tests, build, `verify:data` sobre la release si
+  existe, Playwright) y `nightly.yml` (backtests + `scripts/regresion-backtests.mjs` con
+  `experiments/tolerancias.json`). Humo de Playwright (`web/e2e/smoke.spec.ts`,
+  `scripts/e2e-server.mjs`): abre, cinco pestañas, API.
+- Migración v7 (`operacion-fase-3`). Interruptores nuevos: `observabilidad.metricas`, `api.docs`,
+  `operacion.registroTrabajos`, `notificaciones.canales`, `politica.versionada`.
+- Tests: 260 → **278** (+2 de Playwright). `verify:data` 514/514, typecheck, lint y build en verde.
+
 ## Fase 2 — Base de datos y pipeline de datos (2026-10-07)
 
 Línea base antes de la fase: 222 tests, 494 comprobaciones de `verify:data`.

@@ -22,7 +22,8 @@
 // queda escrito con su motivo. Los umbrales son elecciones de diseño, a la vista, no
 // parámetros ajustados con datos — y menos con el holdout.
 
-import { DEFAULT_CONFIG, bestSelection } from '../staking/policy.ts';
+import { bestSelection } from '../staking/policy.ts';
+import { politica } from '../staking/policyStore.ts';
 import type { EventoConfianza } from './types.ts';
 import type { Incertidumbre, Estabilidad, Desacuerdo } from './perturbation.ts';
 import type { CalidadDatos } from './dataQuality.ts';
@@ -145,7 +146,7 @@ export function confianza(c: Omit<Contexto, 'desapareceDe'>): Confianza {
     s.push(c.mercado.dispersion === 'ALTA' ? { ok: false, texto: 'las casas discrepan mucho' } : { ok: true, texto: `mercado ${c.mercado.calidad.toLowerCase()} (${c.mercado.casas} casas)` });
   }
   const malas = s.filter((x) => !x.ok).length;
-  const grave = c.evento.ood.some((o) => o.grave) || c.estabilidad.nivel === 'BAJA' || c.calidad.puntuacion < ABSTENCION.calidadDatosMin;
+  const grave = c.evento.ood.some((o) => o.grave) || c.estabilidad.nivel === 'BAJA' || c.calidad.puntuacion < politica().abstencion.calidadDatosMin;
   return {
     nivel: grave || malas >= 3 ? 'BAJA' : malas === 0 ? 'ALTA' : 'MEDIA',
     porQue: s,
@@ -158,13 +159,13 @@ export function confianza(c: Omit<Contexto, 'desapareceDe'>): Confianza {
 export function decidir(c: Contexto): Decision {
   const e = c.evento;
   const now = c.now ?? new Date();
-  const minEdge = DEFAULT_CONFIG.minEdge;
+  const minEdge = politica().staking.minEdge;
   const base: Decision = { decision: 'SIN MERCADO', seleccion: null, razones: [], factorStake: 0, recortes: [], contrafactual: [], desaparece: null };
   if (e.demo || !e.odds || e.odds.length !== e.probs.length) {
     return { ...base, razones: [e.demo ? 'partido de demostración: no hay mercado real' : 'sin cuotas para este partido'] };
   }
   const opciones = e.probs.map((p, i) => ({ indice: i, p, odds: (e.odds as number[])[i] }));
-  const elegida = bestSelection(opciones, DEFAULT_CONFIG) ?? opciones[0];
+  const elegida = bestSelection(opciones, politica().staking) ?? opciones[0];
   const { indice, p, odds } = elegida;
   const edge = p * odds - 1;
   const u = c.incertidumbre.totalPp / 100;
@@ -182,13 +183,13 @@ export function decidir(c: Contexto): Decision {
     falta.push(`cuota ≥ ${(1 / (p - u)).toFixed(2)} o incertidumbre ≤ ±${((p - 1 / odds) * 100).toFixed(1)} pp`);
   }
   const desaparece = edge >= minEdge ? c.desapareceDe(indice, odds) : null;
-  if (desaparece != null && desaparece > ABSTENCION.desapareceMax) {
+  if (desaparece != null && desaparece > politica().abstencion.desapareceMax) {
     razones.push(`la ventaja desaparece en el ${Math.round(desaparece * 100)} % de las simulaciones de sensibilidad`);
-    falta.push(`que desaparezca en menos del ${ABSTENCION.desapareceMax * 100} % (hoy ${Math.round(desaparece * 100)} %)`);
+    falta.push(`que desaparezca en menos del ${politica().abstencion.desapareceMax * 100} % (hoy ${Math.round(desaparece * 100)} %)`);
   }
-  if (c.calidad.puntuacion < ABSTENCION.calidadDatosMin) {
-    razones.push(`calidad de datos ${c.calidad.puntuacion}/100 (mínimo ${ABSTENCION.calidadDatosMin})`);
-    falta.push(`calidad de datos ≥ ${ABSTENCION.calidadDatosMin}: ${c.calidad.items.filter((i) => i.estado === 'aviso').map((i) => i.texto).join('; ')}`);
+  if (c.calidad.puntuacion < politica().abstencion.calidadDatosMin) {
+    razones.push(`calidad de datos ${c.calidad.puntuacion}/100 (mínimo ${politica().abstencion.calidadDatosMin})`);
+    falta.push(`calidad de datos ≥ ${politica().abstencion.calidadDatosMin}: ${c.calidad.items.filter((i) => i.estado === 'aviso').map((i) => i.texto).join('; ')}`);
   }
   for (const o of e.ood.filter((x) => x.grave)) razones.push(`fuera de distribución: ${o.texto}`);
   if (c.estabilidad.nivel === 'BAJA') {
@@ -202,8 +203,8 @@ export function decidir(c: Contexto): Decision {
   if (c.mercado.calidad === 'BAJA') razones.push(`mercado de calidad baja (proxy): ${c.mercado.motivos.join('; ')}`);
   if (e.oddsAt) {
     const h = (now.getTime() - Date.parse(e.oddsAt)) / 3_600_000;
-    if (h > ABSTENCION.precioViejoHoras) {
-      razones.push(`precio de hace ${h.toFixed(0)} h (máximo ${ABSTENCION.precioViejoHoras} h)`);
+    if (h > politica().abstencion.precioViejoHoras) {
+      razones.push(`precio de hace ${h.toFixed(0)} h (máximo ${politica().abstencion.precioViejoHoras} h)`);
       falta.push('un precio observado en las últimas 6 h');
     }
   }
@@ -213,12 +214,12 @@ export function decidir(c: Contexto): Decision {
 
   // Recortes del importe.
   const recortes: Decision['recortes'] = [];
-  if (c.estabilidad.nivel === 'MEDIA') recortes.push({ texto: 'estabilidad MEDIA', factor: RECORTES.estabilidadMedia });
-  if (c.desacuerdo.nivel === 'MEDIO') recortes.push({ texto: 'desacuerdo MEDIO entre componentes', factor: RECORTES.desacuerdoMedio });
-  if (c.desacuerdo.nivel === 'ALTO') recortes.push({ texto: 'desacuerdo ALTO entre componentes', factor: RECORTES.desacuerdoAlto });
-  if (e.ood.some((o) => !o.grave)) recortes.push({ texto: 'señal leve de fuera de distribución', factor: RECORTES.oodLeve });
-  if (c.mercado.dispersion === 'ALTA') recortes.push({ texto: 'casas muy dispersas', factor: RECORTES.dispersionAlta });
-  if (c.deriva) recortes.push({ texto: `deriva reciente: ${c.deriva}`, factor: RECORTES.deriva });
+  if (c.estabilidad.nivel === 'MEDIA') recortes.push({ texto: 'estabilidad MEDIA', factor: politica().recortes.estabilidadMedia });
+  if (c.desacuerdo.nivel === 'MEDIO') recortes.push({ texto: 'desacuerdo MEDIO entre componentes', factor: politica().recortes.desacuerdoMedio });
+  if (c.desacuerdo.nivel === 'ALTO') recortes.push({ texto: 'desacuerdo ALTO entre componentes', factor: politica().recortes.desacuerdoAlto });
+  if (e.ood.some((o) => !o.grave)) recortes.push({ texto: 'señal leve de fuera de distribución', factor: politica().recortes.oodLeve });
+  if (c.mercado.dispersion === 'ALTA') recortes.push({ texto: 'casas muy dispersas', factor: politica().recortes.dispersionAlta });
+  if (c.deriva) recortes.push({ texto: `deriva reciente: ${c.deriva}`, factor: politica().recortes.deriva });
   const factor = recortes.reduce((a, r) => a * r.factor, 1);
 
   if (razones.length) {
@@ -237,8 +238,8 @@ export function decidir(c: Contexto): Decision {
       `la cuota cae por debajo de ${cuotaMin.toFixed(2)} (hoy ${odds.toFixed(2)})`,
       `la probabilidad del modelo cae por debajo de ${pct(pMin)} (hoy ${pct(p)})`,
       `la incertidumbre sube por encima de ±${((p - 1 / odds) * 100).toFixed(1)} pp (hoy ±${(u * 100).toFixed(1)} pp)`,
-      `la ventaja desaparece en más del ${ABSTENCION.desapareceMax * 100} % de las simulaciones (hoy ${Math.round((desaparece ?? 0) * 100)} %)`,
-      `la calidad de datos baja de ${ABSTENCION.calidadDatosMin} (hoy ${c.calidad.puntuacion})`,
+      `la ventaja desaparece en más del ${politica().abstencion.desapareceMax * 100} % de las simulaciones (hoy ${Math.round((desaparece ?? 0) * 100)} %)`,
+      `la calidad de datos baja de ${politica().abstencion.calidadDatosMin} (hoy ${c.calidad.puntuacion})`,
       'la estabilidad pasa a BAJA, o el precio queda más de 6 h sin observarse',
     ],
     desaparece,

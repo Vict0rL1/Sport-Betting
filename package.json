@@ -90,7 +90,15 @@
     "restore": "npm run restore --workspace server --",
     "odds:retention": "npm run odds:retention --workspace server --",
     "clubelo": "npm run clubelo --workspace server --",
-    "bullpen": "npm run bullpen --workspace server --"
+    "bullpen": "npm run bullpen --workspace server --",
+    "policy": "npm run policy --workspace server --",
+    "export": "npm run export --workspace server --",
+    "jobs": "npm run jobs --workspace server --",
+    "vapid:generar": "npm run vapid:generar --workspace server --",
+    "study": "npm run study --workspace server --",
+    "help": "node scripts/help.mjs",
+    "setup": "node scripts/setup.mjs",
+    "e2e": "npm run e2e --workspace web --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

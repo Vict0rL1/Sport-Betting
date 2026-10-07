@@ -50,6 +50,7 @@
 import { informeComun } from '../evaluation/report.ts';
 import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
 import { clvHistorico, shin1X2, type PartidoConPinnacle } from './clv.ts';
+import { prediccionFutbolEnReplay } from '../evaluation/replay.ts';
 import { eloExternoEn, hayEloExterno, probsClubElo } from './ingest/clubelo.ts';
 import { featureEncendida } from '../features.ts';
 import { getDb } from '../db.ts';
@@ -74,7 +75,7 @@ import {
 import { STRENGTH_ALPHA, STRENGTH_SHRINK_MATCHES } from './strength.ts';
 import { CONGESTION_ELO, MOMENTUM_ELO } from './momentum.ts';
 import { DC_HYPER, firstSeasonGoalAverage, loadMatches, replayMatches } from './ratings.ts';
-import { expectedGoalsDc, type DcMatch } from './bayes/dixonColes.ts';
+import type { DcMatch } from './bayes/dixonColes.ts';
 import { DcWalkForward } from './bayes/walkforward.ts';
 import { splitOf, unlockFinalHoldout, FINAL_HOLDOUT_FROM } from '../experiments/holdout.ts';
 
@@ -265,19 +266,14 @@ function main() {
           return;
         }
 
-        // Lo mismo que hace `predict.ts`: Dixon-Coles cuando conoce a los dos, y si no,
-        // el camino de Elo, que es el que tiene medido el salto de división.
-        const dc = wf?.paramsFor(match.match_date) ?? null;
-        const dcUsable = !!dc && dc.attack.has(match.home_id) && dc.attack.has(match.away_id);
-        let lam = lambda;
-        let useRho = rho;
-        if (dc && dcUsable) {
-          lam = expectedGoalsDc(dc, match.home_id, match.away_id);
-          useRho = dc.rho;
-          viaDc++;
-        } else viaElo++;
-
-        const dist = scoreDistribution(lam.home, lam.away, useRho);
+        // Lo mismo que hace `predict.ts` y que la reconstrucción de «¿Acertó?»: un solo
+        // camino (evaluation/replay.ts). Dixon-Coles cuando conoce a los dos, y si no, el
+        // de Elo, que es el que tiene medido el salto de división.
+        const pr = prediccionFutbolEnReplay(wf, match, lambda, rho);
+        if (pr.viaDc) viaDc++;
+        else viaElo++;
+        const lam = pr.lambda;
+        const dist = scoreDistribution(lam.home, lam.away, pr.rho);
         const probs = outcomeProbabilities(dist);
         const actual = match.result as 'H' | 'D' | 'A';
         {

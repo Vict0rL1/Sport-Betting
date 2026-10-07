@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { revocar, salir, sesiones, type SesionVista } from '../../lib/auth';
 import { CrossIcon, LogoutIcon, UserIcon } from '../icons';
+import NotificacionesPanel from './NotificacionesPanel';
 
 const cuando = (iso: string) => new Date(iso).toLocaleString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
@@ -88,6 +89,7 @@ export default function AccountPanel({ usuario, onSalir, compacto = false }: { u
             <LogoutIcon size={15} />
             Salir
           </button>
+          <NotificacionesPanel />
         </div>
       )}
     </div>

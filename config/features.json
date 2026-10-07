@@ -11,6 +11,11 @@
     "fuentes.cuotasHistoricas": { "on": true, "descripcion": "Pinnacle temprano y de cierre de football-data.co.uk en fb_matches; «vs mercado» con Shin y CLV histórico en el backtest de fútbol." },
     "fuentes.clima": { "on": true, "descripcion": "Previsión (T-24h, T-6h, T-1h) y observación de Open-Meteo para NFL y MLB, guardadas en weather_observations y enseñadas en la ficha. No entra en la probabilidad." },
     "fuentes.bullpen": { "on": true, "descripcion": "Carga del bullpen MLB de los boxscores de los últimos tres días (MLB Stats API), en la ficha. No entra en la probabilidad." },
-    "fuentes.clubElo": { "on": true, "descripcion": "Elo de ClubElo como baseline externo del walk-forward de fútbol (npm run clubelo)." }
+    "fuentes.clubElo": { "on": true, "descripcion": "Elo de ClubElo como baseline externo del walk-forward de fútbol (npm run clubelo)." },
+    "observabilidad.metricas": { "on": true, "descripcion": "GET /api/metrics en formato Prometheus (detrás de la contraseña)." },
+    "api.docs": { "on": true, "descripcion": "Visor de la API (Swagger UI) en /docs, detrás de la contraseña; /openapi.json siempre." },
+    "operacion.registroTrabajos": { "on": true, "descripcion": "Los trabajos programados pasan por el registro (GET /api/scheduler) con interruptor por trabajo." },
+    "notificaciones.canales": { "on": true, "descripcion": "Notificaciones por Web Push, Telegram, correo o webhook, según las variables de entorno presentes." },
+    "politica.versionada": { "on": true, "descripcion": "La política de apuestas se lee de policy_versions (append-only); cada apuesta y señal referencia su versión." }
   }
 }

@@ -35,6 +35,7 @@ import { impliedProbabilities, type MarketProbabilities } from '../model/market.
 import { buildPrediction, type Prediction } from '../model/predict.ts';
 import { refreshOdds } from '../ingest/odds.ts';
 import { ejecuciones, ultimasEjecuciones } from '../ingest/runs.ts';
+import { ESQUEMA_DATOS_ESTADO, ESQUEMA_INGESTION_RUNS } from '../api/schemas.ts';
 import { copiasLocales, ultimaCopia } from '../db/backup.ts';
 import { LAYOUT, ficherosDe } from '../db/layout.ts';
 import { configS3 } from '../db/s3.ts';
@@ -156,14 +157,14 @@ function describeRow(row: UpcomingRow, withPrediction = true) {
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // Las ingestas: la última por fuente y el historial (filtrable por fuente). Para el
   // diagnóstico de la Fase 5 y para contestar «¿cuándo se bajaron resultados y qué pasó?».
-  app.get<{ Querystring: { source?: string; limite?: string } }>('/api/ingestion-runs', async (req) => ({
+  app.get<{ Querystring: { source?: string; limite?: string } }>('/ingestion-runs', { schema: { tags: ['operación'], summary: 'Ingestas: última por fuente e historial', response: { 200: ESQUEMA_INGESTION_RUNS } } }, async (req) => ({
     ultimas: ultimasEjecuciones(),
     historial: ejecuciones({ source: req.query.source?.slice(0, 60) || undefined, limite: Math.max(1, Math.min(500, Number(req.query.limite) || 100)) }),
   }));
 
   // El estado del almacenamiento: disposición, tamaño de cada fichero, última copia y
   // cuántas hay. Solo lectura; la copia la lanza el servidor o `npm run backup`.
-  app.get('/api/datos/estado', async () => {
+  app.get('/datos/estado', { schema: { tags: ['operación'], summary: 'Ficheros de la base, copias y retención', response: { 200: ESQUEMA_DATOS_ESTADO } } }, async () => {
     const f = ficherosDe();
     const mb = (ruta: string | null) => (ruta && fs.existsSync(ruta) ? Math.round((fs.statSync(ruta).size / 1048576) * 10) / 10 : null);
     const copia = ultimaCopia();

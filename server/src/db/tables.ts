@@ -36,10 +36,14 @@ export const TABLAS_LEDGER: readonly string[] = [
   // nazcan en el fichero correcto sin tocar esta lista otra vez.
   'weather_observations',
   'policy_versions',
+  // Fase 3: operación.
+  'scheduler_jobs',
+  'notification_log',
+  'push_subscriptions',
 ];
 
 /** Las que todavía no crea ninguna migración; `verify:data` no exige que existan. */
-export const TABLAS_LEDGER_RESERVADAS: readonly string[] = ['weather_observations', 'policy_versions'];
+export const TABLAS_LEDGER_RESERVADAS: readonly string[] = [];
 
 const LEDGER = new Set(TABLAS_LEDGER);
 

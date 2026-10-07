@@ -74,6 +74,7 @@ const CONGELADAS = [
   'model_version', 'model_config_version', 'calibration_version', 'data_version', 'strategy_version', 'git_commit',
   'prediction_timestamp', 'odds_timestamp', 'opening_odds', 'opening_observed_at', 'signal_odds', 'signal_observed_at',
   'assessment_id', 'confidence', 'data_quality', 'trust_stake_factor', 'correlation_groups',
+  'policy_version_id',
 ];
 /** Se escriben al liquidar, una sola vez. */
 const LIQUIDACION = ['status', 'settled_at', 'profit', 'event_result', 'bankroll_after', 'roi'];
@@ -203,7 +204,7 @@ export const EDGE_SIGNALS_SCHEMA = `
       'created_at', 'sport', 'league', 'event_id', 'provider_event_id', 'market', 'selection', 'provider_selection',
       'model_probability_raw', 'model_probability_calibrated', 'market_probability_no_vig', 'odds', 'edge', 'kelly_raw',
       'decision', 'reason', 'stake', 'paper_bet_id', 'model_version', 'calibration_version', 'strategy_version',
-      'data_version', 'git_commit', 'prediction_timestamp', 'odds_timestamp', 'commence_time',
+      'data_version', 'git_commit', 'prediction_timestamp', 'odds_timestamp', 'commence_time', 'policy_version_id',
     ])}
     BEGIN SELECT RAISE(ABORT, 'edge_signals: una señal registrada queda congelada'); END;
   CREATE TRIGGER IF NOT EXISTS edge_signals_cierre_una_vez

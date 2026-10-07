@@ -27,6 +27,7 @@
 
 import { getDb } from '../db.ts';
 import { DEFAULT_CONFIG } from './policy.ts';
+import { politica } from './policyStore.ts';
 
 export const LIMITES = {
   max_total_open_exposure: DEFAULT_CONFIG.maxTotalExposure,
@@ -35,14 +36,27 @@ export const LIMITES = {
   max_same_player_exposure: 0.03,
 };
 
+/** Los topes vigentes: los de la política versionada (Fase 3.5), con LIMITES como forma. */
+export function limitesVigentes(): typeof LIMITES {
+  const p = politica();
+  return {
+    max_total_open_exposure: p.staking.maxTotalExposure,
+    max_same_event_exposure: p.staking.maxPerEvent,
+    max_same_team_exposure: p.grupos.maxSameTeamExposure,
+    max_same_player_exposure: p.grupos.maxSamePlayerExposure,
+  };
+}
+
 /** Los grupos de una apuesta. El primero es su «grupo de correlación» principal: el evento. */
 export function gruposDe(sport: string, eventId: string, participantes: string[]): string[] {
   const tipo = sport === 'tennis' ? 'jugador' : 'equipo';
   return [`evento:${sport}:${eventId}`, ...participantes.filter(Boolean).map((p) => `${tipo}:${sport}:${p}`)];
 }
 
-const limiteDe = (grupo: string) =>
-  grupo.startsWith('evento:') ? LIMITES.max_same_event_exposure : grupo.startsWith('jugador:') ? LIMITES.max_same_player_exposure : LIMITES.max_same_team_exposure;
+const limiteDe = (grupo: string) => {
+  const L = limitesVigentes();
+  return grupo.startsWith('evento:') ? L.max_same_event_exposure : grupo.startsWith('jugador:') ? L.max_same_player_exposure : L.max_same_team_exposure;
+};
 
 interface Abierta {
   id: number;
@@ -105,7 +119,7 @@ export function riesgoCartera(banco: number): RiesgoCartera {
   }
   return {
     banco,
-    total: { importe: total, pct: total / banco, limite: LIMITES.max_total_open_exposure },
+    total: { importe: total, pct: total / banco, limite: limitesVigentes().max_total_open_exposure },
     porDeporte: [...porDeporte].map(([deporte, importe]) => ({ deporte, importe, pct: importe / banco })).sort((a, b) => b.importe - a.importe),
     grupos: [...porGrupo]
       .map(([grupo, v]) => ({ grupo, apuestas: v.n, importe: v.s, pct: v.s / banco, limite: limiteDe(grupo), excede: v.s > limiteDe(grupo) * banco + 1e-9 }))

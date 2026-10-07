@@ -15,6 +15,9 @@ import { SESSIONS_SCHEMA } from './auth/sessions.ts';
 import { EXTERNAL_ELO_SCHEMA } from './football/ingest/clubelo.ts';
 import { BULLPEN_SCHEMA } from './baseball/ingest/bullpen.ts';
 import { WEATHER_SCHEMA } from './weather/schema.ts';
+import { SCHEDULER_SCHEMA } from './scheduler/schema.ts';
+import { POLICY_SCHEMA } from './staking/policySchema.ts';
+import { NOTIFICATIONS_SCHEMA } from './notifications/schema.ts';
 import { ERROR_LOG_SCHEMA } from './security/errors.ts';
 import { HISTORY_DB_PATH, LAYOUT, LEDGER_DB_PATH, LEDGER_SCHEMA, LEGACY_DB_PATH, rutaPrincipal } from './db/layout.ts';
 import { ledgerize, masterDe } from './db/ledgerize.ts';
@@ -40,7 +43,7 @@ let db: DatabaseSync | null = null;
 
 /** Todo el esquema (tablas, índices y triggers de los ocho módulos), ya con los prefijos. */
 export function esquemaCompleto(schema: string = LEDGER_SCHEMA): string {
-  return [ESQUEMA_BASE, ODDS_SNAPSHOT_SCHEMA, EDGE_SIGNALS_SCHEMA, PREMATCH_SCHEMA, ASSESSMENT_SCHEMA, SHADOW_SCHEMA, ALERTS_SCHEMA, SESSIONS_SCHEMA, ERROR_LOG_SCHEMA, SETTINGS_SCHEMA, INGESTION_RUNS_SCHEMA, EXTERNAL_ELO_SCHEMA, BULLPEN_SCHEMA, WEATHER_SCHEMA]
+  return [ESQUEMA_BASE, ODDS_SNAPSHOT_SCHEMA, EDGE_SIGNALS_SCHEMA, PREMATCH_SCHEMA, ASSESSMENT_SCHEMA, SHADOW_SCHEMA, ALERTS_SCHEMA, SESSIONS_SCHEMA, ERROR_LOG_SCHEMA, SETTINGS_SCHEMA, INGESTION_RUNS_SCHEMA, EXTERNAL_ELO_SCHEMA, BULLPEN_SCHEMA, WEATHER_SCHEMA, SCHEDULER_SCHEMA, POLICY_SCHEMA, NOTIFICATIONS_SCHEMA]
     .map((sql) => ledgerize(sql, schema))
     .join('\n');
 }
@@ -136,6 +139,26 @@ export const MIGRACIONES: Migracion[] = [
       d.exec(ledgerize(EXTERNAL_ELO_SCHEMA, ctx.ledger));
       d.exec(ledgerize(BULLPEN_SCHEMA, ctx.ledger));
       d.exec(ledgerize(WEATHER_SCHEMA, ctx.ledger));
+    },
+  },
+  // Fase 3: trabajos programados, política versionada (con su columna en apuestas y señales,
+  // congelada) y notificaciones.
+  {
+    version: 7,
+    nombre: 'operacion-fase-3',
+    destino: 'ambos',
+    up: (d, ctx) => {
+      addMissingColumns(d);
+      d.exec(ledgerize(SCHEDULER_SCHEMA, ctx.ledger));
+      d.exec(ledgerize(POLICY_SCHEMA, ctx.ledger));
+      d.exec(ledgerize(NOTIFICATIONS_SCHEMA, ctx.ledger));
+      // Los triggers de congelación tienen que nombrar la columna nueva: se rehacen si no.
+      for (const [tabla, trigger] of [['paper_bets', 'paper_bets_congelada'], ['edge_signals', 'edge_signals_congelada']] as const) {
+        const t = d.prepare(`SELECT sql FROM ${masterDe(tabla, ctx.ledger)} WHERE type = 'trigger' AND name = ?`).get(trigger) as { sql: string } | undefined;
+        if (t && !t.sql.includes('policy_version_id')) d.exec(`DROP TRIGGER ${trigger}`);
+      }
+      d.exec(ledgerize(PAPER_TRIGGERS, ctx.ledger));
+      d.exec(ledgerize(EDGE_SIGNALS_SCHEMA, ctx.ledger));
     },
   },
 ];
@@ -1119,7 +1142,9 @@ export function addMissingColumns(d: DatabaseSync): void {
     // NFL, un 90 % precio de mercado—. Resultado: el panel puntuaba una predicción que
     // nadie vio, y la peor de las dos.
     // El paper trading auditable: ver paper/schema.ts.
-    paper_bets: PAPER_BET_COLUMNS,
+    paper_bets: { ...PAPER_BET_COLUMNS, policy_version_id: 'INTEGER' },
+    // La versión de la política bajo la que se evaluó cada señal (Fase 3.5).
+    edge_signals: { policy_version_id: 'INTEGER' },
     // Qué versión exacta produjo cada predicción (fase 5): ver versions.ts.
     prediction_log: VERSIONED,
     fb_prediction_log: { ...VERSIONED, shown_home: 'REAL', shown_draw: 'REAL', shown_away: 'REAL' },

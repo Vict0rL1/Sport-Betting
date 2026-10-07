@@ -1,5 +1,5 @@
-# Integración continua. Fase 1: escáner de secretos. Las fases siguientes añaden aquí
-# tests, lint, typecheck, build, verify:data y Playwright.
+# Integración continua (Fase 3.10): secretos, calidad, datos y humo de punta a punta en cada
+# push y PR. Los backtests nocturnos van en nightly.yml.
 name: CI
 
 on:
@@ -27,3 +27,68 @@ jobs:
           node-version: 22
       - name: Escáner propio (ficheros rastreados)
         run: node scripts/secret-scan.mjs --tracked
+
+  calidad:
+    name: Lint, tipos, tests y build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Cada script tiene línea de ayuda
+        run: npm run help > /dev/null
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+          retention-days: 1
+
+  datos:
+    name: verify:data sobre la base publicada
+    runs-on: ubuntu-latest
+    needs: calidad
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Descargar la historia publicada
+        id: datos
+        continue-on-error: true
+        run: npm run fetch-data
+      - name: verify:data
+        if: steps.datos.outcome == 'success'
+        run: npm run verify:data
+      - name: Sin release publicada
+        if: steps.datos.outcome != 'success'
+        run: echo "No hay release data-latest (o no se pudo bajar); verify:data se salta en esta ejecución."
+
+  e2e:
+    name: Humo con Playwright
+    runs-on: ubuntu-latest
+    needs: calidad
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: web/dist
+      - name: Chromium
+        run: npx --workspace web playwright install --with-deps chromium
+      - run: npm run e2e
+        env:
+          CI: 'true'

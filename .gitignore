@@ -53,3 +53,6 @@ data/.dev-ports.json
 # commitearlo le daría a otra persona un guion que apunta a una carpeta que no existe.
 data/auto-actualizar.sh
 data/tennis.db.backup-*
+# Playwright
+web/test-results/
+web/playwright-report/

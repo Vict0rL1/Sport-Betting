@@ -23,12 +23,16 @@
 import { getDb } from '../db.ts';
 
 export { ALERTS_SCHEMA } from './schema.ts';
+import { notificar, type TipoEvento } from '../notifications/index.ts';
 
 export type TipoAlerta =
   | 'edge_umbral' | 'calidad_datos_baja' | 'cuotas_viejas' | 'deriva' | 'cambio_prediccion' | 'mercado_movido'
   | 'alineacion_confirmada' | 'abridor_cambiado' | 'qb_cambiado' | 'limite_riesgo';
 
 export const SILENCIO_HORAS = 6;
+
+/** Qué alertas salen también por los canales de notificación. */
+const EVENTO_POR_ALERTA: Partial<Record<TipoAlerta, TipoEvento>> = { edge_umbral: 'senal_valor', mercado_movido: 'linea_movida', deriva: 'deriva' };
 
 export interface Alerta {
   id: number;
@@ -57,6 +61,9 @@ export function emitirAlerta(
     db.prepare('INSERT INTO alerts (created_at, type, severity, sport, match_key, title, body, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
       now.toISOString(), a.type, a.severity ?? 'info', a.sport ?? null, a.matchKey ?? null, a.title, a.body, a.data === undefined ? null : JSON.stringify(a.data),
     );
+    // Fuera de la app (Fase 3.6): las que vale la pena recibir sin estar mirando.
+    const evento = EVENTO_POR_ALERTA[a.type];
+    if (evento) void notificar(evento, { titulo: a.title, cuerpo: a.body, url: a.sport ? `/?tab=${a.sport}` : '/' });
     return true;
   } catch {
     return false;

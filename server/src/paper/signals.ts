@@ -26,6 +26,8 @@ export interface Senal {
   predictionTimestamp: string | null;
   oddsTimestamp: string | null;
   commenceTime: string;
+  /** La versión de la política bajo la que se evaluó (Fase 3.5). */
+  policyVersionId?: number | null;
 }
 
 /**
@@ -50,14 +52,14 @@ export function recordSignal(s: Senal, now = new Date()): number | null {
          created_at, sport, league, event_id, provider_event_id, market, selection, provider_selection,
          model_probability_raw, model_probability_calibrated, market_probability_no_vig, odds, edge, kelly_raw,
          decision, reason, stake, paper_bet_id, model_version, calibration_version, strategy_version, data_version,
-         git_commit, prediction_timestamp, odds_timestamp, commence_time
-       ) VALUES (?, ?, ?, ?, ?, 'h2h', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         git_commit, prediction_timestamp, odds_timestamp, commence_time, policy_version_id
+       ) VALUES (?, ?, ?, ?, ?, 'h2h', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       now.toISOString(), s.sport, s.league, s.eventId, s.providerEventId, s.selection, s.providerSelection,
       s.pRaw, s.pCal, s.pMarket, s.odds, s.edge, s.kellyRaw, s.decision, s.reason, s.stake, s.paperBetId,
       s.versions.model_version, s.versions.calibration_version, s.versions.strategy_version, s.versions.data_version,
-      s.versions.git_commit, s.predictionTimestamp, s.oddsTimestamp, s.commenceTime,
+      s.versions.git_commit, s.predictionTimestamp, s.oddsTimestamp, s.commenceTime, s.policyVersionId ?? null,
     );
   return Number(r.lastInsertRowid);
 }

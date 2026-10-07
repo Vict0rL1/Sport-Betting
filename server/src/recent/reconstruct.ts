@@ -40,11 +40,10 @@ import { runBacktest as backtestBeisbol } from '../baseball/backtest.ts';
 import type { Juego } from '../evaluation/walkforward.ts';
 import { listGamesWithMarket } from '../nfl/repo.ts';
 import { replayGames as replayNfl, type ReplayGame as JuegoNfl } from '../nfl/ratings.ts';
-import { buildDistribution, outcomeProbabilities as resultadosNfl } from '../nfl/model.ts';
 import { loadMatches, replayMatches, DC_HYPER } from '../football/ratings.ts';
-import { scoreDistribution, outcomeProbabilities, DIXON_COLES_RHO } from '../football/model.ts';
-import { expectedGoalsDc, type DcMatch } from '../football/bayes/dixonColes.ts';
+import type { DcMatch } from '../football/bayes/dixonColes.ts';
 import { DcWalkForward } from '../football/bayes/walkforward.ts';
+import { prediccionFutbolEnReplay, prediccionNflEnReplay } from '../evaluation/replay.ts';
 import type { LeagueId as LigaBaloncesto } from '../basketball/types.ts';
 import type { LeagueId as LigaFutbol } from '../football/types.ts';
 import type { LeagueId as LigaNfl } from '../nfl/types.ts';
@@ -133,13 +132,10 @@ function nfl(desde: string, out: Reconstruccion): void {
     replayNfl(juegos, {
       onGame: ({ game, expectedMargin, expectedTotal }) => {
         if (game.game_date < desde || game.home_points === game.away_points) return;
-        // Lo mismo que el backtest: la distribución con números clave y, como el moneyline
-        // se anula con empate, la probabilidad a dos salidas.
-        const o = resultadosNfl(buildDistribution(expectedMargin, expectedTotal, { marginWeights: true, totalWeights: true }));
-        const p = o.home / (o.home + o.away);
+        // El mismo camino que el backtest (evaluation/replay.ts).
         out.partidos.push({
           deporte: 'NFL', liga, fecha: game.game_date, casaId: game.home_id, fueraId: game.away_id,
-          probs: [p, 1 - p], y: game.home_points > game.away_points ? 0 : 1,
+          probs: prediccionNflEnReplay(expectedMargin, expectedTotal), y: game.home_points > game.away_points ? 0 : 1,
         });
       },
     });
@@ -161,15 +157,11 @@ function futbol(desde: string, out: Reconstruccion): void {
           out.sinHistoria['Fútbol']++;
           return;
         }
-        // Como predict.ts y el backtest: Dixon-Coles si conoce a los dos; si no, el Elo.
-        const p = dc.paramsFor(match.match_date);
-        const usable = !!p && p.attack.has(match.home_id) && p.attack.has(match.away_id);
-        const lam = usable ? expectedGoalsDc(p, match.home_id, match.away_id) : lambda;
-        const o = outcomeProbabilities(scoreDistribution(lam.home, lam.away, usable ? p.rho : DIXON_COLES_RHO));
-        const t = o.home + o.draw + o.away;
+        // El mismo camino que el backtest (evaluation/replay.ts): Dixon-Coles si conoce a
+        // los dos; si no, el Elo.
         out.partidos.push({
           deporte: 'Fútbol', liga, fecha: match.match_date, casaId: match.home_id, fueraId: match.away_id,
-          probs: [o.home / t, o.draw / t, o.away / t], y: match.result === 'H' ? 0 : match.result === 'D' ? 1 : 2,
+          probs: prediccionFutbolEnReplay(dc, match, lambda).probs, y: match.result === 'H' ? 0 : match.result === 'D' ? 1 : 2,
         });
       },
     });

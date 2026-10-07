@@ -27,6 +27,15 @@ import { registerSecurityHeaders } from './security/headers.ts';
 import { origenesPermitidos, politicaCors } from './security/cors.ts';
 import { registerErrorHandler } from './security/errors.ts';
 import { estadoFeatures, featureEncendida } from './features.ts';
+import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
+import { registerOperacionRoutes } from './routes/operacion.ts';
+import { incrementar, grupoDeRuta } from './observability/metrics.ts';
+import { registroArrancado } from './scheduler/registry.ts';
+import { getDb, MIGRACIONES } from './db.ts';
+import { estadoPorVersion } from './db/migrations.ts';
+import { LAYOUT } from './db/layout.ts';
+import { ESQUEMA_HEALTH, ESQUEMA_READY, ESQUEMA_FEATURES } from './api/schemas.ts';
 
 export interface AppOptions {
   /** La puerta: configuración y limitador. Por defecto, del entorno. */
@@ -49,7 +58,9 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   const bodyLimit = Number(entorno.BODY_LIMIT_BYTES) > 0 ? Number(entorno.BODY_LIMIT_BYTES) : BODY_LIMIT_POR_DEFECTO;
 
   const app = Fastify({
-    logger: opts.logger === false ? false : { level: 'info', transport: undefined },
+    // pino, el de Fastify: una línea JSON por evento con `reqId`; nivel por LOG_LEVEL; nunca
+    // se escriben la cabecera de autorización ni las cookies.
+    logger: opts.logger === false ? false : { level: entorno.LOG_LEVEL?.trim() || 'info', transport: undefined, redact: ['req.headers.authorization', 'req.headers.cookie', 'res.headers["set-cookie"]'] },
     bodyLimit,
     // Cada petición lleva un id (UUID) que vuelve en las respuestas de error y en el log.
     // Se respeta el que traiga un proxy en `x-request-id` para poder seguir la traza.
@@ -70,10 +81,17 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   app.addHook('onRequest', async (req) => {
     (req as { __t0?: bigint }).__t0 = process.hrtime.bigint();
   });
-  app.addHook('onResponse', async (req) => {
+  app.addHook('onResponse', async (req, reply) => {
     const t0 = (req as { __t0?: bigint }).__t0;
     if (!t0) return;
     const url = req.url;
+    // Métricas: cada petición por grupo de ruta y código; las de predicción, además por deporte.
+    try {
+      const grupo = grupoDeRuta(url);
+      incrementar('http_peticiones_total', { grupo, status: reply.statusCode }, 'peticiones HTTP por grupo de ruta y código');
+    } catch {
+      // Medir no puede tumbar una respuesta.
+    }
     if (!/\/api\/(football|basketball|baseball|nfl|matches)/.test(url)) return;
     const ms = Number(process.hrtime.bigint() - t0) / 1e6;
     const sport = url.includes('/football')
@@ -86,6 +104,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
             ? 'nfl'
             : 'tennis';
     try {
+      if (reply.statusCode < 400) incrementar('predicciones_servidas_total', { sport }, 'respuestas de rutas de predicción por deporte');
       recordLatency({ stage: 'servidor', ms, sport });
     } catch {
       // Medir no puede tumbar una respuesta que ya se ha enviado.
@@ -104,8 +123,23 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   // Cerrado salvo lista explícita (ver security/cors.ts).
   await app.register(cors, { origin: politicaCors(origenesPermitidos(entorno)), credentials: true });
 
+  // La especificación OpenAPI de TODAS las rutas (se registra antes que ellas para verlas) y
+  // el visor en /docs, detrás de la contraseña como todo. /openapi.json para herramientas.
+  await app.register(swagger, {
+    openapi: {
+      openapi: '3.0.3',
+      info: { title: 'Sports Predictor API', description: 'Predicciones, mercado, banco de papel y operación de los cinco deportes. Copia en español.', version: '0.1.0' },
+      tags: [{ name: 'operación', description: 'Salud, métricas, trabajos, política, notificaciones, exportaciones' }],
+    },
+  });
+  if (featureEncendida('api.docs')) {
+    await app.register(swaggerUi, { routePrefix: '/docs', uiConfig: { docExpansion: 'list', deepLinking: false } });
+  }
+  app.get('/openapi.json', { schema: { tags: ['operación'], summary: 'La especificación OpenAPI' } }, async () => app.swagger());
+
   await app.register(registerAuthRoutes(auth), { prefix: '/api/auth' });
-  app.get('/api/features', async () => ({ features: estadoFeatures(entorno) }));
+  app.get('/api/features', { schema: { tags: ['operación'], summary: 'Interruptores de funciones', response: { 200: ESQUEMA_FEATURES } } }, async () => ({ features: estadoFeatures(entorno) }));
+  await app.register(registerOperacionRoutes);
 
   await app.register(registerRoutes, { prefix: '/api' });
   // Basketball lives in its own namespace: no endpoint can return both sports.
@@ -121,7 +155,31 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
 
   // Fly comprueba que la máquina vive pidiendo esto. Va sin contraseña a propósito (ver
   // auth.ts) y no toca la base: solo dice que el proceso responde.
-  app.get('/healthz', async () => ({ ok: true }));
+  app.get('/healthz', { schema: { tags: ['operación'], summary: 'Vive (sin contraseña)', response: { 200: ESQUEMA_HEALTH } } }, async () => ({ ok: true }));
+  app.get('/health', { schema: { tags: ['operación'], summary: 'Vive (alias de /healthz, sin contraseña)', response: { 200: ESQUEMA_HEALTH } } }, async () => ({ ok: true }));
+  // ¿Está listo para servir? Migraciones al día en los dos ficheros y el registro de trabajos
+  // en marcha. 503 si no: un balanceador o un despliegue no debe mandarle tráfico todavía.
+  app.get('/ready', { schema: { tags: ['operación'], summary: 'Listo (sin contraseña): migraciones y trabajos', response: { 200: ESQUEMA_READY, 503: ESQUEMA_READY } } }, async (_req, reply) => {
+    const detalle: string[] = [];
+    let migraciones = 'ok';
+    try {
+      const db = getDb();
+      for (const [schema, nombre] of LAYOUT === 'split' ? ([['main', 'history'], ['ledger', 'ledger']] as const) : ([['main', 'tennis.db']] as const)) {
+        const e = estadoPorVersion(db, schema);
+        for (const m of MIGRACIONES) {
+          if (LAYOUT === 'split' && m.destino !== 'ambos' && m.destino !== (nombre === 'history' ? 'history' : 'ledger')) continue;
+          if (e.get(m.version)?.estado !== 'ok') detalle.push(`v${m.version} ${m.nombre} en ${nombre}: ${e.get(m.version)?.estado ?? 'pendiente'}`);
+        }
+      }
+    } catch (e) {
+      detalle.push(`base: ${(e as Error).message}`);
+    }
+    if (detalle.length) migraciones = 'pendientes';
+    const trabajos = registroArrancado() ? 'en marcha' : 'parados';
+    if (!registroArrancado()) detalle.push('el registro de trabajos no ha arrancado');
+    const ok = migraciones === 'ok' && trabajos === 'en marcha';
+    return reply.code(ok ? 200 : 503).send({ ok, migraciones, trabajos, detalle });
+  });
 
   // La app construida, si la hay. En desarrollo no la hay y la sirve Vite, así que esto
   // no se registra y `/` sigue devolviendo el índice de la API de abajo.

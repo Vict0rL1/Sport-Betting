@@ -34,7 +34,9 @@
 // dos políticas que se separan con el primer cambio.
 
 import { getDb, getMeta, setMeta } from '../db.ts';
-import { decideEvent, DEFAULT_CONFIG } from '../staking/policy.ts';
+import { decideEvent } from '../staking/policy.ts';
+import { politica, idPoliticaVigente } from '../staking/policyStore.ts';
+import { notificar } from '../notifications/index.ts';
 import { fullKelly } from '../staking/kelly.ts';
 import { closingLine, marketAt, openingLine } from '../odds/snapshots.ts';
 import { versionsFor, type SportId } from '../versions.ts';
@@ -549,8 +551,8 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
        bookmaker, books, line, stake_pct_bankroll, kelly_raw, kelly_fraction_used,
        model_version, model_config_version, calibration_version, data_version, strategy_version, git_commit,
        prediction_timestamp, odds_timestamp, opening_odds, opening_observed_at, signal_odds, signal_observed_at,
-       assessment_id, confidence, data_quality, trust_stake_factor, correlation_groups
-     ) VALUES (?,?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?)`,
+       assessment_id, confidence, data_quality, trust_stake_factor, correlation_groups, policy_version_id
+     ) VALUES (?,?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?, ?)`,
   );
   const ahora = AHORA();
   const banco = bancoActual();
@@ -565,7 +567,7 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
     const d = decideEvent(
       c.salidas.map((s) => ({ label: s.label, p: s.p, odds: s.odds })),
       { sport: c.sport, bankroll: banco, openExposure: abierto },
-      DEFAULT_CONFIG,
+      politica().staking,
     );
     // La señal se registra SIEMPRE, se apueste o no: el edge detectado se mide sobre todo
     // lo evaluado, no solo sobre lo que pasó los topes (ver paper/signals.ts).
@@ -578,6 +580,7 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
             pMarket: elegida.pMarket, odds: elegida.odds, edge: d.edge, kellyRaw: fullKelly(elegida.p, elegida.odds),
             decision, reason: decision === 'rechazada' ? (motivo ?? d.blockedBy) : null, stake, paperBetId: betId,
             versions: versionsFor(c.sport), predictionTimestamp: c.predictedAt, oddsTimestamp: c.oddsAt, commenceTime: c.commence,
+            policyVersionId: idPoliticaVigente(),
           })
         : null;
     if (!d || d.stake <= 0) {
@@ -627,13 +630,15 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
       ahora, c.sport, c.match_key, c.event_id, c.label, e.label, e.p, e.pMarket, e.odds, stake, banco,
       c.league, 'h2h', c.commence, pid, e.proveedor,
       e.pRaw, e.p, 1 / e.odds, e.pMarket, d.edge,
-      `consenso (mediana de ${c.books ?? '?'} casas)`, c.books, null, stake / banco, fullKelly(e.p, e.odds), DEFAULT_CONFIG.kellyFraction,
+      `consenso (mediana de ${c.books ?? '?'} casas)`, c.books, null, stake / banco, fullKelly(e.p, e.odds), politica().staking.kellyFraction,
       v.model_version, v.model_config_version, v.calibration_version, v.data_version, v.strategy_version, v.git_commit,
       c.predictedAt, c.oddsAt, apertura?.consensus ?? null, apertura?.at ?? null, senal?.consensus ?? null, senal ? c.predictedAt : null,
       juicio.id, juicio.confianza, juicio.calidad, juicio.factor, JSON.stringify(grupos),
+      idPoliticaVigente(),
     );
     for (const g of grupos) enGrupos.set(g, (enGrupos.get(g) ?? 0) + stake);
     senalDe('apostada', stake, Number(alta.changes) ? Number(alta.lastInsertRowid) : null);
+    if (Number(alta.changes)) void notificar('papel_apostada', { titulo: `Banco de papel: ${c.label}`, cuerpo: `${e.label} a ${e.odds.toFixed(2)} · ${stake.toFixed(2)} (${(d.edge * 100).toFixed(1)} pp de ventaja)`, url: `/?tab=${c.sport}` });
     // La exposición se acumula DENTRO del bucle: sin esto, veinte candidatas se
     // dimensionarían todas como si fueran la primera y los topes no servirían.
     abierto += stake;
@@ -744,6 +749,7 @@ export function settle(now = new Date()): { liquidadas: number } {
     banco += profit;
     upd.run(final.status, cuando, profit, final.resultado, Math.round(banco * 100) / 100, profit / a.stake, a.id);
     liquidadas++;
+    void notificar('papel_liquidada', { titulo: `Papel liquidada: ${a.label}`, cuerpo: `${a.selection} → ${final.status} (${profit >= 0 ? '+' : ''}${profit.toFixed(2)}) · banco ${banco.toFixed(2)}`, url: `/?tab=${a.sport}` });
   }
   return { liquidadas };
 }
