@@ -54,6 +54,10 @@ Tests: 464 → 467 (393 del servidor + 17 + 57). Plan en `docs/plans/phase-9.md`
   algo ligero a cada fuente de datos. La tabla de secciones de `docs/OPERACION.md`, completa.
 - En este entorno el doctor pasa a **1 error y 4 avisos**: los dos nuevos son reales (tenis y
   béisbol, meses atrasados en plena temporada).
+- **CI de Playwright en verde otra vez**: fallaba desde las capturas de la Fase 5 porque CI baja
+  otro build de Chromium que pinta las fuentes un píxel distinto (3 de 57 tests). Las capturas se
+  comparan ahora solo con el build con el que se hicieron (`chromium.txt` junto a ellas); con otro,
+  el resto del test corre y la comparación se anota como omitida.
 
 ## Fase 8 — Ampliaciones, apagadas por defecto (2026-10-07)
 

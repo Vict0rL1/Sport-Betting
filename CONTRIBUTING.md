@@ -75,6 +75,10 @@ están mal.
 - Ningún fichero de `web/src/lib/` ni componente por encima de ~400 líneas: se parte por piezas sin
   cambiar las importaciones públicas.
 - Cada ruta nueva pasa por el barrido de Playwright a 1.280 y 390 px sin desbordar.
+- Las capturas de Playwright (`web/e2e/rutas.spec.ts-snapshots/`) solo se comparan con el mismo
+  build de Chromium con el que se hicieron (`chromium.txt` al lado). Con otro, el test corre igual
+  pero sin comparar píxeles, y lo anota. Para rehacerlas: `npx playwright test --update-snapshots`
+  y la versión nueva en `chromium.txt`.
 
 ## Dónde mirar
 
