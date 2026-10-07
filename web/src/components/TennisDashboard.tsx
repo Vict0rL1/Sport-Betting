@@ -61,7 +61,7 @@ export default function TennisDashboard() {
       setTournaments(tt.tournaments);
       setMatches(up);
     } catch (e) {
-      setError(t('td.errorActualizar', { error: String(e) }));
+      setError(t('comun.errorActualizar', { error: String(e) }));
     } finally {
       setRefreshing(false);
     }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fbApi, type FbAvailability, type FbSquad, type FbSquadPlayer } from '../../lib/football';
 import { BanIcon } from '../icons';
+import { useI18n } from '../../i18n';
 
 /**
  * Who is playing — the one input the user has and the model does not.
@@ -34,6 +35,7 @@ export default function SquadPanel({
   out: string[];
   onChange: (ids: string[]) => void;
 }) {
+  const { t } = useI18n();
   const [squad, setSquad] = useState<FbSquad | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -53,11 +55,11 @@ export default function SquadPanel({
   if (error) {
     return (
       <p className="text-[13px] text-(--ink-muted)">
-        Sin datos de plantilla para {teamName}.
+        {t('sq.sinDatos', { equipo: teamName })}
       </p>
     );
   }
-  if (!squad) return <p className="text-[13px] text-(--ink-muted)">Cargando plantilla…</p>;
+  if (!squad) return <p className="text-[13px] text-(--ink-muted)">{t('sq.cargando')}</p>;
 
   const xi = squad.players.filter((p) => p.regular);
   const bench = squad.players.filter((p) => !p.regular && p.minutes > 0);
@@ -90,7 +92,7 @@ export default function SquadPanel({
       {rest.length > 0 && (
         <>
           <div className="mt-1.5 text-[11px] uppercase tracking-wide text-(--ink-faint)">
-            Resto de la plantilla
+            {t('sq.resto')}
           </div>
           <ul className="space-y-0.5 opacity-70">
             {rest.map((p) => (
@@ -103,8 +105,7 @@ export default function SquadPanel({
             ))}
           </ul>
           <p className="mt-1 text-[11px] text-(--ink-faint)">
-            Marcar a un suplente no cambia el pronóstico: el modelo solo cuenta las bajas del once
-            habitual.
+            {t('sq.suplente')}
           </p>
         </>
       )}
@@ -114,10 +115,10 @@ export default function SquadPanel({
           onClick={() => setShowAll((s) => !s)}
           className="mt-1 text-[13px] text-(--ink-soft) hover:text-(--ink-strong)"
         >
-          {showAll ? '▲ Solo el once' : `▼ Ver plantilla completa (${bench.length})`}
+          {showAll ? t('sq.soloOnce') : t('sq.verCompleta', { n: bench.length })}
         </button>
       )}
-      <p className="sr-only">Bajas marcadas para el equipo {side === 'home' ? 'local' : 'visitante'}</p>
+      <p className="sr-only">{side === 'home' ? t('sq.bajasLocal') : t('sq.bajasVisitante')}</p>
     </div>
   );
 }
@@ -129,6 +130,7 @@ function PlayerRow({
   marked: boolean;
   onToggle: () => void;
 }) {
+  const { t } = useI18n();
   const isOut = marked || player.flaggedOut;
   return (
     <li>
@@ -143,17 +145,17 @@ function PlayerRow({
           checked={isOut}
           onChange={onToggle}
           className="h-3 w-3 shrink-0 accent-rose-500"
-          aria-label={`${player.name} no juega`}
+          aria-label={t('sq.noJuega', { nombre: player.name })}
         />
         <span className="w-7 shrink-0 text-[11px] uppercase text-(--ink-muted)">{player.position}</span>
         <span className={`min-w-0 flex-1 break-words ${isOut ? 'line-through' : ''}`}>
           {player.name}
         </span>
-        {player.flaggedOut && <span title={player.flagReason ?? 'baja'} className="inline-flex text-rose-400" aria-label="baja"><BanIcon size={14} strokeWidth={2.2} /></span>}
+        {player.flaggedOut && <span title={player.flagReason ?? t('sq.baja')} className="inline-flex text-rose-400" aria-label={t('sq.baja')}><BanIcon size={14} strokeWidth={2.2} /></span>}
         {player.regular && player.attackShare > 0.005 && (
           <span
             className="shrink-0 tabular-nums text-(--ink-muted)"
-            title="Parte del ataque del once que aporta este jugador"
+            title={t('sq.parteAtaque')}
           >
             {(player.attackShare * 100).toFixed(0)}%
           </span>
@@ -164,17 +166,18 @@ function PlayerRow({
 }
 
 function Effect({ availability }: { availability: FbAvailability }) {
+  const { t } = useI18n();
   if (availability.out.length === 0) {
-    return <span className="shrink-0 text-[11px] text-(--ink-muted)">sin bajas</span>;
+    return <span className="shrink-0 text-[11px] text-(--ink-muted)">{t('sq.sinBajas')}</span>;
   }
   const attack = Math.round((1 - availability.attack) * 100);
   const defence = Math.round((availability.defence - 1) * 100);
   return (
     <span
       className="shrink-0 whitespace-nowrap text-[11px] text-rose-300"
-      title={`Goles esperados a favor ×${availability.attack.toFixed(3)}, en contra ×${availability.defence.toFixed(3)}`}
+      title={t('sq.efectoTitulo', { a: availability.attack.toFixed(3), d: availability.defence.toFixed(3) })}
     >
-      −{attack}% ataque · +{defence}% encajados
+      {t('sq.efecto', { a: attack, d: defence })}
     </span>
   );
 }

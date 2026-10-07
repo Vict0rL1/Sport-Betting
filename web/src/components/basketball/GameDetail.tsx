@@ -1,6 +1,7 @@
 import type { BbPrediction, BbTeamSide } from '../../lib/basketball';
 import { formatDate } from '../../lib/format';
 import { AWAY_COLOR, HOME_COLOR } from '../../lib/theme';
+import { conNodos, useI18n, type Traducir } from '../../i18n';
 
 function Num({ value, plus = false }: { value: number; plus?: boolean }) {
   const sign = plus && value > 0 ? '+' : '';
@@ -37,26 +38,27 @@ function FactorBar({ points, max }: { points: number; max: number }) {
  * the results simply end there, so it is phrased as a gap rather than an
  * advantage — "4109 día(s)" is true and useless.
  */
-function describeRest(side: BbTeamSide): string {
+function describeRest(side: BbTeamSide, t: Traducir): string {
   const d = side.daysRest;
   if (d == null) return '—';
-  if (side.backToBack) return 'back-to-back (jugó ayer)';
-  if (d < 7) return `${d} día(s)`;
-  if (d < 60) return `${d} días sin jugar`;
+  if (side.backToBack) return t('bkd.b2b');
+  if (d < 7) return t('bkd.dias', { n: d });
+  if (d < 60) return t('bkd.diasSin', { n: d });
   const months = Math.round(d / 30);
-  if (months < 24) return `~${months} meses sin jugar`;
+  if (months < 24) return t('bkd.mesesSin', { n: months });
   const years = Math.round(d / 365);
-  return years === 1 ? '~1 año sin jugar' : `~${years} años sin jugar`;
+  return years === 1 ? t('bkd.unAnio') : t('bkd.aniosSin', { n: years });
 }
 
 function LastGames({ side, color }: { side: BbTeamSide; color: string }) {
+  const { t } = useI18n();
   if (side.last10.length === 0) return <span className="text-(--ink-muted)">—</span>;
   return (
     <span className="inline-flex flex-wrap gap-1">
       {side.last10.slice(0, 10).map((g, i) => (
         <span
           key={i}
-          title={`${g.won ? 'Victoria' : 'Derrota'} ${g.pts}-${g.oppPts} ${g.home ? '(casa)' : '(fuera)'}`}
+          title={`${g.won ? t('bkd.victoria') : t('bkd.derrota')} ${g.pts}-${g.oppPts} ${g.home ? t('bkd.casa') : t('bkd.fuera')}`}
           className="inline-flex h-4 w-4 items-center justify-center rounded text-[11px] font-bold"
           style={{
             backgroundColor: g.won ? color : 'transparent',
@@ -64,7 +66,7 @@ function LastGames({ side, color }: { side: BbTeamSide; color: string }) {
             border: g.won ? 'none' : '1px solid #f87171',
           }}
         >
-          {g.won ? 'V' : 'D'}
+          {g.won ? t('bkd.v') : t('bkd.d')}
         </span>
       ))}
     </span>
@@ -73,6 +75,7 @@ function LastGames({ side, color }: { side: BbTeamSide; color: string }) {
 
 /** Signal-by-signal breakdown, all in Elo points so the arithmetic is visible. */
 export default function GameDetail({ prediction }: { prediction: BbPrediction }) {
+  const { t } = useI18n();
   const { teams, reasoning, projection, h2h, market } = prediction;
   const home = teams.home;
   const away = teams.away;
@@ -85,20 +88,20 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
   const homeCourt = prediction.neutral ? 0 : 100;
 
   const rows: { label: string; home: React.ReactNode; away: React.ReactNode }[] = [
-    { label: 'Elo del equipo', home: Math.round(home.elo), away: Math.round(away.elo) },
+    { label: t('bkd.eloEquipo'), home: Math.round(home.elo), away: Math.round(away.elo) },
     {
-      label: 'Ajuste descanso',
+      label: t('bkd.ajusteDescanso'),
       home: <Num value={home.restAdjustment} plus />,
       away: <Num value={away.restAdjustment} plus />,
     },
-    { label: 'Rating ajustado', home: <strong>{homeAdj}</strong>, away: <strong>{awayAdj}</strong> },
+    { label: t('det.ratingAjustado'), home: <strong>{homeAdj}</strong>, away: <strong>{awayAdj}</strong> },
     {
-      label: prediction.neutral ? 'Ventaja de campo (neutral)' : 'Ventaja de campo',
+      label: prediction.neutral ? t('bkd.ventajaCampoNeutral') : t('bkd.ventajaCampo'),
       home: <Num value={homeCourt} plus />,
       away: 0,
     },
     {
-      label: 'Prob. del modelo',
+      label: t('det.probModelo'),
       home: <strong>{(prediction.model.probHome * 100).toFixed(1)}%</strong>,
       away: <strong>{(prediction.model.probAway * 100).toFixed(1)}%</strong>,
     },
@@ -111,7 +114,7 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
 
       {/* WHY */}
       <div className="rounded-lg bg-(--raised) p-3">
-        <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">Por qué</div>
+        <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">{t('det.porQue')}</div>
         <p className="mb-3 text-(--ink-body)">{reasoning.text}</p>
         <div className="space-y-2">
           {reasoning.factors.map((f) => (
@@ -126,14 +129,14 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
           ))}
         </div>
         <div className="mt-2 flex justify-between text-[11px] text-(--ink-muted)">
-          <span>◀ ventaja {away.name}</span>
-          <span>ventaja {home.name} ▶</span>
+          <span>{t('bkd.ventajaIzq', { equipo: away.name })}</span>
+          <span>{t('bkd.ventajaDer', { equipo: home.name })}</span>
         </div>
       </div>
 
       {/* Numbers table */}
       <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-        <div className="text-(--ink-soft)">Señal</div>
+        <div className="text-(--ink-soft)">{t('det.senal')}</div>
         <div className="w-24 text-right font-semibold" style={{ color: AWAY_COLOR }}>
           {away.name}
           <span className="ml-1 text-[14px] font-normal text-(--ink-muted)">#{away.eloRank}</span>
@@ -154,7 +157,7 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
       {/* Score projection */}
       <div className="rounded-lg bg-(--raised) p-3">
         <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">
-          Marcador y diferencia estimados
+          {t('bkd.marcadorEstimado')}
         </div>
         {projection.home != null && projection.away != null ? (
           <p className="text-(--ink-body)">
@@ -165,27 +168,23 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
             <span style={{ color: HOME_COLOR }}>{home.name}</span>
             <span className="text-(--ink-soft)">
               {' '}
-              · total {Math.round(projection.total ?? 0)} · {projection.spreadLabel}
+              {t('bkd.totalSpread', { n: Math.round(projection.total ?? 0), spread: projection.spreadLabel })}
             </span>
           </p>
         ) : (
           <p className="text-(--ink-soft)">
-            Sin medias de puntos suficientes para estimar el marcador; la diferencia esperada es{' '}
-            {projection.spreadLabel}.
+            {t('bkd.sinMedias', { spread: projection.spreadLabel })}
           </p>
         )}
         <p className="mt-2 text-[14px] text-(--ink-muted)">
-          La diferencia sale de la brecha de Elo (~28 puntos de Elo = 1 punto de margen). En el
-          backtest sobre 37.000 partidos reales el error absoluto medio fue de <strong>9,2
-          puntos</strong> con sesgo cero: es un centro fiable, pero el rango es ancho. El total se
-          estima con las medias de anotar y recibir de ambos equipos, y no es un modelo de ritmo.
+          {conNodos(t('bkd.brecha'), { mae: <strong>{t('bkd.mae')}</strong> })}
         </p>
       </div>
 
       {/* Scoring rates */}
       <div className="rounded-lg bg-(--raised) p-3">
         <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">
-          Anotación (medias recientes)
+          {t('bkd.anotacion')}
         </div>
         <div className="grid grid-cols-[1fr_auto_auto] gap-2 text-[14px]">
           <div />
@@ -195,10 +194,10 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
           <div className="w-20 text-right" style={{ color: HOME_COLOR }}>
             {home.abbreviation ?? home.name}
           </div>
-          <div className="text-(--ink-soft)">Puntos por partido</div>
+          <div className="text-(--ink-soft)">{t('bkd.puntosPartido')}</div>
           <div className="w-20 text-right tabular-nums">{away.ppg ?? '—'}</div>
           <div className="w-20 text-right tabular-nums">{home.ppg ?? '—'}</div>
-          <div className="text-(--ink-soft)">Puntos recibidos</div>
+          <div className="text-(--ink-soft)">{t('bkd.puntosRecibidos')}</div>
           <div className="w-20 text-right tabular-nums">{away.papg ?? '—'}</div>
           <div className="w-20 text-right tabular-nums">{home.papg ?? '—'}</div>
         </div>
@@ -207,12 +206,12 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
       {/* Form + venue records */}
       <div className="rounded-lg bg-(--raised) p-3">
         <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">
-          Forma y balance por cancha
+          {t('bkd.formaBalance')}
         </div>
         <div className="grid grid-cols-2 gap-4">
           {[
-            { side: away, color: AWAY_COLOR, venue: 'fuera' },
-            { side: home, color: HOME_COLOR, venue: 'en casa' },
+            { side: away, color: AWAY_COLOR, venue: t('bkd.venueFuera') },
+            { side: home, color: HOME_COLOR, venue: t('bkd.venueCasa') },
           ].map(({ side, color, venue }) => (
             <div key={side.id}>
               <div className="break-words font-semibold" style={{ color }} title={side.name}>
@@ -222,11 +221,10 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
                 <LastGames side={side} color={color} />
               </div>
               <div className="mt-1 text-[14px] text-(--ink-soft)">
-                Global {side.record.wins}–{side.record.losses} · {venue}{' '}
-                {side.venueRecord.wins}–{side.venueRecord.losses}
+                {t('bkd.global', { w: side.record.wins, l: side.record.losses, venue, vw: side.venueRecord.wins, vl: side.venueRecord.losses })}
               </div>
               <div className="text-[14px] text-(--ink-soft)">
-                Descanso: {describeRest(side)}
+                {t('bkd.descanso', { d: describeRest(side, t) })}
               </div>
             </div>
           ))}
@@ -236,23 +234,27 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
       {/* Head to head */}
       <div className="rounded-lg bg-(--raised) p-3">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-[14px] uppercase tracking-wide text-(--ink-muted)">Historial directo</span>
+          <span className="text-[14px] uppercase tracking-wide text-(--ink-muted)">{t('eq.historialDirecto')}</span>
           <span className="text-[16px]">
             <span style={{ color: HOME_COLOR }}>{h2h.homeWins}</span>
             <span className="text-(--ink-muted)"> – </span>
             <span style={{ color: AWAY_COLOR }}>{h2h.awayWins}</span>
-            <span className="ml-2 text-(--ink-muted)">({h2h.total} partidos)</span>
+            <span className="ml-2 text-(--ink-muted)">{t('bkd.nPartidos', { n: h2h.total })}</span>
           </span>
         </div>
         {h2h.recentSeasons && (
           <p className="mb-2 text-[14px] text-(--ink-soft)">
-            Últimas {h2h.recentSeasons.seasons} temporadas: {home.name}{' '}
-            {h2h.recentSeasons.homeWins}–{h2h.recentSeasons.awayWins} {away.name}. Es la ventana
-            informativa: un historial de décadas describe a otros jugadores.
+            {t('bkd.ultimasTemporadas', {
+              n: h2h.recentSeasons.seasons,
+              local: home.name,
+              a: h2h.recentSeasons.homeWins,
+              b: h2h.recentSeasons.awayWins,
+              visitante: away.name,
+            })}
           </p>
         )}
         {h2h.recent.length === 0 ? (
-          <p className="text-(--ink-soft)">Sin enfrentamientos previos.</p>
+          <p className="text-(--ink-soft)">{t('det.sinEnfrentamientos')}</p>
         ) : (
           <ul className="space-y-1 text-[14px]">
             {h2h.recent.map((m, i) => (
@@ -271,24 +273,28 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
 
       {/* Market */}
       <div className="rounded-lg bg-(--raised) p-3 text-[14px]">
-        <div className="mb-2 uppercase tracking-wide text-(--ink-muted)">Mercado</div>
+        <div className="mb-2 uppercase tracking-wide text-(--ink-muted)">{t('eq.mercado')}</div>
         {market.market ? (
           <>
             <p className="text-(--ink-body)">
-              Cuotas: {market.market.odds2} ({away.name}) / {market.market.odds1} ({home.name}) ·
-              implícitas sin vig: {(market.market.implied2 * 100).toFixed(1)}% /{' '}
-              {(market.market.implied1 * 100).toFixed(1)}% · margen de la casa{' '}
-              {((market.market.overround - 1) * 100).toFixed(1)}%
+              {t('bkd.cuotas', {
+                o2: market.market.odds2,
+                visitante: away.name,
+                o1: market.market.odds1,
+                local: home.name,
+                p2: (market.market.implied2 * 100).toFixed(1),
+                p1: (market.market.implied1 * 100).toFixed(1),
+                m: ((market.market.overround - 1) * 100).toFixed(1),
+              })}
             </p>
             {market.edge1 != null && (
               <p className="mt-1 text-(--ink-soft)">
-                Diferencia del modelo respecto al mercado (local):{' '}
-                <Num value={Math.round(market.edge1 * 1000) / 10} plus /> pp
+                {conNodos(t('bkd.diferenciaModelo'), { n: <Num value={Math.round(market.edge1 * 1000) / 10} plus /> })}
               </p>
             )}
           </>
         ) : (
-          <p className="text-(--ink-soft)">Sin cuotas para este partido.</p>
+          <p className="text-(--ink-soft)">{t('bkd.sinCuotas')}</p>
         )}
       </div>
 
@@ -302,6 +308,7 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
  * qualifies every figure below it.
  */
 function ReliabilityBlock({ prediction }: { prediction: BbPrediction }) {
+  const { t } = useI18n();
   const rel = prediction.reliability;
   const favIsHome = prediction.model.probHome >= 0.5;
   const favProb = favIsHome ? prediction.model.probHome : prediction.model.probAway;
@@ -319,22 +326,24 @@ function ReliabilityBlock({ prediction }: { prediction: BbPrediction }) {
   return (
     <div className={`rounded-lg border p-3 ${tone}`}>
       <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">
-        Cuánta confianza merece este número
+        {t('bkd.cuantaConfianza')}
       </div>
       <p className="text-(--ink-body)">
-        <strong className="capitalize">{rel.label}</strong> — {favName} entre{' '}
-        <strong className="tabular-nums">{(lo * 100).toFixed(1)}%</strong> y{' '}
-        <strong className="tabular-nums">{(hi * 100).toFixed(1)}%</strong>{' '}
+        <strong className="capitalize">{rel.label}</strong>{' '}
+        {conNodos(t('bkd.entre', { equipo: favName }), {
+          lo: <strong className="tabular-nums">{(lo * 100).toFixed(1)}%</strong>,
+          hi: <strong className="tabular-nums">{(hi * 100).toFixed(1)}%</strong>,
+        })}{' '}
         <span className="text-(--ink-soft)">(±{rel.marginPp} pp)</span>
       </p>
       <div className="mt-2 grid grid-cols-2 gap-2 text-[14px]">
         <div className="min-w-0">
           <div className="break-words text-(--ink-soft)">{prediction.teams.away.name}</div>
-          <div className="tabular-nums text-(--ink-body)">{rel.gamesBehind.away} partidos</div>
+          <div className="tabular-nums text-(--ink-body)">{t('bkd.partidosN', { n: rel.gamesBehind.away })}</div>
         </div>
         <div className="min-w-0">
           <div className="break-words text-(--ink-soft)">{prediction.teams.home.name}</div>
-          <div className="tabular-nums text-(--ink-body)">{rel.gamesBehind.home} partidos</div>
+          <div className="tabular-nums text-(--ink-body)">{t('bkd.partidosN', { n: rel.gamesBehind.home })}</div>
         </div>
       </div>
       {rel.reasons.length > 0 && (

@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router';
 import { rutaEquipo } from '../../rutas';
 import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../../lib/rutas';
 import { TrackRecordPanel } from './FootballDashboardPartes';
+import { conNodos, localeDe, useI18n } from '../../i18n';
 
 /**
  * The ⚽ tab.
@@ -33,6 +34,7 @@ import { TrackRecordPanel } from './FootballDashboardPartes';
 const STORAGE_KEY = 'predictor.football.league';
 
 export default function FootballDashboard() {
+  const { t: tr, idioma } = useI18n();
   const [meta, setMeta] = useState<FbMeta | null>(null);
   const [leagues, setLeagues] = useState<FbLeague[]>([]);
   const [league, setLeague] = useLigaEnRuta('/futbol', STORAGE_KEY);
@@ -61,10 +63,8 @@ export default function FootballDashboard() {
         setMeta(m);
         setLeagues(l);
       })
-      .catch((e) =>
-        setError(`No se pudo cargar el fútbol. ¿Ejecutaste "npm run update-data:fb"? (${e})`),
-      );
-  }, []);
+      .catch((e) => setError(tr('fb.errorCargar', { error: String(e) })));
+  }, [tr]);
 
   // Only offer leagues that have something to show.
   const selectable = useMemo(
@@ -137,7 +137,7 @@ export default function FootballDashboard() {
       setLeagues(l);
       setFixtures(f);
     } catch (e) {
-      setError(`No se pudo actualizar: ${e}`);
+      setError(tr('comun.errorActualizar', { error: String(e) }));
     } finally {
       setRefreshing(false);
     }
@@ -145,12 +145,12 @@ export default function FootballDashboard() {
 
   // Grouped by the reader's own local day, and filtered to one of them if asked.
   const dayGroups = useMemo(
-    () => groupByDay(fixtures, (f) => f.fixture.commence_time),
-    [fixtures],
+    () => groupByDay(fixtures, (f) => f.fixture.commence_time, idioma),
+    [fixtures, idioma],
   );
   const dayChips = useMemo(
-    () => dayGroups.map((d) => ({ key: d.key, label: dayChipLabel(d.key), count: d.items.length })),
-    [dayGroups],
+    () => dayGroups.map((d) => ({ key: d.key, label: dayChipLabel(d.key, new Date(), idioma), count: d.items.length })),
+    [dayGroups, idioma],
   );
   const shownGroups = day ? dayGroups.filter((d) => d.key === day) : dayGroups;
 
@@ -179,17 +179,16 @@ export default function FootballDashboard() {
       <DashboardHeader
         onRefresh={handleRefresh}
         refreshing={refreshing}
-        refreshTitle="Vuelve a consultar los partidos próximos y sus cuotas"
-        chips={meta && (<>{meta.counts.matches.toLocaleString('es')} partidos · {meta.counts.teams} equipos</>)}
+        refreshTitle={tr('eq.refrescarTitulo')}
+        chips={meta && (<>{tr('eq.chipsEquipos', { partidos: meta.counts.matches.toLocaleString(localeDe(idioma)), equipos: meta.counts.teams })}</>)}
         alert={staleLabel(stale)}
       >
           <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
-            Predicción 1X2, goles y marcadores con Elo por equipo, ventaja de campo y odds del
-            mercado.
+            {tr('fb.lema')}
           </p>
         <StaleHistoryWarning
           info={stale}
-          what="Los Elo y los goles esperados"
+          what={tr('fb.elosGoles')}
           fix="npm run update-data:fb"
         />
         {league && <TrackRecordPanel league={league} />}
@@ -215,7 +214,7 @@ export default function FootballDashboard() {
           // verlas todas de golpe sí ayuda a elegir. `snap` para que al soltar el dedo
           // quede una pastilla entera a la vista y no cortada por la mitad.
           className="mb-4 flex snap-x gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]"
-          role="tablist" aria-label="Ligas">
+          role="tablist" aria-label={tr('eq.ligas')}>
           {selectable.map((l) => {
             const on = league === l.id;
             return (
@@ -231,7 +230,7 @@ export default function FootballDashboard() {
               {l.name}
                 {l.upcomingCount > 0 && <span className="ml-1.5 opacity-60">{l.upcomingCount}</span>}
                 {!l.hasModel && (
-                  <span className="ml-1.5 text-amber-400" title="Sin modelo Elo: solo mercado">
+                  <span className="ml-1.5 text-amber-400" title={tr('fb.sinModeloMercado')}>
                     ◦
                   </span>
                 )}
@@ -241,26 +240,23 @@ export default function FootballDashboard() {
         </nav>
       ) : (
         <div className="mb-6 rounded-xl border border-rose-500/25 bg-rose-500/[0.06] p-5 text-[15px] text-rose-200">
-          <p className="font-medium">No hay datos de fútbol todavía.</p>
+          <p className="font-medium">{tr('fb.sinDatos')}</p>
           <p className="mt-1 text-rose-300/90">
-            Ejecuta <code className="rounded bg-rose-900/40 px-1">npm run update-data:fb</code> para
-            descargar equipos, resultados y partidos próximos.
+            {conNodos(tr('eq.sinDatosCuerpo'), { cmd: <code className="rounded bg-rose-900/40 px-1">npm run update-data:fb</code> })}
           </p>
         </div>
       )}
 
       {active && !active.hasModel && (
         <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[15px] leading-relaxed text-amber-200/90">
-          <strong>{active.name} sin modelo Elo.</strong> Sus equipos vienen de ligas distintas y sus
-          ratings viven en cada tabla doméstica, así que un Elo compartido necesitaría una
-          calibración entre ligas que esta app no hace. Se muestran los partidos y las
-          probabilidades <em>del mercado</em>.
+          <strong>{tr('eq.sinModeloTitulo', { liga: active.name })}</strong>{' '}
+          {conNodos(tr('fb.sinModeloCuerpo'), { delMercado: <em>{tr('fb.delMercado')}</em> })}
         </div>
       )}
 
       <StaleHistoryWarning
         info={staleness('football', activeMeta?.historyThrough, meta?.dataSource === 'seed')}
-        what="Los Elo y los goles esperados"
+        what={tr('fb.elosGoles')}
         fix="npm run update-data:fb"
       />
       {league && <TrackRecordPanel league={league} />}
@@ -283,7 +279,7 @@ export default function FootballDashboard() {
       {loading ? (
         <SkeletonList />
       ) : fixtures.length === 0 ? (
-        <EmptySlate what={active?.name ?? 'esta liga'} reason="sin-partidos" />
+        <EmptySlate what={active?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
@@ -318,7 +314,7 @@ export default function FootballDashboard() {
 
       {/* All teams in the league, ranked by Elo */}
       <EloRanking
-        title={`Todos los equipos · ${active?.name ?? ''}`}
+        title={tr('eq.todosLosEquipos', { liga: active?.name ?? '' })}
         rows={power.map((t) => ({
           id: t.id,
           name: t.name,
@@ -327,25 +323,21 @@ export default function FootballDashboard() {
           badge: <TeamCrest league={league!} name={t.name} code={t.id} size={16} />,
           onOpen: () => setTeam({ league: league!, id: t.id }),
           extra: [
-            { label: 'GF', value: t.gf?.toFixed(2) ?? '—', title: 'Goles a favor por partido' },
-            { label: 'GC', value: t.ga?.toFixed(2) ?? '—', title: 'Goles en contra por partido' },
+            { label: tr('fb.gf'), value: t.gf?.toFixed(2) ?? '—', title: tr('fb.gfTitulo') },
+            { label: tr('fb.gc'), value: t.ga?.toFixed(2) ?? '—', title: tr('fb.gcTitulo') },
             {
-              label: 'Dif.',
+              label: tr('eq.dif'),
               value:
                 t.gf != null && t.ga != null
                   ? `${t.gf - t.ga > 0 ? '+' : ''}${(t.gf - t.ga).toFixed(2)}`
                   : '—',
-              title: 'Diferencia de goles por partido',
+              title: tr('fb.difTitulo'),
             },
           ],
         }))}
-        extraHeaders={['GF', 'GC', 'Dif.']}
+        extraHeaders={[tr('fb.gf'), tr('fb.gc'), tr('eq.dif')]}
         footer={
-          <>
-            El Elo sale de los resultados, no de la clasificación: gana puntos quien gana a
-            rivales fuertes y los pierde quien pierde con débiles, así que un equipo puede ir
-            quinto en la tabla y primero aquí. Los goles a favor y en contra son por partido.
-          </>
+          <>{tr('fb.eloPie')}</>
         }
       />
     </div>

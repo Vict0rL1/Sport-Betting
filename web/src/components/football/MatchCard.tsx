@@ -6,6 +6,7 @@ import { realMarket } from '../../lib/picks';
 import { EnlacePartido } from '../ui';
 import EventTrustPanel from '../trust/EventTrustPanel';
 import { TeamName, MissingModel, Detail, topOutcome, actualOutcome } from './MatchCardPartes';
+import { conNodos, useI18n } from '../../i18n';
 
 /**
  * One fixture.
@@ -24,6 +25,7 @@ export default function MatchCard({
   item: FbFixtureWithPrediction;
   onOpenTeam: (league: string, id: string) => void;
 }) {
+  const { t } = useI18n();
   // Players the user has marked unavailable, and the prediction the server
   // returns for that lineup. Held here rather than inside the squad panel because
   // EVERY figure on the card comes from the same distribution — mark a striker out
@@ -69,8 +71,8 @@ export default function MatchCard({
       <div className="mb-3 flex items-center justify-between gap-2 text-[13px] text-(--ink-muted)">
         <MatchTime iso={fixture.commence_time} />
         <div className="flex items-center gap-1.5">
-          {dirty && <Badge tone="accent">{adjusting ? 'recalculando…' : 'con tus bajas'}</Badge>}
-          {fixture.source === 'fixture' && <Badge tone="warning">partido demo</Badge>}
+          {dirty && <Badge tone="accent">{adjusting ? t('eq.recalculando') : t('fbc.conBajas')}</Badge>}
+          {fixture.source === 'fixture' && <Badge tone="warning">{t('eq.partidoDemo')}</Badge>}
         </div>
       </div>
 
@@ -128,15 +130,15 @@ export default function MatchCard({
           <div className="flex items-end justify-between gap-3">
             <HeroStat
               value={pct(probs.home)}
-              label="1 · Local"
-              sub={fixture.odds_home ? `cuota ${fixture.odds_home}` : undefined}
+              label={t('fbc.local')}
+              sub={fixture.odds_home ? t('tt.cuota', { c: fixture.odds_home }) : undefined}
               color={HOME_COLOR}
             />
             <div className="pb-0.5">
               <HeroStat
                 value={pct(probs.draw)}
-                label="X · Empate"
-                sub={fixture.odds_draw ? `cuota ${fixture.odds_draw}` : undefined}
+                label={t('fbc.empate')}
+                sub={fixture.odds_draw ? t('tt.cuota', { c: fixture.odds_draw }) : undefined}
                 color={DRAW_COLOR}
                 align="center"
                 size="sm"
@@ -144,8 +146,8 @@ export default function MatchCard({
             </div>
             <HeroStat
               value={pct(probs.away)}
-              label="2 · Visitante"
-              sub={fixture.odds_away ? `cuota ${fixture.odds_away}` : undefined}
+              label={t('fbc.visitante')}
+              sub={fixture.odds_away ? t('tt.cuota', { c: fixture.odds_away }) : undefined}
               color={AWAY_COLOR}
               align="right"
             />
@@ -161,7 +163,7 @@ export default function MatchCard({
             <ProbabilityBar
               segments={[
                 { value: probs.home, color: HOME_COLOR, label: homeName },
-                { value: probs.draw, color: DRAW_COLOR, label: 'Empate' },
+                { value: probs.draw, color: DRAW_COLOR, label: t('fbc.empateBarra') },
                 { value: probs.away, color: AWAY_COLOR, label: awayName },
               ]}
               marker={prediction?.market.market?.home}
@@ -170,7 +172,7 @@ export default function MatchCard({
 
           {!fromModel && (
             <p className="mt-2 text-center text-[13px] text-amber-300/90">
-              Probabilidades implícitas del mercado, no del modelo.
+              {t('eq.implicitasNoModelo')}
             </p>
           )}
 
@@ -185,23 +187,27 @@ export default function MatchCard({
                       decía «X es solo el más probable» y se callaba el 70 %. */}
                   {prediction.verdict.open ? (
                     <>
-                      Partido abierto —{' '}
-                      <strong className="font-semibold text-(--ink-strong)">
-                        {prediction.verdict.doubleChance.label}
-                      </strong>{' '}
-                      {pct(prediction.verdict.doubleChance.probability)}
+                      {conNodos(t('fbc.abierto', { p: pct(prediction.verdict.doubleChance.probability) }), {
+                        dc: (
+                          <strong className="font-semibold text-(--ink-strong)">
+                            {prediction.verdict.doubleChance.label}
+                          </strong>
+                        ),
+                      })}
                       <span className="text-(--ink-soft)">
                         {' '}
-                        · suelto, {prediction.verdict.label.toLowerCase()}{' '}
-                        {pct(prediction.verdict.probability)}
+                        {t('fbc.suelto', { cual: prediction.verdict.label.toLowerCase(), p: pct(prediction.verdict.probability) })}
                       </span>
                     </>
                   ) : (
                     <>
-                      Lo más probable:{' '}
-                      <strong className="font-semibold text-(--ink-strong)">
-                        {prediction.verdict.label}
-                      </strong>
+                      {conNodos(t('fbc.loMasProbable'), {
+                        cual: (
+                          <strong className="font-semibold text-(--ink-strong)">
+                            {prediction.verdict.label}
+                          </strong>
+                        ),
+                      })}
                     </>
                   )}
                 </p>
@@ -215,13 +221,15 @@ export default function MatchCard({
                       while the panel above it said, in words, that those odds come
                       from the model and comparing them says nothing. */}
                   {realMarket(fixture.source) && prediction.market.verdict.startsWith('value_') && (
-                    <Badge tone="good" title="El modelo da más probabilidad que el mercado">
-                      Value:{' '}
-                      {prediction.market.verdict === 'value_home'
-                        ? homeName
-                        : prediction.market.verdict === 'value_away'
-                          ? awayName
-                          : 'empate'}
+                    <Badge tone="good" title={t('eq.valueTitulo')}>
+                      {t('eq.value', {
+                        nombre:
+                          prediction.market.verdict === 'value_home'
+                            ? homeName
+                            : prediction.market.verdict === 'value_away'
+                              ? awayName
+                              : t('fbc.empateValue'),
+                      })}
                     </Badge>
                   )}
                   <ReliabilityChip
@@ -229,8 +237,8 @@ export default function MatchCard({
                     label={prediction.reliability.label}
                     marginPp={prediction.reliability.marginPp}
                     title={[
-                      `Margen de incertidumbre: ±${prediction.reliability.marginPp} pp.`,
-                      `Partidos tras cada Elo: ${prediction.reliability.matchesBehind.home} y ${prediction.reliability.matchesBehind.away}.`,
+                      t('eq.margenPp', { pp: prediction.reliability.marginPp }),
+                      t('eq.trasCadaElo', { a: prediction.reliability.matchesBehind.home, b: prediction.reliability.matchesBehind.away }),
                       ...prediction.reliability.reasons,
                     ].join('\n')}
                   />
@@ -242,27 +250,27 @@ export default function MatchCard({
               </div>
               <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
               <div className="mt-1">
-                <Disclosure summary="¿Por qué? · goles, alineaciones, marcadores, Elo y mercado">
+                <Disclosure summary={t('fbc.porQue')}>
                   <StatRow>
                 <StatTile
-                  label="Goles esp."
+                  label={t('fbc.golesEsp')}
                   value={`${prediction.goals.expectedHome} – ${prediction.goals.expectedAway}`}
-                  hint={`total ${prediction.goals.expectedTotal}`}
+                  hint={t('fbc.total', { n: prediction.goals.expectedTotal })}
                 />
                 <StatTile
-                  label="Marcador"
+                  label={t('fbc.marcador')}
                   value={prediction.goals.scorelines[0].label}
-                  hint={`más probable · ${pct(prediction.goals.scorelines[0].probability)}`}
+                  hint={t('fbc.masProbable', { p: pct(prediction.goals.scorelines[0].probability) })}
                 />
                 <StatTile
-                  label="+2.5 goles"
+                  label={t('fbc.mas25')}
                   value={pct(prediction.goals.over25)}
                   hint={`−2.5: ${pct(prediction.goals.under25)}`}
                 />
                 <StatTile
-                  label="Ambos marcan"
+                  label={t('fbc.ambos')}
                   value={pct(prediction.goals.bothScore)}
-                  hint={`no: ${pct(1 - prediction.goals.bothScore)}`}
+                  hint={t('fbc.no', { p: pct(1 - prediction.goals.bothScore) })}
                 />
               </StatRow>
                   <Detail

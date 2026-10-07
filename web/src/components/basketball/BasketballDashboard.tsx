@@ -14,6 +14,7 @@ import { bbApi, type BbGameWithPrediction, type BbLeague, type BbMeta, type BbPo
 import GameCard from './GameCard';
 import EloRanking from '../EloRanking';
 import { DataLine, BbTrackRecordPanel } from './BasketballDashboardPartes';
+import { conNodos, localeDe, useI18n } from '../../i18n';
 
 /**
  * The whole basketball tab. Holds its own state and talks only to
@@ -21,6 +22,7 @@ import { DataLine, BbTrackRecordPanel } from './BasketballDashboardPartes';
  * untouched while this one is mounted, and vice versa.
  */
 export default function BasketballDashboard() {
+  const { t: tr, idioma } = useI18n();
   const [meta, setMeta] = useState<BbMeta | null>(null);
   const [leagues, setLeagues] = useState<BbLeague[]>([]);
   const [league, setLeague] = useLigaEnRuta('/baloncesto', 'predictor.basketball.league');
@@ -44,7 +46,7 @@ export default function BasketballDashboard() {
       })
       .catch((e) =>
         setError(
-          `No se pudo cargar el baloncesto. ¿Ejecutaste "npm run update-data:bb"? (${e})`,
+          tr('bk.errorCargar', { error: String(e) }),
         ),
       );
   }, []);
@@ -96,17 +98,17 @@ export default function BasketballDashboard() {
       setLeagues(l);
       setGames(g);
     } catch (e) {
-      setError(`No se pudo actualizar: ${e}`);
+      setError(tr('comun.errorActualizar', { error: String(e) }));
     } finally {
       setRefreshing(false);
     }
   }
 
   // Grouped by the reader's own local day, and filtered to one of them if asked.
-  const dayGroups = useMemo(() => groupByDay(games, (g) => g.game.commence_time), [games]);
+  const dayGroups = useMemo(() => groupByDay(games, (g) => g.game.commence_time, idioma), [games, idioma]);
   const dayChips = useMemo(
-    () => dayGroups.map((d) => ({ key: d.key, label: dayChipLabel(d.key), count: d.items.length })),
-    [dayGroups],
+    () => dayGroups.map((d) => ({ key: d.key, label: dayChipLabel(d.key, new Date(), idioma), count: d.items.length })),
+    [dayGroups, idioma],
   );
   const shownGroups = day ? dayGroups.filter((d) => d.key === day) : dayGroups;
 
@@ -135,18 +137,17 @@ export default function BasketballDashboard() {
       <DashboardHeader
         onRefresh={handleRefresh}
         refreshing={refreshing}
-        refreshTitle="Vuelve a consultar los partidos próximos y sus cuotas"
-        chips={meta && (<>{meta.counts.games.toLocaleString('es')} partidos · {meta.counts.teams} equipos</>)}
+        refreshTitle={tr('eq.refrescarTitulo')}
+        chips={meta && (<>{tr('eq.chipsEquipos', { partidos: meta.counts.games.toLocaleString(localeDe(idioma)), equipos: meta.counts.teams })}</>)}
         alert={staleLabel(stale)}
       >
           <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
-            Predicción de partidos con Elo por equipo, ventaja de campo, margen de puntos, descanso
-            y odds del mercado.
+            {tr('bk.lema')}
           </p>
         {meta && <DataLine meta={meta} />}
         <StaleHistoryWarning
           info={stale}
-          what="Los Elo, el margen y el total"
+          what={tr('bk.elos')}
           fix="npm run update-data:bb"
         />
         {league && <BbTrackRecordPanel league={league} />}
@@ -186,25 +187,23 @@ export default function BasketballDashboard() {
                 <LeagueFlag country={l.country} className="mr-1.5" />
               {l.name}
               {l.upcomingCount > 0 && <span className="ml-1.5 opacity-60">{l.upcomingCount}</span>}
-              {!l.hasModel && <span className="ml-1.5 text-amber-400" title="Sin modelo Elo">◦</span>}
+              {!l.hasModel && <span className="ml-1.5 text-amber-400" title={tr('eq.sinModeloElo')}>◦</span>}
             </button>
           ))}
         </div>
       ) : (
         <div className="mb-6 rounded-xl border border-rose-500/25 bg-rose-500/[0.06] p-5 text-[15px] text-rose-200">
-          <p className="font-medium">No hay datos de baloncesto todavía.</p>
+          <p className="font-medium">{tr('bk.sinDatos')}</p>
           <p className="mt-1 text-rose-300/90">
-            Ejecuta <code className="rounded bg-rose-900/40 px-1">npm run update-data:bb</code> para
-            descargar equipos, resultados y partidos próximos.
+            {conNodos(tr('eq.sinDatosCuerpo'), { cmd: <code className="rounded bg-rose-900/40 px-1">npm run update-data:bb</code> })}
           </p>
         </div>
       )}
 
       {activeLeague && !activeLeague.hasModel && (
         <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[15px] leading-relaxed text-amber-200/90">
-          <strong>{activeLeague.name} sin modelo Elo.</strong> No hay una fuente abierta de
-          resultados para esta liga, así que se muestran los partidos y las probabilidades{' '}
-          <em>implícitas del mercado</em>, no una predicción propia. Se indica en cada tarjeta.
+          <strong>{tr('eq.sinModeloTitulo', { liga: activeLeague.name })}</strong>{' '}
+          {conNodos(tr('bk.sinModeloCuerpo'), { implicitas: <em>{tr('eq.implicitasMercado')}</em> })}
         </div>
       )}
 
@@ -212,7 +211,7 @@ export default function BasketballDashboard() {
       {loading ? (
         <SkeletonList />
       ) : games.length === 0 ? (
-        <EmptySlate what={activeLeague?.name ?? 'esta liga'} reason="sin-partidos" />
+        <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
@@ -243,7 +242,7 @@ export default function BasketballDashboard() {
 
       {/* All teams, by Elo — "la información de todos los equipos" */}
       <EloRanking
-        title={`Todos los equipos · ${activeLeague?.name ?? ''}`}
+        title={tr('eq.todosLosEquipos', { liga: activeLeague?.name ?? '' })}
         rows={power.map((t) => ({
           id: t.id,
           name: t.name,
@@ -252,26 +251,21 @@ export default function BasketballDashboard() {
           badge: <TeamCrest league={league!} name={t.name} code={t.id} size={16} />,
           onOpen: () => setTeam({ league: league!, id: t.id }),
           extra: [
-            { label: 'Anota', value: t.ppg?.toFixed(1) ?? '—', title: 'Puntos anotados por partido' },
-            { label: 'Recibe', value: t.papg?.toFixed(1) ?? '—', title: 'Puntos recibidos por partido' },
+            { label: tr('eq.anota'), value: t.ppg?.toFixed(1) ?? '—', title: tr('eq.anotaTitulo') },
+            { label: tr('eq.recibe'), value: t.papg?.toFixed(1) ?? '—', title: tr('eq.recibeTitulo') },
             {
-              label: 'Dif.',
+              label: tr('eq.dif'),
               value:
                 t.ppg != null && t.papg != null
                   ? `${t.ppg - t.papg > 0 ? '+' : ''}${(t.ppg - t.papg).toFixed(1)}`
                   : '—',
-              title: 'Diferencial de puntos por partido',
+              title: tr('eq.difPuntosTitulo'),
             },
           ],
         }))}
-        extraHeaders={['Anota', 'Recibe', 'Dif.']}
+        extraHeaders={[tr('eq.anota'), tr('eq.recibe'), tr('eq.dif')]}
         footer={
-          <>
-            El Elo sale de los resultados, no del balance: gana puntos quien gana a rivales
-            fuertes. El diferencial de puntos suele ir en la misma dirección, y cuando NO va es
-            la señal interesante — un equipo con buen diferencial y peor Elo gana mucho a los
-            malos y pierde con los buenos.
-          </>
+          <>{tr('bk.eloPie')}</>
         }
       />
     </div>

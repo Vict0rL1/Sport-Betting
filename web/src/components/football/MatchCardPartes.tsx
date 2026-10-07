@@ -8,6 +8,7 @@ import { PostprocessPanel } from '../PostprocessPanel';
 import ThinMarkets from './ThinMarkets';
 import NewsPanel from './NewsPanel';
 import SquadPanel from './SquadPanel';
+import { conNodos, useI18n } from '../../i18n';
 
 export function TeamName({
   league, id, name, elo, eloRank, seededFrom = null, alignRight = false, homeBadge = false, onClick,
@@ -16,6 +17,7 @@ export function TeamName({
   name: string; elo: number | null; eloRank: number | null; seededFrom?: string | null;
   alignRight?: boolean; homeBadge?: boolean; onClick?: () => void;
 }) {
+  const { t } = useI18n();
   const logo = null;
   return (
     <div className={`min-w-0 flex-1 ${alignRight ? 'text-right' : ''}`}>
@@ -32,14 +34,14 @@ export function TeamName({
           className={`max-w-full text-[17px] font-semibold leading-tight break-words text-(--ink-strong) ${
             onClick ? 'hover:underline' : 'cursor-default'
           }`}
-          title={onClick ? 'Ver ficha del equipo' : name}
+          title={onClick ? t('eq.verFicha') : name}
         >
           {name}
         </button>
         {alignRight && <TeamCrest league={league} name={name} code={id} logo={logo} />}
       </span>
       <div className="text-[13px] text-(--ink-muted)">
-        {homeBadge && 'local · '}
+        {homeBadge && t('eq.localPunto')}
         {elo != null && (
           <>
             Elo {Math.round(elo)}
@@ -49,8 +51,8 @@ export function TeamName({
         {/* Said on the line that carries the number, because it changes what the
             number means: this club has not played a match in this division. */}
         {seededFrom && (
-          <span className="ml-1 text-[#c08a2e]" title={`Elo trasladado desde ${seededFrom} con el salto de división medido para esta liga. El equipo aún no ha jugado aquí.`}>
-            · recién ascendido
+          <span className="ml-1 text-[#c08a2e]" title={t('fbc.trasladado', { liga: seededFrom })}>
+            {t('fbc.recienAscendido')}
           </span>
         )}
       </div>
@@ -59,19 +61,16 @@ export function TeamName({
 }
 
 export function MissingModel({ item }: { item: FbFixtureWithPrediction }) {
+  const { t } = useI18n();
   const { fixture } = item;
   const missing = [
     !fixture.home_id ? fixture.home_name : null,
     !fixture.away_id ? fixture.away_name : null,
   ].filter(Boolean) as string[];
   return (
-    <EmptyState title="Sin modelo ni cuotas para este partido" tone="warning">
+    <EmptyState title={t('fbc.sinModeloNiCuotas')} tone="warning">
       {missing.length > 0 && (
-        <>
-          No encuentro en el historial a <strong>{missing.join(', ')}</strong>. Ocurre en
-          competiciones sin fuente de resultados (Champions) o cuando la casa escribe el nombre del
-          club de otra forma.
-        </>
+        <>{conNodos(t('fbc.noEncuentro'), { quien: <strong>{missing.join(', ')}</strong> })}</>
       )}
     </EmptyState>
   );
@@ -90,6 +89,7 @@ export function Detail({
   adjusting: boolean;
   adjusted: boolean;
 }) {
+  const { t } = useI18n();
   const { teams, goals, h2h, market, reasoning, reliability, squads, summary } = prediction;
   const home = teams.home;
   const away = teams.away;
@@ -101,13 +101,12 @@ export function Detail({
       {hasSquads && (
         <Panel>
           <SectionTitle
-            right={adjusting ? 'recalculando…' : adjusted ? 'ajustado a tus bajas' : undefined}
+            right={adjusting ? t('eq.recalculando') : adjusted ? t('fbc.ajustadoBajas') : undefined}
           >
-            Quién juega
+            {t('fbc.quienJuega')}
           </SectionTitle>
           <p className="mb-2.5 text-[13px] leading-relaxed text-(--ink-soft)">
-            Las lesiones y sanciones conocidas ya vienen marcadas. Si sabes la alineación — se
-            publica una hora antes — marca al resto y se recalcula todo.
+            {t('fbc.lesiones')}
           </p>
           <div className="flex flex-col gap-4 sm:flex-row">
             <SquadPanel
@@ -127,7 +126,7 @@ export function Detail({
       <ScoreMatrix prediction={prediction} />
 
       <Panel>
-        <SectionTitle>Por qué</SectionTitle>
+        <SectionTitle>{t('det.porQue')}</SectionTitle>
         <p className="mb-2 text-[15px] leading-relaxed text-(--ink-body)">{reasoning.text}</p>
         <dl className="space-y-1 text-[13px]">
           {reasoning.factors.map((f) => (
@@ -139,8 +138,8 @@ export function Detail({
                   neutral={f.pointsForHome === 0}
                 >
                   {f.pointsForHome === 0
-                    ? '0 (neutral)'
-                    : `+${Math.abs(f.pointsForHome)} para ${f.pointsForHome > 0 ? home.name : away.name}`}
+                    ? t('eq.neutral')
+                    : t('eq.paraEquipo', { n: Math.abs(f.pointsForHome), equipo: f.pointsForHome > 0 ? home.name : away.name })}
                 </FactorValue>
               </dd>
             </div>
@@ -149,7 +148,7 @@ export function Detail({
       </Panel>
 
       <Panel>
-        <SectionTitle>Marcadores más probables</SectionTitle>
+        <SectionTitle>{t('fbc.marcadoresProbables')}</SectionTitle>
         <div className="space-y-1">
           {goals.scorelines.map((s) => (
             <BarRow
@@ -165,7 +164,7 @@ export function Detail({
       </Panel>
 
       <Panel>
-        <SectionTitle>Los dos equipos</SectionTitle>
+        <SectionTitle>{t('eq.losDosEquipos')}</SectionTitle>
         <dl className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-[13px]">
           <div />
           <div className="w-24 break-words text-right font-medium" style={{ color: HOME_COLOR }}>
@@ -175,16 +174,16 @@ export function Detail({
             {away.name}
           </div>
           <CompareRow label="Elo" left={Math.round(home.elo)} right={Math.round(away.elo)} />
-          <CompareRow label="Goles a favor / partido" left={home.gf ?? '—'} right={away.gf ?? '—'} />
-          <CompareRow label="Goles en contra / partido" left={home.ga ?? '—'} right={away.ga ?? '—'} />
+          <CompareRow label={t('fbc.gfPartido')} left={home.gf ?? '—'} right={away.gf ?? '—'} />
+          <CompareRow label={t('fbc.gcPartido')} left={home.ga ?? '—'} right={away.ga ?? '—'} />
           <CompareRow
-            label="Balance (G-E-P)"
+            label={t('fbc.balance')}
             left={`${home.record.wins}-${home.record.draws}-${home.record.losses}`}
             right={`${away.record.wins}-${away.record.draws}-${away.record.losses}`}
           />
           <CompareRow
-            label="Últimos 5"
-            title="Azul = ganado · turquesa = empatado · naranja = perdido"
+            label={t('eq.ultimos5')}
+            title={t('fbc.coloresForma')}
             left={<FormDots results={home.last5} colors={formColors} />}
             right={<FormDots results={away.last5} colors={formColors} />}
           />
@@ -202,10 +201,10 @@ export function Detail({
             </>
           }
         >
-          Historial directo
+          {t('eq.historialDirecto')}
         </SectionTitle>
         {h2h.recent.length === 0 ? (
-          <p className="text-[13px] text-(--ink-muted)">Sin enfrentamientos previos.</p>
+          <p className="text-[13px] text-(--ink-muted)">{t('det.sinEnfrentamientos')}</p>
         ) : (
           <ul className="space-y-1 text-[13px]">
             {h2h.recent.map((m, i) => (
@@ -224,32 +223,37 @@ export function Detail({
       <ThinMarkets prediction={prediction} />
 
       <Panel>
-        <SectionTitle>De dónde sale este número</SectionTitle>
+        <SectionTitle>{t('eq.deDondeNumero')}</SectionTitle>
         <PostprocessPanel
           postprocess={prediction.postprocess}
           rows={[
-            { label: '1 · Local', raw: prediction.model.home, final: prediction.final.home },
-            { label: 'X · Empate', raw: prediction.model.draw, final: prediction.final.draw },
-            { label: '2 · Visitante', raw: prediction.model.away, final: prediction.final.away },
+            { label: t('fbc.local'), raw: prediction.model.home, final: prediction.final.home },
+            { label: t('fbc.empate'), raw: prediction.model.draw, final: prediction.final.draw },
+            { label: t('fbc.visitante'), raw: prediction.model.away, final: prediction.final.away },
           ]}
         />
       </Panel>
 
       {market.market && (
         <Panel>
-          <SectionTitle right={`margen ${((market.market.overround - 1) * 100).toFixed(1)}%`}>
-            Mercado
+          <SectionTitle right={t('eq.margenPct', { p: ((market.market.overround - 1) * 100).toFixed(1) })}>
+            {t('eq.mercado')}
           </SectionTitle>
           <p className="text-[13px] leading-relaxed text-(--ink-body)">
-            Cuotas {market.market.odds.home} / {market.market.odds.draw} / {market.market.odds.away}{' '}
-            · implícitas sin vig {pct(market.market.home)} / {pct(market.market.draw)} /{' '}
-            {pct(market.market.away)}
+            {t('fbc.cuotasLinea', {
+              a: market.market.odds.home,
+              x: market.market.odds.draw,
+              b: market.market.odds.away,
+              pa: pct(market.market.home),
+              px: pct(market.market.draw),
+              pb: pct(market.market.away),
+            })}
           </p>
         </Panel>
       )}
 
       <Panel>
-        <SectionTitle>Lectura completa</SectionTitle>
+        <SectionTitle>{t('eq.lecturaCompleta')}</SectionTitle>
         <ul className="space-y-1.5">
           {summary.bullets.map((b, i) => (
             <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-(--ink-soft)">
@@ -272,9 +276,8 @@ export function Detail({
         }`}
       >
         <p className="text-(--ink-body)">
-          <strong className="capitalize">{reliability.label}</strong> — margen ±
-          {reliability.marginPp} pp. Partidos tras cada Elo: {reliability.matchesBehind.home} y{' '}
-          {reliability.matchesBehind.away}.
+          <strong className="capitalize">{reliability.label}</strong>{' '}
+          {t('eq.margenDetalle', { pp: reliability.marginPp, a: reliability.matchesBehind.home, b: reliability.matchesBehind.away })}
         </p>
         {reliability.reasons.length > 0 && (
           <ul className="mt-1.5 space-y-1">

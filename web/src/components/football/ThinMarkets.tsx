@@ -21,6 +21,7 @@
 import type { FbPrediction } from '../../lib/football';
 import { Panel, SectionTitle } from '../ui';
 import { pct } from '../../lib/theme';
+import { conNodos, localeDe, useI18n, type Clave } from '../../i18n';
 
 const DEPTH_STYLE: Record<string, string> = {
   profundo: 'text-emerald-300/90',
@@ -29,21 +30,21 @@ const DEPTH_STYLE: Record<string, string> = {
   'muy-fino': 'text-rose-300/90',
 };
 
-const DEPTH_LABEL: Record<string, string> = {
-  profundo: 'muchas casas',
-  medio: 'bastantes casas',
-  fino: 'pocas casas',
-  'muy-fino': 'muy pocas casas',
+const DEPTH_LABEL: Record<string, Clave> = {
+  profundo: 'tm.muchas',
+  medio: 'tm.bastantes',
+  fino: 'tm.pocas',
+  'muy-fino': 'tm.muyPocas',
 };
 
 /** «+2,7 pp» significa que en realidad pasa más de lo que dice el número. */
 function Calibration({ pp }: { pp: number | undefined }): React.ReactElement | null {
+  const { t } = useI18n();
   if (pp === undefined) return null;
   const strong = Math.abs(pp) >= 2;
   return (
     <span className={`ml-1.5 text-[11px] ${strong ? 'text-amber-300/80' : 'text-(--ink-muted)'}`}>
-      ({pp >= 0 ? '+' : ''}
-      {pp.toFixed(1)} pp medido)
+      {t('tm.medido', { pp: `${pp >= 0 ? '+' : ''}${pp.toFixed(1)}` })}
     </span>
   );
 }
@@ -76,9 +77,10 @@ export default function ThinMarkets({
 }: {
   prediction: FbPrediction;
 }): React.ReactElement | null {
-  const t = prediction.thin;
-  if (!t) return null;
-  const { halves, corners, cards, players, liquidity } = t;
+  const { t, idioma } = useI18n();
+  const thin = prediction.thin;
+  if (!thin) return null;
+  const { halves, corners, cards, players, liquidity } = thin;
   const nothing = !halves && !corners && !cards && players.length === 0;
   if (nothing) return null;
 
@@ -87,59 +89,58 @@ export default function ThinMarkets({
 
   return (
     <Panel>
-      <SectionTitle right={`${liquidity.length} mercados`}>Mercados de menos liquidez</SectionTitle>
+      <SectionTitle right={t('tm.nMercados', { n: liquidity.length })}>{t('tm.titulo')}</SectionTitle>
       <p className="mb-3 text-[13px] leading-relaxed text-(--ink-soft)">
-        Estos no están tan bien calibrados como el 1X2 del partido, y varios los cotizan pocas
-        casas. El «pp medido» de cada línea es cuánto se desvía de la realidad sobre{' '}
-        {halves ? halves.calibrationMatches.toLocaleString('es') : '3.634'} partidos que el modelo
-        no vio: un <span className="text-amber-300/90">+2,7 pp</span> quiere decir que en realidad
-        pasa más de lo que dice el número.
+        {conNodos(
+          t('tm.intro', {
+            n: halves ? halves.calibrationMatches.toLocaleString(localeDe(idioma)) : idioma === 'es' ? '3.634' : '3,634',
+          }),
+          { ejemplo: <span className="text-amber-300/90">{t('tm.ejemplo')}</span> },
+        )}
       </p>
 
       {halves && (
         <div className="mb-3">
           <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
-            Las dos mitades
+            {t('tm.mitades')}
           </h4>
           <Row
-            label="Descanso: gana el local"
+            label={t('tm.htLocal')}
             value={pct(halves.htHome)}
             calibration={halves.calibration['descanso-1']}
           />
           <Row
-            label="Descanso: empate"
+            label={t('tm.htEmpate')}
             value={pct(halves.htDraw)}
             calibration={halves.calibration['descanso-X']}
           />
           <Row
-            label="Descanso: gana el visitante"
+            label={t('tm.htVisitante')}
             value={pct(halves.htAway)}
             calibration={halves.calibration['descanso-2']}
           />
           <Row
-            label="Descanso: más de 0,5 goles"
+            label={t('tm.htMas05')}
             value={pct(halves.htOver05)}
             calibration={halves.calibration['descanso-over-0.5']}
           />
           <Row
-            label="Descanso: más de 1,5 goles"
+            label={t('tm.htMas15')}
             value={pct(halves.htOver15)}
             calibration={halves.calibration['descanso-over-1.5']}
           />
           <Row
-            label={`${home} gana alguna mitad`}
+            label={t('tm.ganaMitad', { equipo: home })}
             value={pct(halves.homeWinsAHalf)}
             calibration={halves.calibration['local-gana-una-mitad']}
           />
           <Row
-            label={`${away} gana alguna mitad`}
+            label={t('tm.ganaMitad', { equipo: away })}
             value={pct(halves.awayWinsAHalf)}
             calibration={halves.calibration['visitante-gana-una-mitad']}
           />
           <p className="mt-1 text-[12px] text-(--ink-muted)">
-            Goles esperados: {halves.expected.first.toFixed(2)} en la primera parte y{' '}
-            {halves.expected.second.toFixed(2)} en la segunda. No se reparten a la mitad: cada
-            parte tiene su propio modelo ajustado.
+            {t('tm.golesMitades', { a: halves.expected.first.toFixed(2), b: halves.expected.second.toFixed(2) })}
           </p>
         </div>
       )}
@@ -147,19 +148,19 @@ export default function ThinMarkets({
       {(corners || cards) && (
         <div className="mb-3">
           <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
-            Córners y tarjetas
+            {t('tm.cornersTarjetas')}
           </h4>
           {[corners, cards].map(
             (c) =>
               c && (
                 <div key={c.market} className="mb-1.5">
                   <Row
-                    label={c.market === 'corners' ? 'Córners esperados' : 'Tarjetas esperadas'}
+                    label={c.market === 'corners' ? t('tm.cornersEsp') : t('tm.tarjetasEsp')}
                     value={c.total.toFixed(1)}
-                    sub={`${c.distribution === 'negbin' ? 'binomial negativa' : 'Poisson'}, var/media ${c.dispersion.toFixed(2)}`}
+                    sub={t('tm.varMedia', { dist: c.distribution === 'negbin' ? t('tm.binNeg') : 'Poisson', d: c.dispersion.toFixed(2) })}
                   />
                   {c.lines.map((l) => (
-                    <Row key={l.line} label={`Más de ${l.line}`} value={pct(l.over)} />
+                    <Row key={l.line} label={t('pm.masDe', { linea: l.line })} value={pct(l.over)} />
                   ))}
                 </div>
               ),
@@ -169,28 +170,26 @@ export default function ThinMarkets({
 
       {!corners && !cards && (
         <p className="mb-3 text-[12px] leading-relaxed text-(--ink-muted)">
-          <span className="font-medium text-(--ink-soft)">Córners y tarjetas: sin datos.</span> El
-          modelo está montado y la ingesta los lee, pero la fuente que los publica
-          (football-data.co.uk) no es alcanzable desde donde se generaron estos datos, y las que sí
-          lo son solo traen marcadores. Se queda apagado en vez de inventarse una media de liga.
+          <span className="font-medium text-(--ink-soft)">{t('tm.sinDatosTitulo')}</span>{' '}
+          {t('tm.sinDatosCuerpo')}
         </p>
       )}
 
       {players.length > 0 && (
         <div className="mb-3">
           <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
-            Props de jugador
+            {t('tm.props')}
           </h4>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px] tabular-nums">
               <thead>
                 <tr className="text-[11px] uppercase tracking-wide text-(--ink-muted)">
-                  <th className="text-left font-medium">jugador</th>
-                  <th className="text-right font-medium">min.</th>
-                  <th className="text-right font-medium">no juega</th>
-                  <th className="text-right font-medium">marca</th>
-                  <th className="text-right font-medium">gol o asist.</th>
-                  <th className="text-right font-medium">tarjeta</th>
+                  <th className="text-left font-medium">{t('tm.jugador')}</th>
+                  <th className="text-right font-medium">{t('tm.min')}</th>
+                  <th className="text-right font-medium">{t('tm.noJuega')}</th>
+                  <th className="text-right font-medium">{t('tm.marca')}</th>
+                  <th className="text-right font-medium">{t('tm.golAsist')}</th>
+                  <th className="text-right font-medium">{t('tm.tarjeta')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -217,16 +216,11 @@ export default function ThinMarkets({
             </table>
           </div>
           <p className="mt-1.5 text-[12px] leading-relaxed text-(--ink-muted)">
-            Cada prop es minutos esperados × tasa por minuto, pero integrando la{' '}
-            <span className="text-(--ink-soft)">distribución</span> de minutos y no su media: la masa
-            en «no juega» aporta cero, y aplastarla a un promedio infla todas las probabilidades.
+            {conNodos(t('tm.propsExplica'), { distribucion: <span className="text-(--ink-soft)">{t('tm.distribucion')}</span> })}
             {players[0] && players[0].teamMatches < 5 && (
               <>
                 {' '}
-                Con {players[0].teamMatches}{' '}
-                {players[0].teamMatches === 1 ? 'partido jugado' : 'partidos jugados'} la
-                titularidad todavía no está establecida, así que las tasas vienen casi enteras del
-                promedio de la posición — la columna «no juega» es alta para todos a propósito.
+                {t(players[0].teamMatches === 1 ? 'tm.titularidad1' : 'tm.titularidadN', { n: players[0].teamMatches })}
               </>
             )}
           </p>
@@ -235,14 +229,14 @@ export default function ThinMarkets({
 
       <div className="mt-3 border-t border-slate-700/50 pt-2">
         <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
-          Cuánta ventaja exigirle a cada uno
+          {t('tm.ventaja')}
         </h4>
         <div className="flex flex-wrap gap-x-4 gap-y-0.5">
           {liquidity.map((l) => (
             <span key={l.key} className="text-[12px] text-(--ink-soft)">
               {l.label}{' '}
               <span className={DEPTH_STYLE[l.depth] ?? 'text-(--ink-soft)'}>
-                {DEPTH_LABEL[l.depth]}
+                {DEPTH_LABEL[l.depth] ? t(DEPTH_LABEL[l.depth]) : undefined}
               </span>{' '}
               <span className="tabular-nums text-(--ink-body)">
                 ≥{(l.minEdge * 100).toFixed(0)} pp
@@ -251,11 +245,7 @@ export default function ThinMarkets({
           ))}
         </div>
         <p className="mt-1.5 text-[12px] leading-relaxed text-(--ink-muted)">
-          El umbral del 1X2 son 4 pp. En un mercado con pocas casas el margen es del 12-18 % en vez
-          del 4-5 %, así que exigir dos o tres veces más ventaja es, aproximadamente, exigir la
-          misma ventaja neta. Cuántas casas cotizan cada mercado no se consulta: el proveedor lo
-          sirve por un endpoint aparte que se cobra por evento, y pedirlo para sesenta partidos
-          gastaría tu cuota sin haberlo preguntado.
+          {t('tm.umbral')}
         </p>
       </div>
     </Panel>

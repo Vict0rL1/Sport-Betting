@@ -67,3 +67,16 @@ test('tenis en inglés: cabecera, tarjeta desplegada y clasificación por Elo', 
   await expect(page.getByText('Points-model markets').first()).toBeVisible();
   await expect(page.getByText('Mercados del modelo de puntos')).toHaveCount(0);
 });
+
+test('fútbol y baloncesto en inglés: cabecera y aviso sin datos', async ({ page }) => {
+  for (const [ruta, vacio] of [
+    ['/futbol', 'No hay datos de fútbol todavía.'],
+    ['/baloncesto', 'No hay datos de baloncesto todavía.'],
+  ]) {
+    await page.goto(ruta);
+    await expect(page.getByTitle('Fetches upcoming games and their odds again')).toBeVisible();
+    await expect(page.getByText(/No (football|basketball) data yet\.|All teams · |Run npm run update-data/).first()).toBeVisible();
+    await expect(page.getByText(vacio)).toHaveCount(0);
+    await expect(page.getByText('Vuelve a consultar')).toHaveCount(0);
+  }
+});

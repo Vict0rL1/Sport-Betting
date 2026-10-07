@@ -21,6 +21,7 @@ import GameDetail from './GameDetail';
 import { realMarket } from '../../lib/picks';
 import { EnlacePartido } from '../ui';
 import EventTrustPanel from '../trust/EventTrustPanel';
+import { conNodos, useI18n } from '../../i18n';
 
 /**
  * A readable label for a margin band.
@@ -44,6 +45,7 @@ export default function GameCard({
   item: BbGameWithPrediction;
   onOpenTeam: (league: string, id: string) => void;
 }) {
+  const { t } = useI18n();
   const { game, prediction, teams } = item;
 
   const value = prediction?.market.verdict;
@@ -59,8 +61,8 @@ export default function GameCard({
       <div className="mb-3 flex items-center justify-between gap-2 text-[13px] text-(--ink-muted)">
         <MatchTime iso={game.commence_time} />
         <div className="flex items-center gap-1.5">
-          {prediction?.neutral && <Badge>cancha neutral</Badge>}
-          {game.source === 'fixture' && <Badge tone="warning">partido demo</Badge>}
+          {prediction?.neutral && <Badge>{t('bkc.neutral')}</Badge>}
+          {game.source === 'fixture' && <Badge tone="warning">{t('eq.partidoDemo')}</Badge>}
         </div>
       </div>
 
@@ -121,14 +123,14 @@ export default function GameCard({
           <div className="flex items-end justify-between gap-3">
             <HeroStat
               value={pct(prediction.model.probAway)}
-              label="Visitante"
-              sub={game.away_odds ? `cuota ${game.away_odds}` : undefined}
+              label={t('eq.visitante')}
+              sub={game.away_odds ? t('tt.cuota', { c: game.away_odds }) : undefined}
               color={AWAY_COLOR}
             />
             <HeroStat
               value={pct(prediction.model.probHome)}
-              label="Local"
-              sub={game.home_odds ? `cuota ${game.home_odds}` : undefined}
+              label={t('eq.local')}
+              sub={game.home_odds ? t('tt.cuota', { c: game.home_odds }) : undefined}
               color={HOME_COLOR}
               align="right"
             />
@@ -160,7 +162,7 @@ export default function GameCard({
               the reader to treat it as a certainty. */}
 
           <div className="mt-3">
-            <SectionTitle right="σ 11.7 puntos, medida">Por cuánto gana</SectionTitle>
+            <SectionTitle right={t('bkc.sigma')}>{t('bkc.porCuanto')}</SectionTitle>
             <div className="space-y-1">
               {prediction.projection.distribution.bands
                 .slice()
@@ -180,7 +182,7 @@ export default function GameCard({
                 ))}
             </div>
             <p className="mt-1.5 text-[13px] text-(--ink-muted)">
-              Positivo = gana el local. La barra más larga es el resultado más probable, no el único.
+              {t('bkc.positivo')}
             </p>
           </div>
 
@@ -188,13 +190,16 @@ export default function GameCard({
             <p className="min-w-0 text-[15px] leading-snug text-(--ink-body)">
               {prediction.verdict.favored ? (
                 <>
-                  El modelo favorece a{' '}
-                  <strong className="font-semibold text-(--ink-strong)">
-                    {prediction.verdict.favoredName}
-                  </strong>
+                  {conNodos(t('eq.favorece'), {
+                    nombre: (
+                      <strong className="font-semibold text-(--ink-strong)">
+                        {prediction.verdict.favoredName}
+                      </strong>
+                    ),
+                  })}
                 </>
               ) : (
-                'Partido muy parejo'
+                t('tt.parejo')
               )}
             </p>
             {/* WRAPS, and must: this group holds a "Value: <team name>" badge, and
@@ -207,8 +212,8 @@ export default function GameCard({
                       while the panel above it said, in words, that those odds come
                       from the model and comparing them says nothing. */}
                   {realMarket(game.source) && valueTeam && (
-                <Badge tone="good" title="El modelo da más probabilidad que el mercado">
-                  Value: {valueTeam}
+                <Badge tone="good" title={t('eq.valueTitulo')}>
+                  {t('eq.value', { nombre: valueTeam })}
                 </Badge>
               )}
               <ReliabilityChip
@@ -216,8 +221,8 @@ export default function GameCard({
                 label={prediction.reliability.label}
                 marginPp={prediction.reliability.marginPp}
                 title={[
-                  `Margen de incertidumbre: ±${prediction.reliability.marginPp} pp.`,
-                  `Partidos tras cada Elo: ${prediction.reliability.gamesBehind.home} y ${prediction.reliability.gamesBehind.away}.`,
+                  t('eq.margenPp', { pp: prediction.reliability.marginPp }),
+                  t('eq.trasCadaElo', { a: prediction.reliability.gamesBehind.home, b: prediction.reliability.gamesBehind.away }),
                   ...prediction.reliability.reasons,
                 ].join('\n')}
               />
@@ -229,24 +234,24 @@ export default function GameCard({
           </div>
           <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
           <div className="mt-1">
-            <Disclosure summary="¿Por qué? · hándicap, total, Elo, campo, descanso y mercado">
+            <Disclosure summary={t('bkc.porQue')}>
               <div className="space-y-3">
                 <StatRow>
             <StatTile
-              label="Diferencia"
+              label={t('bkc.diferencia')}
               value={prediction.projection.spreadLabel}
-              hint="margen esperado"
+              hint={t('bkc.margenEsperado')}
             />
             <StatTile
-              label={`Cubre ${prediction.projection.distribution.spreadLine > 0 ? '+' : ''}${prediction.projection.distribution.spreadLine}`}
+              label={t('bkc.cubre', { linea: `${prediction.projection.distribution.spreadLine > 0 ? '+' : ''}${prediction.projection.distribution.spreadLine}` })}
               value={pct(prediction.projection.distribution.homeCovers)}
-              hint="el local, con hándicap"
-              title="Probabilidad de que el local cubra ese hándicap, con σ = 11.7 puntos medida sobre 58.281 partidos"
+              hint={t('bkc.localHandicap')}
+              title={t('bkc.cubreTitulo')}
             />
             <StatTile
               label="Total"
               value={prediction.projection.total != null ? String(Math.round(prediction.projection.total)) : '—'}
-              hint="puntos esperados"
+              hint={t('bkc.puntosEsperados')}
             />
             <StatTile
               label={
@@ -261,14 +266,14 @@ export default function GameCard({
               }
               hint={
                 prediction.projection.distribution.under != null
-                  ? `under: ${pct(prediction.projection.distribution.under)}`
+                  ? t('bkc.under', { p: pct(prediction.projection.distribution.under) })
                   : undefined
               }
             />
           </StatRow>
                 <GameDetail prediction={prediction} />
                 <Panel>
-                  <SectionTitle>Lectura completa</SectionTitle>
+                  <SectionTitle>{t('eq.lecturaCompleta')}</SectionTitle>
                   <ul className="space-y-1.5">
                     {prediction.summary.bullets.map((b, i) => (
                       <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-(--ink-soft)">
@@ -307,6 +312,7 @@ function TeamName({
   homeBadge?: boolean;
   onClick?: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className={`min-w-0 flex-1 ${alignRight ? 'text-right' : ''}`}>
       <span className={`flex items-center gap-1.5 ${alignRight ? 'justify-end' : ''}`}>
@@ -322,14 +328,14 @@ function TeamName({
           className={`max-w-full text-[17px] font-semibold leading-tight break-words text-(--ink-strong) ${
             onClick ? 'hover:underline' : 'cursor-default'
           }`}
-          title={onClick ? 'Ver ficha del equipo' : name}
+          title={onClick ? t('eq.verFicha') : name}
         >
           {name}
         </button>
         {alignRight && <TeamCrest league={league} name={name} code={id} logo={logo} />}
       </span>
       <div className="text-[13px] text-(--ink-muted)">
-        {homeBadge && 'local · '}
+        {homeBadge && t('eq.localPunto')}
         {elo != null && (
           <>
             Elo {Math.round(elo)}
@@ -353,6 +359,7 @@ function TeamName({
  * spells differently — instead of a vague "no prediction".
  */
 function MissingModel({ item }: { item: BbGameWithPrediction }) {
+  const { t } = useI18n();
   const { game, marketOnly } = item;
   const missing = [
     !game.home_id ? game.home_name : null,
@@ -360,21 +367,20 @@ function MissingModel({ item }: { item: BbGameWithPrediction }) {
   ].filter(Boolean) as string[];
   return (
     <div className="rounded-lg border border-amber-700/50 bg-amber-950/30 p-3 text-[14px] text-amber-200">
-      <p className="font-medium">Sin modelo para este partido.</p>
+      <p className="font-medium">{t('bkc.sinModelo')}</p>
       {missing.length > 0 ? (
         <p className="mt-1">
-          No encuentro en el historial a: <strong>{missing.join(', ')}</strong>. Suele pasar en ligas
-          sin fuente de resultados (EuroLeague, NBL) o cuando la casa escribe el nombre de otra
-          forma.
+          {conNodos(t('bkc.noEncuentro'), { quien: <strong>{missing.join(', ')}</strong> })}
         </p>
       ) : (
-        <p className="mt-1">Faltan datos históricos de esta liga.</p>
+        <p className="mt-1">{t('bkc.faltanDatos')}</p>
       )}
       {marketOnly && (
         <p className="mt-2 text-amber-100">
-          Probabilidad implícita del mercado (sin vig):{' '}
-          <strong>{(marketOnly.implied2 * 100).toFixed(1)}%</strong> {game.away_name} ·{' '}
-          <strong>{(marketOnly.implied1 * 100).toFixed(1)}%</strong> {game.home_name}
+          {conNodos(t('bkc.implicita', { equipoA: game.away_name, equipoB: game.home_name }), {
+            a: <strong>{(marketOnly.implied2 * 100).toFixed(1)}%</strong>,
+            b: <strong>{(marketOnly.implied1 * 100).toFixed(1)}%</strong>,
+          })}
         </p>
       )}
     </div>

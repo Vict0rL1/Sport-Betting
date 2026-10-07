@@ -20,37 +20,38 @@ import type {
   FbPrediction,
 } from '../../lib/football';
 import { Panel, SectionTitle } from '../ui';
+import { conNodos, useI18n, type Clave } from '../../i18n';
 
-const KIND_LABEL: Record<string, string> = {
-  lesion: 'lesión',
-  sancion: 'sanción',
-  enfermedad: 'enfermedad',
-  rotacion: 'rotación',
-  salida: 'se fue del club',
-  regreso: 'vuelve',
-  internacional: 'selección',
-  'sin-impacto': 'sin impacto',
-  'marcado por ti': 'lo marcaste tú',
-  'fuera de la alineación publicada': 'fuera del once publicado',
+const KIND_LABEL: Record<string, Clave> = {
+  lesion: 'np.kind.lesion',
+  sancion: 'np.kind.sancion',
+  enfermedad: 'np.kind.enfermedad',
+  rotacion: 'np.kind.rotacion',
+  salida: 'np.kind.salida',
+  regreso: 'np.kind.regreso',
+  internacional: 'np.kind.internacional',
+  'sin-impacto': 'np.kind.sinImpacto',
+  'marcado por ti': 'np.kind.marcadoPorTi',
+  'fuera de la alineación publicada': 'np.kind.fueraOnce',
 };
 
-const SOURCE_LABEL: Record<string, string> = {
-  noticia: 'parte',
-  usuario: 'tú',
-  alineacion: 'once publicado',
+const SOURCE_LABEL: Record<string, Clave> = {
+  noticia: 'np.fuente.noticia',
+  usuario: 'np.fuente.usuario',
+  alineacion: 'np.fuente.alineacion',
 };
 
-const VERDICT: Record<string, { text: string; tone: string }> = {
+const VERDICT: Record<string, { text: Clave; tone: string }> = {
   'noticia-primero': {
-    text: 'la línea se movió DESPUÉS de la noticia — hubo ventana',
+    text: 'np.v.noticiaPrimero',
     tone: 'text-emerald-300/90',
   },
   'mercado-primero': {
-    text: 'la línea ya se había movido ANTES — el mercado lo sabía',
+    text: 'np.v.mercadoPrimero',
     tone: 'text-amber-300/90',
   },
-  'sin-movimiento': { text: 'la línea no se movió', tone: 'text-(--ink-soft)' },
-  'sin-datos': { text: 'sin histórico de precios todavía', tone: 'text-(--ink-muted)' },
+  'sin-movimiento': { text: 'np.v.sinMovimiento', tone: 'text-(--ink-soft)' },
+  'sin-datos': { text: 'np.v.sinDatos', tone: 'text-(--ink-muted)' },
 };
 
 function Side({
@@ -64,6 +65,7 @@ function Side({
   watching: FbAbsenceImpact[];
   combined: FbCombinedImpact;
 }): React.ReactElement | null {
+  const { t } = useI18n();
   if (applied.length === 0 && watching.length === 0) return null;
   const moved = applied.filter((a) => !a.zeroReason);
   return (
@@ -72,11 +74,13 @@ function Side({
         <h4 className="text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">{name}</h4>
         {combined.players > 0 && Math.abs(combined.net) > 0.001 && (
           <span className="text-[12px] tabular-nums text-(--ink-body)">
-            efecto conjunto{' '}
-            <span className={combined.net < 0 ? 'text-rose-300/90' : 'text-emerald-300/90'}>
-              {combined.net > 0 ? '+' : ''}
-              {combined.net.toFixed(2)} goles
-            </span>
+            {conNodos(t('np.efectoConjunto'), {
+              v: (
+                <span className={combined.net < 0 ? 'text-rose-300/90' : 'text-emerald-300/90'}>
+                  {t('np.nGoles', { n: `${combined.net > 0 ? '+' : ''}${combined.net.toFixed(2)}` })}
+                </span>
+              ),
+            })}
           </span>
         )}
       </div>
@@ -85,10 +89,10 @@ function Side({
         <table className="w-full text-[12px] tabular-nums">
           <thead>
             <tr className="text-[11px] uppercase tracking-wide text-(--ink-muted)">
-              <th className="text-left font-medium">jugador</th>
-              <th className="text-left font-medium">motivo</th>
-              <th className="text-right font-medium">fuera</th>
-              <th className="text-right font-medium">goles</th>
+              <th className="text-left font-medium">{t('tm.jugador')}</th>
+              <th className="text-left font-medium">{t('np.motivo')}</th>
+              <th className="text-right font-medium">{t('np.fuera')}</th>
+              <th className="text-right font-medium">{t('np.golesCol')}</th>
             </tr>
           </thead>
           <tbody>
@@ -99,10 +103,10 @@ function Side({
                   <span className="ml-1 text-[10px] text-(--ink-muted)">{a.position}</span>
                 </td>
                 <td className="py-0.5 text-(--ink-soft)">
-                  {KIND_LABEL[a.kind] ?? a.kind}
+                  {KIND_LABEL[a.kind] ? t(KIND_LABEL[a.kind]) : a.kind}
                   {a.source !== 'noticia' && (
                     <span className="ml-1 text-[10px] text-(--ink-muted)">
-                      ({SOURCE_LABEL[a.source]})
+                      ({SOURCE_LABEL[a.source] ? t(SOURCE_LABEL[a.source]) : a.source})
                     </span>
                   )}
                 </td>
@@ -120,19 +124,18 @@ function Side({
 
       {applied.length > moved.length && (
         <p className="mt-1 text-[12px] leading-relaxed text-(--ink-muted)">
-          {applied.length - moved.length} ausencia(s) sin efecto en el número:{' '}
-          {applied.find((a) => a.zeroReason)?.zeroReason}.
+          {t('np.sinEfecto', { n: applied.length - moved.length, motivo: applied.find((a) => a.zeroReason)?.zeroReason ?? '' })}
         </p>
       )}
 
       {watching.length > 0 && (
         <p className="mt-1 text-[12px] leading-relaxed text-(--ink-muted)">
-          <span className="text-(--ink-soft)">En observación</span> (dudas por encima del 50 %, no
-          mueven la λ):{' '}
-          {watching
-            .map((w) => `${w.playerName} ${(w.missProbability * 100).toFixed(0)}%`)
-            .join(', ')}
-          .
+          {conNodos(
+            t('np.observacion', {
+              lista: watching.map((w) => `${w.playerName} ${(w.missProbability * 100).toFixed(0)}%`).join(', '),
+            }),
+            { titulo: <span className="text-(--ink-soft)">{t('np.enObservacion')}</span> },
+          )}
         </p>
       )}
     </div>
@@ -144,6 +147,7 @@ export default function NewsPanel({
 }: {
   prediction: FbPrediction;
 }): React.ReactElement | null {
+  const { t } = useI18n();
   const n = prediction.news;
   if (!n) return null;
   const anything =
@@ -162,12 +166,9 @@ export default function NewsPanel({
 
   return (
     <Panel>
-      <SectionTitle>Noticias que ya están en este número</SectionTitle>
+      <SectionTitle>{t('np.titulo')}</SectionTitle>
       <p className="mb-3 text-[13px] leading-relaxed text-(--ink-soft)">
-        Estas ausencias entran <span className="text-(--ink-body)">antes</span> de calcular los goles
-        esperados, así que el 1X2 de arriba, el over/under y la rejilla ya las llevan dentro. La
-        columna de goles es lo que cuesta cada una: sale de la cuota del jugador en su equipo y de
-        unos pesos ajustados sobre tres temporadas de alineaciones reales.
+        {conNodos(t('np.intro'), { antes: <span className="text-(--ink-body)">{t('np.antes')}</span> })}
       </p>
 
       <Side
@@ -185,16 +186,14 @@ export default function NewsPanel({
 
       {(n.applied.home.length > 1 || n.applied.away.length > 1) && (
         <p className="mb-3 text-[12px] leading-relaxed text-(--ink-muted)">
-          El efecto conjunto no es la suma de las líneas, y no es un redondeo: los pesos se aplican
-          sobre la cuota total que falta, así que dos ausencias juntas cuestan algo menos que las
-          dos por separado.
+          {t('np.noSuma')}
         </p>
       )}
 
       {(n.lineup.home || n.lineup.away) && (
         <div className="mb-3 border-t border-slate-700/50 pt-2">
           <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
-            Alineación confirmada
+            {t('np.alineacion')}
           </h4>
           {[
             [home, n.lineup.home],
@@ -202,13 +201,12 @@ export default function NewsPanel({
           ].map(([name, d]) =>
             d && typeof d === 'object' ? (
               <p key={name as string} className="text-[12px] leading-relaxed text-(--ink-soft)">
-                <span className="text-(--ink-body)">{name as string}</span>: {d.matched} de los
-                esperados confirmados.
+                {conNodos(t('np.confirmados', { n: d.matched }), { equipo: <span className="text-(--ink-body)">{name as string}</span> })}
                 {d.unexpectedlyOut.length > 0 && (
                   <>
                     {' '}
                     <span className="text-amber-300/90">
-                      Fuera del once sin previo aviso: {d.unexpectedlyOut.map((p) => p.name).join(', ')}
+                      {t('np.fueraSinAviso', { lista: d.unexpectedlyOut.map((p) => p.name).join(', ') })}
                     </span>
                     .
                   </>
@@ -222,7 +220,7 @@ export default function NewsPanel({
       {((n.rotation.home?.risk ?? 0) > 0.3 || (n.rotation.away?.risk ?? 0) > 0.3) && (
         <div className="mb-3 border-t border-slate-700/50 pt-2">
           <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
-            Calendario
+            {t('np.calendario')}
           </h4>
           {[
             [home, n.rotation.home],
@@ -235,32 +233,28 @@ export default function NewsPanel({
             ) : null,
           )}
           <p className="mt-1 text-[12px] leading-relaxed text-(--ink-muted)">
-            Esto <span className="text-(--ink-soft)">no</span> mueve la predicción: el efecto del
-            calendario sobre el rendimiento se midió en este proyecto y salió cero. Lo que crece con
-            la congestión es la duda sobre quién sale de inicio, no la debilidad del equipo.
+            {conNodos(t('np.calendarioNota'), { no: <span className="text-(--ink-soft)">{t('np.no')}</span> })}
           </p>
         </div>
       )}
 
-      {n.timing.filter((t) => t.verdict !== 'sin-datos').length > 0 && (
+      {n.timing.filter((x) => x.verdict !== 'sin-datos').length > 0 && (
         <div className="border-t border-slate-700/50 pt-2">
           <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
-            La noticia contra el movimiento de la línea
+            {t('np.timing')}
           </h4>
           {n.timing
-            .filter((t) => t.verdict !== 'sin-datos')
+            .filter((x) => x.verdict !== 'sin-datos')
             .slice(0, 6)
-            .map((t) => (
-              <p key={t.newsId} className="text-[12px] leading-relaxed text-(--ink-soft)">
-                <span className="text-(--ink-body)">{t.playerName}</span>:{' '}
-                <span className={VERDICT[t.verdict]?.tone}>{VERDICT[t.verdict]?.text}</span>
-                {t.minutesToMove != null && ` (${t.minutesToMove} min)`}
+            .map((x) => (
+              <p key={x.newsId} className="text-[12px] leading-relaxed text-(--ink-soft)">
+                <span className="text-(--ink-body)">{x.playerName}</span>:{' '}
+                <span className={VERDICT[x.verdict]?.tone}>{VERDICT[x.verdict] ? t(VERDICT[x.verdict].text) : undefined}</span>
+                {x.minutesToMove != null && ` (${x.minutesToMove} min)`}
               </p>
             ))}
           <p className="mt-1 text-[12px] leading-relaxed text-(--ink-muted)">
-            Que el precio se mueva después de una noticia no demuestra que se moviera{' '}
-            <span className="text-(--ink-soft)">por</span> ella. Lo que sí dice el orden es si llegaste
-            antes o después que el mercado — y lo normal es después.
+            {conNodos(t('np.timingNota'), { por: <span className="text-(--ink-soft)">{t('np.por')}</span> })}
           </p>
         </div>
       )}

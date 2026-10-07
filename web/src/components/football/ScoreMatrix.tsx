@@ -1,6 +1,7 @@
 import type { FbGoalMargin, FbPrediction } from '../../lib/football';
 import { AWAY_COLOR, DRAW_COLOR, HOME_COLOR, inkOn, withAlpha } from '../../lib/theme';
 import { Panel, SectionTitle } from '../ui';
+import { useI18n } from '../../i18n';
 
 /**
  * The full exact-score grid.
@@ -18,6 +19,7 @@ import { Panel, SectionTitle } from '../ui';
  * the matrix cannot drift from the numbers printed above it.
  */
 export default function ScoreMatrix({ prediction }: { prediction: FbPrediction }) {
+  const { t } = useI18n();
   const { grid, margins } = prediction.goals;
   const home = prediction.teams.home;
   const away = prediction.teams.away;
@@ -36,8 +38,8 @@ export default function ScoreMatrix({ prediction }: { prediction: FbPrediction }
 
   return (
     <Panel>
-      <SectionTitle right={`filas = ${home.name} · columnas = ${away.name}`}>
-        Probabilidad de cada marcador
+      <SectionTitle right={t('sm.ejes', { local: home.name, visitante: away.name })}>
+        {t('det.probMarcador')}
       </SectionTitle>
 
       <div className="-mx-1 overflow-x-auto px-1">
@@ -110,11 +112,12 @@ function Cell({
 }
 
 function Legend({ prediction, tail }: { prediction: FbPrediction; tail: number }) {
+  const { t } = useI18n();
   const { model } = prediction;
   const items = [
-    { label: `Gana ${prediction.teams.home.name}`, value: model.home, color: HOME_COLOR },
-    { label: 'Empate', value: model.draw, color: DRAW_COLOR },
-    { label: `Gana ${prediction.teams.away.name}`, value: model.away, color: AWAY_COLOR },
+    { label: t('pm.gana', { nombre: prediction.teams.home.name }), value: model.home, color: HOME_COLOR },
+    { label: t('fbc.empateBarra'), value: model.draw, color: DRAW_COLOR },
+    { label: t('pm.gana', { nombre: prediction.teams.away.name }), value: model.away, color: AWAY_COLOR },
   ];
   return (
     <>
@@ -133,9 +136,9 @@ function Legend({ prediction, tail }: { prediction: FbPrediction; tail: number }
         ))}
       </div>
       <p className="mt-1.5 text-[13px] text-(--ink-muted)">
-        Cada bloque de color suma exactamente la probabilidad de ese resultado.
+        {t('sm.sumaBloque')}
         {tail > 0.0005 && (
-          <> Marcadores con más de {prediction.goals.grid.maxGoals} goles por equipo: {(tail * 100).toFixed(2)}%.</>
+          <> {t('sm.cola', { n: prediction.goals.grid.maxGoals, p: (tail * 100).toFixed(2) })}</>
         )}
       </p>
     </>
@@ -155,12 +158,13 @@ function Margins({
   homeName: string;
   awayName: string;
 }) {
+  const { t } = useI18n();
   const peak = Math.max(...margins.map((m) => m.probability));
   const edge = Math.max(...margins.map((m) => Math.abs(m.margin)));
   return (
     <div className="mt-3 border-t border-(--line) pt-2">
       <div className="mb-1.5 text-[14px] uppercase tracking-wide text-(--ink-muted)">
-        Diferencia de goles
+        {t('sm.diferenciaGoles')}
       </div>
       <div className="space-y-0.5">
         {margins.map((m) => {
@@ -168,8 +172,8 @@ function Margins({
           const atEdge = Math.abs(m.margin) === edge;
           const label =
             m.margin === 0
-              ? 'empate'
-              : `${m.margin > 0 ? homeName : awayName} por ${Math.abs(m.margin)}${atEdge ? '+' : ''}`;
+              ? t('fbc.empateValue')
+              : t('sm.porMargen', { equipo: m.margin > 0 ? homeName : awayName, n: `${Math.abs(m.margin)}${atEdge ? '+' : ''}` });
           return (
             <div key={m.margin} className="flex items-center gap-2 text-[13px]">
               {/* The outermost rows absorb everything beyond them, so they are
