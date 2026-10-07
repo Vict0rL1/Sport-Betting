@@ -20,6 +20,8 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Panel, SectionTitle, Disclosure } from './ui';
+import LivePuntoAPunto, { type UltimoJuego } from './LivePuntoAPunto';
+import { useFeature } from '../lib/features';
 
 interface Situation {
   kind: string;
@@ -100,6 +102,8 @@ export default function LivePanel({
     [0, 0],
   ]);
   const [odds, setOdds] = useState<[string, string]>(['', '']);
+  const [ultimo, setUltimo] = useState<UltimoJuego | null>(null);
+  const puntoAPunto = useFeature('tenis.enVivo');
   const [data, setData] = useState<LiveResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -119,6 +123,7 @@ export default function LivePanel({
           { won: tally[1][0], played: tally[1][1] },
         ],
         odds: o1 > 1 && o2 > 1 ? [o1, o2] : null,
+        lastGame: ultimo ?? undefined,
       }),
     })
       .then(async (r) => {
@@ -134,7 +139,7 @@ export default function LivePanel({
         setError(String(e instanceof Error ? e.message : e));
         setData(null);
       });
-  }, [tour, p1, p2, sets, games, points, server, bestOf, tally, odds]);
+  }, [tour, p1, p2, sets, games, points, server, bestOf, tally, odds, ultimo]);
 
   useEffect(load, [load]);
 
@@ -143,6 +148,24 @@ export default function LivePanel({
   return (
     <Panel className="mb-4">
       <SectionTitle right={`al mejor de ${bestOf}`}>Motor en vivo</SectionTitle>
+
+      {puntoAPunto && (
+        <LivePuntoAPunto
+          marcador={{ sets, games, points, server }}
+          recuento={tally}
+          ultimo={ultimo}
+          bestOf={bestOf}
+          names={names}
+          onCambio={(m, r, u) => {
+            setSets(m.sets);
+            setGames(m.games);
+            setPoints(m.points);
+            setServer(m.server);
+            setTally(r);
+            setUltimo(u);
+          }}
+        />
+      )}
 
       {/* ---- El marcador ---- */}
       <div className="flex flex-wrap items-end gap-3">

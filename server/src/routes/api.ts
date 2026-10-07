@@ -1,6 +1,7 @@
 // All REST endpoints. Kept in one place for readability; each handler is thin
 // and delegates to repo (DB reads) and model (predict).
 
+import { featureEncendida } from '../features.ts';
 import { validacionEnVivo } from '../evaluation/validation.ts';
 import { evaluacionEnVivo } from '../evaluation/live.ts';
 import { rendimientoEnVivo } from '../evaluation/betting.ts';
@@ -60,7 +61,7 @@ import { partidosDeHoy, historialReciente, VENTANAS } from '../today.ts';
 import { mejoresPartidos, HORIZONTES } from '../picks/top.ts';
 import { evaluate } from '../live/engine.ts';
 import { matchupServe } from '../live/serve.ts';
-import { describe as describeState, type LiveState } from '../live/state.ts';
+import { describe as describeState, advancePoint, validate as validarMarcador, type LiveState } from '../live/state.ts';
 import { predictFromPoints } from '../points/predict.ts';
 import { modelForServing } from '../points/repo.ts';
 import type { Surface as PointsSurface } from '../points/fit.ts';
@@ -377,6 +378,18 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
         stale: model.ageDays > 30,
       },
     };
+  });
+
+  // Tenis en vivo punto a punto (Fase 8.4): el marcador avanza con la regla del servidor, la misma
+  // que usa el motor, para que la pantalla no tenga su propia copia de cómo se cuenta un tiebreak.
+  app.post<{ Body: { state?: LiveState; winner?: number } }>('/live/avanzar', async (req, reply) => {
+    if (!featureEncendida('tenis.enVivo')) return reply.code(404).send({ error: 'apagado (features.json: tenis.enVivo)' });
+    const b = req.body ?? {};
+    if (!b.state || (b.winner !== 1 && b.winner !== 2)) return reply.code(400).send({ error: 'pasa `state` (el marcador) y `winner` (1 o 2)' });
+    const invalido = validarMarcador(b.state);
+    if (invalido.length) return reply.code(400).send({ error: invalido.map((i) => i.reason).join(' · ') });
+    const r = advancePoint(b.state, b.winner);
+    return 'done' in r ? { terminado: true, ganador: r.done, state: null } : { terminado: false, ganador: null, state: r };
   });
 
   app.post<{
