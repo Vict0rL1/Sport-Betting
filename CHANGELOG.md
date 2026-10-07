@@ -19,6 +19,8 @@ Lo que las fases dejaron anotado y se arregla sin decisiones nuevas de política
   el alta (el trigger se rehace; las filas existentes quedan intactas, con NULL, y cuentan solo con
   su partido). Límites: el tope por partido de la estrategia y los de equipo y jugador de la
   política vigente, sobre su banco.
+- **CI fijada a `ubuntu-24.04`** en los tres workflows: `ubuntu-latest` pasa a Ubuntu 26 el 19 de
+  octubre de 2026. Las acciones siguen en su versión (GitHub ya las corre con Node 24).
 
 ## Resumen de la hoja de ruta: antes y después
 

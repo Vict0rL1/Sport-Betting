@@ -1,5 +1,7 @@
 # Integración continua (Fase 3.10): secretos, calidad, datos y humo de punta a punta en cada
 # push y PR. Los backtests nocturnos van en nightly.yml.
+# Máquinas fijadas a ubuntu-24.04: `ubuntu-latest` pasa a Ubuntu 26 desde el 19 de octubre de 2026
+# y `playwright install --with-deps` no tiene por qué soportarlo el primer día. Se sube a mano.
 name: CI
 
 on:
@@ -12,7 +14,7 @@ permissions:
 jobs:
   secretos:
     name: Secretos
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,7 +32,7 @@ jobs:
 
   calidad:
     name: Lint, tipos, tests y build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -52,7 +54,7 @@ jobs:
 
   datos:
     name: verify:data sobre la base publicada
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: calidad
     steps:
       - uses: actions/checkout@v4
@@ -74,7 +76,7 @@ jobs:
 
   e2e:
     name: Humo con Playwright
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: calidad
     steps:
       - uses: actions/checkout@v4
