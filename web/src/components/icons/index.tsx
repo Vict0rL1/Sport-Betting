@@ -119,7 +119,20 @@ export function ShieldCheckIcon(p: Props) {
   );
 }
 
+/** Estrella: los destacados. */
+export function StarIcon({ filled = false, ...p }: Props & { filled?: boolean }) {
+  return (
+    <Svg {...p}>
+      <path
+        d="M12 3.2l2.62 5.3 5.85.85-4.23 4.12 1 5.83L12 16.55l-5.24 2.75 1-5.83L3.53 9.35l5.85-.85Z"
+        fill={filled ? 'currentColor' : 'none'}
+      />
+    </Svg>
+  );
+}
+
 const POR_DEPORTE: Record<SportId, (p: Props) => ReactNode> = {
+  picks: StarIcon,
   football: FootballIcon,
   basketball: BasketballIcon,
   baseball: BaseballIcon,

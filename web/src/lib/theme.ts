@@ -134,7 +134,7 @@ export const RELIABILITY_STYLE: Record<'high' | 'medium' | 'low', string> = {
 // ---------------------------------------------------------------------------
 // 'bets' rides in this union because it is a TAB, and the tab bar is typed by it.
 // It is not a sport: nothing under it has a model, a league or a prediction.
-export type SportId = 'football' | 'basketball' | 'baseball' | 'nfl' | 'tennis' | 'bets' | 'trust';
+export type SportId = 'picks' | 'football' | 'basketball' | 'baseball' | 'nfl' | 'tennis' | 'bets' | 'trust';
 
 export interface SportTheme {
   id: SportId;
@@ -153,6 +153,8 @@ export interface SportTheme {
 }
 
 export const SPORT_THEMES: Record<SportId, SportTheme> = {
+  // Dorado: la pestaña que cruza todos los deportes no es ninguno de ellos.
+  picks: { id: 'picks', label: 'Destacados', accent: '#f5b544', accentSoft: 'rgba(245,181,68,0.12)' },
   football: { id: 'football', label: 'Fútbol', accent: '#4ade80', accentSoft: 'rgba(74,222,128,0.12)' },
   basketball: { id: 'basketball', label: 'Baloncesto', shortLabel: 'Basket', accent: '#fb923c', accentSoft: 'rgba(251,146,60,0.12)' },
   baseball: { id: 'baseball', label: 'Béisbol', accent: '#facc15', accentSoft: 'rgba(250,204,21,0.12)' },

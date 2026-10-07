@@ -50,6 +50,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { ROOT } from '../config.ts';
 import { partidosDeHoy, historialReciente, VENTANAS } from '../today.ts';
+import { mejoresPartidos, HORIZONTES } from '../picks/top.ts';
 import { evaluate } from '../live/engine.ts';
 import { matchupServe } from '../live/serve.ts';
 import { describe as describeState, type LiveState } from '../live/state.ts';
@@ -503,6 +504,13 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       ultimaObservacion: obs.ultima,
       selecciones,
     };
+  });
+
+  // --- los partidos que vienen, de todos los deportes, por confianza y probabilidad ---
+  app.get<{ Querystring: { horas?: string } }>('/top-picks', async (req) => {
+    const pedido = Number(req.query.horas);
+    const horas = (HORIZONTES as readonly number[]).includes(pedido) ? pedido : HORIZONTES[1];
+    return { horizontes: HORIZONTES, ...mejoresPartidos(new Date(), horas) };
   });
 
   // --- ¿acertó? Los partidos de los últimos días: registro en vivo + reconstruidos ---

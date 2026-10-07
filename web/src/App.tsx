@@ -6,6 +6,7 @@ import BaseballDashboard from './components/baseball/BaseballDashboard';
 import NflDashboard from './components/nfl/NflDashboard';
 import BetsDashboard from './components/bets/BetsDashboard';
 import SystemTrust from './components/trust/SystemTrust';
+import TopPicks from './components/picks/TopPicks';
 import { SPORT_THEMES, type SportId } from './lib/theme';
 import TodayPanel from './components/TodayPanel';
 import { AppMark, SportIcon } from './components/icons';
@@ -31,7 +32,7 @@ import { AppMark, SportIcon } from './components/icons';
  * The choice is remembered in localStorage: reopening the app on the tab you were
  * last using is the behaviour anyone expects from a tab bar.
  */
-const SPORTS: SportId[] = ['football', 'basketball', 'baseball', 'nfl', 'tennis', 'bets', 'trust'];
+const SPORTS: SportId[] = ['picks', 'football', 'basketball', 'baseball', 'nfl', 'tennis', 'bets', 'trust'];
 
 const STORAGE_KEY = 'predictor.sport';
 
@@ -189,6 +190,7 @@ export default function App() {
           <TodayPanel />
 
           {sport === 'bets' && <BetsDashboard />}
+          {sport === 'picks' && <TopPicks />}
           {sport === 'trust' && <SystemTrust />}
           {sport === 'football' && <FootballDashboard />}
           {sport === 'basketball' && <BasketballDashboard />}

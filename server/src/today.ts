@@ -54,7 +54,7 @@ export interface PartidoDeHoy {
   empezado: boolean;
 }
 
-interface Fuente {
+export interface Fuente {
   deporte: PartidoDeHoy['deporte'];
   log: string;
   up: string;
@@ -78,16 +78,16 @@ interface Fuente {
 }
 
 /** La probabilidad a puntuar: la enseñada si existe, la cruda si no. */
-function probSql(f: Fuente, alias = ''): string {
+export function probSql(f: Fuente, alias = ''): string {
   return f.mostrado ? `COALESCE(${alias}${f.mostrado}, ${alias}${f.prob})` : `${alias}${f.prob}`;
 }
-function empateSql(f: Fuente, alias = ''): string {
+export function empateSql(f: Fuente, alias = ''): string {
   return f.mostradoEmpate
     ? `COALESCE(${alias}${f.mostradoEmpate}, ${alias}${f.empate})`
     : `${alias}${f.empate}`;
 }
 
-const FUENTES: Fuente[] = [
+export const FUENTES: Fuente[] = [
   { deporte: 'Fútbol', log: 'fb_prediction_log', up: 'fb_upcoming', clave: 'match_key', casa: 'home_name', fuera: 'away_name', prob: 'prob_home', precio: 'odds_home', resuelto: 'resolved_at', empate: 'prob_draw', mostrado: 'shown_home', mostradoEmpate: 'shown_draw' },
   { deporte: 'Baloncesto', log: 'bb_prediction_log', up: 'bb_upcoming', clave: 'game_key', casa: 'home_name', fuera: 'away_name', prob: 'prob_home', precio: 'home_odds', resuelto: 'home_pts' },
   { deporte: 'Béisbol', log: 'bsb_prediction_log', up: 'bsb_upcoming', clave: 'match_key', casa: 'home_name', fuera: 'away_name', prob: 'prob_home', precio: 'odds_home', resuelto: 'resolved_at' },
