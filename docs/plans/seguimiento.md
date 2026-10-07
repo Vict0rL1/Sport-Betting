@@ -37,6 +37,21 @@ partido de las 21:00 sigue dentro a la 01:00 y queda fuera a las 06:00 sin que n
 podido quitarlo. La regla exacta, en `freshness.ts` (`sobrevivioARefresco`, con test): la fila
 cuenta como fallo solo si ya estaba fuera de la ventana cuando se hizo el último refresco.
 
+## 5. Toda la interfaz en el catálogo
+
+La Fase 5 pasó al catálogo el armazón y las páginas nuevas, y dejó las tarjetas de cada deporte
+«para extraer al tocarlas»: 22 de 99 componentes usaban `t()`. La hoja de ruta pedía todo el texto.
+Se extrae por lotes (en vivo; navegación, estado y confianza; apuestas; tenis; deportes de equipo;
+piezas comunes), con el español **idéntico** —las pruebas en español no cambian— y un test de
+Playwright en inglés que crece con cada lote (`web/e2e/idioma.spec.ts`).
+
+- `conNodos(texto, nodos)` (`web/src/i18n`): una frase entera del catálogo con negritas o términos
+  dentro, en el orden de cada lengua, en vez de partirla en trozos intraducibles.
+- `codigo(t, c)`: los códigos del servidor (ALTA, BAJO, NO BET, SIN MERCADO…) en el idioma de la
+  pantalla.
+- **No se traduce** lo que escribe el servidor (razones, notas, descripciones del motor): llega en
+  español. Traducirlo exigiría que la API hablara dos idiomas; queda anotado.
+
 ## Fuera
 
 - Apostar a la mejor línea en vez de al consenso: es política, no un fallo.

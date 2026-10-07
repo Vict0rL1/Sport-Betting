@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { STATUS } from '../../lib/theme';
 import { StatusMark } from '../icons';
+import { useI18n, type Clave, type Traducir } from '../../i18n';
 
 interface Estado {
   generado: string;
@@ -16,17 +17,18 @@ interface Estado {
   trabajosConError: number;
 }
 
-const NOMBRE: Record<string, string> = { tennis: 'Tenis', football: 'Fútbol', basketball: 'Baloncesto', baseball: 'Béisbol', nfl: 'NFL' };
+const DEPORTES = new Set(['tennis', 'football', 'basketball', 'baseball', 'nfl']);
+const nombreDe = (t: Traducir, sport: string) => (DEPORTES.has(sport) ? t(`deporte.${sport}` as Clave) : sport);
 
-function hace(iso: string | null): string {
-  if (!iso) return 'nunca';
+function hace(t: Traducir, iso: string | null): string {
+  if (!iso) return t('estado.nunca');
   const min = Math.round((Date.now() - Date.parse(iso)) / 60_000);
-  if (!Number.isFinite(min)) return 'desconocido';
-  if (min < 1) return 'ahora mismo';
-  if (min < 60) return `hace ${min} min`;
+  if (!Number.isFinite(min)) return t('estado.desconocido');
+  if (min < 1) return t('estado.ahoraMismo');
+  if (min < 60) return t('estado.haceMin', { n: min });
   const h = Math.round(min / 60);
-  if (h < 48) return `hace ${h} h`;
-  return `hace ${Math.round(h / 24)} días`;
+  if (h < 48) return t('estado.haceH', { n: h });
+  return t('estado.haceDias', { n: Math.round(h / 24) });
 }
 
 function diasDesde(iso: string | null): number | null {
@@ -55,43 +57,53 @@ export function useEstadoGlobal(): Estado | null {
 }
 
 /** El resumen de una palabra y su color: lo peor que haya manda. */
-export function resumenEstado(e: Estado): { texto: string; color: string; nivel: 'ok' | 'aviso' | 'error' } {
+export function resumenEstado(e: Estado, t: Traducir): { texto: string; color: string; nivel: 'ok' | 'aviso' | 'error' } {
   const viejo = e.deportes.some((d) => (diasDesde(d.datosHasta) ?? 0) > 7 && d.proximos > 0);
-  if (e.trabajosConError > 0 || e.cuotas.error) return { texto: e.cuotas.modo === 'demo' ? 'Demo · con errores' : 'Con errores', color: STATUS.critical, nivel: 'error' };
-  if (e.cuotas.modo === 'demo') return { texto: 'Modo demo', color: STATUS.warning, nivel: 'aviso' };
-  if (viejo || (e.cuotas.restantes != null && e.cuotas.restantes < 50)) return { texto: 'Cuotas reales · atención', color: STATUS.warning, nivel: 'aviso' };
-  return { texto: 'Cuotas reales', color: STATUS.good, nivel: 'ok' };
+  if (e.trabajosConError > 0 || e.cuotas.error) return { texto: e.cuotas.modo === 'demo' ? t('estado.demoErrores') : t('estado.conErrores'), color: STATUS.critical, nivel: 'error' };
+  if (e.cuotas.modo === 'demo') return { texto: t('estado.demo'), color: STATUS.warning, nivel: 'aviso' };
+  if (viejo || (e.cuotas.restantes != null && e.cuotas.restantes < 50)) return { texto: t('estado.realAtencion'), color: STATUS.warning, nivel: 'aviso' };
+  return { texto: t('estado.real'), color: STATUS.good, nivel: 'ok' };
 }
 
 export default function StatusPill({ compacto = false }: { compacto?: boolean }) {
   const e = useEstadoGlobal();
   const [abierto, setAbierto] = useState(false);
+  const { t, idioma } = useI18n();
   if (!e) return null;
-  const r = resumenEstado(e);
+  const r = resumenEstado(e, t);
+  const loc = idioma === 'en' ? 'en-GB' : 'es';
   return (
     <div className="relative">
       <button
         onClick={() => setAbierto((o) => !o)}
         aria-expanded={abierto}
-        aria-label={`Estado: ${r.texto}`}
+        aria-label={t('estado.aria', { texto: r.texto })}
         data-testid="status-pill"
         className="inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium text-(--ink-body) transition hover:bg-(--raised)"
         style={{ borderColor: `${r.color}66` }}
       >
         <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: r.color }} />
         <span className={compacto ? 'sr-only sm:not-sr-only' : ''}>{r.texto}</span>
-        {!compacto && e.cuotas.restantes != null && <span className="text-(--ink-muted)">· {e.cuotas.restantes} peticiones</span>}
+        {!compacto && e.cuotas.restantes != null && <span className="text-(--ink-muted)">{t('estado.peticiones', { n: e.cuotas.restantes })}</span>}
       </button>
       {abierto && (
-        <div role="dialog" aria-label="Estado de la app" className="absolute left-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-(--line) bg-(--surface-card) p-3 text-[12px] leading-relaxed text-(--ink-soft) shadow-xl">
+        <div role="dialog" aria-label={t('estado.dialogo')} className="absolute left-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-(--line) bg-(--surface-card) p-3 text-[12px] leading-relaxed text-(--ink-soft) shadow-xl">
           <p className="mb-1 font-semibold text-(--ink-strong)">
             <StatusMark estado={r.nivel === 'ok' ? 'ok' : r.nivel === 'aviso' ? 'aviso' : 'error'} color={r.color} />
             {r.texto}
           </p>
           <p>
             {e.cuotas.modo === 'demo'
-              ? 'Sin clave de The Odds API: las cuotas son de demostración (la probabilidad del modelo con un margen) y ninguna apuesta de papel se coloca sobre ellas.'
-              : `Cuotas reales de The Odds API${e.cuotas.restantes != null ? ` · ${e.cuotas.restantes}${e.cuotas.plan ? ` de ${e.cuotas.plan.toLocaleString('es')}` : ''} peticiones restantes este mes` : ''}${e.cuotas.ultimaConsulta ? ` · consultadas ${hace(e.cuotas.ultimaConsulta)}` : ''}.`}
+              ? t('estado.demoTexto')
+              : t('estado.realTexto', {
+                  restantes:
+                    e.cuotas.restantes == null
+                      ? ''
+                      : e.cuotas.plan
+                        ? t('estado.restantesDe', { n: e.cuotas.restantes, plan: e.cuotas.plan.toLocaleString(loc) })
+                        : t('estado.restantes', { n: e.cuotas.restantes }),
+                  consultadas: e.cuotas.ultimaConsulta ? t('estado.consultadas', { hace: hace(t, e.cuotas.ultimaConsulta) }) : '',
+                })}
             {e.cuotas.error && <span style={{ color: STATUS.critical }}> {e.cuotas.error}</span>}
           </p>
           <ul className="mt-2 space-y-0.5">
@@ -99,21 +111,22 @@ export default function StatusPill({ compacto = false }: { compacto?: boolean })
               const dias = diasDesde(d.datosHasta);
               return (
                 <li key={d.sport} className="flex justify-between gap-2">
-                  <span className="text-(--ink-body)">{NOMBRE[d.sport] ?? d.sport}</span>
+                  <span className="text-(--ink-body)">{nombreDe(t, d.sport)}</span>
                   <span className="text-right">
-                    {d.datosHasta ? `datos hasta ${new Date(d.datosHasta).toLocaleDateString('es')}${dias != null && dias > 7 ? ` (${dias} días)` : ''}` : 'sin archivo'} · {d.proximos} próximos
+                    {d.datosHasta ? `${t('estado.datosHasta', { fecha: new Date(d.datosHasta).toLocaleDateString(loc) })}${dias != null && dias > 7 ? t('estado.dias', { n: dias }) : ''}` : t('estado.sinArchivo')} · {t('estado.proximos', { n: d.proximos })}
                   </span>
                 </li>
               );
             })}
           </ul>
           <p className="mt-2">
-            Resultados: {e.resultados.ultima ? `${hace(e.resultados.ultima)}${e.resultados.estado && e.resultados.estado !== 'ok' ? ` (${e.resultados.estado})` : ''}` : 'sin pasada registrada'} · Copia del libro mayor: {hace(e.copia.ultima)}
-            {e.errores24h > 0 && ` · ${e.errores24h} error(es) del servidor en 24 h`}
-            {e.trabajosConError > 0 && ` · ${e.trabajosConError} trabajo(s) con error`}
+            {t('estado.resultados', { cuando: e.resultados.ultima ? `${hace(t, e.resultados.ultima)}${e.resultados.estado && e.resultados.estado !== 'ok' ? ` (${e.resultados.estado})` : ''}` : t('estado.sinPasada') })} ·{' '}
+            {t('estado.copia', { cuando: hace(t, e.copia.ultima) })}
+            {e.errores24h > 0 && t('estado.errores24h', { n: e.errores24h })}
+            {e.trabajosConError > 0 && t('estado.trabajosError', { n: e.trabajosConError })}
           </p>
           <a href="/confianza/diagnostico" className="mt-2 inline-block text-(--ink-body) underline-offset-2 hover:underline">
-            Ver diagnóstico
+            {t('estado.verDiagnostico')}
           </a>
         </div>
       )}

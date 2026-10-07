@@ -2,7 +2,7 @@
 // {var}; una clave sin traducción cae al español, nunca a la clave. El idioma sale de Ajustes
 // (servidor), si no del navegador, y se recuerda localmente.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, createElement, Fragment, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { es, type Clave } from './es';
 import { en } from './en';
 
@@ -63,6 +63,28 @@ export function formato(idioma: Idioma) {
     moneda: (n: number, moneda = 'EUR') => new Intl.NumberFormat(loc, { style: 'currency', currency: moneda }).format(n),
     fecha: (iso: string, opciones: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) => new Intl.DateTimeFormat(loc, opciones).format(new Date(iso)),
   };
+}
+
+/**
+ * Una frase traducida con elementos dentro (negritas, enlaces): las marcas `{nombre}` que tengan
+ * nodo se sustituyen por él y el resto del texto queda tal cual. Así la frase entera vive en el
+ * catálogo, en su orden de cada lengua, y no partida en trozos que no se pueden traducir.
+ */
+export function conNodos(texto: string, nodos: Record<string, ReactNode>): ReactNode[] {
+  return texto.split(/(\{\w+\})/).map((trozo, i) => {
+    const m = /^\{(\w+)\}$/.exec(trozo);
+    // Sin JSX a propósito: los tests de la web cargan este módulo sin la configuración de JSX.
+    return m && m[1] in nodos ? createElement(Fragment, { key: i }, nodos[m[1]]) : trozo;
+  });
+}
+
+/**
+ * Los códigos que manda el servidor (ALTA, BAJO, NO BET, SIN MERCADO…) en el idioma de la pantalla.
+ * Un código sin entrada en el catálogo se enseña tal cual: nunca la clave.
+ */
+export function codigo(t: Traducir, c: string): string {
+  const k = `codigo.${c}`;
+  return k in es ? t(k as Clave) : c;
 }
 
 export type { Clave };

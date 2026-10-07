@@ -22,6 +22,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Panel, SectionTitle, Disclosure } from './ui';
 import LivePuntoAPunto, { type UltimoJuego } from './LivePuntoAPunto';
 import { useFeature } from '../lib/features';
+import { conNodos, useI18n } from '../i18n';
 
 interface Situation {
   kind: string;
@@ -106,6 +107,7 @@ export default function LivePanel({
   const puntoAPunto = useFeature('tenis.enVivo');
   const [data, setData] = useState<LiveResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useI18n();
 
   const load = useCallback(() => {
     const o1 = Number(odds[0]);
@@ -147,7 +149,7 @@ export default function LivePanel({
 
   return (
     <Panel className="mb-4">
-      <SectionTitle right={`al mejor de ${bestOf}`}>Motor en vivo</SectionTitle>
+      <SectionTitle right={t('vivo.alMejorDe', { n: bestOf })}>{t('vivo.titulo')}</SectionTitle>
 
       {puntoAPunto && (
         <LivePuntoAPunto
@@ -169,16 +171,16 @@ export default function LivePanel({
 
       {/* ---- El marcador ---- */}
       <div className="flex flex-wrap items-end gap-3">
-        <Num label="Sets 1" value={sets[0]} max={2} onChange={(n) => setSets([n, sets[1]])} />
-        <Num label="Sets 2" value={sets[1]} max={2} onChange={(n) => setSets([sets[0], n])} />
+        <Num label={t('vivo.sets1')} value={sets[0]} max={2} onChange={(n) => setSets([n, sets[1]])} />
+        <Num label={t('vivo.sets2')} value={sets[1]} max={2} onChange={(n) => setSets([sets[0], n])} />
         <span className="pb-1 text-(--ink-faint)">·</span>
-        <Num label="Juegos 1" value={games[0]} max={7} onChange={(n) => setGames([n, games[1]])} />
-        <Num label="Juegos 2" value={games[1]} max={7} onChange={(n) => setGames([games[0], n])} />
+        <Num label={t('vivo.juegos1')} value={games[0]} max={7} onChange={(n) => setGames([n, games[1]])} />
+        <Num label={t('vivo.juegos2')} value={games[1]} max={7} onChange={(n) => setGames([games[0], n])} />
         <span className="pb-1 text-(--ink-faint)">·</span>
-        <Num label="Pts saque" value={points[0]} max={8} onChange={(n) => setPoints([n, points[1]])} />
-        <Num label="Pts resto" value={points[1]} max={8} onChange={(n) => setPoints([points[0], n])} />
+        <Num label={t('vivo.ptsSaque')} value={points[0]} max={8} onChange={(n) => setPoints([n, points[1]])} />
+        <Num label={t('vivo.ptsResto')} value={points[1]} max={8} onChange={(n) => setPoints([points[0], n])} />
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-[0.06em] text-(--ink-muted)">Saca</span>
+          <span className="text-[11px] uppercase tracking-[0.06em] text-(--ink-muted)">{t('vivo.saca')}</span>
           <select
             value={server}
             onChange={(e) => setServer(Number(e.target.value) as 1 | 2)}
@@ -190,9 +192,9 @@ export default function LivePanel({
         </label>
       </div>
       <p className="mt-1.5 text-[12px] text-(--ink-faint)">
-        Los puntos van del <strong className="text-(--ink-muted)">sacador</strong> primero:{' '}
-        {points.map((p, i) => `${PT[Math.min(p, 4)]}${i === 0 ? '-' : ''}`).join('')} — 4 o más es
-        ventaja.
+        {conNodos(t('vivo.puntosOrden', { marcador: points.map((p, i) => `${PT[Math.min(p, 4)]}${i === 0 ? '-' : ''}`).join('') }), {
+          sacador: <strong className="text-(--ink-muted)">{t('vivo.sacador')}</strong>,
+        })}
       </p>
 
       {error ? (
@@ -204,29 +206,29 @@ export default function LivePanel({
           <p className="mt-3 text-[13px] text-(--ink-muted)">{data.describe}</p>
 
           <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
-            <Figure label={`${names[0]} — base`} value={pct(data.base)} hint="con el saque de la carrera" />
+            <Figure label={t('vivo.base', { nombre: names[0] })} value={pct(data.base)} hint={t('vivo.baseNota')} />
             <Figure
-              label={`${names[0]} — viva`}
+              label={t('vivo.viva', { nombre: names[0] })}
               value={pct(data.live)}
               hint={
                 Math.abs(data.live - data.base) < 0.005
-                  ? 'la actualización no la mueve'
-                  : `${data.live > data.base ? '+' : ''}${((data.live - data.base) * 100).toFixed(1)} pp por el saque de hoy`
+                  ? t('vivo.sinMovimiento')
+                  : t('vivo.porSaqueHoy', { dif: `${data.live > data.base ? '+' : ''}${((data.live - data.base) * 100).toFixed(1)}` })
               }
             />
             <Figure
-              label="Vale este punto"
+              label={t('vivo.valePunto')}
               value={`${data.leverage.swingPp.toFixed(1)} pp`}
-              hint={`${pct(data.leverage.ifWins1)} si lo gana · ${pct(data.leverage.ifWins2)} si no`}
+              hint={t('vivo.siLoGana', { si: pct(data.leverage.ifWins1), no: pct(data.leverage.ifWins2) })}
             />
             {data.market ? (
               <Figure
-                label="Mercado"
+                label={t('vivo.mercado')}
                 value={pct(data.market.fair[0])}
-                hint={`modelo ${data.market.edgePp > 0 ? '+' : ''}${data.market.edgePp.toFixed(1)} pp`}
+                hint={t('vivo.modeloDif', { dif: `${data.market.edgePp > 0 ? '+' : ''}${data.market.edgePp.toFixed(1)}` })}
               />
             ) : (
-              <Figure label="Mercado" value="—" hint="pon las cuotas en vivo abajo" />
+              <Figure label={t('vivo.mercado')} value="—" hint={t('vivo.ponCuotas')} />
             )}
           </div>
 
@@ -265,34 +267,32 @@ export default function LivePanel({
 
       {/* ---- Lo que va del partido y las cuotas ---- */}
       <div className="mt-3 border-t border-(--line) pt-3">
-        <Disclosure summary="Puntos al saque de hoy y cuotas en vivo">
+        <Disclosure summary={t('vivo.desplegable')}>
           <div className="space-y-3">
             <p className="text-[13px] leading-relaxed text-(--ink-muted)">
-              Cuántos puntos lleva ganados cada uno <em>con su saque</em> en este partido. Es lo
-              que alimenta la actualización bayesiana: con κ = 63 puntos medidos, 40 puntos pesan
-              un 39 % frente a la media de su carrera.
+              {conNodos(t('vivo.explicaSaque'), { conSuSaque: <em>{t('vivo.conSuSaque')}</em> })}
             </p>
             {[0, 1].map((i) => (
               <div key={i} className="flex flex-wrap items-end gap-3">
                 <span className="w-28 shrink-0 pb-1 text-[13px] text-(--ink-body)">{names[i]}</span>
                 <Num
-                  label="ganados"
+                  label={t('vivo.ganados')}
                   value={tally[i][0]}
                   max={300}
                   onChange={(n) => {
-                    const t = [...tally] as typeof tally;
-                    t[i] = [n, t[i][1]];
-                    setTally(t);
+                    const nuevo = [...tally] as typeof tally;
+                    nuevo[i] = [n, nuevo[i][1]];
+                    setTally(nuevo);
                   }}
                 />
                 <Num
-                  label="servidos"
+                  label={t('vivo.servidos')}
                   value={tally[i][1]}
                   max={300}
                   onChange={(n) => {
-                    const t = [...tally] as typeof tally;
-                    t[i] = [t[i][0], n];
-                    setTally(t);
+                    const nuevo = [...tally] as typeof tally;
+                    nuevo[i] = [nuevo[i][0], n];
+                    setTally(nuevo);
                   }}
                 />
                 {data && (
@@ -301,15 +301,13 @@ export default function LivePanel({
                     <span className="text-(--ink-strong)">
                       {pct((i === 0 ? data.serve.update1 : data.serve.update2).posterior)}
                     </span>{' '}
-                    (peso hoy{' '}
-                    {((i === 0 ? data.serve.update1 : data.serve.update2).weight * 100).toFixed(0)}{' '}
-                    %)
+                    {t('vivo.pesoHoy', { peso: ((i === 0 ? data.serve.update1 : data.serve.update2).weight * 100).toFixed(0) })}
                   </span>
                 )}
               </div>
             ))}
             <div className="flex flex-wrap items-end gap-3">
-              <span className="w-28 shrink-0 pb-1 text-[13px] text-(--ink-body)">Cuotas en vivo</span>
+              <span className="w-28 shrink-0 pb-1 text-[13px] text-(--ink-body)">{t('vivo.cuotasVivo')}</span>
               {[0, 1].map((i) => (
                 <label key={i} className="flex flex-col gap-1">
                   <span className="text-[11px] uppercase tracking-[0.06em] text-(--ink-muted)">
@@ -331,10 +329,7 @@ export default function LivePanel({
               ))}
             </div>
             <p className="text-[13px] leading-relaxed text-(--ink-muted)">
-              Una discrepancia grande contra la cuota en vivo{' '}
-              <strong className="text-(--ink-soft)">no es una ventaja</strong>: el mercado ve cosas
-              que este modelo no puede ver —una lesión, un fisio en pista— y discrepa más justo
-              cuando tiene razón.
+              {conNodos(t('vivo.discrepancia'), { noVentaja: <strong className="text-(--ink-soft)">{t('vivo.noVentaja')}</strong> })}
             </p>
           </div>
         </Disclosure>
