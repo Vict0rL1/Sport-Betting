@@ -16,7 +16,7 @@ import { ingestRankings, ingestTour, preflight, tourConfigs } from '../ingest/sa
 import { recomputeRatings } from '../ingest/ratings.ts';
 import { refitAndSave } from '../points/repo.ts';
 import { refreshOdds } from '../ingest/odds.ts';
-import { ingestTennisData } from '../ingest/tennisData.ts';
+import { ingestTennisData, preflightTennisData } from '../ingest/tennisData.ts';
 import { getTrackRecord, resolvePredictions } from '../trackRecord.ts';
 import { conRegistro } from '../ingest/runs.ts';
 
@@ -108,10 +108,28 @@ async function main() {
   // Preflight: confirm we can reach the data source BEFORE wiping existing data.
   // Skipped when GitHub isn't being used, so a network that blocks it doesn't
   // stop an ingest that never needed it.
+  // Y, desde la Fase 2C, con las DOS fuentes: si GitHub no responde en modo auto se prueba
+  // tennis-data.co.uk, y si tampoco, se para AQUÍ, con la base intacta. Antes el borrado iba
+  // primero y una fuente caída dejaba el tenis vacío.
+  let gitHubOk = false;
   if (source !== 'tennis-data') {
     console.log('\n▸ Comprobando conexión con la fuente de datos (GitHub)…');
-    const found = await preflight(tours[0]);
-    console.log(`  OK — ${found} jugadores disponibles.`);
+    try {
+      const found = await preflight(tours[0]);
+      console.log(`  OK — ${found} jugadores disponibles.`);
+      gitHubOk = true;
+    } catch (e) {
+      if (source === 'tml') throw e;
+      console.warn(`  ⚠️  GitHub no responde (${(e as Error).message}). Se probará tennis-data.co.uk.`);
+    }
+  }
+  if (!gitHubOk) {
+    console.log('\n▸ Comprobando tennis-data.co.uk…');
+    const pf = await preflightTennisData(tours[0].id, toYear);
+    if (!pf.ok) {
+      throw new Error(`Ninguna fuente de tenis responde. ${pf.motivo} No se ha borrado nada: la base sigue como estaba.`);
+    }
+    console.log(`  OK — ${pf.fichero}`);
   }
 
   // Full rebuild keeps ratings correct and avoids duplicate matches.

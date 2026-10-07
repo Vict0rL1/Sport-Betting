@@ -161,6 +161,8 @@ export interface NflGameWithPrediction {
   marketOnly: NafMarket | null;
   teams: { home: NflTeamInfo | null; away: NflTeamInfo | null };
   linesFromMarket: boolean;
+  /** Clima del partido (Fase 2C), solo informativo. */
+  clima?: import('./clima').ClimaFicha | null;
 }
 
 export interface NflMeta {

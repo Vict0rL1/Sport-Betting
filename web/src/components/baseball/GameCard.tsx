@@ -7,6 +7,7 @@ import {
   type BsbSide,
 } from '../../lib/baseball';
 import { formatDate } from '../../lib/format';
+import { ClimaPanel } from '../ClimaPanel';
 import { AWAY_COLOR, HOME_COLOR, pct } from '../../lib/theme';
 import {
   Badge,
@@ -51,7 +52,8 @@ export default function GameCard({
   const [adjusted, setAdjusted] = useState<BsbPrediction | null>(null);
   const [adjusting, setAdjusting] = useState(false);
 
-  const { game, marketOnly, teams, startersAnnounced } = item;
+  const { game, marketOnly, teams, startersAnnounced, bullpen } = item;
+  const cansados = (bullpen?.home?.cansados.length ?? 0) + (bullpen?.away?.cansados.length ?? 0);
   const dirty = homeSp !== undefined || awaySp !== undefined;
 
   useEffect(() => {
@@ -88,9 +90,21 @@ export default function GameCard({
               abridores estimados
             </Badge>
           )}
+          {cansados > 0 && (
+            <Badge
+              tone="warning"
+              title={[bullpen?.home, bullpen?.away]
+                .flatMap((b) => b?.cansados ?? [])
+                .map((c) => `${c.nombre}: ${c.apariciones3d} salidas y ${c.lanzamientos3d} lanzamientos en 3 días`)
+                .join(' · ')}
+            >
+              bullpen cargado · {cansados}
+            </Badge>
+          )}
           {game.source === 'fixture' && <Badge tone="warning">partido demo</Badge>}
         </div>
       </div>
+      <ClimaPanel clima={item.clima} />
 
       {/* The result, when there is one. Above the forecast because once a game
           has been played the score is the headline and the prediction is

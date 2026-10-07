@@ -105,3 +105,22 @@ añadidas/actualizadas, error y detalle. Se registran los refrescos de cuotas po
 - La imagen Docker lleva `history.db` como semilla; `ledger.db` nace vacío en el disco
   persistente y a partir de ahí es tuyo. Un disco con el `tennis.db` antiguo se parte al
   arrancar.
+
+## Fuentes nuevas (Fase 2C)
+
+Todas detrás de un interruptor en `config/features.json` y todas con fila en `ingestion_runs`:
+
+| Interruptor | Qué | Dónde | Comando |
+|---|---|---|---|
+| `fuentes.cuotasHistoricas` | Pinnacle temprano y de cierre de football-data.co.uk (`ps_*`, `psc_*`, `odds_source` en `fb_matches`); «vs mercado» con Shin y CLV histórico en el backtest | historia | `npm run update-data:fb`, `npm run backtest:fb` |
+| `fuentes.clima` | Previsión (T-24h, T-6h, T-1h) y observación de Open-Meteo para NFL y MLB; coordenadas en `config/stadiums.json` | `weather_observations` (libro mayor, inmutable) | el servidor, cada 30 min |
+| `fuentes.bullpen` | Carga del bullpen MLB (boxscores de los últimos 3 días) | `bsb_bullpen` (historia) | `npm run bullpen`; el servidor, cada 12 h |
+| `fuentes.clubElo` | Elo de clubelo.com como baseline externo del walk-forward de fútbol | `fb_external_elo` (historia) | `npm run clubelo -- --desde 2019-08-01` |
+
+Ninguna de ellas cambia una probabilidad publicada: clima y bullpen son información de la ficha
+(`DESCONOCIDO` cuando falta), ClubElo es un baseline y las cuotas Pinnacle alimentan medidas del
+backtest. Lo que de aquí pase al modelo pasará por el registro de experimentos (Fase 4).
+
+**Lesiones**: se evaluaron las fuentes gratuitas (ESPN sin clave, informes oficiales de la NFL en
+PDF, el *injury report* de la NBA en PDF). Ninguna es estable y parseable sin una clave o sin
+leer PDF con formato cambiante, así que la señal se queda en `DESCONOCIDO` con ese motivo.

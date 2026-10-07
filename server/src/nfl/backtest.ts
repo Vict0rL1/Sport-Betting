@@ -350,7 +350,7 @@ function main(): void {
   console.log(`  Brier        ${(brier / n).toFixed(4)}`);
   // La capa común excluye los empates (el moneyline se devuelve), como la evaluación en
   // vivo; las cifras de arriba los cuentan como medio acierto. De ahí la diferencia mínima.
-  informeComun('nfl', comun);
+  informeComun('nfl', comun, console.log, true, 'nflverse (moneyline de cierre)');
   {
     const wf = walkForward('nfl', flujo);
     imprimirWalkForward(wf);

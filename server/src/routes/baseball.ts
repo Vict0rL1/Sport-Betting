@@ -32,6 +32,9 @@ import { evaluarParaServir } from '../trust/assess.ts';
 import type { BsbUpcomingRow } from '../baseball/types.ts';
 import { findGameResult, hasStarted } from '../results.ts';
 import { readCalibration } from '../staking/calibration.ts';
+import { climaDe } from '../weather/openMeteo.ts';
+import { cargaBullpen } from '../baseball/ingest/bullpen.ts';
+import { featureEncendida } from '../features.ts';
 
 function predictRow(
   row: BsbUpcomingRow,
@@ -106,6 +109,13 @@ function describeRow(
     },
     /** Whether the starters came from a probables feed or were guessed. */
     startersAnnounced: !!(row.home_sp && row.away_sp),
+    /** Clima (Fase 2C): previsión u observación de Open-Meteo, o DESCONOCIDO. Solo informativo. */
+    clima: featureEncendida('fuentes.clima') ? climaDe('baseball', row.league, row.id, row.home_id) : null,
+    /** Carga del bullpen de cada lado (MLB), de los boxscores de los últimos tres días. Solo informativo. */
+    bullpen:
+      featureEncendida('fuentes.bullpen') && row.league === 'mlb'
+        ? { home: row.home_id ? cargaBullpen('mlb', row.home_id) : null, away: row.away_id ? cargaBullpen('mlb', row.away_id) : null }
+        : null,
   };
 }
 

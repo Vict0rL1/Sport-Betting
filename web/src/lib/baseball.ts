@@ -116,6 +116,10 @@ export interface BsbGameWithPrediction {
   teams: { home: BsbTeamInfo | null; away: BsbTeamInfo | null };
   /** True when a probables feed named both starters, false when they were guessed. */
   startersAnnounced: boolean;
+  /** Clima del partido (Fase 2C), solo informativo. */
+  clima?: import('./clima').ClimaFicha | null;
+  /** Carga del bullpen de cada lado (MLB), solo informativo. */
+  bullpen?: { home: import('./clima').BullpenFicha | null; away: import('./clima').BullpenFicha | null } | null;
 }
 
 export interface BsbMeta {

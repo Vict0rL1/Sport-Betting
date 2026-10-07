@@ -12,6 +12,9 @@ import { SHADOW_SCHEMA } from './shadow/schema.ts';
 import { ALERTS_SCHEMA } from './alerts/schema.ts';
 import { EDGE_SIGNALS_SCHEMA, PAPER_BET_COLUMNS, PAPER_TRIGGERS, PREDICTION_LOG_TRIGGERS } from './paper/schema.ts';
 import { SESSIONS_SCHEMA } from './auth/sessions.ts';
+import { EXTERNAL_ELO_SCHEMA } from './football/ingest/clubelo.ts';
+import { BULLPEN_SCHEMA } from './baseball/ingest/bullpen.ts';
+import { WEATHER_SCHEMA } from './weather/schema.ts';
 import { ERROR_LOG_SCHEMA } from './security/errors.ts';
 import { HISTORY_DB_PATH, LAYOUT, LEDGER_DB_PATH, LEDGER_SCHEMA, LEGACY_DB_PATH, rutaPrincipal } from './db/layout.ts';
 import { ledgerize, masterDe } from './db/ledgerize.ts';
@@ -37,7 +40,7 @@ let db: DatabaseSync | null = null;
 
 /** Todo el esquema (tablas, índices y triggers de los ocho módulos), ya con los prefijos. */
 export function esquemaCompleto(schema: string = LEDGER_SCHEMA): string {
-  return [ESQUEMA_BASE, ODDS_SNAPSHOT_SCHEMA, EDGE_SIGNALS_SCHEMA, PREMATCH_SCHEMA, ASSESSMENT_SCHEMA, SHADOW_SCHEMA, ALERTS_SCHEMA, SESSIONS_SCHEMA, ERROR_LOG_SCHEMA, SETTINGS_SCHEMA, INGESTION_RUNS_SCHEMA]
+  return [ESQUEMA_BASE, ODDS_SNAPSHOT_SCHEMA, EDGE_SIGNALS_SCHEMA, PREMATCH_SCHEMA, ASSESSMENT_SCHEMA, SHADOW_SCHEMA, ALERTS_SCHEMA, SESSIONS_SCHEMA, ERROR_LOG_SCHEMA, SETTINGS_SCHEMA, INGESTION_RUNS_SCHEMA, EXTERNAL_ELO_SCHEMA, BULLPEN_SCHEMA, WEATHER_SCHEMA]
     .map((sql) => ledgerize(sql, schema))
     .join('\n');
 }
@@ -122,6 +125,19 @@ export const MIGRACIONES: Migracion[] = [
   { version: 3, nombre: 'settings', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(SETTINGS_SCHEMA, ctx.ledger)) },
   { version: 4, nombre: 'ingestion_runs', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(INGESTION_RUNS_SCHEMA, ctx.ledger)) },
   { version: 5, nombre: 'sessions-y-error_log', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(SESSIONS_SCHEMA + ERROR_LOG_SCHEMA, ctx.ledger)) },
+  // Fase 2C: columnas Pinnacle en fb_matches (addMissingColumns es idempotente), Elo externo,
+  // bullpen (historia) y observaciones de clima (libro mayor).
+  {
+    version: 6,
+    nombre: 'fuentes-2c',
+    destino: 'ambos',
+    up: (d, ctx) => {
+      addMissingColumns(d);
+      d.exec(ledgerize(EXTERNAL_ELO_SCHEMA, ctx.ledger));
+      d.exec(ledgerize(BULLPEN_SCHEMA, ctx.ledger));
+      d.exec(ledgerize(WEATHER_SCHEMA, ctx.ledger));
+    },
+  },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {
@@ -1081,6 +1097,16 @@ export function addMissingColumns(d: DatabaseSync): void {
       away_yellows: 'INTEGER',
       home_reds: 'INTEGER',
       away_reds: 'INTEGER',
+      // Fase 2C: de qué columna salieron odds_*, y Pinnacle temprano (PS) y de cierre (PSC)
+      // por separado, para el CLV histórico (football/clv.ts). Nulos salvo con
+      // football-data.co.uk, que es la única fuente que los publica.
+      odds_source: 'TEXT',
+      ps_home: 'REAL',
+      ps_draw: 'REAL',
+      ps_away: 'REAL',
+      psc_home: 'REAL',
+      psc_draw: 'REAL',
+      psc_away: 'REAL',
     },
     fb_players: {
       yellow_cards: 'INTEGER NOT NULL DEFAULT 0',

@@ -463,6 +463,21 @@ eso la liga tendría 39 equipos, varios con media historia cada uno.
 
 ---
 
+## Clima observado, sin tocar la predicción (Fase 2C)
+
+El archivo de nflverse trae viento y temperatura de los partidos **jugados**, y el modelo ya
+los usa en la repetición (ver arriba). Lo que no había era la previsión para los partidos **por
+jugar**. Desde la Fase 2C, `config/stadiums.json` tiene las coordenadas y el techo de los 32
+estadios y `weather/openMeteo.ts` pide a Open-Meteo (gratis, sin clave) la previsión a T-24h,
+T-6h y T-1h, y la observación real cuatro horas después del partido. Todo queda en
+`weather_observations` (inmutable, en el libro mayor) y se enseña en la ficha.
+
+**Deliberadamente, el viento previsto NO entra en la probabilidad publicada.** El modelo lo
+aceptaría (`conditionsTotalAdjustment`), pero cambiar lo que enseña la app fuera del registro
+de experimentos va contra la regla del proyecto. Con unas temporadas de previsiones guardadas se
+podrá medir si la previsión a T-1h se parece al viento observado y si mejora el total; hasta
+entonces es información, y cuando falta dice DESCONOCIDO.
+
 ## Lo que el modelo NO sabe
 
 - **Si cambia el quarterback esta semana.** El modelo ya sabe quién es el titular, pero

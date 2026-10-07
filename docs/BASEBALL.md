@@ -334,6 +334,22 @@ información que el Elo y el abridor ya llevaban.
 
 ---
 
+## 7b. Bullpen y clima (Fase 2C)
+
+**Bullpen.** `npm run bullpen` (y el servidor, dos veces al día) baja de la MLB Stats API el
+calendario de los últimos tres días y el boxscore de cada partido terminado; en el boxscore los
+lanzadores vienen en orden de aparición, así que el primero es el abridor y el resto, el bullpen.
+Por equipo y relevista se guardan apariciones y lanzamientos en 1 y 3 días (`bsb_bullpen`), y la
+ficha marca «bullpen cargado» con los relevistas que superan 3 salidas en 3 días, 45 lanzamientos
+en 3 días o 25 ayer. **Solo informa**: cualquier uso en el modelo pasa por el registro de
+experimentos. Sin boxscores recientes la ficha dice DESCONOCIDO, no cero.
+
+**Clima.** `config/stadiums.json` tiene las coordenadas y el techo de los 30 parques (más
+Oakland); `weather/openMeteo.ts` pide a Open-Meteo la previsión a T-24h, T-6h y T-1h y la
+observación tras el partido, y lo guarda inmutable en `weather_observations`. La ficha lo
+enseña como información (temperatura, viento, lluvia, cielo) con la hora del dato; no toca la
+probabilidad.
+
 ## 8. Limitaciones
 
 - **No conoce el bullpen.** Es la mayor. Un abridor controla ~60% de las carreras

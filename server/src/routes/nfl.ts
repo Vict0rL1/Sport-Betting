@@ -30,6 +30,8 @@ import { ELO_PER_POINT } from '../nfl/model.ts';
 import type { NafUpcomingRow } from '../nfl/types.ts';
 import { findGameResult, hasStarted } from '../results.ts';
 import { readCalibration } from '../staking/calibration.ts';
+import { climaDe } from '../weather/openMeteo.ts';
+import { featureEncendida } from '../features.ts';
 
 function predictRow(row: NafUpcomingRow): NafPrediction | null {
   if (!row.home_id || !row.away_id) return null;
@@ -105,6 +107,8 @@ function describeRow(row: NafUpcomingRow, withPrediction = true) {
     },
     /** Whether a bookmaker supplied the handicap and total, or the model did. */
     linesFromMarket: row.spread_line != null,
+    /** Clima (Fase 2C): previsión u observación de Open-Meteo, o DESCONOCIDO. Solo informativo. */
+    clima: featureEncendida('fuentes.clima') ? climaDe('nfl', row.league, row.id, row.home_id) : null,
   };
 }
 

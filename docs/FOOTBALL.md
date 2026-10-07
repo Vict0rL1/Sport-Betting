@@ -664,6 +664,28 @@ ingerir datos incorrectos. El modelo sí está ajustado y medido sobre partidos 
 
 ---
 
+## 6b. Cuotas de cierre históricas y baseline externo (Fase 2C)
+
+football-data.co.uk publica, además de la media de casas, **Pinnacle temprano** (`PSH/PSD/PSA`) y
+**Pinnacle al cierre** (`PSCH/PSCD/PSCA`). Desde la Fase 2C se guardan aparte (`ps_*`, `psc_*`) junto
+con la columna de la que salieron las cuotas que ya usaba el backtest (`odds_source`: «media de
+casas», «Pinnacle», «Bet365»). `npm run backtest:fb` enseña entonces, etiquetado por fuente:
+
+- la comparación «vs mercado» de siempre (media de casas, multiplicativo), ahora con la fuente
+  en la línea y en `experiments/backtest_metrics.json` (`mercadoFuente`);
+- la misma comparación **contra Pinnacle al cierre con Shin** (una casa consigo misma: ahí Shin
+  modela justo el sesgo favorito-perdedor de un libro individual; en `npm run study:devig` los
+  tres métodos empatan, así que esto no mueve ninguna probabilidad publicada);
+- el **CLV histórico**: apostar a la cuota temprana de Pinnacle donde el modelo veía ≥ 5 pp de
+  valor y medir contra su cierre (`football/clv.ts`). CLV medio, % con cierre a favor y ROI, solo
+  a partir de 30 apuestas y 100 partidos con las dos cuotas.
+
+**ClubElo** (`npm run clubelo -- --desde 2019-08-01`) baja el Elo publicado por clubelo.com una
+fecha de cada siete y lo guarda en `fb_external_elo`, emparejando clubes con el mismo índice de
+nombres que las cuotas (solo cuando el emparejamiento es único). En el walk-forward aparece como
+baseline «ClubElo» con el rating vigente **antes** de cada partido y la tasa de empate que lleva
+la liga: si el modelo no lo bate fuera de muestra, se verá. No entra en ninguna predicción.
+
 ## 7. Limitaciones
 
 - **Fuera de la Premier League no conoce las alineaciones**, y sigue siendo la mayor de todas: un

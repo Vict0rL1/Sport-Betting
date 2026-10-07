@@ -136,6 +136,30 @@ el de-vig de Shin (`market/devig.ts`), `w_odds/l_odds` del tenis y `odds_*` del 
 - Las fuentes de fútbol ya hacían upsert en transacción: 2B.7 se redujo a quitar el `DELETE` y
   añadir `--rebuild` (más un módulo `football/ingest/rebuild.ts` con test).
 
+## Lo que salió distinto del plan (2C)
+
+- **Tenis**: Sackmann sigue en 404. Se añadió `preflightTennisData` y `update-data` comprueba las
+  dos fuentes **antes** de `resetData()`; con ninguna disponible se para con la base intacta
+  (test `ingest/tennisData.test.ts`).
+- **Cuotas de cierre**: como se planeó (PS/PSC/odds_source, Shin solo para «Pinnacle consigo
+  misma», CLV histórico con umbrales 30 apuestas / 100 partidos). La etiqueta de fuente va en
+  `informeComun(..., fuenteMercado)` y se guarda como `mercadoFuente`.
+- **Clima**: el plan decía «se le pasa el viento real al modelo NFL». **No se hace**: cambiaría
+  probabilidades publicadas fuera del registro de experimentos (regla dura). Se observa y se
+  guarda (previsión a tres horizontes + observación final) y se enseña; la Fase 4 decidirá con
+  datos. `weather_observations` va en el libro mayor con triggers de inmutabilidad.
+- **Bullpen**: boxscore a boxscore (una petición por partido, ~15/día) en vez de un endpoint de
+  estadísticas agregadas que no se pudo verificar sin red. Solo ficha.
+- **ClubElo**: muestreo semanal del CSV diario; baseline «ClubElo» en el walk-forward vía
+  `Juego.externos`, con la ventaja de campo del backtest y la tasa de empate corriente de la liga.
+  Tennis Abstract solo publica el Elo actual: no sirve como baseline de walk-forward; descartado.
+- **Lesiones**: sin fuente gratuita estable y parseable (ESPN exige clave; NFL/NBA publican PDF
+  con formato cambiante) → `DESCONOCIDO` con el motivo, documentado en docs/BASE_DE_DATOS.md.
+- Ninguna de las fuentes nuevas se pudo probar contra la red real desde este contenedor
+  (Open-Meteo, MLB Stats API, ClubElo y tennis-data.co.uk devuelven 403 por el proxy): los
+  tests simulan `fetch` con la forma real de cada respuesta y los clientes fallan nombrando el
+  campo que faltó.
+
 ## 2C Fuentes nuevas (opcionales por `config/features.json`, todas con `ingestion_runs`)
 
 - **9 Tenis**: Sackmann no existe (404). Se documenta; `update-data` sigue con TML + tennis-data

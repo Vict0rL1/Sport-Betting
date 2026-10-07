@@ -2,6 +2,7 @@ import type { NflGameWithPrediction, NflPrediction, NflSpreadQuote } from '../..
 import { AWAY_COLOR, HOME_COLOR, NEUTRAL_COLOR, pct } from '../../lib/theme';
 import { PostprocessPanel } from '../PostprocessPanel';
 import EventTrustPanel from '../trust/EventTrustPanel';
+import { ClimaPanel } from '../ClimaPanel';
 
 /**
  * El moneyline es a dos bandas: el empate anula la apuesta. La cruda del modelo viene a
@@ -258,7 +259,7 @@ export default function GameCard({
               <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
               <div className="mt-1">
                 <Disclosure summary="Ver desglose · números clave, márgenes, marcadores y mercado">
-                  <Detail prediction={prediction} />
+                  <Detail prediction={prediction} clima={item.clima} />
                 </Disclosure>
               </div>
             </>
@@ -361,7 +362,7 @@ function TeamName({
   );
 }
 
-function Detail({ prediction }: { prediction: NflPrediction }) {
+function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: import('../../lib/clima').ClimaFicha | null }) {
   const { teams, spread, total, bands, scorelines, h2h, market, reasoning, summary, context } =
     prediction;
   const home = teams.home;
@@ -432,6 +433,9 @@ function Detail({ prediction }: { prediction: NflPrediction }) {
           </p>
         </Panel>
       )}
+
+      {/* El clima (Fase 2C): información, no entrada del modelo. */}
+      <ClimaPanel clima={clima} />
 
       {/* The handicap at the two lines the whole market is built around, priced
           at any line the reader might be looking at. */}

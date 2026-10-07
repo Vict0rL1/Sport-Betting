@@ -48,6 +48,15 @@ export interface ParsedFdMatch {
   oddsHome: number | null;
   oddsDraw: number | null;
   oddsAway: number | null;
+  /** De qué columna salieron las cuotas de arriba (Fase 2C): «media de casas», «Pinnacle», «Bet365»… */
+  oddsSource: string | null;
+  /** Pinnacle temprano (PSH/PSD/PSA) y de cierre (PSCH/PSCD/PSCA), cuando el fichero los trae. */
+  psHome: number | null;
+  psDraw: number | null;
+  psAway: number | null;
+  pscHome: number | null;
+  pscDraw: number | null;
+  pscAway: number | null;
   /**
    * Córners y tarjetas del partido. Solo existen en el diseño «main» (una liga
    * europea por temporada); el «extra» de fuera de Europa no los trae, y ahí quedan
@@ -76,6 +85,13 @@ const num = (v: string | undefined): number | null => {
   return Number.isFinite(n) ? n : null;
 };
 const validOdds = (n: number | null) => (n != null && n > 1 && n < 1000 ? n : null);
+
+/** Qué significa cada cabecera de cuotas, para etiquetar la comparación con el mercado. */
+export const FUENTE_POR_CABECERA: Record<string, string> = {
+  avgh: 'media de casas', avgch: 'media de casas (cierre)',
+  psh: 'Pinnacle', pch: 'Pinnacle (cierre)',
+  b365h: 'Bet365', b365ch: 'Bet365 (cierre)',
+};
 
 /**
  * Parse one football-data.co.uk CSV. `leagueFilter` applies only to the "extra"
@@ -115,6 +131,16 @@ export function parseFootballData(
   const od = pick(headers, ['avgd', 'avgcd', 'psd', 'pcd', 'b365d', 'b365cd']);
   const oa = pick(headers, ['avga', 'avgca', 'psa', 'pca', 'b365a', 'b365ca']);
   const leagueCol = pick(headers, ['league']);
+  // Pinnacle, las dos: la temprana (PS*) y la de cierre (PSC*). Son las que permiten medir
+  // el CLV histórico (football/clv.ts). Se guardan aparte de odds_* para no cambiar lo que
+  // ya medía el backtest.
+  const psh = pick(headers, ['psh']);
+  const psd = pick(headers, ['psd']);
+  const psa = pick(headers, ['psa']);
+  const psch = pick(headers, ['psch']);
+  const pscd = pick(headers, ['pscd']);
+  const psca = pick(headers, ['psca']);
+  const oddsSource = oh ? FUENTE_POR_CABECERA[norm(oh)] ?? oh : null;
   // Córners y tarjetas. Se leen por nombre de cabecera como todo lo demás, y su
   // ausencia NO es un error: la mitad de los ficheros del sitio no las trae y un
   // partido sin ellas sigue siendo un partido válido para el modelo de goles.
@@ -143,6 +169,13 @@ export function parseFootballData(
       oddsHome: validOdds(oh ? num(r[oh]) : null),
       oddsDraw: validOdds(od ? num(r[od]) : null),
       oddsAway: validOdds(oa ? num(r[oa]) : null),
+      oddsSource,
+      psHome: validOdds(psh ? num(r[psh]) : null),
+      psDraw: validOdds(psd ? num(r[psd]) : null),
+      psAway: validOdds(psa ? num(r[psa]) : null),
+      pscHome: validOdds(psch ? num(r[psch]) : null),
+      pscDraw: validOdds(pscd ? num(r[pscd]) : null),
+      pscAway: validOdds(psca ? num(r[psca]) : null),
       homeCorners: hcCol ? num(r[hcCol]) : null,
       awayCorners: acCol ? num(r[acCol]) : null,
       homeYellows: hyCol ? num(r[hyCol]) : null,
@@ -206,12 +239,20 @@ export async function ingestFootballData(
     `INSERT INTO fb_matches
        (league, season, match_date, home_id, away_id, home_goals, away_goals, result,
         odds_home, odds_draw, odds_away,
-        home_corners, away_corners, home_yellows, away_yellows, home_reds, away_reds)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        home_corners, away_corners, home_yellows, away_yellows, home_reds, away_reds,
+        odds_source, ps_home, ps_draw, ps_away, psc_home, psc_draw, psc_away)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(league, match_date, home_id, away_id) DO UPDATE SET
        odds_home = COALESCE(excluded.odds_home, fb_matches.odds_home),
        odds_draw = COALESCE(excluded.odds_draw, fb_matches.odds_draw),
        odds_away = COALESCE(excluded.odds_away, fb_matches.odds_away),
+       odds_source = COALESCE(excluded.odds_source, fb_matches.odds_source),
+       ps_home = COALESCE(excluded.ps_home, fb_matches.ps_home),
+       ps_draw = COALESCE(excluded.ps_draw, fb_matches.ps_draw),
+       ps_away = COALESCE(excluded.ps_away, fb_matches.ps_away),
+       psc_home = COALESCE(excluded.psc_home, fb_matches.psc_home),
+       psc_draw = COALESCE(excluded.psc_draw, fb_matches.psc_draw),
+       psc_away = COALESCE(excluded.psc_away, fb_matches.psc_away),
        -- COALESCE y no sobrescritura: openfootball ya insertó el partido con sus
        -- goles y su descanso, y esta fuente solo añade lo que aquella no tiene. Un
        -- null de aquí no debe borrar un dato que ya estaba.
@@ -283,6 +324,13 @@ export async function ingestFootballData(
           m.awayYellows,
           m.homeReds,
           m.awayReds,
+          m.oddsHome ? m.oddsSource : null,
+          m.psHome,
+          m.psDraw,
+          m.psAway,
+          m.pscHome,
+          m.pscDraw,
+          m.pscAway,
         );
         matches++;
         if (m.oddsHome && m.oddsDraw && m.oddsAway) withOdds++;

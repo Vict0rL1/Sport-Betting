@@ -527,6 +527,18 @@ sueltas del archivo, no un cambio sistemático) y que el mejor clasificado gane 
 que el peor (65,8 %) — por debajo del 50 % significaría que `winner_rank` y `loser_rank`
 están al revés, y eso es invisible para todo lo demás.
 
+### Fuente caída: se comprueba antes de borrar (Fase 2C)
+
+Los repos de Sackmann devuelven 404 y TML se congeló en enero de 2026, así que `update-data`
+depende de tennis-data.co.uk para llegar a hoy. Hasta la Fase 2C el script **borraba la base de
+tenis y luego descargaba**, y una fuente caída dejaba la pestaña vacía. Ahora comprueba las dos
+fuentes antes de tocar nada (`preflightTennisData` baja la temporada actual, que la ingesta
+reutiliza), y si ninguna responde se para con el mensaje de cómo conseguir el fichero a mano y
+la base intacta. La ejecución queda en `ingestion_runs` como error, con el motivo.
+
+Las cuotas históricas del tenis (`w_odds/l_odds`) son la **media de casas al cierre** de
+tennis-data.co.uk, y así se etiquetan en el backtest y en `experiments/backtest_metrics.json`.
+
 ## Nota sobre los datos de demostración
 
 `npm run seed` genera datos **sintéticos**: los nombres son reales, pero los partidos están

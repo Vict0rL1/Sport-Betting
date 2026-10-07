@@ -474,7 +474,7 @@ function main() {
     console.log(`Brier score: ${(brier / scored).toFixed(4)}   (0 = perfecto, 0.25 = 50/50 siempre)`);
     console.log(`Log loss:    ${(logloss / scored).toFixed(4)}   (0.693 = 50/50 siempre)`);
     // Solo la ATP se guarda: es la que sale en la ficha (la WTA no tiene histórico aquí).
-    informeComun('tennis', comun, console.log, tour.id === 'atp');
+    informeComun('tennis', comun, console.log, tour.id === 'atp', 'tennis-data.co.uk (media de casas, cierre)');
     {
       const wf = walkForward('tennis', flujo);
       imprimirWalkForward(wf);

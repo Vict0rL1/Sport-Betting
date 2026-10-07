@@ -363,6 +363,22 @@ async function downloadSeason(tour: TourId, year: number): Promise<string | null
   return null;
 }
 
+/**
+ * ¿Responde la fuente? Intenta conseguir el fichero de UNA temporada (la copia manual o la
+ * descarga, que queda en caché y la ingesta reutiliza). Existe para que `update-data` lo
+ * compruebe ANTES de borrar la base de tenis: una fuente caída no puede dejar la app sin datos.
+ */
+export async function preflightTennisData(tour: TourId, year: number): Promise<{ ok: true; fichero: string } | { ok: false; motivo: string }> {
+  const fichero = manualFile(tour, year) ?? (await downloadSeason(tour, year));
+  if (fichero) return { ok: true, fichero };
+  return {
+    ok: false,
+    motivo:
+      `tennis-data.co.uk no sirvió la temporada ${year} de ${tour.toUpperCase()} (bloqueo de red o fichero aún no publicado). ` +
+      `Puedes bajar el .xlsx a mano de http://www.tennis-data.co.uk/alldata.php y guardarlo como ${path.join(MANUAL_DIR, `${tour}-${year}.xlsx`)}.`,
+  };
+}
+
 /** Ingest a range of seasons for one tour. Returns per-season counts. */
 export async function ingestTennisData(
   tour: TourId,

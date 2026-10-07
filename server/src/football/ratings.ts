@@ -76,6 +76,14 @@ export interface ReplayMatch {
   odds_home: number | null;
   odds_draw: number | null;
   odds_away: number | null;
+  /** Fase 2C: fuente de odds_* y Pinnacle temprano/cierre, cuando los hay. */
+  odds_source?: string | null;
+  ps_home?: number | null;
+  ps_draw?: number | null;
+  ps_away?: number | null;
+  psc_home?: number | null;
+  psc_draw?: number | null;
+  psc_away?: number | null;
 }
 
 export interface FbTeamState {
@@ -353,7 +361,8 @@ export function loadMatches(league: LeagueId, fromSeason = 0): ReplayMatch[] {
   return getDb()
     .prepare(
       `SELECT season, match_date, home_id, away_id, home_goals, away_goals, result,
-              odds_home, odds_draw, odds_away
+              odds_home, odds_draw, odds_away, odds_source,
+              ps_home, ps_draw, ps_away, psc_home, psc_draw, psc_away
        FROM fb_matches WHERE league = ? AND season >= ?
        ORDER BY match_date ASC, id ASC`,
     )

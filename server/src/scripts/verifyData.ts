@@ -4085,6 +4085,26 @@ function auditAlmacenamiento(): void {
   check(`ingestas: ninguna lleva «running» más de ${MUERTA_TRAS_MIN} min`, colgadas === 0, `${colgadas} colgada(s): el servidor o npm run doctor las marcan como error`);
   const sinFin = (db.prepare("SELECT COUNT(*) AS n FROM ingestion_runs WHERE status <> 'running' AND finished_at IS NULL").get() as { n: number }).n;
   check('ingestas: toda ejecución terminada tiene finished_at', sinFin === 0, `${sinFin} sin fecha de fin`);
+
+  // Fase 2C: columnas Pinnacle, tablas de las fuentes nuevas y estadios configurados.
+  const cols = new Set((db.prepare('PRAGMA table_info(fb_matches)').all() as unknown as { name: string }[]).map((c) => c.name));
+  const faltanPs = ['odds_source', 'ps_home', 'ps_draw', 'ps_away', 'psc_home', 'psc_draw', 'psc_away'].filter((c) => !cols.has(c));
+  check('fútbol: fb_matches tiene las columnas Pinnacle (PS/PSC) y odds_source', faltanPs.length === 0, `faltan: ${faltanPs.join(', ')}`);
+  const psIncoherentes = (db.prepare('SELECT COUNT(*) AS n FROM fb_matches WHERE (ps_home IS NOT NULL AND ps_home <= 1) OR (psc_home IS NOT NULL AND psc_home <= 1)').get() as { n: number }).n;
+  check('fútbol: ninguna cuota Pinnacle guardada es ≤ 1', psIncoherentes === 0, `${psIncoherentes} fila(s)`);
+  const enMainTablas = new Set((db.prepare("SELECT name FROM main.sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((r) => r.name));
+  check('fuentes: fb_external_elo y bsb_bullpen existen en la historia', enMainTablas.has('fb_external_elo') && enMainTablas.has('bsb_bullpen'));
+  const trgClima = new Set((db.prepare(`SELECT name FROM ${masterDe('weather_observations', LEDGER_SCHEMA)} WHERE type = 'trigger' AND tbl_name = 'weather_observations'`).all() as { name: string }[]).map((r) => r.name));
+  check('clima: weather_observations existe en el libro mayor con sus dos triggers de inmutabilidad', trgClima.has('weather_no_update') && trgClima.has('weather_no_delete'), `triggers: ${[...trgClima].join(', ') || 'ninguno'}`);
+  const estadios = JSON.parse(nodeFs.readFileSync(nodePath.join(ROOT, 'config', 'stadiums.json'), 'utf8')) as { nfl: Record<string, { lat: number; lon: number; roof: string }>; mlb: Record<string, { lat: number; lon: number; roof: string }> };
+  const nflIds = (db.prepare("SELECT id FROM naf_teams WHERE league = 'nfl'").all() as unknown as { id: string }[]).map((r) => r.id);
+  const sinEstadioNfl = nflIds.filter((id) => !estadios.nfl[id]);
+  check('clima: todos los equipos NFL de la base tienen estadio en config/stadiums.json', sinEstadioNfl.length === 0, `sin estadio: ${sinEstadioNfl.join(', ')}`);
+  const mlbIds = (db.prepare("SELECT id FROM bsb_teams WHERE league = 'mlb'").all() as unknown as { id: string }[]).map((r) => r.id);
+  const sinEstadioMlb = mlbIds.filter((id) => !estadios.mlb[id]);
+  check('clima: todos los equipos MLB de la base tienen parque en config/stadiums.json', sinEstadioMlb.length === 0, `sin parque: ${sinEstadioMlb.join(', ')}`);
+  const malos = [...Object.values(estadios.nfl), ...Object.values(estadios.mlb)].filter((e) => !(Math.abs(e.lat) <= 90 && Math.abs(e.lon) <= 180 && ['outdoors', 'retractable', 'dome'].includes(e.roof)));
+  check('clima: coordenadas y techo válidos en todos los estadios', malos.length === 0, `${malos.length} entrada(s) inválida(s)`);
 }
 
 function main(): void {

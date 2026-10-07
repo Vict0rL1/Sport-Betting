@@ -49,6 +49,12 @@
 
 import { informeComun } from '../evaluation/report.ts';
 import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
+import { clvHistorico, shin1X2, type PartidoConPinnacle } from './clv.ts';
+import { eloExternoEn, hayEloExterno, probsClubElo } from './ingest/clubelo.ts';
+import { featureEncendida } from '../features.ts';
+import { getDb } from '../db.ts';
+import { evaluate } from '../evaluation/metrics.ts';
+import { VALUE_THRESHOLD } from '../model/market.ts';
 import { entrenarEnsemble, guardarEnsemble, registrarEnsemble } from '../shadow/ensemble.ts';
 import type { Prediccion } from '../evaluation/metrics.ts';
 import { footballConfig } from '../config.ts';
@@ -92,6 +98,15 @@ function parseArgs(argv: string[]) {
     } else args[a.slice(2)] = true;
   }
   return args;
+}
+
+/** De qué columna salieron las cuotas que hay en la base, para etiquetar «vs mercado». */
+function fuenteMercado(): string | null {
+  const filas = getDb()
+    .prepare("SELECT odds_source AS f, COUNT(*) AS n FROM fb_matches WHERE odds_home IS NOT NULL GROUP BY odds_source ORDER BY n DESC")
+    .all() as unknown as { f: string | null; n: number }[];
+  if (filas.length === 0) return null;
+  return filas.map((x) => `${x.f ?? 'football-data.co.uk (columna sin anotar)'} ×${x.n}`).join(', ');
 }
 
 function main() {
@@ -155,10 +170,16 @@ function main() {
   const drawBands = new Map<string, { n: number; pred: number; obs: number }>();
   /** Cada predicción, para la capa común de métricas (evaluation/). */
   const comun: Prediccion[] = [];
+  /** Partidos con Pinnacle temprano y de cierre: el CLV histórico (football/clv.ts). */
+  const conPinnacle: PartidoConPinnacle[] = [];
+  /** Con Shin sobre el cierre de Pinnacle, para la comparación «vs mercado» por fuente. */
+  const vsPinnacle: Prediccion[] = [];
   /** El flujo de todas las ligas, para el walk-forward (se ordena por fecha al final). */
   const flujo: (Juego & { orden: number; componentes?: Record<string, number[]> })[] = [];
 
   for (const league of leagues) {
+
+    const conClubElo = featureEncendida('fuentes.clubElo') && hayEloExterno(league);
     const matches = loadMatches(league, fromSeason);
     if (matches.length === 0) continue;
     // Para los segmentos: la primera temporada de cada equipo EN ESTA LIGA (recién
@@ -284,6 +305,22 @@ function main() {
             juego.mercado = [imp.home, imp.draw, imp.away];
             juego.cuotas = [match.odds_home as number, match.odds_draw as number, match.odds_away as number];
           }
+          // ClubElo (Fase 2C): baseline externo con el rating vigente ANTES del partido y la
+          // tasa de empate que lleva la liga hasta aquí. Solo si hay filas para esta liga.
+          if (conClubElo) {
+            const eh = eloExternoEn(league, match.home_id, match.match_date);
+            const ea = eloExternoEn(league, match.away_id, match.match_date);
+            if (eh != null && ea != null) juego.externos = { ClubElo: probsClubElo(eh, ea, homeAdvantage, scored >= 50 ? drawsActual / scored : 0.25) };
+          }
+          // Pinnacle (Fase 2C): cierre con Shin para «vs mercado», y temprano+cierre para el CLV.
+          if (match.psc_home && match.psc_draw && match.psc_away) {
+            const psc: [number, number, number] = [match.psc_home, match.psc_draw, match.psc_away];
+            const shin = shin1X2(psc);
+            if (shin) vsPinnacle.push({ p: juego.modelo, y: juego.y, mercado: shin });
+            if (match.ps_home && match.ps_draw && match.ps_away) {
+              conPinnacle.push({ modelo: juego.modelo, ps: [match.ps_home, match.ps_draw, match.ps_away], psc, y: juego.y });
+            }
+          }
         }
 
         scored++;
@@ -378,7 +415,23 @@ function main() {
       `hubo ${allDrawsActual} (${((allDrawsActual / allScored) * 100).toFixed(1)}%)`,
   );
   // Solo se guarda la corrida completa (todas las ligas): una de una sola liga no es la ficha.
-  informeComun('football', comun, console.log, !onlyLeague);
+  informeComun('football', comun, console.log, !onlyLeague, fuenteMercado());
+  // Pinnacle: la misma comparación contra UNA casa afilada, con Shin, y el CLV histórico.
+  if (vsPinnacle.length >= 100) {
+    const r = evaluate('backtest', 'football', vsPinnacle);
+    console.log(`\nContra Pinnacle al cierre (Shin, ${r.mercado?.n ?? 0} partidos): modelo ${r.mercado?.modeloLogLoss.toFixed(4)} · Pinnacle ${r.mercado?.logLoss.toFixed(4)}`);
+    const clv = clvHistorico(conPinnacle);
+    if (clv.n >= 30) {
+      console.log(
+        `CLV histórico (apostar a Pinnacle temprano donde el modelo ve ≥ ${(VALUE_THRESHOLD * 100).toFixed(0)} pp de valor, medir contra su cierre):\n` +
+          `  ${clv.n} apuestas de ${clv.conAmbas} partidos con las dos cuotas · CLV medio ${((clv.clvMedio ?? 0) * 100).toFixed(2)} % · ${((clv.positivos / clv.n) * 100).toFixed(0)} % con cierre a favor · ROI ${((clv.roi ?? 0) * 100).toFixed(1)} %`,
+      );
+    } else {
+      console.log(`CLV histórico: solo ${clv.n} apuestas con las dos cuotas Pinnacle (mínimo 30): sin conclusión.`);
+    }
+  } else if (vsPinnacle.length > 0) {
+    console.log(`\nPinnacle al cierre: ${vsPinnacle.length} partidos (mínimo 100 para comparar): sin conclusión.`);
+  }
   {
     // Las ligas se reprodujeron una tras otra: el walk-forward necesita UNA línea de tiempo.
     flujo.sort((x, y) => x.fecha.localeCompare(y.fecha) || x.orden - y.orden);

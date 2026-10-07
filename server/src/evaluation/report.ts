@@ -19,7 +19,7 @@ import { OUTCOMES, isSportId, type SportId } from '../sports.ts';
 
 export const BACKTEST_METRICS_PATH = path.join(ROOT, 'experiments', 'backtest_metrics.json');
 
-export type BacktestMetrics = Record<string, Informe & { medidoEn: string; model_version: string; data_version: string }>;
+export type BacktestMetrics = Record<string, Informe & { medidoEn: string; model_version: string; data_version: string; mercadoFuente?: string | null }>;
 
 export function leerMetricasBacktest(): BacktestMetrics {
   try {
@@ -60,7 +60,7 @@ const f = (x: number | null, d = 4) => (x == null ? '—' : x.toFixed(d));
  * Evalúa, imprime el bloque común y lo guarda (mezclando por deporte, como la
  * calibración: un backtest no borra el de otro deporte).
  */
-export function informeComun(sport: SportId, xs: Prediccion[], log: (s: string) => void = console.log, guardar = true): Informe {
+export function informeComun(sport: SportId, xs: Prediccion[], log: (s: string) => void = console.log, guardar = true, fuenteMercado: string | null = null): Informe {
   const r = evaluate('backtest', sport, xs);
   log('\n── Capa común de métricas (backtest, misma definición en los cinco deportes) ──');
   log(`  partidos: ${r.n}`);
@@ -71,13 +71,13 @@ export function informeComun(sport: SportId, xs: Prediccion[], log: (s: string) 
   if (r.mercado) {
     const mejor = r.mercado.modeloLogLoss < r.mercado.logLoss;
     log(
-      `  contra el mercado (${r.mercado.n} partidos con precio): modelo ${f(r.mercado.modeloLogLoss)} · ` +
+      `  contra el mercado (${r.mercado.n} partidos con precio${fuenteMercado ? `, fuente: ${fuenteMercado}` : ''}): modelo ${f(r.mercado.modeloLogLoss)} · ` +
         `mercado ${f(r.mercado.logLoss)} → ${mejor ? 'el modelo, mejor' : 'el mercado, mejor'}`,
     );
   }
   if (guardar && r.n > 0) {
     const v = versionsFor(sport);
-    const todo = { ...leerMetricasBacktest(), [sport]: { ...r, medidoEn: new Date().toISOString(), model_version: v.model_version, data_version: v.data_version } };
+    const todo = { ...leerMetricasBacktest(), [sport]: { ...r, medidoEn: new Date().toISOString(), model_version: v.model_version, data_version: v.data_version, mercadoFuente: r.mercado ? fuenteMercado : null } };
     const ordenado = Object.fromEntries(Object.keys(todo).sort().map((k) => [k, todo[k]]));
     fs.mkdirSync(path.dirname(BACKTEST_METRICS_PATH), { recursive: true });
     fs.writeFileSync(BACKTEST_METRICS_PATH, JSON.stringify(ordenado, null, 2) + '\n');

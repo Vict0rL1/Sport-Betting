@@ -11,6 +11,8 @@ import { countRows } from './repo.ts';
 import { refreshOdds } from './ingest/odds.ts';
 import { conRegistro, marcarMuertas } from './ingest/runs.ts';
 import { horasDesdeEntorno, programarResultados } from './ingest/scheduler.ts';
+import { cicloClima } from './weather/openMeteo.ts';
+import { ingestBullpen } from './baseball/ingest/bullpen.ts';
 import { hacerCopia, ultimaCopia } from './db/backup.ts';
 import { featureEncendida } from './features.ts';
 import { refreshBasketballOdds } from './basketball/ingest/odds.ts';
@@ -506,6 +508,30 @@ async function main() {
       resolveLog(`Resultados programados cada ${horasResultados} h (primera pasada en 5 min, sin gastar cuota).`);
     } else {
       resolveLog('Resultados programados apagados (RESULTS_REFRESH_HOURS=0 o datos.resultadosProgramados off): usa npm run update-results.');
+    }
+
+    // Clima (Fase 2C): cada media hora, los partidos de NFL y MLB a menos de 24 h piden la
+    // previsión que les toque (T-24h, T-6h, T-1h) y los acabados, la observación. Gratis, sin
+    // clave, y SOLO informativo: no toca ninguna probabilidad. Ver weather/openMeteo.ts.
+    if (featureEncendida('fuentes.clima')) {
+      const clima = () =>
+        conRegistro('clima', async () => {
+          const r = await cicloClima({ log: resolveLog });
+          return { rowsAdded: r.guardados, detail: `${r.consultados} consultas · ${r.fallidos} fallidas · ${r.sinEstadio} sin estadio` };
+        }).catch((e) => resolveLog(`Clima: ${(e as Error).message}`));
+      setTimeout(clima, 3 * 60_000).unref();
+      setInterval(clima, 30 * 60_000).unref();
+    }
+    // Bullpen MLB (Fase 2C): dos veces al día, los boxscores de los últimos tres días.
+    if (featureEncendida('fuentes.bullpen') && countRows('bsb_teams') > 0) {
+      const bullpen = () =>
+        conRegistro('bullpen', async () => {
+          const r = await ingestBullpen();
+          resolveLog(`Bullpen: ${r.partidos} boxscores, ${r.equipos} equipos, ${r.relevistas} relevistas (al día ${r.asOf}).`);
+          return { rowsAdded: r.relevistas, detail: `${r.partidos} partidos · ${r.equipos} equipos` };
+        }).catch((e) => resolveLog(`Bullpen: ${(e as Error).message}`));
+      setTimeout(bullpen, 4 * 60_000).unref();
+      setInterval(bullpen, 12 * 3_600_000).unref();
     }
 
     // La cuota de CIERRE de verdad: justo antes de que empiecen los partidos con una

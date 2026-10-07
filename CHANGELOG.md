@@ -41,8 +41,28 @@ Línea base antes de la fase: 222 tests, 494 comprobaciones de `verify:data`.
   (6), primera pasada a los 5 min, deporte a deporte en procesos hijo con `--skip-odds`, sin
   solaparse, con `ingestion_runs`.
 
-Interruptores nuevos en `config/features.json`: `datos.backupProgramado`, `datos.resultadosProgramados`.
-Tests: 222 → **244**. `verify:data` 494 → **507**/507, typecheck, lint y build en verde.
+**2C Fuentes nuevas** (todas con `ingestion_runs`, ninguna toca una probabilidad publicada)
+
+- **Tenis**: `preflightTennisData`; `update-data` comprueba GitHub y tennis-data.co.uk **antes**
+  de borrar la base; con ninguna disponible se para con la base intacta y el error registrado.
+- **Cuotas de cierre históricas**: `fb_matches` gana `odds_source`, `ps_*` (Pinnacle temprano) y
+  `psc_*` (cierre). `backtest:fb` enseña «vs mercado» etiquetado por fuente, la comparación
+  contra Pinnacle al cierre con Shin y el **CLV histórico** (`football/clv.ts`). Tenis y NFL
+  etiquetan su mercado; `backtest_metrics.json` gana `mercadoFuente`.
+- **Clima**: `config/stadiums.json` (32 estadios NFL, 31 parques MLB), `weather/openMeteo.ts`,
+  `weather_observations` (libro mayor, inmutable), ciclo cada 30 min en el servidor, en la ficha
+  de NFL y MLB. Deliberadamente **no** entra en la predicción (va contra la regla; Fase 4).
+- **Bullpen MLB**: `baseball/ingest/bullpen.ts`, `bsb_bullpen`, `npm run bullpen`, cada 12 h en
+  el servidor; badge «bullpen cargado» en la ficha.
+- **ClubElo**: `football/ingest/clubelo.ts`, `fb_external_elo`, `npm run clubelo`, baseline
+  «ClubElo» en el walk-forward de fútbol. Tennis Abstract descartado (solo Elo actual).
+- **Lesiones**: evaluadas; sin fuente estable → `DESCONOCIDO` con motivo (docs/BASE_DE_DATOS.md).
+- Migración v6 (`fuentes-2c`), `verify:data` audita columnas Pinnacle, tablas nuevas, triggers
+  del clima y que cada equipo NFL/MLB tenga estadio.
+
+Interruptores nuevos en `config/features.json`: `datos.backupProgramado`, `datos.resultadosProgramados`,
+`fuentes.cuotasHistoricas`, `fuentes.clima`, `fuentes.bullpen`, `fuentes.clubElo`.
+Tests: 222 → **260**. `verify:data` 494 → **514**/514, typecheck, lint y build en verde.
 
 ## Fase 1 — Seguridad e higiene (2026-10-07)
 

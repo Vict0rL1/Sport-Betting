@@ -65,7 +65,9 @@
     "db:explain": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/dbExplain.ts",
     "backup": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/backup.ts",
     "restore": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/restore.ts",
-    "odds:retention": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/oddsRetention.ts"
+    "odds:retention": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/oddsRetention.ts",
+    "clubelo": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/clubelo.ts",
+    "bullpen": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/bullpen.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
