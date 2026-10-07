@@ -20,6 +20,7 @@ export type Seccion =
   | 'ACTUALIZACIÓN'
   | 'CONFIANZA'
   | 'DATOS Y COPIAS'
+  | 'OPERACIÓN'
   | 'ANALÍTICA E INTERFAZ'
   | 'PRODUCTO'
   | 'SEGURIDAD'
@@ -967,5 +968,121 @@ function comprobarAmpliaciones(a: NonNullable<EstadoProducto['ampliaciones']>): 
   else out.push(h(S, 'ok', `Asistente por Telegram: ${t.chats} chat(s) permitido(s); ${t.offset == null ? 'todavía no ha leído ningún mensaje' : `última actualización leída: la ${t.offset - 1}`}`));
   out.push(h(S, 'info', a.enVivo ? 'Tenis en vivo punto a punto encendido: el marcador se teclea a mano (no hay fuente en vivo gratuita y fiable)' : 'Tenis en vivo punto a punto apagado (features.json: tenis.enVivo)'));
   if (a.propsNba) out.push(h(S, 'aviso', 'Props de la NBA encendidos, pero no hay modelo: sin una fuente de box scores legítima y alcanzable el interruptor no hace nada (docs/plans/phase-8.md)'));
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// OPERACIÓN (Fase 9): trabajos programados, canales de aviso, interruptores, frescura de los
+// datos por deporte y, con --fuentes, si cada fuente responde desde esta máquina.
+// ---------------------------------------------------------------------------
+
+/** Temporada regular aproximada de cada deporte: [mes, día] de inicio y de fin (puede cruzar el año). */
+export const TEMPORADAS: Record<string, { desde: [number, number]; hasta: [number, number]; comando: string }> = {
+  Tenis: { desde: [1, 1], hasta: [11, 30], comando: 'npm run update-data' },
+  Fútbol: { desde: [8, 10], hasta: [5, 31], comando: 'npm run update-data:fb' },
+  Baloncesto: { desde: [10, 20], hasta: [6, 20], comando: 'npm run update-data:bb' },
+  Béisbol: { desde: [3, 25], hasta: [10, 31], comando: 'npm run update-data:bsb' },
+  NFL: { desde: [9, 5], hasta: [2, 15], comando: 'npm run update-data:naf' },
+};
+/** Días sin resultados nuevos, en plena temporada, a partir de los que los Elo van atrasados. */
+export const DIAS_SIN_RESULTADOS = 21;
+
+const DIA = 86_400_000;
+
+/** Días desde que empezó la temporada en curso, o null si hoy está fuera de temporada. */
+export function diasDeTemporada(deporte: string, ahora: Date): number | null {
+  const t = TEMPORADAS[deporte];
+  if (!t) return null;
+  const y = ahora.getUTCFullYear();
+  const fecha = (anio: number, [m, d]: [number, number]) => Date.UTC(anio, m - 1, d);
+  const cruza = t.hasta[0] < t.desde[0];
+  for (const inicioAnio of cruza ? [y, y - 1] : [y]) {
+    const ini = fecha(inicioAnio, t.desde);
+    const fin = fecha(cruza ? inicioAnio + 1 : inicioAnio, t.hasta) + DIA;
+    if (ahora.getTime() >= ini && ahora.getTime() < fin) return Math.floor((ahora.getTime() - ini) / DIA);
+  }
+  return null;
+}
+
+export interface EstadoOperacion {
+  /** El registro de trabajos (operacion.registroTrabajos) y lo que dejó escrito en scheduler_jobs. */
+  registroOn: boolean;
+  trabajos: { nombre: string; enabled: boolean; lastStatus: string | null; lastRunAt: string | null; lastError: string | null; cadenciaMin: number }[];
+  canalesOn: boolean;
+  canales: { nombre: string; configurado: boolean; falta: string[] }[];
+  envios24h: { ok: number; fallidos: number; ultimoError: { canal: string; error: string } | null };
+  interruptores: { total: number; encendidos: number; inactivos: { nombre: string; falta: string }[]; huerfanas: string[] };
+  /** Último resultado guardado por deporte (YYYY-MM-DD). */
+  frescura: { deporte: string; ultimo: string | null; partidos: number }[];
+  /** Solo con --fuentes: si cada fuente contesta desde esta máquina. */
+  fuentes?: { nombre: string; host: string; ok: boolean; detalle: string }[];
+}
+
+export function comprobarOperacion(e: EstadoOperacion, ahora: Date): Hallazgo[] {
+  const S: Seccion = 'OPERACIÓN';
+  const out: Hallazgo[] = [];
+  const hace = (iso: string) => Math.floor((ahora.getTime() - Date.parse(iso)) / DIA);
+  const fecha = (iso: string | null) => (iso ? iso.slice(0, 16).replace('T', ' ') : '—');
+
+  // Trabajos programados.
+  if (!e.registroOn) out.push(h(S, 'info', 'Registro de trabajos apagado (features.json: operacion.registroTrabajos): el servidor no programa nada'));
+  else if (e.trabajos.length === 0) out.push(h(S, 'info', 'Trabajos programados: ninguno registrado en esta base todavía (los registra el servidor al arrancar)'));
+  else {
+    const apagados = e.trabajos.filter((t) => !t.enabled).map((t) => t.nombre);
+    const nunca = e.trabajos.filter((t) => t.enabled && !t.lastRunAt).length;
+    out.push(
+      h(S, 'ok', `Trabajos programados: ${e.trabajos.length} registrados${apagados.length ? `, apagados a mano: ${apagados.join(', ')}` : ''}${nunca ? `; ${nunca} sin ejecutar todavía` : ''}`),
+    );
+    for (const t of e.trabajos) {
+      if (t.lastStatus === 'error')
+        out.push(h(S, 'aviso', `Trabajo «${t.nombre}»: falló en su última ejecución (${fecha(t.lastRunAt)}): ${t.lastError ?? 'sin detalle'}`, { accion: [`npm run jobs -- ejecutar ${t.nombre}   # para verlo fallar a mano y con el log completo`] }));
+      else if (t.lastStatus === 'running' && t.lastRunAt && ahora.getTime() - Date.parse(t.lastRunAt) > 6 * 3_600_000)
+        out.push(h(S, 'aviso', `Trabajo «${t.nombre}»: marcado «en marcha» desde ${fecha(t.lastRunAt)}; el proceso se cayó a medias o sigue colgado`));
+    }
+  }
+
+  // Canales de aviso.
+  if (!e.canalesOn) out.push(h(S, 'info', 'Canales de notificación apagados (features.json: notificaciones.canales): los avisos solo llegan a la bandeja'));
+  else {
+    const si = e.canales.filter((c) => c.configurado).map((c) => c.nombre);
+    const no = e.canales.filter((c) => !c.configurado).map((c) => c.nombre);
+    out.push(
+      h(S, si.length ? 'ok' : 'info', si.length ? `Canales de notificación: ${si.join(', ')}${no.length ? ` (sin configurar: ${no.join(', ')})` : ''}` : 'Ningún canal de notificación configurado: los avisos solo llegan a la bandeja (variables en .env.example)'),
+    );
+    if (e.envios24h.fallidos > 0) {
+      const u = e.envios24h.ultimoError;
+      out.push(h(S, 'aviso', `Notificaciones: ${e.envios24h.fallidos} envío(s) fallido(s) en 24 h (${e.envios24h.ok} bien)${u ? `; el último, por ${u.canal}: ${u.error}` : ''}`, { accion: ['Cuenta › Notificaciones › «probar» en el canal que falla'] }));
+    }
+  }
+
+  // Interruptores.
+  const i = e.interruptores;
+  out.push(h(S, 'info', `Interruptores: ${i.encendidos} encendidos de ${i.total} (config/features.json y Ajustes)`));
+  if (i.inactivos.length) out.push(h(S, 'info', `Encendidos pero inactivos por falta de una variable: ${i.inactivos.map((x) => `${x.nombre} (${x.falta})`).join(', ')}`));
+  if (i.huerfanas.length) out.push(h(S, 'aviso', `Anulaciones de interruptores que ya no existen: ${i.huerfanas.join(', ')}`, { accion: ['Ajustes › Interruptores: quita la anulación (o PATCH /api/features/<nombre> con {"on": null})'] }));
+
+  // Frescura de los resultados.
+  for (const f of e.frescura) {
+    const dt = diasDeTemporada(f.deporte, ahora);
+    const t = TEMPORADAS[f.deporte];
+    if (!f.ultimo) {
+      out.push(h(S, 'info', `${f.deporte}: ningún resultado en la base${t ? ` (${t.comando})` : ''}`));
+      continue;
+    }
+    const d = hace(f.ultimo);
+    if (dt == null) out.push(h(S, 'info', `${f.deporte}: último resultado del ${f.ultimo} (fuera de temporada)`));
+    else if (dt > DIAS_SIN_RESULTADOS && d > DIAS_SIN_RESULTADOS)
+      out.push(
+        h(S, 'aviso', `${f.deporte}: el último resultado es del ${f.ultimo}, hace ${d} días, en plena temporada; sus Elo van atrasados`, t ? { accion: [`${t.comando}   # si la fuente no contesta, docs/FUENTES.md dice cuál es y por qué`] } : undefined),
+      );
+    else out.push(h(S, 'ok', `${f.deporte}: último resultado del ${f.ultimo}${d > 0 ? ` (hace ${d} día(s))` : ''}`));
+  }
+
+  // Fuentes (solo con --fuentes).
+  if (e.fuentes) {
+    const caidas = e.fuentes.filter((x) => !x.ok);
+    if (caidas.length === 0) out.push(h(S, 'ok', `Fuentes: las ${e.fuentes.length} contestan desde esta máquina`));
+    for (const x of caidas) out.push(h(S, 'aviso', `Fuente ${x.nombre} (${x.host}): ${x.detalle}`));
+  } else out.push(h(S, 'info', 'Para comprobar que cada fuente de datos contesta desde esta máquina: npm run doctor -- --fuentes'));
   return out;
 }

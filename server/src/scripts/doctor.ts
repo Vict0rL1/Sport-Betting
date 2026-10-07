@@ -44,6 +44,8 @@ import {
   comprobarAnalitica,
   type EstadoAnalitica,
   comprobarProducto,
+  comprobarOperacion,
+  type EstadoOperacion,
   type EstadoProducto,
   type EstadoAlmacenamiento,
   comprobarServidor,
@@ -68,7 +70,7 @@ import { copiasLocales, ultimaCopia } from '../db/backup.ts';
 import { configS3 } from '../db/s3.ts';
 import { marcarMuertas, ultimasEjecuciones } from '../ingest/runs.ts';
 import { sesionesActivas } from '../auth/sessions.ts';
-import { featureEncendida } from '../features.ts';
+import { featureEncendida, estadoFeatures, leerFeatures } from '../features.ts';
 import { historicosDisponibles } from '../estrategias/historico.ts';
 import { zonaApp } from '../informes/tiempo.ts';
 import { eventosRecientes } from '../odds/intel.ts';
@@ -80,9 +82,11 @@ import { CLAVE_ANULACIONES } from '../features.ts';
 import { SPORT_IDS } from '../sports.ts';
 import { chatsPermitidos, CLAVE_OFFSET } from '../telegram/asistente.ts';
 import { contarErrores } from '../security/errors.ts';
+import { canales as canalesDeAviso } from '../notifications/index.ts';
 
 const SIN_RED = process.argv.includes('--sin-red') || process.argv.includes('--no-net');
 const PROBAR = process.argv.includes('--probar') || process.argv.includes('--probe');
+const FUENTES = process.argv.includes('--fuentes');
 const C = { bold: '\x1b[1m', dim: '\x1b[2m', red: '\x1b[31m', green: '\x1b[32m', amber: '\x1b[33m', off: '\x1b[0m' };
 
 const hallazgos: Hallazgo[] = [];
@@ -392,6 +396,89 @@ if (dbExistia) {
 }
 
 // ---------------------------------------------------------------------------
+// OPERACIÓN — trabajos, canales de aviso, interruptores, frescura y fuentes (Fase 9)
+// ---------------------------------------------------------------------------
+{
+  const db = getDb();
+  const uno = <T,>(fn: () => T, porDefecto: T): T => {
+    try {
+      return fn();
+    } catch {
+      return porDefecto;
+    }
+  };
+  const feats = estadoFeatures(process.env);
+  const conocidas = new Set(Object.keys(leerFeatures()));
+  const yyyymmdd = (x: string | null) => (x && /^\d{8}$/.test(x) ? `${x.slice(0, 4)}-${x.slice(4, 6)}-${x.slice(6, 8)}` : x);
+  const ultimoDe = (deporte: string, sql: string) =>
+    uno(() => {
+      const r = db.prepare(sql).get() as { u: string | null; n: number };
+      return { deporte, ultimo: yyyymmdd(r.u), partidos: r.n };
+    }, { deporte, ultimo: null, partidos: 0 });
+  const desde24h = new Date(Date.now() - 24 * 3_600_000).toISOString();
+  const estadoO: EstadoOperacion = {
+    registroOn: featureEncendida('operacion.registroTrabajos'),
+    trabajos: uno(
+      () =>
+        (db.prepare('SELECT name, enabled, last_status, last_run_at, last_error, COALESCE(cadence_override, cadence_minutes) AS c FROM scheduler_jobs ORDER BY name').all() as {
+          name: string; enabled: number; last_status: string | null; last_run_at: string | null; last_error: string | null; c: number;
+        }[]).map((r) => ({ nombre: r.name, enabled: !!r.enabled, lastStatus: r.last_status, lastRunAt: r.last_run_at, lastError: r.last_error, cadenciaMin: r.c })),
+      [],
+    ),
+    canalesOn: featureEncendida('notificaciones.canales'),
+    canales: uno(() => canalesDeAviso().map((c) => ({ nombre: c.nombre, configurado: c.configurado, falta: c.falta })), []),
+    envios24h: uno(() => {
+      const r = db.prepare('SELECT SUM(ok = 1) AS bien, SUM(ok = 0) AS mal FROM notification_log WHERE created_at >= ?').get(desde24h) as { bien: number | null; mal: number | null };
+      const u = db.prepare('SELECT channel, error FROM notification_log WHERE ok = 0 AND created_at >= ? ORDER BY created_at DESC LIMIT 1').get(desde24h) as { channel: string; error: string | null } | undefined;
+      return { ok: r.bien ?? 0, fallidos: r.mal ?? 0, ultimoError: u ? { canal: u.channel, error: u.error ?? 'sin detalle' } : null };
+    }, { ok: 0, fallidos: 0, ultimoError: null }),
+    interruptores: {
+      total: Object.keys(feats).length,
+      encendidos: Object.values(feats).filter((f) => f.on).length,
+      inactivos: Object.entries(feats).filter(([, f]) => f.falta).map(([nombre, f]) => ({ nombre, falta: f.falta! })),
+      huerfanas: uno(() => Object.keys(JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}') as Record<string, boolean>).filter((k) => !conocidas.has(k)), [] as string[]),
+    },
+    frescura: [
+      ultimoDe('Tenis', 'SELECT MAX(tourney_date) AS u, COUNT(*) AS n FROM matches'),
+      ultimoDe('Fútbol', 'SELECT MAX(match_date) AS u, COUNT(*) AS n FROM fb_matches'),
+      ultimoDe('Baloncesto', "SELECT MAX(game_date) AS u, COUNT(*) AS n FROM bb_games WHERE league = 'nba'"),
+      ultimoDe('Béisbol', 'SELECT MAX(game_date) AS u, COUNT(*) AS n FROM bsb_games'),
+      ultimoDe('NFL', 'SELECT MAX(game_date) AS u, COUNT(*) AS n FROM naf_games'),
+    ],
+  };
+  if (FUENTES) {
+    // Una petición ligera a cada fuente: ¿contesta desde aquí? (403 suele ser la red de la máquina.)
+    const FUENTES_DATOS: [string, string][] = [
+      ['GitHub (TML, openfootball, nflverse, Retrosheet, FPL)', 'https://raw.githubusercontent.com/nflverse/nfldata/master/README.md'],
+      ['tennis-data.co.uk', 'http://www.tennis-data.co.uk/alldata.php'],
+      ['football-data.co.uk', 'https://www.football-data.co.uk/data.php'],
+      ['ESPN', 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'],
+      ['MLB Stats API', 'https://statsapi.mlb.com/api/v1/sports'],
+      ['Open-Meteo', 'https://api.open-meteo.com/v1/forecast?latitude=40.4&longitude=-3.7&hourly=temperature_2m&forecast_days=1'],
+      ['ClubElo', 'http://api.clubelo.com/Barcelona'],
+      ['The Odds API', 'https://api.the-odds-api.com/v4/sports/?apiKey=sin-clave'],
+      ['NHL (en sombra)', 'https://api-web.nhle.com/v1/schedule/now'],
+      ['Telegram', 'https://api.telegram.org/'],
+    ];
+    estadoO.fuentes = await Promise.all(
+      FUENTES_DATOS.map(async ([nombre, url]) => {
+        const host = new URL(url).host;
+        try {
+          const res = await fetch(url, { signal: AbortSignal.timeout(8000), redirect: 'follow' });
+          await res.body?.cancel();
+          // The Odds API contesta 401 sin clave: eso es que llega.
+          const ok = res.status < 400 || (host === 'api.the-odds-api.com' && res.status === 401) || (host === 'api.telegram.org' && res.status === 404);
+          return { nombre, host, ok, detalle: ok ? `contesta (${res.status})` : res.status === 403 ? 'responde 403: lo bloquea la red de esta máquina o el propio sitio' : `responde ${res.status}` };
+        } catch (e) {
+          return { nombre, host, ok: false, detalle: `no contesta (${(e as Error).name === 'TimeoutError' ? 'tiempo agotado' : (e as Error).message})` };
+        }
+      }),
+    );
+  }
+  hallazgos.push(...comprobarOperacion(estadoO, new Date()));
+}
+
+// ---------------------------------------------------------------------------
 // ANALÍTICA E INTERFAZ — monitorización, simulación, calendario, ajustes, seguimiento
 // ---------------------------------------------------------------------------
 {
@@ -598,7 +685,7 @@ hallazgos.push(...comprobarServidor({ puertoApi: puertos.api, puertoWeb: puertos
 // Impresión
 // ---------------------------------------------------------------------------
 const marca = { ok: `${C.green}✓${C.off}`, aviso: `${C.amber}⚠${C.off}`, error: `${C.red}✗${C.off}`, info: `${C.dim}·${C.off}` };
-const orden: Seccion[] = ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'ACTUALIZACIÓN', 'CONFIANZA', 'DATOS Y COPIAS', 'ANALÍTICA E INTERFAZ', 'PRODUCTO', 'SEGURIDAD', 'SERVIDOR Y PANTALLA'];
+const orden: Seccion[] = ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'ACTUALIZACIÓN', 'CONFIANZA', 'DATOS Y COPIAS', 'OPERACIÓN', 'ANALÍTICA E INTERFAZ', 'PRODUCTO', 'SEGURIDAD', 'SERVIDOR Y PANTALLA'];
 for (const s of orden) {
   const hs = hallazgos.filter((x) => x.seccion === s);
   if (hs.length === 0) continue;

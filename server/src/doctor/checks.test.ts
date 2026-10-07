@@ -364,3 +364,84 @@ test('ampliaciones: apagadas son información; encendidas sin lo que necesitan a
   assert.equal(bien.find((x) => x.texto.startsWith('NHL'))?.nivel, 'ok');
   assert.match(bien.find((x) => x.texto.startsWith('Asistente'))!.texto, /2 chat\(s\).*la 500/);
 });
+
+// ---- OPERACIÓN (Fase 9) ----
+test('operación: temporada de cada deporte, también la que cruza el año', async () => {
+  const { diasDeTemporada } = await import('./checks.ts');
+  assert.equal(diasDeTemporada('NFL', new Date('2026-10-07T12:00:00Z')), 32);
+  assert.equal(diasDeTemporada('NFL', new Date('2027-01-20T12:00:00Z')), 137, 'enero sigue siendo la temporada que empezó en septiembre');
+  assert.equal(diasDeTemporada('NFL', new Date('2026-06-01T12:00:00Z')), null);
+  assert.equal(diasDeTemporada('Baloncesto', new Date('2026-10-07T12:00:00Z')), null, 'la NBA empieza el 20 de octubre');
+  assert.equal(diasDeTemporada('Tenis', new Date('2026-12-15T12:00:00Z')), null);
+  assert.equal(diasDeTemporada('Curling', new Date()), null);
+});
+
+test('operación: resultados atrasados en temporada avisan; fuera de temporada o al empezarla, no', async () => {
+  const { comprobarOperacion } = await import('./checks.ts');
+  const ahora = new Date('2026-10-07T12:00:00Z');
+  const base = {
+    registroOn: true,
+    trabajos: [],
+    canalesOn: true,
+    canales: [{ nombre: 'telegram', configurado: false, falta: ['TELEGRAM_BOT_TOKEN'] }],
+    envios24h: { ok: 0, fallidos: 0, ultimoError: null },
+    interruptores: { total: 50, encendidos: 45, inactivos: [], huerfanas: [] },
+    frescura: [
+      { deporte: 'Tenis', ultimo: '2026-01-17', partidos: 30_853 },
+      { deporte: 'Baloncesto', ultimo: '2026-06-14', partidos: 86_305 },
+      { deporte: 'NFL', ultimo: '2026-10-05', partidos: 7_340 },
+      { deporte: 'Béisbol', ultimo: null, partidos: 0 },
+    ],
+  };
+  const r = comprobarOperacion(base, ahora);
+  const de = (d: string) => r.find((x) => x.texto.startsWith(`${d}:`))!;
+  assert.equal(de('Tenis').nivel, 'aviso');
+  assert.match(de('Tenis').texto, /hace 263 días/);
+  assert.deepEqual(de('Tenis').accion, ['npm run update-data   # si la fuente no contesta, docs/FUENTES.md dice cuál es y por qué']);
+  assert.equal(de('Baloncesto').nivel, 'info');
+  assert.equal(de('NFL').nivel, 'ok');
+  assert.match(de('Béisbol').texto, /ningún resultado/);
+  // Diez días después de empezar la NBA, sin partidos nuevos todavía: aún no es avería.
+  const nba = comprobarOperacion({ ...base, frescura: [{ deporte: 'Baloncesto', ultimo: '2026-06-14', partidos: 1 }] }, new Date('2026-10-30T12:00:00Z'));
+  assert.equal(nba.find((x) => x.texto.startsWith('Baloncesto'))?.nivel, 'ok');
+  assert.ok(r.some((x) => x.nivel === 'info' && /--fuentes/.test(x.texto)), 'sin --fuentes, dice cómo comprobarlas');
+});
+
+test('operación: trabajos que fallan o se cuelgan, envíos fallidos, anulaciones huérfanas y fuentes caídas', async () => {
+  const { comprobarOperacion } = await import('./checks.ts');
+  const ahora = new Date('2026-10-07T12:00:00Z');
+  const r = comprobarOperacion(
+    {
+      registroOn: true,
+      trabajos: [
+        { nombre: 'pre-partido', enabled: true, lastStatus: 'ok', lastRunAt: '2026-10-07T11:50:00Z', lastError: null, cadenciaMin: 15 },
+        { nombre: 'resumen-diario', enabled: true, lastStatus: 'error', lastRunAt: '2026-10-07T07:00:00Z', lastError: 'SQLITE_BUSY', cadenciaMin: 60 },
+        { nombre: 'clima', enabled: true, lastStatus: 'running', lastRunAt: '2026-10-06T20:00:00Z', lastError: null, cadenciaMin: 180 },
+        { nombre: 'cierre-cuotas', enabled: false, lastStatus: null, lastRunAt: null, lastError: null, cadenciaMin: 10 },
+      ],
+      canalesOn: true,
+      canales: [
+        { nombre: 'telegram', configurado: true, falta: [] },
+        { nombre: 'correo', configurado: false, falta: ['SMTP_HOST'] },
+      ],
+      envios24h: { ok: 3, fallidos: 2, ultimoError: { canal: 'telegram', error: 'HTTP 401' } },
+      interruptores: { total: 50, encendidos: 45, inactivos: [{ nombre: 'asistente.modelo', falta: 'ANTHROPIC_API_KEY' }], huerfanas: ['viejo.interruptor'] },
+      frescura: [],
+      fuentes: [
+        { nombre: 'GitHub', host: 'raw.githubusercontent.com', ok: true, detalle: 'contesta (200)' },
+        { nombre: 'ESPN', host: 'site.api.espn.com', ok: false, detalle: 'responde 403: lo bloquea la red de esta máquina o el propio sitio' },
+      ],
+    },
+    ahora,
+  );
+  assert.match(r.find((x) => x.texto.startsWith('Trabajos programados'))!.texto, /4 registrados, apagados a mano: cierre-cuotas/);
+  assert.ok(r.some((x) => x.nivel === 'aviso' && /«resumen-diario».*SQLITE_BUSY/.test(x.texto)));
+  assert.ok(r.some((x) => x.nivel === 'aviso' && /«clima».*en marcha/.test(x.texto)));
+  assert.ok(!r.some((x) => /«pre-partido»/.test(x.texto)), 'un trabajo sano no ocupa línea propia');
+  assert.match(r.find((x) => x.texto.startsWith('Canales'))!.texto, /telegram \(sin configurar: correo\)/);
+  assert.ok(r.some((x) => x.nivel === 'aviso' && /2 envío\(s\) fallido\(s\).*HTTP 401/.test(x.texto)));
+  assert.ok(r.some((x) => /asistente\.modelo \(ANTHROPIC_API_KEY\)/.test(x.texto)));
+  assert.ok(r.some((x) => x.nivel === 'aviso' && /viejo\.interruptor/.test(x.texto)));
+  assert.ok(r.some((x) => x.nivel === 'aviso' && /Fuente ESPN.*403/.test(x.texto)));
+  assert.ok(!r.some((x) => /Fuente GitHub/.test(x.texto)), 'solo se listan las que no contestan');
+});

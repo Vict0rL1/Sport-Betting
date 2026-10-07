@@ -28,7 +28,7 @@ test('doctor --probar: secciones, cupo, sondeo y resultado', () => {
   );
   // Sin los códigos de color de la terminal (ESC[…m).
   const out = (r.stdout + r.stderr).replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g'), '');
-  for (const s of ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'SERVIDOR Y PANTALLA', 'RESULTADO']) {
+  for (const s of ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'OPERACIÓN', 'SERVIDOR Y PANTALLA', 'RESULTADO']) {
     assert.match(out, new RegExp(s), `falta la sección ${s}\n${out}`);
   }
   assert.match(out, /✓ API key válida/);
