@@ -55,8 +55,8 @@ function bestSurface(p: EloRankPlayer): { key: Surface; edge: number } {
 function chip(active: boolean): string {
   return `shrink-0 rounded-full px-3 py-1 text-[14px] font-medium ring-1 ring-inset transition ${
     active
-      ? 'bg-white/[0.12] text-[#e8eaed] ring-white/[0.18]'
-      : 'text-[#9aa1ac] ring-white/[0.08] hover:bg-white/[0.05] hover:text-[#e8eaed]'
+      ? 'bg-(--raised-3) text-(--ink-strong) ring-(--line-strong)'
+      : 'text-(--ink-soft) ring-(--line) hover:bg-(--raised) hover:text-(--ink-strong)'
   }`;
 }
 
@@ -137,7 +137,7 @@ export default function TennisEloPanel({
 
   if (error) {
     return (
-      <section className="mt-8 rounded-xl border border-white/[0.07] bg-[#14161b] p-4 text-[13px] text-[#7b828d]">
+      <section className="mt-8 rounded-xl border border-(--line) bg-(--surface-card) p-4 text-[13px] text-(--ink-muted)">
         No se pudo cargar la clasificación por Elo: {error}
       </section>
     );
@@ -154,7 +154,7 @@ export default function TennisEloPanel({
       subtitle={
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-[#5c636c]">Ordenar por:</span>
+            <span className="mr-1 text-(--ink-faint)">Ordenar por:</span>
             {(['overall', 'hard', 'clay', 'grass'] as Surface[]).map((s) => (
               <button key={s} className={chip(surface === s)} onClick={() => setSurface(s)}>
                 {SURFACE_LABEL[s]}
@@ -162,7 +162,7 @@ export default function TennisEloPanel({
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-[#5c636c]">Mostrar:</span>
+            <span className="mr-1 text-(--ink-faint)">Mostrar:</span>
             <button className={chip(onlyActive)} onClick={() => setOnlyActive(true)}>
               En activo
             </button>
@@ -177,7 +177,7 @@ export default function TennisEloPanel({
                 años.{' '}
                 {hidden > 0 && (
                   <>
-                    Quedan fuera <strong className="text-[#9aa1ac]">{hidden}</strong> por llevar
+                    Quedan fuera <strong className="text-(--ink-soft)">{hidden}</strong> por llevar
                     más tiempo sin jugar — su Elo sigue congelado en su último partido, así que
                     en una lista de «quién es mejor ahora» respondería a otra pregunta.
                   </>
@@ -185,7 +185,7 @@ export default function TennisEloPanel({
               </>
             ) : (
               <>
-                Lista <strong className="text-[#9aa1ac]">histórica</strong>: incluye a los
+                Lista <strong className="text-(--ink-soft)">histórica</strong>: incluye a los
                 retirados con el Elo congelado en su último partido. Contesta «quién llegó más
                 alto en este archivo», no «quién es mejor ahora».
               </>

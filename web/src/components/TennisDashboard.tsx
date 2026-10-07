@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { rutaJugador } from '../rutas';
 import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../lib/rutas';
 import {
   api,
@@ -8,7 +10,6 @@ import {
   type UpcomingWithPrediction,
 } from '../lib/api';
 import MatchCard from './MatchCard';
-import PlayerProfile from './PlayerProfile';
 import TrackRecordPanel from './TrackRecordPanel';
 import TennisEloPanel from './TennisEloPanel';
 import {
@@ -34,7 +35,9 @@ export default function TennisDashboard() {
   const [matches, setMatches] = useState<UpcomingWithPrediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [profile, setProfile] = useState<{ tour: string; id: number } | null>(null);
+  const navigate = useNavigate();
+  // Un jugador abre su página (Fase 5.12).
+  const setProfile = (x: { tour: string; id: number }) => navigate(rutaJugador(x.tour, x.id));
   const [refreshing, setRefreshing] = useState(false);
   // null = every day. See the note in the other dashboards.
   const [day, setDay] = useFiltroQuery('dia');
@@ -140,7 +143,7 @@ export default function TennisDashboard() {
         chips={meta && <>{meta.counts.matches.toLocaleString('es')} partidos · {meta.counts.players} jugadores</>}
         alert={staleLabel(stale)}
       >
-          <p className="max-w-prose text-[15px] leading-relaxed text-[#9aa1ac]">
+          <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
             Predicción de partidos con Elo por superficie, forma reciente, head-to-head y odds del
             mercado.
           </p>
@@ -224,16 +227,16 @@ export default function TennisDashboard() {
                 <p>
                   No es un fallo de descarga: las dos fuentes de tenis que había en GitHub dejaron de
                   servir este circuito.{' '}
-                  <code className="rounded bg-white/[0.06] px-1">JeffSackmann/tennis_wta</code>{' '}
+                  <code className="rounded bg-(--raised) px-1">JeffSackmann/tennis_wta</code>{' '}
                   devuelve 404 —el repositorio ya no existe— y{' '}
-                  <code className="rounded bg-white/[0.06] px-1">Tennismylife</code>, que lo
+                  <code className="rounded bg-(--raised) px-1">Tennismylife</code>, que lo
                   reemplazó, solo cubre ATP.
                 </p>
                 <p className="mt-1.5">
                   Lo que sí llega a la temporada en curso es{' '}
-                  <strong className="text-[#9aa1ac]">tennis-data.co.uk</strong>, con ATP y WTA y
+                  <strong className="text-(--ink-soft)">tennis-data.co.uk</strong>, con ATP y WTA y
                   además con las cuotas de cierre.{' '}
-                  <code className="rounded bg-white/[0.06] px-1">npm run update-data</code> ya lo
+                  <code className="rounded bg-(--raised) px-1">npm run update-data</code> ya lo
                   intenta solo; desde una red que no lo bloquee debería completar este circuito sin
                   que toques nada.
                 </p>
@@ -245,7 +248,7 @@ export default function TennisDashboard() {
 
       {/* Matches */}
       {loading ? (
-        <p className="text-[#7b828d]">Cargando partidos…</p>
+        <p className="text-(--ink-muted)">Cargando partidos…</p>
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
@@ -280,14 +283,6 @@ export default function TennisDashboard() {
       )}
 
       <TennisEloPanel tour={tour} onOpenPlayer={(t, id) => setProfile({ tour: t, id })} />
-
-      {profile && (
-        <PlayerProfile
-          tour={profile.tour}
-          id={profile.id}
-          onClose={() => setProfile(null)}
-        />
-      )}
     </div>
   );
 }
@@ -298,7 +293,7 @@ function RefreshInfo({ meta }: { meta: Meta }) {
     ? new Date(when).toLocaleString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
     : '—';
   return (
-    <p className="mt-1 text-[14px] text-[#7b828d]">
+    <p className="mt-1 text-[14px] text-(--ink-muted)">
       Odds actualizadas: {whenTxt}
       {meta.hasOddsKey
         ? meta.autoRefreshMinutes > 0
@@ -374,7 +369,7 @@ function ShortSlateNote({
   const torneos = [...new Set(matches.map((m) => m.match.tournament_name).filter(Boolean))];
 
   return (
-    <p className="mb-4 text-[13px] leading-relaxed text-[#7b828d]">
+    <p className="mb-4 text-[13px] leading-relaxed text-(--ink-muted)">
       {matches.length === 1 ? 'Un solo partido' : `Solo ${matches.length} partidos`}
       {torneos.length === 1 ? ` (${torneos[0]})` : ''}:{' '}
       {todosDemo ? (
@@ -385,7 +380,7 @@ function ShortSlateNote({
           les ponen precio. A mitad de un Grand Slam hay un único torneo activo y en las
           rondas finales quedan dos o cuatro partidos, así que esto suele ser lo que hay y
           no una carga a medias. El archivo histórico —el de la cabecera— es aparte y está
-          completo. <strong className="text-[#9aa1ac]">Volver a actualizar gasta cuota y
+          completo. <strong className="text-(--ink-soft)">Volver a actualizar gasta cuota y
           devolverá los mismos.</strong>
         </>
       )}
@@ -417,8 +412,8 @@ function DemoReason({ meta }: { meta: Meta | null }) {
   if (razon === 'sin_eventos') {
     return (
       <>
-        son de <strong className="text-[#9aa1ac]">demostración</strong>, y{' '}
-        <strong className="text-[#9aa1ac]">no falta nada por tu parte</strong>: tu clave
+        son de <strong className="text-(--ink-soft)">demostración</strong>, y{' '}
+        <strong className="text-(--ink-soft)">no falta nada por tu parte</strong>: tu clave
         funciona, pero ahora mismo las casas no publican ningún partido de tenis. Entre
         torneos es lo normal. Cuando empiece el siguiente aparecerán solos — y mientras
         tanto la app enseña un calendario generado por el modelo para no quedarse vacía.
@@ -430,9 +425,9 @@ function DemoReason({ meta }: { meta: Meta | null }) {
     // refresco automático seguirá frenado mañana y pasado.
     return (
       <>
-        son de <strong className="text-[#9aa1ac]">demostración</strong> porque la app se
+        son de <strong className="text-(--ink-soft)">demostración</strong> porque la app se
         frenó sola para repartir el plan del mes —{' '}
-        <strong className="text-[#9aa1ac]">no llegó a preguntar</strong>. Esperar no lo
+        <strong className="text-(--ink-soft)">no llegó a preguntar</strong>. Esperar no lo
         cambia. <code>npm run odds</code> las pide saltándose el freno.
       </>
     );
@@ -440,9 +435,9 @@ function DemoReason({ meta }: { meta: Meta | null }) {
   if (razon === 'fuente_falla') {
     return (
       <>
-        son de <strong className="text-[#9aa1ac]">demostración</strong> porque el proveedor
+        son de <strong className="text-(--ink-soft)">demostración</strong> porque el proveedor
         de cuotas no contestó.{' '}
-        <strong className="text-[#9aa1ac]">Tu clave está puesta</strong>, así que suele ser
+        <strong className="text-(--ink-soft)">Tu clave está puesta</strong>, así que suele ser
         la cuota del mes agotada o falta de conexión. <code>npm run doctor</code> lo dice
         sin gastar ni una petición.
         {meta?.oddsFallbackDetail && (
@@ -454,7 +449,7 @@ function DemoReason({ meta }: { meta: Meta | null }) {
   if (razon === 'sin_clave' || meta?.hasOddsKey === false) {
     return (
       <>
-        son de <strong className="text-[#9aa1ac]">demostración</strong>, generados por el
+        son de <strong className="text-(--ink-soft)">demostración</strong>, generados por el
         propio modelo, porque no hay <code>ODDS_API_KEY</code>. Ponla en el fichero{' '}
         <code>.env</code> y corre <code>npm run update-data</code> para ver las de verdad.
       </>
@@ -464,7 +459,7 @@ function DemoReason({ meta }: { meta: Meta | null }) {
   // sabe y se manda al comando que lo averigua, en vez de adivinar una causa.
   return (
     <>
-      son de <strong className="text-[#9aa1ac]">demostración</strong>, generados por el
+      son de <strong className="text-(--ink-soft)">demostración</strong>, generados por el
       propio modelo. <code>npm run doctor</code> dice por qué, sin gastar cuota.
     </>
   );

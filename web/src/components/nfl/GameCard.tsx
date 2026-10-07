@@ -1,6 +1,7 @@
 import type { NflGameWithPrediction, NflPrediction, NflSpreadQuote } from '../../lib/nfl';
 import { AWAY_COLOR, HOME_COLOR, NEUTRAL_COLOR, pct } from '../../lib/theme';
 import { PostprocessPanel } from '../PostprocessPanel';
+import { EnlacePartido } from '../ui';
 import EventTrustPanel from '../trust/EventTrustPanel';
 import { ClimaPanel } from '../ClimaPanel';
 
@@ -60,7 +61,7 @@ export default function GameCard({
 
   return (
     <Card as="article" className="p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[13px] text-[#7b828d]">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-[13px] text-(--ink-muted)">
         {/* Only the clock: the day is in the heading above this group, and thirty
             cards each restating their own date is thirty copies of a fact that
             changes four times. */}
@@ -111,7 +112,7 @@ export default function GameCard({
           record={prediction?.teams.away.record ?? teams.away?.record ?? null}
           onClick={game.away_id ? () => onOpenTeam(game.league, game.away_id!) : undefined}
         />
-        <span className="shrink-0 pt-1 text-[13px] font-medium text-[#5c636c]">@</span>
+        <span className="shrink-0 pt-1 text-[13px] font-medium text-(--ink-faint)">@</span>
         <TeamName
           league={game.league}
           id={game.home_id}
@@ -166,46 +167,13 @@ export default function GameCard({
 
           {prediction && (
             <>
-              <StatRow className="mt-3">
-                <StatTile
-                  label={`Hándicap ${fmtLine(prediction.spread.line)}`}
-                  value={pct(prediction.spread.home.cover)}
-                  hint={
-                    prediction.spread.home.push > 0.005
-                      ? `nulo ${pct(prediction.spread.home.push)}`
-                      : 'lo cubre el local'
-                  }
-                  title={
-                    prediction.spread.fromMarket
-                      ? 'Línea tomada del mercado. Probabilidad de que el local la cubra.'
-                      : 'Sin línea del mercado: se usa la del propio modelo, redondeada.'
-                  }
-                />
-                <StatTile
-                  label={`Total ${prediction.total.line}`}
-                  value={pct(prediction.total.over)}
-                  hint={`under ${pct(prediction.total.under)}`}
-                />
-                <StatTile
-                  label="Margen esperado"
-                  value={prediction.spread.label}
-                  hint={`${prediction.points.home}-${prediction.points.away}`}
-                />
-                <StatTile
-                  label="Marcador"
-                  value={prediction.scorelines[0]?.label ?? '—'}
-                  hint={`más probable · ${pct(prediction.scorelines[0]?.probability ?? 0)}`}
-                />
-              </StatRow>
-
-              <KeyNumbers prediction={prediction} />
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="min-w-0 text-[15px] leading-snug text-[#c3c9d1]">
+                <p className="min-w-0 text-[15px] leading-snug text-(--ink-body)">
                   {prediction.verdict.close ? (
                     <>
                       Muy igualado —{' '}
-                      <strong className="font-semibold text-[#e8eaed]">
+                      <strong className="font-semibold text-(--ink-strong)">
                         {prediction.verdict.label}
                       </strong>{' '}
                       solo por poco
@@ -213,7 +181,7 @@ export default function GameCard({
                   ) : (
                     <>
                       Lo más probable:{' '}
-                      <strong className="font-semibold text-[#e8eaed]">
+                      <strong className="font-semibold text-(--ink-strong)">
                         {prediction.verdict.label}
                       </strong>
                     </>
@@ -256,9 +224,44 @@ export default function GameCard({
                 </div>
               </div>
 
+              <div className="mt-2 flex justify-end">
+                <EnlacePartido sport="nfl" id={game.id} clave={item.prePartido?.matchKey} />
+              </div>
               <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
               <div className="mt-1">
-                <Disclosure summary="Ver desglose · números clave, márgenes, marcadores y mercado">
+                <Disclosure summary="¿Por qué? · hándicap, total, números clave, márgenes y mercado">
+                  <StatRow>
+                <StatTile
+                  label={`Hándicap ${fmtLine(prediction.spread.line)}`}
+                  value={pct(prediction.spread.home.cover)}
+                  hint={
+                    prediction.spread.home.push > 0.005
+                      ? `nulo ${pct(prediction.spread.home.push)}`
+                      : 'lo cubre el local'
+                  }
+                  title={
+                    prediction.spread.fromMarket
+                      ? 'Línea tomada del mercado. Probabilidad de que el local la cubra.'
+                      : 'Sin línea del mercado: se usa la del propio modelo, redondeada.'
+                  }
+                />
+                <StatTile
+                  label={`Total ${prediction.total.line}`}
+                  value={pct(prediction.total.over)}
+                  hint={`under ${pct(prediction.total.under)}`}
+                />
+                <StatTile
+                  label="Margen esperado"
+                  value={prediction.spread.label}
+                  hint={`${prediction.points.home}-${prediction.points.away}`}
+                />
+                <StatTile
+                  label="Marcador"
+                  value={prediction.scorelines[0]?.label ?? '—'}
+                  hint={`más probable · ${pct(prediction.scorelines[0]?.probability ?? 0)}`}
+                />
+              </StatRow>
+                  <KeyNumbers prediction={prediction} />
                   <Detail prediction={prediction} clima={item.clima} />
                 </Disclosure>
               </div>
@@ -288,23 +291,23 @@ function KeyNumbers({ prediction }: { prediction: NflPrediction }) {
   const three = prediction.keyNumbers.find((k) => k.margin === 3)?.probability ?? 0;
   const seven = prediction.keyNumbers.find((k) => k.margin === 7)?.probability ?? 0;
   return (
-    <div className="mt-3 border-b border-white/[0.07] pb-3">
+    <div className="mt-3 border-b border-(--line) pb-3">
       <SectionTitle right={`3 o 7: ${pct(three + seven)}`}>
         El margen cae justo en…
       </SectionTitle>
       <div className="flex flex-wrap gap-x-5 gap-y-2">
         {prediction.keyNumbers.map((k) => (
           <div key={k.margin} className="min-w-0">
-            <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#7b828d]">
+            <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
               {k.margin} puntos
             </div>
-            <div className="text-[16px] font-semibold tabular-nums text-[#e8eaed]">
+            <div className="text-[16px] font-semibold tabular-nums text-(--ink-strong)">
               {pct(k.probability)}
             </div>
           </div>
         ))}
       </div>
-      <p className="mt-1.5 text-[11px] leading-relaxed text-[#7b828d]">
+      <p className="mt-1.5 text-[11px] leading-relaxed text-(--ink-muted)">
         En la NFL el marcador se mueve de 3 en 3 y de 7 en 7, así que el margen final se amontona en
         esos números. Por eso una línea de −3 y una de −3.5 no son la misma apuesta.
       </p>
@@ -339,7 +342,7 @@ function TeamName({
           // two team names — the one thing a matchup card exists to tell you —
           // into "New Engl…" and "Seattle S…". Two short lines cost a few pixels
           // of height and lose nothing.
-          className={`max-w-full text-left text-[17px] font-semibold leading-tight break-words text-[#e8eaed] ${
+          className={`max-w-full text-left text-[17px] font-semibold leading-tight break-words text-(--ink-strong) ${
             alignRight ? 'text-right' : ''
           } ${onClick ? 'hover:underline' : 'cursor-default'}`}
           title={onClick ? 'Ver ficha del equipo' : name}
@@ -348,7 +351,7 @@ function TeamName({
         </button>
         {alignRight && <TeamCrest league={league} name={name} code={id} />}
       </span>
-      <div className="text-[13px] text-[#7b828d]">
+      <div className="text-[13px] text-(--ink-muted)">
         {homeBadge && 'local · '}
         {elo != null && (
           <>
@@ -375,11 +378,11 @@ function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: impo
     <div className="space-y-3">
       <Panel>
         <SectionTitle>Por qué</SectionTitle>
-        <p className="mb-2 text-[15px] leading-relaxed text-[#c3c9d1]">{reasoning.text}</p>
+        <p className="mb-2 text-[15px] leading-relaxed text-(--ink-body)">{reasoning.text}</p>
         <dl className="space-y-1 text-[13px]">
           {reasoning.factors.map((f) => (
             <div key={f.key} className="flex justify-between gap-3">
-              <dt className="text-[#9aa1ac]">{f.label}</dt>
+              <dt className="text-(--ink-soft)">{f.label}</dt>
               <dd>
                 <FactorValue
                   color={f.pointsForHome >= 0 ? HOME_COLOR : AWAY_COLOR}
@@ -410,9 +413,9 @@ function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: impo
               ['away', away.name, prediction.quarterbacks.away, AWAY_COLOR],
             ] as const).map(([key, teamName, qb, color]) => (
               <div key={key} className="flex justify-between gap-3">
-                <dt className="text-[#9aa1ac]">
+                <dt className="text-(--ink-soft)">
                   {qb?.name ?? 'sin dato'}{' '}
-                  <span className="text-[#5c636c]">· {teamName}</span>
+                  <span className="text-(--ink-faint)">· {teamName}</span>
                 </dt>
                 <dd>
                   <FactorValue color={color} neutral={!qb || qb.points === 0}>
@@ -426,7 +429,7 @@ function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: impo
               </div>
             ))}
           </dl>
-          <p className="mt-2 text-[13px] leading-relaxed text-[#7b828d]">
+          <p className="mt-2 text-[13px] leading-relaxed text-(--ink-muted)">
             Medido sobre 27 temporadas: el 52% de los equipos usa más de un titular por temporada, así
             que quién juega de quarterback mueve el pronóstico. Si sabes que hay un cambio esta semana,
             el modelo aún no lo sabe.
@@ -448,7 +451,7 @@ function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: impo
             <SpreadLine key={q.line} quote={q} homeName={home.name} />
           ))}
         </div>
-        <p className="mt-1.5 text-[11px] leading-relaxed text-[#7b828d]">
+        <p className="mt-1.5 text-[11px] leading-relaxed text-(--ink-muted)">
           «Nulo» es la probabilidad de que el margen caiga justo en la línea y te devuelvan la
           apuesta. En una línea entera de 3 puntos eso pasa una de cada trece veces.
         </p>
@@ -457,14 +460,14 @@ function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: impo
       <Panel>
         <SectionTitle right={`${total.expected} esperados`}>Total de puntos</SectionTitle>
         <div className="flex items-center gap-3 text-[13px]">
-          <span className="w-16 shrink-0 text-[#9aa1ac]">Over {total.line}</span>
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+          <span className="w-16 shrink-0 text-(--ink-soft)">Over {total.line}</span>
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-(--raised)">
             <div
               className="h-full rounded-full"
               style={{ width: `${total.over * 100}%`, backgroundColor: HOME_COLOR }}
             />
           </div>
-          <span className="w-24 shrink-0 text-right tabular-nums text-[#9aa1ac]">
+          <span className="w-24 shrink-0 text-right tabular-nums text-(--ink-soft)">
             {pct(total.over)} / {pct(total.under)}
           </span>
         </div>
@@ -490,7 +493,7 @@ function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: impo
             />
           ))}
         </div>
-        <p className="mt-1.5 text-[11px] leading-relaxed text-[#7b828d]">
+        <p className="mt-1.5 text-[11px] leading-relaxed text-(--ink-muted)">
           Los tramos son de una, dos y tres anotaciones: «dentro de una anotación» es la frase con la
           que se sigue el último cuarto.
         </p>
@@ -510,7 +513,7 @@ function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: impo
             />
           ))}
         </div>
-        <p className="mt-1.5 text-[11px] leading-relaxed text-[#7b828d]">
+        <p className="mt-1.5 text-[11px] leading-relaxed text-(--ink-muted)">
           Salen de combinar el margen y el total, así que cuadran exactamente con los dos paneles de
           arriba. A cambio, no saben que 22 puntos es un marcador raro y 24 uno corriente.
         </p>
@@ -520,12 +523,12 @@ function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: impo
         <SectionTitle>Los dos equipos</SectionTitle>
         <dl className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-[13px]">
           <div />
-          <div className="flex w-20 items-center justify-end gap-1.5 font-medium text-[#e8eaed]">
-            <span className="truncate">{away.name}</span>
+          <div className="flex w-20 items-center justify-end gap-1.5 font-medium text-(--ink-strong)">
+            <span className="break-words">{away.name}</span>
             <TeamCrest league={prediction.league} name={away.name} code={away.id} size={14} />
           </div>
-          <div className="flex w-20 items-center justify-end gap-1.5 font-medium text-[#e8eaed]">
-            <span className="truncate">{home.name}</span>
+          <div className="flex w-20 items-center justify-end gap-1.5 font-medium text-(--ink-strong)">
+            <span className="break-words">{home.name}</span>
             <TeamCrest league={prediction.league} name={home.name} code={home.id} size={14} />
           </div>
           <CompareRow label="Elo" left={Math.round(away.elo)} right={Math.round(home.elo)} />
@@ -556,15 +559,15 @@ function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: impo
           Historial directo
         </SectionTitle>
         {h2h.recent.length === 0 ? (
-          <p className="text-[13px] text-[#7b828d]">Sin enfrentamientos previos en el archivo.</p>
+          <p className="text-[13px] text-(--ink-muted)">Sin enfrentamientos previos en el archivo.</p>
         ) : (
           <ul className="space-y-1 text-[13px]">
             {h2h.recent.map((m, i) => (
-              <li key={i} className="flex justify-between gap-3 text-[#c3c9d1]">
-                <span className="shrink-0 text-[#7b828d]">
+              <li key={i} className="flex justify-between gap-3 text-(--ink-body)">
+                <span className="shrink-0 text-(--ink-muted)">
                   {m.season} · sem {m.week}
                 </span>
-                <span className="truncate text-right">
+                <span className="break-words text-right">
                   {m.awayId === away.id ? away.name : home.name} {m.awayPoints}–{m.homePoints}{' '}
                   {m.homeId === home.id ? home.name : away.name}
                 </span>
@@ -597,20 +600,20 @@ function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: impo
             Mercado
           </SectionTitle>
           {market.market.odds ? (
-            <p className="text-[13px] leading-relaxed text-[#c3c9d1]">
+            <p className="text-[13px] leading-relaxed text-(--ink-body)">
               Cuotas {market.market.odds.away} / {market.market.odds.home} · implícitas sin vig{' '}
               {pct(market.market.away)} / {pct(market.market.home)}
             </p>
           ) : (
             <>
-              <p className="text-[13px] leading-relaxed text-[#c3c9d1]">
+              <p className="text-[13px] leading-relaxed text-(--ink-body)">
                 Línea de cierre {market.market.line! > 0 ? '+' : ''}
                 {market.market.line} → {pct(market.market.away)} / {pct(market.market.home)}
               </p>
               {/* Said on the card and not only in the docs, because it changes how the
                   number above it should be read: on this sport the market is the better
                   forecast, and the reader is entitled to know that before comparing. */}
-              <p className="mt-1.5 text-[12px] leading-relaxed text-[#9aa1ac]">
+              <p className="mt-1.5 text-[12px] leading-relaxed text-(--ink-soft)">
                 Medido sobre 7.276 partidos, esta cifra acierta más que la del modelo
                 (Brier 0.2115 frente a 0.2180). Cuando discrepan, lo más probable es que
                 tenga razón el mercado.
@@ -626,8 +629,8 @@ function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: impo
         </SectionTitle>
         <ul className="space-y-1.5">
           {summary.bullets.map((b, i) => (
-            <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-[#9aa1ac]">
-              <span aria-hidden className="text-[#5c636c]">
+            <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-(--ink-soft)">
+              <span aria-hidden className="text-(--ink-faint)">
                 •
               </span>
               <span>{b}</span>
@@ -642,7 +645,7 @@ function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: impo
 function SpreadLine({ quote, homeName }: { quote: NflSpreadQuote; homeName: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="w-16 shrink-0 tabular-nums text-[#c3c9d1]" title={quote.label}>
+      <span className="w-16 shrink-0 tabular-nums text-(--ink-body)" title={quote.label}>
         {homeName.split(' ').slice(-1)[0]} {fmtLine(quote.line)}
       </span>
       <div className="flex h-2 flex-1 gap-[2px] overflow-hidden rounded-full">
@@ -658,9 +661,9 @@ function SpreadLine({ quote, homeName }: { quote: NflSpreadQuote; homeName: stri
           style={{ width: `${quote.fail * 100}%`, backgroundColor: AWAY_COLOR }}
         />
       </div>
-      <span className="w-24 shrink-0 text-right tabular-nums text-[#9aa1ac]">
+      <span className="w-24 shrink-0 text-right tabular-nums text-(--ink-soft)">
         {pct(quote.cover)}
-        {quote.push > 0.002 && <span className="text-[#7b828d]"> · {pct(quote.push)} nulo</span>}
+        {quote.push > 0.002 && <span className="text-(--ink-muted)"> · {pct(quote.push)} nulo</span>}
       </span>
     </div>
   );

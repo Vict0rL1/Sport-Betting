@@ -81,7 +81,7 @@ export default function PaperBankroll() {
 
   if (error) {
     return (
-      <section className="mb-6 rounded-xl border border-white/[0.09] bg-white/[0.02] px-4 py-3 text-[14px] text-[#9aa1ac]">
+      <section className="mb-6 rounded-xl border border-(--line) bg-(--tint) px-4 py-3 text-[14px] text-(--ink-soft)">
         No he podido leer el banco del modelo ({error}).
       </section>
     );
@@ -91,19 +91,19 @@ export default function PaperBankroll() {
   const color = r.beneficio > 0 ? PROFIT_COLOR : r.beneficio < 0 ? LOSS_COLOR : BREAK_EVEN_COLOR;
 
   return (
-    <section className="mb-6 overflow-hidden rounded-xl border border-white/[0.09] bg-white/[0.02]">
+    <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
       <div className="px-4 py-3">
-        <h2 className="text-[16px] font-semibold text-[#e8eaed]">El modelo apostando solo</h2>
-        <p className="mt-0.5 text-[13px] leading-relaxed text-[#7b828d]">
+        <h2 className="text-[16px] font-semibold text-(--ink-strong)">El modelo apostando solo</h2>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-(--ink-muted)">
           Empieza con {r.bancoInicial} $ y apuesta por su cuenta, con la misma política de
           dimensionamiento que recomienda la app: Kelly a un cuarto, 2 % máximo por evento y
           topes de exposición por día y totales. Esto{' '}
-          <strong className="text-[#9aa1ac]">no es dinero real</strong> y no es una recomendación
+          <strong className="text-(--ink-soft)">no es dinero real</strong> y no es una recomendación
           — es la única forma de contestar «si le hubiera hecho caso, ¿cuánto habría ganado?».
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-px border-t border-white/[0.07] bg-white/[0.05] sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-px border-t border-(--line) bg-(--raised) sm:grid-cols-4">
         {[
           { k: 'Banco', v: dinero(r.banco), c: color },
           { k: 'Beneficio', v: dinero(r.beneficio), c: color },
@@ -112,9 +112,9 @@ export default function PaperBankroll() {
           { k: 'ROI', v: r.roi === null ? '—' : `${(r.roi * 100).toFixed(1)} %`, c: r.roi === null ? undefined : color },
           { k: 'Comprometido', v: dinero(r.expuesto) },
         ].map((x) => (
-          <div key={x.k} className="bg-[#0e0f11] px-4 py-3">
-            <div className="text-[11px] uppercase tracking-wide text-[#7b828d]">{x.k}</div>
-            <div className="mt-0.5 text-[18px] font-semibold" style={{ color: x.c ?? '#e8eaed' }}>
+          <div key={x.k} className="bg-(--surface-page) px-4 py-3">
+            <div className="text-[11px] uppercase tracking-wide text-(--ink-muted)">{x.k}</div>
+            <div className="mt-0.5 text-[18px] font-semibold" style={{ color: x.c ?? 'var(--ink-strong)' }}>
               {x.v}
             </div>
           </div>
@@ -125,7 +125,7 @@ export default function PaperBankroll() {
           depende de la suerte del resultado: una apuesta perdida a 2,10 que cerró a
           1,94 fue una buena apuesta. */}
       {r.conCierre != null && r.conCierre > 0 && r.clvMedio != null && (
-        <p className="border-t border-white/[0.07] px-4 py-2.5 text-[13px] text-[#9aa1ac]">
+        <p className="border-t border-(--line) px-4 py-2.5 text-[13px] text-(--ink-soft)">
           <strong style={{ color: r.clvMedio >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
             CLV medio {r.clvMedio >= 0 ? '+' : '−'}
             {Math.abs(r.clvMedio * 100).toFixed(1)} %
@@ -137,7 +137,7 @@ export default function PaperBankroll() {
         </p>
       )}
 
-      <p className="border-t border-white/[0.07] px-4 py-2.5 text-[13px] text-[#7b828d]">
+      <p className="border-t border-(--line) px-4 py-2.5 text-[13px] text-(--ink-muted)">
         {r.liquidadas} liquidada{r.liquidadas === 1 ? '' : 's'} ({r.ganadas} ganada
         {r.ganadas === 1 ? '' : 's'}, {r.perdidas} perdida{r.perdidas === 1 ? '' : 's'}) ·{' '}
         {r.pendientes} sin resolver
@@ -156,8 +156,8 @@ export default function PaperBankroll() {
       {/* Sin apuestas y con un motivo: se dice el motivo. Un banco a 1.000 y una tabla
           vacía, sin explicación, se lee como que el experimento no funciona. */}
       {r.apuestas.length === 0 && r.motivo && (
-        <div className="border-t border-white/[0.07] px-4 py-3 text-[14px] leading-relaxed text-[#9aa1ac]">
-          <strong className="text-[#c3c9d1]">Todavía no ha apostado nada.</strong> {r.motivo}
+        <div className="border-t border-(--line) px-4 py-3 text-[14px] leading-relaxed text-(--ink-soft)">
+          <strong className="text-(--ink-body)">Todavía no ha apostado nada.</strong> {r.motivo}
         </div>
       )}
 
@@ -165,7 +165,7 @@ export default function PaperBankroll() {
           esté esperando partidos, esperando cuotas, o decidiendo no apostar — y la
           tercera es el experimento funcionando, no una avería. */}
       {r.ultima && (r.ultima.candidatas > 0 || Object.keys(r.ultima.rechazos).length > 0) && (
-        <div className="border-t border-white/[0.07] px-4 py-2.5 text-[13px] leading-relaxed text-[#7b828d]">
+        <div className="border-t border-(--line) px-4 py-2.5 text-[13px] leading-relaxed text-(--ink-muted)">
           Última revisión {new Date(r.ultima.cuando).toLocaleString('es', {
             day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
           })}
@@ -180,10 +180,10 @@ export default function PaperBankroll() {
       )}
 
       {r.apuestas.length > 0 && (
-        <div className="overflow-x-auto border-t border-white/[0.07]">
+        <div className="overflow-x-auto border-t border-(--line)">
           <table className="w-full min-w-[560px] border-collapse text-[14px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wide text-[#7b828d]">
+              <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
                 <th className="px-4 py-2 font-medium">Partido</th>
                 <th className="px-4 py-2 font-medium">Apuesta</th>
                 <th className="px-4 py-2 text-right font-medium">Modelo / mercado</th>
@@ -194,31 +194,31 @@ export default function PaperBankroll() {
             </thead>
             <tbody>
               {r.apuestas.map((a) => (
-                <tr key={a.id} className="border-t border-white/[0.05]">
-                  <td className="px-4 py-2.5 text-[#c3c9d1]">
+                <tr key={a.id} className="border-t border-(--line)">
+                  <td className="px-4 py-2.5 text-(--ink-body)">
                     {a.label}
                     {a.correlation_groups && (
-                      <span className="block text-[11px] text-[#5c636c]" title={(JSON.parse(a.correlation_groups) as string[]).join(' · ')}>
+                      <span className="block text-[11px] text-(--ink-faint)" title={(JSON.parse(a.correlation_groups) as string[]).join(' · ')}>
                         grupo {(JSON.parse(a.correlation_groups) as string[])[0]}
                       </span>
                     )}
                     {/* Qué versión exacta del modelo tomó la decisión. */}
                     {a.model_version && (
-                      <span className="block text-[11px] text-[#5c636e]" title={a.git_commit ? `commit ${a.git_commit}` : undefined}>
+                      <span className="block text-[11px] text-(--ink-faint)" title={a.git_commit ? `commit ${a.git_commit}` : undefined}>
                         {a.model_version}
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-[#e8eaed]">{a.selection}</td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right text-[#9aa1ac]">
+                  <td className="px-4 py-2.5 text-(--ink-strong)">{a.selection}</td>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right text-(--ink-soft)">
                     {(a.p_model * 100).toFixed(1)} % / {(a.p_market * 100).toFixed(1)} %
                   </td>
-                  <td className="whitespace-nowrap px-4 py-2.5 text-right text-[#9aa1ac]">
-                    <span className="text-[#5c636e]">{a.opening_odds != null ? a.opening_odds.toFixed(2) : '—'}</span>
+                  <td className="whitespace-nowrap px-4 py-2.5 text-right text-(--ink-soft)">
+                    <span className="text-(--ink-faint)">{a.opening_odds != null ? a.opening_odds.toFixed(2) : '—'}</span>
                     {' · '}
-                    <span className="font-semibold text-[#e8eaed]">{a.odds.toFixed(2)}</span>
+                    <span className="font-semibold text-(--ink-strong)">{a.odds.toFixed(2)}</span>
                     {' · '}
-                    <span className="text-[#5c636e]">{a.closing_odds != null ? a.closing_odds.toFixed(2) : '—'}</span>
+                    <span className="text-(--ink-faint)">{a.closing_odds != null ? a.closing_odds.toFixed(2) : '—'}</span>
                     {a.clv != null && (
                       <span className="block text-[11px]" style={{ color: a.clv >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
                         CLV {a.clv >= 0 ? '+' : '−'}
@@ -226,13 +226,13 @@ export default function PaperBankroll() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-right text-[#9aa1ac]">{a.stake.toFixed(2)}</td>
+                  <td className="px-4 py-2.5 text-right text-(--ink-soft)">{a.stake.toFixed(2)}</td>
                   <td
                     className="whitespace-nowrap px-4 py-2.5 text-right font-medium"
                     style={{
                       color:
                         a.status === 'pending'
-                          ? '#7b828d'
+                          ? 'var(--ink-muted)'
                           : (a.profit ?? 0) > 0
                             ? PROFIT_COLOR
                             : (a.profit ?? 0) < 0
@@ -245,7 +245,7 @@ export default function PaperBankroll() {
                         ? 'pendiente'
                         : dinero(a.profit ?? 0)
                       : ESTADO[a.status] ?? a.status}
-                    {a.event_result && <span className="block text-[11px] font-normal text-[#7b828d]">{a.event_result}</span>}
+                    {a.event_result && <span className="block text-[11px] font-normal text-(--ink-muted)">{a.event_result}</span>}
                   </td>
                 </tr>
               ))}

@@ -100,15 +100,15 @@ export function SlateTable({
   const edad = edadPrecios(refrescadas);
 
   return (
-    <section className="mb-6 overflow-hidden rounded-xl border border-white/[0.09] bg-white/[0.02]">
+    <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-white/[0.03]"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-(--tint)"
       >
         <span className="min-w-0">
-          <span className="block text-[16px] font-semibold text-[#e8eaed]">Los partidos</span>
-          <span className="block text-[13px] text-[#7b828d]">
+          <span className="block text-[16px] font-semibold text-(--ink-strong)">Los partidos</span>
+          <span className="block text-[13px] text-(--ink-muted)">
             {rows.length === 1 ? '1 partido' : `${rows.length} partidos`} · a quién ve favorito el
             modelo
             {hayMercado ? ' y qué dice el mercado' : ''}
@@ -124,17 +124,17 @@ export function SlateTable({
             )}
           </span>
         </span>
-        <span aria-hidden className="shrink-0 text-[#7b828d]">{open ? '▲' : '▼'}</span>
+        <span aria-hidden className="shrink-0 text-(--ink-muted)">{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
-        <div className="border-t border-white/[0.07]">
+        <div className="border-t border-(--line)">
           {/* El scroll horizontal vive en la tabla, nunca en la página: una fila ancha no
               puede empujar el resto de la pantalla de lado en un móvil. */}
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] border-collapse text-[14px]">
               <thead>
-                <tr className="text-left text-[11px] uppercase tracking-wide text-[#7b828d]">
+                <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
                   <th className="px-4 py-2 font-medium">Cuándo</th>
                   <th className="px-4 py-2 font-medium">Partido</th>
                   <th className="px-4 py-2 font-medium">Favorito del modelo</th>
@@ -146,30 +146,30 @@ export function SlateTable({
                 {vistas.map((r) => {
                   const dif = r.marketProb != null ? r.pickProb - r.marketProb : null;
                   return (
-                    <tr key={r.id} className="border-t border-white/[0.05]">
-                      <td className="whitespace-nowrap px-4 py-2.5 text-[#9aa1ac]">
+                    <tr key={r.id} className="border-t border-(--line)">
+                      <td className="whitespace-nowrap px-4 py-2.5 text-(--ink-soft)">
                         {new Date(r.when).toLocaleString('es', {
                           day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                         })}
                       </td>
-                      <td className="px-4 py-2.5 text-[#c3c9d1]">{r.match}</td>
+                      <td className="px-4 py-2.5 text-(--ink-body)">{r.match}</td>
                       <td className="px-4 py-2.5">
-                        <span className="text-[#e8eaed]">{r.pick}</span>{' '}
-                        <span className="font-semibold text-[#e8eaed]">{pct(r.pickProb)}</span>
+                        <span className="text-(--ink-strong)">{r.pick}</span>{' '}
+                        <span className="font-semibold text-(--ink-strong)">{pct(r.pickProb)}</span>
                         {r.drawProb != null && (
-                          <span className="block text-[12px] text-[#7b828d]">
+                          <span className="block text-[12px] text-(--ink-muted)">
                             empate {pct(r.drawProb)}
                           </span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right text-[#9aa1ac]">
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right text-(--ink-soft)">
                         {r.marketProb == null ? (
-                          <span className="text-[#5c636e]">—</span>
+                          <span className="text-(--ink-faint)">—</span>
                         ) : (
                           <>
                             {pct(r.marketProb)}
                             {dif != null && Math.abs(dif) >= 0.04 && (
-                              <span className="block text-[12px] text-[#7b828d]">
+                              <span className="block text-[12px] text-(--ink-muted)">
                                 {dif > 0 ? '+' : ''}
                                 {(dif * 100).toFixed(1)} pp
                               </span>
@@ -177,8 +177,8 @@ export function SlateTable({
                           </>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-2.5 text-right text-[#9aa1ac]">
-                        {r.odds == null ? <span className="text-[#5c636e]">—</span> : r.odds.toFixed(2)}
+                      <td className="whitespace-nowrap px-4 py-2.5 text-right text-(--ink-soft)">
+                        {r.odds == null ? <span className="text-(--ink-faint)">—</span> : r.odds.toFixed(2)}
                       </td>
                     </tr>
                   );
@@ -188,21 +188,21 @@ export function SlateTable({
           </div>
 
           {/* El control del umbral, con lo que cuesta y lo que da, los dos medidos. */}
-          <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.05] px-4 py-2.5">
-            <span className="text-[13px] text-[#7b828d]">Solo los que el modelo ve claros:</span>
+          <div className="flex flex-wrap items-center gap-2 border-t border-(--line) px-4 py-2.5">
+            <span className="text-[13px] text-(--ink-muted)">Solo los que el modelo ve claros:</span>
             {[0, 0.6, 0.7, 0.8].map((u) => (
               <button
                 key={u}
                 onClick={() => setUmbral(u)}
                 className={`rounded-full px-2.5 py-1 text-[13px] transition ${
-                  umbral === u ? 'bg-white/[0.08] text-[#e8eaed]' : 'text-[#9aa1ac] hover:bg-white/[0.04]'
+                  umbral === u ? 'bg-(--raised-2) text-(--ink-strong)' : 'text-(--ink-soft) hover:bg-(--raised)'
                 }`}
               >
                 {u === 0 ? 'todos' : `${u * 100}%+`}
               </button>
             ))}
             {umbral > 0 && (
-              <span className="text-[13px] text-[#7b828d]">
+              <span className="text-[13px] text-(--ink-muted)">
                 {/* Con la lista vacía no hay «estos» de los que acertar un porcentaje.
                     Decir «acierta el 87 % de estos» sobre cero partidos es una frase
                     sin referente, y de las que se leen como si prometieran algo. */}
@@ -223,7 +223,7 @@ export function SlateTable({
           {orden.length > maxRows && (
             <button
               onClick={() => setTodas(!todas)}
-              className="w-full border-t border-white/[0.05] px-4 py-2.5 text-[13px] text-[#9aa1ac] transition hover:bg-white/[0.03]"
+              className="w-full border-t border-(--line) px-4 py-2.5 text-[13px] text-(--ink-soft) transition hover:bg-(--tint)"
             >
               {todas ? 'Ver solo los próximos' : `Ver los ${orden.length} partidos`}
             </button>
@@ -232,7 +232,7 @@ export function SlateTable({
           {/* Por qué las dos últimas columnas están vacías. Sin esta línea, un guion en
               todas las filas se lee como que la app no ha cargado algo. */}
           {!hayMercado && (
-            <p className="border-t border-white/[0.05] px-4 py-2.5 text-[13px] leading-relaxed text-[#7b828d]">
+            <p className="border-t border-(--line) px-4 py-2.5 text-[13px] leading-relaxed text-(--ink-muted)">
               Sin columna de mercado:{' '}
               {demoOdds
                 ? 'las cuotas que hay se las ha inventado la app, así que compararlas con el modelo sería compararlo consigo mismo.'
@@ -272,12 +272,12 @@ export function VacioPorqueNoHayCuotas({
   if (demoFixtures) return null;
 
   return (
-    <div className="mb-6 rounded-xl border border-white/[0.09] bg-white/[0.02] px-4 py-4 text-[14px] leading-relaxed text-[#9aa1ac]">
-      <p className="mb-2 text-[15px] font-semibold text-[#e8eaed]">
+    <div className="mb-6 rounded-xl border border-(--line) bg-(--tint) px-4 py-4 text-[14px] leading-relaxed text-(--ink-soft)">
+      <p className="mb-2 text-[15px] font-semibold text-(--ink-strong)">
         No hay partidos con cuotas reales ahora mismo
       </p>
       <p>
-        Y esta pestaña está vacía <strong className="text-[#c3c9d1]">a propósito</strong>: has
+        Y esta pestaña está vacía <strong className="text-(--ink-body)">a propósito</strong>: has
         apagado los partidos de demostración, así que la app no se inventa nada para llenar el
         hueco.{' '}
         {reason === 'sin_eventos'
@@ -297,7 +297,7 @@ export function VacioPorqueNoHayCuotas({
           <span className="font-mono">{detail}</span>
         </p>
       )}
-      <p className="mt-3 text-[13px] text-[#7b828d]">
+      <p className="mt-3 text-[13px] text-(--ink-muted)">
         El modelo, los Elo y el historial siguen ahí y son reales — lo que falta son los precios
         con los que compararlos. Para volver a tener partidos de relleno:{' '}
         <code>npm run demo -- --on</code>

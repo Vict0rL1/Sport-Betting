@@ -8,7 +8,7 @@ import '../test/setup.ts';
 const { buildApp } = await import('../app.ts');
 const { configAuth } = await import('../auth/mode.ts');
 const { LimiteDeIntentos } = await import('../auth/rateLimit.ts');
-const { validar, ESQUEMA_HEALTH, ESQUEMA_READY, ESQUEMA_FEATURES, ESQUEMA_DATOS_ESTADO, ESQUEMA_INGESTION_RUNS, ESQUEMA_SCHEDULER, ESQUEMA_POLICY, ESQUEMA_CANALES, ESQUEMA_EXPORT_JSON, ESQUEMA_FIABILIDAD, ESQUEMA_SEGMENTOS, ESQUEMA_MONITORIZACION, ESQUEMA_SIMULACION, ESQUEMA_TORNEO, ESQUEMA_COMBINADA, ESQUEMA_INTEL, ESQUEMA_ESTADO, ESQUEMA_ERRORES, ESQUEMA_AJUSTES, ESQUEMA_WATCHLIST } = await import('./schemas.ts');
+const { validar, ESQUEMA_HEALTH, ESQUEMA_READY, ESQUEMA_FEATURES, ESQUEMA_DATOS_ESTADO, ESQUEMA_INGESTION_RUNS, ESQUEMA_SCHEDULER, ESQUEMA_POLICY, ESQUEMA_CANALES, ESQUEMA_EXPORT_JSON, ESQUEMA_FIABILIDAD, ESQUEMA_SEGMENTOS, ESQUEMA_MONITORIZACION, ESQUEMA_SIMULACION, ESQUEMA_TORNEO, ESQUEMA_COMBINADA, ESQUEMA_INTEL, ESQUEMA_ESTADO, ESQUEMA_ERRORES, ESQUEMA_AJUSTES, ESQUEMA_WATCHLIST, ESQUEMA_HISTORIA_ELO, ESQUEMA_HISTORIAL_SIMULACION, ESQUEMA_BUSQUEDA, ESQUEMA_CUOTAS_POR_CASA } = await import('./schemas.ts');
 const { reiniciarRegistro, registrar, arrancar, parar } = await import('../scheduler/registry.ts');
 
 const rutas: { method: string | string[]; url: string }[] = [];
@@ -68,6 +68,10 @@ test('cada ruta con esquema responde algo que lo cumple', async () => {
     ['/api/errores', ESQUEMA_ERRORES],
     ['/api/ajustes', ESQUEMA_AJUSTES],
     ['/api/watchlist', ESQUEMA_WATCHLIST],
+    ['/api/elo/historia/football/epl/arsenal', ESQUEMA_HISTORIA_ELO],
+    ['/api/simulation/season/football/epl/historial', ESQUEMA_HISTORIAL_SIMULACION],
+    ['/api/buscar?q=ars', ESQUEMA_BUSQUEDA],
+    ['/api/odds/casas/no-existe', ESQUEMA_CUOTAS_POR_CASA],
   ];
   for (const [url, esquema] of casos) {
     const res = await app.inject({ method: 'GET', url });
@@ -95,6 +99,17 @@ test('cada ruta con esquema responde algo que lo cumple', async () => {
   assert.equal(w.statusCode, 200, w.body);
   assert.equal((await app.inject({ method: 'GET', url: '/api/watchlist' })).json().seguidos.length, 1);
   assert.equal((await app.inject({ method: 'DELETE', url: `/api/watchlist/${(w.json() as { id: number }).id}` })).statusCode, 200);
+  assert.equal((await app.inject({ method: 'GET', url: '/api/resultado/nfl/no-existe' })).statusCode, 404);
+  const svg = await app.inject({ method: 'POST', url: '/api/picks/tarjeta.svg', payload: { patas: [{ sport: 'football', matchKey: 'a', cuando: '2026-10-10T15:00:00Z', p: 0.5, cuota: 2, seleccion: 'Arsenal' }] } });
+  assert.equal(svg.statusCode, 200, svg.body);
+  assert.match(svg.headers['content-type'] as string, /svg/);
+  assert.match(svg.body, /Arsenal/);
+  const imp = await app.inject({ method: 'POST', url: '/api/bets/import', payload: { csv: 'sport,event,market,selection,odds,stake,tags\nnfl,Jets @ Bills,moneyline,Bills,1.8,10,prueba|otra\nnfl,,moneyline,x,1.8,10,' } });
+  assert.equal(imp.statusCode, 200, imp.body);
+  assert.deepEqual([imp.json().importadas, imp.json().rechazadas.length], [1, 1]);
+  const sug = await app.inject({ method: 'GET', url: '/api/bets/sugerencia?odds=2.1&prob=0.55' });
+  assert.equal(sug.statusCode, 200);
+  assert.ok((sug.json() as { fraccion: number }).fraccion > 0);
   const cad = await app.inject({ method: 'PATCH', url: '/api/scheduler/contrato', payload: { cadenciaMin: 30 } });
   assert.equal(cad.statusCode, 200, cad.body);
   assert.equal((cad.json() as { cadenciaMin: number; cadenciaPorDefecto: number }).cadenciaMin, 30);

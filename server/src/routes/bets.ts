@@ -26,6 +26,10 @@ import {
   type BetStatus,
 } from '../bets.ts';
 import { listBetCandidates } from '../betCandidates.ts';
+import { importarCsv } from '../bets/importar.ts';
+import { sugerenciaStake } from '../bets/sugerencia.ts';
+import { clvDeApuesta } from '../bets/clv.ts';
+import { featureEncendida } from '../features.ts';
 
 /** A finite number, accepting the comma decimal separator a Spanish keyboard gives. */
 function num(v: unknown): number | null {
@@ -120,6 +124,12 @@ function parseBet(body: unknown, partial: boolean): { input: Partial<BetInput> }
   for (const [key, max] of [['league', 80], ['notes', 500], ['match_key', 200]] as const) {
     if (has(key)) out[key] = b[key] === null ? null : (text(b[key]) ?? '').slice(0, max) || null;
   }
+  if (has('tags')) {
+    const v = b.tags;
+    if (v === null) out.tags = [];
+    else if (!Array.isArray(v) || v.some((x) => typeof x !== 'string')) errors.push({ field: 'tags', message: 'Las etiquetas son una lista de textos.' });
+    else out.tags = [...new Set(v.map((x) => (x as string).trim().slice(0, 30)).filter(Boolean))].slice(0, 12);
+  }
   for (const key of ['model_prob', 'market_prob'] as const) {
     if (has(key)) {
       const v = b[key] === null ? null : num(b[key]);
@@ -168,6 +178,27 @@ export async function registerBetRoutes(app: FastifyInstance): Promise<void> {
     const parsed = parseBet(req.body, false);
     if ('errors' in parsed) return reply.code(400).send({ errors: parsed.errors });
     return reply.code(201).send(createBet(parsed.input as BetInput));
+  });
+
+  // Fase 5.16: importar un CSV (una apuesta por fila), sugerencia de stake con la misma
+  // política Kelly (solo sugerencia) y CLV de las apuestas propias cuando hay snapshot.
+  app.post<{ Body: { csv?: string } }>('/import', async (req, reply) => {
+    if (!featureEncendida('apuestas.importacion')) return reply.code(404).send({ error: 'apagado (features.json: apuestas.importacion)' });
+    const csv = typeof req.body?.csv === 'string' ? req.body.csv : '';
+    if (!csv.trim()) return reply.code(400).send({ error: 'falta el CSV' });
+    const r = importarCsv(csv, (input) => createBet(input));
+    return r;
+  });
+  app.get<{ Querystring: { odds?: string; prob?: string } }>('/sugerencia', async (req, reply) => {
+    const odds = Number(req.query.odds);
+    const prob = Number(req.query.prob);
+    if (!(odds > 1) || !(prob > 0 && prob < 1)) return reply.code(400).send({ error: 'odds > 1 y prob entre 0 y 1' });
+    return sugerenciaStake(prob, odds);
+  });
+  app.get<{ Params: { id: string } }>('/:id/clv', async (req, reply) => {
+    const b = getBet(Number(req.params.id));
+    if (!b) return reply.code(404).send({ error: 'bet not found' });
+    return clvDeApuesta(b);
   });
 
   app.get<{ Params: { id: string } }>('/:id', async (req, reply) => {

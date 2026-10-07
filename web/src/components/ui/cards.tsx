@@ -36,7 +36,7 @@ export function Card({
 }) {
   return (
     <As
-      className={`rounded-xl border border-white/[0.07] bg-[#14161b] transition-colors duration-200 hover:border-white/[0.13] ${className}`}
+      className={`rounded-xl border border-(--line) bg-(--surface-card) transition-colors duration-200 hover:border-(--line-strong) ${className}`}
     >
       {children}
     </As>
@@ -51,7 +51,7 @@ export function Card({
  */
 export function Panel({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <section className={`border-t border-white/[0.07] pt-3 ${className}`}>{children}</section>
+    <section className={`border-t border-(--line) pt-3 ${className}`}>{children}</section>
   );
 }
 
@@ -59,10 +59,10 @@ export function Panel({ children, className = '' }: { children: ReactNode; class
 export function SectionTitle({ children, right }: { children: ReactNode; right?: ReactNode }) {
   return (
     <div className="mb-2 flex items-baseline justify-between gap-3">
-      <h4 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7b828d]">
+      <h4 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--ink-muted)">
         {children}
       </h4>
-      {right && <span className="text-[13px] text-[#7b828d]">{right}</span>}
+      {right && <span className="text-[13px] text-(--ink-muted)">{right}</span>}
     </div>
   );
 }
@@ -108,7 +108,7 @@ export function HeroStat({
           the right one, so the two labels mirror instead of both pointing left. */}
       <div className={`flex items-center gap-1.5 ${row}`}>
         {align !== 'right' && <SeriesDot color={color} />}
-        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7b828d]">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-(--ink-muted)">
           {label}
         </span>
         {align === 'right' && <SeriesDot color={color} />}
@@ -119,7 +119,7 @@ export function HeroStat({
       >
         {value}
       </div>
-      {sub && <div className="mt-1 text-[13px] tabular-nums text-[#9aa1ac]">{sub}</div>}
+      {sub && <div className="mt-1 text-[13px] tabular-nums text-(--ink-soft)">{sub}</div>}
     </div>
   );
 }
@@ -134,7 +134,7 @@ export function HeroStat({
 export function StatRow({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
     <div
-      className={`grid grid-cols-2 gap-x-4 gap-y-3 border-y border-white/[0.07] py-3 sm:grid-cols-4 ${className}`}
+      className={`grid grid-cols-2 gap-x-4 gap-y-3 border-y border-(--line) py-3 sm:grid-cols-4 ${className}`}
     >
       {children}
     </div>
@@ -155,11 +155,11 @@ export function StatTile({
 }) {
   return (
     <div className="min-w-0" title={title}>
-      <div className="truncate text-[11px] font-medium uppercase tracking-[0.06em] text-[#7b828d]">
+      <div className="break-words text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
         {label}
       </div>
-      <div className="mt-0.5 truncate text-[16px] font-semibold tabular-nums text-[#e8eaed]">{value}</div>
-      {hint != null && <div className="truncate text-[11px] tabular-nums text-[#7b828d]">{hint}</div>}
+      <div className="mt-0.5 break-words text-[16px] font-semibold tabular-nums text-(--ink-strong)">{value}</div>
+      {hint != null && <div className="break-words text-[11px] tabular-nums text-(--ink-muted)">{hint}</div>}
     </div>
   );
 }

@@ -69,12 +69,12 @@ export function DashboardHeader({
             onClick={onRefresh}
             disabled={refreshing}
             title={refreshTitle}
-            className="shrink-0 rounded-lg bg-white/[0.06] px-3 py-1.5 text-[14px] font-medium text-[#d5d9df] ring-1 ring-inset ring-white/10 transition hover:bg-white/[0.1] disabled:opacity-50"
+            className="shrink-0 rounded-lg bg-(--raised) px-3 py-1.5 text-[14px] font-medium text-(--ink-body) ring-1 ring-inset ring-(--line) transition hover:bg-(--raised-2) disabled:opacity-50"
           >
             {refreshing ? 'Actualizando…' : '↻ Actualizar'}
           </button>
         )}
-        {chips && <span className="min-w-0 text-[13px] text-[#7b828d]">{chips}</span>}
+        {chips && <span className="min-w-0 text-[13px] text-(--ink-muted)">{chips}</span>}
         {alert && (
           <span
             className="shrink-0 rounded-full bg-amber-500/[0.12] px-2.5 py-1 text-[13px] font-medium text-amber-200/90"
@@ -86,7 +86,7 @@ export function DashboardHeader({
         <button
           onClick={toggle}
           aria-expanded={open}
-          className="ml-auto shrink-0 rounded-lg px-2 py-1 text-[13px] font-medium text-[#7b828d] transition hover:bg-white/[0.04] hover:text-[#c3c9d1]"
+          className="ml-auto shrink-0 rounded-lg px-2 py-1 text-[13px] font-medium text-(--ink-muted) transition hover:bg-(--raised) hover:text-(--ink-body)"
         >
           {open ? 'Ocultar detalles ▲' : 'Detalles ▼'}
         </button>
@@ -126,11 +126,11 @@ export function EmptySlate({
 }) {
   const noSource = reason === 'sin-fuente';
   return (
-    <div className="mb-6 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-4">
-      <p className="text-[15px] font-semibold text-[#c3c9d1]">
+    <div className="mb-6 rounded-xl border border-(--line) bg-(--tint) px-4 py-4">
+      <p className="text-[15px] font-semibold text-(--ink-body)">
         {noSource ? `No hay modelo para ${what}` : `No hay partidos próximos para ${what}`}
       </p>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-[#9aa1ac]">
+      <p className="mt-1.5 text-[13px] leading-relaxed text-(--ink-soft)">
         {noSource ? (
           <>
             No hay ni un partido de {what} en la base, así que no hay Elo que calcular y las
@@ -144,7 +144,7 @@ export function EmptySlate({
           </>
         )}
       </p>
-      {detail && <div className="mt-2 text-[13px] leading-relaxed text-[#7b828d]">{detail}</div>}
+      {detail && <div className="mt-2 text-[13px] leading-relaxed text-(--ink-muted)">{detail}</div>}
     </div>
   );
 }
@@ -185,7 +185,7 @@ export function DemoOddsNote({
   const cuerpo =
     reason === 'sin_eventos' ? (
       <>
-        y <strong className="text-[#9aa1ac]">no falta nada por tu parte</strong>: la fuente
+        y <strong className="text-(--ink-soft)">no falta nada por tu parte</strong>: la fuente
         respondió bien, pero ahora mismo las casas no tienen precio publicado para ningún
         partido. Entre jornadas es lo normal. Aparecerán solas cuando lo publiquen.
       </>
@@ -198,7 +198,7 @@ export function DemoOddsNote({
       </>
     ) : reason === 'presupuesto' ? (
       <>
-        y esto <strong className="text-[#9aa1ac]">no se arregla esperando</strong>: no se ha
+        y esto <strong className="text-(--ink-soft)">no se arregla esperando</strong>: no se ha
         llegado a preguntar. La app reparte el plan del mes y se frenó sola, así que el
         refresco automático seguirá frenado mañana. Pídelas a mano con{' '}
         <code>npm run odds</code>, que sí pasa el freno.
@@ -207,7 +207,7 @@ export function DemoOddsNote({
     ) : reason === 'fuente_falla' ? (
       <>
         porque el proveedor de cuotas no contestó.{' '}
-        <strong className="text-[#9aa1ac]">Tu clave está puesta</strong>, así que suele ser
+        <strong className="text-(--ink-soft)">Tu clave está puesta</strong>, así que suele ser
         la cuota del mes agotada o falta de conexión. <code>npm run doctor</code> lo dice
         sin gastar ni una petición.
         {detail ? <span className="block opacity-70">último error: {detail}</span> : null}
@@ -226,8 +226,8 @@ export function DemoOddsNote({
     );
 
   return (
-    <p className="mb-4 text-[13px] leading-relaxed text-[#7b828d]">
-      Las cuotas que ves son de <strong className="text-[#9aa1ac]">demostración</strong>,
+    <p className="mb-4 text-[13px] leading-relaxed text-(--ink-muted)">
+      Las cuotas que ves son de <strong className="text-(--ink-soft)">demostración</strong>,
       generadas por el propio modelo, {cuerpo}
     </p>
   );
@@ -252,7 +252,7 @@ export function NflNoLineNote({
 }) {
   if (reason == null && hasKey) return null;
   return (
-    <p className="mb-4 text-[13px] leading-relaxed text-[#7b828d]">
+    <p className="mb-4 text-[13px] leading-relaxed text-(--ink-muted)">
       Sin línea de las casas ahora mismo —{' '}
       {reason === 'sin_ligas' ? (
         <>

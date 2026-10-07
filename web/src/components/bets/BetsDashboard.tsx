@@ -1,4 +1,3 @@
-import LiveEvaluation from './LiveEvaluation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   deleteBet,
@@ -83,14 +82,14 @@ export default function BetsDashboard() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="mb-2 text-[15px] leading-relaxed text-[#c3c9d1]">
+        <p className="mb-2 text-[15px] leading-relaxed text-(--ink-body)">
           Tus apuestas: cuánto pusiste, qué volvió y qué días te costaron dinero. Lo que registras
           aquí es tuyo — no sale de ningún modelo, y ningún modelo se puntúa con él.
         </p>
         {!adding && !editing && (
           <button
             onClick={() => setAdding(true)}
-            className="rounded-lg bg-white/[0.1] px-3.5 py-2 text-[15px] font-medium text-[#e8eaed] ring-1 ring-inset ring-white/[0.14] transition hover:bg-white/[0.16]"
+            className="rounded-lg bg-(--raised-2) px-3.5 py-2 text-[15px] font-medium text-(--ink-strong) ring-1 ring-inset ring-(--line-strong) transition hover:bg-(--raised-3)"
           >
             + Registrar apuesta
           </button>
@@ -105,7 +104,6 @@ export default function BetsDashboard() {
       {/* El banco del modelo va ANTES del formulario y separado del registro propio:
           son dos cuentas distintas y mezclarlas haría imposible leer ninguna de las dos. */}
       <PaperBankroll />
-      <LiveEvaluation />
 
       {(adding || editing) && (
         <BetForm
@@ -150,7 +148,7 @@ export default function BetsDashboard() {
           </button>
           {summary.bySport.map((g) => (
             <button key={g.key} className={pillClass(sport === g.key)} onClick={() => setSport(g.key)}>
-              {SPORT_LABEL[g.key] ?? g.key} <span className="ml-1 text-[#7b828d]">{g.bets}</span>
+              {SPORT_LABEL[g.key] ?? g.key} <span className="ml-1 text-(--ink-muted)">{g.bets}</span>
             </button>
           ))}
         </div>
@@ -159,7 +157,7 @@ export default function BetsDashboard() {
       {day && (
         <button
           onClick={() => setDay(null)}
-          className="text-[14px] text-[#9aa1ac] underline decoration-white/20 hover:text-[#e8eaed]"
+          className="text-[14px] text-(--ink-soft) underline decoration-white/20 hover:text-(--ink-strong)"
         >
           Viendo solo {dayLabel(day)} — ver todo
         </button>
@@ -199,7 +197,7 @@ function Headline({ summary }: { summary: BetSummary }) {
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <span className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#7b828d]">
+          <span className="block text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
             Beneficio
           </span>
           <span className="block text-[26px] font-bold leading-none tabular-nums" style={{ color: tone }}>
@@ -207,7 +205,7 @@ function Headline({ summary }: { summary: BetSummary }) {
           </span>
         </div>
         <div className="text-right">
-          <span className="block text-[11px] font-medium uppercase tracking-[0.06em] text-[#7b828d]">
+          <span className="block text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
             ROI
           </span>
           <span className="block text-[26px] font-bold leading-none tabular-nums" style={{ color: tone }}>
@@ -215,7 +213,7 @@ function Headline({ summary }: { summary: BetSummary }) {
           </span>
         </div>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-white/[0.07] pt-3 sm:grid-cols-4">
+      <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-(--line) pt-3 sm:grid-cols-4">
         <Stat label="Apostado" value={money(t.staked)} hint={`${t.bets} apuesta${t.bets === 1 ? '' : 's'}`} />
         <Stat
           label="Acierto"
@@ -235,7 +233,7 @@ function Headline({ summary }: { summary: BetSummary }) {
       </div>
       {/* ROI is over stake AT RISK, and saying so matters: a run of voids would
           otherwise look like it had quietly dragged the number down. */}
-      <p className="mt-2 text-[11px] leading-relaxed text-[#7b828d]">
+      <p className="mt-2 text-[11px] leading-relaxed text-(--ink-muted)">
         El ROI se calcula sobre lo que estuvo realmente en riesgo ({money(t.risked)}), así que las
         anuladas no lo diluyen. Las pendientes no cuentan hasta que se resuelven.
       </p>
@@ -246,9 +244,9 @@ function Headline({ summary }: { summary: BetSummary }) {
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#7b828d]">{label}</div>
-      <div className="mt-0.5 text-[16px] font-semibold tabular-nums text-[#e8eaed]">{value}</div>
-      {hint && <div className="text-[11px] tabular-nums text-[#7b828d]">{hint}</div>}
+      <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">{label}</div>
+      <div className="mt-0.5 text-[16px] font-semibold tabular-nums text-(--ink-strong)">{value}</div>
+      {hint && <div className="text-[11px] tabular-nums text-(--ink-muted)">{hint}</div>}
     </div>
   );
 }
@@ -264,15 +262,15 @@ function ModelAgreement({ summary }: { summary: BetSummary }) {
   const a = summary.modelAgreement!;
   const row = (g: typeof a.with, label: string) => (
     <div className="flex items-baseline justify-between gap-3 py-1">
-      <span className="text-[14px] text-[#9aa1ac]">
-        {label} <span className="text-[#5c636c]">· {g.bets} apuestas</span>
+      <span className="text-[14px] text-(--ink-soft)">
+        {label} <span className="text-(--ink-faint)">· {g.bets} apuestas</span>
       </span>
       <span
         className="text-[16px] font-semibold tabular-nums"
         style={{ color: g.profit > 0 ? PROFIT_COLOR : g.profit < 0 ? LOSS_COLOR : BREAK_EVEN_COLOR }}
       >
         {signed(g.profit)}
-        <span className="ml-2 text-[13px] font-normal text-[#7b828d]">
+        <span className="ml-2 text-[13px] font-normal text-(--ink-muted)">
           {g.roi == null ? '' : pctSigned(g.roi)}
         </span>
       </span>
@@ -283,7 +281,7 @@ function ModelAgreement({ summary }: { summary: BetSummary }) {
       <SectionTitle right="donde discrepaban">¿Te sirvió seguir al modelo?</SectionTitle>
       {row(a.with, 'Cuando fuiste CON el modelo')}
       {row(a.against, 'Cuando fuiste CONTRA el modelo')}
-      <p className="mt-2 text-[11px] leading-relaxed text-[#7b828d]">
+      <p className="mt-2 text-[11px] leading-relaxed text-(--ink-muted)">
         Solo entran las apuestas que elegiste desde un partido de la app y en las que el modelo se
         separaba al menos 2 puntos del mercado. Con pocas apuestas esto es ruido: míralo como una
         tendencia a los meses, no como un veredicto.
@@ -303,8 +301,8 @@ function Breakdown({ summary }: { summary: BetSummary }) {
       <div className="space-y-1">
         {rows.map((g) => (
           <div key={g.key} className="flex items-baseline justify-between gap-3">
-            <span className="truncate text-[14px] text-[#9aa1ac]">
-              {label(g.key)} <span className="text-[#5c636c]">{g.bets}</span>
+            <span className="break-words text-[14px] text-(--ink-soft)">
+              {label(g.key)} <span className="text-(--ink-faint)">{g.bets}</span>
             </span>
             <span
               className="shrink-0 text-[14px] font-semibold tabular-nums"
@@ -329,7 +327,7 @@ function Breakdown({ summary }: { summary: BetSummary }) {
 
 function DayTotal({ bets }: { bets: Bet[] }) {
   const settled = bets.filter((b) => b.profit != null);
-  if (settled.length === 0) return <span className="text-[13px] text-[#7b828d]">sin resolver</span>;
+  if (settled.length === 0) return <span className="text-[13px] text-(--ink-muted)">sin resolver</span>;
   const net = settled.reduce((s, b) => s + (b.profit as number), 0);
   return (
     <span
@@ -372,16 +370,16 @@ function BetRow({
         <span
           aria-hidden
           className="w-[3px] shrink-0 self-stretch rounded-full"
-          style={{ backgroundColor: bet.profit == null ? 'rgba(255,255,255,0.14)' : tone }}
+          style={{ backgroundColor: bet.profit == null ? 'var(--line-strong)' : tone }}
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <div className="break-words text-[16px] font-semibold leading-tight text-[#e8eaed]">
+              <div className="break-words text-[16px] font-semibold leading-tight text-(--ink-strong)">
                 {bet.selection}
               </div>
-              <div className="mt-0.5 break-words text-[13px] text-[#9aa1ac]">{bet.event}</div>
-              <div className="mt-0.5 text-[11px] uppercase tracking-[0.06em] text-[#5c636c]">
+              <div className="mt-0.5 break-words text-[13px] text-(--ink-soft)">{bet.event}</div>
+              <div className="mt-0.5 text-[11px] uppercase tracking-[0.06em] text-(--ink-faint)">
                 {SPORT_LABEL[bet.sport] ?? bet.sport} · {MARKET_LABEL[bet.market] ?? bet.market}
                 {bet.withModel != null && (
                   <span style={{ color: bet.withModel ? PROFIT_COLOR : LOSS_COLOR }}>
@@ -395,7 +393,7 @@ function BetRow({
               <div className="text-[16px] font-semibold tabular-nums" style={{ color: tone }}>
                 {bet.profit == null ? STATUS_LABEL[bet.status] : signed(bet.profit)}
               </div>
-              <div className="text-[13px] tabular-nums text-[#7b828d]">
+              <div className="text-[13px] tabular-nums text-(--ink-muted)">
                 {money(bet.stake)} @ {bet.odds}
               </div>
             </div>
@@ -407,7 +405,7 @@ function BetRow({
                 <button
                   key={s}
                   onClick={() => onSettle(bet, s)}
-                  className="rounded-md px-2.5 py-1 text-[13px] text-[#c3c9d1] ring-1 ring-inset ring-white/[0.1] transition hover:bg-white/[0.08] hover:text-[#e8eaed]"
+                  className="rounded-md px-2.5 py-1 text-[13px] text-(--ink-body) ring-1 ring-inset ring-(--line) transition hover:bg-(--raised-2) hover:text-(--ink-strong)"
                 >
                   {STATUS_LABEL[s]}
                 </button>
@@ -415,26 +413,26 @@ function BetRow({
             </div>
           ) : (
             <div className="mt-1.5 flex items-center gap-3 text-[13px]">
-              <span className="text-[#7b828d]">{STATUS_LABEL[bet.status]}</span>
-              <button onClick={() => setOpen((o) => !o)} className="text-[#9aa1ac] hover:text-[#e8eaed]">
+              <span className="text-(--ink-muted)">{STATUS_LABEL[bet.status]}</span>
+              <button onClick={() => setOpen((o) => !o)} className="text-(--ink-soft) hover:text-(--ink-strong)">
                 {open ? 'menos' : 'más'}
               </button>
             </div>
           )}
 
           {(open || bet.status === 'pending') && (
-            <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-white/[0.07] pt-2 text-[13px]">
+            <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-(--line) pt-2 text-[13px]">
               {bet.model_prob != null && (
-                <span className="text-[#7b828d]">
+                <span className="text-(--ink-muted)">
                   modelo {(bet.model_prob * 100).toFixed(0)}%
                   {bet.market_prob != null && ` · mercado ${(bet.market_prob * 100).toFixed(0)}%`}
                 </span>
               )}
-              {bet.notes && <span className="text-[#9aa1ac]">{bet.notes}</span>}
-              <button onClick={() => onEdit(bet)} className="text-[#9aa1ac] hover:text-[#e8eaed]">
+              {bet.notes && <span className="text-(--ink-soft)">{bet.notes}</span>}
+              <button onClick={() => onEdit(bet)} className="text-(--ink-soft) hover:text-(--ink-strong)">
                 Editar
               </button>
-              <button onClick={() => onDelete(bet)} className="text-[#9aa1ac] hover:text-[#d95926]">
+              <button onClick={() => onDelete(bet)} className="text-(--ink-soft) hover:text-[#d95926]">
                 Borrar
               </button>
             </div>

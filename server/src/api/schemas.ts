@@ -109,6 +109,11 @@ export const ESQUEMA_INTEL = o({
   referencia: { type: 'array', items: o({ ...EVENTO_MERCADO, casa: str, selecciones: { type: 'array', items: o({ seleccion: str, referencia: num, consenso: num, desviacionPp: num }) }, observadoEn: str }) },
   etiqueta: str,
 });
+export const ESQUEMA_HISTORIA_ELO = o({ sport: str, league: str, teamId: str, puntos: { type: 'array', items: o({ fecha: str, elo: num, rival: str, local: bool }) }, generado: str, nota: str });
+export const ESQUEMA_HISTORIAL_SIMULACION = o({ sport: str, league: str, dias: { type: 'array', items: o({ dia: str, equipos: { type: 'array', items: o({ id: str, nombre: str, titulo: num, top: num, descenso: num, puntosEsperados: num }) } }) } });
+export const ESQUEMA_RESULTADO = o({ sport: str, matchKey: str, casa: str, fuera: str, cuando: nullable('string'), probabilidades: { type: 'array', items: num }, resuelto: bool, resultado: { type: ['string', 'null'], enum: ['casa', 'empate', 'fuera', null] }, marcador: nullable('string'), probabilidadDada: nullable('number'), acerto: { type: ['boolean', 'null'] } });
+export const ESQUEMA_BUSQUEDA = o({ q: str, resultados: { type: 'array', items: o({ tipo: { type: 'string', enum: ['equipo', 'jugador', 'partido', 'liga'] }, sport: str, league: nullable('string'), id: str, etiqueta: str, detalle: nullable('string'), ruta: str }) } });
+export const ESQUEMA_CUOTAS_POR_CASA = o({ eventId: str, market: str, casas: { type: 'array', items: str }, series: { type: 'array', items: o({ casa: str, seleccion: str, puntos: { type: 'array', items: o({ at: str, cuota: num }) } }) } });
 export const ESQUEMA_EXPORT_JSON = o({ dataset: str, filas: int, columnas: { type: 'array', items: str }, datos: { type: 'array', items: { type: 'object', additionalProperties: true } } });
 
 /** Comprueba que `valor` cumple `esquema`. Devuelve los problemas (vacío = cumple). */

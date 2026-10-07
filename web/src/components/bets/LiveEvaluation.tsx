@@ -78,7 +78,7 @@ const COLOR_VEREDICTO: Record<Prueba['veredicto'], string> = {
   'a favor': PROFIT_COLOR,
   'en contra': LOSS_COLOR,
   'no concluyente': '#d9a441',
-  'muestra insuficiente': '#7b828d',
+  'muestra insuficiente': 'var(--ink-muted)',
 };
 
 const NOMBRE: Record<string, string> = { tennis: 'Tenis', football: 'Fútbol', basketball: 'Baloncesto', baseball: 'Béisbol', nfl: 'NFL' };
@@ -118,25 +118,25 @@ export default function LiveEvaluation() {
   const hay = d.filter((x) => x.n > 0);
 
   return (
-    <section className="mb-6 overflow-hidden rounded-xl border border-white/[0.09] bg-white/[0.02]">
+    <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
       <div className="px-4 py-3">
-        <h3 className="text-[16px] font-semibold text-[#e8eaed]">El modelo en vivo</h3>
-        <p className="mt-1 text-[13px] leading-relaxed text-[#7b828d]">
+        <h3 className="text-[16px] font-semibold text-(--ink-strong)">El modelo en vivo</h3>
+        <p className="mt-1 text-[13px] leading-relaxed text-(--ink-muted)">
           Predicciones registradas <strong>antes</strong> de cada partido real, contra lo que pasó. Solo en vivo:
           los backtests van aparte. Manda el <strong>log loss</strong> (más bajo es mejor) comparado con el del
           mercado en los mismos partidos; el acierto se da, pero no distingue un 51 % de un 90 %.
         </p>
       </div>
       {hay.length === 0 ? (
-        <p className="border-t border-white/[0.07] px-4 py-3 text-[14px] text-[#9aa1ac]">
+        <p className="border-t border-(--line) px-4 py-3 text-[14px] text-(--ink-soft)">
           Todavía no hay predicciones en vivo con resultado. Se llenará solo a medida que se jueguen partidos
           con cuotas reales.
         </p>
       ) : (
-        <div className="overflow-x-auto border-t border-white/[0.07]">
+        <div className="overflow-x-auto border-t border-(--line)">
           <table className="w-full min-w-[620px] border-collapse text-[14px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wide text-[#7b828d]">
+              <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
                 <th className="px-4 py-2 font-medium">Deporte</th>
                 <th className="px-4 py-2 text-right font-medium">Partidos</th>
                 <th className="px-4 py-2 text-right font-medium">Log loss</th>
@@ -153,14 +153,14 @@ export default function LiveEvaluation() {
                 // tienen precio, no el global.
                 const mejor = x.mercado ? x.mercado.modeloLogLoss < x.mercado.logLoss : null;
                 return (
-                  <tr key={x.deporte} className="border-t border-white/[0.05]">
-                    <td className="px-4 py-2.5 text-[#c3c9d1]"><Dep id={x.deporte} /></td>
-                    <td className="px-4 py-2.5 text-right text-[#9aa1ac]" title={x.aviso?.texto ?? undefined}>
+                  <tr key={x.deporte} className="border-t border-(--line)">
+                    <td className="px-4 py-2.5 text-(--ink-body)"><Dep id={x.deporte} /></td>
+                    <td className="px-4 py-2.5 text-right text-(--ink-soft)" title={x.aviso?.texto ?? undefined}>
                       {x.n}
                       {x.aviso?.nivel === 'insuficiente' && <span className="ml-1 inline-flex align-[-2px]" style={{ color: '#d9a441' }} title="muestra insuficiente"><AlertIcon size={14} /></span>}
                     </td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-[#e8eaed]">{f3(x.logLoss)}</td>
-                    <td className="px-4 py-2.5 text-right text-[#9aa1ac]">
+                    <td className="px-4 py-2.5 text-right font-semibold text-(--ink-strong)">{f3(x.logLoss)}</td>
+                    <td className="px-4 py-2.5 text-right text-(--ink-soft)">
                       {x.mercado ? (
                         <>
                           {f3(x.mercado.logLoss)}
@@ -172,10 +172,10 @@ export default function LiveEvaluation() {
                         '—'
                       )}
                     </td>
-                    <td className="px-4 py-2.5 text-right text-[#5c636e]">{f3(x.logLossUniforme)}</td>
-                    <td className="px-4 py-2.5 text-right text-[#9aa1ac]">{f3(x.brier)}</td>
-                    <td className="px-4 py-2.5 text-right text-[#9aa1ac]">±{pct(x.ece)}</td>
-                    <td className="px-4 py-2.5 text-right text-[#7b828d]">{pct(x.accuracy)}</td>
+                    <td className="px-4 py-2.5 text-right text-(--ink-faint)">{f3(x.logLossUniforme)}</td>
+                    <td className="px-4 py-2.5 text-right text-(--ink-soft)">{f3(x.brier)}</td>
+                    <td className="px-4 py-2.5 text-right text-(--ink-soft)">±{pct(x.ece)}</td>
+                    <td className="px-4 py-2.5 text-right text-(--ink-muted)">{pct(x.accuracy)}</td>
                   </tr>
                 );
               })}
@@ -185,8 +185,8 @@ export default function LiveEvaluation() {
               hay más de una, aquí se ve cada una sobre SUS predicciones, para saber si el
               cambio mejoró o empeoró sin que la vieja tape a la nueva. */}
           {hay.some((x) => (x.porVersion?.length ?? 0) > 1) && (
-            <div className="border-t border-white/[0.05] px-4 py-2 text-[12px] text-[#9aa1ac]">
-              <p className="mb-1 text-[#7b828d]">Por versión del modelo (cada una sobre sus propias predicciones):</p>
+            <div className="border-t border-(--line) px-4 py-2 text-[12px] text-(--ink-soft)">
+              <p className="mb-1 text-(--ink-muted)">Por versión del modelo (cada una sobre sus propias predicciones):</p>
               {hay
                 .filter((x) => (x.porVersion?.length ?? 0) > 1)
                 .map((x) => (
@@ -195,7 +195,7 @@ export default function LiveEvaluation() {
                     {x.porVersion!.map((v, i) => (
                       <span key={v.version ?? 'sin'}>
                         {i > 0 && ' · '}
-                        <code className="text-[#c3c9d1]">{v.version ?? 'sin versión (anteriores)'}</code> {v.n} partidos, log loss{' '}
+                        <code className="text-(--ink-body)">{v.version ?? 'sin versión (anteriores)'}</code> {v.n} partidos, log loss{' '}
                         {f3(v.logLoss)}
                         {v.mercado && ` (en sus ${v.mercado.n} con precio: modelo ${f3(v.mercado.modeloLogLoss)}, mercado ${f3(v.mercado.logLoss)})`}
                       </span>
@@ -205,7 +205,7 @@ export default function LiveEvaluation() {
             </div>
           )}
           {hay.some((x) => x.n < 200) && (
-            <p className="border-t border-white/[0.05] px-4 py-2 text-[12px] text-[#7b828d]">
+            <p className="border-t border-(--line) px-4 py-2 text-[12px] text-(--ink-muted)">
               Con menos de unos cientos de partidos estas cifras se mueven mucho por azar: son el registro de lo
               que pasa, no todavía una medida del modelo.
             </p>
@@ -215,11 +215,11 @@ export default function LiveEvaluation() {
       {/* EL DINERO, POR TRAMOS. Lo que el banco prometía (la ventaja con que apostó) al lado
           de lo que dio, y dónde: deporte, cuota y tamaño de la ventaja. */}
       {rend && (rend.total.n > 0 || rend.senalesPorEdge.some((t) => t.n > 0)) && (
-        <div className="border-t border-white/[0.07] px-4 py-3">
-          <h4 className="text-[14px] font-semibold text-[#c3c9d1]">El dinero, por tramos</h4>
+        <div className="border-t border-(--line) px-4 py-3">
+          <h4 className="text-[14px] font-semibold text-(--ink-body)">El dinero, por tramos</h4>
           {rend.total.n > 0 && (
             <>
-              <p className="mt-1 text-[13px] leading-relaxed text-[#9aa1ac]">
+              <p className="mt-1 text-[13px] leading-relaxed text-(--ink-soft)">
                 {rend.total.n} apuestas ganadas o perdidas · ROI{' '}
                 <strong style={{ color: (rend.total.roi ?? 0) >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>{signo(rend.total.roi)}</strong> ·
                 el modelo prometía {signo(rend.total.roiPrometido)}
@@ -236,7 +236,7 @@ export default function LiveEvaluation() {
               <div className="mt-2 overflow-x-auto">
                 <table className="w-full border-collapse whitespace-nowrap text-[12px] sm:text-[13px]">
                   <thead>
-                    <tr className="text-left text-[11px] uppercase tracking-wide text-[#7b828d]">
+                    <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
                       <th className="py-1.5 pr-2 sm:pr-3 font-medium">Tramo</th>
                       <th className="py-1.5 pr-2 sm:pr-3 text-right font-medium">N.º</th>
                       <th className="py-1.5 pr-2 sm:pr-3 text-right font-medium">ROI</th>
@@ -253,22 +253,22 @@ export default function LiveEvaluation() {
                       ] as [string, Tramo[]][]
                     ).map(([grupo, ts]) => [
                       <tr key={grupo}>
-                        <td colSpan={5} className="pt-2 text-[11px] uppercase tracking-wide text-[#5c636e]">
+                        <td colSpan={5} className="pt-2 text-[11px] uppercase tracking-wide text-(--ink-faint)">
                           {grupo}
                         </td>
                       </tr>,
                       ...ts.map((t) => (
-                        <tr key={grupo + t.etiqueta} className="border-t border-white/[0.05]">
-                          <td className="py-1.5 pr-2 sm:pr-3 text-[#c3c9d1]">{t.etiqueta}</td>
-                          <td className="py-1.5 pr-2 sm:pr-3 text-right text-[#9aa1ac]" title={t.aviso?.texto ?? undefined}>
+                        <tr key={grupo + t.etiqueta} className="border-t border-(--line)">
+                          <td className="py-1.5 pr-2 sm:pr-3 text-(--ink-body)">{t.etiqueta}</td>
+                          <td className="py-1.5 pr-2 sm:pr-3 text-right text-(--ink-soft)" title={t.aviso?.texto ?? undefined}>
                             {t.n}
                             {t.aviso?.nivel === 'insuficiente' && <span className="ml-1 inline-flex align-[-2px]" style={{ color: '#d9a441' }} title="muestra insuficiente"><AlertIcon size={14} /></span>}
                           </td>
                           <td className="py-1.5 pr-2 sm:pr-3 text-right" style={{ color: (t.roi ?? 0) >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
                             {signo(t.roi)}
                           </td>
-                          <td className="py-1.5 pr-2 sm:pr-3 text-right text-[#7b828d]">{signo(t.roiPrometido)}</td>
-                          <td className="py-1.5 text-right text-[#9aa1ac]">{signo(t.clvMedio)}</td>
+                          <td className="py-1.5 pr-2 sm:pr-3 text-right text-(--ink-muted)">{signo(t.roiPrometido)}</td>
+                          <td className="py-1.5 text-right text-(--ink-soft)">{signo(t.clvMedio)}</td>
                         </tr>
                       )),
                     ])}
@@ -279,7 +279,7 @@ export default function LiveEvaluation() {
           )}
           {rend.senalesPorEdge.some((t) => t.n > 0) && (
             <div className="mt-3 text-[13px] leading-relaxed">
-              <p className="text-[#9aa1ac]">
+              <p className="text-(--ink-soft)">
                 ¿Le gana más al cierre una ventaja grande que una pequeña? (todas las señales, apostadas o no)
               </p>
               <ul className="mt-1 space-y-1">
@@ -287,13 +287,13 @@ export default function LiveEvaluation() {
                   .filter((t) => t.n > 0)
                   .map((t) => (
                     <li key={t.etiqueta}>
-                      <span className="text-[#c3c9d1]">{t.etiqueta}</span>{' '}
+                      <span className="text-(--ink-body)">{t.etiqueta}</span>{' '}
                       <strong style={{ color: COLOR_VEREDICTO[t.veredicto] }}>{t.veredicto}</strong>
-                      <span className="text-[#7b828d]"> · {t.lectura}</span>
+                      <span className="text-(--ink-muted)"> · {t.lectura}</span>
                     </li>
                   ))}
               </ul>
-              {rend.lecturaEdge && <p className="mt-1 text-[#9aa1ac]">{rend.lecturaEdge}</p>}
+              {rend.lecturaEdge && <p className="mt-1 text-(--ink-soft)">{rend.lecturaEdge}</p>}
             </div>
           )}
         </div>
@@ -301,29 +301,29 @@ export default function LiveEvaluation() {
       {/* ¿SIRVE ABSTENERSE? Lo que decidió la capa de confianza antes del partido, contra lo
           que pasó: apostables contra abstenidas, y participar solo en lo más fiable. */}
       {sel && (
-        <div className="border-t border-white/[0.07] px-4 py-3 text-[13px] leading-relaxed">
-          <h4 className="text-[14px] font-semibold text-[#c3c9d1]">¿Sirve abstenerse?</h4>
+        <div className="border-t border-(--line) px-4 py-3 text-[13px] leading-relaxed">
+          <h4 className="text-[14px] font-semibold text-(--ink-body)">¿Sirve abstenerse?</h4>
           {sel.partidos === 0 ? (
-            <p className="mt-1 text-[#7b828d]">{sel.lectura}</p>
+            <p className="mt-1 text-(--ink-muted)">{sel.lectura}</p>
           ) : (
             <>
-              <ul className="mt-1 space-y-1 text-[#9aa1ac]">
+              <ul className="mt-1 space-y-1 text-(--ink-soft)">
                 {sel.grupos.filter((g) => g.informe.n > 0).map((g) => (
                   <li key={g.nombre}>
-                    <span className="text-[#c3c9d1]">{g.nombre}</span>: {g.informe.n} partidos · ganancia sobre no saber nada {f3(g.ganancia ?? null)} nats
+                    <span className="text-(--ink-body)">{g.nombre}</span>: {g.informe.n} partidos · ganancia sobre no saber nada {f3(g.ganancia ?? null)} nats
                     {g.mezcla && Object.keys(g.mezcla).length > 1 && ` (${Object.entries(g.mezcla).map(([d, n]) => `${NOMBRE[d] ?? d} ${n}`).join(', ')})`}
                     {g.roiHipotetico && ` · ROI hipotético ${signo(g.roiHipotetico.roi)} (${g.roiHipotetico.apuestas})`}
                     {g.aviso.texto && <span className="block text-[12px]" style={{ color: '#d9a441' }}>{g.aviso.texto}</span>}
                   </li>
                 ))}
               </ul>
-              <p className="mt-2 text-[#9aa1ac]">
+              <p className="mt-2 text-(--ink-soft)">
                 Cobertura contra rendimiento (de más a menos confianza):{' '}
                 {sel.cobertura.map((c) => `${Math.round(c.cobertura * 100)} %: ganancia ${f3(c.ganancia ?? null)} (${c.n})`).join(' · ')}
               </p>
               {sel.porDeporte &&
                 Object.entries(sel.porDeporte).map(([d, gs]) => (
-                  <p key={d} className="text-[#9aa1ac]">
+                  <p key={d} className="text-(--ink-soft)">
                     <Dep id={d} />:{' '}
                     {gs
                       .filter((g) => g.informe.n > 0)
@@ -331,13 +331,13 @@ export default function LiveEvaluation() {
                       .join(' | ')}
                   </p>
                 ))}
-              <p className="text-[12px] text-[#5c636c]">
+              <p className="text-[12px] text-(--ink-faint)">
                 La ganancia (ln K + ln p del resultado) se puede comparar entre deportes con 2 y 3 resultados; el log loss, solo dentro de cada deporte.
               </p>
-              <p className="text-[#9aa1ac]">
+              <p className="text-(--ink-soft)">
                 CLV de las señales con ventaja: apostadas {signo(sel.clv.apostadas.media)} ({sel.clv.apostadas.n}) · abstenidas {signo(sel.clv.abstenidas.media)} ({sel.clv.abstenidas.n})
               </p>
-              <p className="text-[12px] text-[#7b828d]">{sel.lectura}</p>
+              <p className="text-[12px] text-(--ink-muted)">{sel.lectura}</p>
             </>
           )}
         </div>
@@ -345,8 +345,8 @@ export default function LiveEvaluation() {
       {/* ¿ES REAL? Cada cifra con su intervalo. El veredicto no promete más de lo que la
           muestra sostiene: con pocos datos dice cuántos harían falta. */}
       {v && (
-        <div className="border-t border-white/[0.07] px-4 py-3">
-          <h4 className="text-[14px] font-semibold text-[#c3c9d1]">¿Es real?</h4>
+        <div className="border-t border-(--line) px-4 py-3">
+          <h4 className="text-[14px] font-semibold text-(--ink-body)">¿Es real?</h4>
           <ul className="mt-2 space-y-1.5 text-[13px] leading-relaxed">
             {[
               ...Object.entries(v.modeloVsMercado)
@@ -361,9 +361,9 @@ export default function LiveEvaluation() {
                 : []),
             ].map((p) => (
               <li key={p.pregunta}>
-                <span className="text-[#9aa1ac]">{p.pregunta}</span>{' '}
+                <span className="text-(--ink-soft)">{p.pregunta}</span>{' '}
                 <strong style={{ color: COLOR_VEREDICTO[p.veredicto] }}>{p.veredicto}</strong>
-                <span className="text-[#7b828d]"> · {p.lectura}</span>
+                <span className="text-(--ink-muted)"> · {p.lectura}</span>
               </li>
             ))}
           </ul>

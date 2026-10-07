@@ -93,7 +93,7 @@ export default function PointsMarkets({
     return (
       <Panel className="mb-4">
         <SectionTitle>Mercados del modelo de puntos</SectionTitle>
-        <p className="text-[13px] leading-relaxed text-[#7b828d]">{error}</p>
+        <p className="text-[13px] leading-relaxed text-(--ink-muted)">{error}</p>
       </Panel>
     );
   }
@@ -105,8 +105,8 @@ export default function PointsMarkets({
         Mercados del modelo de puntos
       </SectionTitle>
 
-      <p className="mb-3 text-[13px] leading-relaxed text-[#7b828d]">
-        Los cuatro salen de <strong className="text-[#9aa1ac]">dos números</strong>:{' '}
+      <p className="mb-3 text-[13px] leading-relaxed text-(--ink-muted)">
+        Los cuatro salen de <strong className="text-(--ink-soft)">dos números</strong>:{' '}
         {names[0]} gana el {pct(data.points.p1)} de los puntos con su saque contra{' '}
         {names[1]}, que gana el {pct(data.points.p2)} con el suyo. Todo lo demás es
         propagar eso por la cadena, así que no pueden contradecirse entre sí.
@@ -142,7 +142,7 @@ export default function PointsMarkets({
               strong={Math.abs(t.line - data.expectedGames) < 1}
             />
           ))}
-          <p className="mt-1 text-[11px] leading-relaxed text-[#5c636c]">
+          <p className="mt-1 text-[11px] leading-relaxed text-(--ink-faint)">
             Las líneas se centran en los juegos que el propio modelo espera. Una lista fija
             publicaría un 99 % para «más de 20.5» en un partido de 45 juegos, que no informa
             de nada.
@@ -155,7 +155,7 @@ export default function PointsMarkets({
         <SectionTitle>Hándicap de juegos</SectionTitle>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[22rem] text-left text-[13px] tabular-nums">
-            <thead className="text-[11px] uppercase tracking-[0.06em] text-[#7b828d]">
+            <thead className="text-[11px] uppercase tracking-[0.06em] text-(--ink-muted)">
               <tr>
                 <th className="pb-1 font-medium">hándicap</th>
                 <th className="pb-1 text-right font-medium">{names[0]}</th>
@@ -168,12 +168,12 @@ export default function PointsMarkets({
                 .map((h) => {
                   const other = data.handicaps.find((x) => x.handicap === -h.handicap);
                   return (
-                    <tr key={h.handicap} className="border-t border-white/[0.05]">
-                      <td className="py-1 text-[#9aa1ac]">
+                    <tr key={h.handicap} className="border-t border-(--line)">
+                      <td className="py-1 text-(--ink-soft)">
                         {h.handicap} / +{-h.handicap}
                       </td>
-                      <td className="py-1 text-right text-[#e8eaed]">{pct(h.cover)}</td>
-                      <td className="py-1 text-right text-[#e8eaed]">
+                      <td className="py-1 text-right text-(--ink-strong)">{pct(h.cover)}</td>
+                      <td className="py-1 text-right text-(--ink-strong)">
                         {other ? pct(1 - other.cover) : '—'}
                       </td>
                     </tr>
@@ -186,7 +186,7 @@ export default function PointsMarkets({
 
       <div className="mt-3">
         <Disclosure summary="De dónde salen esos dos números">
-          <div className="space-y-2 text-[13px] leading-relaxed text-[#7b828d]">
+          <div className="space-y-2 text-[13px] leading-relaxed text-(--ink-muted)">
             <p>
               Saque y resto de cada jugador estimados <strong>a la vez para todo el
               circuito</strong>, así que la calidad de los rivales de cada uno está
@@ -244,12 +244,12 @@ function Row({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-0.5">
-      <span className={`truncate text-[13px] ${dim ? 'text-[#7b828d]' : 'text-[#9aa1ac]'}`}>
+      <span className={`break-words text-[13px] ${dim ? 'text-(--ink-muted)' : 'text-(--ink-soft)'}`}>
         {label}
       </span>
       <span
         className={`shrink-0 tabular-nums ${
-          strong ? 'text-[15px] font-semibold text-[#e8eaed]' : 'text-[13px] text-[#c3c9d1]'
+          strong ? 'text-[15px] font-semibold text-(--ink-strong)' : 'text-[13px] text-(--ink-body)'
         }`}
       >
         {value}

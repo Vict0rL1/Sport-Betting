@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { rutaEquipo } from '../../rutas';
 import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../../lib/rutas';
 import {
   pillClass, SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader,
@@ -16,7 +18,6 @@ import {
   type NflTrackRecord,
 } from '../../lib/nfl';
 import GameCard from './GameCard';
-import TeamProfile from './TeamProfile';
 import EloRanking from '../EloRanking';
 
 /**
@@ -40,7 +41,9 @@ export default function NflDashboard() {
   >([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [team, setTeam] = useState<{ league: string; id: string } | null>(null);
+  const navigate = useNavigate();
+  // Un equipo abre su página (Fase 5.12): una URL, no un modal.
+  const setTeam = (t: { league: string; id: string }) => navigate(rutaEquipo('nfl', t.league, t.id));
   const [refreshing, setRefreshing] = useState(false);
   // null = every day, which is the default: someone who has not asked to filter
   // should see the whole schedule.
@@ -147,7 +150,7 @@ export default function NflDashboard() {
         chips={meta && (<>{meta.counts.games.toLocaleString('es')} partidos · {meta.counts.teams} equipos</>)}
         alert={staleLabel(stale)}
       >
-          <p className="max-w-prose text-[15px] leading-relaxed text-[#9aa1ac]">
+          <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
             Hándicap, total y ganador con Elo por equipo y una distribución de margen que conoce los
             números clave del deporte. Es el único deporte de la app cuyo modelo se puede medir
             contra la línea de cierre real.
@@ -304,22 +307,20 @@ export default function NflDashboard() {
           </>
         }
       />
-
-      {team && <TeamProfile league={team.league} id={team.id} onClose={() => setTeam(null)} />}
     </div>
   );
 }
 
 function DataLine({ meta }: { meta: NflMeta }) {
   return (
-    <p className="mt-2 text-[13px] leading-relaxed text-[#7b828d]">
+    <p className="mt-2 text-[13px] leading-relaxed text-(--ink-muted)">
       <span className="mr-1 rounded-full px-2 py-0.5 text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
         datos reales (nflverse)
       </span>
       {meta.counts.games.toLocaleString('es')} partidos · {meta.counts.teams} equipos ·{' '}
       {/* The two tracked league quantities. Worth a line of chrome: they are the
           model's own reading of how the sport is being played this year. */}
-      <span className="text-[#9aa1ac]">
+      <span className="text-(--ink-soft)">
         ventaja de campo {meta.league.homeAdvantagePoints} pts · {meta.league.pointsPerGame} puntos
         por partido
       </span>
@@ -362,34 +363,34 @@ function NflTrackRecordPanel({ league }: { league: string }) {
   if (!data || (data.resolved === 0 && data.pending === 0)) return null;
 
   return (
-    <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3">
+    <div className="mt-3 rounded-xl border border-(--line) bg-(--tint) p-3">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between gap-2 text-left"
       >
         <span className="text-[16px]">
-          <span className="text-[14px] uppercase tracking-wide text-[#7b828d]">
+          <span className="text-[14px] uppercase tracking-wide text-(--ink-muted)">
             Aciertos reales de la app
           </span>
           <br />
           {data.resolved === 0 ? (
-            <span className="text-[#c3c9d1]">
+            <span className="text-(--ink-body)">
               {data.pending} predicción(es) registradas, esperando resultado.
             </span>
           ) : (
-            <span className="text-[#e8eaed]">
+            <span className="text-(--ink-strong)">
               <strong className="tabular-nums">{((data.accuracy ?? 0) * 100).toFixed(1)}%</strong> de
               acierto en <strong className="tabular-nums">{data.resolved}</strong> partidos
               {data.marginMae != null && (
-                <span className="text-[#9aa1ac]"> · error del margen {data.marginMae} pts</span>
+                <span className="text-(--ink-soft)"> · error del margen {data.marginMae} pts</span>
               )}
             </span>
           )}
         </span>
-        <span className="shrink-0 text-[14px] text-[#5c636c]">{open ? '▲' : '▼'}</span>
+        <span className="shrink-0 text-[14px] text-(--ink-faint)">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <div className="mt-3 space-y-3 border-t border-white/[0.07] pt-3 text-[14px] text-[#c3c9d1]">
+        <div className="mt-3 space-y-3 border-t border-(--line) pt-3 text-[14px] text-(--ink-body)">
           {data.vsMarket && (
             <p>
               <strong>Contra el mercado</strong>, en los {data.vsMarket.n} partidos donde había
@@ -399,7 +400,7 @@ function NflTrackRecordPanel({ league }: { league: string }) {
               {data.vsMarket.modelBrier} frente a {data.vsMarket.marketBrier}; menor es mejor).
             </p>
           )}
-          <p className="text-[#9aa1ac]">
+          <p className="text-(--ink-soft)">
             La línea de cierre de la NFL es el precio más afinado del deporte. En 27 temporadas de
             histórico el modelo no la bate — acierta el 50.9% contra el hándicap, por debajo del
             52.4% que hace falta solo para cubrir la comisión. Esto se dice aquí, y no en letra
@@ -407,7 +408,7 @@ function NflTrackRecordPanel({ league }: { league: string }) {
           </p>
           {data.calibration.length > 0 && (
             <div>
-              <div className="mb-1 text-[#7b828d]">Calibración del favorito:</div>
+              <div className="mb-1 text-(--ink-muted)">Calibración del favorito:</div>
               <ul className="space-y-0.5">
                 {data.calibration.map((c) => (
                   <li key={c.label} className="tabular-nums">

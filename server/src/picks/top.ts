@@ -39,6 +39,8 @@ export interface Pick {
   deporte: PartidoDeHoy['deporte'];
   sport: SportId;
   matchKey: string;
+  /** Id del partido en la tabla de próximos: el de la página /partido/:sport/:id. */
+  eventoId: string;
   liga: string | null;
   cuando: string;
   partido: string;
@@ -143,7 +145,7 @@ export function mejoresPartidos(now = new Date(), horas: number = HORIZONTES[1])
     try {
       const filas = db
         .prepare(
-          `SELECT u.commence_time AS cuando, u.source AS fuente, u.${LIGA[f.deporte]} AS liga, u.books AS casas,
+          `SELECT u.id AS uid, u.commence_time AS cuando, u.source AS fuente, u.${LIGA[f.deporte]} AS liga, u.books AS casas,
                   u.${cId} AS casaId, u.${fId} AS fueraId, ${cuotas.map((c, i) => `u.${c} AS c${i}`).join(', ')},
                   l.${f.clave} AS clave, l.${f.casa} AS casa, l.${f.fuera} AS fuera, l.reliability AS fiabilidad,
                   ${probSql(f, 'l.')} AS p ${f.empate ? `, ${empateSql(f, 'l.')} AS pEmpate` : ''}
@@ -181,6 +183,7 @@ export function mejoresPartidos(now = new Date(), horas: number = HORIZONTES[1])
           deporte: f.deporte,
           sport,
           matchKey: String(r.clave),
+          eventoId: String(r.uid),
           liga: (r.liga as string | null) ?? null,
           cuando: String(r.cuando),
           partido: f.deporte === 'NFL' ? `${fuera} @ ${casa}` : `${casa} vs ${fuera}`,

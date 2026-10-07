@@ -119,7 +119,7 @@ export default function ExposurePanel() {
     return (
       <Panel className="mb-4">
         <SectionTitle>Exposición de la cartera</SectionTitle>
-        <p className="text-[13px] text-[#7b828d]">No se pudo leer /api/staking/book: {error}</p>
+        <p className="text-[13px] text-(--ink-muted)">No se pudo leer /api/staking/book: {error}</p>
       </Panel>
     );
   }
@@ -140,7 +140,7 @@ export default function ExposurePanel() {
               step={50}
               value={bankroll}
               onChange={(e) => setBankroll(Math.max(1, Number(e.target.value) || 1))}
-              className="w-24 rounded-md bg-white/[0.06] px-2 py-0.5 text-right text-[13px] tabular-nums text-[#e8eaed] ring-1 ring-inset ring-white/[0.1] focus:outline-none focus:ring-white/[0.25]"
+              className="w-24 rounded-md bg-(--raised) px-2 py-0.5 text-right text-[13px] tabular-nums text-(--ink-strong) ring-1 ring-inset ring-(--line) focus:outline-none focus:ring-(--line-strong)"
               aria-label="Tu banco"
             />
           </label>
@@ -150,12 +150,12 @@ export default function ExposurePanel() {
       </SectionTitle>
 
       {book.entries.length === 0 ? (
-        <p className="text-[14px] leading-relaxed text-[#9aa1ac]">
+        <p className="text-[14px] leading-relaxed text-(--ink-soft)">
           Ninguna apuesta se dimensionaría ahora mismo.{' '}
           {book.demoOdds > 0 && book.priced === 0 ? (
             <>
               Los {book.demoOdds} partidos del calendario llevan cuotas de{' '}
-              <strong className="text-[#c3c9d1]">demostración</strong>, generadas por el propio
+              <strong className="text-(--ink-body)">demostración</strong>, generadas por el propio
               modelo: apostar contra tu propia salida no es una ventaja, es una identidad. Hace
               falta una clave de The Odds API.
             </>
@@ -197,7 +197,7 @@ export default function ExposurePanel() {
             />
           </div>
 
-          <p className="mt-3 text-[13px] leading-relaxed text-[#7b828d]">
+          <p className="mt-3 text-[13px] leading-relaxed text-(--ink-muted)">
             Las dos primeras responden <em>¿cuánto puedo perder?</em> y no dependen de la
             correlación: si fallan todas, se pierde la suma. La tercera responde{' '}
             <em>¿cuánto riesgo corro?</em>, que es otra pregunta.
@@ -208,8 +208,8 @@ export default function ExposurePanel() {
               <SectionTitle>Topes que recortaron</SectionTitle>
               <ul className="space-y-1">
                 {book.caps.map((c) => (
-                  <li key={c.scope} className="text-[13px] tabular-nums text-[#9aa1ac]">
-                    <span className="text-[#c3c9d1]">{c.scope}</span> · tope {money(c.limit)} · ya
+                  <li key={c.scope} className="text-[13px] tabular-nums text-(--ink-soft)">
+                    <span className="text-(--ink-body)">{c.scope}</span> · tope {money(c.limit)} · ya
                     en juego {money(c.used)} → ×{c.factor.toFixed(2)}
                   </li>
                 ))}
@@ -222,7 +222,7 @@ export default function ExposurePanel() {
             {book.links.length > 0 ? (
               <ul className="space-y-1">
                 {book.links.map((l) => (
-                  <li key={`${l.a}-${l.b}`} className="text-[13px] leading-relaxed text-[#9aa1ac]">
+                  <li key={`${l.a}-${l.b}`} className="text-[13px] leading-relaxed text-(--ink-soft)">
                     <span
                       className={`tabular-nums ${l.rho > 0 ? 'text-amber-300/90' : 'text-emerald-300/90'}`}
                     >
@@ -234,9 +234,9 @@ export default function ExposurePanel() {
                 ))}
               </ul>
             ) : (
-              <p className="text-[13px] leading-relaxed text-[#7b828d]">
+              <p className="text-[13px] leading-relaxed text-(--ink-muted)">
                 Ninguna correlación relevante entre estas posiciones, y{' '}
-                <strong className="text-[#9aa1ac]">eso es una medición, no un olvido</strong>: se
+                <strong className="text-(--ink-soft)">eso es una medición, no un olvido</strong>: se
                 comprobó si las apuestas de una misma liga y jornada se arrastran entre sí y salió
                 ρ&nbsp;=&nbsp;{correlation.sameLeagueDay.rho.toFixed(4)}, con un intervalo que
                 incluye el cero. La que sí existe es entre mercados del mismo partido, y aquí solo
@@ -247,7 +247,7 @@ export default function ExposurePanel() {
 
           <div className="mt-3">
             <Disclosure summary="Qué se midió, y en qué se convierte">
-              <div className="space-y-2 text-[13px] leading-relaxed text-[#7b828d]">
+              <div className="space-y-2 text-[13px] leading-relaxed text-(--ink-muted)">
                 <p>
                   Sobre {correlation.n.toLocaleString('es')} predicciones fuera de muestra del
                   Dixon-Coles, comparando los <em>errores</em> del modelo entre pares de apuestas.
@@ -286,7 +286,7 @@ export default function ExposurePanel() {
           <div className="mt-3 overflow-x-auto">
             <table className="w-full min-w-[30rem] text-[13px] tabular-nums">
               <thead>
-                <tr className="text-left text-[11px] uppercase tracking-[0.06em] text-[#7b828d]">
+                <tr className="text-left text-[11px] uppercase tracking-[0.06em] text-(--ink-muted)">
                   <th className="pb-1 font-medium">apuesta</th>
                   <th className="pb-1 text-right font-medium">en solitario</th>
                   <th className="pb-1 text-right font-medium">de cartera</th>
@@ -295,11 +295,11 @@ export default function ExposurePanel() {
               </thead>
               <tbody>
                 {book.entries.slice(0, 10).map((e) => (
-                  <tr key={e.key} className="border-t border-white/[0.05]">
-                    <td className="py-1 pr-2 text-[#c3c9d1]">{e.label}</td>
-                    <td className="py-1 text-right text-[#7b828d]">{money(e.soloStake)}</td>
-                    <td className="py-1 text-right text-[#e8eaed]">{money(e.stake)}</td>
-                    <td className="py-1 text-right text-[#7b828d]">
+                  <tr key={e.key} className="border-t border-(--line)">
+                    <td className="py-1 pr-2 text-(--ink-body)">{e.label}</td>
+                    <td className="py-1 text-right text-(--ink-muted)">{money(e.soloStake)}</td>
+                    <td className="py-1 text-right text-(--ink-strong)">{money(e.stake)}</td>
+                    <td className="py-1 text-right text-(--ink-muted)">
                       ×{(e.portfolioFactor * e.exposureFactor).toFixed(2)}
                     </td>
                   </tr>
@@ -307,7 +307,7 @@ export default function ExposurePanel() {
               </tbody>
             </table>
             {book.entries.length > 10 && (
-              <p className="mt-1 text-[13px] text-[#5c636c]">
+              <p className="mt-1 text-[13px] text-(--ink-faint)">
                 … y {book.entries.length - 10} más
               </p>
             )}
@@ -321,11 +321,11 @@ export default function ExposurePanel() {
 function Figure({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#7b828d]">
+      <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
         {label}
       </div>
-      <div className="mt-0.5 text-[16px] font-semibold tabular-nums text-[#e8eaed]">{value}</div>
-      <div className="text-[11px] tabular-nums text-[#7b828d]">{hint}</div>
+      <div className="mt-0.5 text-[16px] font-semibold tabular-nums text-(--ink-strong)">{value}</div>
+      <div className="text-[11px] tabular-nums text-(--ink-muted)">{hint}</div>
     </div>
   );
 }

@@ -43,11 +43,11 @@ function SplitBar({
   const markerPct = marker != null ? Math.round(marker * 1000) / 10 : null;
   return (
     <div>
-      <div className="mb-1 flex items-center justify-between gap-2 text-[14px] text-[#9aa1ac]">
+      <div className="mb-1 flex items-center justify-between gap-2 text-[14px] text-(--ink-soft)">
         <span>{title}</span>
         {right}
       </div>
-      <div className="relative flex h-6 w-full overflow-hidden rounded-md ring-1 ring-white/[0.07]">
+      <div className="relative flex h-6 w-full overflow-hidden rounded-md ring-1 ring-(--line)">
         <div
           className="flex items-center justify-start pl-2 text-[14px] font-semibold text-slate-900"
           style={{
@@ -106,12 +106,12 @@ export default function ProbabilityBars({ prediction }: { prediction: Prediction
         marker={marketLeft}
         right={
           gap != null && Math.abs(gap) >= 0.5 ? (
-            <span className="tabular-nums text-[13px] text-[#7b828d]">
+            <span className="tabular-nums text-[13px] text-(--ink-muted)">
               <span className="mr-1 inline-block h-[9px] w-[2px] translate-y-[1px] bg-white/80" />
               mercado, a {Math.abs(gap).toFixed(1)} pp
             </span>
           ) : gap != null ? (
-            <span className="text-[13px] text-[#7b828d]">coincide con el mercado</span>
+            <span className="text-[13px] text-(--ink-muted)">coincide con el mercado</span>
           ) : undefined
         }
       />

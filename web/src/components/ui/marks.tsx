@@ -225,7 +225,7 @@ function FlagImg({
     return (
       <span
         title={label}
-        className={`inline-block shrink-0 rounded-[2px] bg-white/[0.07] px-1 font-medium tabular-nums text-[#7b828d] ${className}`}
+        className={`inline-block shrink-0 rounded-[2px] bg-(--raised-2) px-1 font-medium tabular-nums text-(--ink-muted) ${className}`}
         style={{ fontSize: Math.max(9, height * 0.82), lineHeight: `${height + 2}px` }}
       >
         {code}
@@ -243,7 +243,7 @@ function FlagImg({
         // El fondo se ve mientras carga y ocupa el mismo sitio que la bandera, así que
         // la línea no salta cuando llega. Y el borde interior despega del fondo oscuro
         // las banderas que tienen blanco en el canto (Japón, Suiza).
-        backgroundColor: ok ? 'transparent' : 'rgba(255,255,255,0.07)',
+        backgroundColor: ok ? 'transparent' : 'var(--raised-2)',
         boxShadow: ok ? 'inset 0 0 0 1px rgba(0,0,0,0.35)' : 'none',
       }}
     >

@@ -77,7 +77,7 @@ function veredicto(r: Resumen): { texto: string; color: string } | null {
   const [lo, hi] = r.rangoNormal;
   if (r.aciertos < lo) return { texto: 'por debajo de lo normal: merece mirarse', color: STATUS.critical };
   if (r.aciertos > hi) return { texto: 'por encima: buena racha, no un modelo mejor', color: STATUS.good };
-  return { texto: 'dentro de lo esperado', color: '#9aa1ac' };
+  return { texto: 'dentro de lo esperado', color: 'var(--ink-soft)' };
 }
 
 /** Lo que va en la cabecera plegable del panel. */
@@ -134,7 +134,7 @@ function Chip({ activo, onClick, children, title }: { activo: boolean; onClick: 
       title={title}
       aria-pressed={activo}
       className={`whitespace-nowrap rounded-full px-3 py-1 text-[13px] ring-1 transition ${
-        activo ? 'bg-white/[0.10] text-[#e8eaed] ring-white/20' : 'text-[#9aa1ac] ring-white/[0.07] hover:bg-white/[0.04]'
+        activo ? 'bg-(--raised-2) text-(--ink-strong) ring-(--line-strong)' : 'text-(--ink-soft) ring-(--line) hover:bg-(--raised)'
       }`}
     >
       {children}
@@ -166,17 +166,17 @@ function FranjaDias({ porDia, max, diaSel, onDia }: { porDia: Historial['porDia'
               onClick={() => onDia(sel ? null : d.dia)}
               disabled={d.total === 0}
               title={d.total === 0 ? `${f.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'short' })}: sin resultados` : `${d.aciertos} de ${d.total} acertados`}
-              className={`flex min-w-[1.75rem] flex-1 flex-col items-center gap-1 rounded-md py-1 transition ${sel ? 'bg-white/[0.08]' : d.total ? 'hover:bg-white/[0.04]' : 'cursor-default'}`}
+              className={`flex min-w-[1.75rem] flex-1 flex-col items-center gap-1 rounded-md py-1 transition ${sel ? 'bg-(--raised-2)' : d.total ? 'hover:bg-(--raised)' : 'cursor-default'}`}
             >
-              <span className="whitespace-nowrap text-[10.5px] tabular-nums text-[#9aa1ac]">{d.total ? `${d.aciertos}/${d.total}` : '—'}</span>
-              <span className="flex h-14 w-3.5 flex-col justify-end overflow-hidden rounded-sm bg-white/[0.04]">
+              <span className="whitespace-nowrap text-[10.5px] tabular-nums text-(--ink-soft)">{d.total ? `${d.aciertos}/${d.total}` : '—'}</span>
+              <span className="flex h-14 w-3.5 flex-col justify-end overflow-hidden rounded-sm bg-(--raised)">
                 <span style={{ height: alto - okAlto, background: STATUS.critical, opacity: 0.75 }} />
                 <span style={{ height: okAlto, background: STATUS.good }} />
               </span>
-              <span className="text-[11px] leading-tight text-[#7b828d]">
+              <span className="text-[11px] leading-tight text-(--ink-muted)">
                 {f.toLocaleDateString('es', { weekday: 'narrow' })}
                 <br />
-                <span className={sel ? 'text-[#e8eaed]' : ''}>{f.getDate()}</span>
+                <span className={sel ? 'text-(--ink-strong)' : ''}>{f.getDate()}</span>
               </span>
             </button>
           );
@@ -206,22 +206,22 @@ function Fila({ r }: { r: Resultado }) {
             return (
               <div key={i} className="flex min-w-0 items-center gap-2">
                 <TeamCrest league={r.liga ?? ''} name={l.nombre} code={l.id} size={24} />
-                <span className={`min-w-0 break-words text-[14px] leading-snug ${gano ? 'font-medium text-[#e8eaed]' : 'text-[#9aa1ac]'}`}>{l.nombre}</span>
-                {r.deporte === 'NFL' && i === 0 && <span className="-ml-1 text-[12px] text-[#5c636c]">@</span>}
-                {gano && <span className="shrink-0 rounded bg-white/[0.06] px-1.5 py-px text-[10.5px] uppercase tracking-wide text-[#9aa1ac]">ganó</span>}
+                <span className={`min-w-0 break-words text-[14px] leading-snug ${gano ? 'font-medium text-(--ink-strong)' : 'text-(--ink-soft)'}`}>{l.nombre}</span>
+                {r.deporte === 'NFL' && i === 0 && <span className="-ml-1 text-[12px] text-(--ink-faint)">@</span>}
+                {gano && <span className="shrink-0 rounded bg-(--raised) px-1.5 py-px text-[10.5px] uppercase tracking-wide text-(--ink-soft)">ganó</span>}
               </div>
             );
           })}
         </div>
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-[#9aa1ac]">
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-(--ink-soft)">
           <span>
-            el modelo dijo <span className="text-[#c3c9d1]">{r.favorito}</span>{' '}
-            <span className="font-semibold tabular-nums text-[#e8eaed]">{Math.round(r.probabilidad * 100)} %</span>
+            el modelo dijo <span className="text-(--ink-body)">{r.favorito}</span>{' '}
+            <span className="font-semibold tabular-nums text-(--ink-strong)">{Math.round(r.probabilidad * 100)} %</span>
           </span>
-          {empate && <span className="text-[#c3c9d1]">· acabó en empate</span>}
+          {empate && <span className="text-(--ink-body)">· acabó en empate</span>}
           {r.origen === 'reconstruida' && (
             <span
-              className="rounded px-1.5 py-px text-[11px] text-[#9aa1ac] ring-1 ring-white/10"
+              className="rounded px-1.5 py-px text-[11px] text-(--ink-soft) ring-1 ring-(--line)"
               title="No se registró antes del partido: es la predicción del modelo del backtest, con solo los datos anteriores al partido."
             >
               reconstruida
@@ -264,8 +264,8 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
     return [...m.entries()];
   }, [filtrados]);
 
-  if (error && !h) return <p className="px-4 py-3 text-[13px] text-[#9aa1ac]">No se pudieron leer los resultados recientes.</p>;
-  if (!h) return <p className="px-4 py-3 text-[13px] text-[#9aa1ac]">Calculando los resultados de los últimos {dias} días…</p>;
+  if (error && !h) return <p className="px-4 py-3 text-[13px] text-(--ink-soft)">No se pudieron leer los resultados recientes.</p>;
+  if (!h) return <p className="px-4 py-3 text-[13px] text-(--ink-soft)">Calculando los resultados de los últimos {dias} días…</p>;
 
   const r = h.resumen;
   const v = veredicto(r);
@@ -280,29 +280,29 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
     <div className={cargando ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
       {/* Ventana */}
       <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3">
-        <span className="mr-1 text-[12px] uppercase tracking-wide text-[#7b828d]">Periodo</span>
+        <span className="mr-1 text-[12px] uppercase tracking-wide text-(--ink-muted)">Periodo</span>
         {h.ventanas.map((d) => (
           <Chip key={d} activo={dias === d} onClick={() => setDias(d)}>
             {d} días
           </Chip>
         ))}
-        {cargando && <span className="text-[12px] text-[#7b828d]">actualizando…</span>}
+        {cargando && <span className="text-[12px] text-(--ink-muted)">actualizando…</span>}
       </div>
 
       {/* Resumen */}
-      <div className="mx-4 mt-3 grid grid-cols-1 gap-3 rounded-lg bg-white/[0.03] p-3 ring-1 ring-white/[0.06] sm:grid-cols-[auto_1fr]">
+      <div className="mx-4 mt-3 grid grid-cols-1 gap-3 rounded-lg bg-(--tint) p-3 ring-1 ring-(--line) sm:grid-cols-[auto_1fr]">
         <div className="flex items-baseline gap-2 sm:flex-col sm:items-start sm:gap-0 sm:pr-4">
-          <span className="text-[28px] font-semibold leading-none tabular-nums text-[#e8eaed]">{pctTxt(r.tasa)}</span>
-          <span className="text-[13px] text-[#9aa1ac]">
+          <span className="text-[28px] font-semibold leading-none tabular-nums text-(--ink-strong)">{pctTxt(r.tasa)}</span>
+          <span className="text-[13px] text-(--ink-soft)">
             {r.aciertos} de {r.total} acertados
           </span>
         </div>
-        <div className="text-[13px] leading-relaxed text-[#9aa1ac]">
+        <div className="text-[13px] leading-relaxed text-(--ink-soft)">
           {r.total === 0 ? (
             <>Ningún partido con resultado en estos {h.dias} días. Abajo, por qué.</>
           ) : (
             <>
-              El modelo esperaba acertar <span className="text-[#e8eaed]">{pctTxt(r.tasaEsperada)}</span> (unos{' '}
+              El modelo esperaba acertar <span className="text-(--ink-strong)">{pctTxt(r.tasaEsperada)}</span> (unos{' '}
               {(r.esperado ?? 0).toFixed(1).replace('.', ',')}). Por puro azar, entre {r.rangoNormal?.[0]} y {r.rangoNormal?.[1]} aciertos es
               lo normal con {r.total} partidos: {r.aciertos} está{' '}
               <span style={{ color: v?.color }}>{v?.texto}</span>.
@@ -350,23 +350,23 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
       )}
 
       {/* La lista, por día */}
-      <div className="mt-2 max-h-[26rem] overflow-y-auto border-t border-white/[0.06]">
+      <div className="mt-2 max-h-[26rem] overflow-y-auto border-t border-(--line)">
         {porDia.length === 0 && (
-          <p className="px-4 py-4 text-[13px] text-[#7b828d]">{h.resultados.length ? 'Ningún partido con estos filtros.' : 'Sin partidos resueltos en esta ventana.'}</p>
+          <p className="px-4 py-4 text-[13px] text-(--ink-muted)">{h.resultados.length ? 'Ningún partido con estos filtros.' : 'Sin partidos resueltos en esta ventana.'}</p>
         )}
         {porDia.map(([dia, xs]) => {
           const ok = xs.filter((x) => x.acerto).length;
           return (
             <section key={dia}>
-              <h4 className="sticky top-0 z-10 flex items-baseline justify-between border-b border-white/[0.05] bg-[#14161b]/95 px-4 py-1.5 text-[12.5px] backdrop-blur">
-                <span className="font-medium capitalize text-[#c3c9d1]">
+              <h4 className="sticky top-0 z-10 flex items-baseline justify-between border-b border-(--line) bg-(--surface-card)/95 px-4 py-1.5 text-[12.5px] backdrop-blur">
+                <span className="font-medium capitalize text-(--ink-body)">
                   {fechaDe(dia).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'short' })}
                 </span>
-                <span className="tabular-nums text-[#9aa1ac]">
+                <span className="tabular-nums text-(--ink-soft)">
                   {ok} de {xs.length}
                 </span>
               </h4>
-              <ul className="divide-y divide-white/[0.04]">
+              <ul className="divide-y divide-(--line)">
                 {xs.map((x, i) => (
                   <Fila key={`${x.partido}|${i}`} r={x} />
                 ))}
@@ -378,13 +378,13 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
 
       {/* Por qué faltan días */}
       {avisos.length > 0 && (
-        <div className="border-t border-white/[0.06] px-4 py-3">
-          <p className="mb-1 text-[12px] uppercase tracking-wide text-[#7b828d]">Resultados que faltan</p>
-          <p className="mb-2 text-[12.5px] text-[#9aa1ac]">
+        <div className="border-t border-(--line) px-4 py-3">
+          <p className="mb-1 text-[12px] uppercase tracking-wide text-(--ink-muted)">Resultados que faltan</p>
+          <p className="mb-2 text-[12.5px] text-(--ink-soft)">
             Un día vacío casi nunca es que no hubo partidos: es el archivo sin actualizar. Todos de una vez, sin gastar créditos de cuotas:{' '}
-            <code className="rounded bg-white/[0.08] px-1.5 py-px text-[12px] text-[#e8eaed]">npm run update-results</code>
+            <code className="rounded bg-(--raised-2) px-1.5 py-px text-[12px] text-(--ink-strong)">npm run update-results</code>
           </p>
-          <ul className="space-y-1.5 text-[12.5px] text-[#9aa1ac]">
+          <ul className="space-y-1.5 text-[12.5px] text-(--ink-soft)">
             {avisos.map((a) => (
               <li key={a.deporte} className="flex flex-wrap items-baseline gap-x-2">
                 <span>
@@ -393,16 +393,16 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
                   {a.sinResultado > 0 && <span style={{ color: STATUS.warning }}> · {a.sinResultado} jugado(s) esperan resultado</span>}
                   {!a.reconstruye && ' · el archivo solo trae la fecha del torneo: no se reconstruye'}
                 </span>
-                <code className="rounded bg-white/[0.06] px-1.5 py-px text-[12px] text-[#c3c9d1]">{a.comando}</code>
+                <code className="rounded bg-(--raised) px-1.5 py-px text-[12px] text-(--ink-body)">{a.comando}</code>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      <p className="border-t border-white/[0.06] px-4 py-2.5 text-[12px] leading-relaxed text-[#7b828d]">
-        <strong className="font-medium text-[#9aa1ac]">En vivo</strong> es lo que la app registró antes de cada partido.{' '}
-        <strong className="font-medium text-[#9aa1ac]">Reconstruidos</strong> son el resto de partidos jugados del archivo, con la predicción
+      <p className="border-t border-(--line) px-4 py-2.5 text-[12px] leading-relaxed text-(--ink-muted)">
+        <strong className="font-medium text-(--ink-soft)">En vivo</strong> es lo que la app registró antes de cada partido.{' '}
+        <strong className="font-medium text-(--ink-soft)">Reconstruidos</strong> son el resto de partidos jugados del archivo, con la predicción
         del modelo del backtest calculada solo con datos anteriores a cada uno: no llevan la mezcla con el mercado ni las alineaciones del
         día, y no se usan para ajustar el modelo.
         {h.sinHistoria > 0 && ` ${h.sinHistoria} partido(s) no se reconstruyen porque algún equipo tenía muy poca historia.`} Para juzgar al

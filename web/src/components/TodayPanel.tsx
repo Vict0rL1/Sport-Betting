@@ -95,17 +95,17 @@ export default function TodayPanel() {
   const conPrecio = datos?.partidos.filter((p) => p.precioReal).length ?? 0;
 
   return (
-    <section className="mb-5 overflow-hidden rounded-xl border border-white/[0.09] bg-white/[0.02]">
+    <section className="mb-5 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
       <button
         onClick={alternar}
         aria-expanded={abierto}
-        className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition hover:bg-white/[0.03]"
+        className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition hover:bg-(--tint)"
       >
         <span className="min-w-0">
-          <span className="text-[15px] font-semibold text-[#e8eaed]">
+          <span className="text-[15px] font-semibold text-(--ink-strong)">
             {activa === 'hoy' ? 'Hoy' : 'Cómo le fue al modelo'}
           </span>{' '}
-          <span className="text-[13px] text-[#7b828d]">
+          <span className="text-[13px] text-(--ink-muted)">
             {activa === 'hoy' ? (
               <>
                 {datos?.partidos.length} partido{datos?.partidos.length === 1 ? '' : 's'} en los
@@ -119,23 +119,23 @@ export default function TodayPanel() {
             )}
           </span>
         </span>
-        <span aria-hidden className="shrink-0 text-[#7b828d]">{abierto ? '▲' : '▼'}</span>
+        <span aria-hidden className="shrink-0 text-(--ink-muted)">{abierto ? '▲' : '▼'}</span>
       </button>
 
       {abierto && (
-        <div className="border-t border-white/[0.07]">
+        <div className="border-t border-(--line)">
           {/* El interruptor solo aparece si hay las dos cosas. Con una sola, un botón
               que lleva a una lista vacía es una promesa incumplida. */}
           {hayHoy && hayRes && (
-            <div className="flex gap-1 border-b border-white/[0.05] px-3 py-2">
+            <div className="flex gap-1 border-b border-(--line) px-3 py-2">
               {(['hoy', 'resultados'] as const).map((v) => (
                 <button
                   key={v}
                   onClick={() => cambiarVista(v)}
                   className={`rounded-full px-3 py-1 text-[13px] transition ${
                     activa === v
-                      ? 'bg-white/[0.08] text-[#e8eaed]'
-                      : 'text-[#9aa1ac] hover:bg-white/[0.04]'
+                      ? 'bg-(--raised-2) text-(--ink-strong)'
+                      : 'text-(--ink-soft) hover:bg-(--raised)'
                   }`}
                 >
                   {v === 'hoy' ? 'Qué hay hoy' : '¿Acertó?'}
@@ -154,26 +154,26 @@ export default function TodayPanel() {
                     {(datos?.partidos ?? []).map((p, i) => (
                       <tr
                         key={i}
-                        className="border-t border-white/[0.05] first:border-t-0"
+                        className="border-t border-(--line) first:border-t-0"
                         // Un partido empezado no se esconde —sigue siendo lo de hoy— pero
                         // se atenúa: verlo igual que uno por jugar invita a apostarlo.
                         style={p.empezado ? { opacity: 0.45 } : undefined}
                       >
-                        <td className="whitespace-nowrap py-2 pl-4 pr-2 text-[#9aa1ac]">
+                        <td className="whitespace-nowrap py-2 pl-4 pr-2 text-(--ink-soft)">
                           {new Date(p.cuando).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
                         </td>
                         <td className="py-2 pr-2"><span title={p.deporte} className="inline-flex"><DeporteIcono nombre={p.deporte} size={24} tile /></span></td>
-                        <td className="py-2 pr-3 text-[#c3c9d1]">{p.partido}</td>
+                        <td className="py-2 pr-3 text-(--ink-body)">{p.partido}</td>
                         <td className="whitespace-nowrap py-2 pr-4 text-right">
                           {p.favorito && p.probabilidad != null ? (
                             <>
-                              <span className="text-[#e8eaed]">{p.favorito}</span>{' '}
-                              <span className="font-semibold text-[#e8eaed]">
+                              <span className="text-(--ink-strong)">{p.favorito}</span>{' '}
+                              <span className="font-semibold text-(--ink-strong)">
                                 {(p.probabilidad * 100).toFixed(0)}%
                               </span>
                             </>
                           ) : (
-                            <span className="text-[#5c636e]">sin predicción</span>
+                            <span className="text-(--ink-faint)">sin predicción</span>
                           )}
                         </td>
                       </tr>
@@ -182,7 +182,7 @@ export default function TodayPanel() {
                 </table>
               </div>
               {datos?.nota && (
-                <p className="border-t border-white/[0.05] px-4 py-2 text-[12px] text-[#7b828d]">
+                <p className="border-t border-(--line) px-4 py-2 text-[12px] text-(--ink-muted)">
                   {datos.nota}
                 </p>
               )}

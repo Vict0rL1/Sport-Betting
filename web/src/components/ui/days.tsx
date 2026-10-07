@@ -29,14 +29,14 @@ export function DayHeading({
     // number that encodes the size of something else goes stale the moment that
     // something else changes; the fallback only covers the first paint.
     <div
-      className="sticky z-20 -mx-1 mb-3 flex items-baseline justify-between gap-3 bg-[#0b0d11]/90 px-1 py-1.5 backdrop-blur-sm"
+      className="sticky z-20 -mx-1 mb-3 flex items-baseline justify-between gap-3 bg-(--surface-page)/90 px-1 py-1.5 backdrop-blur-sm"
       style={{ top: 'var(--header-h, 96px)' }}
     >
-      <h3 className="text-[15px] font-semibold text-[#e8eaed]">
+      <h3 className="text-[15px] font-semibold text-(--ink-strong)">
         {label}
-        {count != null && <span className="ml-2 text-[13px] font-normal text-[#7b828d]">{count}</span>}
+        {count != null && <span className="ml-2 text-[13px] font-normal text-(--ink-muted)">{count}</span>}
       </h3>
-      {right && <span className="text-[13px] text-[#7b828d]">{right}</span>}
+      {right && <span className="text-[13px] text-(--ink-muted)">{right}</span>}
     </div>
   );
 }
@@ -106,7 +106,7 @@ export function MatchTime({ iso, extra }: { iso: string; extra?: ReactNode }) {
   return (
     <time dateTime={iso} className="tabular-nums">
       {shortTime(iso)}
-      <span className="ml-1.5 text-[#5c636c]">{relativeTime(iso)}</span>
+      <span className="ml-1.5 text-(--ink-faint)">{relativeTime(iso)}</span>
       {extra}
     </time>
   );
@@ -146,7 +146,7 @@ export function ResultBanner({
 
   if (score == null) {
     return (
-      <div className="mb-3 flex items-center gap-2 rounded-lg bg-white/[0.04] px-3 py-2 text-[14px] text-[#9aa1ac] ring-1 ring-inset ring-white/[0.08]">
+      <div className="mb-3 flex items-center gap-2 rounded-lg bg-(--raised) px-3 py-2 text-[14px] text-(--ink-soft) ring-1 ring-inset ring-(--line)">
         <span aria-hidden>⏳</span>
         <span>En juego, o el resultado aún no está descargado.</span>
       </div>
@@ -154,13 +154,13 @@ export function ResultBanner({
   }
 
   return (
-    <div className="mb-3 rounded-lg bg-white/[0.06] px-3 py-2 ring-1 ring-inset ring-white/[0.12]">
+    <div className="mb-3 rounded-lg bg-(--raised) px-3 py-2 ring-1 ring-inset ring-(--line-strong)">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <span className="flex items-baseline gap-2">
-          <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#7b828d]">
+          <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
             Final
           </span>
-          <strong className="text-[20px] font-bold leading-none tabular-nums text-[#e8eaed]">
+          <strong className="text-[20px] font-bold leading-none tabular-nums text-(--ink-strong)">
             {score}
           </strong>
         </span>
@@ -176,7 +176,7 @@ export function ResultBanner({
           </span>
         )}
       </div>
-      {detail && <div className="mt-0.5 text-[13px] text-[#9aa1ac]">{detail}</div>}
+      {detail && <div className="mt-0.5 text-[13px] text-(--ink-soft)">{detail}</div>}
     </div>
   );
 }

@@ -1,6 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
+// El recorrido de primer uso se da por visto (tiene su propio test): si no, tapa los clics.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('predictor.recorrido', '1'));
+});
+
 // Fase 5.27: cada ruta pinta a 1280 y a 390 px sin scroll horizontal ni errores de consola;
 // la barra inferior enseña los cuatro destinos en el móvil; los enlaces profundos restauran
 // el estado; axe pasa en claro y en oscuro.
@@ -95,3 +100,28 @@ for (const tema of ['oscuro', 'claro'] as const) {
     }
   });
 }
+
+test('el recorrido de primer uso sale una vez y se recuerda', async ({ browser }) => {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
+  await page.goto('/destacados');
+  const dialogo = page.getByRole('dialog', { name: 'Tres cosas antes de empezar' });
+  await expect(dialogo).toBeVisible();
+  await dialogo.getByRole('button', { name: '→' }).click();
+  await dialogo.getByRole('button', { name: '→' }).click();
+  await dialogo.getByRole('button', { name: 'Entendido' }).click();
+  await expect(dialogo).toBeHidden();
+  await page.reload();
+  await page.waitForLoadState('networkidle');
+  await expect(page.getByRole('dialog', { name: 'Tres cosas antes de empezar' })).toBeHidden();
+  await ctx.close();
+});
+
+test('sin conexión aparece el aviso con la hora de los datos', async ({ page, context }) => {
+  await page.goto('/destacados');
+  await page.waitForLoadState('networkidle');
+  await context.setOffline(true);
+  await expect(page.getByTestId('sin-conexion')).toContainText(/Sin conexión: datos de/);
+  await context.setOffline(false);
+  await expect(page.getByTestId('sin-conexion')).toBeHidden();
+});

@@ -65,14 +65,14 @@ function Num({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[11px] uppercase tracking-[0.06em] text-[#7b828d]">{label}</span>
+      <span className="text-[11px] uppercase tracking-[0.06em] text-(--ink-muted)">{label}</span>
       <input
         type="number"
         min={0}
         max={max}
         value={value}
         onChange={(e) => onChange(Math.max(0, Math.min(max, Number(e.target.value) || 0)))}
-        className="w-16 rounded-md bg-white/[0.06] px-2 py-1 text-[14px] tabular-nums text-[#e8eaed] ring-1 ring-inset ring-white/[0.1] focus:outline-none focus:ring-white/[0.25]"
+        className="w-16 rounded-md bg-(--raised) px-2 py-1 text-[14px] tabular-nums text-(--ink-strong) ring-1 ring-inset ring-(--line) focus:outline-none focus:ring-(--line-strong)"
       />
     </label>
   );
@@ -148,26 +148,26 @@ export default function LivePanel({
       <div className="flex flex-wrap items-end gap-3">
         <Num label="Sets 1" value={sets[0]} max={2} onChange={(n) => setSets([n, sets[1]])} />
         <Num label="Sets 2" value={sets[1]} max={2} onChange={(n) => setSets([sets[0], n])} />
-        <span className="pb-1 text-[#5c636c]">·</span>
+        <span className="pb-1 text-(--ink-faint)">·</span>
         <Num label="Juegos 1" value={games[0]} max={7} onChange={(n) => setGames([n, games[1]])} />
         <Num label="Juegos 2" value={games[1]} max={7} onChange={(n) => setGames([games[0], n])} />
-        <span className="pb-1 text-[#5c636c]">·</span>
+        <span className="pb-1 text-(--ink-faint)">·</span>
         <Num label="Pts saque" value={points[0]} max={8} onChange={(n) => setPoints([n, points[1]])} />
         <Num label="Pts resto" value={points[1]} max={8} onChange={(n) => setPoints([points[0], n])} />
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] uppercase tracking-[0.06em] text-[#7b828d]">Saca</span>
+          <span className="text-[11px] uppercase tracking-[0.06em] text-(--ink-muted)">Saca</span>
           <select
             value={server}
             onChange={(e) => setServer(Number(e.target.value) as 1 | 2)}
-            className="rounded-md bg-white/[0.06] px-2 py-1 text-[14px] text-[#e8eaed] ring-1 ring-inset ring-white/[0.1] focus:outline-none"
+            className="rounded-md bg-(--raised) px-2 py-1 text-[14px] text-(--ink-strong) ring-1 ring-inset ring-(--line) focus:outline-none"
           >
             <option value={1}>{names[0]}</option>
             <option value={2}>{names[1]}</option>
           </select>
         </label>
       </div>
-      <p className="mt-1.5 text-[12px] text-[#5c636c]">
-        Los puntos van del <strong className="text-[#7b828d]">sacador</strong> primero:{' '}
+      <p className="mt-1.5 text-[12px] text-(--ink-faint)">
+        Los puntos van del <strong className="text-(--ink-muted)">sacador</strong> primero:{' '}
         {points.map((p, i) => `${PT[Math.min(p, 4)]}${i === 0 ? '-' : ''}`).join('')} — 4 o más es
         ventaja.
       </p>
@@ -178,7 +178,7 @@ export default function LivePanel({
         </p>
       ) : data ? (
         <>
-          <p className="mt-3 text-[13px] text-[#7b828d]">{data.describe}</p>
+          <p className="mt-3 text-[13px] text-(--ink-muted)">{data.describe}</p>
 
           <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
             <Figure label={`${names[0]} — base`} value={pct(data.base)} hint="con el saque de la carrera" />
@@ -211,10 +211,10 @@ export default function LivePanel({
             <ul className="mt-3 space-y-1">
               {data.situations.map((s, i) => (
                 <li key={i} className="text-[13px] leading-relaxed">
-                  <span className="font-medium text-[#e8eaed]">
+                  <span className="font-medium text-(--ink-strong)">
                     {names[s.side - 1]} · {s.label}
                   </span>{' '}
-                  <span className="text-[#7b828d]">{s.detail}</span>
+                  <span className="text-(--ink-muted)">{s.detail}</span>
                 </li>
               ))}
             </ul>
@@ -230,10 +230,10 @@ export default function LivePanel({
           ))}
 
           {data.market && (
-            <p className="mt-2 text-[13px] leading-relaxed text-[#7b828d]">{data.market.note}</p>
+            <p className="mt-2 text-[13px] leading-relaxed text-(--ink-muted)">{data.market.note}</p>
           )}
           {data.notes.map((n, i) => (
-            <p key={i} className="mt-2 text-[13px] leading-relaxed text-[#7b828d]">
+            <p key={i} className="mt-2 text-[13px] leading-relaxed text-(--ink-muted)">
               {n}
             </p>
           ))}
@@ -241,17 +241,17 @@ export default function LivePanel({
       ) : null}
 
       {/* ---- Lo que va del partido y las cuotas ---- */}
-      <div className="mt-3 border-t border-white/[0.07] pt-3">
+      <div className="mt-3 border-t border-(--line) pt-3">
         <Disclosure summary="Puntos al saque de hoy y cuotas en vivo">
           <div className="space-y-3">
-            <p className="text-[13px] leading-relaxed text-[#7b828d]">
+            <p className="text-[13px] leading-relaxed text-(--ink-muted)">
               Cuántos puntos lleva ganados cada uno <em>con su saque</em> en este partido. Es lo
               que alimenta la actualización bayesiana: con κ = 63 puntos medidos, 40 puntos pesan
               un 39 % frente a la media de su carrera.
             </p>
             {[0, 1].map((i) => (
               <div key={i} className="flex flex-wrap items-end gap-3">
-                <span className="w-28 shrink-0 pb-1 text-[13px] text-[#c3c9d1]">{names[i]}</span>
+                <span className="w-28 shrink-0 pb-1 text-[13px] text-(--ink-body)">{names[i]}</span>
                 <Num
                   label="ganados"
                   value={tally[i][0]}
@@ -273,9 +273,9 @@ export default function LivePanel({
                   }}
                 />
                 {data && (
-                  <span className="pb-1 text-[13px] tabular-nums text-[#7b828d]">
+                  <span className="pb-1 text-[13px] tabular-nums text-(--ink-muted)">
                     {pct((i === 0 ? data.serve.update1 : data.serve.update2).prior)} →{' '}
-                    <span className="text-[#e8eaed]">
+                    <span className="text-(--ink-strong)">
                       {pct((i === 0 ? data.serve.update1 : data.serve.update2).posterior)}
                     </span>{' '}
                     (peso hoy{' '}
@@ -286,10 +286,10 @@ export default function LivePanel({
               </div>
             ))}
             <div className="flex flex-wrap items-end gap-3">
-              <span className="w-28 shrink-0 pb-1 text-[13px] text-[#c3c9d1]">Cuotas en vivo</span>
+              <span className="w-28 shrink-0 pb-1 text-[13px] text-(--ink-body)">Cuotas en vivo</span>
               {[0, 1].map((i) => (
                 <label key={i} className="flex flex-col gap-1">
-                  <span className="text-[11px] uppercase tracking-[0.06em] text-[#7b828d]">
+                  <span className="text-[11px] uppercase tracking-[0.06em] text-(--ink-muted)">
                     {names[i]}
                   </span>
                   <input
@@ -302,14 +302,14 @@ export default function LivePanel({
                       o[i] = e.target.value;
                       setOdds(o);
                     }}
-                    className="w-20 rounded-md bg-white/[0.06] px-2 py-1 text-[14px] tabular-nums text-[#e8eaed] ring-1 ring-inset ring-white/[0.1] placeholder:text-[#5c636c] focus:outline-none focus:ring-white/[0.25]"
+                    className="w-20 rounded-md bg-(--raised) px-2 py-1 text-[14px] tabular-nums text-(--ink-strong) ring-1 ring-inset ring-(--line) placeholder:text-(--ink-faint) focus:outline-none focus:ring-(--line-strong)"
                   />
                 </label>
               ))}
             </div>
-            <p className="text-[13px] leading-relaxed text-[#7b828d]">
+            <p className="text-[13px] leading-relaxed text-(--ink-muted)">
               Una discrepancia grande contra la cuota en vivo{' '}
-              <strong className="text-[#9aa1ac]">no es una ventaja</strong>: el mercado ve cosas
+              <strong className="text-(--ink-soft)">no es una ventaja</strong>: el mercado ve cosas
               que este modelo no puede ver —una lesión, un fisio en pista— y discrepa más justo
               cuando tiene razón.
             </p>
@@ -323,11 +323,11 @@ export default function LivePanel({
 function Figure({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div className="min-w-0">
-      <div className="truncate text-[11px] font-medium uppercase tracking-[0.06em] text-[#7b828d]">
+      <div className="break-words text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
         {label}
       </div>
-      <div className="mt-0.5 text-[16px] font-semibold tabular-nums text-[#e8eaed]">{value}</div>
-      <div className="text-[11px] text-[#7b828d]">{hint}</div>
+      <div className="mt-0.5 text-[16px] font-semibold tabular-nums text-(--ink-strong)">{value}</div>
+      <div className="text-[11px] text-(--ink-muted)">{hint}</div>
     </div>
   );
 }

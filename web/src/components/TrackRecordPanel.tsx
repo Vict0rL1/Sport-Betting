@@ -40,40 +40,40 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
   const thin = data.resolved > 0 && data.resolved < 30;
 
   return (
-    <div className="mt-3 rounded-lg border border-white/[0.07] bg-white/[0.04] p-3">
+    <div className="mt-3 rounded-lg border border-(--line) bg-(--raised) p-3">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex w-full items-center justify-between gap-2 text-left"
       >
         <span className="text-[16px]">
-          <span className="text-[14px] uppercase tracking-wide text-[#7b828d]">
+          <span className="text-[14px] uppercase tracking-wide text-(--ink-muted)">
             Aciertos reales de la app
           </span>
           <br />
           {data.resolved === 0 ? (
-            <span className="text-[#c3c9d1]">
+            <span className="text-(--ink-body)">
               {data.pending} predicción(es) registradas, esperando resultado.
             </span>
           ) : (
-            <span className="text-[#e8eaed]">
+            <span className="text-(--ink-strong)">
               <strong className="tabular-nums">{((acc ?? 0) * 100).toFixed(1)}%</strong> de acierto
               en <strong className="tabular-nums">{data.resolved}</strong> predicciones ya jugadas
               {data.pending > 0 && (
-                <span className="text-[#9aa1ac]"> · {data.pending} pendientes</span>
+                <span className="text-(--ink-soft)"> · {data.pending} pendientes</span>
               )}
               {thin && <span className="text-amber-400"> · muestra pequeña</span>}
             </span>
           )}
         </span>
-        <span className="shrink-0 text-[14px] text-[#5c636c]">{open ? '▲' : '▼'}</span>
+        <span className="shrink-0 text-[14px] text-(--ink-faint)">{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
-        <div className="mt-3 space-y-4 border-t border-white/[0.07] pt-3 text-[14px]">
-          <p className="text-[#9aa1ac]">
+        <div className="mt-3 space-y-4 border-t border-(--line) pt-3 text-[14px]">
+          <p className="text-(--ink-soft)">
             Cada predicción se guarda <strong>antes</strong> de que se juegue el partido y se
             puntúa cuando llega el resultado real (al ejecutar{' '}
-            <code className="rounded bg-white/[0.03] px-1">npm run update-data</code>). No es el
+            <code className="rounded bg-(--tint) px-1">npm run update-data</code>). No es el
             backtest histórico: son los partidos que viste en esta app.
           </p>
 
@@ -88,32 +88,32 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
           {/* The comparison that matters: same matches, model vs bookmakers. */}
           {data.vsMarket && (
             <div>
-              <div className="mb-1 uppercase tracking-wide text-[#7b828d]">
+              <div className="mb-1 uppercase tracking-wide text-(--ink-muted)">
                 Modelo vs mercado ({data.vsMarket.n} partidos con cuotas)
               </div>
               <table className="w-full text-left tabular-nums">
-                <thead className="text-[#7b828d]">
+                <thead className="text-(--ink-muted)">
                   <tr>
                     <th className="py-1 font-normal">&nbsp;</th>
                     <th className="py-1 font-normal">Acierto</th>
                     <th className="py-1 font-normal">Brier</th>
                   </tr>
                 </thead>
-                <tbody className="text-[#d5d9df]">
+                <tbody className="text-(--ink-body)">
                   <tr>
-                    <td className="py-1 text-[#9aa1ac]">Modelo</td>
+                    <td className="py-1 text-(--ink-soft)">Modelo</td>
                     <td>{fmtPct(data.vsMarket.modelAccuracy)}</td>
                     <td>{data.vsMarket.modelBrier?.toFixed(4) ?? '—'}</td>
                   </tr>
                   <tr>
-                    <td className="py-1 text-[#9aa1ac]">Mercado</td>
+                    <td className="py-1 text-(--ink-soft)">Mercado</td>
                     <td>{fmtPct(data.vsMarket.marketAccuracy)}</td>
                     <td>{data.vsMarket.marketBrier?.toFixed(4) ?? '—'}</td>
                   </tr>
                 </tbody>
               </table>
               {data.vsMarket.disagreements > 0 && (
-                <p className="mt-1 text-[#9aa1ac]">
+                <p className="mt-1 text-(--ink-soft)">
                   Discreparon en {data.vsMarket.disagreements} partidos; el modelo acertó en{' '}
                   {fmtPct(data.vsMarket.modelRightOnDisagreement)} de ellos.
                 </p>
@@ -124,11 +124,11 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
           {/* Does the reliability badge predict anything? Checked here. */}
           {data.byReliability.length > 0 && (
             <div>
-              <div className="mb-1 uppercase tracking-wide text-[#7b828d]">
+              <div className="mb-1 uppercase tracking-wide text-(--ink-muted)">
                 Por fiabilidad declarada
               </div>
               <table className="w-full text-left tabular-nums">
-                <thead className="text-[#7b828d]">
+                <thead className="text-(--ink-muted)">
                   <tr>
                     <th className="py-1 font-normal">Nivel</th>
                     <th className="py-1 font-normal">n</th>
@@ -136,10 +136,10 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
                     <th className="py-1 font-normal">Brier</th>
                   </tr>
                 </thead>
-                <tbody className="text-[#d5d9df]">
+                <tbody className="text-(--ink-body)">
                   {data.byReliability.map((r) => (
                     <tr key={r.level}>
-                      <td className="py-1 text-[#9aa1ac]">{LEVEL_ES[r.level] ?? r.level}</td>
+                      <td className="py-1 text-(--ink-soft)">{LEVEL_ES[r.level] ?? r.level}</td>
                       <td>{r.n}</td>
                       <td>{fmtPct(r.accuracy)}</td>
                       <td>{r.brier?.toFixed(4) ?? '—'}</td>
@@ -147,7 +147,7 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
                   ))}
                 </tbody>
               </table>
-              <p className="mt-1 text-[#7b828d]">
+              <p className="mt-1 text-(--ink-muted)">
                 Si el semáforo sirve, «alta» debería tener mejor Brier que «baja».
               </p>
             </div>
@@ -156,11 +156,11 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
           {/* Calibration: does "70%" actually win 70% of the time? */}
           {data.calibration.length > 0 && (
             <div>
-              <div className="mb-1 uppercase tracking-wide text-[#7b828d]">
+              <div className="mb-1 uppercase tracking-wide text-(--ink-muted)">
                 Calibración (dicho vs ocurrido)
               </div>
               <table className="w-full text-left tabular-nums">
-                <thead className="text-[#7b828d]">
+                <thead className="text-(--ink-muted)">
                   <tr>
                     <th className="py-1 font-normal">Banda</th>
                     <th className="py-1 font-normal">n</th>
@@ -168,10 +168,10 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
                     <th className="py-1 font-normal">Ganó</th>
                   </tr>
                 </thead>
-                <tbody className="text-[#d5d9df]">
+                <tbody className="text-(--ink-body)">
                   {data.calibration.map((b) => (
                     <tr key={b.label}>
-                      <td className="py-1 text-[#9aa1ac]">{b.label}</td>
+                      <td className="py-1 text-(--ink-soft)">{b.label}</td>
                       <td>{b.n}</td>
                       <td>{fmtPct(b.predicted)}</td>
                       <td>{fmtPct(b.observed)}</td>
@@ -184,16 +184,16 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
 
           {data.recent.length > 0 && (
             <div>
-              <div className="mb-1 uppercase tracking-wide text-[#7b828d]">Últimas resueltas</div>
+              <div className="mb-1 uppercase tracking-wide text-(--ink-muted)">Últimas resueltas</div>
               <ul className="space-y-1">
                 {data.recent.map((r, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className={`mt-[3px] inline-flex ${r.hit ? 'text-emerald-400' : 'text-rose-400'}`} aria-label={r.hit ? 'acertó' : 'falló'}>
                       {r.hit ? <CheckIcon size={15} strokeWidth={2.4} /> : <CrossIcon size={15} strokeWidth={2.4} />}
                     </span>
-                    <span className="text-[#c3c9d1]">
+                    <span className="text-(--ink-body)">
                       {r.p1} vs {r.p2}
-                      <span className="text-[#7b828d]">
+                      <span className="text-(--ink-muted)">
                         {' '}
                         — dijo {fmtPct(Math.max(r.prob1, 1 - r.prob1))} para{' '}
                         {r.prob1 >= 0.5 ? r.p1 : r.p2}; ganó {r.winnerIsP1 ? r.p1 : r.p2}
@@ -219,9 +219,9 @@ function fmtPct(v: number | null): string {
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[#7b828d]">{label}</div>
-      <div className="tabular-nums text-[#e8eaed]">{value}</div>
-      {hint && <div className="text-[11px] text-[#5c636c]">{hint}</div>}
+      <div className="text-(--ink-muted)">{label}</div>
+      <div className="tabular-nums text-(--ink-strong)">{value}</div>
+      {hint && <div className="text-[11px] text-(--ink-faint)">{hint}</div>}
     </div>
   );
 }

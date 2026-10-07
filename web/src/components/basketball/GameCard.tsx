@@ -19,6 +19,7 @@ import {
 } from '../ui';
 import GameDetail from './GameDetail';
 import { realMarket } from '../../lib/picks';
+import { EnlacePartido } from '../ui';
 import EventTrustPanel from '../trust/EventTrustPanel';
 
 /**
@@ -55,7 +56,7 @@ export default function GameCard({
 
   return (
     <Card as="article" className="p-4">
-      <div className="mb-3 flex items-center justify-between gap-2 text-[13px] text-[#7b828d]">
+      <div className="mb-3 flex items-center justify-between gap-2 text-[13px] text-(--ink-muted)">
         <MatchTime iso={game.commence_time} />
         <div className="flex items-center gap-1.5">
           {prediction?.neutral && <Badge>cancha neutral</Badge>}
@@ -100,7 +101,7 @@ export default function GameCard({
           record={prediction?.teams.away.record ?? teams.away?.record ?? null}
           onClick={game.away_id ? () => onOpenTeam(game.league, game.away_id!) : undefined}
         />
-        <span className="shrink-0 pt-1 text-[13px] font-medium text-[#5c636c]">@</span>
+        <span className="shrink-0 pt-1 text-[13px] font-medium text-(--ink-faint)">@</span>
         <TeamName
           league={game.league}
           id={game.home_id}
@@ -157,41 +158,6 @@ export default function GameCard({
           {/* The numbers a basketball bettor looks at — as probabilities now, not
               just point estimates. A spread with no likelihood attached invites
               the reader to treat it as a certainty. */}
-          <StatRow className="mt-3">
-            <StatTile
-              label="Diferencia"
-              value={prediction.projection.spreadLabel}
-              hint="margen esperado"
-            />
-            <StatTile
-              label={`Cubre ${prediction.projection.distribution.spreadLine > 0 ? '+' : ''}${prediction.projection.distribution.spreadLine}`}
-              value={pct(prediction.projection.distribution.homeCovers)}
-              hint="el local, con hándicap"
-              title="Probabilidad de que el local cubra ese hándicap, con σ = 11.7 puntos medida sobre 58.281 partidos"
-            />
-            <StatTile
-              label="Total"
-              value={prediction.projection.total != null ? String(Math.round(prediction.projection.total)) : '—'}
-              hint="puntos esperados"
-            />
-            <StatTile
-              label={
-                prediction.projection.distribution.totalLine != null
-                  ? `+${prediction.projection.distribution.totalLine}`
-                  : 'Over'
-              }
-              value={
-                prediction.projection.distribution.over != null
-                  ? pct(prediction.projection.distribution.over)
-                  : '—'
-              }
-              hint={
-                prediction.projection.distribution.under != null
-                  ? `under: ${pct(prediction.projection.distribution.under)}`
-                  : undefined
-              }
-            />
-          </StatRow>
 
           <div className="mt-3">
             <SectionTitle right="σ 11.7 puntos, medida">Por cuánto gana</SectionTitle>
@@ -213,17 +179,17 @@ export default function GameCard({
                   />
                 ))}
             </div>
-            <p className="mt-1.5 text-[13px] text-[#7b828d]">
+            <p className="mt-1.5 text-[13px] text-(--ink-muted)">
               Positivo = gana el local. La barra más larga es el resultado más probable, no el único.
             </p>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
-            <p className="min-w-0 text-[15px] leading-snug text-[#c3c9d1]">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-(--line) pt-3">
+            <p className="min-w-0 text-[15px] leading-snug text-(--ink-body)">
               {prediction.verdict.favored ? (
                 <>
                   El modelo favorece a{' '}
-                  <strong className="font-semibold text-[#e8eaed]">
+                  <strong className="font-semibold text-(--ink-strong)">
                     {prediction.verdict.favoredName}
                   </strong>
                 </>
@@ -258,17 +224,55 @@ export default function GameCard({
             </div>
           </div>
 
+          <div className="mt-2 flex justify-end">
+            <EnlacePartido sport="basketball" id={game.id} clave={item.prePartido?.matchKey} />
+          </div>
           <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
           <div className="mt-1">
-            <Disclosure summary="Ver desglose · Elo, campo, descanso y mercado">
+            <Disclosure summary="¿Por qué? · hándicap, total, Elo, campo, descanso y mercado">
               <div className="space-y-3">
+                <StatRow>
+            <StatTile
+              label="Diferencia"
+              value={prediction.projection.spreadLabel}
+              hint="margen esperado"
+            />
+            <StatTile
+              label={`Cubre ${prediction.projection.distribution.spreadLine > 0 ? '+' : ''}${prediction.projection.distribution.spreadLine}`}
+              value={pct(prediction.projection.distribution.homeCovers)}
+              hint="el local, con hándicap"
+              title="Probabilidad de que el local cubra ese hándicap, con σ = 11.7 puntos medida sobre 58.281 partidos"
+            />
+            <StatTile
+              label="Total"
+              value={prediction.projection.total != null ? String(Math.round(prediction.projection.total)) : '—'}
+              hint="puntos esperados"
+            />
+            <StatTile
+              label={
+                prediction.projection.distribution.totalLine != null
+                  ? `+${prediction.projection.distribution.totalLine}`
+                  : 'Over'
+              }
+              value={
+                prediction.projection.distribution.over != null
+                  ? pct(prediction.projection.distribution.over)
+                  : '—'
+              }
+              hint={
+                prediction.projection.distribution.under != null
+                  ? `under: ${pct(prediction.projection.distribution.under)}`
+                  : undefined
+              }
+            />
+          </StatRow>
                 <GameDetail prediction={prediction} />
                 <Panel>
                   <SectionTitle>Lectura completa</SectionTitle>
                   <ul className="space-y-1.5">
                     {prediction.summary.bullets.map((b, i) => (
-                      <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-[#9aa1ac]">
-                        <span aria-hidden className="text-[#5c636c]">•</span>
+                      <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-(--ink-soft)">
+                        <span aria-hidden className="text-(--ink-faint)">•</span>
                         <span>{b}</span>
                       </li>
                     ))}
@@ -315,7 +319,7 @@ function TeamName({
           // Wraps rather than truncates: at the larger type size the team name
           // no longer fits half a phone-width card, and an ellipsis eats the one
           // thing the card exists to tell you. See nfl/GameCard for the detail.
-          className={`max-w-full text-[17px] font-semibold leading-tight break-words text-[#e8eaed] ${
+          className={`max-w-full text-[17px] font-semibold leading-tight break-words text-(--ink-strong) ${
             onClick ? 'hover:underline' : 'cursor-default'
           }`}
           title={onClick ? 'Ver ficha del equipo' : name}
@@ -324,7 +328,7 @@ function TeamName({
         </button>
         {alignRight && <TeamCrest league={league} name={name} code={id} logo={logo} />}
       </span>
-      <div className="text-[13px] text-[#7b828d]">
+      <div className="text-[13px] text-(--ink-muted)">
         {homeBadge && 'local · '}
         {elo != null && (
           <>

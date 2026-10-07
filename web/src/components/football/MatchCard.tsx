@@ -29,6 +29,7 @@ import ThinMarkets from './ThinMarkets';
 import NewsPanel from './NewsPanel';
 import SquadPanel from './SquadPanel';
 import { realMarket } from '../../lib/picks';
+import { EnlacePartido } from '../ui';
 import EventTrustPanel from '../trust/EventTrustPanel';
 
 /**
@@ -90,7 +91,7 @@ export default function MatchCard({
 
   return (
     <Card as="article" className="p-4">
-      <div className="mb-3 flex items-center justify-between gap-2 text-[13px] text-[#7b828d]">
+      <div className="mb-3 flex items-center justify-between gap-2 text-[13px] text-(--ink-muted)">
         <MatchTime iso={fixture.commence_time} />
         <div className="flex items-center gap-1.5">
           {dirty && <Badge tone="accent">{adjusting ? 'recalculando…' : 'con tus bajas'}</Badge>}
@@ -133,7 +134,7 @@ export default function MatchCard({
           homeBadge
           onClick={fixture.home_id ? () => onOpenTeam(fixture.league, fixture.home_id!) : undefined}
         />
-        <span className="shrink-0 pt-1 text-[13px] font-medium text-[#5c636c]">vs</span>
+        <span className="shrink-0 pt-1 text-[13px] font-medium text-(--ink-faint)">vs</span>
         <TeamName
           league={fixture.league}
           id={fixture.away_id}
@@ -200,31 +201,9 @@ export default function MatchCard({
 
           {prediction && (
             <>
-              <StatRow className="mt-3">
-                <StatTile
-                  label="Goles esp."
-                  value={`${prediction.goals.expectedHome} – ${prediction.goals.expectedAway}`}
-                  hint={`total ${prediction.goals.expectedTotal}`}
-                />
-                <StatTile
-                  label="Marcador"
-                  value={prediction.goals.scorelines[0].label}
-                  hint={`más probable · ${pct(prediction.goals.scorelines[0].probability)}`}
-                />
-                <StatTile
-                  label="+2.5 goles"
-                  value={pct(prediction.goals.over25)}
-                  hint={`−2.5: ${pct(prediction.goals.under25)}`}
-                />
-                <StatTile
-                  label="Ambos marcan"
-                  value={pct(prediction.goals.bothScore)}
-                  hint={`no: ${pct(1 - prediction.goals.bothScore)}`}
-                />
-              </StatRow>
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <p className="min-w-0 text-[15px] leading-snug text-[#c3c9d1]">
+                <p className="min-w-0 text-[15px] leading-snug text-(--ink-body)">
                   {/* En un partido abierto la frase útil NO es cuál de tres treintaipicos
                       es el mayor: es la doble oportunidad, que en el 82,2 % de los
                       partidos abiertos del archivo pasa del 65 %. Antes la tarjeta
@@ -232,11 +211,11 @@ export default function MatchCard({
                   {prediction.verdict.open ? (
                     <>
                       Partido abierto —{' '}
-                      <strong className="font-semibold text-[#e8eaed]">
+                      <strong className="font-semibold text-(--ink-strong)">
                         {prediction.verdict.doubleChance.label}
                       </strong>{' '}
                       {pct(prediction.verdict.doubleChance.probability)}
-                      <span className="text-[#8b93a1]">
+                      <span className="text-(--ink-soft)">
                         {' '}
                         · suelto, {prediction.verdict.label.toLowerCase()}{' '}
                         {pct(prediction.verdict.probability)}
@@ -245,7 +224,7 @@ export default function MatchCard({
                   ) : (
                     <>
                       Lo más probable:{' '}
-                      <strong className="font-semibold text-[#e8eaed]">
+                      <strong className="font-semibold text-(--ink-strong)">
                         {prediction.verdict.label}
                       </strong>
                     </>
@@ -283,9 +262,34 @@ export default function MatchCard({
                 </div>
               </div>
 
+              <div className="mt-2 flex justify-end">
+                <EnlacePartido sport="football" id={fixture.id} clave={item.prePartido?.matchKey} />
+              </div>
               <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
               <div className="mt-1">
-                <Disclosure summary="Ver desglose · alineaciones, marcadores, Elo y mercado">
+                <Disclosure summary="¿Por qué? · goles, alineaciones, marcadores, Elo y mercado">
+                  <StatRow>
+                <StatTile
+                  label="Goles esp."
+                  value={`${prediction.goals.expectedHome} – ${prediction.goals.expectedAway}`}
+                  hint={`total ${prediction.goals.expectedTotal}`}
+                />
+                <StatTile
+                  label="Marcador"
+                  value={prediction.goals.scorelines[0].label}
+                  hint={`más probable · ${pct(prediction.goals.scorelines[0].probability)}`}
+                />
+                <StatTile
+                  label="+2.5 goles"
+                  value={pct(prediction.goals.over25)}
+                  hint={`−2.5: ${pct(prediction.goals.under25)}`}
+                />
+                <StatTile
+                  label="Ambos marcan"
+                  value={pct(prediction.goals.bothScore)}
+                  hint={`no: ${pct(1 - prediction.goals.bothScore)}`}
+                />
+              </StatRow>
                   <Detail
                     prediction={prediction}
                     league={fixture.league}
@@ -328,7 +332,7 @@ function TeamName({
           // Wraps rather than truncates: at the larger type size the team name
           // no longer fits half a phone-width card, and an ellipsis eats the one
           // thing the card exists to tell you. See nfl/GameCard for the detail.
-          className={`max-w-full text-[17px] font-semibold leading-tight break-words text-[#e8eaed] ${
+          className={`max-w-full text-[17px] font-semibold leading-tight break-words text-(--ink-strong) ${
             onClick ? 'hover:underline' : 'cursor-default'
           }`}
           title={onClick ? 'Ver ficha del equipo' : name}
@@ -337,7 +341,7 @@ function TeamName({
         </button>
         {alignRight && <TeamCrest league={league} name={name} code={id} logo={logo} />}
       </span>
-      <div className="text-[13px] text-[#7b828d]">
+      <div className="text-[13px] text-(--ink-muted)">
         {homeBadge && 'local · '}
         {elo != null && (
           <>
@@ -404,7 +408,7 @@ function Detail({
           >
             Quién juega
           </SectionTitle>
-          <p className="mb-2.5 text-[13px] leading-relaxed text-[#9aa1ac]">
+          <p className="mb-2.5 text-[13px] leading-relaxed text-(--ink-soft)">
             Las lesiones y sanciones conocidas ya vienen marcadas. Si sabes la alineación — se
             publica una hora antes — marca al resto y se recalcula todo.
           </p>
@@ -427,11 +431,11 @@ function Detail({
 
       <Panel>
         <SectionTitle>Por qué</SectionTitle>
-        <p className="mb-2 text-[15px] leading-relaxed text-[#c3c9d1]">{reasoning.text}</p>
+        <p className="mb-2 text-[15px] leading-relaxed text-(--ink-body)">{reasoning.text}</p>
         <dl className="space-y-1 text-[13px]">
           {reasoning.factors.map((f) => (
             <div key={f.key} className="flex justify-between gap-3">
-              <dt className="text-[#9aa1ac]">{f.label}</dt>
+              <dt className="text-(--ink-soft)">{f.label}</dt>
               <dd>
                 <FactorValue
                   color={f.pointsForHome >= 0 ? HOME_COLOR : AWAY_COLOR}
@@ -467,10 +471,10 @@ function Detail({
         <SectionTitle>Los dos equipos</SectionTitle>
         <dl className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-[13px]">
           <div />
-          <div className="w-20 truncate text-right font-medium" style={{ color: HOME_COLOR }}>
+          <div className="w-24 break-words text-right font-medium" style={{ color: HOME_COLOR }}>
             {home.name}
           </div>
-          <div className="w-20 truncate text-right font-medium" style={{ color: AWAY_COLOR }}>
+          <div className="w-24 break-words text-right font-medium" style={{ color: AWAY_COLOR }}>
             {away.name}
           </div>
           <CompareRow label="Elo" left={Math.round(home.elo)} right={Math.round(away.elo)} />
@@ -495,22 +499,22 @@ function Detail({
           right={
             <>
               <span style={{ color: HOME_COLOR }}>{h2h.homeWins}</span>
-              <span className="text-[#5c636c]"> · {h2h.draws} · </span>
+              <span className="text-(--ink-faint)"> · {h2h.draws} · </span>
               <span style={{ color: AWAY_COLOR }}>{h2h.awayWins}</span>
-              <span className="ml-1.5 text-[#5c636c]">({h2h.total})</span>
+              <span className="ml-1.5 text-(--ink-faint)">({h2h.total})</span>
             </>
           }
         >
           Historial directo
         </SectionTitle>
         {h2h.recent.length === 0 ? (
-          <p className="text-[13px] text-[#7b828d]">Sin enfrentamientos previos.</p>
+          <p className="text-[13px] text-(--ink-muted)">Sin enfrentamientos previos.</p>
         ) : (
           <ul className="space-y-1 text-[13px]">
             {h2h.recent.map((m, i) => (
-              <li key={i} className="flex justify-between gap-3 text-[#c3c9d1]">
-                <span className="shrink-0 text-[#7b828d]">{formatDate(m.date)}</span>
-                <span className="truncate text-right">
+              <li key={i} className="flex justify-between gap-3 text-(--ink-body)">
+                <span className="shrink-0 text-(--ink-muted)">{formatDate(m.date)}</span>
+                <span className="break-words text-right">
                   {m.homeId === home.id ? home.name : away.name} {m.homeGoals}–{m.awayGoals}{' '}
                   {m.awayId === away.id ? away.name : home.name}
                 </span>
@@ -539,7 +543,7 @@ function Detail({
           <SectionTitle right={`margen ${((market.market.overround - 1) * 100).toFixed(1)}%`}>
             Mercado
           </SectionTitle>
-          <p className="text-[13px] leading-relaxed text-[#c3c9d1]">
+          <p className="text-[13px] leading-relaxed text-(--ink-body)">
             Cuotas {market.market.odds.home} / {market.market.odds.draw} / {market.market.odds.away}{' '}
             · implícitas sin vig {pct(market.market.home)} / {pct(market.market.draw)} /{' '}
             {pct(market.market.away)}
@@ -551,8 +555,8 @@ function Detail({
         <SectionTitle>Lectura completa</SectionTitle>
         <ul className="space-y-1.5">
           {summary.bullets.map((b, i) => (
-            <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-[#9aa1ac]">
-              <span aria-hidden className="text-[#5c636c]">
+            <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-(--ink-soft)">
+              <span aria-hidden className="text-(--ink-faint)">
                 •
               </span>
               <span>{b}</span>
@@ -570,7 +574,7 @@ function Detail({
               : 'border-rose-500/25 bg-rose-500/[0.06]'
         }`}
       >
-        <p className="text-[#d5d9df]">
+        <p className="text-(--ink-body)">
           <strong className="capitalize">{reliability.label}</strong> — margen ±
           {reliability.marginPp} pp. Partidos tras cada Elo: {reliability.matchesBehind.home} y{' '}
           {reliability.matchesBehind.away}.
@@ -578,8 +582,8 @@ function Detail({
         {reliability.reasons.length > 0 && (
           <ul className="mt-1.5 space-y-1">
             {reliability.reasons.map((r, i) => (
-              <li key={i} className="flex gap-2 text-[13px] text-[#9aa1ac]">
-                <span aria-hidden className="text-[#5c636c]">
+              <li key={i} className="flex gap-2 text-[13px] text-(--ink-soft)">
+                <span aria-hidden className="text-(--ink-faint)">
                   •
                 </span>
                 <span>{r}</span>
@@ -589,7 +593,7 @@ function Detail({
         )}
       </div>
 
-      <p className="text-[13px] leading-relaxed text-[#7b828d]">{prediction.disclaimer}</p>
+      <p className="text-[13px] leading-relaxed text-(--ink-muted)">{prediction.disclaimer}</p>
     </div>
   );
 }

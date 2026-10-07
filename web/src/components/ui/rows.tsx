@@ -18,7 +18,7 @@ export function FactorValue({
   children: ReactNode;
 }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 tabular-nums text-[#c3c9d1]">
+    <span className="inline-flex shrink-0 items-center gap-1.5 tabular-nums text-(--ink-body)">
       {!neutral && <SeriesDot color={color} />}
       {children}
     </span>
@@ -39,11 +39,11 @@ export function CompareRow({
 }) {
   return (
     <>
-      <dt className="min-w-0 truncate py-1 text-[#9aa1ac]" title={title}>
+      <dt className="min-w-0 break-words py-1 text-(--ink-soft)" title={title}>
         {label}
       </dt>
-      <dd className="py-1 text-right tabular-nums text-[#d5d9df]">{left}</dd>
-      <dd className="py-1 text-right tabular-nums text-[#d5d9df]">{right}</dd>
+      <dd className="py-1 text-right tabular-nums text-(--ink-body)">{left}</dd>
+      <dd className="py-1 text-right tabular-nums text-(--ink-body)">{right}</dd>
     </>
   );
 }
@@ -120,10 +120,10 @@ export function MarketGap({ model, market }: { model: number; market: number | n
   if (market == null) return null;
   const pp = (model - market) * 100;
   if (Math.abs(pp) < 0.5) {
-    return <span className="text-[12px] text-[#7b828d]">coincide con el mercado</span>;
+    return <span className="text-[12px] text-(--ink-muted)">coincide con el mercado</span>;
   }
   return (
-    <span className="text-[12px] tabular-nums text-[#7b828d]">
+    <span className="text-[12px] tabular-nums text-(--ink-muted)">
       <span className="mr-1 inline-block h-[9px] w-[2px] translate-y-[1px] bg-white/85" />
       mercado, a {Math.abs(pp).toFixed(1)} pp
     </span>
@@ -153,14 +153,14 @@ export function BarRow({
 }) {
   return (
     <div className="flex items-center gap-2 text-[13px]" title={title}>
-      <span className="w-[3.75rem] shrink-0 text-right tabular-nums text-[#c3c9d1]">{label}</span>
-      <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+      <span className="w-[3.75rem] shrink-0 text-right tabular-nums text-(--ink-body)">{label}</span>
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-(--raised)">
         <div
           className="h-full rounded-full"
           style={{ width: `${max > 0 ? (value / max) * 100 : 0}%`, backgroundColor: color }}
         />
       </div>
-      <span className="w-12 shrink-0 text-right tabular-nums text-[#9aa1ac]">{valueLabel}</span>
+      <span className="w-12 shrink-0 text-right tabular-nums text-(--ink-soft)">{valueLabel}</span>
     </div>
   );
 }
@@ -178,7 +178,7 @@ export function FormDots({
   results: ('W' | 'D' | 'L')[];
   colors: { W: string; D: string; L: string };
 }) {
-  if (results.length === 0) return <span className="text-[#5c636c]">—</span>;
+  if (results.length === 0) return <span className="text-(--ink-faint)">—</span>;
   return (
     <span className="inline-flex gap-[3px] align-middle">
       {results.map((r, i) => (
@@ -214,14 +214,14 @@ export function Badge({
   title?: string;
 }) {
   const tones: Record<string, string> = {
-    neutral: 'text-[#9aa1ac] ring-white/[0.10]',
+    neutral: 'text-(--ink-soft) ring-(--line)',
     good: 'bg-emerald-500/10 text-emerald-300 ring-emerald-500/30',
     warning: 'bg-amber-500/10 text-amber-300 ring-amber-500/30',
     critical: 'bg-rose-500/10 text-rose-300 ring-rose-500/30',
     // "accent" marks a card the reader has changed (a lineup edit, a swapped
     // starter). A strong neutral says "this one is not the default" without
     // spending a fifth hue on it.
-    accent: 'bg-white/[0.12] text-[#e8eaed] ring-white/20',
+    accent: 'bg-(--raised-3) text-(--ink-strong) ring-(--line-strong)',
   };
   return (
     <span
@@ -229,7 +229,7 @@ export function Badge({
       // `max-w-full` + truncate rather than bare `whitespace-nowrap`: a badge that
       // says "Value: Arizona Cardinals" is as long as the team name, and without a
       // cap it widened the page instead of itself.
-      className={`inline-flex min-w-0 max-w-full shrink-0 items-center gap-1 truncate whitespace-nowrap rounded-full px-2 py-0.5 text-[13px] font-medium ring-1 ring-inset ${tones[tone]}`}
+      className={`inline-flex min-w-0 max-w-full shrink-0 items-center gap-1 break-words rounded-full px-2 py-0.5 text-[13px] font-medium ring-1 ring-inset ${tones[tone]}`}
     >
       {children}
     </span>

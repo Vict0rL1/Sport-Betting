@@ -110,12 +110,12 @@ export default function BetForm({
   };
 
   return (
-    <div className="rounded-xl border border-white/[0.09] bg-[#14161b] p-4">
+    <div className="rounded-xl border border-(--line) bg-(--surface-card) p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
-        <h3 className="text-[16px] font-semibold text-[#e8eaed]">
+        <h3 className="text-[16px] font-semibold text-(--ink-strong)">
           {editing ? 'Editar apuesta' : 'Registrar apuesta'}
         </h3>
-        <button onClick={onCancel} className="text-[14px] text-[#9aa1ac] hover:text-[#e8eaed]">
+        <button onClick={onCancel} className="text-[14px] text-(--ink-soft) hover:text-(--ink-strong)">
           Cancelar
         </button>
       </div>
@@ -132,11 +132,11 @@ export default function BetForm({
           </div>
           {!manual &&
             (candidates == null ? (
-              <p className="text-[14px] text-[#7b828d]">Cargando partidos…</p>
+              <p className="text-[14px] text-(--ink-muted)">Cargando partidos…</p>
             ) : candidates.length === 0 ? (
-              <p className="text-[14px] text-[#7b828d]">
+              <p className="text-[14px] text-(--ink-muted)">
                 No hay partidos próximos cargados. Usa «A mano», o configura{' '}
-                <code className="text-[#9aa1ac]">ODDS_API_KEY</code> y actualiza.
+                <code className="text-(--ink-soft)">ODDS_API_KEY</code> y actualiza.
               </p>
             ) : (
               <>
@@ -178,7 +178,7 @@ export default function BetForm({
 
                 {picked && (
                   <div className="mt-2">
-                    <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.06em] text-[#7b828d]">
+                    <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
                       A qué le apostaste
                     </span>
                     <div className="flex flex-wrap gap-1.5">
@@ -201,12 +201,12 @@ export default function BetForm({
                             }}
                             className={`rounded-lg px-3 py-2 text-left text-[14px] ring-1 ring-inset transition ${
                               on
-                                ? 'bg-white/[0.12] text-[#e8eaed] ring-white/25'
-                                : 'text-[#c3c9d1] ring-white/[0.1] hover:bg-white/[0.05]'
+                                ? 'bg-(--raised-3) text-(--ink-strong) ring-(--line-strong)'
+                                : 'text-(--ink-body) ring-(--line) hover:bg-(--raised)'
                             }`}
                           >
                             <span className="block font-medium">{s.label}</span>
-                            <span className="block text-[11px] tabular-nums text-[#7b828d]">
+                            <span className="block text-[11px] tabular-nums text-(--ink-muted)">
                               {s.odds ? `cuota ${s.odds}` : 'sin cuota'}
                               {s.marketProb != null && ` · mercado ${(s.marketProb * 100).toFixed(0)}%`}
                               {s.modelProb != null && (
@@ -221,7 +221,7 @@ export default function BetForm({
                       })}
                     </div>
                     {probs.model == null && form.selection && (
-                      <p className="mt-1.5 text-[11px] leading-relaxed text-[#7b828d]">
+                      <p className="mt-1.5 text-[11px] leading-relaxed text-(--ink-muted)">
                         Sin probabilidad del modelo para este lado, así que esta apuesta no entrará
                         en la comparación «con o contra el modelo». El resto se registra igual.
                       </p>
@@ -350,7 +350,7 @@ function Payout({ odds, stake }: { odds: string; stake: string }) {
   if (!Number.isFinite(o) || !Number.isFinite(s) || o <= 1 || s <= 0) return <div className="hidden sm:block" />;
   const win = s * (o - 1);
   return (
-    <div className="flex items-end pb-1 text-[14px] text-[#9aa1ac] sm:col-span-1">
+    <div className="flex items-end pb-1 text-[14px] text-(--ink-soft) sm:col-span-1">
       Si gana:{' '}
       <strong className="mx-1 font-semibold tabular-nums" style={{ color: PROFIT_COLOR }}>
         +{win.toFixed(2).replace(/\.00$/, '')}
@@ -366,7 +366,7 @@ function ModeTab({ active, onClick, children }: { active: boolean; onClick: () =
       type="button"
       onClick={onClick}
       className={`rounded-lg px-3 py-1.5 text-[14px] font-medium ring-1 ring-inset transition ${
-        active ? 'bg-white/[0.12] text-[#e8eaed] ring-white/[0.18]' : 'text-[#9aa1ac] ring-white/[0.08]'
+        active ? 'bg-(--raised-3) text-(--ink-strong) ring-(--line-strong)' : 'text-(--ink-soft) ring-(--line)'
       }`}
     >
       {children}
@@ -387,7 +387,7 @@ function Field({
 }) {
   return (
     <label className={`block ${full ? 'sm:col-span-2' : ''}`}>
-      <span className="mb-1 block text-[11px] font-medium uppercase tracking-[0.06em] text-[#7b828d]">
+      <span className="mb-1 block text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
         {label}
       </span>
       {children}
@@ -399,7 +399,7 @@ function Field({
 }
 
 const inputClass =
-  'w-full rounded-lg bg-white/[0.05] px-3 py-2 text-[16px] text-[#e8eaed] ring-1 ring-inset ring-white/[0.1] placeholder:text-[#5c636c] focus:outline-none focus:ring-white/30';
+  'w-full rounded-lg bg-(--raised) px-3 py-2 text-[16px] text-(--ink-strong) ring-1 ring-inset ring-(--line) placeholder:text-(--ink-faint) focus:outline-none focus:ring-(--line-strong)';
 const selectClass = `${inputClass} appearance-none`;
 
 function todayLocal(): string {

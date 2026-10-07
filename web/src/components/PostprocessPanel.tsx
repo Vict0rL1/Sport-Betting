@@ -59,8 +59,8 @@ export function PostprocessPanel({
   const changed = rows.some((r) => Math.abs(r.raw - r.final) >= 0.001);
   if (!changed) {
     return (
-      <p className="mt-3 text-[12px] leading-relaxed text-slate-400">
-        <span className="font-medium text-slate-300">Probabilidad publicada = cruda.</span>{' '}
+      <p className="mt-3 text-[12px] leading-relaxed text-(--ink-soft)">
+        <span className="font-medium text-(--ink-body)">Probabilidad publicada = cruda.</span>{' '}
         {describe(postprocess)}
       </p>
     );
@@ -69,12 +69,12 @@ export function PostprocessPanel({
   return (
     <div className="mt-3 rounded-lg border border-slate-700/60 bg-slate-900/40 p-3">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h4 className="text-[13px] font-semibold text-slate-200">Cruda → publicada</h4>
-        <span className="text-[11px] text-slate-500">post-proceso</span>
+        <h4 className="text-[13px] font-semibold text-(--ink-body)">Cruda → publicada</h4>
+        <span className="text-[11px] text-(--ink-muted)">post-proceso</span>
       </div>
       <table className="w-full text-[13px] tabular-nums">
         <thead>
-          <tr className="text-[11px] uppercase tracking-wide text-slate-500">
+          <tr className="text-[11px] uppercase tracking-wide text-(--ink-muted)">
             <th className="text-left font-medium">resultado</th>
             <th className="text-right font-medium">modelo</th>
             <th className="text-right font-medium">publicada</th>
@@ -86,13 +86,13 @@ export function PostprocessPanel({
             const d = r.final - r.raw;
             return (
               <tr key={r.label}>
-                <td className="py-0.5 text-slate-300">{r.label}</td>
-                <td className="py-0.5 text-right text-slate-400">{pct(r.raw)}</td>
-                <td className="py-0.5 text-right font-medium text-slate-100">{pct(r.final)}</td>
+                <td className="py-0.5 text-(--ink-body)">{r.label}</td>
+                <td className="py-0.5 text-right text-(--ink-soft)">{pct(r.raw)}</td>
+                <td className="py-0.5 text-right font-medium text-(--ink-strong)">{pct(r.final)}</td>
                 <td
                   className={`py-0.5 text-right ${
                     Math.abs(d) < 0.001
-                      ? 'text-slate-500'
+                      ? 'text-(--ink-muted)'
                       : d > 0
                         ? 'text-emerald-400/90'
                         : 'text-rose-400/90'
@@ -106,7 +106,7 @@ export function PostprocessPanel({
           })}
         </tbody>
       </table>
-      <p className="mt-2 text-[12px] leading-relaxed text-slate-400">{describe(postprocess)}</p>
+      <p className="mt-2 text-[12px] leading-relaxed text-(--ink-soft)">{describe(postprocess)}</p>
     </div>
   );
 }

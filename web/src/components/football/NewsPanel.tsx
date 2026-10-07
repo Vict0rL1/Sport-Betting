@@ -49,8 +49,8 @@ const VERDICT: Record<string, { text: string; tone: string }> = {
     text: 'la línea ya se había movido ANTES — el mercado lo sabía',
     tone: 'text-amber-300/90',
   },
-  'sin-movimiento': { text: 'la línea no se movió', tone: 'text-slate-400' },
-  'sin-datos': { text: 'sin histórico de precios todavía', tone: 'text-slate-500' },
+  'sin-movimiento': { text: 'la línea no se movió', tone: 'text-(--ink-soft)' },
+  'sin-datos': { text: 'sin histórico de precios todavía', tone: 'text-(--ink-muted)' },
 };
 
 function Side({
@@ -69,9 +69,9 @@ function Side({
   return (
     <div className="mb-3">
       <div className="mb-1 flex items-baseline justify-between gap-2">
-        <h4 className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">{name}</h4>
+        <h4 className="text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">{name}</h4>
         {combined.players > 0 && Math.abs(combined.net) > 0.001 && (
-          <span className="text-[12px] tabular-nums text-slate-300">
+          <span className="text-[12px] tabular-nums text-(--ink-body)">
             efecto conjunto{' '}
             <span className={combined.net < 0 ? 'text-rose-300/90' : 'text-emerald-300/90'}>
               {combined.net > 0 ? '+' : ''}
@@ -84,7 +84,7 @@ function Side({
       {moved.length > 0 && (
         <table className="w-full text-[12px] tabular-nums">
           <thead>
-            <tr className="text-[11px] uppercase tracking-wide text-slate-500">
+            <tr className="text-[11px] uppercase tracking-wide text-(--ink-muted)">
               <th className="text-left font-medium">jugador</th>
               <th className="text-left font-medium">motivo</th>
               <th className="text-right font-medium">fuera</th>
@@ -94,19 +94,19 @@ function Side({
           <tbody>
             {moved.map((a) => (
               <tr key={a.playerId}>
-                <td className="py-0.5 text-slate-300">
+                <td className="py-0.5 text-(--ink-body)">
                   {a.playerName}
-                  <span className="ml-1 text-[10px] text-slate-500">{a.position}</span>
+                  <span className="ml-1 text-[10px] text-(--ink-muted)">{a.position}</span>
                 </td>
-                <td className="py-0.5 text-slate-400">
+                <td className="py-0.5 text-(--ink-soft)">
                   {KIND_LABEL[a.kind] ?? a.kind}
                   {a.source !== 'noticia' && (
-                    <span className="ml-1 text-[10px] text-slate-500">
+                    <span className="ml-1 text-[10px] text-(--ink-muted)">
                       ({SOURCE_LABEL[a.source]})
                     </span>
                   )}
                 </td>
-                <td className="py-0.5 text-right text-slate-400">
+                <td className="py-0.5 text-right text-(--ink-soft)">
                   {(a.missProbability * 100).toFixed(0)}%
                 </td>
                 <td className="py-0.5 text-right font-medium text-rose-300/90">
@@ -119,15 +119,15 @@ function Side({
       )}
 
       {applied.length > moved.length && (
-        <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
+        <p className="mt-1 text-[12px] leading-relaxed text-(--ink-muted)">
           {applied.length - moved.length} ausencia(s) sin efecto en el número:{' '}
           {applied.find((a) => a.zeroReason)?.zeroReason}.
         </p>
       )}
 
       {watching.length > 0 && (
-        <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
-          <span className="text-slate-400">En observación</span> (dudas por encima del 50 %, no
+        <p className="mt-1 text-[12px] leading-relaxed text-(--ink-muted)">
+          <span className="text-(--ink-soft)">En observación</span> (dudas por encima del 50 %, no
           mueven la λ):{' '}
           {watching
             .map((w) => `${w.playerName} ${(w.missProbability * 100).toFixed(0)}%`)
@@ -163,8 +163,8 @@ export default function NewsPanel({
   return (
     <Panel>
       <SectionTitle>Noticias que ya están en este número</SectionTitle>
-      <p className="mb-3 text-[13px] leading-relaxed text-[#9aa1ac]">
-        Estas ausencias entran <span className="text-slate-300">antes</span> de calcular los goles
+      <p className="mb-3 text-[13px] leading-relaxed text-(--ink-soft)">
+        Estas ausencias entran <span className="text-(--ink-body)">antes</span> de calcular los goles
         esperados, así que el 1X2 de arriba, el over/under y la rejilla ya las llevan dentro. La
         columna de goles es lo que cuesta cada una: sale de la cuota del jugador en su equipo y de
         unos pesos ajustados sobre tres temporadas de alineaciones reales.
@@ -184,7 +184,7 @@ export default function NewsPanel({
       />
 
       {(n.applied.home.length > 1 || n.applied.away.length > 1) && (
-        <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
+        <p className="mb-3 text-[12px] leading-relaxed text-(--ink-muted)">
           El efecto conjunto no es la suma de las líneas, y no es un redondeo: los pesos se aplican
           sobre la cuota total que falta, así que dos ausencias juntas cuestan algo menos que las
           dos por separado.
@@ -193,7 +193,7 @@ export default function NewsPanel({
 
       {(n.lineup.home || n.lineup.away) && (
         <div className="mb-3 border-t border-slate-700/50 pt-2">
-          <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
+          <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
             Alineación confirmada
           </h4>
           {[
@@ -201,8 +201,8 @@ export default function NewsPanel({
             [away, n.lineup.away],
           ].map(([name, d]) =>
             d && typeof d === 'object' ? (
-              <p key={name as string} className="text-[12px] leading-relaxed text-slate-400">
-                <span className="text-slate-300">{name as string}</span>: {d.matched} de los
+              <p key={name as string} className="text-[12px] leading-relaxed text-(--ink-soft)">
+                <span className="text-(--ink-body)">{name as string}</span>: {d.matched} de los
                 esperados confirmados.
                 {d.unexpectedlyOut.length > 0 && (
                   <>
@@ -221,7 +221,7 @@ export default function NewsPanel({
 
       {((n.rotation.home?.risk ?? 0) > 0.3 || (n.rotation.away?.risk ?? 0) > 0.3) && (
         <div className="mb-3 border-t border-slate-700/50 pt-2">
-          <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
+          <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
             Calendario
           </h4>
           {[
@@ -229,13 +229,13 @@ export default function NewsPanel({
             [away, n.rotation.away],
           ].map(([name, r]) =>
             r && typeof r === 'object' && r.risk > 0.3 ? (
-              <p key={name as string} className="text-[12px] leading-relaxed text-slate-400">
-                <span className="text-slate-300">{name as string}</span>: {r.reason}
+              <p key={name as string} className="text-[12px] leading-relaxed text-(--ink-soft)">
+                <span className="text-(--ink-body)">{name as string}</span>: {r.reason}
               </p>
             ) : null,
           )}
-          <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
-            Esto <span className="text-slate-400">no</span> mueve la predicción: el efecto del
+          <p className="mt-1 text-[12px] leading-relaxed text-(--ink-muted)">
+            Esto <span className="text-(--ink-soft)">no</span> mueve la predicción: el efecto del
             calendario sobre el rendimiento se midió en este proyecto y salió cero. Lo que crece con
             la congestión es la duda sobre quién sale de inicio, no la debilidad del equipo.
           </p>
@@ -244,22 +244,22 @@ export default function NewsPanel({
 
       {n.timing.filter((t) => t.verdict !== 'sin-datos').length > 0 && (
         <div className="border-t border-slate-700/50 pt-2">
-          <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
+          <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
             La noticia contra el movimiento de la línea
           </h4>
           {n.timing
             .filter((t) => t.verdict !== 'sin-datos')
             .slice(0, 6)
             .map((t) => (
-              <p key={t.newsId} className="text-[12px] leading-relaxed text-slate-400">
-                <span className="text-slate-300">{t.playerName}</span>:{' '}
+              <p key={t.newsId} className="text-[12px] leading-relaxed text-(--ink-soft)">
+                <span className="text-(--ink-body)">{t.playerName}</span>:{' '}
                 <span className={VERDICT[t.verdict]?.tone}>{VERDICT[t.verdict]?.text}</span>
                 {t.minutesToMove != null && ` (${t.minutesToMove} min)`}
               </p>
             ))}
-          <p className="mt-1 text-[12px] leading-relaxed text-slate-500">
+          <p className="mt-1 text-[12px] leading-relaxed text-(--ink-muted)">
             Que el precio se mueva después de una noticia no demuestra que se moviera{' '}
-            <span className="text-slate-400">por</span> ella. Lo que sí dice el orden es si llegaste
+            <span className="text-(--ink-soft)">por</span> ella. Lo que sí dice el orden es si llegaste
             antes o después que el mercado — y lo normal es después.
           </p>
         </div>

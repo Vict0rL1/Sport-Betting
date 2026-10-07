@@ -70,12 +70,12 @@ export default function AskPanel() {
   }
 
   return (
-    <section className="mb-6 overflow-hidden rounded-xl border border-white/[0.09] bg-white/[0.02]">
+    <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
       <div className="px-4 py-3">
-        <h2 className="text-[16px] font-semibold text-[#e8eaed]">Preguntar a los datos</h2>
-        <p className="mt-0.5 text-[13px] leading-relaxed text-[#7b828d]">
+        <h2 className="text-[16px] font-semibold text-(--ink-strong)">Preguntar a los datos</h2>
+        <p className="mt-0.5 text-[13px] leading-relaxed text-(--ink-muted)">
           No hay ningún modelo de lenguaje detrás y por eso puedes fiarte: esto{' '}
-          <strong className="text-[#9aa1ac]">no redacta números</strong>, solo decide qué consulta
+          <strong className="text-(--ink-soft)">no redacta números</strong>, solo decide qué consulta
           hacer, y el resultado sale de la misma base que enseña la app. Cada respuesta dice de
           dónde viene.
         </p>
@@ -86,19 +86,19 @@ export default function AskPanel() {
           e.preventDefault();
           void preguntar(q);
         }}
-        className="flex gap-2 border-t border-white/[0.07] px-4 py-3"
+        className="flex gap-2 border-t border-(--line) px-4 py-3"
       >
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="cara a cara Alcaraz contra Sinner"
           aria-label="Pregunta"
-          className="min-w-0 flex-1 rounded-lg border border-white/[0.09] bg-black/20 px-3 py-2 text-[15px] text-[#e8eaed] outline-none placeholder:text-[#5c636e] focus:border-white/25"
+          className="min-w-0 flex-1 rounded-lg border border-(--line) bg-black/20 px-3 py-2 text-[15px] text-(--ink-strong) outline-none placeholder:text-(--ink-faint) focus:border-(--line-strong)"
         />
         <button
           type="submit"
           disabled={cargando || !q.trim()}
-          className="shrink-0 rounded-lg border border-white/[0.12] px-3 py-2 text-[14px] font-medium text-[#c3c9d1] transition hover:bg-white/[0.05] disabled:opacity-40"
+          className="shrink-0 rounded-lg border border-(--line-strong) px-3 py-2 text-[14px] font-medium text-(--ink-body) transition hover:bg-(--raised) disabled:opacity-40"
         >
           {cargando ? '…' : 'Preguntar'}
         </button>
@@ -110,7 +110,7 @@ export default function AskPanel() {
             <button
               key={e}
               onClick={() => void preguntar(e)}
-              className="rounded-full border border-white/[0.09] px-3 py-1 text-[13px] text-[#9aa1ac] transition hover:bg-white/[0.05]"
+              className="rounded-full border border-(--line) px-3 py-1 text-[13px] text-(--ink-soft) transition hover:bg-(--raised)"
             >
               {e}
             </button>
@@ -119,36 +119,36 @@ export default function AskPanel() {
       )}
 
       {error && (
-        <p className="border-t border-white/[0.07] px-4 py-3 text-[14px] text-rose-300">
+        <p className="border-t border-(--line) px-4 py-3 text-[14px] text-rose-300">
           No he podido preguntar: {error}
         </p>
       )}
 
       {hilo.map((x, i) => (
-        <article key={i} className="border-t border-white/[0.07] px-4 py-3">
-          <p className="text-[13px] text-[#7b828d]">{x.pregunta}</p>
-          <p className="mt-1 text-[15px] leading-relaxed text-[#e8eaed]">{x.r.texto}</p>
+        <article key={i} className="border-t border-(--line) px-4 py-3">
+          <p className="text-[13px] text-(--ink-muted)">{x.pregunta}</p>
+          <p className="mt-1 text-[15px] leading-relaxed text-(--ink-strong)">{x.r.texto}</p>
           {/* Cuando se encadenaron varias consultas, se enseñan TODAS con su
               procedencia. Resumir cuatro consultas en un párrafo escondería que el Elo
               y el cara a cara pueden estar en desacuerdo, que es justo lo interesante. */}
           {x.r.pasos && x.r.pasos.length > 1 && (
             <div className="mt-2 space-y-3">
               {x.r.pasos.map((p, k) => (
-                <div key={k} className="border-l-2 border-white/[0.09] pl-3">
-                  <p className="text-[14px] text-[#c3c9d1]">{p.respuesta.texto}</p>
+                <div key={k} className="border-l-2 border-(--line) pl-3">
+                  <p className="text-[14px] text-(--ink-body)">{p.respuesta.texto}</p>
                   {p.respuesta.filas && p.respuesta.filas.length > 0 && (
                     <table className="mt-1 w-full border-collapse text-[13px]">
                       <tbody>
                         {p.respuesta.filas.slice(0, 6).map((f, j) => (
                           <tr key={j}>
-                            <td className="py-0.5 pr-4 text-[#7b828d]">{f.etiqueta}</td>
-                            <td className="py-0.5 text-right text-[#9aa1ac]">{f.valor}</td>
+                            <td className="py-0.5 pr-4 text-(--ink-muted)">{f.etiqueta}</td>
+                            <td className="py-0.5 text-right text-(--ink-soft)">{f.valor}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   )}
-                  <p className="mt-1 text-[11px] text-[#5c636e]">de: {p.respuesta.fuente}</p>
+                  <p className="mt-1 text-[11px] text-(--ink-faint)">de: {p.respuesta.fuente}</p>
                 </div>
               ))}
             </div>
@@ -159,9 +159,9 @@ export default function AskPanel() {
               <table className="w-full border-collapse text-[14px]">
                 <tbody>
                   {x.r.filas.map((f, j) => (
-                    <tr key={j} className="border-t border-white/[0.05] first:border-t-0">
-                      <td className="py-1.5 pr-4 text-[#9aa1ac]">{f.etiqueta}</td>
-                      <td className="py-1.5 text-right text-[#c3c9d1]">{f.valor}</td>
+                    <tr key={j} className="border-t border-(--line) first:border-t-0">
+                      <td className="py-1.5 pr-4 text-(--ink-soft)">{f.etiqueta}</td>
+                      <td className="py-1.5 text-right text-(--ink-body)">{f.valor}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -170,12 +170,12 @@ export default function AskPanel() {
           )}
           {/* La procedencia, siempre. Es lo que separa «te lo digo yo» de «míralo tú». */}
           {(!x.r.pasos || x.r.pasos.length <= 1) && (
-            <p className="mt-2 text-[12px] text-[#5c636e]">de: {x.r.fuente}</p>
+            <p className="mt-2 text-[12px] text-(--ink-faint)">de: {x.r.fuente}</p>
           )}
           {/* Quién decidió la consulta. Se dice porque cambia lo que se puede esperar de
               la siguiente pregunta, y esconderlo sería vender un determinismo que no se
               está usando. */}
-          <p className="mt-1 text-[11px] text-[#5c636e]">
+          <p className="mt-1 text-[11px] text-(--ink-faint)">
             {x.r.via === 'agente'
               ? `agente · ${x.r.plan ?? 'varias consultas'}`
               : x.r.via === 'modelo'

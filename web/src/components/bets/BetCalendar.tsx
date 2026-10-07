@@ -89,18 +89,18 @@ export default function BetCalendar({
           <button
             onClick={() => step(-1)}
             aria-label="Mes anterior"
-            className="grid h-9 w-9 place-items-center rounded-lg text-[16px] text-[#9aa1ac] transition hover:bg-white/[0.06] hover:text-[#e8eaed]"
+            className="grid h-9 w-9 place-items-center rounded-lg text-[16px] text-(--ink-soft) transition hover:bg-(--raised) hover:text-(--ink-strong)"
           >
             ‹
           </button>
           <button
             onClick={() => step(1)}
             aria-label="Mes siguiente"
-            className="grid h-9 w-9 place-items-center rounded-lg text-[16px] text-[#9aa1ac] transition hover:bg-white/[0.06] hover:text-[#e8eaed]"
+            className="grid h-9 w-9 place-items-center rounded-lg text-[16px] text-(--ink-soft) transition hover:bg-(--raised) hover:text-(--ink-strong)"
           >
             ›
           </button>
-          <h3 className="ml-1 text-[16px] font-semibold text-[#e8eaed]">{label}</h3>
+          <h3 className="ml-1 text-[16px] font-semibold text-(--ink-strong)">{label}</h3>
         </div>
         {monthBets > 0 && (
           <span
@@ -114,7 +114,7 @@ export default function BetCalendar({
 
       <div className="grid grid-cols-7 gap-1 text-center">
         {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d, i) => (
-          <div key={i} className="pb-1 text-[11px] font-medium uppercase tracking-[0.06em] text-[#5c636c]">
+          <div key={i} className="pb-1 text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-faint)">
             {d}
           </div>
         ))}
@@ -173,22 +173,22 @@ function DayCell({
       onClick={() => onPick?.(selected ? null : cell.day)}
       className={`relative aspect-square rounded-lg p-1 text-left transition ${
         has ? 'cursor-pointer hover:brightness-125' : 'cursor-default'
-      } ${selected ? 'ring-2 ring-white/60' : ''}`}
+      } ${selected ? 'ring-2 ring-(--line-strong)' : ''}`}
       style={{
-        backgroundColor: decided ? withAlpha(pole, weight) : has ? 'rgba(255,255,255,0.05)' : 'transparent',
-        boxShadow: has && !decided ? 'inset 0 0 0 1px rgba(255,255,255,0.12)' : undefined,
+        backgroundColor: decided ? withAlpha(pole, weight) : has ? 'var(--raised)' : 'transparent',
+        boxShadow: has && !decided ? 'inset 0 0 0 1px var(--raised-3)' : undefined,
       }}
     >
-      <span className={`block text-[11px] leading-none ${has ? 'text-[#c3c9d1]' : 'text-[#4a5058]'}`}>
+      <span className={`block text-[11px] leading-none ${has ? 'text-(--ink-body)' : 'text-(--ink-faint)'}`}>
         {cell.dom}
       </span>
       {decided && (
-        <span className="mt-0.5 block truncate text-[13px] font-semibold leading-tight tabular-nums text-[#e8eaed]">
+        <span className="mt-0.5 block break-words text-[13px] font-semibold leading-tight tabular-nums text-(--ink-strong)">
           {signed(cell.profit, 0)}
         </span>
       )}
       {has && !decided && (
-        <span className="mt-0.5 block text-[11px] leading-tight text-[#9aa1ac]">···</span>
+        <span className="mt-0.5 block text-[11px] leading-tight text-(--ink-soft)">···</span>
       )}
     </button>
   );
@@ -204,7 +204,7 @@ function withAlpha(hex: string, alpha: number): string {
 
 function Legend() {
   return (
-    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#7b828d]">
+    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-(--ink-muted)">
       <span className="flex items-center gap-1.5">
         <span className="h-3 w-3 rounded" style={{ backgroundColor: withAlpha(PROFIT_COLOR, 0.7) }} />
         ganancia
@@ -216,7 +216,7 @@ function Legend() {
       <span className="flex items-center gap-1.5">
         <span
           className="h-3 w-3 rounded"
-          style={{ backgroundColor: 'rgba(255,255,255,0.05)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.12)' }}
+          style={{ backgroundColor: 'var(--raised)', boxShadow: 'inset 0 0 0 1px var(--raised-3)' }}
         />
         sin resolver
       </span>

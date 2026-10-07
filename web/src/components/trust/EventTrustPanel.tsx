@@ -9,11 +9,12 @@ import { useEffect, useState } from 'react';
 import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { StatusMark } from '../icons';
 import type { EvaluacionConfianza, PrePartido, PrePartidoRef } from '../../lib/trust';
+import { ConfianzaBadge } from './ConfianzaBadge';
 
 const pct = (p: number) => `${(p * 100).toFixed(1).replace('.', ',')} %`;
 const pp = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(1).replace('.', ',')} pp`;
 const AMBAR = '#d9a441';
-const GRIS = '#7b828d';
+const GRIS = 'var(--ink-muted)';
 
 const COLOR: Record<string, string> = {
   ALTA: PROFIT_COLOR, BAJO: PROFIT_COLOR, BET: PROFIT_COLOR,
@@ -33,15 +34,15 @@ function Etiqueta({ texto }: { texto: string }) {
 function Fila({ titulo, valor, children }: { titulo: string; valor: React.ReactNode; children?: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="border-t border-white/[0.05] py-2">
+    <div className="border-t border-(--line) py-2">
       <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-3 text-left text-[13px]" aria-expanded={open}>
-        <span className="text-[#9aa1ac]">{titulo}</span>
-        <span className="flex items-center gap-2 text-[#c3c9d1]">
+        <span className="text-(--ink-soft)">{titulo}</span>
+        <span className="flex items-center gap-2 text-(--ink-body)">
           {valor}
-          {children && <span className="text-[#5c636c]">{open ? '▲' : '▼'}</span>}
+          {children && <span className="text-(--ink-faint)">{open ? '▲' : '▼'}</span>}
         </span>
       </button>
-      {open && children && <div className="mt-2 space-y-1 text-[12px] leading-relaxed text-[#9aa1ac]">{children}</div>}
+      {open && children && <div className="mt-2 space-y-1 text-[12px] leading-relaxed text-(--ink-soft)">{children}</div>}
     </div>
   );
 }
@@ -78,21 +79,21 @@ function QueSi({ c }: { c: EvaluacionConfianza }) {
         return (
           <label key={f.clave} className="block">
             <span className="flex items-center justify-between gap-2">
-              <span className="text-[#c3c9d1]">{f.etiqueta}</span>
-              <span className="tabular-nums">{(f.puntos * m).toFixed(1).replace('.', ',')} <span className="text-[#5c636c]">(×{m.toFixed(2).replace('.', ',')})</span></span>
+              <span className="text-(--ink-body)">{f.etiqueta}</span>
+              <span className="tabular-nums">{(f.puntos * m).toFixed(1).replace('.', ',')} <span className="text-(--ink-faint)">(×{m.toFixed(2).replace('.', ',')})</span></span>
             </span>
             <input type="range" min={lo} max={hi} step={0.05} value={m} onChange={(e) => setMult((s) => ({ ...s, [f.clave]: Number(e.target.value) }))} className="mt-1 w-full accent-[#c3c9d1]" aria-label={`Qué pasaría si ${f.etiqueta}`} />
-            <span className="text-[#5c636c]">{f.porQue}</span>
+            <span className="text-(--ink-faint)">{f.porQue}</span>
           </label>
         );
       })}
-      <p className="mt-1 text-[#c3c9d1]">
+      <p className="mt-1 text-(--ink-body)">
         {c.outcomes.map((o, i) => (
           <span key={o} className="mr-3 tabular-nums">{o}: {pct(probs[i])}{tocado ? ` (${pp((probs[i] - c.probs[i]) * 100)})` : ''}</span>
         ))}
       </p>
-      {tocado && <button onClick={() => setMult({})} className="text-[#7b828d] underline-offset-2 hover:underline">Volver a lo publicado</button>}
-      <p className="text-[#5c636c]">{q.etiqueta}{q.exacta ? '' : ' La curva es una aproximación logística local del modelo.'}</p>
+      {tocado && <button onClick={() => setMult({})} className="text-(--ink-muted) underline-offset-2 hover:underline">Volver a lo publicado</button>}
+      <p className="text-(--ink-faint)">{q.etiqueta}{q.exacta ? '' : ' La curva es una aproximación logística local del modelo.'}</p>
     </>
   );
 }
@@ -120,7 +121,7 @@ function HistorialPrePartido({ refP }: { refP: PrePartidoRef }) {
       <ul>
         {d.horizontes.map((h) => (
           <li key={h.etiqueta}>
-            <span className="text-[#c3c9d1]">{h.etiqueta}:</span>{' '}
+            <span className="text-(--ink-body)">{h.etiqueta}:</span>{' '}
             {h.fila ? `${pct(h.fila.probs[0])}${h.minutosAntesDeLaMarca && h.minutosAntesDeLaMarca > 90 ? ` (capturada ${Math.round(h.minutosAntesDeLaMarca / 60)} h antes de la marca)` : ''}` : 'sin observación anterior a esa hora'}
           </li>
         ))}
@@ -132,7 +133,7 @@ function HistorialPrePartido({ refP }: { refP: PrePartidoRef }) {
           <ul>
             {d.cambios.map((c, i) => (
               <li key={i}>
-                {pp(c.deltaPp[0])} · {c.causas.length ? c.causas.join('; ') : ''} <span className="text-[#5c636c]">({c.atribucion})</span>
+                {pp(c.deltaPp[0])} · {c.causas.length ? c.causas.join('; ') : ''} <span className="text-(--ink-faint)">({c.atribucion})</span>
               </li>
             ))}
           </ul>
@@ -159,10 +160,10 @@ function LineaTemporal({ refP }: { refP: PrePartidoRef }) {
     <>
       {d.hitos.map((h, i) => (
         <p key={i}>
-          <span className="text-[#5c636c]">{new Date(h.at).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span> {h.texto}
+          <span className="text-(--ink-faint)">{new Date(h.at).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span> {h.texto}
         </p>
       ))}
-      <p className="text-[#5c636c]">{d.nota}</p>
+      <p className="text-(--ink-faint)">{d.nota}</p>
     </>
   );
 }
@@ -173,21 +174,22 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
   const c = confianza;
   const top = c.probs.indexOf(Math.max(...c.probs));
   return (
-    <div className="mt-2 rounded-lg border border-white/[0.07] bg-white/[0.015] px-3 py-2">
+    <div className="mt-2 rounded-lg border border-(--line) bg-(--tint) px-3 py-2">
       <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-2 text-left" aria-expanded={open}>
-        <span className="text-[14px] font-medium text-[#c3c9d1]">¿Cuánto fiarse?</span>
-        <span className="flex flex-wrap items-center justify-end gap-1.5 text-[12px] text-[#9aa1ac]">
-          confianza <Etiqueta texto={c.confianza.nivel} /> <Etiqueta texto={c.decision.decision} />
-          <span className="text-[#5c636c]">{open ? '▲' : '▼'}</span>
+        <span className="text-[14px] font-medium text-(--ink-body)">¿Cuánto fiarse?</span>
+        <span className="flex flex-wrap items-center justify-end gap-1.5 text-[12px] text-(--ink-soft)">
+          <ConfianzaBadge nivel={c.confianza.nivel} decision={c.decision.decision} compacta />
+          {c.decision.decision !== 'SIN MERCADO' && <Etiqueta texto={c.decision.decision} />}
+          <span className="text-(--ink-faint)">{open ? '▲' : '▼'}</span>
         </span>
       </button>
       {open && (
         <div className="mt-2">
-          <p className="text-[13px] text-[#c3c9d1]">
+          <p className="text-[13px] text-(--ink-body)">
             {c.outcomes[top]}: {pct(c.probs[top])} · rango razonable {pct(c.incertidumbre.rango.bajo)} – {pct(c.incertidumbre.rango.alto)}
           </p>
           {c.decision.seleccion && (
-            <p className="text-[12px] text-[#9aa1ac]">
+            <p className="text-[12px] text-(--ink-soft)">
               Mejor selección: {c.decision.seleccion.nombre} a {c.decision.seleccion.cuota.toFixed(2)} · ventaja {pct(c.decision.seleccion.edge)}
               {c.decision.desaparece != null && ` · desaparece en el ${Math.round(c.decision.desaparece * 100)} % de las simulaciones`}
             </p>
@@ -196,17 +198,17 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
             {c.decision.decision === 'NO BET' && (
               <>
                 <p style={{ color: LOSS_COLOR }}>NO BET. Razones:</p>
-                <ul className="text-[#9aa1ac]">{c.decision.razones.map((r) => <li key={r}>– {r}</li>)}</ul>
-                <p className="mt-1 text-[#9aa1ac]">Para apostar haría falta: {c.decision.contrafactual.join('; ')}.</p>
+                <ul className="text-(--ink-soft)">{c.decision.razones.map((r) => <li key={r}>– {r}</li>)}</ul>
+                <p className="mt-1 text-(--ink-soft)">Para apostar haría falta: {c.decision.contrafactual.join('; ')}.</p>
               </>
             )}
             {c.decision.decision === 'BET' && (
               <>
-                {c.decision.razones.length > 0 && <ul className="text-[#9aa1ac]">{c.decision.razones.map((r) => <li key={r}>– {r}</li>)}</ul>}
-                <p className="text-[#9aa1ac]">La apuesta deja de cumplir los criterios si: {c.decision.contrafactual.join('; o ')}.</p>
+                {c.decision.razones.length > 0 && <ul className="text-(--ink-soft)">{c.decision.razones.map((r) => <li key={r}>– {r}</li>)}</ul>}
+                <p className="text-(--ink-soft)">La apuesta deja de cumplir los criterios si: {c.decision.contrafactual.join('; o ')}.</p>
               </>
             )}
-            {c.decision.decision === 'SIN MERCADO' && <p className="text-[#9aa1ac]">{c.decision.razones.join(' · ')}</p>}
+            {c.decision.decision === 'SIN MERCADO' && <p className="text-(--ink-soft)">{c.decision.razones.join(' · ')}</p>}
           </div>
 
           <div className="mt-2">
@@ -214,38 +216,38 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
               {c.confianza.porQue.map((s) => (
                 <p key={s.texto}><StatusMark estado={s.ok ? 'ok' : 'aviso'} color={s.ok ? PROFIT_COLOR : AMBAR} />{s.texto}</p>
               ))}
-              <p className="text-[#5c636c]">{c.confianza.criterio}</p>
+              <p className="text-(--ink-faint)">{c.confianza.criterio}</p>
             </Fila>
             <Fila titulo="Calidad de datos" valor={`${c.calidadDatos.puntuacion} / 100`}>
               {c.calidadDatos.items.map((i) => (
                 <p key={i.texto}>
                   <StatusMark estado={i.estado} color={COLOR_ICONO[i.estado]} />{i.texto}
-                  {i.estado === 'desconocido' ? <span className="text-[#5c636c]"> (DESCONOCIDO)</span> : <span className="text-[#5c636c]"> ({i.puntos}/{i.max})</span>}
+                  {i.estado === 'desconocido' ? <span className="text-(--ink-faint)"> (DESCONOCIDO)</span> : <span className="text-(--ink-faint)"> ({i.puntos}/{i.max})</span>}
                 </p>
               ))}
-              <p className="text-[#5c636c]">{c.calidadDatos.explicacion}</p>
+              <p className="text-(--ink-faint)">{c.calidadDatos.explicacion}</p>
             </Fila>
             <Fila titulo="Incertidumbre" valor={`±${c.incertidumbre.totalPp.toFixed(1).replace('.', ',')} pp`}>
               <p>Ruido de rating: ±{c.incertidumbre.ruidoRatingPp} pp</p>
               <p>{c.incertidumbre.sesgoCalibracionPp == null ? 'Sin calibración medida para este tramo.' : `Sesgo histórico del tramo: ${pp(c.incertidumbre.sesgoCalibracionPp)} (n ${c.incertidumbre.nTramo})`}</p>
-              <p className="text-[#5c636c]">{c.incertidumbre.significado}</p>
+              <p className="text-(--ink-faint)">{c.incertidumbre.significado}</p>
             </Fila>
             <Fila titulo="Estabilidad" valor={<Etiqueta texto={c.estabilidad.nivel} />}>
               <p>Escenarios: {c.estabilidad.escenarios.map((e) => pct(e.p)).join(' · ')}</p>
               <ul>{c.estabilidad.escenarios.map((e) => <li key={e.texto}>{pct(e.p)} — {e.texto}</li>)}</ul>
               <p>Percentiles 10–90 de las simulaciones: {pct(c.estabilidad.p10)} – {pct(c.estabilidad.p90)}</p>
               {c.estabilidad.supuestos.map((s) => <p key={s}>· {s}</p>)}
-              <p className="text-[#5c636c]">{c.estabilidad.criterio}</p>
+              <p className="text-(--ink-faint)">{c.estabilidad.criterio}</p>
             </Fila>
             <Fila titulo="Desacuerdo entre componentes" valor={<Etiqueta texto={c.desacuerdo.nivel} />}>
               {c.desacuerdo.componentes.map((k) => <p key={k.nombre}>{k.nombre}: {pct(k.p)}</p>)}
-              <p className="text-[#5c636c]">{c.desacuerdo.criterio}</p>
+              <p className="text-(--ink-faint)">{c.desacuerdo.criterio}</p>
             </Fila>
             <Fila titulo="Qué mueve la predicción" valor={c.sensibilidad.exacta ? 'exacto' : 'aproximado'}>
               <p>Sin ningún factor: {pct(c.sensibilidad.base)} ({c.outcomes[0]})</p>
               {c.sensibilidad.contribuciones.map((k) => <p key={k.etiqueta}>{k.etiqueta}: {pp(k.pp)}</p>)}
               <p>Final: {pct(c.sensibilidad.final)}</p>
-              <p className="text-[#5c636c]">{c.sensibilidad.metodo}</p>
+              <p className="text-(--ink-faint)">{c.sensibilidad.metodo}</p>
             </Fila>
             {c.queSi && (
               <Fila titulo="Qué pasaría si" valor="simulación">
@@ -264,10 +266,10 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
                   </p>
                 );
               })}
-              {c.mercado.lineas.length > 0 && <p className="text-[#5c636c]">La mejor cuota es una cota superior: no siempre se puede apostar en todas las casas.</p>}
+              {c.mercado.lineas.length > 0 && <p className="text-(--ink-faint)">La mejor cuota es una cota superior: no siempre se puede apostar en todas las casas.</p>}
               {c.mercado.ultimaActualizacionMin != null && <p>Última observación: hace {c.mercado.ultimaActualizacionMin} min · {c.mercado.observaciones24h} descargas en 24 h</p>}
               {c.mercado.motivos.map((m) => <p key={m}><StatusMark estado="aviso" color={AMBAR} />{m}</p>)}
-              <p className="text-[#5c636c]">{c.mercado.etiqueta}.</p>
+              <p className="text-(--ink-faint)">{c.mercado.etiqueta}.</p>
             </Fila>
             <Fila titulo="Fuera de distribución" valor={c.ood.length ? `${c.ood.length} aviso(s)` : 'no'}>
               {c.ood.length ? c.ood.map((o) => <p key={o.texto}><StatusMark estado={o.grave ? 'error' : 'aviso'} color={o.grave ? LOSS_COLOR : AMBAR} />{o.texto}{o.grave ? ' (grave)' : ''}</p>) : <p>Nada fuera de lo que el modelo ha visto.</p>}
@@ -286,7 +288,7 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
                 <LineaTemporal refP={prePartido} />
               </Fila>
             )}
-            <p className="mt-1 text-[11px] text-[#5c636c]">{c.nota}</p>
+            <p className="mt-1 text-[11px] text-(--ink-faint)">{c.nota}</p>
           </div>
         </div>
       )}

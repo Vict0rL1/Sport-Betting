@@ -120,44 +120,44 @@ export default function EloRanking({
   const rank = new Map(rows.map((r, i) => [r.id, i + 1]));
 
   return (
-    <section className="mt-8 rounded-xl border border-white/[0.07] bg-[#14161b] p-4">
+    <section className="mt-8 rounded-xl border border-(--line) bg-(--surface-card) p-4">
       <button
         onClick={toggle}
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-3 text-left"
       >
         <span className="min-w-0">
-          <span className="text-[14px] uppercase tracking-wide text-[#7b828d]">{title}</span>
+          <span className="text-[14px] uppercase tracking-wide text-(--ink-muted)">{title}</span>
           <br />
-          <span className="text-[16px] text-[#d5d9df]">
+          <span className="text-[16px] text-(--ink-body)">
             {rows.length} por Elo
             {spread && (
-              <span className="ml-2 text-[14px] text-[#7b828d]">
+              <span className="ml-2 text-[14px] text-(--ink-muted)">
                 · {Math.round(spread.worst)}–{Math.round(spread.best)}
               </span>
             )}
           </span>
         </span>
-        <span aria-hidden className="shrink-0 text-[14px] text-[#5c636c]">
+        <span aria-hidden className="shrink-0 text-[14px] text-(--ink-faint)">
           {open ? '▲' : '▼'}
         </span>
       </button>
 
       {open && (
-        <div className="mt-3 border-t border-white/[0.07] pt-3">
+        <div className="mt-3 border-t border-(--line) pt-3">
           {subtitle && (
-            <div className="mb-3 text-[13px] leading-relaxed text-[#7b828d]">{subtitle}</div>
+            <div className="mb-3 text-[13px] leading-relaxed text-(--ink-muted)">{subtitle}</div>
           )}
 
           {/* La forma de la competición, que no se ve en la lista de nombres. */}
           {spread && (
-            <p className="mb-3 text-[13px] leading-relaxed text-[#9aa1ac]">
+            <p className="mb-3 text-[13px] leading-relaxed text-(--ink-soft)">
               El primero le ganaría al último{' '}
-              <strong className="font-semibold text-[#e8eaed]">
+              <strong className="font-semibold text-(--ink-strong)">
                 {(spread.topBeatsBottom * 100).toFixed(0)} %
               </strong>{' '}
               de las veces.{' '}
-              <span className="text-[#7b828d]">
+              <span className="text-(--ink-muted)">
                 Cerca del 50 % significa igualdad; por encima del 90 %, un abismo entre
                 arriba y abajo. La columna «vs. medio» es cada uno contra un rival de{' '}
                 {Math.round(spread.median)} Elo, la mediana de esta lista.
@@ -171,13 +171,13 @@ export default function EloRanking({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Buscar…"
-              className="mb-3 w-full max-w-xs rounded-lg bg-white/[0.05] px-3 py-1.5 text-[14px] text-[#e8eaed] ring-1 ring-inset ring-white/[0.08] placeholder:text-[#5c636c] focus:outline-none focus:ring-white/[0.2]"
+              className="mb-3 w-full max-w-xs rounded-lg bg-(--raised) px-3 py-1.5 text-[14px] text-(--ink-strong) ring-1 ring-inset ring-(--line) placeholder:text-(--ink-faint) focus:outline-none focus:ring-(--line-strong)"
             />
           )}
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[34rem] text-left text-[14px] tabular-nums">
-              <thead className="text-[#7b828d]">
+              <thead className="text-(--ink-muted)">
                 <tr>
                   <th className="py-1 pr-2 font-normal">#</th>
                   <th className="py-1 pr-2 font-normal">Nombre</th>
@@ -192,7 +192,7 @@ export default function EloRanking({
                   ))}
                 </tr>
               </thead>
-              <tbody className="text-[#d5d9df]">
+              <tbody className="text-(--ink-body)">
                 {shown.map((r) => {
                   const p = spread ? winProbability(r.elo - spread.median) : 0.5;
                   // La barra se ancla al rango de ESTA lista, no a un cero absoluto: un
@@ -202,20 +202,20 @@ export default function EloRanking({
                   const width = spread ? ((r.elo - spread.worst) / span) * 100 : 50;
                   const few = r.matches != null && r.matches < FEW_MATCHES;
                   return (
-                    <tr key={r.id} className="border-t border-white/[0.07]">
-                      <td className="py-1 pr-2 text-[#7b828d]">{rank.get(r.id)}</td>
+                    <tr key={r.id} className="border-t border-(--line)">
+                      <td className="py-1 pr-2 text-(--ink-muted)">{rank.get(r.id)}</td>
                       <td className="py-1 pr-2">
                         <span className="flex min-w-0 items-center gap-2">
                           {r.badge}
                           {r.onOpen ? (
                             <button
                               onClick={r.onOpen}
-                              className="truncate text-[#c3c9d1] hover:underline"
+                              className="break-words text-(--ink-body) hover:underline"
                             >
                               {r.name}
                             </button>
                           ) : (
-                            <span className="truncate text-[#c3c9d1]">{r.name}</span>
+                            <span className="break-words text-(--ink-body)">{r.name}</span>
                           )}
                           {few && (
                             <span
@@ -226,7 +226,7 @@ export default function EloRanking({
                             </span>
                           )}
                           {r.note && (
-                            <span className="shrink-0 text-[12px] text-[#7b828d]">{r.note}</span>
+                            <span className="shrink-0 text-[12px] text-(--ink-muted)">{r.note}</span>
                           )}
                         </span>
                       </td>
@@ -237,7 +237,7 @@ export default function EloRanking({
                               para un lector de pantalla solo sería ruido. */}
                           <span
                             aria-hidden
-                            className="hidden h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-white/[0.07] sm:block"
+                            className="hidden h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-(--raised-2) sm:block"
                           >
                             <span
                               className="block h-full rounded-full bg-[#7aa2f7]"
@@ -246,7 +246,7 @@ export default function EloRanking({
                           </span>
                         </span>
                       </td>
-                      <td className="py-1 pr-3 text-[#9aa1ac]">{(p * 100).toFixed(0)} %</td>
+                      <td className="py-1 pr-3 text-(--ink-soft)">{(p * 100).toFixed(0)} %</td>
                       {(r.extra ?? []).map((x, i) => (
                         <td key={i} className="py-1 pr-2" title={x.title}>
                           {x.value}
@@ -260,10 +260,10 @@ export default function EloRanking({
           </div>
 
           {shown.length === 0 && (
-            <p className="mt-2 text-[13px] text-[#7b828d]">Nada coincide con «{query}».</p>
+            <p className="mt-2 text-[13px] text-(--ink-muted)">Nada coincide con «{query}».</p>
           )}
 
-          {footer && <div className="mt-3 text-[13px] leading-relaxed text-[#7b828d]">{footer}</div>}
+          {footer && <div className="mt-3 text-[13px] leading-relaxed text-(--ink-muted)">{footer}</div>}
         </div>
       )}
     </section>

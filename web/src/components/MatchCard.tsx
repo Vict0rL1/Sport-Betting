@@ -6,6 +6,7 @@ import MatchDetail from './MatchDetail';
 import LivePanel from './LivePanel';
 import PointsMarkets from './PointsMarkets';
 import { Badge, Card, Flag, MatchTime, ResultBanner, SeriesDot } from './ui';
+import { EnlacePartido } from './ui';
 import EventTrustPanel from './trust/EventTrustPanel';
 
 export default function MatchCard({
@@ -25,15 +26,15 @@ export default function MatchCard({
 
   return (
     // The shared surface, like the other four sports. This card was the one holdout:
-    // its own background (bg-white/[0.04] instead of the system's #14161b) and a
+    // its own background (bg-(--raised) instead of the system's #14161b) and a
     // drop shadow that ui/index.tsx explicitly rules out — "the card is the only
     // filled box on the page… not a lift, not a shadow". Side by side with a
     // basketball or football card the tennis one read as a different app.
     <Card as="article" className="p-4">
-      <div className="mb-3 flex items-center justify-between text-[14px] text-[#9aa1ac]">
+      <div className="mb-3 flex items-center justify-between text-[14px] text-(--ink-soft)">
         <MatchTime iso={match.commence_time} />
         <span className="flex items-center gap-2">
-          <span className="rounded bg-white/[0.06] px-2 py-0.5">
+          <span className="rounded bg-(--raised) px-2 py-0.5">
             {surfaceLabelEs(match.surface)}
           </span>
           {match.source === 'fixture' && (
@@ -75,7 +76,7 @@ export default function MatchCard({
           tourLabel={match.tour.toUpperCase()}
           onClick={match.p1_id ? () => onOpenPlayer(match.tour, match.p1_id!) : undefined}
         />
-        <span className="px-3 pt-6 text-[14px] text-[#7b828d]">vs</span>
+        <span className="px-3 pt-6 text-[14px] text-(--ink-muted)">vs</span>
         <PlayerName
           name={match.p2_name}
           country={prediction?.players.p2.country ?? players?.p2?.country ?? null}
@@ -100,13 +101,13 @@ export default function MatchCard({
                 <span>
                   El modelo favorece a{' '}
                   <SeriesDot color={verdict.favoredSide === 1 ? P1_COLOR : P2_COLOR} />{' '}
-                  <strong className="text-[#e8eaed]">{verdict.favoredName}</strong>{' '}
-                  <span className="text-[#9aa1ac]">
+                  <strong className="text-(--ink-strong)">{verdict.favoredName}</strong>{' '}
+                  <span className="text-(--ink-soft)">
                     · {confidenceLabelEs(verdict.confidence)} ({verdict.marginPct} pp)
                   </span>
                 </span>
               ) : (
-                <span className="text-[#9aa1ac]">Partido muy parejo</span>
+                <span className="text-(--ink-soft)">Partido muy parejo</span>
               )}
             </div>
             <div className="flex items-center gap-2">
@@ -118,20 +119,23 @@ export default function MatchCard({
           </div>
 
           {/* What the model expects to happen, in plain language */}
-          <div className="mt-3 border-t border-white/[0.07] pt-3">
-            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#7b828d]">
+          <div className="mt-3 border-t border-(--line) pt-3">
+            <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--ink-muted)">
               Qué es lo más probable
             </div>
-            <p className="text-[16px] font-medium text-[#e8eaed]">{prediction.summary.headline}</p>
+            <p className="text-[16px] font-medium text-(--ink-strong)">{prediction.summary.headline}</p>
             <Bullets items={prediction.summary.bullets} />
           </div>
 
+          <div className="mt-2 flex justify-end">
+            <EnlacePartido sport="tennis" id={match.id} clave={item.prePartido?.matchKey} />
+          </div>
           <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
           <button
             onClick={() => setOpen((o) => !o)}
-            className="mt-3 text-[14px] text-[#9aa1ac] hover:text-[#e8eaed]"
+            className="mt-3 text-[14px] text-(--ink-soft) hover:text-(--ink-strong)"
           >
-            {open ? '▲ Ocultar desglose' : '▼ Ver desglose (Elo · forma · H2H · mercado)'}
+            {open ? '▲ Ocultar' : '▼ ¿Por qué? · Elo, forma, H2H y mercado'}
           </button>
           {open && (
             <>
@@ -219,15 +223,15 @@ function MissingPlayers({
     .map((s) => `${s.name}${s.info!.ranking ? ` (#${s.info!.ranking.rank})` : ''}`);
 
   return (
-    <div className="rounded-lg bg-white/[0.03] p-3 text-[16px] text-[#9aa1ac] ring-1 ring-white/[0.07]">
+    <div className="rounded-lg bg-(--tint) p-3 text-[16px] text-(--ink-soft) ring-1 ring-(--line)">
       {unknown.length > 0 && (
         <>
           Sin predicción del modelo: no hay datos de{' '}
-          <strong className="text-[#d5d9df]">{unknown.join(' ni de ')}</strong>.
-          <div className="mt-1 text-[14px] text-[#7b828d]">
+          <strong className="text-(--ink-body)">{unknown.join(' ni de ')}</strong>.
+          <div className="mt-1 text-[14px] text-(--ink-muted)">
             Suele pasar si el historial descargado es antiguo y no cubre la carrera de este jugador.
             Ejecuta{' '}
-            <code className="rounded bg-white/[0.04] px-1">npm run update-data -- --fresh</code> para
+            <code className="rounded bg-(--raised) px-1">npm run update-data -- --fresh</code> para
             volver a descargarlo.
           </div>
         </>
@@ -235,9 +239,9 @@ function MissingPlayers({
       {unknown.length === 0 && knownButUnrated.length > 0 && (
         <>
           Sin predicción del modelo: aún no hay partidos de{' '}
-          <strong className="text-[#d5d9df]">{knownButUnrated.join(' ni de ')}</strong> en el
+          <strong className="text-(--ink-body)">{knownButUnrated.join(' ni de ')}</strong> en el
           historial, así que no se puede calcular su Elo.
-          <div className="mt-1 text-[14px] text-[#7b828d]">
+          <div className="mt-1 text-[14px] text-(--ink-muted)">
             Arriba tienes su ranking oficial y la probabilidad del mercado.
           </div>
         </>
@@ -288,7 +292,7 @@ function PlayerName({
         <button
           onClick={onClick}
           disabled={!onClick}
-          className={`font-semibold text-[#e8eaed] break-words ${onClick ? 'hover:underline' : 'cursor-default'}`}
+          className={`font-semibold text-(--ink-strong) break-words ${onClick ? 'hover:underline' : 'cursor-default'}`}
         >
           {name}
         </button>
@@ -300,7 +304,7 @@ function PlayerName({
           Dimmed when it comes from the market because the model couldn't predict. */}
       {prob != null && (
         <div
-          className={`text-4xl font-bold leading-tight tabular-nums text-[#e8eaed] sm:text-5xl ${
+          className={`text-4xl font-bold leading-tight tabular-nums text-(--ink-strong) sm:text-5xl ${
             probSource === 'market' ? 'opacity-60' : ''
           }`}
           title={
@@ -312,12 +316,12 @@ function PlayerName({
           {(prob * 100).toFixed(1)}
           <span className="text-[26px]">%</span>
           {probSource === 'market' && (
-            <span className="ml-1 align-middle text-[14px] font-normal text-[#9aa1ac]">mercado</span>
+            <span className="ml-1 align-middle text-[14px] font-normal text-(--ink-soft)">mercado</span>
           )}
         </div>
       )}
-      {facts.length > 0 && <div className="text-[14px] text-[#9aa1ac]">{facts.join(' · ')}</div>}
-      <div className="text-[14px] text-[#7b828d]">{odds != null ? `cuota ${odds}` : 'sin cuota'}</div>
+      {facts.length > 0 && <div className="text-[14px] text-(--ink-soft)">{facts.join(' · ')}</div>}
+      <div className="text-[14px] text-(--ink-muted)">{odds != null ? `cuota ${odds}` : 'sin cuota'}</div>
     </div>
   );
 }
@@ -354,8 +358,8 @@ function Bullets({ items }: { items: string[] }) {
     <>
       <ul className="mt-2 space-y-1">
         {mostrados.map((b, i) => (
-          <li key={i} className="flex gap-2 text-[14px] text-[#c3c9d1]">
-            <span className="text-[#5c636c]">•</span>
+          <li key={i} className="flex gap-2 text-[14px] text-(--ink-body)">
+            <span className="text-(--ink-faint)">•</span>
             <span>{b}</span>
           </li>
         ))}
@@ -363,7 +367,7 @@ function Bullets({ items }: { items: string[] }) {
       {ocultos > 0 && (
         <button
           onClick={() => setOpen((o) => !o)}
-          className="mt-1.5 text-[13px] text-[#7b828d] underline-offset-2 hover:text-[#c3c9d1] hover:underline"
+          className="mt-1.5 text-[13px] text-(--ink-muted) underline-offset-2 hover:text-(--ink-body) hover:underline"
         >
           {open ? 'Ver menos' : `Ver ${ocultos} motivo${ocultos === 1 ? '' : 's'} más`}
         </button>

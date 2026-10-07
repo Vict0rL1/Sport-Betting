@@ -41,7 +41,7 @@ function Calibration({ pp }: { pp: number | undefined }): React.ReactElement | n
   if (pp === undefined) return null;
   const strong = Math.abs(pp) >= 2;
   return (
-    <span className={`ml-1.5 text-[11px] ${strong ? 'text-amber-300/80' : 'text-slate-500'}`}>
+    <span className={`ml-1.5 text-[11px] ${strong ? 'text-amber-300/80' : 'text-(--ink-muted)'}`}>
       ({pp >= 0 ? '+' : ''}
       {pp.toFixed(1)} pp medido)
     </span>
@@ -61,12 +61,12 @@ function Row({
 }): React.ReactElement {
   return (
     <div className="flex items-baseline justify-between gap-3 py-0.5">
-      <span className="text-[13px] text-slate-300">
+      <span className="text-[13px] text-(--ink-body)">
         {label}
         <Calibration pp={calibration} />
-        {sub && <span className="ml-1.5 text-[11px] text-slate-500">{sub}</span>}
+        {sub && <span className="ml-1.5 text-[11px] text-(--ink-muted)">{sub}</span>}
       </span>
-      <span className="text-[13px] font-medium tabular-nums text-slate-100">{value}</span>
+      <span className="text-[13px] font-medium tabular-nums text-(--ink-strong)">{value}</span>
     </div>
   );
 }
@@ -88,7 +88,7 @@ export default function ThinMarkets({
   return (
     <Panel>
       <SectionTitle right={`${liquidity.length} mercados`}>Mercados de menos liquidez</SectionTitle>
-      <p className="mb-3 text-[13px] leading-relaxed text-[#9aa1ac]">
+      <p className="mb-3 text-[13px] leading-relaxed text-(--ink-soft)">
         Estos no están tan bien calibrados como el 1X2 del partido, y varios los cotizan pocas
         casas. El «pp medido» de cada línea es cuánto se desvía de la realidad sobre{' '}
         {halves ? halves.calibrationMatches.toLocaleString('es') : '3.634'} partidos que el modelo
@@ -98,7 +98,7 @@ export default function ThinMarkets({
 
       {halves && (
         <div className="mb-3">
-          <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
+          <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
             Las dos mitades
           </h4>
           <Row
@@ -136,7 +136,7 @@ export default function ThinMarkets({
             value={pct(halves.awayWinsAHalf)}
             calibration={halves.calibration['visitante-gana-una-mitad']}
           />
-          <p className="mt-1 text-[12px] text-slate-500">
+          <p className="mt-1 text-[12px] text-(--ink-muted)">
             Goles esperados: {halves.expected.first.toFixed(2)} en la primera parte y{' '}
             {halves.expected.second.toFixed(2)} en la segunda. No se reparten a la mitad: cada
             parte tiene su propio modelo ajustado.
@@ -146,7 +146,7 @@ export default function ThinMarkets({
 
       {(corners || cards) && (
         <div className="mb-3">
-          <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
+          <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
             Córners y tarjetas
           </h4>
           {[corners, cards].map(
@@ -168,8 +168,8 @@ export default function ThinMarkets({
       )}
 
       {!corners && !cards && (
-        <p className="mb-3 text-[12px] leading-relaxed text-slate-500">
-          <span className="font-medium text-slate-400">Córners y tarjetas: sin datos.</span> El
+        <p className="mb-3 text-[12px] leading-relaxed text-(--ink-muted)">
+          <span className="font-medium text-(--ink-soft)">Córners y tarjetas: sin datos.</span> El
           modelo está montado y la ingesta los lee, pero la fuente que los publica
           (football-data.co.uk) no es alcanzable desde donde se generaron estos datos, y las que sí
           lo son solo traen marcadores. Se queda apagado en vez de inventarse una media de liga.
@@ -178,13 +178,13 @@ export default function ThinMarkets({
 
       {players.length > 0 && (
         <div className="mb-3">
-          <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
+          <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
             Props de jugador
           </h4>
           <div className="overflow-x-auto">
             <table className="w-full text-[12px] tabular-nums">
               <thead>
-                <tr className="text-[11px] uppercase tracking-wide text-slate-500">
+                <tr className="text-[11px] uppercase tracking-wide text-(--ink-muted)">
                   <th className="text-left font-medium">jugador</th>
                   <th className="text-right font-medium">min.</th>
                   <th className="text-right font-medium">no juega</th>
@@ -196,29 +196,29 @@ export default function ThinMarkets({
               <tbody>
                 {players.map((p) => (
                   <tr key={p.playerId}>
-                    <td className="py-0.5 text-slate-300">
+                    <td className="py-0.5 text-(--ink-body)">
                       {p.name}
-                      <span className="ml-1 text-[10px] text-slate-500">{p.position}</span>
+                      <span className="ml-1 text-[10px] text-(--ink-muted)">{p.position}</span>
                     </td>
-                    <td className="py-0.5 text-right text-slate-400">
+                    <td className="py-0.5 text-right text-(--ink-soft)">
                       {p.minutes.expected.toFixed(0)}
                     </td>
-                    <td className="py-0.5 text-right text-slate-400">
+                    <td className="py-0.5 text-right text-(--ink-soft)">
                       {pct(p.minutes.pDidNotPlay)}
                     </td>
-                    <td className="py-0.5 text-right text-slate-100">{pct(p.goals.atLeastOne)}</td>
-                    <td className="py-0.5 text-right font-medium text-slate-100">
+                    <td className="py-0.5 text-right text-(--ink-strong)">{pct(p.goals.atLeastOne)}</td>
+                    <td className="py-0.5 text-right font-medium text-(--ink-strong)">
                       {pct(p.goalOrAssist)}
                     </td>
-                    <td className="py-0.5 text-right text-slate-400">{pct(p.cards.atLeastOne)}</td>
+                    <td className="py-0.5 text-right text-(--ink-soft)">{pct(p.cards.atLeastOne)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="mt-1.5 text-[12px] leading-relaxed text-slate-500">
+          <p className="mt-1.5 text-[12px] leading-relaxed text-(--ink-muted)">
             Cada prop es minutos esperados × tasa por minuto, pero integrando la{' '}
-            <span className="text-slate-400">distribución</span> de minutos y no su media: la masa
+            <span className="text-(--ink-soft)">distribución</span> de minutos y no su media: la masa
             en «no juega» aporta cero, y aplastarla a un promedio infla todas las probabilidades.
             {players[0] && players[0].teamMatches < 5 && (
               <>
@@ -234,23 +234,23 @@ export default function ThinMarkets({
       )}
 
       <div className="mt-3 border-t border-slate-700/50 pt-2">
-        <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-slate-400">
+        <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
           Cuánta ventaja exigirle a cada uno
         </h4>
         <div className="flex flex-wrap gap-x-4 gap-y-0.5">
           {liquidity.map((l) => (
-            <span key={l.key} className="text-[12px] text-slate-400">
+            <span key={l.key} className="text-[12px] text-(--ink-soft)">
               {l.label}{' '}
-              <span className={DEPTH_STYLE[l.depth] ?? 'text-slate-400'}>
+              <span className={DEPTH_STYLE[l.depth] ?? 'text-(--ink-soft)'}>
                 {DEPTH_LABEL[l.depth]}
               </span>{' '}
-              <span className="tabular-nums text-slate-300">
+              <span className="tabular-nums text-(--ink-body)">
                 ≥{(l.minEdge * 100).toFixed(0)} pp
               </span>
             </span>
           ))}
         </div>
-        <p className="mt-1.5 text-[12px] leading-relaxed text-slate-500">
+        <p className="mt-1.5 text-[12px] leading-relaxed text-(--ink-muted)">
           El umbral del 1X2 son 4 pp. En un mercado con pocas casas el margen es del 12-18 % en vez
           del 4-5 %, así que exigir dos o tres veces más ventaja es, aproximadamente, exigir la
           misma ventaja neta. Cuántas casas cotizan cada mercado no se consulta: el proveedor lo

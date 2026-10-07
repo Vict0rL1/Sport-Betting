@@ -43,9 +43,9 @@
  * than plain white would. Colour marks WHO; ink states WHAT.
  */
 export const INK = {
-  primary: '#e8eaed',
-  secondary: '#9aa1ac',
-  muted: '#7b828d',
+  primary: 'var(--ink-strong)',
+  secondary: 'var(--ink-soft)',
+  muted: 'var(--ink-muted)',
 } as const;
 
 /**
@@ -59,15 +59,15 @@ export const INK = {
  */
 export const TEXT = {
   /** Headlines and the answer itself. */
-  strong: 'text-[#e8eaed]',
+  strong: 'text-(--ink-strong)',
   /** Body copy. */
-  body: 'text-[#c3c9d1]',
+  body: 'text-(--ink-body)',
   /** Secondary figures, hints under a value. */
-  soft: 'text-[#9aa1ac]',
+  soft: 'text-(--ink-soft)',
   /** Labels, captions, timestamps. */
-  muted: 'text-[#7b828d]',
+  muted: 'text-(--ink-muted)',
   /** Separators, "—" placeholders. Barely there on purpose. */
-  faint: 'text-[#5c636c]',
+  faint: 'text-(--ink-faint)',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -77,8 +77,8 @@ export const TEXT = {
 // which put a hue on every pixel and left the data colours competing with the
 // background instead of standing out of it. A near-neutral surface means the
 // only hue on screen belongs to the data.
-export const SURFACE_PAGE = '#0b0d11';
-export const SURFACE_CARD = '#14161b';
+export const SURFACE_PAGE = 'var(--surface-page)';
+export const SURFACE_CARD = 'var(--surface-card)';
 /** The surface the categorical palette was validated against. */
 export const SURFACE = SURFACE_CARD;
 

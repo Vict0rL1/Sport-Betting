@@ -16,3 +16,5 @@ export * from './states';
 export * from './picks';
 export * from './dashboard';
 export * from './slate';
+export * from './EnlacePartido';
+export * from './Termino';

@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
+import { rutaEquipo } from '../../rutas';
 import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../../lib/rutas';
 import {
   pillClass, SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader,
@@ -13,13 +15,11 @@ import {
   type BsbLeague,
   type BsbMeta,
   type BsbPowerTeam,
-  type BsbTeamInfo,
   type BsbTrackRecord,
 } from '../../lib/baseball';
 import GameCard from './GameCard';
 import EloRanking from '../EloRanking';
 import { formatDate, formatDateTime, dayChipLabel, groupByDay } from '../../lib/format';
-import { CrossIcon } from '../icons';
 
 /**
  * The whole baseball tab. Holds its own state and talks only to /api/baseball/*,
@@ -34,7 +34,9 @@ export default function BaseballDashboard() {
   const [power, setPower] = useState<BsbPowerTeam[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [team, setTeam] = useState<{ league: string; id: string } | null>(null);
+  const navigate = useNavigate();
+  // Un equipo abre su página (Fase 5.12): una URL, no un modal.
+  const setTeam = (t: { league: string; id: string }) => navigate(rutaEquipo('baseball', t.league, t.id));
   const [refreshing, setRefreshing] = useState(false);
   // null = every day, which is the default: someone who has not asked to filter
   // should see the whole schedule.
@@ -146,7 +148,7 @@ export default function BaseballDashboard() {
         }
         alert={staleLabel(stale)}
       >
-        <p className="max-w-prose text-[15px] leading-relaxed text-[#9aa1ac]">
+        <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
           Predicción con Elo por equipo, ventaja de campo, el <strong>lanzador abridor</strong>, el
           factor del estadio y una distribución de carreras que produce ganador, total y línea de una
           sola vez.
@@ -272,8 +274,6 @@ export default function BaseballDashboard() {
           </>
         }
       />
-
-      {team && <TeamProfile league={team.league} id={team.id} onClose={() => setTeam(null)} />}
     </div>
   );
 }
@@ -316,7 +316,7 @@ function originBadge(meta: BsbMeta): { text: string; className: string; title: s
   }
   return {
     text: 'origen sin registrar',
-    className: 'bg-white/[0.06] text-[#9aa1ac]',
+    className: 'bg-(--raised) text-(--ink-soft)',
     title:
       'Hay partidos en la base, pero nada anotó de dónde salieron. Ejecuta ' +
       'npm run update-data:bsb para dejarlo registrado.',
@@ -326,7 +326,7 @@ function originBadge(meta: BsbMeta): { text: string; className: string; title: s
 function DataLine({ meta }: { meta: BsbMeta }) {
   const origin = originBadge(meta);
   return (
-    <div className="mt-2 space-y-1 text-[14px] text-[#7b828d]">
+    <div className="mt-2 space-y-1 text-[14px] text-(--ink-muted)">
       <p>
         <span className={`rounded px-1.5 py-0.5 ${origin.className}`} title={origin.title}>
           {origin.text}
@@ -358,10 +358,10 @@ function TrackRecordPanel({ league }: { league: string }) {
   if (!rec || (rec.resolved === 0 && rec.pending === 0)) return null;
 
   return (
-    <div className="mt-3 rounded-xl border border-white/[0.07] bg-white/[0.02] p-3 text-[14px]">
+    <div className="mt-3 rounded-xl border border-(--line) bg-(--tint) p-3 text-[14px]">
       <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between">
-        <span className="text-[#c3c9d1]">
-          <span className="uppercase tracking-wide text-[#7b828d]">Cómo va acertando</span>{' '}
+        <span className="text-(--ink-body)">
+          <span className="uppercase tracking-wide text-(--ink-muted)">Cómo va acertando</span>{' '}
           {rec.resolved > 0 ? (
             <>
               — {rec.resolved} predicciones resueltas
@@ -372,10 +372,10 @@ function TrackRecordPanel({ league }: { league: string }) {
             <>— {rec.pending} pendientes de jugarse</>
           )}
         </span>
-        <span className="text-[#5c636c]">{open ? '▲' : '▼'}</span>
+        <span className="text-(--ink-faint)">{open ? '▲' : '▼'}</span>
       </button>
       {open && rec.resolved > 0 && (
-        <div className="mt-2 space-y-2 border-t border-white/[0.07] pt-2 text-[#c3c9d1]">
+        <div className="mt-2 space-y-2 border-t border-(--line) pt-2 text-(--ink-body)">
           {rec.totalMae != null && (
             <p>
               Error del total de carreras: {rec.totalMae.toFixed(2)}
@@ -386,7 +386,7 @@ function TrackRecordPanel({ league }: { league: string }) {
           )}
           {rec.byStarterKnown.length > 0 && (
             <div>
-              <div className="text-[#7b828d]">Según se supieran los abridores:</div>
+              <div className="text-(--ink-muted)">Según se supieran los abridores:</div>
               {rec.byStarterKnown.map((b) => (
                 <div key={String(b.known)} className="flex justify-between">
                   <span>{b.known ? 'anunciados' : 'estimados'} ({b.n})</span>
@@ -405,120 +405,11 @@ function TrackRecordPanel({ league }: { league: string }) {
               {rec.vsMarket.marketBrier?.toFixed(4) ?? '—'}
             </p>
           )}
-          <p className="text-[#7b828d]">
+          <p className="text-(--ink-muted)">
             Solo cuenta lo que la app dijo ANTES de cada partido y nunca se reescribe.
           </p>
         </div>
       )}
-    </div>
-  );
-}
-
-function TeamProfile({ league, id, onClose }: { league: string; id: string; onClose: () => void }) {
-  const [info, setInfo] = useState<BsbTeamInfo | null>(null);
-  useEffect(() => {
-    bsbApi.team(league, id).then(setInfo).catch(() => setInfo(null));
-  }, [league, id]);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="mt-8 w-full max-w-lg rounded-xl border border-white/[0.07] bg-[#14161b] p-4"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-3 flex items-start justify-between">
-          <h3 className="text-[20px] font-semibold text-[#e8eaed]">{info?.name ?? 'Cargando…'}</h3>
-          <button onClick={onClose} aria-label="Cerrar" className="grid h-8 w-8 place-items-center rounded-lg text-[#9aa1ac] transition hover:bg-white/[0.06] hover:text-[#e8eaed]"><CrossIcon size={18} /></button>
-        </div>
-        {!info ? (
-          <p className="text-[16px] text-[#7b828d]">Cargando ficha…</p>
-        ) : (
-          <div className="space-y-4 text-[16px]">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3 border-y border-white/[0.07] py-3 text-[14px]">
-              <Stat label="Elo" value={`${Math.round(info.elo)} (#${info.eloRank})`} />
-              <Stat label="Balance" value={`${info.record.wins}-${info.record.losses}`} />
-              <Stat label="En casa" value={`${info.homeRecord.wins}-${info.homeRecord.losses}`} />
-              <Stat label="Fuera" value={`${info.awayRecord.wins}-${info.awayRecord.losses}`} />
-              <Stat label="Carreras a favor / partido" value={info.rs ?? '—'} />
-              <Stat label="Carreras en contra / partido" value={info.ra ?? '—'} />
-              <Stat
-                label="Pitagórico"
-                value={info.pythagorean != null ? `${(info.pythagorean * 100).toFixed(1)}%` : '—'}
-                hint="Lo que sus carreras dicen que debería ser su balance. La diferencia con el real es la parte de suerte."
-              />
-              <Stat label="Partidos en el historial" value={info.gamesInDb} />
-            </div>
-
-            {info.rotation.length > 0 && (
-              <div>
-                <div className="mb-1 text-[14px] uppercase tracking-wide text-[#7b828d]">Rotación</div>
-                <table className="w-full text-left text-[14px] tabular-nums">
-                  <thead className="text-[#7b828d]">
-                    <tr>
-                      <th className="py-1 pr-2">Lanzador</th>
-                      <th className="py-1 pr-2 text-right">Aperturas</th>
-                      <th className="py-1 pr-2 text-right">C/apertura</th>
-                      <th className="py-1 text-right" title="Carreras permitidas frente a lo esperado; por debajo de 0% es mejor que la media">
-                        vs esperado
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {info.rotation.map((p) => (
-                      <tr key={p.id} className="border-t border-white/[0.07]">
-                        <td className="py-1 pr-2 text-[#d5d9df]">{p.name}</td>
-                        <td className="py-1 pr-2 text-right text-[#9aa1ac]">{p.starts}</td>
-                        <td className="py-1 pr-2 text-right text-[#9aa1ac]">{p.runsPer9 ?? '—'}</td>
-                        <td
-                          className="py-1 text-right"
-                          style={{ color: (p.rating ?? 1) <= 1 ? '#34d399' : '#fb7185' }}
-                        >
-                          {p.rating != null
-                            ? `${p.rating <= 1 ? '−' : '+'}${Math.abs(Math.round((p.rating - 1) * 100))}%`
-                            : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {info.form.length > 0 && (
-              <div>
-                <div className="mb-1 text-[14px] uppercase tracking-wide text-[#7b828d]">
-                  Últimos partidos
-                </div>
-                <ul className="space-y-1 text-[14px]">
-                  {info.form.map((f, i) => (
-                    <li key={i} className="flex justify-between text-[#c3c9d1]">
-                      <span className="text-[#7b828d]">{formatDate(f.date)}</span>
-                      <span>
-                        {f.home ? 'vs' : '@'} {f.opponentName ?? f.opponentId}{' '}
-                        <span className={f.result === 'W' ? 'text-emerald-400' : 'text-rose-400'}>
-                          {f.result} {f.runsFor}-{f.runsAgainst}
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Stat({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
-  return (
-    <div className="min-w-0" title={hint}>
-      <div className="text-[11px] uppercase tracking-wide text-[#7b828d]">{label}</div>
-      <div className="font-semibold text-[#e8eaed]">{value}</div>
     </div>
   );
 }

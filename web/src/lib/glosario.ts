@@ -1,0 +1,24 @@
+// El glosario (Fase 5.18): los términos que la app usa sin explicarlos cada vez.
+export interface Termino {
+  clave: string;
+  nombre: string;
+  corta: string;
+  larga: string;
+}
+
+export const GLOSARIO: Termino[] = [
+  { clave: 'clv', nombre: 'CLV (closing line value)', corta: 'Cuánto mejor que la cuota de cierre fue la que tomaste.', larga: 'La cuota de cierre es la última antes de empezar y es la más informada. Si apostaste a 2,10 y cerró a 1,95, tu CLV es positivo: pillaste precio antes de que el mercado se moviera. A la larga, un CLV positivo sostenido es la mejor señal de que no es suerte.' },
+  { clave: 'kelly', nombre: 'Kelly (fraccionado)', corta: 'Cuánto apostar según la ventaja y la cuota; aquí, un cuarto del Kelly completo.', larga: 'El criterio de Kelly maximiza el crecimiento del banco a largo plazo: fracción = (p·cuota − 1) / (cuota − 1). El Kelly completo es muy volátil y castiga cualquier error en la probabilidad, así que la política usa un cuarto (o un quinto) y además topes por partido, día y semana.' },
+  { clave: 'devig', nombre: 'De-vig (quitar el margen)', corta: 'Convertir cuotas en probabilidades descontando la comisión de la casa.', larga: 'Las probabilidades implícitas de una casa suman más de 1: ese exceso es su margen. Quitarlo (de-vig) deja la probabilidad «justa» del mercado. La app usa el método de Shin cuando hay cuotas de Pinnacle y el proporcional en el resto.' },
+  { clave: 'brier', nombre: 'Brier', corta: 'Error cuadrático medio de las probabilidades; 0 es perfecto, 0,25 es decir siempre 50/50.', larga: 'Para cada partido, (probabilidad dicha − lo que pasó)². Castiga tanto decir 90 % y fallar como decir 55 % cuando era obvio. La app lo calcula con la misma definición en los cinco deportes para que las cifras se puedan comparar.' },
+  { clave: 'ece', nombre: 'ECE (error de calibración)', corta: 'Cuánto se desvía lo dicho de lo ocurrido, por tramos de probabilidad.', larga: 'Se agrupan las predicciones en cubetas (50–60 %, 60–70 %…) y se compara la probabilidad media dicha con la frecuencia real de aciertos en cada una. El ECE es la media ponderada de esas diferencias: 2 pp significa que, de media, lo dicho se desvía dos puntos de lo que pasó.' },
+  { clave: 'logloss', nombre: 'Log loss', corta: 'Penaliza la confianza mal puesta: decir 99 % y fallar cuesta muchísimo.', larga: 'Menos el logaritmo de la probabilidad que se dio al resultado real, en media. Más bajo es mejor; 0,693 es no saber nada con dos resultados y 1,099 con tres. Es la métrica que manda en los experimentos porque mide la probabilidad, no solo el acierto.' },
+  { clave: 'abstencion', nombre: 'Abstención', corta: 'Cuando la capa de confianza decide NO apostar aunque haya ventaja.', larga: 'Datos pobres, predicción inestable, componentes en desacuerdo o mercado de mala calidad: cualquiera de esas cosas hace que la decisión sea «NO BET» aunque la probabilidad del modelo supere a la del mercado. Abstenerse es parte del modelo, no un fallo.' },
+  { clave: 'walkforward', nombre: 'Walk-forward', corta: 'Validar prediciendo cada periodo solo con lo anterior a él.', larga: 'El modelo se evalúa en orden cronológico: para cada tramo (temporada, mes) solo puede usar lo que ya había pasado. Así no se hace trampa mirando el futuro, y los baselines (el local gana, el mercado) se calculan igual para poder compararlos.' },
+  { clave: 'holdout', nombre: 'Holdout final', corta: 'Los partidos que nadie ha mirado (fútbol 2026+, NFL 2024+) hasta el examen final.', larga: 'Una porción del archivo apartada desde el principio. Ningún experimento la toca; promocionar un cambio exige medirlo ahí UNA vez. Mientras siga cerrado, todo lo nuevo se registra como experimento rechazado o como sombra.' },
+  { clave: 'elo', nombre: 'Elo', corta: 'Un rating que sube al ganar y baja al perder, más cuanto más sorprendente el resultado.', larga: 'La diferencia de Elo entre dos equipos se convierte en probabilidad con una curva logística; la ventaja de campo se suma al local. Cada deporte tiene su versión (margen en la NBA, abridores en la MLB, quarterback en la NFL, superficie en el tenis).' },
+  { clave: 'steam', nombre: 'Steam move', corta: 'Un movimiento rápido y sincronizado de las cuotas en varias casas.', larga: 'Cuando el consenso se mueve dos o más puntos de probabilidad en menos de una hora con varias casas a la vez, suele haber dinero informado detrás. La app lo señala como aproximación: ve precios, no volumen.' },
+  { clave: 'psi', nombre: 'PSI (índice de estabilidad)', corta: 'Cuánto cambia la distribución de probabilidades dichas respecto al backtest.', larga: 'Compara, por cubetas, lo que el modelo dice en vivo con lo que decía en el backtest. Por encima de 0,25 la distribución es otra y salta la alerta de deriva, siempre con al menos 100 predicciones.' },
+];
+
+export const terminoDe = (clave: string) => GLOSARIO.find((t) => t.clave === clave) ?? null;

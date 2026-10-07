@@ -40,15 +40,15 @@ export default function NotificacionesPanel() {
 
   return (
     <div className="mt-2">
-      <p className="mb-1.5 px-1 text-[11px] uppercase tracking-wide text-[#7b828d]">Notificaciones</p>
-      {lista === null && <p className="px-1 text-[#7b828d]">Cargando…</p>}
+      <p className="mb-1.5 px-1 text-[11px] uppercase tracking-wide text-(--ink-muted)">Notificaciones</p>
+      {lista === null && <p className="px-1 text-(--ink-muted)">Cargando…</p>}
       {lista && (
-        <ul className="divide-y divide-white/[0.05]">
+        <ul className="divide-y divide-(--line)">
           {lista.map((c) => (
             <li key={c.nombre} className="flex items-center gap-2 px-1 py-1.5">
               <div className="min-w-0 flex-1 leading-tight">
-                <div className="truncate text-[#c3c9d1]">{NOMBRES[c.nombre] ?? c.nombre}</div>
-                <div className="truncate text-[11px] text-[#7b828d]">
+                <div className="break-words text-(--ink-body)">{NOMBRES[c.nombre] ?? c.nombre}</div>
+                <div className="break-words text-[11px] text-(--ink-muted)">
                   {c.nombre === 'webpush'
                     ? push
                       ? 'activado en este navegador'
@@ -64,11 +64,11 @@ export default function NotificacionesPanel() {
                 </div>
               </div>
               {c.nombre === 'webpush' ? (
-                <button onClick={() => void alternarPush()} disabled={!pushDisponible() || !c.configurado} className="rounded-md px-2 py-1 text-[11px] text-[#9aa1ac] ring-1 ring-white/[0.1] hover:text-[#e8eaed] disabled:opacity-40">
+                <button onClick={() => void alternarPush()} disabled={!pushDisponible() || !c.configurado} className="rounded-md px-2 py-1 text-[11px] text-(--ink-soft) ring-1 ring-(--line) hover:text-(--ink-strong) disabled:opacity-40">
                   {push ? 'desactivar' : 'activar'}
                 </button>
               ) : (
-                <button onClick={() => void prueba(c.nombre)} disabled={!c.configurado} className="rounded-md px-2 py-1 text-[11px] text-[#9aa1ac] ring-1 ring-white/[0.1] hover:text-[#e8eaed] disabled:opacity-40">
+                <button onClick={() => void prueba(c.nombre)} disabled={!c.configurado} className="rounded-md px-2 py-1 text-[11px] text-(--ink-soft) ring-1 ring-(--line) hover:text-(--ink-strong) disabled:opacity-40">
                   probar
                 </button>
               )}
@@ -76,7 +76,7 @@ export default function NotificacionesPanel() {
           ))}
         </ul>
       )}
-      <p className="mt-1 px-1 text-[11px] text-[#5c636c]">Avisos: valor encontrado, línea movida, apuesta de papel hecha o liquidada, trabajo fallido, deriva. Se configuran en el .env (ver docs/NOTIFICACIONES.md).</p>
+      <p className="mt-1 px-1 text-[11px] text-(--ink-faint)">Avisos: valor encontrado, línea movida, apuesta de papel hecha o liquidada, trabajo fallido, deriva. Se configuran en el .env (ver docs/NOTIFICACIONES.md).</p>
     </div>
   );
 }

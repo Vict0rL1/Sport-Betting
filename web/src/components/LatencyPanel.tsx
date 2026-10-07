@@ -53,17 +53,17 @@ function StageRow({ s }: { s: StageReport }) {
   const empty = s.n === 0;
   return (
     <div className="grid grid-cols-[7rem_3rem_1fr_1fr] items-baseline gap-2 py-1 text-[13px] tabular-nums">
-      <span className="text-[#9aa1ac]">{s.stage}</span>
-      <span className="text-right text-[#5c636c]">{s.n}</span>
+      <span className="text-(--ink-soft)">{s.stage}</span>
+      <span className="text-right text-(--ink-faint)">{s.n}</span>
       {empty ? (
-        <span className="col-span-2 text-[#5c636c]">sin muestras — {WHY_EMPTY[s.stage] ?? ''}</span>
+        <span className="col-span-2 text-(--ink-faint)">sin muestras — {WHY_EMPTY[s.stage] ?? ''}</span>
       ) : (
         <>
-          <span className={s.overBudget ? 'text-amber-300' : 'text-[#e8eaed]'}>
+          <span className={s.overBudget ? 'text-amber-300' : 'text-(--ink-strong)'}>
             p95 {fmt(s.p95)}
             {s.overBudget && <span aria-hidden className="ml-1 inline-flex align-[-2px]"><AlertIcon size={13} /></span>}
           </span>
-          <span className="text-[#5c636c]">
+          <span className="text-(--ink-faint)">
             de {fmt(s.budgetMs)} · {s.owner}
           </span>
         </>
@@ -108,7 +108,7 @@ export default function LatencyPanel() {
     return (
       <Panel className="mb-4">
         <SectionTitle>Latencia del escáner</SectionTitle>
-        <p className="text-[13px] text-[#7b828d]">No se pudo leer /api/latency: {error}</p>
+        <p className="text-[13px] text-(--ink-muted)">No se pudo leer /api/latency: {error}</p>
       </Panel>
     );
   }
@@ -119,7 +119,7 @@ export default function LatencyPanel() {
   // el objetivo cuando lo que pasa es que no se ha medido.
   const mark = !total.complete ? '·' : alert.breached ? <AlertIcon size={15} /> : <CheckIcon size={15} strokeWidth={2.4} />;
   const markTone = !total.complete
-    ? 'text-[#7b828d]'
+    ? 'text-(--ink-muted)'
     : alert.breached
       ? 'text-amber-300'
       : 'text-emerald-300';
@@ -130,7 +130,7 @@ export default function LatencyPanel() {
         right={
           <button
             onClick={load}
-            className="text-[13px] text-[#7b828d] transition hover:text-[#e8eaed]"
+            className="text-[13px] text-(--ink-muted) transition hover:text-(--ink-strong)"
             title="Volver a leer las mediciones"
           >
             recargar
@@ -160,14 +160,14 @@ export default function LatencyPanel() {
         ))}
       </div>
 
-      <p className="mt-2 text-[13px] text-[#5c636c]">
+      <p className="mt-2 text-[13px] text-(--ink-faint)">
         Total p95 {fmt(total.p95Ms)} contra un objetivo de {fmt(target.totalMs)}
         {!total.complete && <> · incompleto: faltan {total.missing.join(', ')}</>}
       </p>
 
       <div className="mt-3">
         <Disclosure summary="Cómo se mide y por qué la suma sale pesimista">
-          <div className="space-y-2 text-[13px] leading-relaxed text-[#7b828d]">
+          <div className="space-y-2 text-[13px] leading-relaxed text-(--ink-muted)">
             <p>
               Sumar los p95 de cuatro etapas no da el p95 del total —solo sería cierto si
               se atascaran siempre a la vez— y sale pesimista. Se usa así a propósito:
@@ -175,12 +175,12 @@ export default function LatencyPanel() {
               correcto.
             </p>
             <p>
-              <strong className="text-[#9aa1ac]">Transporte: {transport.kind}.</strong>{' '}
+              <strong className="text-(--ink-soft)">Transporte: {transport.kind}.</strong>{' '}
               {transport.note}
             </p>
             {schedule && (
               <p>
-                <strong className="text-[#9aa1ac]">Sondeo adaptativo:</strong>{' '}
+                <strong className="text-(--ink-soft)">Sondeo adaptativo:</strong>{' '}
                 {schedule.explanation}
               </p>
             )}
@@ -199,20 +199,20 @@ export default function LatencyPanel() {
       </div>
 
       {/* ---- EL CANAL EN VIVO ---- */}
-      <div className="mt-3 border-t border-white/[0.07] pt-3">
+      <div className="mt-3 border-t border-(--line) pt-3">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-          <span className="text-[13px] text-[#7b828d]">
+          <span className="text-[13px] text-(--ink-muted)">
             En vivo · {report.push.subscribers} conectado(s)
           </span>
           {perm === 'sin-pedir' ? (
             <button
               onClick={() => void requestNotifications().then(() => setPerm(notificationState()))}
-              className="rounded-full px-2.5 py-1 text-[13px] text-[#9aa1ac] ring-1 ring-inset ring-white/[0.08] transition hover:bg-white/[0.05] hover:text-[#e8eaed]"
+              className="rounded-full px-2.5 py-1 text-[13px] text-(--ink-soft) ring-1 ring-inset ring-(--line) transition hover:bg-(--raised) hover:text-(--ink-strong)"
             >
               Avisarme cuando se mueva una línea
             </button>
           ) : (
-            <span className="text-[13px] text-[#5c636c]">
+            <span className="text-[13px] text-(--ink-faint)">
               {perm === 'concedido'
                 ? 'avisos del sistema activados'
                 : perm === 'denegado'
@@ -222,7 +222,7 @@ export default function LatencyPanel() {
           )}
         </div>
         {events.length === 0 ? (
-          <p className="text-[13px] text-[#5c636c]">
+          <p className="text-[13px] text-(--ink-faint)">
             Escuchando. Los cambios de precio aparecen aquí solos, sin pulsar nada — que es
             justo el motivo de que exista este canal: un refresco manual depende de que
             alguien mire, y eso no cabe en ningún objetivo de latencia.
@@ -231,11 +231,11 @@ export default function LatencyPanel() {
           <ul className="space-y-1">
             {events.map((e, i) => (
               <li key={`${e.at}-${i}`} className="text-[13px] leading-relaxed">
-                <span className="text-[#5c636c] tabular-nums">
+                <span className="text-(--ink-faint) tabular-nums">
                   {new Date(e.at).toLocaleTimeString('es')}
                 </span>{' '}
-                <span className="text-[#e8eaed]">{e.title}</span>{' '}
-                <span className="text-[#7b828d]">{e.body}</span>
+                <span className="text-(--ink-strong)">{e.title}</span>{' '}
+                <span className="text-(--ink-muted)">{e.body}</span>
               </li>
             ))}
           </ul>

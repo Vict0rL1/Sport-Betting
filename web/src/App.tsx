@@ -2,16 +2,8 @@
 // píldora de estado una sola vez, y «Hoy / Cómo le fue al modelo» solo en los deportes y en
 // Destacados. Cada pestaña sigue hablando solo con su trozo de la API.
 
-import { useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
-import TennisDashboard from './components/TennisDashboard';
-import BasketballDashboard from './components/basketball/BasketballDashboard';
-import FootballDashboard from './components/football/FootballDashboard';
-import BaseballDashboard from './components/baseball/BaseballDashboard';
-import NflDashboard from './components/nfl/NflDashboard';
-import BetsDashboard from './components/bets/BetsDashboard';
-import SystemTrust from './components/trust/SystemTrust';
-import TopPicks from './components/picks/TopPicks';
 import { SPORT_THEMES, type SportId } from './lib/theme';
 import TodayPanel from './components/TodayPanel';
 import { AppMark, SportIcon } from './components/icons';
@@ -21,9 +13,29 @@ import { estadoAuth, EVENTO_AUTH, instalarDetector401, type EstadoAuth } from '.
 import { DEPORTES, PESTANAS, RUTA_AJUSTES, RUTA_DE_PESTANA, pestanaDeRuta, recordarPestana, ultimaPestana } from './rutas';
 import StatusPill from './components/estado/StatusPill';
 import MobileNav from './components/nav/MobileNav';
-import Diagnostico from './pages/Diagnostico';
-import Ajustes from './pages/Ajustes';
 import NoEncontrada from './pages/NoEncontrada';
+import Buscador from './components/busqueda/Buscador';
+import Recorrido from './components/Recorrido';
+import { SeguimientoProvider } from './components/seguimiento';
+import { ultimaRed, useEnLinea } from './lib/sinConexion';
+
+// Cada pantalla en su propio trozo (Fase 5 / 7): la primera carga solo trae el armazón y la
+// pestaña que se abre.
+const TennisDashboard = lazy(() => import('./components/TennisDashboard'));
+const BasketballDashboard = lazy(() => import('./components/basketball/BasketballDashboard'));
+const FootballDashboard = lazy(() => import('./components/football/FootballDashboard'));
+const BaseballDashboard = lazy(() => import('./components/baseball/BaseballDashboard'));
+const NflDashboard = lazy(() => import('./components/nfl/NflDashboard'));
+const BetsDashboard = lazy(() => import('./components/bets/BetsDashboard'));
+const SystemTrust = lazy(() => import('./components/trust/SystemTrust'));
+const TopPicks = lazy(() => import('./components/picks/TopPicks'));
+const Diagnostico = lazy(() => import('./pages/Diagnostico'));
+const Ajustes = lazy(() => import('./pages/Ajustes'));
+const Glosario = lazy(() => import('./pages/Glosario'));
+const Partido = lazy(() => import('./pages/Partido'));
+const Equipo = lazy(() => import('./pages/Equipo'));
+const Jugador = lazy(() => import('./pages/Jugador'));
+const Liga = lazy(() => import('./pages/Liga'));
 import { I18nProvider, idiomaGuardado, useI18n } from './i18n';
 import { aplicarTema, temaGuardado, type Tema } from './lib/tema';
 
@@ -38,12 +50,15 @@ interface AjustesUsuario {
   deportesOcultos: string[];
   tema: Tema;
   idioma: 'es' | 'en';
+  recorridoVisto?: boolean;
 }
 
 export default function App() {
   return (
     <I18nProvider>
-      <Armazon />
+      <SeguimientoProvider>
+        <Armazon />
+      </SeguimientoProvider>
     </I18nProvider>
   );
 }
@@ -80,7 +95,7 @@ function Armazon() {
         if (j.ajustes.tema !== 'auto' || temaGuardado() === 'auto') aplicarTema(j.ajustes.tema);
         if (idiomaGuardado() == null || j.ajustes.idioma !== 'es') setIdioma(j.ajustes.idioma);
       })
-      .catch(() => vivo && setAjustes({ deportesOcultos: [], tema: 'auto', idioma: 'es' }));
+      .catch(() => vivo && setAjustes({ deportesOcultos: [], tema: 'auto', idioma: 'es', recorridoVisto: true }));
     return () => {
       vivo = false;
     };
@@ -135,8 +150,9 @@ function Armazon() {
               <p className="text-[12px] leading-snug text-(--ink-muted)">{t('app.lema')}</p>
             </div>
           </div>
-          <div className="px-4 pb-3">
+          <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
             <StatusPill />
+            <Buscador />
           </div>
           <SportNav pestana={pestana} ocultos={ocultos} vertical />
           <div className="mt-auto px-2 pb-3">
@@ -154,13 +170,18 @@ function Armazon() {
               <AppMark size={30} className="shrink-0" />
               <h1 className="text-[16px] font-semibold leading-tight text-(--ink-strong)">{t('app.nombre')}</h1>
             </div>
-            <StatusPill compacto />
+            <span className="flex items-center gap-2">
+              <Buscador />
+              <StatusPill compacto />
+            </span>
           </div>
           {pestana != null && DEPORTES.includes(pestana) && <SportNav pestana={pestana} ocultos={ocultos} soloDeportes />}
         </header>
 
         <main className={`mx-auto ${SHELL_WIDTH} px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 lg:pb-16`}>
+          <BannerSinConexion />
           {conHoy && <TodayPanel />}
+          <Suspense fallback={<p className="text-[13px] text-(--ink-muted)">{t('comun.cargando')}</p>}>
           <Routes>
             <Route path="/" element={<Navigate to={RUTA_DE_PESTANA[ultimaPestana()]} replace />} />
             <Route path="/destacados" element={<TopPicks />} />
@@ -173,8 +194,14 @@ function Armazon() {
             <Route path="/confianza" element={<SystemTrust />} />
             <Route path="/confianza/diagnostico" element={<Diagnostico />} />
             <Route path="/ajustes" element={<Ajustes />} />
+            <Route path="/glosario" element={<Glosario />} />
+            <Route path="/partido/:sport/:id" element={<Partido />} />
+            <Route path="/equipo/:sport/:league/:id" element={<Equipo />} />
+            <Route path="/jugador/:tour/:id" element={<Jugador />} />
+            <Route path="/liga/:sport/:league" element={<Liga />} />
             <Route path="*" element={<NoEncontrada />} />
           </Routes>
+          </Suspense>
         </main>
 
         <footer className={`mx-auto ${SHELL_WIDTH} px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-[max(2.5rem,env(safe-area-inset-bottom))]`}>
@@ -192,7 +219,22 @@ function Armazon() {
         </footer>
       </div>
       <MobileNav ocultos={ocultos} />
+      <Recorrido vistoEnServidor={ajustes ? (ajustes.recorridoVisto ?? false) : null} onVisto={() => void fetch('/api/ajustes', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ recorridoVisto: true }) }).catch(() => undefined)} />
     </div>
+  );
+}
+
+/** «Sin conexión: datos de HH:MM» (Fase 5.26). */
+function BannerSinConexion() {
+  const enLinea = useEnLinea();
+  const { t } = useI18n();
+  if (enLinea) return null;
+  const u = ultimaRed();
+  const hora = u ? new Date(u).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+  return (
+    <p role="status" aria-live="polite" data-testid="sin-conexion" className="mb-4 rounded-lg border border-[#c98500]/50 px-3 py-2 text-[13px] text-(--ink-body)">
+      {t('sinConexion', { hora })}
+    </p>
   );
 }
 
@@ -203,6 +245,7 @@ function EnlacesSecundarios({ pathname, enLinea = false }: { pathname: string; e
   const enlaces: [string, string][] = [
     [RUTA_AJUSTES, t('nav.ajustes')],
     ['/confianza/diagnostico', t('nav.diagnostico')],
+    ['/glosario', t('nav.glosario')],
   ];
   return (
     <span className={enLinea ? 'flex flex-wrap gap-x-3' : 'flex flex-col gap-0.5'}>

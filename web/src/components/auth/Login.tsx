@@ -40,16 +40,16 @@ export default function Login({ totp, onEntrar }: { totp: boolean; onEntrar: () 
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-[#0b0d11] px-4">
-      <form onSubmit={enviar} className="w-full max-w-sm rounded-2xl border border-white/[0.08] bg-[#14161b] p-6 shadow-2xl">
+    <div className="grid min-h-screen place-items-center bg-(--surface-page) px-4">
+      <form onSubmit={enviar} className="w-full max-w-sm rounded-2xl border border-(--line) bg-(--surface-card) p-6 shadow-2xl">
         <div className="mb-5 flex items-center gap-3">
           <AppMark size={36} />
           <div>
-            <h1 className="text-[17px] font-semibold leading-tight text-[#e8eaed]">Sports Predictor</h1>
-            <p className="text-[12.5px] text-[#7b828d]">Esta instalación pide contraseña.</p>
+            <h1 className="text-[17px] font-semibold leading-tight text-(--ink-strong)">Sports Predictor</h1>
+            <p className="text-[12.5px] text-(--ink-muted)">Esta instalación pide contraseña.</p>
           </div>
         </div>
-        <label className="block text-[12px] uppercase tracking-wide text-[#7b828d]" htmlFor="login-password">
+        <label className="block text-[12px] uppercase tracking-wide text-(--ink-muted)" htmlFor="login-password">
           Contraseña
         </label>
         <input
@@ -60,11 +60,11 @@ export default function Login({ totp, onEntrar }: { totp: boolean; onEntrar: () 
           required
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-white/10 bg-[#0b0d11] px-3 py-2 text-[15px] text-[#e8eaed] outline-none focus:border-[#3987e5]"
+          className="mt-1 w-full rounded-lg border border-(--line) bg-(--surface-page) px-3 py-2 text-[15px] text-(--ink-strong) outline-none focus:border-[#3987e5]"
         />
         {pideCodigo && (
           <>
-            <label className="mt-4 block text-[12px] uppercase tracking-wide text-[#7b828d]" htmlFor="login-codigo">
+            <label className="mt-4 block text-[12px] uppercase tracking-wide text-(--ink-muted)" htmlFor="login-codigo">
               Código de la app de autenticación
             </label>
             <input
@@ -75,7 +75,7 @@ export default function Login({ totp, onEntrar }: { totp: boolean; onEntrar: () 
               placeholder="123 456"
               value={codigo}
               onChange={(e) => setCodigo(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-white/10 bg-[#0b0d11] px-3 py-2 text-[15px] tabular-nums text-[#e8eaed] outline-none focus:border-[#3987e5]"
+              className="mt-1 w-full rounded-lg border border-(--line) bg-(--surface-page) px-3 py-2 text-[15px] tabular-nums text-(--ink-strong) outline-none focus:border-[#3987e5]"
             />
           </>
         )}
@@ -93,7 +93,7 @@ export default function Login({ totp, onEntrar }: { totp: boolean; onEntrar: () 
           <LockIcon size={16} />
           {enviando ? 'Entrando…' : 'Entrar'}
         </button>
-        <p className="mt-4 text-[12px] leading-relaxed text-[#7b828d]">
+        <p className="mt-4 text-[12px] leading-relaxed text-(--ink-muted)">
           La sesión dura 30 días y puedes cerrarla desde cualquier dispositivo en «Cuenta». Cinco intentos fallidos bloquean la dirección
           15 minutos.
         </p>

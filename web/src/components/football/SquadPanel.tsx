@@ -52,12 +52,12 @@ export default function SquadPanel({
 
   if (error) {
     return (
-      <p className="text-[13px] text-[#7b828d]">
+      <p className="text-[13px] text-(--ink-muted)">
         Sin datos de plantilla para {teamName}.
       </p>
     );
   }
-  if (!squad) return <p className="text-[13px] text-[#7b828d]">Cargando plantilla…</p>;
+  if (!squad) return <p className="text-[13px] text-(--ink-muted)">Cargando plantilla…</p>;
 
   const xi = squad.players.filter((p) => p.regular);
   const bench = squad.players.filter((p) => !p.regular && p.minutes > 0);
@@ -70,7 +70,7 @@ export default function SquadPanel({
   return (
     <div className="min-w-0 flex-1">
       <div className="mb-1.5 flex items-baseline justify-between gap-2">
-        <span className="truncate text-[14px] font-semibold" style={{ color }} title={teamName}>
+        <span className="break-words text-[14px] font-semibold" style={{ color }} title={teamName}>
           {teamName}
         </span>
         {availability && <Effect availability={availability} />}
@@ -89,7 +89,7 @@ export default function SquadPanel({
 
       {rest.length > 0 && (
         <>
-          <div className="mt-1.5 text-[11px] uppercase tracking-wide text-[#5c636c]">
+          <div className="mt-1.5 text-[11px] uppercase tracking-wide text-(--ink-faint)">
             Resto de la plantilla
           </div>
           <ul className="space-y-0.5 opacity-70">
@@ -102,7 +102,7 @@ export default function SquadPanel({
               />
             ))}
           </ul>
-          <p className="mt-1 text-[11px] text-[#5c636c]">
+          <p className="mt-1 text-[11px] text-(--ink-faint)">
             Marcar a un suplente no cambia el pronóstico: el modelo solo cuenta las bajas del once
             habitual.
           </p>
@@ -112,7 +112,7 @@ export default function SquadPanel({
       {bench.length > 0 && (
         <button
           onClick={() => setShowAll((s) => !s)}
-          className="mt-1 text-[13px] text-[#9aa1ac] hover:text-[#e8eaed]"
+          className="mt-1 text-[13px] text-(--ink-soft) hover:text-(--ink-strong)"
         >
           {showAll ? '▲ Solo el once' : `▼ Ver plantilla completa (${bench.length})`}
         </button>
@@ -133,8 +133,8 @@ function PlayerRow({
   return (
     <li>
       <label
-        className={`flex cursor-pointer items-center gap-1.5 rounded px-1 py-0.5 text-[13px] transition hover:bg-white/[0.06] ${
-          isOut ? 'text-rose-300' : 'text-[#c3c9d1]'
+        className={`flex cursor-pointer items-center gap-1.5 rounded px-1 py-0.5 text-[13px] transition hover:bg-(--raised) ${
+          isOut ? 'text-rose-300' : 'text-(--ink-body)'
         }`}
         title={player.flagReason ?? undefined}
       >
@@ -145,14 +145,14 @@ function PlayerRow({
           className="h-3 w-3 shrink-0 accent-rose-500"
           aria-label={`${player.name} no juega`}
         />
-        <span className="w-7 shrink-0 text-[11px] uppercase text-[#7b828d]">{player.position}</span>
-        <span className={`min-w-0 flex-1 truncate ${isOut ? 'line-through' : ''}`}>
+        <span className="w-7 shrink-0 text-[11px] uppercase text-(--ink-muted)">{player.position}</span>
+        <span className={`min-w-0 flex-1 break-words ${isOut ? 'line-through' : ''}`}>
           {player.name}
         </span>
         {player.flaggedOut && <span title={player.flagReason ?? 'baja'} className="inline-flex text-rose-400" aria-label="baja"><BanIcon size={14} strokeWidth={2.2} /></span>}
         {player.regular && player.attackShare > 0.005 && (
           <span
-            className="shrink-0 tabular-nums text-[#7b828d]"
+            className="shrink-0 tabular-nums text-(--ink-muted)"
             title="Parte del ataque del once que aporta este jugador"
           >
             {(player.attackShare * 100).toFixed(0)}%
@@ -165,7 +165,7 @@ function PlayerRow({
 
 function Effect({ availability }: { availability: FbAvailability }) {
   if (availability.out.length === 0) {
-    return <span className="shrink-0 text-[11px] text-[#7b828d]">sin bajas</span>;
+    return <span className="shrink-0 text-[11px] text-(--ink-muted)">sin bajas</span>;
   }
   const attack = Math.round((1 - availability.attack) * 100);
   const defence = Math.round((availability.defence - 1) * 100);

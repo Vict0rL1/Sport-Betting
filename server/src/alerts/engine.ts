@@ -21,6 +21,8 @@
 // cuarto de hora se deja de leer.
 
 import { getDb } from '../db.ts';
+import { seguido } from '../watchlist/index.ts';
+import { featureEncendida } from '../features.ts';
 
 export { ALERTS_SCHEMA } from './schema.ts';
 import { notificar, type TipoEvento } from '../notifications/index.ts';
@@ -63,7 +65,11 @@ export function emitirAlerta(
     );
     // Fuera de la app (Fase 3.6): las que vale la pena recibir sin estar mirando.
     const evento = EVENTO_POR_ALERTA[a.type];
-    if (evento) void notificar(evento, { titulo: a.title, cuerpo: a.body, url: a.sport ? `/?tab=${a.sport}` : '/' });
+    // Fase 5.14: la línea movida solo se notifica fuera de la app si el partido se sigue
+    // (o alguno de sus participantes). La alerta dentro de la app se guarda igual.
+    const seguirManda = a.type === 'mercado_movido' && featureEncendida('interfaz.seguimiento');
+    const participantes = Array.isArray((a.data as { participantes?: unknown } | undefined)?.participantes) ? ((a.data as { participantes: string[] }).participantes) : [];
+    if (evento && (!seguirManda || seguido(a.sport ?? '', a.matchKey ?? '', participantes))) void notificar(evento, { titulo: a.title, cuerpo: a.body, url: a.sport ? `/?tab=${a.sport}` : '/' });
     return true;
   } catch {
     return false;

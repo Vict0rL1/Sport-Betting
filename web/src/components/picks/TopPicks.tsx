@@ -11,7 +11,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AWAY_COLOR, DRAW_COLOR, HOME_COLOR, PROFIT_COLOR, LOSS_COLOR, SPORT_THEMES, type SportId } from '../../lib/theme';
 import { DeporteIcono, StarIcon, StatusMark, CrossIcon } from '../icons';
-import { TeamCrest } from '../ui';
+import { TeamCrest, EnlacePartido } from '../ui';
+import { ConfianzaBadge } from '../trust/ConfianzaBadge';
+import { EstrellaSeguir } from '../seguimiento';
 import { useFiltrosQuery } from '../../lib/rutas';
 
 interface Opcion {
@@ -23,6 +25,7 @@ interface Pick {
   deporte: string;
   sport: SportId;
   matchKey: string;
+  eventoId: string;
   liga: string | null;
   cuando: string;
   partido: string;
@@ -83,11 +86,6 @@ interface Respuesta {
 type Orden = 'confianza' | 'probabilidad' | 'ventaja' | 'hora';
 
 const AMBAR = '#d9a441';
-const NIVEL: Record<string, { color: string; fondo: string; texto: string }> = {
-  ALTA: { color: PROFIT_COLOR, fondo: 'rgba(25,158,112,0.14)', texto: 'Confianza alta' },
-  MEDIA: { color: AMBAR, fondo: 'rgba(217,164,65,0.14)', texto: 'Confianza media' },
-  BAJA: { color: '#e66767', fondo: 'rgba(230,103,103,0.12)', texto: 'Confianza baja' },
-};
 const RANGO: Record<string, number> = { ALTA: 0, MEDIA: 1, BAJA: 2 };
 
 const pct = (x: number, d = 0) => `${(x * 100).toFixed(d).replace('.', ',')} %`;
@@ -119,7 +117,7 @@ function Chip({ activo, onClick, children, title }: { activo: boolean; onClick: 
       title={title}
       aria-pressed={activo}
       className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1 text-[13px] ring-1 transition ${
-        activo ? 'bg-white/[0.10] text-[#e8eaed] ring-white/20' : 'text-[#9aa1ac] ring-white/[0.07] hover:bg-white/[0.04]'
+        activo ? 'bg-(--raised-2) text-(--ink-strong) ring-(--line-strong)' : 'text-(--ink-soft) ring-(--line) hover:bg-(--raised)'
       }`}
     >
       {children}
@@ -135,7 +133,7 @@ function Barra({ opciones, invertir = false }: { opciones: Opcion[]; invertir?: 
   const tramos = opciones.map((o, i) => ({ ...o, color: colores[i] }));
   if (invertir) tramos.reverse();
   return (
-    <div className="flex h-2 w-full overflow-hidden rounded-full bg-white/[0.05]" aria-hidden>
+    <div className="flex h-2 w-full overflow-hidden rounded-full bg-(--raised)" aria-hidden>
       {tramos.map((o) => (
         <span key={o.nombre} style={{ width: `${o.p * 100}%`, background: o.color, opacity: 0.85 }} />
       ))}
@@ -149,38 +147,31 @@ function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: number; el
     { nombre: p.fuera, id: p.fueraId, rol: 'visitante' },
   ];
   if (p.sport === 'nfl') lados.reverse();
-  const n = p.confianza ? NIVEL[p.confianza.nivel] : null;
   const fecha = new Date(p.cuando);
   const conValor = p.ventaja != null && p.ventaja > 0;
   return (
     <article
       className={`flex flex-col gap-3 rounded-xl border p-4 transition ${
-        elegido ? 'border-[#f5b544]/50 bg-[#f5b544]/[0.04]' : 'border-white/[0.08] bg-white/[0.02]'
+        elegido ? 'border-[#f5b544]/50 bg-[#f5b544]/[0.04]' : 'border-(--line) bg-(--tint)'
       }`}
     >
       {/* Cabecera: puesto, deporte, liga, hora y nivel de confianza */}
       <header className="flex items-center gap-2.5">
-        <span className="w-6 shrink-0 text-center text-[13px] font-semibold tabular-nums text-[#7b828d]">#{puesto}</span>
+        <span className="w-6 shrink-0 text-center text-[13px] font-semibold tabular-nums text-(--ink-muted)">#{puesto}</span>
         <DeporteIcono nombre={p.sport} size={28} tile />
         <div className="min-w-0 flex-1 leading-tight">
-          <div className="truncate text-[13px] text-[#c3c9d1]">
+          <div className="break-words text-[13px] text-(--ink-body)">
             {SPORT_THEMES[p.sport].label}
-            {p.liga && p.liga.toLowerCase() !== SPORT_THEMES[p.sport].label.toLowerCase() && <span className="text-[#7b828d]"> · {p.liga.toUpperCase()}</span>}
+            {p.liga && p.liga.toLowerCase() !== SPORT_THEMES[p.sport].label.toLowerCase() && <span className="text-(--ink-muted)"> · {p.liga.toUpperCase()}</span>}
           </div>
-          <div className="text-[12px] capitalize text-[#7b828d]">
+          <div className="text-[12px] capitalize text-(--ink-muted)">
             {fecha.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' })} ·{' '}
             {fecha.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
-        {n ? (
-          <span className="shrink-0 rounded-md px-2 py-0.5 text-[12px] font-semibold" style={{ color: n.color, background: n.fondo }} title={p.confianza?.motivo ?? undefined}>
-            {n.texto}
-          </span>
-        ) : (
-          <span className="shrink-0 rounded-md px-2 py-0.5 text-[12px] text-[#7b828d] ring-1 ring-white/10" title="La capa de confianza todavía no ha evaluado este partido (lo hace el ciclo pre-partido con el servidor arrancado).">
-            sin evaluar
-          </span>
-        )}
+        <span className="shrink-0">
+          <ConfianzaBadge nivel={p.confianza?.nivel ?? null} decision={p.confianza?.decision ?? null} motivo={p.confianza?.motivo} />
+        </span>
       </header>
 
       {/* Equipos y probabilidad del favorito */}
@@ -191,16 +182,16 @@ function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: number; el
             return (
               <div key={i} className="flex min-w-0 items-center gap-2">
                 <TeamCrest league={p.liga ?? ''} name={l.nombre} code={l.id} size={24} />
-                <span className={`min-w-0 break-words text-[15px] leading-snug ${fav ? 'font-semibold text-[#e8eaed]' : 'text-[#9aa1ac]'}`}>{l.nombre}</span>
-                {p.sport === 'nfl' && i === 0 && <span className="-ml-1 text-[12px] text-[#5c636c]">@</span>}
+                <span className={`min-w-0 break-words text-[15px] leading-snug ${fav ? 'font-semibold text-(--ink-strong)' : 'text-(--ink-soft)'}`}>{l.nombre}</span>
+                {p.sport === 'nfl' && i === 0 && <span className="-ml-1 text-[12px] text-(--ink-faint)">@</span>}
               </div>
             );
           })}
-          {p.favorito === 'Empate' && <span className="text-[13px] font-semibold text-[#e8eaed]">Favorito: el empate</span>}
+          {p.favorito === 'Empate' && <span className="text-[13px] font-semibold text-(--ink-strong)">Favorito: el empate</span>}
         </div>
         <div className="shrink-0 text-right">
-          <div className="text-[30px] font-semibold leading-none tabular-nums text-[#e8eaed]">{pct(p.probabilidad)}</div>
-          <div className="mt-1 max-w-[9rem] truncate text-[12px] text-[#9aa1ac]" title={p.favorito}>
+          <div className="text-[30px] font-semibold leading-none tabular-nums text-(--ink-strong)">{pct(p.probabilidad)}</div>
+          <div className="mt-1 break-words text-[12px] text-(--ink-soft)" title={p.favorito}>
             gana {p.favorito === 'Empate' ? 'nadie (empate)' : p.favorito}
           </div>
         </div>
@@ -210,38 +201,38 @@ function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: number; el
       {/* Lo que hace falta para no engañarse */}
       <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-[12.5px] sm:grid-cols-2">
         <div>
-          <dt className="text-[11px] uppercase tracking-wide text-[#7b828d]">Acierto histórico</dt>
-          <dd className="text-[#c3c9d1]">
+          <dt className="text-[11px] uppercase tracking-wide text-(--ink-muted)">Acierto histórico</dt>
+          <dd className="text-(--ink-body)">
             {p.historico ? (
               <>
-                <span className="font-semibold text-[#e8eaed]">{pct(p.historico.acierto)}</span> cuando dijo {p.historico.franja}{' '}
-                <span className="text-[#7b828d]">({p.historico.n.toLocaleString('es')} partidos)</span>
+                <span className="font-semibold text-(--ink-strong)">{pct(p.historico.acierto)}</span> cuando dijo {p.historico.franja}{' '}
+                <span className="text-(--ink-muted)">({p.historico.n.toLocaleString('es')} partidos)</span>
               </>
             ) : (
-              <span className="text-[#7b828d]">sin franja medida para esta probabilidad</span>
+              <span className="text-(--ink-muted)">sin franja medida para esta probabilidad</span>
             )}
           </dd>
         </div>
         <div>
-          <dt className="text-[11px] uppercase tracking-wide text-[#7b828d]">Cuota</dt>
-          <dd className="text-[#c3c9d1]">
+          <dt className="text-[11px] uppercase tracking-wide text-(--ink-muted)">Cuota</dt>
+          <dd className="text-(--ink-body)">
             {p.cuota ? (
               <>
-                <span className="font-semibold text-[#e8eaed]">{num(p.cuota)}</span> · justa {num(p.cuotaJusta)} ·{' '}
+                <span className="font-semibold text-(--ink-strong)">{num(p.cuota)}</span> · justa {num(p.cuotaJusta)} ·{' '}
                 <span style={{ color: conValor ? PROFIT_COLOR : LOSS_COLOR }}>
                   {p.ventaja! >= 0 ? '+' : '−'}
                   {pct(Math.abs(p.ventaja!), 1)} {conValor ? 'de valor' : 'sin valor'}
                 </span>
               </>
             ) : (
-              <span className="text-[#7b828d]">sin cuota real · justa {num(p.cuotaJusta)}</span>
+              <span className="text-(--ink-muted)">sin cuota real · justa {num(p.cuotaJusta)}</span>
             )}
           </dd>
         </div>
         {p.confianza && (
           <div className="sm:col-span-2">
-            <dt className="text-[11px] uppercase tracking-wide text-[#7b828d]">Por qué esa confianza</dt>
-            <dd className="text-[#9aa1ac]">
+            <dt className="text-[11px] uppercase tracking-wide text-(--ink-muted)">Por qué esa confianza</dt>
+            <dd className="text-(--ink-soft)">
               datos {p.confianza.calidadDatos}/100 · estabilidad {p.confianza.estabilidad.toLowerCase()} · incertidumbre ±{num(p.confianza.incertidumbrePp, 1)} pp
               {p.confianza.desacuerdo !== 'SIN COMPONENTES' && ` · desacuerdo ${p.confianza.desacuerdo.toLowerCase()}`}
               {p.confianza.decision === 'BET' ? (
@@ -250,7 +241,7 @@ function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: number; el
                   la capa de confianza lo apostaría
                 </span>
               ) : p.confianza.motivo ? (
-                <span className="block text-[#7b828d]">
+                <span className="block text-(--ink-muted)">
                   <StatusMark estado="aviso" color={AMBAR} size={13} />
                   no lo apostaría: {p.confianza.motivo}
                 </span>
@@ -260,11 +251,16 @@ function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: number; el
         )}
       </dl>
 
+      <div className="flex items-center justify-between gap-2">
+        <EnlacePartido sport={p.sport} id={p.eventoId} clave={p.matchKey} />
+        <EstrellaSeguir kind="partido" sport={p.sport} league={p.liga} refId={p.matchKey} label={p.partido} />
+      </div>
+
       <button
         onClick={onElegir}
         aria-pressed={elegido}
         className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-medium transition ${
-          elegido ? 'bg-[#f5b544]/15 text-[#f5b544] hover:bg-[#f5b544]/20' : 'bg-white/[0.05] text-[#c3c9d1] hover:bg-white/[0.08]'
+          elegido ? 'bg-[#f5b544]/15 text-[#f5b544] hover:bg-[#f5b544]/20' : 'bg-(--raised) text-(--ink-body) hover:bg-(--raised-2)'
         }`}
       >
         <StarIcon size={15} filled={elegido} />
@@ -305,7 +301,7 @@ function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quitar: (p:
   const comb = useCombinada(elegidos);
   if (elegidos.length === 0) {
     return (
-      <p className="text-[13px] leading-relaxed text-[#7b828d]">
+      <p className="text-[13px] leading-relaxed text-(--ink-muted)">
         Marca partidos con <StarIcon size={13} className="inline align-[-2px]" /> para juntarlos aquí: verás la probabilidad de acertarlos todos y
         la cuota combinada.
       </p>
@@ -321,23 +317,23 @@ function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quitar: (p:
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-lg bg-white/[0.04] p-2.5">
-          <div className="text-[11px] uppercase tracking-wide text-[#7b828d]">Acertar todos</div>
-          <div className="text-[22px] font-semibold tabular-nums text-[#e8eaed]">{pct(todos, todos < 0.1 ? 1 : 0)}</div>
+        <div className="rounded-lg bg-(--raised) p-2.5">
+          <div className="text-[11px] uppercase tracking-wide text-(--ink-muted)">Acertar todos</div>
+          <div className="text-[22px] font-semibold tabular-nums text-(--ink-strong)">{pct(todos, todos < 0.1 ? 1 : 0)}</div>
           {comb && comb.conjunta !== comb.independiente && comb.incompatibles.length === 0 && (
-            <div className="text-[11px] text-[#7b828d]">independientes: {pct(comb.independiente, comb.independiente < 0.1 ? 1 : 0)}</div>
+            <div className="text-[11px] text-(--ink-muted)">independientes: {pct(comb.independiente, comb.independiente < 0.1 ? 1 : 0)}</div>
           )}
         </div>
-        <div className="rounded-lg bg-white/[0.04] p-2.5">
-          <div className="text-[11px] uppercase tracking-wide text-[#7b828d]">Aciertos esperados</div>
-          <div className="text-[22px] font-semibold tabular-nums text-[#e8eaed]">
-            {num(esperados, 1)} <span className="text-[13px] font-normal text-[#7b828d]">de {elegidos.length}</span>
+        <div className="rounded-lg bg-(--raised) p-2.5">
+          <div className="text-[11px] uppercase tracking-wide text-(--ink-muted)">Aciertos esperados</div>
+          <div className="text-[22px] font-semibold tabular-nums text-(--ink-strong)">
+            {num(esperados, 1)} <span className="text-[13px] font-normal text-(--ink-muted)">de {elegidos.length}</span>
           </div>
         </div>
-        <div className="col-span-2 rounded-lg bg-white/[0.04] p-2.5 text-[13px] text-[#c3c9d1]">
+        <div className="col-span-2 rounded-lg bg-(--raised) p-2.5 text-[13px] text-(--ink-body)">
           {cuota ? (
             <>
-              Cuota combinada <span className="font-semibold text-[#e8eaed]">{num(cuota)}</span> · justa {todos > 0 ? num(1 / todos) : '—'} ·{' '}
+              Cuota combinada <span className="font-semibold text-(--ink-strong)">{num(cuota)}</span> · justa {todos > 0 ? num(1 / todos) : '—'} ·{' '}
               <span style={{ color: (ventaja ?? 0) > 0 ? PROFIT_COLOR : LOSS_COLOR }}>
                 {(ventaja ?? 0) >= 0 ? '+' : '−'}
                 {pct(Math.abs(ventaja ?? 0), 1)}
@@ -348,21 +344,21 @@ function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quitar: (p:
           )}
         </div>
       </div>
-      <ul className="divide-y divide-white/[0.05] rounded-lg ring-1 ring-white/[0.06]">
+      <ul className="divide-y divide-(--line) rounded-lg ring-1 ring-(--line)">
         {elegidos.map((p) => (
           <li key={clave(p)} className="flex items-center gap-2 px-2.5 py-2 text-[13px]">
             <DeporteIcono nombre={p.sport} size={15} />
-            <span className="min-w-0 flex-1 truncate text-[#c3c9d1]" title={p.partido}>
+            <span className="min-w-0 flex-1 break-words text-(--ink-body)" title={p.partido}>
               {p.favorito}
             </span>
-            <span className="tabular-nums text-[#e8eaed]">{pct(p.probabilidad)}</span>
-            <button onClick={() => quitar(p)} aria-label={`Quitar ${p.favorito}`} className="grid h-6 w-6 place-items-center rounded text-[#7b828d] hover:bg-white/[0.06] hover:text-[#e8eaed]">
+            <span className="tabular-nums text-(--ink-strong)">{pct(p.probabilidad)}</span>
+            <button onClick={() => quitar(p)} aria-label={`Quitar ${p.favorito}`} className="grid h-6 w-6 place-items-center rounded text-(--ink-muted) hover:bg-(--raised) hover:text-(--ink-strong)">
               <CrossIcon size={14} />
             </button>
           </li>
         ))}
       </ul>
-      <button onClick={vaciar} className="text-[12px] text-[#7b828d] underline-offset-2 hover:text-[#c3c9d1] hover:underline">
+      <button onClick={vaciar} className="text-[12px] text-(--ink-muted) underline-offset-2 hover:text-(--ink-body) hover:underline">
         Vaciar selección
       </button>
       {comb && comb.incompatibles.length > 0 && (
@@ -371,12 +367,12 @@ function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quitar: (p:
         </p>
       )}
       {comb && comb.vinculos.length > 0 && comb.incompatibles.length === 0 && (
-        <p className="text-[11.5px] leading-relaxed text-[#7b828d]">
+        <p className="text-[11.5px] leading-relaxed text-(--ink-muted)">
           Correlación descontada en {comb.vinculos.length} par(es): {comb.vinculos.slice(0, 2).map((v) => `${v.a} / ${v.b} (ρ ${v.rho.toFixed(3).replace('.', ',')})`).join('; ')}
           {comb.vinculos.length > 2 ? '…' : ''}.
         </p>
       )}
-      <p className="text-[11.5px] leading-relaxed text-[#7b828d]">
+      <p className="text-[11.5px] leading-relaxed text-(--ink-muted)">
         {comb
           ? comb.etiqueta
           : '«Acertar todos» multiplica las probabilidades, como si los partidos fueran independientes.'}{' '}
@@ -401,8 +397,8 @@ function Mercado() {
   }, []);
   if (d === 'error') return null;
   return (
-    <div className="mt-3 rounded-xl border border-white/[0.06] p-4 text-[12px] leading-relaxed text-[#7b828d]">
-      <p className="mb-1.5 font-medium text-[#9aa1ac]">Mercado (aproximación)</p>
+    <div className="mt-3 rounded-xl border border-(--line) p-4 text-[12px] leading-relaxed text-(--ink-muted)">
+      <p className="mb-1.5 font-medium text-(--ink-soft)">Mercado (aproximación)</p>
       {!d && <p>Leyendo los precios observados…</p>}
       {d && d.eventos === 0 && <p>Sin cuotas observadas en las últimas {d.ventanaHoras} h: no hay nada que leer del mercado.</p>}
       {d && d.eventos > 0 && (
@@ -426,7 +422,7 @@ function Mercado() {
               {r.partido} frente a {r.casa}: {r.selecciones.map((s) => `${s.seleccion} ${s.desviacionPp > 0 ? '+' : '−'}${Math.abs(s.desviacionPp).toFixed(1).replace('.', ',')} pp`).join(' · ')}
             </p>
           ))}
-          <p className="mt-1 text-[#5c636c]">{d.etiqueta}</p>
+          <p className="mt-1 text-(--ink-faint)">{d.etiqueta}</p>
         </>
       )}
     </div>
@@ -512,23 +508,23 @@ export default function TopPicks() {
           <StarIcon size={22} />
         </span>
         <div>
-          <h2 className="text-[20px] font-semibold leading-tight text-[#e8eaed]">Destacados</h2>
-          <p className="text-[13.5px] leading-snug text-[#9aa1ac]">
+          <h2 className="text-[20px] font-semibold leading-tight text-(--ink-strong)">Destacados</h2>
+          <p className="text-[13.5px] leading-snug text-(--ink-soft)">
             Los partidos que vienen, de todos los deportes, ordenados por confianza y probabilidad del favorito.
           </p>
         </div>
       </header>
 
       {/* Controles */}
-      <div className="mb-4 space-y-2.5 rounded-xl border border-white/[0.08] bg-white/[0.02] p-3">
+      <div className="mb-4 space-y-2.5 rounded-xl border border-(--line) bg-(--tint) p-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-[12px] uppercase tracking-wide text-[#7b828d]">Próximas</span>
+          <span className="mr-1 text-[12px] uppercase tracking-wide text-(--ink-muted)">Próximas</span>
           {(datos?.horizontes ?? [24, 48, 168]).map((h) => (
             <Chip key={h} activo={horas === h} onClick={() => setHoras(h)}>
               {h === 168 ? '7 días' : `${h} h`}
             </Chip>
           ))}
-          <span className="ml-2 mr-1 text-[12px] uppercase tracking-wide text-[#7b828d]">Ordenar</span>
+          <span className="ml-2 mr-1 text-[12px] uppercase tracking-wide text-(--ink-muted)">Ordenar</span>
           {(
             [
               ['confianza', 'Confianza + probabilidad'],
@@ -549,7 +545,7 @@ export default function TopPicks() {
               {SPORT_THEMES[s].label}
             </Chip>
           ))}
-          <span className="mx-1 h-4 w-px bg-white/10" aria-hidden />
+          <span className="mx-1 h-4 w-px bg-(--raised-2)" aria-hidden />
           {[0, 0.6, 0.7, 0.8].map((m) => (
             <Chip key={m} activo={minP === m} onClick={() => setMinP(m)}>
               {m === 0 ? 'Cualquier %' : `≥ ${m * 100} %`}
@@ -566,10 +562,10 @@ export default function TopPicks() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
         <div className={cargando ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
-          {error && !datos && <p className="text-[14px] text-[#9aa1ac]">No se pudo cargar la lista.</p>}
-          {!datos && !error && <p className="text-[14px] text-[#9aa1ac]">Cargando partidos…</p>}
+          {error && !datos && <p className="text-[14px] text-(--ink-soft)">No se pudo cargar la lista.</p>}
+          {!datos && !error && <p className="text-[14px] text-(--ink-soft)">Cargando partidos…</p>}
           {datos && lista.length === 0 && (
-            <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5 text-[14px] leading-relaxed text-[#9aa1ac]">
+            <div className="rounded-xl border border-(--line) bg-(--tint) p-5 text-[14px] leading-relaxed text-(--ink-soft)">
               {datos.partidos.length === 0 ? (
                 <>
                   No hay partidos reales con predicción en las próximas {horas === 168 ? '7 días' : `${horas} h`}.
@@ -587,7 +583,7 @@ export default function TopPicks() {
             ))}
           </div>
           {datos && (datos.sinPrediccion > 0 || datos.demo > 0) && lista.length > 0 && (
-            <p className="mt-3 text-[12px] text-[#7b828d]">
+            <p className="mt-3 text-[12px] text-(--ink-muted)">
               {datos.sinPrediccion > 0 && `${datos.sinPrediccion} partido(s) aún sin predicción registrada. `}
               {datos.demo > 0 && `${datos.demo} de demostración no se incluyen.`}
             </p>
@@ -595,24 +591,24 @@ export default function TopPicks() {
         </div>
 
         <aside id="mi-seleccion" className="scroll-mt-24 lg:sticky lg:top-4 lg:self-start">
-          <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-4">
-            <h3 className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-[#e8eaed]">
+          <div className="rounded-xl border border-(--line) bg-(--tint) p-4">
+            <h3 className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-(--ink-strong)">
               <span style={{ color: '#f5b544' }}>
                 <StarIcon size={17} filled />
               </span>
               Mi selección
-              {elegidos.length > 0 && <span className="text-[13px] font-normal text-[#7b828d]">· {elegidos.length}</span>}
+              {elegidos.length > 0 && <span className="text-[13px] font-normal text-(--ink-muted)">· {elegidos.length}</span>}
             </h3>
             <Seleccion elegidos={elegidos} quitar={alternar} vaciar={vaciar} />
           </div>
-          <div className="mt-3 rounded-xl border border-white/[0.06] p-4 text-[12px] leading-relaxed text-[#7b828d]">
-            <p className="mb-1.5 font-medium text-[#9aa1ac]">Cómo leer la lista</p>
+          <div className="mt-3 rounded-xl border border-(--line) p-4 text-[12px] leading-relaxed text-(--ink-muted)">
+            <p className="mb-1.5 font-medium text-(--ink-soft)">Cómo leer la lista</p>
             <p>
-              El orden pone primero la <strong className="font-medium text-[#9aa1ac]">confianza</strong> (datos completos, predicción estable,
-              componentes de acuerdo) y después la <strong className="font-medium text-[#9aa1ac]">probabilidad</strong>.{' '}
-              <strong className="font-medium text-[#9aa1ac]">Acierto histórico</strong> es lo que acertó el modelo en el backtest cuando dio una
+              El orden pone primero la <strong className="font-medium text-(--ink-soft)">confianza</strong> (datos completos, predicción estable,
+              componentes de acuerdo) y después la <strong className="font-medium text-(--ink-soft)">probabilidad</strong>.{' '}
+              <strong className="font-medium text-(--ink-soft)">Acierto histórico</strong> es lo que acertó el modelo en el backtest cuando dio una
               probabilidad de esa franja. Más probable no es mejor apuesta: si la cuota ofrecida está por debajo de la{' '}
-              <strong className="font-medium text-[#9aa1ac]">justa</strong> (1/p), a la larga pierde aunque gane a menudo. Es una estimación
+              <strong className="font-medium text-(--ink-soft)">justa</strong> (1/p), a la larga pierde aunque gane a menudo. Es una estimación
               estadística, no una recomendación.
             </p>
           </div>
@@ -625,14 +621,14 @@ export default function TopPicks() {
       {elegidos.length > 0 && (
         <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-30 border-t border-(--line) bg-(--surface-card)/95 px-4 pb-3 pt-3 backdrop-blur lg:hidden">
           <a href="#mi-seleccion" className="flex items-center justify-between gap-3 text-[14px]">
-            <span className="flex items-center gap-2 text-[#e8eaed]">
+            <span className="flex items-center gap-2 text-(--ink-strong)">
               <span style={{ color: '#f5b544' }}>
                 <StarIcon size={17} filled />
               </span>
               {elegidos.length} en mi selección
             </span>
-            <span className="text-[#9aa1ac]">
-              acertar todos <span className="font-semibold text-[#e8eaed]">{pct(elegidos.reduce((a, p) => a * p.probabilidad, 1))}</span> ›
+            <span className="text-(--ink-soft)">
+              acertar todos <span className="font-semibold text-(--ink-strong)">{pct(elegidos.reduce((a, p) => a * p.probabilidad, 1))}</span> ›
             </span>
           </a>
         </div>

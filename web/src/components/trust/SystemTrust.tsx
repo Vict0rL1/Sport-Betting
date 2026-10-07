@@ -3,6 +3,7 @@
 // compañía); las dos listas se generan con reglas a partir de las muestras reales.
 
 import { useEffect, useState } from 'react';
+import LiveEvaluation from '../bets/LiveEvaluation';
 import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { DeporteIcono, ShieldCheckIcon, StatusMark } from '../icons';
 
@@ -46,9 +47,9 @@ const AMBAR = '#d9a441';
 
 function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
-    <section className="mb-4 rounded-xl border border-white/[0.09] bg-white/[0.02] px-4 py-3">
-      <h3 className="mb-2 text-[15px] font-semibold text-[#e8eaed]">{titulo}</h3>
-      <div className="text-[13px] leading-relaxed text-[#9aa1ac]">{children}</div>
+    <section className="mb-4 rounded-xl border border-(--line) bg-(--tint) px-4 py-3">
+      <h3 className="mb-2 text-[15px] font-semibold text-(--ink-strong)">{titulo}</h3>
+      <div className="text-[13px] leading-relaxed text-(--ink-soft)">{children}</div>
     </section>
   );
 }
@@ -69,19 +70,19 @@ function Reproducir() {
           value={id}
           onChange={(e) => setId(e.target.value)}
           placeholder="apuesta:12 · senal:5 · evaluacion:3 · nfl:<clave>"
-          className="min-w-0 flex-1 rounded border border-white/[0.1] bg-transparent px-2 py-1 text-[13px] text-[#e8eaed]"
+          className="min-w-0 flex-1 rounded border border-(--line) bg-transparent px-2 py-1 text-[13px] text-(--ink-strong)"
         />
-        <button className="rounded border border-white/[0.15] px-3 py-1 text-[13px] text-[#c3c9d1]">Reproducir</button>
+        <button className="rounded border border-(--line-strong) px-3 py-1 text-[13px] text-(--ink-body)">Reproducir</button>
       </form>
       {r && (
         <div className="mt-2">
           {r.campos.map(([k, v]) => (
-            <p key={k}><span className="text-[#c3c9d1]">{k}:</span> {v}</p>
+            <p key={k}><span className="text-(--ink-body)">{k}:</span> {v}</p>
           ))}
           {r.avisos.map((a) => <p key={a} style={{ color: AMBAR }}><StatusMark estado="aviso" color={AMBAR} />{a}</p>)}
         </div>
       )}
-      <p className="mt-1 text-[12px] text-[#5c636c]">Devuelve lo que se guardó en su momento; no recalcula nada con los datos de hoy. También en terminal: npm run reproduce -- &lt;id&gt;.</p>
+      <p className="mt-1 text-[12px] text-(--ink-faint)">Devuelve lo que se guardó en su momento; no recalcula nada con los datos de hoy. También en terminal: npm run reproduce -- &lt;id&gt;.</p>
     </div>
   );
 }
@@ -131,7 +132,7 @@ function ModelosSombra() {
           </p>
         ) : null,
       )}
-      <p className="text-[12px] text-[#5c636c]">Ninguna sombra apuesta ni se promociona sola: cambiar de modelo exige un experimento registrado.</p>
+      <p className="text-[12px] text-(--ink-faint)">Ninguna sombra apuesta ni se promociona sola: cambiar de modelo exige un experimento registrado.</p>
     </>
   );
 }
@@ -147,14 +148,14 @@ function HistoriaVersiones() {
     <>
       {Object.entries(d.historial).map(([sport, vs]) => (
         <details key={sport} className="mb-1">
-          <summary className="cursor-pointer text-[#c3c9d1]">
+          <summary className="cursor-pointer text-(--ink-body)">
             {NOMBRE[sport]}: {vs.length} versiones · activa {vs[vs.length - 1]?.version}
           </summary>
           <ul className="ml-3 mt-1">
             {[...vs].reverse().map((v, i) => (
               <li key={v.version}>
-                v{vs.length - i} <span className="text-[#c3c9d1]">{v.version}</span> · {v.activada.slice(0, 10)} → {v.desactivada ? v.desactivada.slice(0, 10) : 'activa'} · {v.git_commit} — {v.motivo}
-                <span className="text-[#5c636c]"> ({v.metricas})</span>
+                v{vs.length - i} <span className="text-(--ink-body)">{v.version}</span> · {v.activada.slice(0, 10)} → {v.desactivada ? v.desactivada.slice(0, 10) : 'activa'} · {v.git_commit} — {v.motivo}
+                <span className="text-(--ink-faint)"> ({v.metricas})</span>
               </li>
             ))}
           </ul>
@@ -179,12 +180,12 @@ function Rechazados() {
       <ul className="mt-1 space-y-1">
         {d.rechazados.slice(0, 12).map((x) => (
           <li key={x.id}>
-            <span className="text-[#5c636c]">{x.date.slice(0, 10)}</span> <span className="text-[#c3c9d1]">{x.hypothesis}</span>
+            <span className="text-(--ink-faint)">{x.date.slice(0, 10)}</span> <span className="text-(--ink-body)">{x.hypothesis}</span>
             <span className="block text-[12px]">Rechazado. Motivo: {x.motivo}</span>
           </li>
         ))}
       </ul>
-      {d.rechazados.length > 12 && <p className="text-[12px] text-[#5c636c]">…y {d.rechazados.length - 12} más (npm run experiments).</p>}
+      {d.rechazados.length > 12 && <p className="text-[12px] text-(--ink-faint)">…y {d.rechazados.length - 12} más (npm run experiments).</p>}
     </>
   );
 }
@@ -203,8 +204,8 @@ export default function SystemTrust() {
       vivo = false;
     };
   }, []);
-  if (error) return <p className="text-[14px] text-[#9aa1ac]">No se pudo leer el estado del sistema.</p>;
-  if (!s) return <p className="text-[14px] text-[#7b828d]">Cargando…</p>;
+  if (error) return <p className="text-[14px] text-(--ink-soft)">No se pudo leer el estado del sistema.</p>;
+  if (!s) return <p className="text-[14px] text-(--ink-muted)">Cargando…</p>;
   const tiles: [string, string][] = [
     ['Predicciones en vivo', `${s.prediccionesEnVivo} (${s.resueltas} con resultado)`],
     ['Apuestas de papel', `${s.apuestasEnVivo} (${s.liquidadas} liquidadas)`],
@@ -215,20 +216,20 @@ export default function SystemTrust() {
   ];
   return (
     <div>
-      <h2 className="mb-1 flex items-center gap-2.5 text-[20px] font-semibold text-[#e8eaed]">
+      <h2 className="mb-1 flex items-center gap-2.5 text-[20px] font-semibold text-(--ink-strong)">
           <span className="grid h-9 w-9 place-items-center rounded-xl" style={{ color: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.12)' }}>
             <ShieldCheckIcon size={21} />
           </span>
           ¿Podemos confiar en el modelo?
         </h2>
-      <p className="mb-4 text-[13px] text-[#7b828d]">
+      <p className="mb-4 text-[13px] text-(--ink-muted)">
         Lo que está demostrado, lo que todavía no, y las cifras detrás. Las listas se generan con reglas sobre las muestras reales: cambian solas cuando hay más datos.
       </p>
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {tiles.map(([k, v]) => (
-          <div key={k} className="rounded-lg border border-white/[0.08] px-3 py-2">
-            <p className="text-[11px] uppercase tracking-wide text-[#7b828d]">{k}</p>
-            <p className="text-[16px] font-semibold text-[#e8eaed]">{v}</p>
+          <div key={k} className="rounded-lg border border-(--line) px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-(--ink-muted)">{k}</p>
+            <p className="text-[16px] font-semibold text-(--ink-strong)">{v}</p>
           </div>
         ))}
       </div>
@@ -242,16 +243,16 @@ export default function SystemTrust() {
         <div className="overflow-x-auto">
           <table className="w-full whitespace-nowrap text-[12px] sm:text-[13px]">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wide text-[#7b828d]">
+              <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
                 <th className="py-1 pr-2">Deporte</th><th className="py-1 pr-2 text-right">Partidos</th><th className="py-1 pr-2 text-right">Modelo</th><th className="py-1 pr-2">Mejor baseline</th><th className="py-1 text-right">Mercado</th>
               </tr>
             </thead>
             <tbody>
               {s.benchmark.map((b) => (
-                <tr key={b.deporte} className="border-t border-white/[0.05]">
-                  <td className="py-1 pr-2 text-[#c3c9d1]">{NOMBRE[b.deporte]}</td>
+                <tr key={b.deporte} className="border-t border-(--line)">
+                  <td className="py-1 pr-2 text-(--ink-body)">{NOMBRE[b.deporte]}</td>
                   <td className="py-1 pr-2 text-right">{b.partidos || '—'}</td>
-                  <td className="py-1 pr-2 text-right text-[#e8eaed]">{f3(b.modelo)}</td>
+                  <td className="py-1 pr-2 text-right text-(--ink-strong)">{f3(b.modelo)}</td>
                   <td className="py-1 pr-2">{b.mejorBaseline ? `${b.mejorBaseline.nombre} ${f3(b.mejorBaseline.logLoss)}` : '—'}</td>
                   <td className="py-1 text-right" style={{ color: b.mercado != null && b.modelo != null && b.mercado < b.modelo ? LOSS_COLOR : undefined }}>
                     {b.mercado == null ? 'sin cuotas' : `${f3(b.mercado)}${b.modelo != null && b.mercado < b.modelo ? ' (mejor)' : ''}`}
@@ -261,8 +262,12 @@ export default function SystemTrust() {
             </tbody>
           </table>
         </div>
-        <p className="mt-1 text-[12px] text-[#5c636c]">Log loss, más bajo es mejor. Todos los periodos, sin elegir; el holdout final no entra. Detalle: npm run benchmark:report.</p>
+        <p className="mt-1 text-[12px] text-(--ink-faint)">Log loss, más bajo es mejor. Todos los periodos, sin elegir; el holdout final no entra. Detalle: npm run benchmark:report.</p>
       </Bloque>
+      {/* El modelo en vivo (antes en Apuestas, Fase 5.6): es evaluación del modelo, no dinero. */}
+      <div className="mb-4">
+        <LiveEvaluation />
+      </div>
       <Bloque titulo="En vivo, por deporte">
         {s.brier.map((b) => (
           <p key={b.deporte}>
@@ -277,13 +282,13 @@ export default function SystemTrust() {
           {riesgo.grupos.map((g) => (
             <p key={g.grupo} style={{ color: g.excede ? LOSS_COLOR : undefined }}>{g.grupo}: {g.apuestas} apuestas, {pct(g.pct)} (tope {pct(g.limite)})</p>
           ))}
-          <p className="text-[12px] text-[#5c636c]">{riesgo.nota}</p>
+          <p className="text-[12px] text-(--ink-faint)">{riesgo.nota}</p>
         </Bloque>
       )}
       <Bloque titulo="Alertas recientes">
         {alertas.length === 0 ? <p>Ninguna todavía.</p> : alertas.map((a) => (
           <p key={a.id}>
-            <span className="text-[#5c636c]">{new Date(a.created_at).toLocaleString('es')}</span>{' '}
+            <span className="text-(--ink-faint)">{new Date(a.created_at).toLocaleString('es')}</span>{' '}
             <span style={{ color: a.severity === 'importante' ? LOSS_COLOR : a.severity === 'aviso' ? AMBAR : undefined }}>{a.title}</span> — {a.body}
           </p>
         ))}

@@ -16,8 +16,8 @@ import { Card } from './cards';
 export function pillClass(active: boolean): string {
   return `shrink-0 rounded-full px-3 py-1.5 text-[14px] font-medium ring-1 ring-inset transition ${
     active
-      ? 'bg-white/[0.12] text-[#e8eaed] ring-white/[0.18]'
-      : 'text-[#9aa1ac] ring-white/[0.08] hover:bg-white/[0.05] hover:text-[#e8eaed]'
+      ? 'bg-(--raised-3) text-(--ink-strong) ring-(--line-strong)'
+      : 'text-(--ink-soft) ring-(--line) hover:bg-(--raised) hover:text-(--ink-strong)'
   }`;
 }
 
@@ -60,10 +60,10 @@ export function Disclosure({
       <button
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-2 py-1.5 text-left text-[14px] font-medium text-[#9aa1ac] transition hover:text-[#e8eaed]"
+        className="flex w-full items-center justify-between gap-2 py-1.5 text-left text-[14px] font-medium text-(--ink-soft) transition hover:text-(--ink-strong)"
       >
         <span>{summary}</span>
-        <span aria-hidden className="text-[#5c636c]">{open ? '▲' : '▼'}</span>
+        <span aria-hidden className="text-(--ink-faint)">{open ? '▲' : '▼'}</span>
       </button>
       {open && <div className="mt-1">{children}</div>}
     </div>
@@ -83,19 +83,19 @@ export function CardSkeleton() {
   return (
     <Card className="animate-pulse p-4">
       <div className="mb-4 flex items-center justify-between">
-        <div className="h-3 w-28 rounded bg-white/[0.06]" />
-        <div className="h-3 w-16 rounded bg-white/[0.06]" />
+        <div className="h-3 w-28 rounded bg-(--raised)" />
+        <div className="h-3 w-16 rounded bg-(--raised)" />
       </div>
       <div className="mb-4 flex items-center justify-between gap-4">
-        <div className="h-5 w-1/3 rounded bg-white/[0.08]" />
-        <div className="h-5 w-1/3 rounded bg-white/[0.08]" />
+        <div className="h-5 w-1/3 rounded bg-(--raised-2)" />
+        <div className="h-5 w-1/3 rounded bg-(--raised-2)" />
       </div>
-      <div className="mb-4 h-2.5 w-full rounded-full bg-white/[0.06]" />
-      <div className="grid grid-cols-4 gap-4 border-y border-white/[0.07] py-3">
+      <div className="mb-4 h-2.5 w-full rounded-full bg-(--raised)" />
+      <div className="grid grid-cols-4 gap-4 border-y border-(--line) py-3">
         {[0, 1, 2, 3].map((i) => (
           <div key={i} className="space-y-1.5">
-            <div className="h-2 w-3/4 rounded bg-white/[0.05]" />
-            <div className="h-3 w-1/2 rounded bg-white/[0.07]" />
+            <div className="h-2 w-3/4 rounded bg-(--raised)" />
+            <div className="h-3 w-1/2 rounded bg-(--raised-2)" />
           </div>
         ))}
       </div>
@@ -123,13 +123,13 @@ export function EmptyState({
   tone?: 'neutral' | 'warning' | 'critical';
 }) {
   const tones = {
-    neutral: 'border-white/[0.07] bg-white/[0.02] text-[#9aa1ac]',
+    neutral: 'border-(--line) bg-(--tint) text-(--ink-soft)',
     warning: 'border-amber-500/25 bg-amber-500/[0.06] text-amber-200/90',
     critical: 'border-rose-500/25 bg-rose-500/[0.06] text-rose-200/90',
   };
   return (
     <div className={`rounded-xl border p-5 text-[16px] ${tones[tone]}`}>
-      <p className="font-medium text-[#e8eaed]">{title}</p>
+      <p className="font-medium text-(--ink-strong)">{title}</p>
       {children && <div className="mt-1.5 leading-relaxed">{children}</div>}
     </div>
   );

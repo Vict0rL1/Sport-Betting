@@ -133,8 +133,8 @@ export function PicksPanel({
   // left wondering whether it failed to load.
   if (picks.length === 0) {
     return (
-      <p className="mb-6 rounded-xl border border-white/[0.07] bg-white/[0.02] px-4 py-3 text-[14px] leading-relaxed text-[#9aa1ac]">
-        El modelo <strong className="font-semibold text-[#c3c9d1]">no discrepa del mercado</strong> en
+      <p className="mb-6 rounded-xl border border-(--line) bg-(--tint) px-4 py-3 text-[14px] leading-relaxed text-(--ink-soft)">
+        El modelo <strong className="font-semibold text-(--ink-body)">no discrepa del mercado</strong> en
         ningún mercado por más de 4 puntos porcentuales. Eso es lo normal y es buena señal: significa
         que va calibrado con las casas.
       </p>
@@ -144,19 +144,19 @@ export function PicksPanel({
   const pct = (p: number) => `${(p * 100).toFixed(1)}%`;
 
   return (
-    <section className="mb-6 overflow-hidden rounded-xl border border-white/[0.09] bg-white/[0.02]">
+    <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-white/[0.03]"
+        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-(--tint)"
       >
         <span className="min-w-0">
-          <span className="block text-[16px] font-semibold text-[#e8eaed]">
+          <span className="block text-[16px] font-semibold text-(--ink-strong)">
             {basis === 'edge'
               ? 'Donde el modelo no está de acuerdo con el mercado'
               : 'Lo que el modelo ve más probable'}
           </span>
-          <span className="block text-[13px] text-[#7b828d]">
+          <span className="block text-[13px] text-(--ink-muted)">
             {basis === 'edge'
               ? `${picks.length} ${picks.length === 1 ? 'mercado' : 'mercados'} con diferencia de 4 pp o más, de mayor a menor`
               : confidenceReason
@@ -166,11 +166,11 @@ export function PicksPanel({
                   : 'sin cuotas que comparar — ordenado por probabilidad, que es una base más débil'}
           </span>
         </span>
-        <span aria-hidden className="shrink-0 text-[#7b828d]">{open ? '▲' : '▼'}</span>
+        <span aria-hidden className="shrink-0 text-(--ink-muted)">{open ? '▲' : '▼'}</span>
       </button>
 
       {open && (
-        <div className="border-t border-white/[0.07]">
+        <div className="border-t border-(--line)">
           <CaveatNote text={caveat} />
 
           {/* Horizontal scroll on the table only, never the page — a wide row must
@@ -178,7 +178,7 @@ export function PicksPanel({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[46rem] border-collapse text-[14px]">
               <thead>
-                <tr className="border-y border-white/[0.07] text-left text-[12px] uppercase tracking-[0.05em] text-[#7b828d]">
+                <tr className="border-y border-(--line) text-left text-[12px] uppercase tracking-[0.05em] text-(--ink-muted)">
                   <th className="px-4 py-2 font-medium">Partido</th>
                   <th className="px-3 py-2 font-medium">Apuesta</th>
                   <th className="px-3 py-2 text-right font-medium">Modelo</th>
@@ -197,22 +197,22 @@ export function PicksPanel({
                 {picks.map((p, i) => (
                   <tr
                     key={`${p.id}-${p.market}-${p.selection}-${i}`}
-                    className="border-b border-white/[0.05] last:border-0"
+                    className="border-b border-(--line) last:border-0"
                   >
                     <td className="max-w-[14rem] px-4 py-2.5">
-                      <span className="block truncate text-[#c3c9d1]">{p.match}</span>
-                      <span className="block text-[12px] text-[#7b828d]">
+                      <span className="block break-words text-(--ink-body)">{p.match}</span>
+                      <span className="block text-[12px] text-(--ink-muted)">
                         {shortTime(p.when)} · {relativeTime(p.when)}
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className="block font-semibold text-[#e8eaed]">{p.selection}</span>
-                      <span className="block text-[12px] text-[#7b828d]">{p.market}</span>
+                      <span className="block font-semibold text-(--ink-strong)">{p.selection}</span>
+                      <span className="block text-[12px] text-(--ink-muted)">{p.market}</span>
                     </td>
-                    <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-[#e8eaed]">
+                    <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-(--ink-strong)">
                       {pct(p.modelProb)}
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-[#9aa1ac]">
+                    <td className="px-3 py-2.5 text-right tabular-nums text-(--ink-soft)">
                       {p.marketProb == null ? '—' : pct(p.marketProb)}
                     </td>
                     <td
@@ -239,7 +239,7 @@ export function PicksPanel({
                           ? '0,0 pp'
                           : `${p.edge > 0 ? '+' : ''}${(p.edge * 100).toFixed(1)} pp`}
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-[#c3c9d1]">
+                    <td className="px-3 py-2.5 text-right tabular-nums text-(--ink-body)">
                       {p.fairOdds.toFixed(2)}
                       {p.odds != null && (
                         <span
@@ -262,9 +262,9 @@ export function PicksPanel({
                         printing it would be arithmetic dressed up as a forecast.
                         What is useful with no price is the minimum odds to look for,
                         and that is already in the column to the left. */}
-                    <td className="px-4 py-2.5 text-right tabular-nums text-[#c3c9d1]">
+                    <td className="px-4 py-2.5 text-right tabular-nums text-(--ink-body)">
                       {p.odds == null ? (
-                        <span className="text-[13px] text-[#7b828d]">
+                        <span className="text-[13px] text-(--ink-muted)">
                           busca ≥ {p.fairOdds.toFixed(2)}
                         </span>
                       ) : (
@@ -277,8 +277,8 @@ export function PicksPanel({
             </table>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 border-t border-white/[0.07] px-4 py-3">
-            <label htmlFor="picks-stake" className="text-[13px] text-[#9aa1ac]">
+          <div className="flex flex-wrap items-center gap-2 border-t border-(--line) px-4 py-3">
+            <label htmlFor="picks-stake" className="text-[13px] text-(--ink-soft)">
               Con una apuesta de
             </label>
             <input
@@ -288,9 +288,9 @@ export function PicksPanel({
               step={1}
               value={stake}
               onChange={(e) => onStakeChange(Math.max(1, Number(e.target.value) || 1))}
-              className="w-28 rounded-lg bg-white/[0.06] px-2.5 py-1.5 text-right text-[14px] tabular-nums text-[#e8eaed] ring-1 ring-inset ring-white/10 focus:outline-none focus:ring-2 focus:ring-white/25"
+              className="w-28 rounded-lg bg-(--raised) px-2.5 py-1.5 text-right text-[14px] tabular-nums text-(--ink-strong) ring-1 ring-inset ring-(--line) focus:outline-none focus:ring-2 focus:ring-(--line-strong)"
             />
-            <span className="text-[13px] text-[#7b828d]">
+            <span className="text-[13px] text-(--ink-muted)">
               · una diferencia a favor no es un beneficio: es una discrepancia entre dos
               estimaciones, y la del mercado suele ser la buena.
             </span>

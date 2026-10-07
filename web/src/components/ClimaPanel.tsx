@@ -15,34 +15,34 @@ export function ClimaPanel({ clima }: { clima: ClimaFicha | null | undefined }) 
     <Panel>
       <SectionTitle right={derecha}>Clima</SectionTitle>
       {clima.estado === 'DESCONOCIDO' ? (
-        <p className="text-[13px] text-[#7b828d]">
+        <p className="text-[13px] text-(--ink-muted)">
           DESCONOCIDO{clima.motivo ? ` · ${clima.motivo}` : ''}
           {clima.estadio ? ` · ${clima.estadio.nombre} (${techo})` : ''}
         </p>
       ) : (
         <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-[13px] sm:grid-cols-4">
           <div>
-            <dt className="text-[#7b828d]">Temperatura</dt>
-            <dd className="text-[#e8eaed]">{clima.tempC == null ? '—' : `${Math.round(clima.tempC)} °C`}</dd>
+            <dt className="text-(--ink-muted)">Temperatura</dt>
+            <dd className="text-(--ink-strong)">{clima.tempC == null ? '—' : `${Math.round(clima.tempC)} °C`}</dd>
           </div>
           <div>
-            <dt className="text-[#7b828d]">Viento</dt>
-            <dd className="text-[#e8eaed]">{clima.vientoMph == null ? '—' : `${Math.round(clima.vientoMph)} mph`}</dd>
+            <dt className="text-(--ink-muted)">Viento</dt>
+            <dd className="text-(--ink-strong)">{clima.vientoMph == null ? '—' : `${Math.round(clima.vientoMph)} mph`}</dd>
           </div>
           <div>
-            <dt className="text-[#7b828d]">Lluvia</dt>
-            <dd className="text-[#e8eaed]">
+            <dt className="text-(--ink-muted)">Lluvia</dt>
+            <dd className="text-(--ink-strong)">
               {clima.probLluvia != null ? `${Math.round(clima.probLluvia)} %` : clima.lluviaMm != null ? `${clima.lluviaMm.toFixed(1)} mm` : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-[#7b828d]">Cielo</dt>
-            <dd className="text-[#e8eaed]">{clima.descripcion ?? '—'}</dd>
+            <dt className="text-(--ink-muted)">Cielo</dt>
+            <dd className="text-(--ink-strong)">{clima.descripcion ?? '—'}</dd>
           </div>
         </dl>
       )}
       {clima.estadio && clima.estado !== 'DESCONOCIDO' && (
-        <p className="mt-1.5 text-[12px] text-[#5c636c]">
+        <p className="mt-1.5 text-[12px] text-(--ink-faint)">
           {clima.estadio.nombre}, {clima.estadio.ciudad} · {techo}
           {clima.estadio.techo !== 'outdoors' ? ' · con el techo cerrado el viento no entra en juego' : ''} · solo informativo: no cambia la probabilidad
         </p>

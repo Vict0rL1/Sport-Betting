@@ -60,14 +60,14 @@ export default function ProfitCurve({
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between gap-3">
-        <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-[#7b828d]">
+        <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
           Beneficio acumulado
         </span>
-        <span className="text-[13px] tabular-nums text-[#9aa1ac]">
+        <span className="text-[13px] tabular-nums text-(--ink-soft)">
           {shown ? (
             <>
               {new Date(`${shown.day}T12:00:00`).toLocaleDateString('es', { day: 'numeric', month: 'short' })} ·{' '}
-              <span className="font-semibold text-[#e8eaed]">{signed(shown.profit)}</span>
+              <span className="font-semibold text-(--ink-strong)">{signed(shown.profit)}</span>
             </>
           ) : (
             <span className="font-semibold" style={{ color: stroke }}>
@@ -91,7 +91,7 @@ export default function ProfitCurve({
         }}
       >
         <path d={geo.area} fill={stroke} opacity={0.14} />
-        <line x1={0} x2={geo.W} y1={geo.zeroY} y2={geo.zeroY} stroke="rgba(255,255,255,0.18)" strokeWidth={1} />
+        <line x1={0} x2={geo.W} y1={geo.zeroY} y2={geo.zeroY} stroke="var(--line-strong)" strokeWidth={1} />
         <path d={geo.line} fill="none" stroke={stroke} strokeWidth={2} vectorEffect="non-scaling-stroke" />
         {hover != null && (
           <>
@@ -100,7 +100,7 @@ export default function ProfitCurve({
               x2={geo.x(hover)}
               y1={0}
               y2={geo.H}
-              stroke="rgba(255,255,255,0.28)"
+              stroke="var(--line-strong)"
               strokeWidth={1}
               vectorEffect="non-scaling-stroke"
             />
@@ -109,7 +109,7 @@ export default function ProfitCurve({
               cy={geo.y(points[hover].profit)}
               r={4}
               fill={stroke}
-              stroke="#14161b"
+              stroke="var(--surface-card)"
               strokeWidth={2}
               vectorEffect="non-scaling-stroke"
             />

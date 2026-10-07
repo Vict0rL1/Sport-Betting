@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
 
+// El recorrido de primer uso se da por visto (tiene su propio test): si no, tapa los clics.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('predictor.recorrido', '1'));
+});
+
 // Lo mínimo que tiene que funcionar siempre: la app abre, las pestañas de los deportes
 // están y responden, «Hoy» y «Destacados» pintan algo, y la API contesta.
 test('abre, enseña las pestañas y cambia de deporte', async ({ page }) => {

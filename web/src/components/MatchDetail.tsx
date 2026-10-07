@@ -4,7 +4,7 @@ import { P1_COLOR, P2_COLOR } from './ProbabilityBars';
 
 function Num({ value, plus = false }: { value: number; plus?: boolean }) {
   const sign = plus && value > 0 ? '+' : '';
-  const color = value > 0 ? 'text-emerald-400' : value < 0 ? 'text-rose-400' : 'text-[#9aa1ac]';
+  const color = value > 0 ? 'text-emerald-400' : value < 0 ? 'text-rose-400' : 'text-(--ink-soft)';
   return (
     <span className={color}>
       {sign}
@@ -18,7 +18,7 @@ function FactorBar({ points, max }: { points: number; max: number }) {
   const frac = Math.max(-1, Math.min(1, points / max));
   const width = Math.abs(frac) * 50;
   return (
-    <div className="relative h-3 w-full rounded bg-white/[0.06]">
+    <div className="relative h-3 w-full rounded bg-(--raised)">
       <div className="absolute left-1/2 top-0 h-full w-px bg-white/20" />
       <div
         className="absolute top-0 h-full rounded"
@@ -33,7 +33,7 @@ function FactorBar({ points, max }: { points: number; max: number }) {
 }
 
 function Last5({ results, color }: { results: boolean[]; color: string }) {
-  if (results.length === 0) return <span className="text-[#7b828d]">—</span>;
+  if (results.length === 0) return <span className="text-(--ink-muted)">—</span>;
   return (
     <span className="inline-flex gap-1">
       {results.map((w, i) => (
@@ -84,27 +84,27 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
   ];
 
   return (
-    <div className="mt-4 space-y-5 border-t border-white/[0.07] pt-4 text-[16px]">
+    <div className="mt-4 space-y-5 border-t border-(--line) pt-4 text-[16px]">
       {/* HOW SOLID — qualifies every number below it, so it goes first */}
       <ReliabilityBlock prediction={prediction} />
 
       {/* WHY — reasoning */}
-      <div className="rounded-lg bg-white/[0.04] p-3">
-        <div className="mb-2 text-[14px] uppercase tracking-wide text-[#7b828d]">Por qué</div>
-        <p className="mb-3 text-[#c3c9d1]">{reasoning.text}</p>
+      <div className="rounded-lg bg-(--raised) p-3">
+        <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">Por qué</div>
+        <p className="mb-3 text-(--ink-body)">{reasoning.text}</p>
         <div className="space-y-2">
           {reasoning.factors.map((f) => (
             <div key={f.key} className="grid grid-cols-[8rem_1fr_3rem] items-center gap-2">
-              <span className="text-[14px] text-[#9aa1ac]">{f.label}</span>
+              <span className="text-[14px] text-(--ink-soft)">{f.label}</span>
               <FactorBar points={f.pointsForP1} max={maxFactor} />
-              <span className="text-right text-[14px] tabular-nums text-[#c3c9d1]">
+              <span className="text-right text-[14px] tabular-nums text-(--ink-body)">
                 {f.pointsForP1 > 0 ? '+' : ''}
                 {f.pointsForP1}
               </span>
             </div>
           ))}
         </div>
-        <div className="mt-2 flex justify-between text-[11px] text-[#7b828d]">
+        <div className="mt-2 flex justify-between text-[11px] text-(--ink-muted)">
           <span>◀ ventaja {players.p2.name}</span>
           <span>ventaja {players.p1.name} ▶</span>
         </div>
@@ -112,27 +112,27 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
 
       {/* Player headers with rank */}
       <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-        <div className="text-[#9aa1ac]">Señal</div>
+        <div className="text-(--ink-soft)">Señal</div>
         <div className="w-24 text-right font-semibold" style={{ color: P1_COLOR }}>
           {players.p1.name}
-          <span className="ml-1 text-[14px] font-normal text-[#7b828d]">#{prediction.ranks.p1}</span>
+          <span className="ml-1 text-[14px] font-normal text-(--ink-muted)">#{prediction.ranks.p1}</span>
         </div>
         <div className="w-24 text-right font-semibold" style={{ color: P2_COLOR }}>
           {players.p2.name}
-          <span className="ml-1 text-[14px] font-normal text-[#7b828d]">#{prediction.ranks.p2}</span>
+          <span className="ml-1 text-[14px] font-normal text-(--ink-muted)">#{prediction.ranks.p2}</span>
         </div>
       </div>
       {rows.map((r) => (
         <div key={r.label} className="grid grid-cols-[1fr_auto_auto] gap-2 -my-2">
-          <div className="text-[#9aa1ac]">{r.label}</div>
+          <div className="text-(--ink-soft)">{r.label}</div>
           <div className="w-24 text-right tabular-nums">{r.p1}</div>
           <div className="w-24 text-right tabular-nums">{r.p2}</div>
         </div>
       ))}
 
       {/* Form + surface record */}
-      <div className="rounded-lg bg-white/[0.04] p-3">
-        <div className="mb-2 text-[14px] uppercase tracking-wide text-[#7b828d]">
+      <div className="rounded-lg bg-(--raised) p-3">
+        <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">
           Forma reciente · récord en {surfLabel.toLowerCase()}
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -162,26 +162,26 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
       />
 
       {/* Head-to-head */}
-      <div className="rounded-lg bg-white/[0.04] p-3">
+      <div className="rounded-lg bg-(--raised) p-3">
         <div className="mb-2 flex items-center justify-between">
-          <span className="text-[14px] uppercase tracking-wide text-[#7b828d]">Head-to-head</span>
+          <span className="text-[14px] uppercase tracking-wide text-(--ink-muted)">Head-to-head</span>
           <span className="text-[16px]">
             <span style={{ color: P1_COLOR }}>{h2h.p1Wins}</span>
-            <span className="text-[#7b828d]"> – </span>
+            <span className="text-(--ink-muted)"> – </span>
             <span style={{ color: P2_COLOR }}>{h2h.p2Wins}</span>
-            <span className="ml-2 text-[#7b828d]">({h2h.total} enfrentamientos)</span>
+            <span className="ml-2 text-(--ink-muted)">({h2h.total} enfrentamientos)</span>
           </span>
         </div>
         {h2h.recent.length === 0 ? (
-          <div className="text-[#7b828d]">Sin enfrentamientos previos.</div>
+          <div className="text-(--ink-muted)">Sin enfrentamientos previos.</div>
         ) : (
           <ul className="space-y-1">
             {h2h.recent.map((m, i) => (
-              <li key={i} className="flex items-center justify-between text-[14px] text-[#c3c9d1]">
+              <li key={i} className="flex items-center justify-between text-[14px] text-(--ink-body)">
                 <span>
                   {formatDate(m.date)} · {m.tourney_name} ({surfaceLabelEs(m.surface)}) {m.round}
                 </span>
-                <span className="text-[#9aa1ac]">
+                <span className="text-(--ink-soft)">
                   ganó{' '}
                   <span style={{ color: m.winnerId === players.p1.id ? P1_COLOR : P2_COLOR }}>
                     {m.winnerId === players.p1.id ? players.p1.name : players.p2.name}
@@ -195,23 +195,23 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
       </div>
 
       {/* Scoreline distribution — real probabilities, not a single guess */}
-      <div className="rounded-lg bg-white/[0.04] p-3">
+      <div className="rounded-lg bg-(--raised) p-3">
         <div className="mb-2 flex items-baseline justify-between">
-          <span className="text-[14px] uppercase tracking-wide text-[#7b828d]">
+          <span className="text-[14px] uppercase tracking-wide text-(--ink-muted)">
             Probabilidad de cada marcador
           </span>
-          <span className="text-[11px] text-[#7b828d]">
+          <span className="text-[11px] text-(--ink-muted)">
             al mejor de {prediction.scorelines.bestOf}
           </span>
         </div>
         <div className="space-y-1.5">
           {prediction.scorelines.outcomes.map((o) => (
             <div key={o.label} className="grid grid-cols-[7rem_1fr_3.5rem] items-center gap-2">
-              <span className="truncate text-[14px] font-medium text-[#c3c9d1]" title={o.label}>
+              <span className="break-words text-[14px] font-medium text-(--ink-body)" title={o.label}>
                 {(o.side === 1 ? players.p1.name : players.p2.name).split(' ').slice(-1)[0]}{' '}
                 {o.side === 1 ? o.label : o.label.split('-').reverse().join('-')}
               </span>
-              <div className="h-3 overflow-hidden rounded bg-white/[0.06]">
+              <div className="h-3 overflow-hidden rounded bg-(--raised)">
                 <div
                   className="h-full rounded"
                   style={{
@@ -220,13 +220,13 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
                   }}
                 />
               </div>
-              <span className="text-right text-[14px] tabular-nums text-[#9aa1ac]">
+              <span className="text-right text-[14px] tabular-nums text-(--ink-soft)">
                 {pct(o.probability, 1)}
               </span>
             </div>
           ))}
         </div>
-        <div className="mt-2 flex flex-wrap gap-x-4 text-[14px] text-[#9aa1ac]">
+        <div className="mt-2 flex flex-wrap gap-x-4 text-[14px] text-(--ink-soft)">
           <span>Set decisivo: {pct(prediction.scorelines.decidingSetProbability, 1)}</span>
           <span>Sets corridos: {pct(prediction.scorelines.straightSetsProbability, 1)}</span>
         </div>
@@ -236,8 +236,8 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
       {prediction.tournamentHistory &&
         (prediction.tournamentHistory.p1.played > 0 ||
           prediction.tournamentHistory.p2.played > 0) && (
-          <div className="rounded-lg bg-white/[0.04] p-3">
-            <div className="mb-2 text-[14px] uppercase tracking-wide text-[#7b828d]">
+          <div className="rounded-lg bg-(--raised) p-3">
+            <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">
               Historial en este torneo
             </div>
             <div className="grid grid-cols-2 gap-4 text-[14px]">
@@ -253,9 +253,9 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
                       {name}
                     </div>
                     {h.played === 0 ? (
-                      <div className="text-[#7b828d]">Nunca ha jugado aquí</div>
+                      <div className="text-(--ink-muted)">Nunca ha jugado aquí</div>
                     ) : (
-                      <div className="text-[#9aa1ac]">
+                      <div className="text-(--ink-soft)">
                         {h.wins}V–{h.losses}D
                         {h.titles > 0 && ` · ${h.titles} título${h.titles > 1 ? 's' : ''}`}
                         {h.titles === 0 && h.bestRound && ` · mejor ronda ${h.bestRound}`}
@@ -277,9 +277,9 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
       />
 
       {/* Market + expected score */}
-      <div className="rounded-lg bg-white/[0.04] p-3 text-[14px]">
-        <div className="mb-2 uppercase tracking-wide text-[#7b828d]">Mercado y marcador estimado</div>
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-[#c3c9d1]">
+      <div className="rounded-lg bg-(--raised) p-3 text-[14px]">
+        <div className="mb-2 uppercase tracking-wide text-(--ink-muted)">Mercado y marcador estimado</div>
+        <div className="flex flex-wrap gap-x-6 gap-y-1 text-(--ink-body)">
           {market.market && (
             <>
               <span>Cuotas: {market.market.odds1} / {market.market.odds2}</span>
@@ -295,9 +295,9 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
               )}
             </>
           )}
-          <span className="w-full text-[#9aa1ac]">
+          <span className="w-full text-(--ink-soft)">
             Marcador más probable:{' '}
-            <strong className="text-[#d5d9df]">
+            <strong className="text-(--ink-body)">
               {topOutcome
                 ? `${topOutcome.side === 1 ? players.p1.name : players.p2.name} ${
                     topOutcome.side === 1
@@ -341,29 +341,29 @@ function ReliabilityBlock({ prediction }: { prediction: Prediction }) {
 
   return (
     <div className={`rounded-lg border p-3 ${tone}`}>
-      <div className="mb-2 text-[14px] uppercase tracking-wide text-[#7b828d]">
+      <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">
         Cuánta confianza merece este número
       </div>
-      <p className="text-[#d5d9df]">
+      <p className="text-(--ink-body)">
         <strong className="capitalize">{rel.label}</strong> — {favName} entre{' '}
         <strong className="tabular-nums">{pct(lo, 1)}</strong> y{' '}
         <strong className="tabular-nums">{pct(hi, 1)}</strong>{' '}
-        <span className="text-[#9aa1ac]">(±{rel.marginPp} pp)</span>
+        <span className="text-(--ink-soft)">(±{rel.marginPp} pp)</span>
       </p>
       <div className="mt-2 grid grid-cols-2 gap-2 text-[14px]">
         <div className="min-w-0">
-          <div className="truncate text-[#9aa1ac]" title={p1.name}>
+          <div className="break-words text-(--ink-soft)" title={p1.name}>
             {p1.name}
           </div>
-          <div className="tabular-nums text-[#d5d9df]">
+          <div className="tabular-nums text-(--ink-body)">
             {rel.effectiveMatches.p1} partidos efectivos
           </div>
         </div>
         <div className="min-w-0">
-          <div className="truncate text-[#9aa1ac]" title={p2.name}>
+          <div className="break-words text-(--ink-soft)" title={p2.name}>
             {p2.name}
           </div>
-          <div className="tabular-nums text-[#d5d9df]">
+          <div className="tabular-nums text-(--ink-body)">
             {rel.effectiveMatches.p2} partidos efectivos
           </div>
         </div>
@@ -371,14 +371,14 @@ function ReliabilityBlock({ prediction }: { prediction: Prediction }) {
       {rel.reasons.length > 0 && (
         <ul className="mt-2 space-y-1">
           {rel.reasons.map((r, i) => (
-            <li key={i} className="flex gap-2 text-[14px] text-[#c3c9d1]">
-              <span className="text-[#5c636c]">•</span>
+            <li key={i} className="flex gap-2 text-[14px] text-(--ink-body)">
+              <span className="text-(--ink-faint)">•</span>
               <span>{r}</span>
             </li>
           ))}
         </ul>
       )}
-      <p className="mt-2 text-[14px] text-[#7b828d]">
+      <p className="mt-2 text-[14px] text-(--ink-muted)">
         «Partidos efectivos» pondera el historial igual que el Elo del partido: 70% los partidos en
         esta superficie, 30% el total. Menos partidos (o datos antiguos) ⇒ banda más ancha.
       </p>
@@ -409,8 +409,8 @@ function FormBox({
       <div className="mb-1">
         <Last5 results={last5} color={color} />
       </div>
-      <div className="text-[14px] text-[#9aa1ac]">Racha: {streakTxt}</div>
-      <div className="text-[14px] text-[#9aa1ac]">
+      <div className="text-[14px] text-(--ink-soft)">Racha: {streakTxt}</div>
+      <div className="text-[14px] text-(--ink-soft)">
         En superficie: {rec.wins}V–{rec.losses}D
       </div>
     </div>
@@ -443,11 +443,11 @@ function FitnessBlock({
   };
 
   return (
-    <div className="rounded-lg bg-white/[0.04] p-3">
-      <div className="mb-1 text-[14px] uppercase tracking-wide text-[#7b828d]">
+    <div className="rounded-lg bg-(--raised) p-3">
+      <div className="mb-1 text-[14px] uppercase tracking-wide text-(--ink-muted)">
         Señales físicas (de resultados, no diagnóstico)
       </div>
-      <p className="mb-2 text-[11px] leading-snug text-[#7b828d]">
+      <p className="mb-2 text-[11px] leading-snug text-(--ink-muted)">
         Retiros, ausencias y carga de partidos. No existe una fuente abierta de lesiones actuales;
         esto son las huellas que dejan en los resultados.
       </p>
@@ -462,7 +462,7 @@ function FitnessBlock({
             <div className="mb-0.5 font-medium" style={{ color }}>
               {name}
             </div>
-            <ul className="text-[#9aa1ac]">
+            <ul className="text-(--ink-soft)">
               {describe(f).map((t, i) => (
                 <li key={i}>{t}</li>
               ))}
@@ -497,8 +497,8 @@ function ServeCompare({
   if (s1.matches === 0 && s2.matches === 0) return null;
   const fmt = (v: number | null, suf: string) => (v == null ? '—' : `${v}${suf}`);
   return (
-    <div className="rounded-lg bg-white/[0.04] p-3">
-      <div className="mb-2 text-[14px] uppercase tracking-wide text-[#7b828d]">
+    <div className="rounded-lg bg-(--raised) p-3">
+      <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">
         Saque y quiebre (promedio histórico)
       </div>
       <div className="space-y-1.5">
@@ -514,7 +514,7 @@ function ServeCompare({
               >
                 {fmt(v1 as number | null, row.suffix)}
               </span>
-              <span className="text-center text-[#7b828d]">{row.label}</span>
+              <span className="text-center text-(--ink-muted)">{row.label}</span>
               <span
                 className="w-16 tabular-nums"
                 style={{ color: better === 2 ? P2_COLOR : '#cbd5e1', fontWeight: better === 2 ? 600 : 400 }}
@@ -525,7 +525,7 @@ function ServeCompare({
           );
         })}
       </div>
-      <div className="mt-1 flex justify-between text-[11px] text-[#7b828d]">
+      <div className="mt-1 flex justify-between text-[11px] text-(--ink-muted)">
         <span>{p1Name}</span>
         <span>{p2Name}</span>
       </div>

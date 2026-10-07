@@ -25,8 +25,11 @@ export function graduado(valor: number, medio: number, lleno: number, max: numbe
 
 /** Frescura de las cuotas (común a los cinco). */
 export function cuotasRecientes(oddsAt: string | null, demo: boolean, now = new Date()): ItemDato {
-  if (demo) return aviso('Cuotas de demostración: no hay precio real', 15);
-  if (!oddsAt) return aviso('Sin cuotas para este partido', 15);
+  // Sin precio real (demo o ningún mercado) el dato es DESCONOCIDO, no malo: la falta de
+  // cuotas no dice nada de la calidad de los datos del MODELO, y contarla rebajaba la
+  // confianza de cualquier partido sin mercado (Fase 5.9). La decisión ya lo dice: SIN MERCADO.
+  if (demo) return desconocido('Cuotas de demostración: no hay precio real (no cuenta en la calidad de datos)');
+  if (!oddsAt) return desconocido('Sin cuotas para este partido (no cuenta en la calidad de datos; la decisión es SIN MERCADO)');
   const h = (now.getTime() - Date.parse(oddsAt)) / 3_600_000;
   return h <= 6
     ? ok(`Cuotas recientes (hace ${h < 1 ? `${Math.round(h * 60)} min` : `${h.toFixed(1)} h`})`, 15)

@@ -56,6 +56,8 @@ export interface BetRow {
   model_prob: number | null;
   market_prob: number | null;
   match_key: string | null;
+  /** Etiquetas libres (Fase 5.16), guardadas como JSON. */
+  tags: string[];
 }
 
 export interface Bet extends BetRow {
@@ -126,12 +128,18 @@ function withModelOf(b: Pick<BetRow, 'model_prob' | 'market_prob'>): boolean | n
 }
 
 function decorate(r: BetRow): Bet {
-  return { ...r, profit: profitOf(r), risked: riskedOf(r), withModel: withModelOf(r) };
+  let tags: string[] = [];
+  try {
+    tags = Array.isArray(JSON.parse((r as unknown as { tags: string | null }).tags ?? '[]')) ? (JSON.parse((r as unknown as { tags: string | null }).tags ?? '[]') as string[]) : [];
+  } catch {
+    tags = [];
+  }
+  return { ...r, tags, profit: profitOf(r), risked: riskedOf(r), withModel: withModelOf(r) };
 }
 
 const SELECT = `SELECT id, created_at, placed_on, sport, league, event, market, selection,
                        odds, stake, status, payout, settled_at, notes,
-                       model_prob, market_prob, match_key
+                       model_prob, market_prob, match_key, tags
                   FROM bets`;
 
 export interface BetFilter {
@@ -188,6 +196,7 @@ export interface BetInput {
   model_prob?: number | null;
   market_prob?: number | null;
   match_key?: string | null;
+  tags?: string[] | null;
 }
 
 /** Today in the SERVER's local zone, which is where the user is. */
@@ -204,8 +213,8 @@ export function createBet(input: BetInput): Bet {
     .prepare(
       `INSERT INTO bets (created_at, placed_on, sport, league, event, market, selection,
                          odds, stake, status, payout, settled_at, notes,
-                         model_prob, market_prob, match_key)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                         model_prob, market_prob, match_key, tags)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       now,
@@ -224,6 +233,7 @@ export function createBet(input: BetInput): Bet {
       input.model_prob ?? null,
       input.market_prob ?? null,
       input.match_key ?? null,
+      JSON.stringify(input.tags ?? []),
     );
   return getBet(Number(info.lastInsertRowid)) as Bet;
 }

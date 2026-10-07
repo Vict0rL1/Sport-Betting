@@ -26,7 +26,10 @@ test('cuotas recientes y archivo al día', () => {
   assert.equal(cuotasRecientes(hace(2), false, ahora).estado, 'ok');
   assert.equal(cuotasRecientes(hace(8), false, ahora).estado, 'aviso');
   assert.match(cuotasRecientes(hace(1), true, ahora).texto, /demostración/);
-  assert.equal(cuotasRecientes(null, false, ahora).estado, 'aviso');
+  // Sin mercado no es «confianza baja» (Fase 5.9): el dato no cuenta.
+  assert.equal(cuotasRecientes(null, false, ahora).estado, 'desconocido');
+  assert.equal(cuotasRecientes(hace(1), true, ahora).estado, 'desconocido');
+  assert.equal(cuotasRecientes(null, false, ahora).max, 0);
   assert.equal(archivoAlDia('2026-10-01T00:00:00.000Z', ahora).estado, 'ok');
   assert.match(archivoAlDia('2026-08-01T00:00:00.000Z', ahora).texto, /hace 67 días/);
   assert.equal(archivoAlDia(null, ahora).estado, 'aviso');
