@@ -31,14 +31,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type EloRankPlayer, type EloRankingResponse } from '../lib/api';
 import EloRanking from './EloRanking';
 import { Flag } from './ui';
+import { conNodos, useI18n, type Clave } from '../i18n';
 
 type Surface = 'overall' | 'hard' | 'clay' | 'grass';
 
-const SURFACE_LABEL: Record<Surface, string> = {
-  overall: 'General',
-  hard: 'Dura',
-  clay: 'Tierra',
-  grass: 'Hierba',
+const SURFACE_LABEL: Record<Surface, Clave> = {
+  overall: 'etn.general',
+  hard: 'etn.dura',
+  clay: 'etn.tierra',
+  grass: 'etn.hierba',
 };
 
 const eloOn = (p: EloRankPlayer, s: Surface): number =>
@@ -67,6 +68,7 @@ export default function TennisEloPanel({
   tour: string;
   onOpenPlayer?: (tour: string, id: number) => void;
 }) {
+  const { t } = useI18n();
   const [data, setData] = useState<EloRankingResponse | null>(null);
   const [surface, setSurface] = useState<Surface>('overall');
   const [onlyActive, setOnlyActive] = useState(true);
@@ -108,37 +110,35 @@ export default function TennisEloPanel({
           // pretemporada o por una lesión corta es normal y marcarlo sería ruido.
           note:
             years != null && years >= 1.5
-              ? `sin jugar hace ${years.toFixed(0)} años`
+              ? t('etn.sinJugar', { n: years.toFixed(0) })
               : undefined,
           onOpen: onOpenPlayer ? () => onOpenPlayer(tour, p.id) : undefined,
           extra: [
             {
-              label: 'Mejor sup.',
-              value: `${SURFACE_LABEL[best.key]} ${best.edge >= 0 ? '+' : ''}${Math.round(best.edge)}`,
-              title:
-                'Su mejor superficie y cuánto sube respecto de su propio Elo general. ' +
-                'Positivo grande = especialista.',
+              label: t('etn.mejorSup'),
+              value: `${t(SURFACE_LABEL[best.key])} ${best.edge >= 0 ? '+' : ''}${Math.round(best.edge)}`,
+              title: t('etn.mejorSupTitulo'),
             },
-            { label: 'Dura', value: String(Math.round(p.hard)) },
-            { label: 'Tierra', value: String(Math.round(p.clay)) },
-            { label: 'Hierba', value: String(Math.round(p.grass)) },
+            { label: t('etn.dura'), value: String(Math.round(p.hard)) },
+            { label: t('etn.tierra'), value: String(Math.round(p.clay)) },
+            { label: t('etn.hierba'), value: String(Math.round(p.grass)) },
             {
-              label: 'Oficial',
+              label: t('etn.oficial'),
               value: p.officialRank != null ? `#${p.officialRank}` : '—',
               title:
                 p.officialRankDate != null
-                  ? `Ranking oficial del ${p.officialRankDate.slice(0, 4)}-${p.officialRankDate.slice(4, 6)}-${p.officialRankDate.slice(6, 8)}`
-                  : 'Sin ranking oficial guardado',
+                  ? t('etn.rankingDel', { fecha: `${p.officialRankDate.slice(0, 4)}-${p.officialRankDate.slice(4, 6)}-${p.officialRankDate.slice(6, 8)}` })
+                  : t('etn.sinRanking'),
             },
           ],
         };
       });
-  }, [data, surface, tour, onOpenPlayer]);
+  }, [data, surface, tour, onOpenPlayer, t]);
 
   if (error) {
     return (
       <section className="mt-8 rounded-xl border border-(--line) bg-(--surface-card) p-4 text-[13px] text-(--ink-muted)">
-        No se pudo cargar la clasificación por Elo: {error}
+        {t('etn.errorCargar', { error })}
       </section>
     );
   }
@@ -148,66 +148,48 @@ export default function TennisEloPanel({
 
   return (
     <EloRanking
-      title={`Clasificación por Elo · ${tour.toUpperCase()}`}
+      title={t('etn.titulo', { tour: tour.toUpperCase() })}
       rows={rows}
-      extraHeaders={['Mejor sup.', 'Dura', 'Tierra', 'Hierba', 'Oficial']}
+      extraHeaders={[t('etn.mejorSup'), t('etn.dura'), t('etn.tierra'), t('etn.hierba'), t('etn.oficial')]}
       subtitle={
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-(--ink-faint)">Ordenar por:</span>
+            <span className="mr-1 text-(--ink-faint)">{t('etn.ordenarPor')}</span>
             {(['overall', 'hard', 'clay', 'grass'] as Surface[]).map((s) => (
               <button key={s} className={chip(surface === s)} onClick={() => setSurface(s)}>
-                {SURFACE_LABEL[s]}
+                {t(SURFACE_LABEL[s])}
               </button>
             ))}
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="mr-1 text-(--ink-faint)">Mostrar:</span>
+            <span className="mr-1 text-(--ink-faint)">{t('etn.mostrar')}</span>
             <button className={chip(onlyActive)} onClick={() => setOnlyActive(true)}>
-              En activo
+              {t('etn.enActivo')}
             </button>
             <button className={chip(!onlyActive)} onClick={() => setOnlyActive(false)}>
-              Histórico
+              {t('etn.historico')}
             </button>
           </div>
           <p className="leading-relaxed">
             {onlyActive ? (
               <>
-                Jugadores con al menos {data.minMatches} partidos y alguno en los últimos dos
-                años.{' '}
-                {hidden > 0 && (
-                  <>
-                    Quedan fuera <strong className="text-(--ink-soft)">{hidden}</strong> por llevar
-                    más tiempo sin jugar — su Elo sigue congelado en su último partido, así que
-                    en una lista de «quién es mejor ahora» respondería a otra pregunta.
-                  </>
-                )}
+                {t('etn.activos', { min: data.minMatches })}{' '}
+                {hidden > 0 && conNodos(t('etn.quedanFuera'), { n: <strong className="text-(--ink-soft)">{hidden}</strong> })}
               </>
             ) : (
-              <>
-                Lista <strong className="text-(--ink-soft)">histórica</strong>: incluye a los
-                retirados con el Elo congelado en su último partido. Contesta «quién llegó más
-                alto en este archivo», no «quién es mejor ahora».
-              </>
+              conNodos(t('etn.listaHistorica'), { historica: <strong className="text-(--ink-soft)">{t('etn.historica')}</strong> })
             )}
           </p>
         </div>
       }
       footer={
         <div className="space-y-2">
-          <p>
-            «Mejor sup.» compara al jugador <em>consigo mismo</em>, no con los demás: es cuánto
-            sube su Elo en su mejor superficie respecto de su propio general. Un +150 es un
-            especialista claro; un +10, alguien igual de bueno en todas.
-          </p>
+          <p>{conNodos(t('etn.mejorSupExplica'), { consigo: <em>{t('etn.consigo')}</em> })}</p>
           {/* El defecto de los datos se dice, no se disimula. */}
           {!data.officialRanking.coherent && (
             <p className="text-amber-200/80">
-              <strong>La columna «Oficial» no es una foto de un mismo día.</strong> Se guarda el
-              último ranking de cada jugador por separado y aquí abarcan{' '}
-              {data.officialRanking.spanDays} días, así que puede haber varios con el mismo
-              número. Pasa el cursor por cada uno para ver su fecha. Arreglarlo pide traer el
-              ranking completo de una fecha en la ingesta, no cambiar esta tabla.
+              <strong>{t('etn.oficialNoFoto')}</strong>{' '}
+              {t('etn.oficialDetalle', { dias: data.officialRanking.spanDays ?? '' })}
             </p>
           )}
         </div>

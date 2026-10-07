@@ -1,19 +1,30 @@
 // Piezas de TennisDashboard.tsx (partido en la Fase 5: ningún fichero de la interfaz pasa de ~400 líneas).
 import { type Meta, type UpcomingWithPrediction } from '../lib/api';
+import { conNodos, localeDe, useI18n } from '../i18n';
+
+const CODIGOS = {
+  doctor: <code>npm run doctor</code>,
+  odds: <code>npm run odds</code>,
+  clave: <code>ODDS_API_KEY</code>,
+  env: <code>.env</code>,
+  update: <code>npm run update-data</code>,
+};
+const fuerte = (texto: string) => <strong className="text-(--ink-soft)">{texto}</strong>;
 
 export function RefreshInfo({ meta }: { meta: Meta }) {
+  const { t, idioma } = useI18n();
   const when = meta.oddsRefreshedAt ?? meta.updatedAt ?? meta.seededAt;
   const whenTxt = when
-    ? new Date(when).toLocaleString('es', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    ? new Date(when).toLocaleString(localeDe(idioma), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
     : '—';
   return (
     <p className="mt-1 text-[14px] text-(--ink-muted)">
-      Odds actualizadas: {whenTxt}
+      {t('td.oddsActualizadas', { cuando: whenTxt })}
       {meta.hasOddsKey
         ? meta.autoRefreshMinutes > 0
-          ? ` · auto cada ${Math.round(meta.autoRefreshMinutes / 60)}h`
+          ? t('td.autoCada', { h: Math.round(meta.autoRefreshMinutes / 60) })
           : ''
-        : ' · configura ODDS_API_KEY y corre npm run update-data para partidos reales'}
+        : t('td.configura')}
     </p>
   );
 }
@@ -21,13 +32,14 @@ export function RefreshInfo({ meta }: { meta: Meta }) {
 export function DataBadge({ meta }: { meta: Meta }) {
   // An empty database must never read as "datos reales" — that's how a failed
   // ingest ends up looking like a working install with nothing in it.
+  const { t } = useI18n();
   if (meta.counts.matches === 0) {
     return (
       <span
         className="rounded-full bg-rose-900/40 px-3 py-1 text-[14px] font-medium text-rose-300 ring-1 ring-rose-500/40"
-        title="La base de datos está vacía. Ejecuta npm run update-data (o npm run seed)."
+        title={t('td.vaciaNota')}
       >
-        sin datos
+        {t('td.sinDatos')}
       </span>
     );
   }
@@ -41,11 +53,12 @@ export function DataBadge({ meta }: { meta: Meta }) {
       }`}
       title={
         isSeed
-          ? 'Datos de demostración (sintéticos). Ejecuta "npm run update-data" para datos reales.'
-          : 'Datos históricos reales (Jeff Sackmann).'
+          ? t('td.demoNota')
+          : t('td.realesNota')
       }
     >
-      {isSeed ? 'datos demo' : 'datos reales'} · {meta.counts.matches} partidos
+      {isSeed ? t('td.datosDemo') : t('td.datosReales')}
+      {t('td.nPartidos', { n: meta.counts.matches })}
     </span>
   );
 }
@@ -78,26 +91,16 @@ export function ShortSlateNote({
 }) {
   // Seis: por debajo de eso la lista cabe de un vistazo y la pregunta «¿esto es todo?» se
   // la hace cualquiera.
+  const { t } = useI18n();
   if (matches.length === 0 || matches.length >= 6) return null;
   const todosDemo = matches.every((m) => m.match.source === 'fixture');
   const torneos = [...new Set(matches.map((m) => m.match.tournament_name).filter(Boolean))];
 
   return (
     <p className="mb-4 text-[13px] leading-relaxed text-(--ink-muted)">
-      {matches.length === 1 ? 'Un solo partido' : `Solo ${matches.length} partidos`}
+      {matches.length === 1 ? t('td.unSolo') : t('td.soloN', { n: matches.length })}
       {torneos.length === 1 ? ` (${torneos[0]})` : ''}:{' '}
-      {todosDemo ? (
-        <DemoReason meta={meta} />
-      ) : (
-        <>
-          los próximos los publican las casas, con pocos días de antelación y solo cuando
-          les ponen precio. A mitad de un Grand Slam hay un único torneo activo y en las
-          rondas finales quedan dos o cuatro partidos, así que esto suele ser lo que hay y
-          no una carga a medias. El archivo histórico —el de la cabecera— es aparte y está
-          completo. <strong className="text-(--ink-soft)">Volver a actualizar gasta cuota y
-          devolverá los mismos.</strong>
-        </>
-      )}
+      {todosDemo ? <DemoReason meta={meta} /> : conNodos(t('td.losProximos'), { gasta: fuerte(t('td.gasta')) })}
     </p>
   );
 }
@@ -122,59 +125,29 @@ export function ShortSlateNote({
  */
 export function DemoReason({ meta }: { meta: Meta | null }) {
   const razon = meta?.oddsFallbackReason;
+  const { t } = useI18n();
+  const demostracion = fuerte(t('demo.demostracion'));
 
   if (razon === 'sin_eventos') {
-    return (
-      <>
-        son de <strong className="text-(--ink-soft)">demostración</strong>, y{' '}
-        <strong className="text-(--ink-soft)">no falta nada por tu parte</strong>: tu clave
-        funciona, pero ahora mismo las casas no publican ningún partido de tenis. Entre
-        torneos es lo normal. Cuando empiece el siguiente aparecerán solos — y mientras
-        tanto la app enseña un calendario generado por el modelo para no quedarse vacía.
-      </>
-    );
+    return <>{conNodos(t('td.demoSinEventos'), { demostracion, noFalta: fuerte(t('demo.noFalta')) })}</>;
   }
   if (razon === 'presupuesto') {
     // La única de las causas que NO se arregla esperando, y por eso va aparte: el
     // refresco automático seguirá frenado mañana y pasado.
-    return (
-      <>
-        son de <strong className="text-(--ink-soft)">demostración</strong> porque la app se
-        frenó sola para repartir el plan del mes —{' '}
-        <strong className="text-(--ink-soft)">no llegó a preguntar</strong>. Esperar no lo
-        cambia. <code>npm run odds</code> las pide saltándose el freno.
-      </>
-    );
+    return <>{conNodos(t('td.demoPresupuesto'), { demostracion, noPregunto: fuerte(t('td.noPregunto')), ...CODIGOS })}</>;
   }
   if (razon === 'fuente_falla') {
     return (
       <>
-        son de <strong className="text-(--ink-soft)">demostración</strong> porque el proveedor
-        de cuotas no contestó.{' '}
-        <strong className="text-(--ink-soft)">Tu clave está puesta</strong>, así que suele ser
-        la cuota del mes agotada o falta de conexión. <code>npm run doctor</code> lo dice
-        sin gastar ni una petición.
-        {meta?.oddsFallbackDetail && (
-          <span className="block opacity-70">último error: {meta.oddsFallbackDetail}</span>
-        )}
+        {conNodos(t('td.demoFuenteFalla'), { demostracion, clavePuesta: fuerte(t('demo.clavePuesta')), ...CODIGOS })}
+        {meta?.oddsFallbackDetail && <span className="block opacity-70">{t('demo.ultimoError', { e: meta.oddsFallbackDetail })}</span>}
       </>
     );
   }
   if (razon === 'sin_clave' || meta?.hasOddsKey === false) {
-    return (
-      <>
-        son de <strong className="text-(--ink-soft)">demostración</strong>, generados por el
-        propio modelo, porque no hay <code>ODDS_API_KEY</code>. Ponla en el fichero{' '}
-        <code>.env</code> y corre <code>npm run update-data</code> para ver las de verdad.
-      </>
-    );
+    return <>{conNodos(t('td.demoSinClave'), { demostracion, ...CODIGOS })}</>;
   }
   // Sin razón guardada: es una base anterior a que esto se registrara. Se dice lo que se
   // sabe y se manda al comando que lo averigua, en vez de adivinar una causa.
-  return (
-    <>
-      son de <strong className="text-(--ink-soft)">demostración</strong>, generados por el
-      propio modelo. <code>npm run doctor</code> dice por qué, sin gastar cuota.
-    </>
-  );
+  return <>{conNodos(t('td.demoSinCausa'), { demostracion, ...CODIGOS })}</>;
 }

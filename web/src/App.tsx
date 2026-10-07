@@ -44,7 +44,7 @@ const Informes = lazy(() => import('./pages/Informes'));
 const InformeDetalle = lazy(() => import('./pages/Informe'));
 const Lineas = lazy(() => import('./pages/Lineas'));
 const Archivo = lazy(() => import('./pages/Archivo'));
-import { I18nProvider, idiomaGuardado, useI18n } from './i18n';
+import { I18nProvider, idiomaGuardado, useI18n, type Clave } from './i18n';
 import { aplicarTema, temaGuardado, type Tema } from './lib/tema';
 
 /**
@@ -299,7 +299,7 @@ function SportNav({ pestana, ocultos, vertical = false, soloDeportes = false }: 
   useEffect(() => {
     activeRef.current?.scrollIntoView({ inline: 'nearest', block: 'nearest' });
   }, [pestana]);
-  const etiqueta = (id: SportId) => (id === 'picks' ? t('nav.destacados') : id === 'bets' ? t('nav.apuestas') : id === 'trust' ? t('nav.confianza') : SPORT_THEMES[id].label);
+  const etiqueta = (id: SportId) => (id === 'picks' ? t('nav.destacados') : id === 'bets' ? t('nav.apuestas') : id === 'trust' ? t('nav.confianza') : t(`deporte.${id}` as Clave));
   const onKey = (e: React.KeyboardEvent, i: number) => {
     const sig = vertical ? 'ArrowDown' : 'ArrowRight';
     const ant = vertical ? 'ArrowUp' : 'ArrowLeft';

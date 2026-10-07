@@ -5,9 +5,8 @@
 import { useEffect, useState } from 'react';
 import NotificacionesPanel from '../components/auth/NotificacionesPanel';
 import { aplicarTema, type Tema } from '../lib/tema';
-import { SPORT_THEMES } from '../lib/theme';
 import { DEPORTES } from '../rutas';
-import { useI18n, type Idioma } from '../i18n';
+import { useI18n, type Clave, type Idioma } from '../i18n';
 
 interface Version { id: number; created_at: string; parent_id: number | null; hash: string; nota: string | null; origen: string; config: Record<string, Record<string, number>> }
 interface Feature { on: boolean; activa: boolean; descripcion: string; falta: string | null; anulada: boolean }
@@ -239,7 +238,7 @@ export default function Ajustes() {
             const oculto = a?.deportesOcultos.includes(d) ?? false;
             return (
               <button key={d} aria-pressed={!oculto} onClick={() => a && void guardar({ deportesOcultos: oculto ? a.deportesOcultos.filter((x) => x !== d) : [...a.deportesOcultos, d] })} className={`rounded-full px-3 py-1 ring-1 ${!oculto ? 'bg-(--raised-2) text-(--ink-strong) ring-(--line-strong)' : 'text-(--ink-muted) ring-(--line) line-through'}`}>
-                {SPORT_THEMES[d].label}
+                {t(`deporte.${d}` as Clave)}
               </button>
             );
           })}

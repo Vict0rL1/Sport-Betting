@@ -29,6 +29,7 @@
  */
 import { useMemo, useState, type ReactNode } from 'react';
 import { spreadOf, winProbability } from '../lib/elo';
+import { conNodos, useI18n } from '../i18n';
 
 export interface EloRow {
   id: string;
@@ -83,6 +84,7 @@ export default function EloRanking({
   defaultOpen?: boolean;
   footer?: ReactNode;
 }) {
+  const { t } = useI18n();
   // La clave lleva el título porque cada deporte tiene la suya: cerrar la de la NFL no
   // tiene por qué cerrar la del tenis.
   const openKey = `elo-open:${title}`;
@@ -130,7 +132,7 @@ export default function EloRanking({
           <span className="text-[14px] uppercase tracking-wide text-(--ink-muted)">{title}</span>
           <br />
           <span className="text-[16px] text-(--ink-body)">
-            {rows.length} por Elo
+            {t('elo.porElo', { n: rows.length })}
             {spread && (
               <span className="ml-2 text-[14px] text-(--ink-muted)">
                 · {Math.round(spread.worst)}–{Math.round(spread.best)}
@@ -152,15 +154,15 @@ export default function EloRanking({
           {/* La forma de la competición, que no se ve en la lista de nombres. */}
           {spread && (
             <p className="mb-3 text-[13px] leading-relaxed text-(--ink-soft)">
-              El primero le ganaría al último{' '}
-              <strong className="font-semibold text-(--ink-strong)">
-                {(spread.topBeatsBottom * 100).toFixed(0)} %
-              </strong>{' '}
-              de las veces.{' '}
+              {conNodos(t('elo.primeroUltimo'), {
+                pct: (
+                  <strong className="font-semibold text-(--ink-strong)">
+                    {(spread.topBeatsBottom * 100).toFixed(0)} %
+                  </strong>
+                ),
+              })}{' '}
               <span className="text-(--ink-muted)">
-                Cerca del 50 % significa igualdad; por encima del 90 %, un abismo entre
-                arriba y abajo. La columna «vs. medio» es cada uno contra un rival de{' '}
-                {Math.round(spread.median)} Elo, la mediana de esta lista.
+                {t('elo.cercaDel50', { mediana: Math.round(spread.median) })}
               </span>
             </p>
           )}
@@ -170,7 +172,7 @@ export default function EloRanking({
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar…"
+              placeholder={t('elo.buscar')}
               className="mb-3 w-full max-w-xs rounded-lg bg-(--raised) px-3 py-1.5 text-[14px] text-(--ink-strong) ring-1 ring-inset ring-(--line) placeholder:text-(--ink-faint) focus:outline-none focus:ring-(--line-strong)"
             />
           )}
@@ -180,10 +182,10 @@ export default function EloRanking({
               <thead className="text-(--ink-muted)">
                 <tr>
                   <th className="py-1 pr-2 font-normal">#</th>
-                  <th className="py-1 pr-2 font-normal">Nombre</th>
+                  <th className="py-1 pr-2 font-normal">{t('elo.nombre')}</th>
                   <th className="py-1 pr-2 font-normal">Elo</th>
-                  <th className="py-1 pr-3 font-normal" title="Probabilidad de ganar a un rival con el Elo mediano de esta lista">
-                    vs. medio
+                  <th className="py-1 pr-3 font-normal" title={t('elo.vsMedioTitulo')}>
+                    {t('elo.vsMedio')}
                   </th>
                   {extraHeaders.map((h) => (
                     <th key={h} className="py-1 pr-2 font-normal">
@@ -220,7 +222,7 @@ export default function EloRanking({
                           {few && (
                             <span
                               className="shrink-0 text-[12px] text-amber-400/80"
-                              title={`Solo ${r.matches} partidos: este Elo todavía no significa gran cosa`}
+                              title={t('elo.pocos', { n: r.matches ?? 0 })}
                             >
                               ◦{r.matches}
                             </span>
@@ -260,7 +262,7 @@ export default function EloRanking({
           </div>
 
           {shown.length === 0 && (
-            <p className="mt-2 text-[13px] text-(--ink-muted)">Nada coincide con «{query}».</p>
+            <p className="mt-2 text-[13px] text-(--ink-muted)">{t('elo.nada', { q: query })}</p>
           )}
 
           {footer && <div className="mt-3 text-[13px] leading-relaxed text-(--ink-muted)">{footer}</div>}

@@ -8,6 +8,7 @@ import PointsMarkets from './PointsMarkets';
 import { Badge, Card, Flag, MatchTime, ResultBanner, SeriesDot } from './ui';
 import { EnlacePartido } from './ui';
 import EventTrustPanel from './trust/EventTrustPanel';
+import { conNodos, localeDe, useI18n } from '../i18n';
 
 export default function MatchCard({
   item,
@@ -18,6 +19,7 @@ export default function MatchCard({
 }) {
   const [open, setOpen] = useState(false);
   const { match, prediction, marketOnly, players } = item;
+  const { t, idioma } = useI18n();
 
   const verdict = prediction?.verdict;
   const value = prediction?.market.verdict;
@@ -35,10 +37,10 @@ export default function MatchCard({
         <MatchTime iso={match.commence_time} />
         <span className="flex items-center gap-2">
           <span className="rounded bg-(--raised) px-2 py-0.5">
-            {surfaceLabelEs(match.surface)}
+            {surfaceLabelEs(match.surface, idioma)}
           </span>
           {match.source === 'fixture' && (
-            <span className="rounded bg-amber-900/40 px-2 py-0.5 text-amber-300">odds demo</span>
+            <span className="rounded bg-amber-900/40 px-2 py-0.5 text-amber-300">{t('tt.oddsDemo')}</span>
           )}
         </span>
       </div>
@@ -52,7 +54,7 @@ export default function MatchCard({
         score={item.outcome.result?.winnerName ?? null}
         detail={
           item.outcome.result
-            ? [item.outcome.result.score, 'ganó el partido'].filter(Boolean).join(' · ')
+            ? [item.outcome.result.score, t('tt.ganoPartido')].filter(Boolean).join(' · ')
             : null
         }
         modelCalledIt={
@@ -99,21 +101,24 @@ export default function MatchCard({
             <div className="text-[16px]">
               {verdict && verdict.favoredSide ? (
                 <span>
-                  El modelo favorece a{' '}
-                  <SeriesDot color={verdict.favoredSide === 1 ? P1_COLOR : P2_COLOR} />{' '}
-                  <strong className="text-(--ink-strong)">{verdict.favoredName}</strong>{' '}
-                  <span className="text-(--ink-soft)">
-                    · {confidenceLabelEs(verdict.confidence)} ({verdict.marginPct} pp)
-                  </span>
+                  {conNodos(t('tt.favorece'), {
+                    dot: <SeriesDot color={verdict.favoredSide === 1 ? P1_COLOR : P2_COLOR} />,
+                    nombre: <strong className="text-(--ink-strong)">{verdict.favoredName}</strong>,
+                    detalle: (
+                      <span className="text-(--ink-soft)">
+                        · {confidenceLabelEs(verdict.confidence, idioma)} ({verdict.marginPct} pp)
+                      </span>
+                    ),
+                  })}
                 </span>
               ) : (
-                <span className="text-(--ink-soft)">Partido muy parejo</span>
+                <span className="text-(--ink-soft)">{t('tt.parejo')}</span>
               )}
             </div>
             <div className="flex items-center gap-2">
               <ReliabilityBadge reliability={prediction.reliability} />
               {valuePlayer && (
-                <Badge tone="good">Posible value: {valuePlayer}</Badge>
+                <Badge tone="good">{t('tt.posibleValue', { nombre: valuePlayer })}</Badge>
               )}
             </div>
           </div>
@@ -121,7 +126,7 @@ export default function MatchCard({
           {/* What the model expects to happen, in plain language */}
           <div className="mt-3 border-t border-(--line) pt-3">
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--ink-muted)">
-              Qué es lo más probable
+              {t('tt.masProbable')}
             </div>
             <p className="text-[16px] font-medium text-(--ink-strong)">{prediction.summary.headline}</p>
             <Bullets items={prediction.summary.bullets} />
@@ -135,7 +140,7 @@ export default function MatchCard({
             onClick={() => setOpen((o) => !o)}
             className="mt-3 text-[14px] text-(--ink-soft) hover:text-(--ink-strong)"
           >
-            {open ? '▲ Ocultar' : '▼ ¿Por qué? · Elo, forma, H2H y mercado'}
+            {open ? t('tt.ocultar') : t('tt.porQue')}
           </button>
           {open && (
             <>
@@ -178,14 +183,15 @@ export default function MatchCard({
  * look like the same confident call.
  */
 function ReliabilityBadge({ reliability }: { reliability: Reliability }) {
+  const { t } = useI18n();
   const styles: Record<Reliability['level'], string> = {
     high: 'bg-emerald-900/40 text-emerald-300 ring-emerald-500/40',
     medium: 'bg-amber-900/40 text-amber-300 ring-amber-500/40',
     low: 'bg-rose-900/40 text-rose-300 ring-rose-500/40',
   };
   const title = [
-    `Margen de incertidumbre: ±${reliability.marginPp} puntos porcentuales.`,
-    `Partidos efectivos tras cada Elo: ${reliability.effectiveMatches.p1} y ${reliability.effectiveMatches.p2}.`,
+    t('tt.margen', { pp: reliability.marginPp }),
+    t('tt.efectivos', { a: reliability.effectiveMatches.p1, b: reliability.effectiveMatches.p2 }),
     ...reliability.reasons,
   ].join('\n');
   return (
@@ -218,6 +224,7 @@ function MissingPlayers({
     { name: match.p2_name, id: match.p2_id, info: players?.p2 ?? null },
   ];
   const unknown = sides.filter((s) => !s.info).map((s) => s.name);
+  const { t } = useI18n();
   const knownButUnrated = sides
     .filter((s) => s.info && s.info.matchesInDb === 0)
     .map((s) => `${s.name}${s.info!.ranking ? ` (#${s.info!.ranking.rank})` : ''}`);
@@ -226,28 +233,20 @@ function MissingPlayers({
     <div className="rounded-lg bg-(--tint) p-3 text-[16px] text-(--ink-soft) ring-1 ring-(--line)">
       {unknown.length > 0 && (
         <>
-          Sin predicción del modelo: no hay datos de{' '}
-          <strong className="text-(--ink-body)">{unknown.join(' ni de ')}</strong>.
+          {conNodos(t('tt.sinDatos'), { nombres: <strong className="text-(--ink-body)">{unknown.join(t('tt.ni'))}</strong> })}
           <div className="mt-1 text-[14px] text-(--ink-muted)">
-            Suele pasar si el historial descargado es antiguo y no cubre la carrera de este jugador.
-            Ejecuta{' '}
-            <code className="rounded bg-(--raised) px-1">npm run update-data -- --fresh</code> para
-            volver a descargarlo.
+            {conNodos(t('tt.historialAntiguo'), { comando: <code className="rounded bg-(--raised) px-1">npm run update-data -- --fresh</code> })}
           </div>
         </>
       )}
       {unknown.length === 0 && knownButUnrated.length > 0 && (
         <>
-          Sin predicción del modelo: aún no hay partidos de{' '}
-          <strong className="text-(--ink-body)">{knownButUnrated.join(' ni de ')}</strong> en el
-          historial, así que no se puede calcular su Elo.
-          <div className="mt-1 text-[14px] text-(--ink-muted)">
-            Arriba tienes su ranking oficial y la probabilidad del mercado.
-          </div>
+          {conNodos(t('tt.sinPartidos'), { nombres: <strong className="text-(--ink-body)">{knownButUnrated.join(t('tt.ni'))}</strong> })}
+          <div className="mt-1 text-[14px] text-(--ink-muted)">{t('tt.arriba')}</div>
         </>
       )}
       {unknown.length === 0 && knownButUnrated.length === 0 && (
-        <>Sin predicción del modelo para este partido.</>
+        <>{t('tt.sinPrediccion')}</>
       )}
     </div>
   );
@@ -278,11 +277,12 @@ function PlayerName({
 }) {
   // Official ranking / age / hand — real facts about the player, independent of
   // whether the match history is complete enough to rate them.
+  const { t, idioma } = useI18n();
   const facts = [
     info?.ranking ? `#${info.ranking.rank} ${tourLabel}` : null,
-    info?.ranking?.points != null ? `${info.ranking.points.toLocaleString('es')} pts` : null,
-    info?.age != null ? `${info.age} años` : null,
-    info?.hand === 'L' ? 'zurdo/a' : info?.hand === 'R' ? 'diestro/a' : null,
+    info?.ranking?.points != null ? t('tt.pts', { n: info.ranking.points.toLocaleString(localeDe(idioma)) }) : null,
+    info?.age != null ? t('tt.anios', { n: info.age }) : null,
+    info?.hand === 'L' ? t('tt.zurdo') : info?.hand === 'R' ? t('tt.diestro') : null,
   ].filter(Boolean) as string[];
   return (
     <div className={`min-w-0 flex-1 ${alignRight ? 'text-right' : 'text-left'}`}>
@@ -309,19 +309,19 @@ function PlayerName({
           }`}
           title={
             probSource === 'model'
-              ? 'Probabilidad de victoria según el modelo'
-              : 'Probabilidad implícita en las cuotas del mercado (el modelo no puede predecir este partido)'
+              ? t('tt.probModelo')
+              : t('tt.probMercado')
           }
         >
           {(prob * 100).toFixed(1)}
           <span className="text-[26px]">%</span>
           {probSource === 'market' && (
-            <span className="ml-1 align-middle text-[14px] font-normal text-(--ink-soft)">mercado</span>
+            <span className="ml-1 align-middle text-[14px] font-normal text-(--ink-soft)">{t('tt.mercado')}</span>
           )}
         </div>
       )}
       {facts.length > 0 && <div className="text-[14px] text-(--ink-soft)">{facts.join(' · ')}</div>}
-      <div className="text-[14px] text-(--ink-muted)">{odds != null ? `cuota ${odds}` : 'sin cuota'}</div>
+      <div className="text-[14px] text-(--ink-muted)">{odds != null ? t('tt.cuota', { c: odds }) : t('tt.sinCuota')}</div>
     </div>
   );
 }
@@ -353,6 +353,7 @@ function Bullets({ items }: { items: string[] }) {
   const VISIBLES = 4;
   const ocultos = items.length - VISIBLES;
   const mostrados = open ? items : items.slice(0, VISIBLES);
+  const { t } = useI18n();
 
   return (
     <>
@@ -369,7 +370,7 @@ function Bullets({ items }: { items: string[] }) {
           onClick={() => setOpen((o) => !o)}
           className="mt-1.5 text-[13px] text-(--ink-muted) underline-offset-2 hover:text-(--ink-body) hover:underline"
         >
-          {open ? 'Ver menos' : `Ver ${ocultos} motivo${ocultos === 1 ? '' : 's'} más`}
+          {open ? t('tt.verMenos') : t(ocultos === 1 ? 'tt.verMas1' : 'tt.verMasN', { n: ocultos })}
         </button>
       )}
     </>

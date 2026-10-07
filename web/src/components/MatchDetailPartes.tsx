@@ -2,15 +2,17 @@
 import { type FitnessSignals, type Prediction, type ServeStats } from '../lib/api';
 import { pct } from '../lib/format';
 import { P1_COLOR, P2_COLOR } from './ProbabilityBars';
+import { conNodos, useI18n, type Clave } from '../i18n';
 
 export function Last5({ results, color }: { results: boolean[]; color: string }) {
+  const { t } = useI18n();
   if (results.length === 0) return <span className="text-(--ink-muted)">—</span>;
   return (
     <span className="inline-flex gap-1">
       {results.map((w, i) => (
         <span
           key={i}
-          title={w ? 'Victoria' : 'Derrota'}
+          title={w ? t('det.victoria') : t('det.derrota')}
           className="inline-flex h-4 w-4 items-center justify-center rounded text-[11px] font-bold"
           style={{
             backgroundColor: w ? color : 'transparent',
@@ -18,7 +20,7 @@ export function Last5({ results, color }: { results: boolean[]; color: string })
             border: w ? 'none' : '1px solid #f87171',
           }}
         >
-          {w ? 'V' : 'D'}
+          {w ? t('det.v') : t('det.d')}
         </span>
       ))}
     </span>
@@ -33,6 +35,7 @@ export function Last5({ results, color }: { results: boolean[]; color: string })
  */
 export function ReliabilityBlock({ prediction }: { prediction: Prediction }) {
   const rel = prediction.reliability;
+  const { t } = useI18n();
   const { p1, p2 } = prediction.players;
   // Express the range from the favourite's side — that's the number the user
   // reads off the card, so the band has to qualify the same quantity.
@@ -52,13 +55,15 @@ export function ReliabilityBlock({ prediction }: { prediction: Prediction }) {
   return (
     <div className={`rounded-lg border p-3 ${tone}`}>
       <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">
-        Cuánta confianza merece este número
+        {t('det.cuantaConfianza')}
       </div>
       <p className="text-(--ink-body)">
-        <strong className="capitalize">{rel.label}</strong> — {favName} entre{' '}
-        <strong className="tabular-nums">{pct(lo, 1)}</strong> y{' '}
-        <strong className="tabular-nums">{pct(hi, 1)}</strong>{' '}
-        <span className="text-(--ink-soft)">(±{rel.marginPp} pp)</span>
+        {conNodos(t('det.rango', { nombre: favName }), {
+          nivel: <strong className="capitalize">{rel.label}</strong>,
+          lo: <strong className="tabular-nums">{pct(lo, 1)}</strong>,
+          hi: <strong className="tabular-nums">{pct(hi, 1)}</strong>,
+          margen: <span className="text-(--ink-soft)">(±{rel.marginPp} pp)</span>,
+        })}
       </p>
       <div className="mt-2 grid grid-cols-2 gap-2 text-[14px]">
         <div className="min-w-0">
@@ -66,7 +71,7 @@ export function ReliabilityBlock({ prediction }: { prediction: Prediction }) {
             {p1.name}
           </div>
           <div className="tabular-nums text-(--ink-body)">
-            {rel.effectiveMatches.p1} partidos efectivos
+            {t('det.efectivos', { n: rel.effectiveMatches.p1 })}
           </div>
         </div>
         <div className="min-w-0">
@@ -74,7 +79,7 @@ export function ReliabilityBlock({ prediction }: { prediction: Prediction }) {
             {p2.name}
           </div>
           <div className="tabular-nums text-(--ink-body)">
-            {rel.effectiveMatches.p2} partidos efectivos
+            {t('det.efectivos', { n: rel.effectiveMatches.p2 })}
           </div>
         </div>
       </div>
@@ -89,8 +94,7 @@ export function ReliabilityBlock({ prediction }: { prediction: Prediction }) {
         </ul>
       )}
       <p className="mt-2 text-[14px] text-(--ink-muted)">
-        «Partidos efectivos» pondera el historial igual que el Elo del partido: 70% los partidos en
-        esta superficie, 30% el total. Menos partidos (o datos antiguos) ⇒ banda más ancha.
+        {t('det.efectivosNota')}
       </p>
     </div>
   );
@@ -109,8 +113,8 @@ export function FormBox({
   last5: boolean[];
   rec: { wins: number; losses: number };
 }) {
-  const streakTxt =
-    f.streak > 0 ? `${f.streak}V seguidas` : f.streak < 0 ? `${-f.streak}D seguidas` : '—';
+  const { t } = useI18n();
+  const streakTxt = f.streak > 0 ? t('det.seguidasV', { n: f.streak }) : f.streak < 0 ? t('det.seguidasD', { n: -f.streak }) : '—';
   return (
     <div>
       <div className="mb-1 font-medium" style={{ color }}>
@@ -119,10 +123,8 @@ export function FormBox({
       <div className="mb-1">
         <Last5 results={last5} color={color} />
       </div>
-      <div className="text-[14px] text-(--ink-soft)">Racha: {streakTxt}</div>
-      <div className="text-[14px] text-(--ink-soft)">
-        En superficie: {rec.wins}V–{rec.losses}D
-      </div>
+      <div className="text-[14px] text-(--ink-soft)">{t('det.racha', { r: streakTxt })}</div>
+      <div className="text-[14px] text-(--ink-soft)">{t('det.enSuperficie', { v: rec.wins, d: rec.losses })}</div>
     </div>
   );
 }
@@ -143,24 +145,22 @@ export function FitnessBlock({
   f1: FitnessSignals;
   f2: FitnessSignals;
 }) {
+  const { t } = useI18n();
   const describe = (f: FitnessSignals) => {
     const items: string[] = [];
-    if (f.retirements > 0) items.push(`${f.retirements} retiro${f.retirements > 1 ? 's' : ''}`);
-    if (f.walkovers > 0) items.push(`${f.walkovers} W/O`);
-    if (f.daysSinceLastMatch != null) items.push(`${f.daysSinceLastMatch} días sin jugar`);
-    items.push(`${f.matchesLast30Days} partidos en 30 días`);
+    if (f.retirements > 0) items.push(t(f.retirements > 1 ? 'det.retirosN' : 'det.retiros1', { n: f.retirements }));
+    if (f.walkovers > 0) items.push(t('det.wo', { n: f.walkovers }));
+    if (f.daysSinceLastMatch != null) items.push(t('det.diasSinJugar', { n: f.daysSinceLastMatch }));
+    items.push(t('det.partidos30', { n: f.matchesLast30Days }));
     return items;
   };
 
   return (
     <div className="rounded-lg bg-(--raised) p-3">
       <div className="mb-1 text-[14px] uppercase tracking-wide text-(--ink-muted)">
-        Señales físicas (de resultados, no diagnóstico)
+        {t('det.senalesFisicas')}
       </div>
-      <p className="mb-2 text-[11px] leading-snug text-(--ink-muted)">
-        Retiros, ausencias y carga de partidos. No existe una fuente abierta de lesiones actuales;
-        esto son las huellas que dejan en los resultados.
-      </p>
+      <p className="mb-2 text-[11px] leading-snug text-(--ink-muted)">{t('det.senalesNota')}</p>
       <div className="grid grid-cols-2 gap-4 text-[14px]">
         {(
           [
@@ -173,8 +173,8 @@ export function FitnessBlock({
               {name}
             </div>
             <ul className="text-(--ink-soft)">
-              {describe(f).map((t, i) => (
-                <li key={i}>{t}</li>
+              {describe(f).map((x, i) => (
+                <li key={i}>{x}</li>
               ))}
             </ul>
           </div>
@@ -184,13 +184,13 @@ export function FitnessBlock({
   );
 }
 
-export const SERVE_ROWS: { label: string; key: keyof ServeStats; suffix: string }[] = [
-  { label: 'Aces por partido', key: 'acesPerMatch', suffix: '' },
-  { label: 'Ace %', key: 'acePct', suffix: '%' },
-  { label: '1er saque dentro %', key: 'firstInPct', suffix: '%' },
-  { label: '1er saque ganado %', key: 'firstWonPct', suffix: '%' },
-  { label: '2do saque ganado %', key: 'secondWonPct', suffix: '%' },
-  { label: 'Break points salvados %', key: 'bpSavedPct', suffix: '%' },
+export const SERVE_ROWS: { label: Clave; key: keyof ServeStats; suffix: string }[] = [
+  { label: 'det.aces', key: 'acesPerMatch', suffix: '' },
+  { label: 'det.acePct', key: 'acePct', suffix: '%' },
+  { label: 'det.primerDentro', key: 'firstInPct', suffix: '%' },
+  { label: 'det.primerGanado', key: 'firstWonPct', suffix: '%' },
+  { label: 'det.segundoGanado', key: 'secondWonPct', suffix: '%' },
+  { label: 'det.bpSalvados', key: 'bpSavedPct', suffix: '%' },
 ];
 
 export function ServeCompare({
@@ -204,12 +204,13 @@ export function ServeCompare({
   s1: ServeStats;
   s2: ServeStats;
 }) {
+  const { t } = useI18n();
   if (s1.matches === 0 && s2.matches === 0) return null;
   const fmt = (v: number | null, suf: string) => (v == null ? '—' : `${v}${suf}`);
   return (
     <div className="rounded-lg bg-(--raised) p-3">
       <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">
-        Saque y quiebre (promedio histórico)
+        {t('det.saqueTitulo')}
       </div>
       <div className="space-y-1.5">
         {SERVE_ROWS.map((row) => {
@@ -224,7 +225,7 @@ export function ServeCompare({
               >
                 {fmt(v1 as number | null, row.suffix)}
               </span>
-              <span className="text-center text-(--ink-muted)">{row.label}</span>
+              <span className="text-center text-(--ink-muted)">{t(row.label)}</span>
               <span
                 className="w-16 tabular-nums"
                 style={{ color: better === 2 ? P2_COLOR : '#cbd5e1', fontWeight: better === 2 ? 600 : 400 }}

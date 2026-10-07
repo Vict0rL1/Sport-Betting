@@ -23,8 +23,12 @@ import { tennisSlate } from '../lib/slate';
 import { useStake } from '../lib/useStake';
 import { dayChipLabel, groupByDay } from '../lib/format';
 import { RefreshInfo, DataBadge, ShortSlateNote } from './TennisDashboardPartes';
+import { conNodos, localeDe, useI18n } from '../i18n';
+
+const bloque = (texto: string, clase = 'rounded bg-(--raised) px-1') => <code className={clase}>{texto}</code>;
 
 export default function TennisDashboard() {
+  const { t, idioma } = useI18n();
   const [meta, setMeta] = useState<Meta | null>(null);
   const [tours, setTours] = useState<Tour[]>([]);
   const [tournaments, setTournaments] = useState<TournamentInfo[]>([]);
@@ -57,7 +61,7 @@ export default function TennisDashboard() {
       setTournaments(tt.tournaments);
       setMatches(up);
     } catch (e) {
-      setError(`No se pudo actualizar: ${e}`);
+      setError(t('td.errorActualizar', { error: String(e) }));
     } finally {
       setRefreshing(false);
     }
@@ -70,7 +74,7 @@ export default function TennisDashboard() {
         setMeta(m);
         setTours(t);
       })
-      .catch((e) => setError(`No se pudo conectar con la API. ¿Corriste "npm run seed"? (${e})`));
+      .catch((e) => setError(t('td.errorApi', { error: String(e) })));
   }, []);
 
   // Tournaments depend on the selected tour (only those with upcoming matches).
@@ -83,12 +87,12 @@ export default function TennisDashboard() {
 
   // Tournaments that actually have upcoming matches for the selected tour.
   const dayGroups = useMemo(
-    () => groupByDay(matches, (m) => m.match.commence_time),
-    [matches],
+    () => groupByDay(matches, (m) => m.match.commence_time, idioma),
+    [matches, idioma],
   );
   const dayChips = useMemo(
-    () => dayGroups.map((d) => ({ key: d.key, label: dayChipLabel(d.key), count: d.items.length })),
-    [dayGroups],
+    () => dayGroups.map((d) => ({ key: d.key, label: dayChipLabel(d.key, new Date(), idioma), count: d.items.length })),
+    [dayGroups, idioma],
   );
   const shownGroups = day ? dayGroups.filter((d) => d.key === day) : dayGroups;
 
@@ -140,19 +144,18 @@ export default function TennisDashboard() {
       <DashboardHeader
         onRefresh={handleRefresh}
         refreshing={refreshing}
-        refreshTitle="Vuelve a consultar las odds de los partidos próximos"
-        chips={meta && <>{meta.counts.matches.toLocaleString('es')} partidos · {meta.counts.players} jugadores</>}
+        refreshTitle={t('td.refrescarTitulo')}
+        chips={meta && <>{t('td.chips', { partidos: meta.counts.matches.toLocaleString(localeDe(idioma)), jugadores: meta.counts.players })}</>}
         alert={staleLabel(stale)}
       >
           <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
-            Predicción de partidos con Elo por superficie, forma reciente, head-to-head y odds del
-            mercado.
+            {t('td.lema')}
           </p>
         {meta && <div className="mt-2"><DataBadge meta={meta} /></div>}
         {meta && <RefreshInfo meta={meta} />}
         <StaleHistoryWarning
           info={stale}
-          what="Los Elo por superficie"
+          what={t('td.elosSuperficie')}
           fix="npm run update-data"
         />
         <TrackRecordPanel tour={tour} />
@@ -210,12 +213,12 @@ export default function TennisDashboard() {
         </div>
       ) : meta && meta.counts.matches === 0 ? (
         <div className="mb-6 rounded-lg border border-rose-800/60 bg-rose-950/40 p-4 text-[16px] text-rose-200">
-          <p className="font-medium">La base de datos está vacía.</p>
+          <p className="font-medium">{t('td.vaciaTitulo')}</p>
           <p className="mt-1 text-rose-300/90">
-            Ejecuta <code className="rounded bg-rose-900/40 px-1">npm run update-data</code> para
-            descargar el historial real, o{' '}
-            <code className="rounded bg-rose-900/40 px-1">npm run seed</code> para ver la app con
-            datos de ejemplo.
+            {conNodos(t('td.vaciaCuerpo'), {
+              update: bloque('npm run update-data', 'rounded bg-rose-900/40 px-1'),
+              seed: bloque('npm run seed', 'rounded bg-rose-900/40 px-1'),
+            })}
           </p>
         </div>
       ) : (
@@ -225,21 +228,12 @@ export default function TennisDashboard() {
           detail={
             (meta?.byTour?.[tour]?.matches ?? 1) === 0 ? (
               <>
-                <p>
-                  No es un fallo de descarga: las dos fuentes de tenis que había en GitHub dejaron de
-                  servir este circuito.{' '}
-                  <code className="rounded bg-(--raised) px-1">JeffSackmann/tennis_wta</code>{' '}
-                  devuelve 404 —el repositorio ya no existe— y{' '}
-                  <code className="rounded bg-(--raised) px-1">Tennismylife</code>, que lo
-                  reemplazó, solo cubre ATP.
-                </p>
+                <p>{conNodos(t('td.sinFuente1'), { wta: bloque('JeffSackmann/tennis_wta'), tml: bloque('Tennismylife') })}</p>
                 <p className="mt-1.5">
-                  Lo que sí llega a la temporada en curso es{' '}
-                  <strong className="text-(--ink-soft)">tennis-data.co.uk</strong>, con ATP y WTA y
-                  además con las cuotas de cierre.{' '}
-                  <code className="rounded bg-(--raised) px-1">npm run update-data</code> ya lo
-                  intenta solo; desde una red que no lo bloquee debería completar este circuito sin
-                  que toques nada.
+                  {conNodos(t('td.sinFuente2'), {
+                    fuente: <strong className="text-(--ink-soft)">tennis-data.co.uk</strong>,
+                    update: bloque('npm run update-data'),
+                  })}
                 </p>
               </>
             ) : undefined
@@ -249,7 +243,7 @@ export default function TennisDashboard() {
 
       {/* Matches */}
       {loading ? (
-        <p className="text-(--ink-muted)">Cargando partidos…</p>
+        <p className="text-(--ink-muted)">{t('form.cargandoPartidos')}</p>
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />

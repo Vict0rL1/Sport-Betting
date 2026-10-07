@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from 'react';
 import RecentResults, { DeporteIcono, lineaResumen, useHistorial } from './RecentResults';
+import { localeDe, useI18n } from '../i18n';
 
 interface Partido {
   deporte: string;
@@ -67,6 +68,7 @@ export default function TodayPanel() {
   const [datos, setDatos] = useState<{ partidos: Partido[]; nota: string | null } | null>(null);
   // Los resultados recientes (registro en vivo + reconstruidos), con su ventana.
   const historial = useHistorial();
+  const { t, idioma } = useI18n();
   const [vista, setVista] = useState<'hoy' | 'resultados'>(() => {
     try {
       return localStorage.getItem(CLAVE_VISTA) === 'resultados' ? 'resultados' : 'hoy';
@@ -140,19 +142,18 @@ export default function TodayPanel() {
       >
         <span className="min-w-0">
           <span className="text-[15px] font-semibold text-(--ink-strong)">
-            {activa === 'hoy' ? 'Hoy' : 'Cómo le fue al modelo'}
+            {activa === 'hoy' ? t('hoy.titulo') : t('hoy.comoFue')}
           </span>{' '}
           <span className="text-[13px] text-(--ink-muted)">
             {activa === 'hoy' ? (
               <>
-                {datos?.partidos.length} partido{datos?.partidos.length === 1 ? '' : 's'} en los
-                cinco deportes
-                {porJugar.length < (datos?.partidos.length ?? 0) && ` · ${porJugar.length} por jugar`}
-                {conPrecio > 0 && ` · ${conPrecio} con cuotas reales`}
+                {t(datos?.partidos.length === 1 ? 'hoy.partidos1' : 'hoy.partidosN', { n: datos?.partidos.length ?? 0 })}
+                {porJugar.length < (datos?.partidos.length ?? 0) && t('hoy.porJugar', { n: porJugar.length })}
+                {conPrecio > 0 && t('hoy.conCuotas', { n: conPrecio })}
               </>
             ) : (
               // Sin «esperaba», un 53 % no dice nada: puede ser justo lo que tocaba.
-              <>{lineaResumen(historial.h)}</>
+              <>{lineaResumen(historial.h, t)}</>
             )}
           </span>
         </span>
@@ -175,7 +176,7 @@ export default function TodayPanel() {
                       : 'text-(--ink-soft) hover:bg-(--raised)'
                   }`}
                 >
-                  {v === 'hoy' ? 'Qué hay hoy' : '¿Acertó?'}
+                  {v === 'hoy' ? t('hoy.queHay') : t('hoy.acerto')}
                 </button>
               ))}
             </div>
@@ -197,7 +198,7 @@ export default function TodayPanel() {
                         style={p.empezado ? { opacity: 0.45 } : undefined}
                       >
                         <td className="whitespace-nowrap py-2 pl-4 pr-2 text-(--ink-soft)">
-                          {new Date(p.cuando).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(p.cuando).toLocaleTimeString(localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}
                         </td>
                         <td className="py-2 pr-2"><span title={p.deporte} className="inline-flex"><DeporteIcono nombre={p.deporte} size={24} tile /></span></td>
                         <td className="py-2 pr-3 text-(--ink-body)">{p.partido}</td>
@@ -210,7 +211,7 @@ export default function TodayPanel() {
                               </span>
                             </>
                           ) : (
-                            <span className="text-(--ink-faint)">sin predicción</span>
+                            <span className="text-(--ink-faint)">{t('hoy.sinPrediccion')}</span>
                           )}
                         </td>
                       </tr>

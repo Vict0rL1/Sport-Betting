@@ -2,6 +2,7 @@ import type { Prediction } from '../lib/api';
 import { pct, surfaceLabelEs, formatDate } from '../lib/format';
 import { P1_COLOR, P2_COLOR } from './ProbabilityBars';
 import { ReliabilityBlock, FormBox, FitnessBlock, ServeCompare } from './MatchDetailPartes';
+import { conNodos, useI18n } from '../i18n';
 
 function Num({ value, plus = false }: { value: number; plus?: boolean }) {
   const sign = plus && value > 0 ? '+' : '';
@@ -37,30 +38,31 @@ function FactorBar({ points, max }: { points: number; max: number }) {
 /** Signal-by-signal breakdown, all in Elo points so the math is transparent. */
 export default function MatchDetail({ prediction }: { prediction: Prediction }) {
   const { ratings, form, h2h, adjustedRatings, players, surface, market, reasoning } = prediction;
-  const surfLabel = surfaceLabelEs(surface);
+  const { t, idioma } = useI18n();
+  const surfLabel = surfaceLabelEs(surface, idioma);
   const maxFactor = Math.max(50, ...reasoning.factors.map((f) => Math.abs(f.pointsForP1)));
   // Most likely scoreline comes from the derived distribution — never a separate
   // heuristic, which could contradict the table right above it.
   const topOutcome = prediction.scorelines.outcomes[0];
 
   const rows: { label: string; p1: React.ReactNode; p2: React.ReactNode }[] = [
-    { label: 'Elo general', p1: ratings.p1.overall, p2: ratings.p2.overall },
-    { label: `Elo ${surfLabel.toLowerCase()}`, p1: ratings.p1.surface ?? '—', p2: ratings.p2.surface ?? '—' },
-    { label: 'Efectivo (0.7·sup + 0.3·gen)', p1: ratings.p1.effective, p2: ratings.p2.effective },
-    { label: 'Ajuste forma', p1: <Num value={form.p1.delta} plus />, p2: <Num value={form.p2.delta} plus /> },
-    { label: 'Ajuste head-to-head', p1: <Num value={h2h.delta} plus />, p2: <Num value={-h2h.delta} plus /> },
+    { label: t('det.eloGeneral'), p1: ratings.p1.overall, p2: ratings.p2.overall },
+    { label: t('det.eloSuperficie', { sup: surfLabel.toLowerCase() }), p1: ratings.p1.surface ?? '—', p2: ratings.p2.surface ?? '—' },
+    { label: t('det.efectivo'), p1: ratings.p1.effective, p2: ratings.p2.effective },
+    { label: t('det.ajusteForma'), p1: <Num value={form.p1.delta} plus />, p2: <Num value={form.p2.delta} plus /> },
+    { label: t('det.ajusteH2h'), p1: <Num value={h2h.delta} plus />, p2: <Num value={-h2h.delta} plus /> },
     // Only shown when it bites: a zero row for every in-season match would be noise.
     ...(prediction.layoff.p1 !== 0 || prediction.layoff.p2 !== 0
       ? [
           {
-            label: 'Ajuste inactividad',
+            label: t('det.ajusteInactividad'),
             p1: <Num value={prediction.layoff.p1} plus />,
             p2: <Num value={prediction.layoff.p2} plus />,
           },
         ]
       : []),
-    { label: 'Rating ajustado', p1: <strong>{adjustedRatings.p1}</strong>, p2: <strong>{adjustedRatings.p2}</strong> },
-    { label: 'Prob. del modelo', p1: <strong>{pct(prediction.model.prob1, 1)}</strong>, p2: <strong>{pct(prediction.model.prob2, 1)}</strong> },
+    { label: t('det.ratingAjustado'), p1: <strong>{adjustedRatings.p1}</strong>, p2: <strong>{adjustedRatings.p2}</strong> },
+    { label: t('det.probModelo'), p1: <strong>{pct(prediction.model.prob1, 1)}</strong>, p2: <strong>{pct(prediction.model.prob2, 1)}</strong> },
   ];
 
   return (
@@ -70,7 +72,7 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
 
       {/* WHY — reasoning */}
       <div className="rounded-lg bg-(--raised) p-3">
-        <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">Por qué</div>
+        <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">{t('det.porQue')}</div>
         <p className="mb-3 text-(--ink-body)">{reasoning.text}</p>
         <div className="space-y-2">
           {reasoning.factors.map((f) => (
@@ -85,14 +87,14 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
           ))}
         </div>
         <div className="mt-2 flex justify-between text-[11px] text-(--ink-muted)">
-          <span>◀ ventaja {players.p2.name}</span>
-          <span>ventaja {players.p1.name} ▶</span>
+          <span>◀ {t('det.ventaja', { nombre: players.p2.name })}</span>
+          <span>{t('det.ventaja', { nombre: players.p1.name })} ▶</span>
         </div>
       </div>
 
       {/* Player headers with rank */}
       <div className="grid grid-cols-[1fr_auto_auto] gap-2">
-        <div className="text-(--ink-soft)">Señal</div>
+        <div className="text-(--ink-soft)">{t('det.senal')}</div>
         <div className="w-24 text-right font-semibold" style={{ color: P1_COLOR }}>
           {players.p1.name}
           <span className="ml-1 text-[14px] font-normal text-(--ink-muted)">#{prediction.ranks.p1}</span>
@@ -113,7 +115,7 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
       {/* Form + surface record */}
       <div className="rounded-lg bg-(--raised) p-3">
         <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">
-          Forma reciente · récord en {surfLabel.toLowerCase()}
+          {t('det.formaReciente', { sup: surfLabel.toLowerCase() })}
         </div>
         <div className="grid grid-cols-2 gap-4">
           <FormBox
@@ -149,24 +151,26 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
             <span style={{ color: P1_COLOR }}>{h2h.p1Wins}</span>
             <span className="text-(--ink-muted)"> – </span>
             <span style={{ color: P2_COLOR }}>{h2h.p2Wins}</span>
-            <span className="ml-2 text-(--ink-muted)">({h2h.total} enfrentamientos)</span>
+            <span className="ml-2 text-(--ink-muted)">{t('det.enfrentamientos', { n: h2h.total })}</span>
           </span>
         </div>
         {h2h.recent.length === 0 ? (
-          <div className="text-(--ink-muted)">Sin enfrentamientos previos.</div>
+          <div className="text-(--ink-muted)">{t('det.sinEnfrentamientos')}</div>
         ) : (
           <ul className="space-y-1">
             {h2h.recent.map((m, i) => (
               <li key={i} className="flex items-center justify-between text-[14px] text-(--ink-body)">
                 <span>
-                  {formatDate(m.date)} · {m.tourney_name} ({surfaceLabelEs(m.surface)}) {m.round}
+                  {formatDate(m.date)} · {m.tourney_name} ({surfaceLabelEs(m.surface, idioma)}) {m.round}
                 </span>
                 <span className="text-(--ink-soft)">
-                  ganó{' '}
-                  <span style={{ color: m.winnerId === players.p1.id ? P1_COLOR : P2_COLOR }}>
-                    {m.winnerId === players.p1.id ? players.p1.name : players.p2.name}
-                  </span>{' '}
-                  {m.score}
+                  {conNodos(t('det.gano', { marcador: m.score ?? '' }), {
+                    nombre: (
+                      <span style={{ color: m.winnerId === players.p1.id ? P1_COLOR : P2_COLOR }}>
+                        {m.winnerId === players.p1.id ? players.p1.name : players.p2.name}
+                      </span>
+                    ),
+                  })}
                 </span>
               </li>
             ))}
@@ -178,10 +182,10 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
       <div className="rounded-lg bg-(--raised) p-3">
         <div className="mb-2 flex items-baseline justify-between">
           <span className="text-[14px] uppercase tracking-wide text-(--ink-muted)">
-            Probabilidad de cada marcador
+            {t('det.probMarcador')}
           </span>
           <span className="text-[11px] text-(--ink-muted)">
-            al mejor de {prediction.scorelines.bestOf}
+            {t('vivo.alMejorDe', { n: prediction.scorelines.bestOf })}
           </span>
         </div>
         <div className="space-y-1.5">
@@ -207,8 +211,8 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
           ))}
         </div>
         <div className="mt-2 flex flex-wrap gap-x-4 text-[14px] text-(--ink-soft)">
-          <span>Set decisivo: {pct(prediction.scorelines.decidingSetProbability, 1)}</span>
-          <span>Sets corridos: {pct(prediction.scorelines.straightSetsProbability, 1)}</span>
+          <span>{t('det.setDecisivo', { p: pct(prediction.scorelines.decidingSetProbability, 1) })}</span>
+          <span>{t('det.setsCorridos', { p: pct(prediction.scorelines.straightSetsProbability, 1) })}</span>
         </div>
       </div>
 
@@ -218,7 +222,7 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
           prediction.tournamentHistory.p2.played > 0) && (
           <div className="rounded-lg bg-(--raised) p-3">
             <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">
-              Historial en este torneo
+              {t('det.historialTorneo')}
             </div>
             <div className="grid grid-cols-2 gap-4 text-[14px]">
               {(['p1', 'p2'] as const).map((k) => {
@@ -233,12 +237,12 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
                       {name}
                     </div>
                     {h.played === 0 ? (
-                      <div className="text-(--ink-muted)">Nunca ha jugado aquí</div>
+                      <div className="text-(--ink-muted)">{t('det.nuncaAqui')}</div>
                     ) : (
                       <div className="text-(--ink-soft)">
-                        {h.wins}V–{h.losses}D
-                        {h.titles > 0 && ` · ${h.titles} título${h.titles > 1 ? 's' : ''}`}
-                        {h.titles === 0 && h.bestRound && ` · mejor ronda ${h.bestRound}`}
+                        {t('det.vd', { v: h.wins, d: h.losses })}
+                        {h.titles > 0 && t(h.titles > 1 ? 'det.titulosN' : 'det.titulos1', { n: h.titles })}
+                        {h.titles === 0 && h.bestRound && t('det.mejorRonda', { r: h.bestRound })}
                       </div>
                     )}
                   </div>
@@ -258,36 +262,38 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
 
       {/* Market + expected score */}
       <div className="rounded-lg bg-(--raised) p-3 text-[14px]">
-        <div className="mb-2 uppercase tracking-wide text-(--ink-muted)">Mercado y marcador estimado</div>
+        <div className="mb-2 uppercase tracking-wide text-(--ink-muted)">{t('det.mercadoMarcador')}</div>
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-(--ink-body)">
           {market.market && (
             <>
-              <span>Cuotas: {market.market.odds1} / {market.market.odds2}</span>
-              <span>
-                Prob. implícita: {pct(market.market.implied1, 1)} / {pct(market.market.implied2, 1)}
-              </span>
-              <span>Overround: {pct(market.market.overround - 1, 1)}</span>
+              <span>{t('det.cuotas', { a: market.market.odds1, b: market.market.odds2 })}</span>
+              <span>{t('det.implicita', { a: pct(market.market.implied1, 1), b: pct(market.market.implied2, 1) })}</span>
+              <span>{t('det.overround', { p: pct(market.market.overround - 1, 1) })}</span>
               {market.edge1 != null && (
                 <span>
-                  Ventaja modelo ({players.p1.name}):{' '}
-                  <Num value={Math.round(market.edge1 * 1000) / 10} plus /> pp
+                  {conNodos(t('det.ventajaModelo', { nombre: players.p1.name }), { valor: <Num value={Math.round(market.edge1 * 1000) / 10} plus /> })}
                 </span>
               )}
             </>
           )}
           <span className="w-full text-(--ink-soft)">
-            Marcador más probable:{' '}
-            <strong className="text-(--ink-body)">
-              {topOutcome
-                ? `${topOutcome.side === 1 ? players.p1.name : players.p2.name} ${
-                    topOutcome.side === 1
-                      ? topOutcome.label
-                      : topOutcome.label.split('-').reverse().join('-')
-                  }`
-                : '—'}
-            </strong>{' '}
-            ({topOutcome ? pct(topOutcome.probability, 1) : '—'}) · set decisivo{' '}
-            {pct(prediction.scorelines.decidingSetProbability, 1)}
+            {conNodos(
+              t('det.masProbable', {
+                p: topOutcome ? pct(topOutcome.probability, 1) : '—',
+                s: pct(prediction.scorelines.decidingSetProbability, 1),
+              }),
+              {
+                marcador: (
+                  <strong className="text-(--ink-body)">
+                    {topOutcome
+                      ? `${topOutcome.side === 1 ? players.p1.name : players.p2.name} ${
+                          topOutcome.side === 1 ? topOutcome.label : topOutcome.label.split('-').reverse().join('-')
+                        }`
+                      : '—'}
+                  </strong>
+                ),
+              },
+            )}
           </span>
         </div>
       </div>

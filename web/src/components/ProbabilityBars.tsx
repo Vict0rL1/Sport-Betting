@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Prediction } from '../lib/api';
 import { pct } from '../lib/format';
+import { useI18n } from '../i18n';
 
 // The shared, validated categorical pair — see lib/theme.ts. Player 1 wears the
 // same blue as every home side in the app and player 2 the same orange, so the
@@ -88,6 +89,7 @@ function SplitBar({
  * whether the model agrees with the bookmakers.
  */
 export default function ProbabilityBars({ prediction }: { prediction: Prediction }) {
+  const { t } = useI18n();
   const modelLeft = prediction.model.prob1;
   const market = prediction.market.market;
   const marketLeft = market ? market.implied1 : null;
@@ -99,7 +101,7 @@ export default function ProbabilityBars({ prediction }: { prediction: Prediction
   return (
     <div className="space-y-3">
       <SplitBar
-        title="Modelo"
+        title={t('pb.modelo')}
         leftFrac={modelLeft}
         leftLabel={pct(prediction.model.prob1, 1)}
         rightLabel={pct(prediction.model.prob2, 1)}
@@ -108,17 +110,17 @@ export default function ProbabilityBars({ prediction }: { prediction: Prediction
           gap != null && Math.abs(gap) >= 0.5 ? (
             <span className="tabular-nums text-[13px] text-(--ink-muted)">
               <span className="mr-1 inline-block h-[9px] w-[2px] translate-y-[1px] bg-white/80" />
-              mercado, a {Math.abs(gap).toFixed(1)} pp
+              {t('pb.mercadoA', { pp: Math.abs(gap).toFixed(1) })}
             </span>
           ) : gap != null ? (
-            <span className="text-[13px] text-(--ink-muted)">coincide con el mercado</span>
+            <span className="text-[13px] text-(--ink-muted)">{t('pb.coincide')}</span>
           ) : undefined
         }
       />
       <SplitBar
-        title="Mercado (odds sin vig)"
+        title={t('pb.mercadoSinVig')}
         leftFrac={marketLeft}
-        leftLabel={market ? pct(market.implied1, 1) : 'sin odds'}
+        leftLabel={market ? pct(market.implied1, 1) : t('pb.sinOdds')}
         rightLabel={market ? pct(market.implied2, 1) : ''}
       />
     </div>

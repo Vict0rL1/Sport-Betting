@@ -16,6 +16,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { Panel, SectionTitle, Disclosure } from './ui';
+import { conNodos, localeDe, useI18n } from '../i18n';
 
 interface PointsResponse {
   points: { p1: number; p2: number };
@@ -44,6 +45,7 @@ interface PointsResponse {
 }
 
 const pct = (x: number): string => `${(x * 100).toFixed(1)} %`;
+const conSigno = (x: number): string => `${x >= 0 ? '+' : ''}${x.toFixed(3)}`;
 
 export default function PointsMarkets({
   tour,
@@ -62,6 +64,7 @@ export default function PointsMarkets({
   bestOf?: number;
   tourney?: string | null;
 }) {
+  const { t, idioma } = useI18n();
   const [data, setData] = useState<PointsResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,7 +95,7 @@ export default function PointsMarkets({
   if (error) {
     return (
       <Panel className="mb-4">
-        <SectionTitle>Mercados del modelo de puntos</SectionTitle>
+        <SectionTitle>{t('pm.titulo')}</SectionTitle>
         <p className="text-[13px] leading-relaxed text-(--ink-muted)">{error}</p>
       </Panel>
     );
@@ -101,24 +104,23 @@ export default function PointsMarkets({
 
   return (
     <Panel className="mb-4">
-      <SectionTitle right={`${data.expectedGames.toFixed(1)} juegos esperados`}>
-        Mercados del modelo de puntos
+      <SectionTitle right={t('pm.esperados', { n: data.expectedGames.toFixed(1) })}>
+        {t('pm.titulo')}
       </SectionTitle>
 
       <p className="mb-3 text-[13px] leading-relaxed text-(--ink-muted)">
-        Los cuatro salen de <strong className="text-(--ink-soft)">dos números</strong>:{' '}
-        {names[0]} gana el {pct(data.points.p1)} de los puntos con su saque contra{' '}
-        {names[1]}, que gana el {pct(data.points.p2)} con el suyo. Todo lo demás es
-        propagar eso por la cadena, así que no pueden contradecirse entre sí.
+        {conNodos(t('pm.dosNumeros', { a: names[0], pa: pct(data.points.p1), b: names[1], pb: pct(data.points.p2) }), {
+          dos: <strong className="text-(--ink-soft)">{t('pm.dos')}</strong>,
+        })}
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
         {/* --- Partido y set --- */}
         <div>
-          <SectionTitle>Partido y set</SectionTitle>
-          <Row label={`Gana ${names[0]}`} value={pct(data.matchProb)} strong />
-          <Row label={`Gana ${names[1]}`} value={pct(1 - data.matchProb)} />
-          <Row label={`${names[0]} gana un set cualquiera`} value={pct(data.setProb)} />
+          <SectionTitle>{t('pm.partidoSet')}</SectionTitle>
+          <Row label={t('pm.gana', { nombre: names[0] })} value={pct(data.matchProb)} strong />
+          <Row label={t('pm.gana', { nombre: names[1] })} value={pct(1 - data.matchProb)} />
+          <Row label={t('pm.ganaSet', { nombre: names[0] })} value={pct(data.setProb)} />
           <div className="mt-2 space-y-0.5">
             {data.setScores.map((s) => (
               <Row
@@ -133,31 +135,29 @@ export default function PointsMarkets({
 
         {/* --- Totales --- */}
         <div>
-          <SectionTitle>Total de juegos</SectionTitle>
-          {data.totals.map((t) => (
+          <SectionTitle>{t('pm.totalJuegos')}</SectionTitle>
+          {data.totals.map((x) => (
             <Row
-              key={t.line}
-              label={`Más de ${t.line}`}
-              value={pct(t.over)}
-              strong={Math.abs(t.line - data.expectedGames) < 1}
+              key={x.line}
+              label={t('pm.masDe', { linea: x.line })}
+              value={pct(x.over)}
+              strong={Math.abs(x.line - data.expectedGames) < 1}
             />
           ))}
           <p className="mt-1 text-[11px] leading-relaxed text-(--ink-faint)">
-            Las líneas se centran en los juegos que el propio modelo espera. Una lista fija
-            publicaría un 99 % para «más de 20.5» en un partido de 45 juegos, que no informa
-            de nada.
+            {t('pm.lineasCentradas')}
           </p>
         </div>
       </div>
 
       {/* --- Hándicaps --- */}
       <div className="mt-3">
-        <SectionTitle>Hándicap de juegos</SectionTitle>
+        <SectionTitle>{t('pm.handicapJuegos')}</SectionTitle>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[22rem] text-left text-[13px] tabular-nums">
             <thead className="text-[11px] uppercase tracking-[0.06em] text-(--ink-muted)">
               <tr>
-                <th className="pb-1 font-medium">hándicap</th>
+                <th className="pb-1 font-medium">{t('pm.handicap')}</th>
                 <th className="pb-1 text-right font-medium">{names[0]}</th>
                 <th className="pb-1 text-right font-medium">{names[1]}</th>
               </tr>
@@ -185,43 +185,25 @@ export default function PointsMarkets({
       </div>
 
       <div className="mt-3">
-        <Disclosure summary="De dónde salen esos dos números">
+        <Disclosure summary={t('pm.deDonde')}>
           <div className="space-y-2 text-[13px] leading-relaxed text-(--ink-muted)">
-            <p>
-              Saque y resto de cada jugador estimados <strong>a la vez para todo el
-              circuito</strong>, así que la calidad de los rivales de cada uno está
-              descontada. Una media de carrera no lo está: se midió contra los rivales que
-              le tocaron.
-            </p>
+            <p>{conNodos(t('pm.estimados'), { aLaVez: <strong>{t('pm.aLaVez')}</strong> })}</p>
             <ul className="space-y-0.5 tabular-nums">
               <li>
-                media de la superficie: {(1 / (1 + Math.exp(-data.detail.mu)) * 100).toFixed(1)} %
+                {t('pm.media', { pct: `${(1 / (1 + Math.exp(-data.detail.mu)) * 100).toFixed(1)} %` })}
               </li>
               <li>
-                {names[0]}: saque {data.detail.serve1 >= 0 ? '+' : ''}
-                {data.detail.serve1.toFixed(3)} · resto {data.detail.return1 >= 0 ? '+' : ''}
-                {data.detail.return1.toFixed(3)} · δ superficie{' '}
-                {data.detail.surfaceDelta1 >= 0 ? '+' : ''}
-                {data.detail.surfaceDelta1.toFixed(3)}
+                {t('pm.perfil', { nombre: names[0], saque: conSigno(data.detail.serve1), resto: conSigno(data.detail.return1), delta: conSigno(data.detail.surfaceDelta1) })}
               </li>
               <li>
-                {names[1]}: saque {data.detail.serve2 >= 0 ? '+' : ''}
-                {data.detail.serve2.toFixed(3)} · resto {data.detail.return2 >= 0 ? '+' : ''}
-                {data.detail.return2.toFixed(3)} · δ superficie{' '}
-                {data.detail.surfaceDelta2 >= 0 ? '+' : ''}
-                {data.detail.surfaceDelta2.toFixed(3)}
+                {t('pm.perfil', { nombre: names[1], saque: conSigno(data.detail.serve2), resto: conSigno(data.detail.return2), delta: conSigno(data.detail.surfaceDelta2) })}
               </li>
             </ul>
-            <p>
-              En logit: positivo es mejor que la media. El δ de superficie es cuánto se
-              desvía este jugador de su propio perfil global en esta pista, encogido hacia
-              cero según los partidos que tenga ahí.
-            </p>
+            <p>{t('pm.logit')}</p>
             <p className={data.model.stale ? 'text-amber-200/80' : undefined}>
-              Modelo ajustado con {data.model.observations.toLocaleString('es')} actuaciones
-              al saque de {data.model.players} jugadores, hace {data.model.ageDays} días.
+              {t('pm.ajustado', { obs: data.model.observations.toLocaleString(localeDe(idioma)), jugadores: data.model.players, dias: data.model.ageDays })}
               {data.model.stale && (
-                <> Está viejo: reajústalo con <code>npm run update-data</code>.</>
+                <> {conNodos(t('pm.viejo'), { cmd: <code>npm run update-data</code> })}</>
               )}
             </p>
           </div>

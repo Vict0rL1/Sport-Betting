@@ -53,3 +53,17 @@ test('piezas comunes en inglés: cabecera, tabla de partidos y panel de discrepa
   await expect(page.getByText(/What the model sees as most likely|Where the model disagrees with the market/).first()).toBeVisible();
   await expect(page.getByText('Los partidos', { exact: true })).toHaveCount(0);
 });
+
+test('tenis en inglés: cabecera, tarjeta desplegada y clasificación por Elo', async ({ page }) => {
+  test.slow();
+  await page.goto('/tenis');
+  await page.getByRole('button', { name: 'Details' }).click();
+  await expect(page.getByText('Match predictions from surface Elo')).toBeVisible();
+  await expect(page.getByText('Sort by:')).toBeVisible();
+  await expect(page.getByText(/Elo ranking · /).first()).toBeVisible();
+  await expect(page.getByText('Ordenar por:')).toHaveCount(0);
+  await page.getByRole('button', { name: /Why\?/ }).first().click();
+  await expect(page.getByText('Overall Elo').first()).toBeVisible();
+  await expect(page.getByText('Points-model markets').first()).toBeVisible();
+  await expect(page.getByText('Mercados del modelo de puntos')).toHaveCount(0);
+});

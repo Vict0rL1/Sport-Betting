@@ -16,6 +16,11 @@ import { DeporteIcono, Verdict } from './icons';
 
 export { DeporteIcono };
 import { TeamCrest } from './ui';
+import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../i18n';
+
+/** El servidor manda el nombre del deporte en español: se pasa al catálogo si se conoce. */
+const ID_DE_NOMBRE: Record<string, string> = { Fútbol: 'football', Baloncesto: 'basketball', Béisbol: 'baseball', NFL: 'nfl', Tenis: 'tennis' };
+const deporteMostrado = (t: Traducir, nombre: string) => (ID_DE_NOMBRE[nombre] ? t(`deporte.${ID_DE_NOMBRE[nombre]}` as Clave) : nombre);
 
 type Origen = 'en vivo' | 'reconstruida';
 
@@ -72,20 +77,20 @@ const CLAVE_VENTANA = 'predictor.results.window';
 const fechaDe = (dia: string) => new Date(Number(dia.slice(0, 4)), Number(dia.slice(5, 7)) - 1, Number(dia.slice(8, 10)));
 const pctTxt = (x: number | null) => (x == null ? '—' : `${Math.round(x * 100)} %`);
 
-function veredicto(r: Resumen): { texto: string; color: string } | null {
+function veredicto(t: Traducir, r: Resumen): { texto: string; color: string } | null {
   if (!r.rangoNormal || r.esperado == null) return null;
   const [lo, hi] = r.rangoNormal;
-  if (r.aciertos < lo) return { texto: 'por debajo de lo normal: merece mirarse', color: STATUS.critical };
-  if (r.aciertos > hi) return { texto: 'por encima: buena racha, no un modelo mejor', color: STATUS.good };
-  return { texto: 'dentro de lo esperado', color: 'var(--ink-soft)' };
+  if (r.aciertos < lo) return { texto: t('acerto.debajo'), color: STATUS.critical };
+  if (r.aciertos > hi) return { texto: t('acerto.encima'), color: STATUS.good };
+  return { texto: t('acerto.dentro'), color: 'var(--ink-soft)' };
 }
 
 /** Lo que va en la cabecera plegable del panel. */
-export function lineaResumen(h: Historial | null): string {
-  if (!h) return 'cargando…';
+export function lineaResumen(h: Historial | null, t: Traducir): string {
+  if (!h) return t('acerto.cargando');
   const r = h.resumen;
-  if (r.total === 0) return `sin resultados en los últimos ${h.dias} días`;
-  return `${r.aciertos} de ${r.total} en ${h.dias} días · ${pctTxt(r.tasa)}` + (r.tasaEsperada != null ? ` · esperaba ${pctTxt(r.tasaEsperada)}` : '');
+  if (r.total === 0) return t('acerto.sinResultados', { dias: h.dias });
+  return t('acerto.linea', { a: r.aciertos, n: r.total, dias: h.dias, pct: pctTxt(r.tasa) }) + (r.tasaEsperada != null ? t('acerto.esperaba', { pct: pctTxt(r.tasaEsperada) }) : '');
 }
 
 export function useHistorial(): { h: Historial | null; cargando: boolean; error: boolean; dias: number; setDias: (d: number) => void } {
@@ -145,6 +150,8 @@ function Chip({ activo, onClick, children, title }: { activo: boolean; onClick: 
 /** Barra apilada por día: verde los aciertos, rojo los fallos; altura según partidos. */
 function FranjaDias({ porDia, max, diaSel, onDia }: { porDia: Historial['porDia']; max: number; diaSel: string | null; onDia: (d: string | null) => void }) {
   const dias = [...porDia].reverse(); // del más antiguo al de hoy, de izquierda a derecha
+  const { t, idioma } = useI18n();
+  const loc = localeDe(idioma);
   // Hoy está a la derecha. Si no cabe todo (30 días en un móvil), se arranca enseñando
   // el final: lo reciente es lo que se viene a mirar.
   const caja = useRef<HTMLDivElement>(null);
@@ -153,7 +160,7 @@ function FranjaDias({ porDia, max, diaSel, onDia }: { porDia: Historial['porDia'
   }, [porDia.length]);
   return (
     <div ref={caja} className="overflow-x-auto px-3 pb-1">
-      <div className="flex items-end gap-1" role="list" aria-label="Aciertos por día">
+      <div className="flex items-end gap-1" role="list" aria-label={t('acerto.porDia')}>
         {dias.map((d) => {
           const f = fechaDe(d.dia);
           const alto = d.total === 0 ? 0 : Math.max(8, Math.round((d.total / Math.max(max, 1)) * 56));
@@ -166,7 +173,7 @@ function FranjaDias({ porDia, max, diaSel, onDia }: { porDia: Historial['porDia'
             <button
               onClick={() => onDia(sel ? null : d.dia)}
               disabled={d.total === 0}
-              title={d.total === 0 ? `${f.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'short' })}: sin resultados` : `${d.aciertos} de ${d.total} acertados`}
+              title={d.total === 0 ? t('acerto.diaSin', { dia: f.toLocaleDateString(loc, { weekday: 'long', day: 'numeric', month: 'short' }) }) : t('acerto.diaAcertados', { a: d.aciertos, n: d.total })}
               className={`flex w-full flex-col items-center gap-1 rounded-md py-1 transition ${sel ? 'bg-(--raised-2)' : d.total ? 'hover:bg-(--raised)' : 'cursor-default'}`}
             >
               <span className="whitespace-nowrap text-[10.5px] tabular-nums text-(--ink-soft)">{d.total ? `${d.aciertos}/${d.total}` : '—'}</span>
@@ -175,7 +182,7 @@ function FranjaDias({ porDia, max, diaSel, onDia }: { porDia: Historial['porDia'
                 <span style={{ height: okAlto, background: STATUS.good }} />
               </span>
               <span className="text-[11px] leading-tight text-(--ink-muted)">
-                {f.toLocaleDateString('es', { weekday: 'narrow' })}
+                {f.toLocaleDateString(loc, { weekday: 'narrow' })}
                 <br />
                 <span className={sel ? 'text-(--ink-strong)' : ''}>{f.getDate()}</span>
               </span>
@@ -196,9 +203,10 @@ function Fila({ r }: { r: Resultado }) {
   ];
   if (r.deporte === 'NFL') lados.reverse();
   const empate = r.ganador === 'Empate';
+  const { t, idioma } = useI18n();
   return (
     <li className="flex items-start gap-3 px-4 py-3">
-      <span title={r.deporte} className="mt-0.5">
+      <span title={deporteMostrado(t, r.deporte)} className="mt-0.5">
         <DeporteIcono nombre={r.deporte} size={30} tile />
       </span>
       <div className="min-w-0 flex-1">
@@ -210,28 +218,31 @@ function Fila({ r }: { r: Resultado }) {
                 <TeamCrest league={r.liga ?? ''} name={l.nombre} code={l.id} size={24} />
                 <span className={`min-w-0 break-words text-[14px] leading-snug ${gano ? 'font-medium text-(--ink-strong)' : 'text-(--ink-soft)'}`}>{l.nombre}</span>
                 {r.deporte === 'NFL' && i === 0 && <span className="-ml-1 text-[12px] text-(--ink-faint)">@</span>}
-                {gano && <span className="shrink-0 rounded bg-(--raised) px-1.5 py-px text-[10.5px] uppercase tracking-wide text-(--ink-soft)">ganó</span>}
+                {gano && <span className="shrink-0 rounded bg-(--raised) px-1.5 py-px text-[10.5px] uppercase tracking-wide text-(--ink-soft)">{t('acerto.gano')}</span>}
               </div>
             );
           })}
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-(--ink-soft)">
           <span>
-            el modelo dijo <span className="text-(--ink-body)">{r.favorito}</span>{' '}
-            <span className="font-semibold tabular-nums text-(--ink-strong)">{Math.round(r.probabilidad * 100)} %</span>
+            {conNodos(t('acerto.dijo'), {
+              favorito: <span className="text-(--ink-body)">{r.favorito}</span>,
+              pct: <span className="font-semibold tabular-nums text-(--ink-strong)">{Math.round(r.probabilidad * 100)} %</span>,
+            })}
           </span>
-          {empate && <span className="text-(--ink-body)">· acabó en empate</span>}
+          {empate && <span className="text-(--ink-body)">{t('acerto.empate')}</span>}
           {r.origen === 'reconstruida' && (
             <span
               className="rounded px-1.5 py-px text-[11px] text-(--ink-soft) ring-1 ring-(--line)"
-              title="No se registró antes del partido: es la predicción del modelo del backtest, con solo los datos anteriores al partido."
+              title={t('acerto.reconstruidaNota')}
             >
-              reconstruida
+              {t('acerto.reconstruida')}
             </span>
           )}
           {r.origen === 'en vivo' && (
             <span className="rounded px-1.5 py-px text-[11px]" style={{ color: STATUS.good, background: 'rgba(25,158,112,0.1)' }}>
-              en vivo{r.cuando ? ` · ${new Date(r.cuando).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}` : ''}
+              {t('acerto.enVivo')}
+              {r.cuando ? ` · ${new Date(r.cuando).toLocaleTimeString(localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}` : ''}
             </span>
           )}
         </div>
@@ -249,6 +260,8 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
   const [deporte, setDeporte] = useState<string | null>(null);
   const [origen, setOrigen] = useState<Origen | null>(null);
   const [diaSel, setDiaSel] = useState<string | null>(null);
+  const { t, idioma } = useI18n();
+  const loc = localeDe(idioma);
 
   // Cambiar de ventana deja sin sentido un día elegido fuera de ella.
   useEffect(() => setDiaSel(null), [dias]);
@@ -266,11 +279,11 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
     return [...m.entries()];
   }, [filtrados]);
 
-  if (error && !h) return <p className="px-4 py-3 text-[13px] text-(--ink-soft)">No se pudieron leer los resultados recientes.</p>;
-  if (!h) return <p className="px-4 py-3 text-[13px] text-(--ink-soft)">Calculando los resultados de los últimos {dias} días…</p>;
+  if (error && !h) return <p className="px-4 py-3 text-[13px] text-(--ink-soft)">{t('acerto.errorLeer')}</p>;
+  if (!h) return <p className="px-4 py-3 text-[13px] text-(--ink-soft)">{t('acerto.calculando', { dias })}</p>;
 
   const r = h.resumen;
-  const v = veredicto(r);
+  const v = veredicto(t, r);
   const maxDia = Math.max(...h.porDia.map((d) => d.total), 1);
   // Primero lo seguro (partidos que la app vio jugarse y siguen sin resultado), después
   // los archivos que llevan días sin datos nuevos (que fuera de temporada es normal).
@@ -282,13 +295,13 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
     <div className={cargando ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
       {/* Ventana */}
       <div className="flex flex-wrap items-center gap-1.5 px-4 pt-3">
-        <span className="mr-1 text-[12px] uppercase tracking-wide text-(--ink-muted)">Periodo</span>
+        <span className="mr-1 text-[12px] uppercase tracking-wide text-(--ink-muted)">{t('acerto.periodo')}</span>
         {h.ventanas.map((d) => (
           <Chip key={d} activo={dias === d} onClick={() => setDias(d)}>
-            {d} días
+            {t('acerto.dias', { n: d })}
           </Chip>
         ))}
-        {cargando && <span className="text-[12px] text-(--ink-muted)">actualizando…</span>}
+        {cargando && <span className="text-[12px] text-(--ink-muted)">{t('acerto.actualizando')}</span>}
       </div>
 
       {/* Resumen */}
@@ -296,37 +309,44 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
         <div className="flex items-baseline gap-2 sm:flex-col sm:items-start sm:gap-0 sm:pr-4">
           <span className="text-[28px] font-semibold leading-none tabular-nums text-(--ink-strong)">{pctTxt(r.tasa)}</span>
           <span className="text-[13px] text-(--ink-soft)">
-            {r.aciertos} de {r.total} acertados
+            {t('acerto.acertados', { a: r.aciertos, n: r.total })}
           </span>
         </div>
         <div className="text-[13px] leading-relaxed text-(--ink-soft)">
           {r.total === 0 ? (
-            <>Ningún partido con resultado en estos {h.dias} días. Abajo, por qué.</>
+            <>{t('acerto.ninguno', { dias: h.dias })}</>
           ) : (
-            <>
-              El modelo esperaba acertar <span className="text-(--ink-strong)">{pctTxt(r.tasaEsperada)}</span> (unos{' '}
-              {(r.esperado ?? 0).toFixed(1).replace('.', ',')}). Por puro azar, entre {r.rangoNormal?.[0]} y {r.rangoNormal?.[1]} aciertos es
-              lo normal con {r.total} partidos: {r.aciertos} está{' '}
-              <span style={{ color: v?.color }}>{v?.texto}</span>.
-            </>
+            conNodos(
+              t('acerto.explica', {
+                unos: (r.esperado ?? 0).toFixed(1).replace('.', ','),
+                lo: r.rangoNormal?.[0] ?? '—',
+                hi: r.rangoNormal?.[1] ?? '—',
+                n: r.total,
+                a: r.aciertos,
+              }),
+              {
+                esperado: <span className="text-(--ink-strong)">{pctTxt(r.tasaEsperada)}</span>,
+                veredicto: <span style={{ color: v?.color }}>{v?.texto}</span>,
+              },
+            )
           )}
           <div className="mt-2 flex flex-wrap gap-1.5">
             <Chip activo={origen === null} onClick={() => setOrigen(null)}>
-              Todos · {r.total}
+              {t('acerto.todos', { n: r.total })}
             </Chip>
             <Chip
               activo={origen === 'en vivo'}
               onClick={() => setOrigen(origen === 'en vivo' ? null : 'en vivo')}
-              title="Registrados antes del partido: la prueba de verdad."
+              title={t('acerto.enVivoNota')}
             >
-              En vivo · {h.porOrigen['en vivo'].aciertos}/{h.porOrigen['en vivo'].total}
+              {t('acerto.enVivoChip', { a: h.porOrigen['en vivo'].aciertos, n: h.porOrigen['en vivo'].total })}
             </Chip>
             <Chip
               activo={origen === 'reconstruida'}
               onClick={() => setOrigen(origen === 'reconstruida' ? null : 'reconstruida')}
-              title="El modelo del backtest, con solo los datos anteriores a cada partido."
+              title={t('acerto.reconstruidosNota')}
             >
-              Reconstruidos · {h.porOrigen.reconstruida.aciertos}/{h.porOrigen.reconstruida.total}
+              {t('acerto.reconstruidosChip', { a: h.porOrigen.reconstruida.aciertos, n: h.porOrigen.reconstruida.total })}
             </Chip>
           </div>
         </div>
@@ -341,7 +361,7 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
       {Object.keys(h.porDeporte).length > 1 && (
         <div className="flex gap-1.5 overflow-x-auto px-4 pb-1 pt-2">
           <Chip activo={deporte === null} onClick={() => setDeporte(null)}>
-            Todos los deportes
+            {t('acerto.todosDeportes')}
           </Chip>
           {Object.entries(h.porDeporte).map(([d, s]) => (
             <Chip key={d} activo={deporte === d} onClick={() => setDeporte(deporte === d ? null : d)}>
@@ -354,7 +374,7 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
       {/* La lista, por día */}
       <div className="mt-2 max-h-[26rem] overflow-y-auto border-t border-(--line)">
         {porDia.length === 0 && (
-          <p className="px-4 py-4 text-[13px] text-(--ink-muted)">{h.resultados.length ? 'Ningún partido con estos filtros.' : 'Sin partidos resueltos en esta ventana.'}</p>
+          <p className="px-4 py-4 text-[13px] text-(--ink-muted)">{h.resultados.length ? t('acerto.ningunoFiltro') : t('acerto.sinResueltos')}</p>
         )}
         {porDia.map(([dia, xs]) => {
           const ok = xs.filter((x) => x.acerto).length;
@@ -362,10 +382,10 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
             <section key={dia} className="seccion-dia">
               <h4 className="sticky top-0 z-10 flex items-baseline justify-between border-b border-(--line) bg-(--surface-card)/95 px-4 py-1.5 text-[12.5px] backdrop-blur">
                 <span className="font-medium capitalize text-(--ink-body)">
-                  {fechaDe(dia).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'short' })}
+                  {fechaDe(dia).toLocaleDateString(loc, { weekday: 'long', day: 'numeric', month: 'short' })}
                 </span>
                 <span className="tabular-nums text-(--ink-soft)">
-                  {ok} de {xs.length}
+                  {t('acerto.deN', { a: ok, n: xs.length })}
                 </span>
               </h4>
               <ul className="divide-y divide-(--line)">
@@ -381,19 +401,18 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
       {/* Por qué faltan días */}
       {avisos.length > 0 && (
         <div className="border-t border-(--line) px-4 py-3">
-          <p className="mb-1 text-[12px] uppercase tracking-wide text-(--ink-muted)">Resultados que faltan</p>
+          <p className="mb-1 text-[12px] uppercase tracking-wide text-(--ink-muted)">{t('acerto.faltan')}</p>
           <p className="mb-2 text-[12.5px] text-(--ink-soft)">
-            Un día vacío casi nunca es que no hubo partidos: es el archivo sin actualizar. Todos de una vez, sin gastar créditos de cuotas:{' '}
-            <code className="rounded bg-(--raised-2) px-1.5 py-px text-[12px] text-(--ink-strong)">npm run update-results</code>
+            {conNodos(t('acerto.diaVacio'), { comando: <code className="rounded bg-(--raised-2) px-1.5 py-px text-[12px] text-(--ink-strong)">npm run update-results</code> })}
           </p>
           <ul className="space-y-1.5 text-[12.5px] text-(--ink-soft)">
             {avisos.map((a) => (
               <li key={a.deporte} className="flex flex-wrap items-baseline gap-x-2">
                 <span>
-                  <DeporteIcono nombre={a.deporte} size={15} /> {a.deporte}:{' '}
-                  {a.hasta ? `resultados guardados hasta el ${fechaDe(a.hasta).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })}` : 'sin resultados guardados'}
-                  {a.sinResultado > 0 && <span style={{ color: STATUS.warning }}> · {a.sinResultado} jugado(s) esperan resultado</span>}
-                  {!a.reconstruye && ' · el archivo solo trae la fecha del torneo: no se reconstruye'}
+                  <DeporteIcono nombre={a.deporte} size={15} /> {deporteMostrado(t, a.deporte)}:{' '}
+                  {a.hasta ? t('acerto.guardadosHasta', { fecha: fechaDe(a.hasta).toLocaleDateString(loc, { day: 'numeric', month: 'short', year: 'numeric' }) }) : t('acerto.sinGuardados')}
+                  {a.sinResultado > 0 && <span style={{ color: STATUS.warning }}>{t('acerto.esperan', { n: a.sinResultado })}</span>}
+                  {!a.reconstruye && t('acerto.noReconstruye')}
                 </span>
                 <code className="rounded bg-(--raised) px-1.5 py-px text-[12px] text-(--ink-body)">{a.comando}</code>
               </li>
@@ -403,12 +422,10 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
       )}
 
       <p className="border-t border-(--line) px-4 py-2.5 text-[12px] leading-relaxed text-(--ink-muted)">
-        <strong className="font-medium text-(--ink-soft)">En vivo</strong> es lo que la app registró antes de cada partido.{' '}
-        <strong className="font-medium text-(--ink-soft)">Reconstruidos</strong> son el resto de partidos jugados del archivo, con la predicción
-        del modelo del backtest calculada solo con datos anteriores a cada uno: no llevan la mezcla con el mercado ni las alineaciones del
-        día, y no se usan para ajustar el modelo.
-        {h.sinHistoria > 0 && ` ${h.sinHistoria} partido(s) no se reconstruyen porque algún equipo tenía muy poca historia.`} Para juzgar al
-        modelo, el historial de cada pestaña (miles de partidos) pesa más que una semana.
+        {conNodos(t('acerto.pie', { sinHistoria: h.sinHistoria > 0 ? t('acerto.sinHistoria', { n: h.sinHistoria }) : '' }), {
+          enVivo: <strong className="font-medium text-(--ink-soft)">{t('acerto.enVivoMayus')}</strong>,
+          reconstruidos: <strong className="font-medium text-(--ink-soft)">{t('acerto.reconstruidos')}</strong>,
+        })}
       </p>
     </div>
   );
