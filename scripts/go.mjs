@@ -46,7 +46,9 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BRANCH = 'claude/tennis-prediction-app-jlhgxh';
-const DB = path.join(ROOT, 'data', 'tennis.db');
+// Desde la Fase 2 la historia vive en data/history.db; tennis.db es la base antigua, aún sin
+// partir (el servidor o `npm run db:migrate` la parten al arrancar).
+const DB = ['history.db', 'tennis.db'].map((f) => path.join(ROOT, 'data', f)).find((f) => fs.existsSync(f)) ?? path.join(ROOT, 'data', 'history.db');
 
 // El aviso de «SQLite is an experimental feature» se silencia aquí y no con la bandera
 // `--disable-warning`, para que el comando funcione igual en cualquier Node: una bandera

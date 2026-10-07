@@ -26,7 +26,9 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ENV = path.join(ROOT, '.env');
-const DB = path.join(ROOT, 'data', 'tennis.db');
+// Desde la Fase 2 la historia vive en data/history.db; tennis.db es la base antigua, aún sin
+// partir (el servidor o `npm run db:migrate` la parten al arrancar).
+const DB = ['history.db', 'tennis.db'].map((f) => path.join(ROOT, 'data', f)).find((f) => fs.existsSync(f)) ?? path.join(ROOT, 'data', 'history.db');
 const C = { bold: '\x1b[1m', dim: '\x1b[2m', red: '\x1b[31m', green: '\x1b[32m', amber: '\x1b[33m', off: '\x1b[0m' };
 const CLAVE = 'AUTO_REFRESH_MINUTES';
 

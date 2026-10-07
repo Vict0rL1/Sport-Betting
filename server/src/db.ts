@@ -4,54 +4,166 @@
 
 import fs from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { DATA_DIR, DB_PATH } from './config.ts';
+import { DATA_DIR } from './config.ts';
 import { ODDS_SNAPSHOT_SCHEMA } from './odds/schema.ts';
 import { PREMATCH_SCHEMA } from './prematch/schema.ts';
 import { ASSESSMENT_SCHEMA } from './trust/schema.ts';
 import { SHADOW_SCHEMA } from './shadow/schema.ts';
 import { ALERTS_SCHEMA } from './alerts/schema.ts';
 import { EDGE_SIGNALS_SCHEMA, PAPER_BET_COLUMNS, PAPER_TRIGGERS, PREDICTION_LOG_TRIGGERS } from './paper/schema.ts';
+import { SESSIONS_SCHEMA } from './auth/sessions.ts';
+import { ERROR_LOG_SCHEMA } from './security/errors.ts';
+import { HISTORY_DB_PATH, LAYOUT, LEDGER_DB_PATH, LEDGER_SCHEMA, LEGACY_DB_PATH, rutaPrincipal } from './db/layout.ts';
+import { ledgerize, masterDe } from './db/ledgerize.ts';
+import { migrar, type Migracion } from './db/migrations.ts';
+import { hayQuePartir, partirBase } from './db/split.ts';
+import { claveEsLedger } from './db/tables.ts';
 
 let db: DatabaseSync | null = null;
 
+// ===========================================================================
+// DOS FICHEROS (Fase 2)
+// ===========================================================================
+// `history.db` es la conexión principal y `ledger.db` va adjunta como `ledger` (ver
+// db/layout.ts). Las consultas de toda la app siguen sin prefijo: SQLite resuelve un nombre
+// primero en la principal y después en la adjunta. Lo único que cambia es la CREACIÓN: las
+// tablas del libro mayor (db/tables.ts) se crean con prefijo, y eso lo hace `ledgerize` sobre
+// el texto de los esquemas, no cada esquema a mano.
+//
+// PRAGMAs: WAL en los dos ficheros. El comentario que había aquí decía que WAL dejaba a un
+// lector de otro proceso con una vista vieja; no es así: cada transacción nueva ve el último
+// COMMIT. Lo que WAL sí exige es un checkpoint antes de empaquetar el fichero (lo hace
+// `npm run db:export-history`), y `synchronous=NORMAL` es seguro con WAL.
+
+/** Todo el esquema (tablas, índices y triggers de los ocho módulos), ya con los prefijos. */
+export function esquemaCompleto(schema: string = LEDGER_SCHEMA): string {
+  return [ESQUEMA_BASE, ODDS_SNAPSHOT_SCHEMA, EDGE_SIGNALS_SCHEMA, PREMATCH_SCHEMA, ASSESSMENT_SCHEMA, SHADOW_SCHEMA, ALERTS_SCHEMA, SESSIONS_SCHEMA, ERROR_LOG_SCHEMA, SETTINGS_SCHEMA, INGESTION_RUNS_SCHEMA]
+    .map((sql) => ledgerize(sql, schema))
+    .join('\n');
+}
+
+export const SETTINGS_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS settings (
+    key         TEXT PRIMARY KEY,
+    value       TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+  );
+`;
+
+export const INGESTION_RUNS_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS ingestion_runs (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    source        TEXT NOT NULL,
+    started_at    TEXT NOT NULL,
+    finished_at   TEXT,
+    status        TEXT NOT NULL CHECK (status IN ('running', 'ok', 'error')),
+    rows_added    INTEGER,
+    rows_updated  INTEGER,
+    error         TEXT,
+    detail        TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_ingestion_runs_source ON ingestion_runs (source, started_at);
+`;
+
+/** Los índices de la Fase 2 (migración 2). Los nombres van sin prefijo: ledgerize lo pone. */
+export const INDICES_FASE_2 = `
+  CREATE INDEX IF NOT EXISTS idx_snap_sport_book ON odds_snapshots (sport, event_id, bookmaker, observed_at);
+  CREATE INDEX IF NOT EXISTS idx_predlog_upcoming ON prediction_log (upcoming_id);
+  CREATE INDEX IF NOT EXISTS idx_fb_predlog_upcoming ON fb_prediction_log (upcoming_id);
+  CREATE INDEX IF NOT EXISTS idx_bb_predlog_upcoming ON bb_prediction_log (upcoming_id);
+  CREATE INDEX IF NOT EXISTS idx_bsb_predlog_upcoming ON bsb_prediction_log (upcoming_id);
+  CREATE INDEX IF NOT EXISTS idx_naf_predlog_upcoming ON naf_prediction_log (upcoming_id);
+  CREATE INDEX IF NOT EXISTS idx_predlog_commence ON prediction_log (tour, commence_time);
+  CREATE INDEX IF NOT EXISTS idx_fb_predlog_commence ON fb_prediction_log (league, commence_time);
+  CREATE INDEX IF NOT EXISTS idx_bb_predlog_commence ON bb_prediction_log (league, commence_time);
+  CREATE INDEX IF NOT EXISTS idx_bsb_predlog_commence ON bsb_prediction_log (league, commence_time);
+  CREATE INDEX IF NOT EXISTS idx_naf_predlog_commence ON naf_prediction_log (league, commence_time);
+  CREATE INDEX IF NOT EXISTS idx_predlog_pendientes ON prediction_log (commence_time) WHERE resolved_at IS NULL;
+  CREATE INDEX IF NOT EXISTS idx_fb_predlog_pendientes ON fb_prediction_log (commence_time) WHERE resolved_at IS NULL;
+  CREATE INDEX IF NOT EXISTS idx_bb_predlog_pendientes ON bb_prediction_log (commence_time) WHERE resolved_at IS NULL;
+  CREATE INDEX IF NOT EXISTS idx_bsb_predlog_pendientes ON bsb_prediction_log (commence_time) WHERE resolved_at IS NULL;
+  CREATE INDEX IF NOT EXISTS idx_naf_predlog_pendientes ON naf_prediction_log (commence_time) WHERE resolved_at IS NULL;
+  CREATE INDEX IF NOT EXISTS idx_signals_sport_event ON edge_signals (sport, event_id, created_at);
+  CREATE INDEX IF NOT EXISTS idx_assess_partido ON prediction_assessments (sport, match_key, id);
+  CREATE INDEX IF NOT EXISTS idx_upcoming_commence ON upcoming_matches (commence_time);
+  CREATE INDEX IF NOT EXISTS idx_fb_upcoming_commence ON fb_upcoming (commence_time);
+  CREATE INDEX IF NOT EXISTS idx_bb_upcoming_commence ON bb_upcoming (commence_time);
+  CREATE INDEX IF NOT EXISTS idx_bsb_upcoming_commence ON bsb_upcoming (commence_time);
+  CREATE INDEX IF NOT EXISTS idx_naf_upcoming_commence ON naf_upcoming (commence_time);
+`;
+
+/**
+ * Las migraciones, en orden. La 1 es el esquema de siempre (idempotente); las demás, lo que
+ * ha ido llegando después. Se registran por fichero en `schema_version` (db/migrations.ts).
+ */
+export const MIGRACIONES: Migracion[] = [
+  {
+    version: 1,
+    nombre: 'esquema-base',
+    destino: 'ambos',
+    up: (d, ctx) => {
+      d.exec(ledgerize(ESQUEMA_BASE, ctx.ledger));
+      addMissingColumns(d);
+      d.exec(ledgerize(ODDS_SNAPSHOT_SCHEMA, ctx.ledger));
+      // Un trigger de congelación de una versión anterior no conoce las columnas nuevas, y
+      // «IF NOT EXISTS» no lo actualizaría: se rehace si no las nombra.
+      const congelada = d.prepare(`SELECT sql FROM ${masterDe('paper_bets', ctx.ledger)} WHERE type = 'trigger' AND name = 'paper_bets_congelada'`).get() as { sql: string } | undefined;
+      if (congelada && !congelada.sql.includes('correlation_groups')) d.exec('DROP TRIGGER paper_bets_congelada');
+      d.exec(ledgerize(PAPER_TRIGGERS, ctx.ledger));
+      d.exec(ledgerize(EDGE_SIGNALS_SCHEMA, ctx.ledger));
+      d.exec(ledgerize(PREDICTION_LOG_TRIGGERS, ctx.ledger));
+      d.exec(ledgerize(PREMATCH_SCHEMA, ctx.ledger));
+      d.exec(ledgerize(ASSESSMENT_SCHEMA, ctx.ledger));
+      d.exec(ledgerize(SHADOW_SCHEMA, ctx.ledger));
+      d.exec(ledgerize(ALERTS_SCHEMA, ctx.ledger));
+    },
+  },
+  { version: 2, nombre: 'indices', destino: 'ambos', up: (d, ctx) => d.exec(ledgerize(INDICES_FASE_2, ctx.ledger)) },
+  { version: 3, nombre: 'settings', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(SETTINGS_SCHEMA, ctx.ledger)) },
+  { version: 4, nombre: 'ingestion_runs', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(INGESTION_RUNS_SCHEMA, ctx.ledger)) },
+  { version: 5, nombre: 'sessions-y-error_log', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(SESSIONS_SCHEMA + ERROR_LOG_SCHEMA, ctx.ledger)) },
+];
+
+export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {
+  for (const s of schemas) {
+    d.exec(`PRAGMA ${s}.journal_mode = WAL;`);
+    d.exec(`PRAGMA ${s}.synchronous = NORMAL;`);
+  }
+  d.exec('PRAGMA busy_timeout = 5000;');
+  d.exec('PRAGMA foreign_keys = ON;');
+}
+
+/** Abre según la disposición, parte la base antigua si hace falta, y migra. Para getDb y para `db:migrate`. */
+export function abrirBase(opts: { reintentar?: boolean; log?: (m: string) => void } = {}): DatabaseSync {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (LAYOUT === 'split' && hayQuePartir(LEGACY_DB_PATH, HISTORY_DB_PATH, LEDGER_DB_PATH)) {
+    const r = partirBase(LEGACY_DB_PATH, HISTORY_DB_PATH, LEDGER_DB_PATH);
+    opts.log?.(`Base partida en dos: ${r.tablasHistory.length} tablas en history.db, ${r.tablasLedger.length} en ledger.db (${r.settingsCopiadas} claves de estado). El original queda en ${r.original}.`);
+  }
+  const d = new DatabaseSync(rutaPrincipal());
+  if (LAYOUT === 'split') d.exec(`ATTACH '${LEDGER_DB_PATH.replace(/'/g, "''")}' AS ledger`);
+  aplicarPragmas(d, LAYOUT === 'split' ? ['main', 'ledger'] : ['main']);
+  const ctx = { ledger: LEDGER_SCHEMA } as const;
+  migrar(d, 'main', 'history', MIGRACIONES, { ...ctx, fichero: 'history' }, opts);
+  if (LAYOUT === 'split') migrar(d, 'ledger', 'ledger', MIGRACIONES, { ...ctx, fichero: 'ledger' }, opts);
+  else migrar(d, 'main', 'ledger', MIGRACIONES.filter((m) => m.destino === 'ledger'), { ...ctx, fichero: 'ledger' }, opts);
+  return d;
+}
+
 export function getDb(): DatabaseSync {
   if (db) return db;
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-  db = new DatabaseSync(DB_PATH);
-  // Default (rollback-journal) mode + a busy timeout keeps cross-process reads
-  // always up to date: if the running API and an external `update-data` process
-  // both touch the DB, each read sees the latest committed state (WAL can leave
-  // a long-lived writer connection with a stale view). Writes here are small and
-  // fast, so blocking briefly is fine for a local single-user app.
-  db.exec('PRAGMA journal_mode = DELETE;'); // convert any pre-existing WAL db back
-  db.exec('PRAGMA busy_timeout = 5000;');
-  db.exec('PRAGMA foreign_keys = ON;');
-  createSchema(db);
-  migrateSchema(db);
-  // Snapshots de mercado (fase 2): tablas append-only con sus triggers.
-  db.exec(ODDS_SNAPSHOT_SCHEMA);
-  // Paper trading auditable (fase 4) y registros de predicciones que no se reescriben.
-  // DESPUÉS de migrar: los triggers nombran columnas que añade la migración.
-  // Un trigger de congelación de una versión anterior no conoce las columnas nuevas, y
-  // «IF NOT EXISTS» no lo actualizaría: se rehace si no las nombra.
-  const congelada = db.prepare("SELECT sql FROM sqlite_master WHERE type = 'trigger' AND name = 'paper_bets_congelada'").get() as { sql: string } | undefined;
-  if (congelada && !congelada.sql.includes('correlation_groups')) db.exec('DROP TRIGGER paper_bets_congelada');
-  db.exec(PAPER_TRIGGERS);
-  db.exec(EDGE_SIGNALS_SCHEMA);
-  db.exec(PREDICTION_LOG_TRIGGERS);
-  // Instantáneas pre-partido y la final congelada: ver prematch/schema.ts.
-  db.exec(PREMATCH_SCHEMA);
-  // Las evaluaciones de confianza (también las abstenciones): ver trust/assess.ts.
-  db.exec(ASSESSMENT_SCHEMA);
-  // Modelos en sombra: ver shadow/shadows.ts.
-  db.exec(SHADOW_SCHEMA);
-  // Alertas internas: ver alerts/engine.ts.
-  db.exec(ALERTS_SCHEMA);
+  db = abrirBase({ log: (m) => process.stdout.write(`${m}\n`) });
   return db;
 }
 
-function createSchema(d: DatabaseSync): void {
-  d.exec(`
+/** Para los tests que necesitan otra conexión o cerrar la actual. */
+export function cerrarDb(): void {
+  db?.close();
+  db = null;
+}
+
+/** El esquema de siempre: todas las tablas, idempotente. Pasa por `ledgerize` antes de ejecutarse. */
+export const ESQUEMA_BASE = `
     CREATE TABLE IF NOT EXISTS players (
       id        INTEGER NOT NULL,
       tour      TEXT NOT NULL,
@@ -886,8 +998,8 @@ function createSchema(d: DatabaseSync): void {
       key   TEXT PRIMARY KEY,
       value TEXT
     );
-  `);
-}
+`;
+
 
 /**
  * Bring an existing database up to the current schema.
@@ -906,7 +1018,8 @@ const VERSIONED = {
   git_commit: 'TEXT',
 };
 
-function migrateSchema(d: DatabaseSync): void {
+/** Las columnas que una base anterior no tiene todavía (migración 1; `ALTER TABLE` resuelve el esquema solo). */
+export function addMissingColumns(d: DatabaseSync): void {
   const columnsOf = (table: string): Set<string> => {
     try {
       const rows = d.prepare(`PRAGMA table_info(${table})`).all() as unknown as { name: string }[];
@@ -1000,16 +1113,22 @@ function migrateSchema(d: DatabaseSync): void {
   }
 }
 
+/** Dónde vive una clave: estado del libro mayor en `settings`, procedencia de datos en `meta`. */
+function tablaDeClave(key: string): string {
+  return claveEsLedger(key) ? `${LEDGER_SCHEMA}.settings` : 'meta';
+}
+
 export function setMeta(key: string, value: string): void {
-  getDb()
-    .prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?')
-    .run(key, value, value);
+  const d = getDb();
+  if (claveEsLedger(key)) {
+    d.prepare(`INSERT INTO ${tablaDeClave(key)} (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`).run(key, value, new Date().toISOString());
+    return;
+  }
+  d.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?').run(key, value, value);
 }
 
 export function getMeta(key: string): string | null {
-  const row = getDb().prepare('SELECT value FROM meta WHERE key = ?').get(key) as
-    | { value: string }
-    | undefined;
+  const row = getDb().prepare(`SELECT value FROM ${tablaDeClave(key)} WHERE key = ?`).get(key) as { value: string } | undefined;
   return row?.value ?? null;
 }
 

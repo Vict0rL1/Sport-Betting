@@ -18,6 +18,7 @@ import { resolveFootballPredictions } from '../football/trackRecord.ts';
 import { resolveGamePredictions } from '../basketball/trackRecord.ts';
 import { resolveBaseballPredictions } from '../baseball/trackRecord.ts';
 import { resolveNflPredictions } from '../nfl/trackRecord.ts';
+import { empezarEjecucion, terminarEjecucion } from '../ingest/runs.ts';
 
 const SERVIDOR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const C = { bold: '\x1b[1m', dim: '\x1b[2m', red: '\x1b[31m', green: '\x1b[32m', amber: '\x1b[33m', off: '\x1b[0m' };
@@ -29,6 +30,9 @@ const PASOS = [
   { nombre: 'NFL', script: 'update-data:naf' },
 ];
 
+// Queda en ingestion_runs como `update-results`; cada deporte deja además la suya
+// (update-data:fb…) desde su propio proceso.
+const ejecucion = empezarEjecucion('update-results');
 const fallidos: string[] = [];
 for (const p of PASOS) {
   console.log(`\n${C.bold}▸ ${p.nombre}${C.off} ${C.dim}(npm run ${p.script} -- --skip-odds)${C.off}`);
@@ -68,7 +72,9 @@ console.log(
     ` · en vivo ${h.porOrigen['en vivo'].total}, reconstruidos ${h.porOrigen.reconstruida.total}`,
 );
 if (fallidos.length) {
+  terminarEjecucion(ejecucion, { error: `fallaron: ${fallidos.join(', ')}` });
   console.log(`\n${C.red}✗ Falló: ${fallidos.join(', ')}.${C.off} Lo demás se actualizó. Revisa el mensaje de arriba de cada uno.`);
   process.exit(1);
 }
+terminarEjecucion(ejecucion, { rowsUpdated: puntuadas.length, detail: puntuadas.length ? `puntuadas: ${puntuadas.join(' · ')}` : 'sin predicciones nuevas que puntuar' });
 console.log(`\n${C.dim}Si el servidor está arrancado, la pantalla lo verá al recargar.${C.off}`);

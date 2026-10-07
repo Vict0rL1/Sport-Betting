@@ -5,6 +5,8 @@
     "auth.totp": { "on": true, "opcional": "TOTP_SECRET", "descripcion": "Segundo factor TOTP al entrar." },
     "seguridad.cabeceras": { "on": true, "descripcion": "Cabeceras de seguridad (CSP, nosniff, frame-ancestors…)." },
     "seguridad.errorLog": { "on": true, "descripcion": "Los errores no controlados se guardan en error_log con su id de petición." },
-    "asistente.modelo": { "on": true, "opcional": "ANTHROPIC_API_KEY", "descripcion": "El asistente elige herramienta con un modelo de lenguaje (solo elige; nunca ejecuta SQL ni código)." }
+    "asistente.modelo": { "on": true, "opcional": "ANTHROPIC_API_KEY", "descripcion": "El asistente elige herramienta con un modelo de lenguaje (solo elige; nunca ejecuta SQL ni código)." },
+    "datos.backupProgramado": { "on": true, "descripcion": "Copia del libro mayor (ledger.db) programada en el servidor cada BACKUP_HOURS horas (24 por defecto); si hay BACKUP_S3_*, también se sube." },
+    "datos.resultadosProgramados": { "on": true, "descripcion": "update-results programado en el servidor cada RESULTS_REFRESH_HOURS horas (6 por defecto), deporte a deporte en procesos hijo." }
   }
 }

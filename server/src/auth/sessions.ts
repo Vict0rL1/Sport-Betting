@@ -7,23 +7,28 @@
 
 import { createHash, randomBytes } from 'node:crypto';
 import { getDb } from '../db.ts';
+import { ledgerize } from '../db/ledgerize.ts';
+import { LEDGER_SCHEMA } from '../db/layout.ts';
 
 export const SESION_DIAS = 30;
 
+export const SESSIONS_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS sessions (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_hash    TEXT NOT NULL UNIQUE,
+    created_at    TEXT NOT NULL,
+    last_seen_at  TEXT NOT NULL,
+    expires_at    TEXT NOT NULL,
+    revoked_at    TEXT,
+    user_agent    TEXT,
+    ip            TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_sessions_hash ON sessions (token_hash);
+`;
+
+/** La crea la migración 5; esto solo garantiza que está si se llama antes (y en el fichero correcto). */
 export function ensureSessionsSchema(): void {
-  getDb().exec(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      id            INTEGER PRIMARY KEY AUTOINCREMENT,
-      token_hash    TEXT NOT NULL UNIQUE,
-      created_at    TEXT NOT NULL,
-      last_seen_at  TEXT NOT NULL,
-      expires_at    TEXT NOT NULL,
-      revoked_at    TEXT,
-      user_agent    TEXT,
-      ip            TEXT
-    );
-    CREATE INDEX IF NOT EXISTS idx_sessions_hash ON sessions (token_hash);
-  `);
+  getDb().exec(ledgerize(SESSIONS_SCHEMA, LEDGER_SCHEMA));
 }
 
 const hash = (token: string) => createHash('sha256').update(token).digest('hex');

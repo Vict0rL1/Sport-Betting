@@ -19,7 +19,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   ROOT,
-  DB_PATH,
   env,
   envFileValues,
   oddsKeySource,
@@ -29,7 +28,7 @@ import {
   nflConfig,
   tournamentsConfig,
 } from '../config.ts';
-import { getDb, getMeta } from '../db.ts';
+import { getDb, getMeta, MIGRACIONES } from '../db.ts';
 import { ODDS_API_BASE, requestOdds, summarizeEvents, OddsApiError } from '../oddsApi.ts';
 import { recordQuota, planTotal, withinMonthlyPace, lastCycleCredits, OddsBudgetSkip, creditCost } from '../oddsQuota.ts';
 import { readKeyOutcomes, type SportPrefix } from '../oddsReason.ts';
@@ -41,6 +40,8 @@ import {
   comprobarFrescura,
   comprobarConfianza,
   comprobarSeguridad,
+  comprobarAlmacenamiento,
+  type EstadoAlmacenamiento,
   comprobarServidor,
   resultado,
   type Hallazgo,
@@ -53,9 +54,15 @@ import {
   type FamiliaContada,
 } from '../doctor/checks.ts';
 import { META_CICLO } from '../prematch/snapshots.ts';
+import { LEGACY_DB_PATH, rutaPrincipal } from '../db/layout.ts';
 import { familiaDeMotivo } from '../trust/decision.ts';
 import { execFileSync } from 'node:child_process';
 import { configAuth } from '../auth/mode.ts';
+import { LAYOUT, ficherosDe } from '../db/layout.ts';
+import { estadoPorVersion } from '../db/migrations.ts';
+import { copiasLocales, ultimaCopia } from '../db/backup.ts';
+import { configS3 } from '../db/s3.ts';
+import { marcarMuertas, ultimasEjecuciones } from '../ingest/runs.ts';
 import { sesionesActivas } from '../auth/sessions.ts';
 import { featureEncendida } from '../features.ts';
 import { origenesPermitidos } from '../security/cors.ts';
@@ -124,7 +131,7 @@ hallazgos.push(
 // ---------------------------------------------------------------------------
 // La base se abre DESPUÉS de mirar si existe: getDb() la crea vacía si no está, y
 // entonces «no existe la base de datos» nunca saldría.
-const dbExistia = fs.existsSync(DB_PATH);
+const dbExistia = fs.existsSync(rutaPrincipal()) || fs.existsSync(LEGACY_DB_PATH);
 let listado: Listado | null = null;
 if (env.oddsApiKey && !SIN_RED) {
   const t0 = Date.now();
@@ -223,7 +230,7 @@ if (dbExistia) {
     }
   }
 }
-hallazgos.push(...comprobarBaseDeDatos(DB_PATH, dbExistia, conteos, !!env.oddsApiKey));
+hallazgos.push(...comprobarBaseDeDatos(rutaPrincipal(), dbExistia, conteos, !!env.oddsApiKey));
 if (dbExistia) hallazgos.push(...comprobarFrescura(frescura, new Date(), !!env.oddsApiKey));
 
 // ---------------------------------------------------------------------------
@@ -322,6 +329,53 @@ if (dbExistia) {
     deriva7d: deriva ? `${deriva.sport ? `${deriva.sport}: ` : ''}${deriva.body}` : null,
   };
   hallazgos.push(...comprobarConfianza(estado, ahora));
+}
+
+// ---------------------------------------------------------------------------
+// DATOS Y COPIAS — ficheros, migraciones, copia del libro mayor, ingestas
+// ---------------------------------------------------------------------------
+{
+  const db = getDb();
+  const ahora = new Date();
+  const tam = (ruta: string | null) => (ruta && fs.existsSync(ruta) ? { ruta, mb: fs.statSync(ruta).size / 1048576 } : null);
+  const f = ficherosDe();
+  const dataDir = path.dirname(f.history);
+  const preSplit = fs.existsSync(dataDir) ? fs.readdirSync(dataDir).filter((x) => x.includes('.pre-split-')) : [];
+  const fallidas: string[] = [];
+  for (const [schema, nombre] of LAYOUT === 'split' ? ([['main', 'history'], ['ledger', 'ledger']] as const) : ([['main', 'tennis.db']] as const)) {
+    try {
+      for (const [v, e] of estadoPorVersion(db, schema)) if (e.estado === 'failed') fallidas.push(`v${v} ${MIGRACIONES.find((m) => m.version === v)?.nombre ?? ''} en ${nombre}`);
+    } catch {
+      // sin schema_version: base anterior a la fase; lo dirá la migración al arrancar
+    }
+  }
+  const uno = <T,>(fn: () => T, porDefecto: T): T => {
+    try {
+      return fn();
+    } catch {
+      return porDefecto;
+    }
+  };
+  const copia = uno(() => ultimaCopia(), null);
+  const retAt = getMeta('retention:last_at');
+  const estado: EstadoAlmacenamiento = {
+    layout: LAYOUT,
+    history: tam(f.history),
+    ledger: tam(f.ledger),
+    preSplit,
+    legacySinPartir: LAYOUT === 'split' && fs.existsSync(LEGACY_DB_PATH) && !fs.existsSync(f.history) && !fs.existsSync(f.ledger!),
+    migracionesFallidas: fallidas,
+    backup: copia ? { cuando: copia.cuando, fichero: copia.fichero, existe: !!copia.fichero && fs.existsSync(copia.fichero) } : null,
+    copiasLocales: uno(() => copiasLocales().length, 0),
+    backupHoras: process.env.BACKUP_HOURS?.trim() ? Number(process.env.BACKUP_HOURS) || 0 : 24,
+    s3: !!configS3(),
+    apuestasRegistradas: uno(() => (db.prepare('SELECT COUNT(*) AS n FROM paper_bets').get() as { n: number }).n, 0),
+    retencion: retAt ? { cuando: retAt, borradas: Number(getMeta('retention:last_removed')) || 0 } : null,
+    snapshots: uno(() => (db.prepare('SELECT COUNT(*) AS n FROM odds_snapshots').get() as { n: number }).n, 0),
+    ejecuciones: uno(() => ultimasEjecuciones(), []),
+    muertas: uno(() => marcarMuertas(ahora), 0),
+  };
+  hallazgos.push(...comprobarAlmacenamiento(estado, ahora));
 }
 
 // ---------------------------------------------------------------------------
@@ -432,7 +486,7 @@ hallazgos.push(...comprobarServidor({ puertoApi: puertos.api, puertoWeb: puertos
 // Impresión
 // ---------------------------------------------------------------------------
 const marca = { ok: `${C.green}✓${C.off}`, aviso: `${C.amber}⚠${C.off}`, error: `${C.red}✗${C.off}`, info: `${C.dim}·${C.off}` };
-const orden: Seccion[] = ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'ACTUALIZACIÓN', 'CONFIANZA', 'SEGURIDAD', 'SERVIDOR Y PANTALLA'];
+const orden: Seccion[] = ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'ACTUALIZACIÓN', 'CONFIANZA', 'DATOS Y COPIAS', 'SEGURIDAD', 'SERVIDOR Y PANTALLA'];
 for (const s of orden) {
   const hs = hallazgos.filter((x) => x.seccion === s);
   if (hs.length === 0) continue;

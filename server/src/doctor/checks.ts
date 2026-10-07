@@ -19,6 +19,7 @@ export type Seccion =
   | 'BASE DE DATOS'
   | 'ACTUALIZACIÓN'
   | 'CONFIANZA'
+  | 'DATOS Y COPIAS'
   | 'SEGURIDAD'
   | 'SERVIDOR Y PANTALLA';
 
@@ -640,6 +641,105 @@ export function comprobarSeguridad(e: EstadoSeguridad): Hallazgo[] {
     out.push(h(S, 'aviso', 'El hook de pre-commit (escáner de secretos) no está activado en este clon', { accion: ['git config core.hooksPath .githooks   (npm install lo hace solo)'] }));
   } else if (e.hookInstalado === true) {
     out.push(h(S, 'ok', `Hook de pre-commit activo${e.gitleaks ? ' (gitleaks + escáner propio)' : ' (escáner propio; gitleaks no instalado, opcional)'}`));
+  }
+  return out;
+}
+
+// ===========================================================================
+// DATOS Y COPIAS — los dos ficheros, las migraciones, la copia del libro mayor y las ingestas
+// ===========================================================================
+
+export interface EjecucionResumen {
+  source: string;
+  status: 'running' | 'ok' | 'error';
+  started_at: string;
+  finished_at: string | null;
+  rows_added: number | null;
+  error: string | null;
+}
+
+export interface EstadoAlmacenamiento {
+  layout: 'split' | 'single';
+  history: { ruta: string; mb: number } | null;
+  ledger: { ruta: string; mb: number } | null;
+  /** Ficheros `tennis.db.pre-split-*` que quedaron al partir la base. */
+  preSplit: string[];
+  /** Hay un tennis.db antiguo y aún no hay history.db/ledger.db. */
+  legacySinPartir: boolean;
+  migracionesFallidas: string[];
+  /** La última copia anotada; `existe` dice si el fichero sigue ahí. */
+  backup: { cuando: string; fichero: string | null; existe: boolean } | null;
+  copiasLocales: number;
+  backupHoras: number;
+  s3: boolean;
+  apuestasRegistradas: number;
+  retencion: { cuando: string; borradas: number } | null;
+  snapshots: number;
+  ejecuciones: EjecucionResumen[];
+  /** Ejecuciones que seguían `running` tras horas y se marcaron como muertas. */
+  muertas: number;
+}
+
+export const BACKUP_AVISO_HORAS = 36;
+
+export function comprobarAlmacenamiento(e: EstadoAlmacenamiento, ahora: Date): Hallazgo[] {
+  const S: Seccion = 'DATOS Y COPIAS';
+  const out: Hallazgo[] = [];
+  const mb = (n: number) => `${n.toFixed(n < 10 ? 1 : 0)} MB`;
+
+  // 1. Disposición y ficheros.
+  if (e.legacySinPartir) {
+    out.push(h(S, 'aviso', 'Hay una base antigua (tennis.db) todavía sin partir en history.db + ledger.db', { accion: ['npm run db:migrate   (no pierde nada: el original queda al lado como tennis.db.pre-split-<fecha>)'] }));
+  } else if (e.layout === 'split') {
+    out.push(h(S, 'ok', `Dos ficheros: history.db ${e.history ? mb(e.history.mb) : '—'} (historia, reconstruible) · ledger.db ${e.ledger ? mb(e.ledger.mb) : '—'} (apuestas, predicciones registradas, precios: lo tuyo)`));
+  } else {
+    out.push(h(S, 'info', `Disposición single (DB_LAYOUT=single): todo en un fichero${e.history ? ` de ${mb(e.history.mb)}` : ''}. Sin ledger.db no hay copias del libro mayor por separado.`));
+  }
+  if (e.preSplit.length) out.push(h(S, 'info', `${e.preSplit.length} fichero(s) pre-split guardados (${e.preSplit.join(', ')}). Cuando te fíes de la base partida, puedes borrarlos.`));
+  if (e.migracionesFallidas.length) {
+    out.push(h(S, 'error', `Migración fallida: ${e.migracionesFallidas.join(', ')}. El servidor no arranca con una base a medias`, { accion: ['npm run db:migrate -- --reintentar   (tras mirar el error; o restaura la última copia)'] }));
+  } else {
+    out.push(h(S, 'ok', 'Migraciones al día en los dos ficheros (schema_version)'));
+  }
+
+  // 2. La copia del libro mayor.
+  if (e.layout === 'split') {
+    if (!e.backup) {
+      if (e.apuestasRegistradas > 0) {
+        out.push(h(S, 'error', `Nunca se ha hecho una copia del libro mayor y hay ${e.apuestasRegistradas} apuesta(s) de papel registradas`, { accion: ['npm run backup   (y deja el servidor en marcha: la hace sola cada BACKUP_HOURS h)'] }));
+      } else {
+        out.push(h(S, 'aviso', 'Nunca se ha hecho una copia del libro mayor (aún sin apuestas, así que no se ha perdido nada)', { accion: ['npm run backup'] }));
+      }
+    } else {
+      const horas = (ahora.getTime() - Date.parse(e.backup.cuando)) / 3_600_000;
+      const cuando = `hace ${horas < 1 ? `${Math.round(horas * 60)} min` : `${horas.toFixed(horas < 10 ? 1 : 0)} h`}`;
+      if (horas > BACKUP_AVISO_HORAS) {
+        out.push(h(S, 'aviso', `La última copia del libro mayor es de ${cuando} (más de ${BACKUP_AVISO_HORAS} h)`, { accion: ['npm run backup', e.backupHoras > 0 ? `El servidor la hace cada ${e.backupHoras} h si está en marcha (BACKUP_HOURS)` : 'BACKUP_HOURS=0 apaga la programada: ponla en 24'] }));
+      } else if (!e.backup.existe) {
+        out.push(h(S, 'aviso', `La última copia (${cuando}) ya no está en ${e.backup.fichero ?? 'su sitio'}`, { accion: ['npm run backup'] }));
+      } else {
+        out.push(h(S, 'ok', `Copia del libro mayor ${cuando} · ${e.copiasLocales} local(es)${e.s3 ? ' · se sube a S3' : ''}${e.backupHoras > 0 ? ` · programada cada ${e.backupHoras} h` : ''}`));
+      }
+    }
+    if (!e.s3) out.push(h(S, 'info', 'Las copias solo están en esta máquina. Para tener una fuera, rellena BACKUP_S3_* (.env.example): AWS, R2, B2 o MinIO.'));
+  }
+
+  // 3. Retención de snapshots (manual, nunca automática).
+  out.push(
+    h(S, 'info', `${e.snapshots.toLocaleString('es')} snapshots de cuotas${e.retencion ? ` · última retención ${e.retencion.cuando.slice(0, 10)} (${e.retencion.borradas} archivadas)` : ' · sin retención aplicada (npm run odds:retention -- --dias 90 enseña el plan)'}`),
+  );
+
+  // 4. Ingestas: la última de cada fuente.
+  if (e.muertas > 0) out.push(h(S, 'aviso', `${e.muertas} ejecución(es) de ingesta se quedaron a medias (proceso caído) y se han marcado como error`));
+  const errores = e.ejecuciones.filter((x) => x.status === 'error');
+  const enMarcha = e.ejecuciones.filter((x) => x.status === 'running');
+  const ok = e.ejecuciones.filter((x) => x.status === 'ok');
+  if (e.ejecuciones.length === 0) {
+    out.push(h(S, 'info', 'Sin ejecuciones de ingesta registradas todavía (ingestion_runs se rellena con cada refresco de cuotas y cada update-data)'));
+  } else {
+    if (ok.length) out.push(h(S, 'ok', `${ok.length} fuente(s) con la última ingesta bien: ${ok.map((x) => `${x.source} (${x.started_at.slice(0, 16).replace('T', ' ')}${x.rows_added != null ? `, ${x.rows_added} filas` : ''})`).join(' · ')}`));
+    for (const x of errores) out.push(h(S, 'aviso', `La última ingesta de ${x.source} falló (${x.started_at.slice(0, 16).replace('T', ' ')}): ${x.error ?? 'sin detalle'}`, { accion: [`Vuelve a lanzarla (npm run ${x.source.startsWith('odds') ? 'odds' : x.source}) y mira el error`] }));
+    for (const x of enMarcha) out.push(h(S, 'info', `${x.source} en marcha desde ${x.started_at.slice(0, 16).replace('T', ' ')}`));
   }
   return out;
 }

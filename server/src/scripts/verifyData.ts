@@ -32,10 +32,16 @@ import { evaluacionEnVivo } from '../evaluation/live.ts';
 import { rendimientoEnVivo } from '../evaluation/betting.ts';
 import { leerMetricasBacktest, problemasMetricasBacktest } from '../evaluation/report.ts';
 import { leerWalkForward } from '../evaluation/walkforward.ts';
+import { masterDe } from '../db/ledgerize.ts';
+import { LAYOUT, LEDGER_SCHEMA } from '../db/layout.ts';
+import { estadoPorVersion } from '../db/migrations.ts';
+import { TABLAS_LEDGER, TABLAS_LEDGER_RESERVADAS } from '../db/tables.ts';
+import { CONSULTAS_CALIENTES, planDe } from '../db/hot.ts';
+import { MUERTA_TRAS_MIN } from '../ingest/runs.ts';
 import { SPORT_IDS } from '../sports.ts';
 import nodeFs from 'node:fs';
 import nodePath from 'node:path';
-import { getDb } from '../db.ts';
+import { getDb, MIGRACIONES } from '../db.ts';
 import { countriesConfig, ROOT } from '../config.ts';
 import { getEloRanking, officialRankingCoherence } from '../repo.ts';
 import {
@@ -1396,7 +1402,7 @@ function auditOddsSnapshots(): void {
   console.log('\n▸ Histórico de cuotas (snapshots)');
   const db = getDb();
   const triggers = new Set(
-    (db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as { name: string }[]).map((r) => r.name),
+    (db.prepare(`SELECT name FROM ${masterDe('odds_snapshots', LEDGER_SCHEMA)} WHERE type = 'trigger'`).all() as { name: string }[]).map((r) => r.name),
   );
   for (const t of ['odds_snapshots_no_update', 'odds_snapshots_no_delete', 'odds_observations_no_update', 'odds_observations_no_delete']) {
     check(`snapshots: el trigger ${t} existe`, triggers.has(t), 'sin él, el histórico de cuotas se puede editar');
@@ -1430,11 +1436,11 @@ function auditOddsSnapshots(): void {
 function auditTrust(): void {
   console.log('\n▸ Evaluaciones de confianza (abstención)');
   const db = getDb();
-  const triggers = new Set((db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as { name: string }[]).map((r) => r.name));
+  const triggers = new Set((db.prepare(`SELECT name FROM ${masterDe('prediction_assessments', LEDGER_SCHEMA)} WHERE type = 'trigger'`).all() as { name: string }[]).map((r) => r.name));
   for (const t of ['prediction_assessments_no_update', 'prediction_assessments_no_delete', 'shadow_predictions_no_update', 'shadow_predictions_no_delete', 'alerts_no_update', 'alerts_no_delete']) {
     check(`confianza: el trigger ${t} existe`, triggers.has(t), 'sin él, una abstención se podría reescribir a posteriori');
   }
-  const congelada = (db.prepare("SELECT sql FROM sqlite_master WHERE name = 'paper_bets_congelada'").get() as { sql: string } | undefined)?.sql ?? '';
+  const congelada = (db.prepare(`SELECT sql FROM ${masterDe('paper_bets', LEDGER_SCHEMA)} WHERE name = 'paper_bets_congelada'`).get() as { sql: string } | undefined)?.sql ?? '';
   check('confianza: la confianza de cada apuesta queda congelada', congelada.includes('trust_stake_factor'));
   const r = db
     .prepare(
@@ -1502,7 +1508,7 @@ function auditPrematch(): void {
   console.log('\n▸ Instantáneas pre-partido y final congelada');
   const db = getDb();
   const triggers = new Set(
-    (db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger'").all() as { name: string }[]).map((r) => r.name),
+    (db.prepare(`SELECT name FROM ${masterDe('prediction_snapshots', LEDGER_SCHEMA)} WHERE type = 'trigger'`).all() as { name: string }[]).map((r) => r.name),
   );
   for (const t of ['prediction_snapshots_no_update', 'prediction_snapshots_no_delete', 'prematch_final_no_update', 'prematch_final_no_delete']) {
     check(`pre-partido: el trigger ${t} existe`, triggers.has(t), 'sin él, lo que el modelo dijo antes del partido se puede reescribir');
@@ -1620,7 +1626,7 @@ function auditPaperBankroll(): void {
   console.log(`  ${bets.length} apuesta(s) registradas`);
   // Los triggers, SIEMPRE: con cero apuestas es justo cuando conviene saber que la
   // primera no se podrá reescribir.
-  const triggers = new Set((db.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND name LIKE 'paper_bets_%'").all() as { name: string }[]).map((r) => r.name));
+  const triggers = new Set((db.prepare(`SELECT name FROM ${masterDe('paper_bets', LEDGER_SCHEMA)} WHERE type = 'trigger' AND name LIKE 'paper_bets_%'`).all() as { name: string }[]).map((r) => r.name));
   for (const t of ['paper_bets_no_delete', 'paper_bets_congelada', 'paper_bets_liquida_una_vez', 'paper_bets_cierre_una_vez']) {
     check(`banco de papel: el trigger ${t} existe`, triggers.has(t), 'sin él, una apuesta registrada se puede reescribir');
   }
@@ -4048,6 +4054,39 @@ function auditPointsModel(): void {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Almacenamiento (Fase 2): dos ficheros, migraciones, índices, ingestas
+// ---------------------------------------------------------------------------
+function auditAlmacenamiento(): void {
+  console.log('\n▸ Almacenamiento');
+  const db = getDb();
+  check('almacenamiento: disposición split (history.db + ledger.db)', LAYOUT === 'split', `DB_LAYOUT=${LAYOUT}`);
+  if (LAYOUT === 'split') {
+    const enMain = new Set((db.prepare("SELECT name FROM main.sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((r) => r.name));
+    const coladas = TABLAS_LEDGER.filter((t) => enMain.has(t));
+    check('almacenamiento: ninguna tabla del libro mayor en history.db', coladas.length === 0, `en history: ${coladas.join(', ')} (una sombra en la principal ganaría a la del libro mayor)`);
+    const enLedger = new Set((db.prepare("SELECT name FROM ledger.sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((r) => r.name));
+    const faltan = TABLAS_LEDGER.filter((t) => !enLedger.has(t) && !TABLAS_LEDGER_RESERVADAS.includes(t));
+    check('almacenamiento: todas las tablas del libro mayor existen en ledger.db', faltan.length === 0, `faltan: ${faltan.join(', ')}`);
+    check('almacenamiento: settings e ingestion_runs viven en ledger.db', enLedger.has('settings') && enLedger.has('ingestion_runs'));
+  }
+  for (const [schema, fichero] of LAYOUT === 'split' ? ([['main', 'history'], ['ledger', 'ledger']] as const) : ([['main', 'tennis.db']] as const)) {
+    const estado = estadoPorVersion(db, schema);
+    const pendientes = MIGRACIONES.filter((m) => (LAYOUT !== 'split' || m.destino === 'ambos' || m.destino === (fichero === 'history' ? 'history' : 'ledger')) && estado.get(m.version)?.estado !== 'ok');
+    check(`migraciones: todas aplicadas en ${fichero}`, pendientes.length === 0, `pendientes o fallidas: ${pendientes.map((m) => `v${m.version} ${m.nombre}`).join(', ')}`);
+  }
+  for (const c of CONSULTAS_CALIENTES) {
+    const plan = planDe(db, c.sql).map((p) => p.detail);
+    const scan = plan.find((d) => d.startsWith('SCAN ') && !/USING (COVERING )?INDEX/.test(d) && c.tablasConIndice.some((t) => d.includes(t)));
+    check(`índices: «${c.nombre}» no recorre su tabla entera`, scan === undefined, scan ?? '');
+  }
+  const limite = new Date(Date.now() - MUERTA_TRAS_MIN * 60_000).toISOString();
+  const colgadas = (db.prepare("SELECT COUNT(*) AS n FROM ingestion_runs WHERE status = 'running' AND started_at < ?").get(limite) as { n: number }).n;
+  check(`ingestas: ninguna lleva «running» más de ${MUERTA_TRAS_MIN} min`, colgadas === 0, `${colgadas} colgada(s): el servidor o npm run doctor las marcan como error`);
+  const sinFin = (db.prepare("SELECT COUNT(*) AS n FROM ingestion_runs WHERE status <> 'running' AND finished_at IS NULL").get() as { n: number }).n;
+  check('ingestas: toda ejecución terminada tiene finished_at', sinFin === 0, `${sinFin} sin fecha de fin`);
+}
+
 function main(): void {
   console.log('\n🔎 Verificación de los datos\n' + '='.repeat(46));
   console.log(
@@ -4087,6 +4126,7 @@ function main(): void {
   auditTennis();
   auditNflMarket();
   auditRatingsReproduce();
+  auditAlmacenamiento();
 
   console.log('\n' + '='.repeat(46));
   if (failures === 0) {

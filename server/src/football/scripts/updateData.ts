@@ -1,4 +1,4 @@
-// CLI: `npm run update-data:fb [-- --league epl --seasons 8 --source auto --skip-odds]`
+// CLI: `npm run update-data:fb [-- --league epl --seasons 8 --source auto --skip-odds --rebuild]`
 //
 // Refreshes football data, independently of the other two sports.
 //
@@ -16,7 +16,7 @@
 //   only signal measured in this project that the Elo did not already contain —
 //   see docs/FOOTBALL.md.
 
-import { getDb, setMeta } from '../../db.ts';
+import { setMeta } from '../../db.ts';
 import { footballConfig } from '../../config.ts';
 import { ingestFootballCsv } from '../ingest/footballcsv.ts';
 import {
@@ -29,6 +29,8 @@ import { refreshFootballOdds } from '../ingest/odds.ts';
 import { recomputeFootballRatings } from '../ratings.ts';
 import { countMatches, countTeams, getLeagueLatestDate } from '../repo.ts';
 import { getFootballTrackRecord, resolveFootballPredictions } from '../trackRecord.ts';
+import { conRegistro } from '../../ingest/runs.ts';
+import { prepararIngesta, estadoLiga } from '../ingest/rebuild.ts';
 
 function parseArgs(argv: string[]) {
   const args: Record<string, string | boolean> = {};
@@ -69,7 +71,6 @@ async function main() {
     throw new Error(`--source desconocido: ${source} (usa auto, football-data o footballcsv)`);
   }
 
-  const db = getDb();
   const leagues = footballConfig.leagues.filter((l) => !onlyLeague || l.id === onlyLeague);
   if (leagues.length === 0) throw new Error(`Liga desconocida: ${onlyLeague}`);
 
@@ -79,20 +80,11 @@ async function main() {
       `${onlyLeague ? ` (${onlyLeague})` : ''} · fuente: ${source}`,
   );
 
-  // Full rebuild per league. The prediction log and the other sports' tables are
-  // deliberately untouched.
-  db.exec('BEGIN');
-  try {
-    for (const l of leagues) {
-      db.prepare('DELETE FROM fb_matches WHERE league = ?').run(l.id);
-      db.prepare('DELETE FROM fb_teams WHERE league = ?').run(l.id);
-      db.prepare('DELETE FROM fb_team_ratings WHERE league = ?').run(l.id);
-    }
-    db.exec('COMMIT');
-  } catch (e) {
-    db.exec('ROLLBACK');
-    throw e;
-  }
+  // Incremental por defecto (Fase 2B): las fuentes hacen upsert en transacción, así que lo
+  // que ya hay sobrevive a una fuente caída. `--rebuild` borra la liga antes, a propósito.
+  // El registro de predicciones y las tablas de los otros deportes no se tocan nunca.
+  const prep = prepararIngesta(leagues.map((l) => l.id), { rebuild: !!args.rebuild });
+  if (prep.modo === 'rebuild') console.log('  --rebuild: ligas borradas antes de ingerir');
 
   const noModel: string[] = [];
   let total = 0;
@@ -237,13 +229,16 @@ async function main() {
 
   setMeta('fb_data_source', source);
   setMeta('fb_updated_at', new Date().toISOString());
+  const nuevos = leagues.reduce((acc, l) => acc + Math.max(0, estadoLiga(l.id).partidos - prep.antes[l.id].partidos), 0);
   console.log(
-    `\n✅ Listo. ${countTeams()} equipos y ${countMatches()} partidos.` +
+    `\n✅ Listo. ${countTeams()} equipos y ${countMatches()} partidos (${prep.modo === 'rebuild' ? 'liga(s) reconstruida(s)' : `${nuevos} nuevos en esta pasada`}).` +
       `\n   Arranca con:  npm run dev   → pestaña ⚽ Fútbol\n`,
   );
+  return nuevos;
 }
 
-main().catch((err) => {
+// Cada ejecución queda en ingestion_runs (ok o error con su mensaje): ver ingest/runs.ts.
+conRegistro('update-data:fb', async () => ({ rowsAdded: await main() })).catch((err) => {
   console.error('\n❌ update-data:fb falló:', err.message);
   process.exit(1);
 });

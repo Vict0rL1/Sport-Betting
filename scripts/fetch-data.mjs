@@ -44,7 +44,11 @@ import { fileURLToPath } from 'node:url';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
 const DATA = path.join(ROOT, 'data');
-const DB_PATH = path.join(DATA, 'tennis.db');
+// Desde la Fase 2 la base publicada es history.db: solo historia, reconstruible. Tus
+// apuestas, predicciones y precios viven en ledger.db y esta descarga no los toca.
+const DB_PATH = path.join(DATA, 'history.db');
+const LEGACY_DB_PATH = path.join(DATA, 'tennis.db');
+const LEDGER_DB_PATH = path.join(DATA, 'ledger.db');
 
 const REPO = process.env.DATA_REPO || 'Vict0rL1/s';
 const TAG = process.env.DATA_TAG || 'data-latest';
@@ -132,13 +136,25 @@ function carryOver(fromFile, toFile) {
 async function main() {
   fs.mkdirSync(DATA, { recursive: true });
 
+  // Una instalación anterior a la Fase 2 tiene todo en tennis.db. Antes de descargar nada
+  // hay que partirla (history.db + ledger.db): si no, la historia descargada quedaría al
+  // lado de un tennis.db con las apuestas dentro y el servidor no sabría cuál es la buena.
+  if (fs.existsSync(LEGACY_DB_PATH) && !fs.existsSync(DB_PATH) && !fs.existsSync(LEDGER_DB_PATH)) {
+    throw new Error(
+      `Hay una base antigua en ${path.relative(ROOT, LEGACY_DB_PATH)} que aún no se ha partido.\n` +
+        '  Primero:  npm run db:migrate   (la parte en history.db + ledger.db sin perder nada;\n' +
+        '            el original queda al lado como tennis.db.pre-split-<fecha>)\n' +
+        '  Después:  npm run fetch-data',
+    );
+  }
+
   const exists = fs.existsSync(DB_PATH);
   if (exists && !force) {
     const mb = (fs.statSync(DB_PATH).size / 1048576).toFixed(0);
     console.log(
-      `Ya hay una base en data/tennis.db (${mb} MB). No se toca.\n\n` +
+      `Ya hay una base de historia en data/history.db (${mb} MB). No se toca.\n\n` +
         '  · Para reemplazarla por la publicada:  npm run fetch-data -- --force\n' +
-        '    (guarda una copia de la actual y conserva tus apuestas)\n' +
+        '    (guarda una copia de la actual; tus apuestas están en ledger.db y no se tocan)\n' +
         '  · Para actualizarla tú mismo:          npm run update-all',
     );
     return;
@@ -149,12 +165,12 @@ async function main() {
   // El checksum primero: es pequeño, y si no está, la release no está completa.
   let expected = null;
   try {
-    expected = (await (await download(`${BASE}/tennis.db.gz.sha256`)).text()).trim().split(/\s+/)[0];
+    expected = (await (await download(`${BASE}/history.db.gz.sha256`)).text()).trim().split(/\s+/)[0];
   } catch {
     console.log('  (sin fichero de checksum publicado: se comprobará solo que la base abre)');
   }
 
-  const gz = await download(`${BASE}/tennis.db.gz`);
+  const gz = await download(`${BASE}/history.db.gz`);
   const tmpGz = `${DB_PATH}.download`;
   await pipeline(Readable.fromWeb(gz.body), fs.createWriteStream(tmpGz));
 
@@ -214,14 +230,15 @@ async function main() {
     const backup = `${DB_PATH}.backup-${stamp}`;
     fs.copyFileSync(DB_PATH, backup);
     console.log(`\n  Copia de la anterior en ${path.basename(backup)}`);
-    console.log('  Conservando lo tuyo:');
+    // Si la base vieja aún tuviera tablas del libro mayor (una instalación anterior a la
+    // Fase 2 que se partió a mano), se conservan igual que antes.
     const moved = carryOver(DB_PATH, tmpDb);
-    if (moved === 0) console.log('  · nada que conservar (no había apuestas ni histórico)');
+    if (moved > 0) console.log(`  · ${moved} fila(s) de tablas antiguas conservadas`);
   }
 
   fs.renameSync(tmpDb, DB_PATH);
   console.log(
-    `\n✅ Base instalada en data/tennis.db (${(fs.statSync(DB_PATH).size / 1048576).toFixed(0)} MB).\n` +
+    `\n✅ Historia instalada en data/history.db (${(fs.statSync(DB_PATH).size / 1048576).toFixed(0)} MB). Tu ledger.db no se ha tocado.\n` +
       '   Las cuotas NO vienen dentro: las pide el servidor al arrancar, con tu clave.\n' +
       '   Comprueba que todo cuadra con `npm run verify:data`.',
   );

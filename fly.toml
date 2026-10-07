@@ -12,9 +12,12 @@ primary_region = "mad"          # Madrid. Cámbialo al aeropuerto que te pille c
 # ---------------------------------------------------------------------------
 # EL DISCO
 # ---------------------------------------------------------------------------
-# Aquí vive tennis.db. Es lo único que sobrevive a un despliegue: la imagen se
+# Aquí viven history.db (historia) y ledger.db (apuestas, predicciones registradas,
+# precios observados). Es lo único que sobrevive a un despliegue: la imagen se
 # reemplaza entera, el volumen no. Sin esto, cada `fly deploy` borraría el registro
-# de apuestas y todo lo actualizado.
+# de apuestas y todo lo actualizado. Además del backup propio de la app
+# (`npm run backup`, ver docs/BASE_DE_DATOS.md), conviene activar las instantáneas del
+# volumen en Fly:  fly volumes snapshots list datos  /  snapshot_retention abajo.
 #
 # 3 GB para una base de 37 MB no es exceso: `update-all` descarga ~100 MB de
 # ficheros temporales a data/raw mientras trabaja, y quedarse sin espacio a mitad
@@ -22,6 +25,9 @@ primary_region = "mad"          # Madrid. Cámbialo al aeropuerto que te pille c
 [[mounts]]
   source = "datos"
   destination = "/data"
+  # Instantáneas diarias del volumen, 14 días. Es la red de seguridad de la red de
+  # seguridad: si el backup de la app fallara, Fly guarda el disco entero.
+  snapshot_retention = 14
 
 [http_service]
   internal_port = 8080

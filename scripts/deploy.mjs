@@ -110,11 +110,13 @@ if (!/ODDS_API_KEY/.test(secretos.salida)) {
 }
 
 // --- 5. La semilla ---
-const db = path.join(ROOT, 'data', 'tennis.db');
+const db = path.join(ROOT, 'data', 'history.db');
 if (!fs.existsSync(db)) {
   morir(
-    'no existe data/tennis.db, y el Dockerfile la copia como semilla.',
-    'Constrúyela antes:\n    npm run update-all -- --skip-odds',
+    'no existe data/history.db, y el Dockerfile la copia como semilla.',
+    fs.existsSync(path.join(ROOT, 'data', 'tennis.db'))
+      ? 'Tienes la base antigua (tennis.db). Pártela primero:\n    npm run db:migrate'
+      : 'Constrúyela antes:\n    npm run update-all -- --skip-odds',
   );
 }
 ok(`base de datos lista (${(fs.statSync(db).size / 1024 / 1024).toFixed(0)} MB de semilla)`);

@@ -15,15 +15,24 @@
 
 set -eu
 
-DB="${DATA_DIR:-/data}/tennis.db"
+DATA="${DATA_DIR:-/data}"
+HISTORY="$DATA/history.db"
+LEGACY="$DATA/tennis.db"
 
-if [ ! -f "$DB" ]; then
-  echo "→ Disco vacío: instalando la base de datos de la imagen en $DB"
-  mkdir -p "$(dirname "$DB")"
-  cp /seed/tennis.db "$DB"
-  echo "   $(du -m "$DB" | cut -f1) MB instalados"
+# Desde la Fase 2 la base son dos ficheros: history.db (historia, reconstruible; es la que
+# viaja en la imagen) y ledger.db (apuestas, predicciones registradas, precios observados;
+# NUNCA viaja en la imagen: lo crea el servidor vacío la primera vez y a partir de ahí es
+# tuyo). Un disco con el tennis.db antiguo tampoco se toca: el servidor lo parte en dos al
+# arrancar y deja el original al lado como tennis.db.pre-split-<fecha>.
+if [ -f "$HISTORY" ]; then
+  echo "→ Base ya presente en $HISTORY ($(du -m "$HISTORY" | cut -f1) MB) — no se toca"
+elif [ -f "$LEGACY" ]; then
+  echo "→ Base antigua en $LEGACY: el servidor la partirá en history.db + ledger.db al arrancar — no se copia nada"
 else
-  echo "→ Base ya presente en $DB ($(du -m "$DB" | cut -f1) MB) — no se toca"
+  echo "→ Disco vacío: instalando la historia de la imagen en $HISTORY"
+  mkdir -p "$DATA"
+  cp /seed/history.db "$HISTORY"
+  echo "   $(du -m "$HISTORY" | cut -f1) MB instalados"
 fi
 
 exec npx tsx server/src/index.ts

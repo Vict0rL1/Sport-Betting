@@ -24,6 +24,7 @@ import { refreshBaseballOdds } from '../ingest/odds.ts';
 import { recomputeBaseballRatings } from '../ratings.ts';
 import { countGames, countTeams, getLeagueLatestDate } from '../repo.ts';
 import { getBaseballTrackRecord, resolveBaseballPredictions } from '../trackRecord.ts';
+import { conRegistro } from '../../ingest/runs.ts';
 
 function parseArgs(argv: string[]) {
   const args: Record<string, string | boolean> = {};
@@ -173,7 +174,8 @@ async function main() {
   );
 }
 
-main().catch((err) => {
+// Cada ejecución queda en ingestion_runs (ok o error con su mensaje): ver ingest/runs.ts.
+conRegistro('update-data:bsb', main).catch((err) => {
   console.error('\n❌ update-data:bsb falló:', err.message);
   process.exit(1);
 });

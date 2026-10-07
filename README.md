@@ -736,8 +736,10 @@ Detalles y todas las mediciones en **[docs/NFL.md](docs/NFL.md)**.
 - **Dashboard** para elegir circuito y torneo, ver próximos partidos con barras
   modelo-vs-mercado, perfil de jugador (Elo por superficie + saque/quiebre + últimos
   resultados) y H2H.
-- Datos guardados localmente en **SQLite** (`data/tennis.db`) para no depender de llamadas
-  repetidas a las APIs.
+- Datos guardados localmente en **SQLite**, en dos ficheros (`data/history.db`, la historia
+  reconstruible, y `data/ledger.db`, lo tuyo: apuestas, predicciones registradas, precios
+  observados), para no depender de llamadas repetidas a las APIs. Ver
+  [docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md).
 
 ## La comparación con el mercado, visible en las cinco pestañas
 
@@ -1299,7 +1301,7 @@ cp .env.example .env    # opcional: para odds reales, ver abajo
 ## Puesta en marcha rápida (con datos de demostración, sin internet)
 
 ```bash
-npm run seed     # carga un dataset de muestra en data/tennis.db
+npm run seed     # carga un dataset de muestra en data/history.db
 npm run dev      # levanta API (:7374) + frontend (:7373)
 ```
 
@@ -1804,6 +1806,15 @@ en un Mac— sencillamente no está en el PATH, y el doble clic abre una ventana
 comando de la Terminal escrito**, en vez de cerrarse. La ventana tampoco se cierra sola al
 terminar: si algo falló, el motivo está justo encima.
 
+## Base de datos y copias
+
+Dos ficheros: `history.db` (historia, se vuelve a bajar) y `ledger.db` (el libro mayor: lo que
+no se puede volver a conseguir). El `tennis.db` antiguo se parte solo al arrancar. Migraciones
+numeradas que paran el servidor si una falla, copia del libro mayor programada (`BACKUP_HOURS`,
+local y opcionalmente S3), restauración, retención manual de snapshots con exportación previa,
+`ingestion_runs` con cada trabajo de datos y resultados programados cada 6 h
+(`RESULTS_REFRESH_HOURS`). Todo en **[docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md)**.
+
 ## Seguridad
 
 Contraseña con sesiones por cookie (y segundo factor TOTP opcional), límite de intentos,
@@ -1942,7 +1953,12 @@ probar ese caso concreto, no leyendo el código.
 | `npm run ahorro` | Qué cuesta el refresco automático de cuotas y bajar la cadencia sin adivinar |
 | `npm run dev` | Levanta backend + frontend a la vez (ambos deportes) |
 | `npm run seed` | Tenis: carga el dataset de demostración |
-| `npm run fetch-data` | **Descarga la base ya construida** (9 MB) en vez de reconstruirla. `-- --force` reemplaza la que haya, conservando tus apuestas |
+| `npm run fetch-data` | **Descarga la historia ya construida** (`history.db`, 9 MB) en vez de reconstruirla. `-- --force` reemplaza la que haya; tu `ledger.db` (apuestas, predicciones registradas) no se toca |
+| `npm run db:migrate` | Parte el `tennis.db` antiguo en `history.db` + `ledger.db` (sin perder nada), aplica las migraciones pendientes y enseña el estado. `-- --reintentar` tras arreglar una fallida |
+| `npm run backup` | **Copia del libro mayor** (`ledger.db`) ahora: local (últimas 14) y, con `BACKUP_S3_*`, también a S3/R2/B2. El servidor la hace solo cada `BACKUP_HOURS` h |
+| `npm run restore -- <fichero>` | Restaura una copia como libro mayor (con el servidor parado; la actual se aparta). Sin argumento, lista las copias |
+| `npm run odds:retention -- --dias N` | Enseña qué snapshots de cuotas de más de N días sobrarían (se conservan apertura, T-24h, T-6h, T-1h y cierre por casa). `--confirmar` los exporta a `data/archive/` y los quita. Nunca corre sola |
+| `npm run db:explain` | `EXPLAIN QUERY PLAN` de las consultas calientes: ninguna puede recorrer su tabla entera |
 | `npm run fetch-flags` | Baja al repo los SVG de las banderas (211, ~1,4 MB). **Solo hace falta una vez**: ya están commiteadas. Se vuelve a correr al añadir un país a `config/countries.json` |
 | `npm run update-all` | **Los cinco deportes de una tirada.** `-- --skip-odds` no gasta cuota; `-- --only fb,bb` limita a algunos. Un deporte que falle no para a los demás y el resumen dice cuál fue |
 | `npm run update-data` | Tenis: refresca histórico real + odds |

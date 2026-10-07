@@ -62,10 +62,12 @@ COPY server ./server
 COPY config ./config
 COPY --from=build /app/web/dist ./web/dist
 
-# La base de semilla viaja en la imagen y el arranque la copia al disco SOLO si está
+# La HISTORIA de semilla viaja en la imagen y el arranque la copia al disco SOLO si está
 # vacío (ver docker-start.sh). Así el primer despliegue funciona sin subir nada a mano, y
-# los siguientes no pisan los datos que ya haya.
-COPY data/tennis.db /seed/tennis.db
+# los siguientes no pisan los datos que ya haya. El libro mayor (ledger.db) no viaja nunca:
+# nace vacío en el disco persistente y es tuyo. Si aún tienes el tennis.db antiguo en local,
+# `npm run db:migrate` lo parte y deja el history.db que esta línea necesita.
+COPY data/history.db /seed/history.db
 COPY scripts/docker-start.sh /app/docker-start.sh
 RUN chmod +x /app/docker-start.sh
 

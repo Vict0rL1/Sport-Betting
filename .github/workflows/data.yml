@@ -89,13 +89,18 @@ jobs:
       - name: Comprobar que no se publica nada personal
         run: npm run check-publishable
 
-      - name: Comprimir
+      - name: Exportar y comprimir
         id: pack
+        # Desde la Fase 2 se publica SOLO la historia (history.db). `db:export-history` hace
+        # un `VACUUM INTO`: un único fichero consistente aunque haya WAL, con integridad
+        # comprobada y sin ninguna tabla del libro mayor dentro. El libro mayor (ledger.db:
+        # apuestas, predicciones registradas, precios observados) no se publica nunca.
         run: |
-          gzip -9 -c data/tennis.db > tennis.db.gz
-          sha256sum tennis.db.gz | cut -d' ' -f1 > tennis.db.gz.sha256
-          echo "size=$(du -h tennis.db.gz | cut -f1)" >> "$GITHUB_OUTPUT"
-          echo "sha=$(cat tennis.db.gz.sha256)" >> "$GITHUB_OUTPUT"
+          npm run db:export-history -- data/history.export.db
+          gzip -9 -c data/history.export.db > history.db.gz
+          sha256sum history.db.gz | cut -d' ' -f1 > history.db.gz.sha256
+          echo "size=$(du -h history.db.gz | cut -f1)" >> "$GITHUB_OUTPUT"
+          echo "sha=$(cat history.db.gz.sha256)" >> "$GITHUB_OUTPUT"
 
       - name: Publicar en la release rodante
         if: github.event_name == 'schedule' || inputs.publish
@@ -103,7 +108,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          NOTES="Base reconstruida el $(date -u '+%Y-%m-%d %H:%M UTC').
+          NOTES="Base de historia (history.db) reconstruida el $(date -u '+%Y-%m-%d %H:%M UTC').
 
           Tamaño: ${{ steps.pack.outputs.size }} comprimida
           SHA-256: \`${{ steps.pack.outputs.sha }}\`
@@ -114,9 +119,9 @@ jobs:
           # historial de releases diarias solo sería basura que crece.
           if gh release view data-latest >/dev/null 2>&1; then
             gh release edit data-latest --notes "$NOTES"
-            gh release upload data-latest tennis.db.gz tennis.db.gz.sha256 --clobber
+            gh release upload data-latest history.db.gz history.db.gz.sha256 --clobber
           else
-            gh release create data-latest tennis.db.gz tennis.db.gz.sha256 \
+            gh release create data-latest history.db.gz history.db.gz.sha256 \
               --title 'Base de datos (última)' --notes "$NOTES" --latest=false
           fi
 

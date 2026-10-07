@@ -11,6 +11,8 @@ import '../test/setup.ts';
 const { validarIntencion, MAX_TEXTO, CLASIFICACION_MAX } = await import('./validate.ts');
 const { ejecutar } = await import('./router.ts');
 const { getDb } = await import('../db.ts');
+const { masterDe } = await import('../db/ledgerize.ts');
+const { LEDGER_SCHEMA } = await import('../db/layout.ts');
 
 const SQL = "'; DROP TABLE players; --";
 
@@ -57,7 +59,7 @@ test('ejecutar con SQL dentro de los argumentos no rompe nada: las tablas siguen
   }
   assert.equal(tablas(), antes, 'ninguna tabla desapareció');
   assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE name = 'players'").get(), 'players sigue');
-  assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE name = 'bets'").get(), 'bets sigue');
+  assert.ok(db.prepare(`SELECT 1 FROM ${masterDe('bets', LEDGER_SCHEMA)} WHERE name = 'bets'`).get(), 'bets sigue');
 });
 
 // Prueba estática: el SQL del asistente no concatena entrada del usuario. Las únicas

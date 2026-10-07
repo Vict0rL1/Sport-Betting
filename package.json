@@ -82,7 +82,13 @@
     "ahorro": "node scripts/ahorro.mjs",
     "prepare": "node -e \"const{execSync}=require('node:child_process');const fs=require('node:fs');if(fs.existsSync('.git'))try{execSync('git config core.hooksPath .githooks')}catch{}\"",
     "secret-scan": "node scripts/secret-scan.mjs --tracked",
-    "totp:secreto": "npm run totp:secreto --workspace server --"
+    "totp:secreto": "npm run totp:secreto --workspace server --",
+    "db:migrate": "npm run db:migrate --workspace server --",
+    "db:export-history": "npm run db:export-history --workspace server --",
+    "db:explain": "npm run db:explain --workspace server --",
+    "backup": "npm run backup --workspace server --",
+    "restore": "npm run restore --workspace server --",
+    "odds:retention": "npm run odds:retention --workspace server --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

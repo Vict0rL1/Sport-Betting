@@ -11,22 +11,27 @@
 
 import type { FastifyError, FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { getDb } from '../db.ts';
+import { ledgerize } from '../db/ledgerize.ts';
+import { LEDGER_SCHEMA } from '../db/layout.ts';
 
+export const ERROR_LOG_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS error_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at  TEXT NOT NULL,
+    request_id  TEXT,
+    method      TEXT,
+    url         TEXT,
+    status      INTEGER NOT NULL,
+    message     TEXT NOT NULL,
+    stack       TEXT,
+    user_agent  TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_error_log_created ON error_log (created_at);
+`;
+
+/** La crea la migración 5; esto solo garantiza que está si se llama antes (y en el fichero correcto). */
 export function ensureErrorLogSchema(): void {
-  getDb().exec(`
-    CREATE TABLE IF NOT EXISTS error_log (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      created_at  TEXT NOT NULL,
-      request_id  TEXT,
-      method      TEXT,
-      url         TEXT,
-      status      INTEGER NOT NULL,
-      message     TEXT NOT NULL,
-      stack       TEXT,
-      user_agent  TEXT
-    );
-    CREATE INDEX IF NOT EXISTS idx_error_log_created ON error_log (created_at);
-  `);
+  getDb().exec(ledgerize(ERROR_LOG_SCHEMA, LEDGER_SCHEMA));
 }
 
 export interface ErrorRegistrado {

@@ -32,7 +32,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const DB_PATH = path.join(HERE, '..', 'data', 'tennis.db');
+// Desde la Fase 2 la base publicable es history.db (o la exportación limpia que produce
+// `npm run db:export-history`). El libro mayor (ledger.db) NUNCA se publica.
+const DB_PATH = process.argv[2] && !process.argv[2].startsWith('--') ? path.resolve(process.argv[2]) : path.join(HERE, '..', 'data', 'history.db');
+const TABLAS_LEDGER = [
+  'prediction_log', 'fb_prediction_log', 'bb_prediction_log', 'bsb_prediction_log', 'naf_prediction_log',
+  'paper_bets', 'edge_signals', 'bets', 'odds_snapshots', 'odds_event_observations', 'prediction_snapshots',
+  'prematch_final', 'prediction_assessments', 'shadow_predictions', 'alerts', 'sessions', 'error_log',
+  'ingestion_runs', 'settings', 'weather_observations', 'policy_versions',
+];
 
 /**
  * Lo que no debe salir, y el motivo de cada cosa — que NO es el mismo.
@@ -108,6 +116,13 @@ for (const { table, why, message } of FORBIDDEN) {
 }
 
 // ---- Y datos de sobra ----
+console.log('\nTablas del libro mayor (no deben existir en una base de historia):');
+for (const t of TABLAS_LEDGER) {
+  if (!tables.has(t)) continue;
+  const n = count(t);
+  console.log(`  ✗ ${t.padEnd(22)} presente (${n} filas)`);
+  if (!FORBIDDEN.some((f) => f.table === t)) problems.push(`[libro mayor] ${t} está en la base de historia: esta base no se ha partido (npm run db:migrate) o no es history.db.`);
+}
 console.log('\nDatos que SÍ tiene que traer:');
 for (const { table, min } of REQUIRED) {
   const n = count(table);

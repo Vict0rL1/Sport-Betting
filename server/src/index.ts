@@ -9,6 +9,10 @@ import { place, settle } from './paper/bankroll.ts';
 import { getDb } from './db.ts';
 import { countRows } from './repo.ts';
 import { refreshOdds } from './ingest/odds.ts';
+import { conRegistro, marcarMuertas } from './ingest/runs.ts';
+import { horasDesdeEntorno, programarResultados } from './ingest/scheduler.ts';
+import { hacerCopia, ultimaCopia } from './db/backup.ts';
+import { featureEncendida } from './features.ts';
 import { refreshBasketballOdds } from './basketball/ingest/odds.ts';
 import { refreshFootballOdds } from './football/ingest/odds.ts';
 import { refreshBaseballOdds } from './baseball/ingest/odds.ts';
@@ -206,7 +210,10 @@ function startAutoRefresh(log: (msg: string) => void): void {
     const estado: { nombre: string; vivo: boolean; prefijo: SportPrefix }[] = [];
     if (countRows('players') > 0) {
       try {
-        const r = await refreshOdds();
+        const r = await conRegistro('odds:tenis', async () => {
+          const x = await refreshOdds();
+          return { ...x, rowsAdded: x.count, detail: x.source };
+        });
         log(`Tennis odds refreshed: ${r.count} upcoming matches (${r.source}).`);
         estado.push({ nombre: 'Tenis', vivo: r.source === 'live', prefijo: '' });
       } catch (e) {
@@ -218,7 +225,10 @@ function startAutoRefresh(log: (msg: string) => void): void {
     // other from updating.
     if (countRows('bb_teams') > 0) {
       try {
-        const r = await refreshBasketballOdds();
+        const r = await conRegistro('odds:baloncesto', async () => {
+          const x = await refreshBasketballOdds();
+          return { ...x, rowsAdded: x.count, detail: x.source };
+        });
         log(`Basketball odds refreshed: ${r.count} games (${r.source}).`);
         estado.push({ nombre: 'Baloncesto', vivo: r.source === 'live', prefijo: 'bb_' });
       } catch (e) {
@@ -228,7 +238,10 @@ function startAutoRefresh(log: (msg: string) => void): void {
     }
     if (countRows('fb_teams') > 0) {
       try {
-        const r = await refreshFootballOdds();
+        const r = await conRegistro('odds:futbol', async () => {
+          const x = await refreshFootballOdds();
+          return { ...x, rowsAdded: x.count, detail: x.source };
+        });
         log(`Football odds refreshed: ${r.count} fixtures (${r.source}).`);
         estado.push({ nombre: 'Fútbol', vivo: r.source === 'live', prefijo: 'fb_' });
       } catch (e) {
@@ -242,7 +255,10 @@ function startAutoRefresh(log: (msg: string) => void): void {
     // decides, and in February neither MLB nor the NFL spends a credit.
     if (countRows('bsb_teams') > 0) {
       try {
-        const r = await refreshBaseballOdds();
+        const r = await conRegistro('odds:beisbol', async () => {
+          const x = await refreshBaseballOdds();
+          return { ...x, rowsAdded: x.count, detail: x.source };
+        });
         log(`Baseball odds refreshed: ${r.count} games (${r.source}).`);
         estado.push({ nombre: 'Béisbol', vivo: r.source === 'live', prefijo: 'bsb_' });
       } catch (e) {
@@ -252,7 +268,10 @@ function startAutoRefresh(log: (msg: string) => void): void {
     }
     if (countRows('naf_teams') > 0) {
       try {
-        const n = await refreshNflOdds();
+        const { n } = await conRegistro('odds:nfl', async () => {
+          const x = await refreshNflOdds();
+          return { n: x, rowsAdded: x };
+        });
         log(`NFL odds refreshed: ${n} games.`);
       } catch (e) {
         log(`NFL odds refresh failed: ${(e as Error).message}`);
@@ -440,6 +459,9 @@ async function main() {
     // costs nothing and means a finished game shows up in the track record
     // within half an hour instead of at the next restart.
     const resolveLog = (msg: string) => app.log.info(msg);
+    // Ingestas que se quedaron «running» porque el proceso anterior cayó: se marcan.
+    const muertas = marcarMuertas();
+    if (muertas > 0) resolveLog(`${muertas} ingesta(s) a medias del arranque anterior marcadas como error.`);
     resolveAllPredictions(resolveLog);
     setInterval(() => resolveAllPredictions(resolveLog), RESOLVE_EVERY_MINUTES * 60_000).unref();
 
@@ -450,6 +472,41 @@ async function main() {
     const prePartido = () => cicloPrePartido(resolveLog);
     prePartido();
     setInterval(prePartido, 15 * 60_000).unref();
+
+    // La copia del libro mayor, programada: cada BACKUP_HOURS horas (24 por defecto; 0 la
+    // apaga; features.json: datos.backupProgramado). La primera, a los dos minutos de
+    // arrancar si la última es más vieja que el intervalo —un reinicio no dispara copias
+    // nuevas cada vez—. Solo ledger.db: la historia se vuelve a bajar. Ver db/backup.ts.
+    const backupHoras = process.env.BACKUP_HOURS?.trim() ? Number(process.env.BACKUP_HOURS) || 0 : 24;
+    if (featureEncendida('datos.backupProgramado') && backupHoras > 0) {
+      const copiar = () =>
+        conRegistro('backup', async () => {
+          const c = await hacerCopia();
+          resolveLog(`Copia del libro mayor: ${c.fichero} (${(c.bytes / 1048576).toFixed(1)} MB)${c.s3 ? (c.s3.subido ? ' · subida a S3' : ` · S3 falló: ${c.s3.error}`) : ''}`);
+          return { rowsAdded: 1, detail: c.fichero };
+        }).catch((e) => resolveLog(`Copia del libro mayor falló: ${(e as Error).message}`));
+      const ultima = ultimaCopia();
+      if (!ultima || Date.now() - Date.parse(ultima.cuando) > backupHoras * 3_600_000) setTimeout(copiar, 2 * 60_000).unref();
+      setInterval(copiar, backupHoras * 3_600_000).unref();
+    } else {
+      resolveLog('Copia programada del libro mayor apagada (BACKUP_HOURS=0 o datos.backupProgramado off).');
+    }
+
+    // Los resultados de los cuatro deportes de equipo, programados: cada RESULTS_REFRESH_HOURS
+    // horas (6 por defecto; 0 apaga; features.json: datos.resultadosProgramados), deporte a
+    // deporte en procesos hijo y sin cuotas. Ver ingest/scheduler.ts.
+    const horasResultados = horasDesdeEntorno();
+    if (featureEncendida('datos.resultadosProgramados') && horasResultados > 0) {
+      programarResultados({
+        horas: horasResultados,
+        log: resolveLog,
+        // Puntuar el registro en vivo con lo recién bajado, sin esperar al siguiente tic.
+        despues: () => resolveAllPredictions(resolveLog),
+      });
+      resolveLog(`Resultados programados cada ${horasResultados} h (primera pasada en 5 min, sin gastar cuota).`);
+    } else {
+      resolveLog('Resultados programados apagados (RESULTS_REFRESH_HOURS=0 o datos.resultadosProgramados off): usa npm run update-results.');
+    }
 
     // La cuota de CIERRE de verdad: justo antes de que empiecen los partidos con una
     // apuesta de papel o una señal abierta, se observa su competición (1 crédito por

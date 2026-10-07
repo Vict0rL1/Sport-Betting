@@ -15,6 +15,7 @@ import { fetchText, parseGames, parseTeams, storeGames, storeSchedule } from '..
 import { refreshOdds } from '../ingest/odds.ts';
 import { countGames, countTeams, getLeagueState, rebuildRatings } from '../repo.ts';
 import { ELO_PER_POINT } from '../model.ts';
+import { conRegistro } from '../../ingest/runs.ts';
 
 // `--skip-odds` existe por consistencia con los otros cuatro deportes. Sin él, el
 // `update-all` que sí lo acepta lo pasaba a este script, este lo ignoraba en silencio, y
@@ -87,7 +88,8 @@ async function main(): Promise<void> {
   console.log(`\n✅ Listo. ${countTeams()} equipos y ${countGames()} partidos en la base.`);
 }
 
-main().catch((err) => {
+// Cada ejecución queda en ingestion_runs (ok o error con su mensaje): ver ingest/runs.ts.
+conRegistro('update-data:naf', main).catch((err) => {
   console.error('\n❌', err instanceof Error ? err.message : err);
   process.exitCode = 1;
 });

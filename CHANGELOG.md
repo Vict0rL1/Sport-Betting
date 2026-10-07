@@ -4,6 +4,46 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Fase 2 — Base de datos y pipeline de datos (2026-10-07)
+
+Línea base antes de la fase: 222 tests, 494 comprobaciones de `verify:data`.
+
+**2A Almacenamiento**
+
+- **Dos ficheros**: `history.db` (principal) + `ledger.db` (adjunto como `ledger`). Qué tabla va a
+  cuál está en una sola lista (`server/src/db/tables.ts`); `ledgerize()` pone el prefijo a los
+  `CREATE` del libro mayor sin tocar los esquemas. La base antigua se **parte al arrancar** con
+  dos `VACUUM INTO` y `DROP` (ninguna fila se transforma; el original queda como
+  `tennis.db.pre-split-<fecha>`). `DB_LAYOUT=single` mantiene el fichero único.
+- **Migraciones numeradas** (`MIGRACIONES`, v1–v5) con `schema_version` en cada fichero; una
+  fallida se deshace entera y el servidor no arranca hasta `npm run db:migrate -- --reintentar`.
+- **PRAGMAs** (WAL, `synchronous=NORMAL`, `foreign_keys`, `busy_timeout`) e **índices** para las
+  consultas calientes, con `EXPLAIN QUERY PLAN` en test y en `verify:data` (`npm run db:explain`).
+- **Copias del libro mayor**: `npm run backup` / `npm run restore`, programadas en el servidor
+  (`BACKUP_HOURS`, 24 por defecto), rotación de 14, subida S3 compatible con SigV4 propio (sin
+  SDK), `integrity_check` antes de dar la copia por buena. `fly.toml`: instantáneas del volumen.
+- **Retención de snapshots** (`npm run odds:retention -- --dias N [--confirmar]`): manual,
+  exporta a `data/archive/*.jsonl.gz` antes de borrar, conserva apertura/T-24h/T-6h/T-1h/cierre
+  por casa y selección, trigger recreado en la misma transacción.
+- **`ingestion_runs`** (`conRegistro`): refrescos de cuotas por deporte, los cinco `update-data`,
+  `update-results`, copias y retención. `GET /api/ingestion-runs`, `GET /api/datos/estado`.
+- **Publicación**: el workflow nocturno publica `history.db.gz` desde `npm run db:export-history`;
+  `check-publishable` falla si hay tablas del libro mayor; `fetch-data` exige partir antes;
+  Docker lleva `history.db` como semilla y nunca `ledger.db`.
+- **Doctor**: sección DATOS Y COPIAS (ficheros, migraciones, frescura de la copia, retención,
+  última ingesta por fuente, ejecuciones muertas).
+
+**2B Ingesta**
+
+- `update-data:fb` es **incremental**: fuera el `DELETE` por liga (las fuentes ya hacían upsert en
+  transacción); `--rebuild` recupera el borrado explícito. Una fuente caída ya no deja la liga vacía.
+- **Resultados programados** en el servidor (`ingest/scheduler.ts`): cada `RESULTS_REFRESH_HOURS`
+  (6), primera pasada a los 5 min, deporte a deporte en procesos hijo con `--skip-odds`, sin
+  solaparse, con `ingestion_runs`.
+
+Interruptores nuevos en `config/features.json`: `datos.backupProgramado`, `datos.resultadosProgramados`.
+Tests: 222 → **244**. `verify:data` 494 → **507**/507, typecheck, lint y build en verde.
+
 ## Fase 1 — Seguridad e higiene (2026-10-07)
 
 Línea base antes de la fase: 202 tests, 494 comprobaciones de `verify:data`, Node ≥ 22.5.

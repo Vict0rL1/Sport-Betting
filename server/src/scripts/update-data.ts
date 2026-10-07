@@ -18,6 +18,7 @@ import { refitAndSave } from '../points/repo.ts';
 import { refreshOdds } from '../ingest/odds.ts';
 import { ingestTennisData } from '../ingest/tennisData.ts';
 import { getTrackRecord, resolvePredictions } from '../trackRecord.ts';
+import { conRegistro } from '../ingest/runs.ts';
 
 function parseArgs(argv: string[]) {
   const args: Record<string, string | boolean> = {};
@@ -261,7 +262,8 @@ async function main() {
   console.log('\n✅ Done. Start the app with:  npm run dev\n');
 }
 
-main().catch((err) => {
+// Cada ejecución queda en ingestion_runs (ok o error con su mensaje): ver ingest/runs.ts.
+conRegistro('update-data', main).catch((err) => {
   console.error('\n❌ update-data failed:', err.message);
   console.error('   If you are offline or behind a firewall, run `npm run seed` instead.');
   process.exit(1);

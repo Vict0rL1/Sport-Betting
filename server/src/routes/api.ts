@@ -34,6 +34,10 @@ import { computeH2H } from '../model/h2h.ts';
 import { impliedProbabilities, type MarketProbabilities } from '../model/market.ts';
 import { buildPrediction, type Prediction } from '../model/predict.ts';
 import { refreshOdds } from '../ingest/odds.ts';
+import { ejecuciones, ultimasEjecuciones } from '../ingest/runs.ts';
+import { copiasLocales, ultimaCopia } from '../db/backup.ts';
+import { LAYOUT, ficherosDe } from '../db/layout.ts';
+import { configS3 } from '../db/s3.ts';
 import { ejecutar } from '../ask/router.ts';
 import { responderAgente } from '../ask/agent.ts';
 import { enrutarConModelo } from '../ask/llm.ts';
@@ -150,6 +154,28 @@ function describeRow(row: UpcomingRow, withPrediction = true) {
 }
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
+  // Las ingestas: la última por fuente y el historial (filtrable por fuente). Para el
+  // diagnóstico de la Fase 5 y para contestar «¿cuándo se bajaron resultados y qué pasó?».
+  app.get<{ Querystring: { source?: string; limite?: string } }>('/api/ingestion-runs', async (req) => ({
+    ultimas: ultimasEjecuciones(),
+    historial: ejecuciones({ source: req.query.source?.slice(0, 60) || undefined, limite: Math.max(1, Math.min(500, Number(req.query.limite) || 100)) }),
+  }));
+
+  // El estado del almacenamiento: disposición, tamaño de cada fichero, última copia y
+  // cuántas hay. Solo lectura; la copia la lanza el servidor o `npm run backup`.
+  app.get('/api/datos/estado', async () => {
+    const f = ficherosDe();
+    const mb = (ruta: string | null) => (ruta && fs.existsSync(ruta) ? Math.round((fs.statSync(ruta).size / 1048576) * 10) / 10 : null);
+    const copia = ultimaCopia();
+    return {
+      layout: LAYOUT,
+      history: { ruta: f.history, mb: mb(f.history) },
+      ledger: f.ledger ? { ruta: f.ledger, mb: mb(f.ledger) } : null,
+      backup: copia ? { ...copia, existe: !!copia.fichero && fs.existsSync(copia.fichero), copiasLocales: copiasLocales().length, s3: !!configS3() } : { cuando: null, copiasLocales: copiasLocales().length, s3: !!configS3() },
+      retencion: { ultima: getMeta('retention:last_at'), borradas: Number(getMeta('retention:last_removed')) || 0 },
+    };
+  });
+
   /**
    * How much of The Odds API's monthly allowance is left.
    *
