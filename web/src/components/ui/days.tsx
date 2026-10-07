@@ -4,6 +4,7 @@ import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { relativeTime, shortTime } from '../../lib/format';
 import { CheckIcon, CrossIcon } from '../icons';
 import { pillClass } from './states';
+import { useI18n } from '../../i18n';
 /**
  * The heading above one day's matches.
  *
@@ -63,13 +64,14 @@ export function DayFilter({
   selected: string | null;
   onSelect: (key: string | null) => void;
 }) {
+  const { t } = useI18n();
   if (days.length < 2) return null;
   const total = days.reduce((a, d) => a + d.count, 0);
   return (
     <div
       className="mb-4 flex gap-2 overflow-x-auto pb-1"
       role="tablist"
-      aria-label="Filtrar por día"
+      aria-label={t('dias.filtrar')}
     >
       <button
         role="tab"
@@ -77,7 +79,7 @@ export function DayFilter({
         onClick={() => onSelect(null)}
         className={pillClass(selected === null)}
       >
-        Todos
+        {t('dias.todos')}
         <span className="ml-1.5 opacity-60">{total}</span>
       </button>
       {days.map((d) => (
@@ -103,10 +105,11 @@ export function DayFilter({
  * Both in the reader's own time zone.
  */
 export function MatchTime({ iso, extra }: { iso: string; extra?: ReactNode }) {
+  const { idioma } = useI18n();
   return (
     <time dateTime={iso} className="tabular-nums">
-      {shortTime(iso)}
-      <span className="ml-1.5 text-(--ink-faint)">{relativeTime(iso)}</span>
+      {shortTime(iso, idioma)}
+      <span className="ml-1.5 text-(--ink-faint)">{relativeTime(iso, new Date(), idioma)}</span>
       {extra}
     </time>
   );
@@ -142,13 +145,14 @@ export function ResultBanner({
   /** Did the model favour the winner? null when there was no forecast to check. */
   modelCalledIt?: boolean | null;
 }) {
+  const { t } = useI18n();
   if (!started) return null;
 
   if (score == null) {
     return (
       <div className="mb-3 flex items-center gap-2 rounded-lg bg-(--raised) px-3 py-2 text-[14px] text-(--ink-soft) ring-1 ring-inset ring-(--line)">
         <span aria-hidden>⏳</span>
-        <span>En juego, o el resultado aún no está descargado.</span>
+        <span>{t('resultado.enJuego')}</span>
       </div>
     );
   }
@@ -158,7 +162,7 @@ export function ResultBanner({
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <span className="flex items-baseline gap-2">
           <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
-            Final
+            {t('resultado.final')}
           </span>
           <strong className="text-[20px] font-bold leading-none tabular-nums text-(--ink-strong)">
             {score}
@@ -171,7 +175,7 @@ export function ResultBanner({
           >
             <span className="inline-flex items-center gap-1">
               {modelCalledIt ? <CheckIcon size={14} strokeWidth={2.4} /> : <CrossIcon size={14} strokeWidth={2.4} />}
-              {modelCalledIt ? 'el modelo acertó' : 'el modelo falló'}
+              {modelCalledIt ? t('resultado.acerto') : t('resultado.fallo')}
             </span>
           </span>
         )}

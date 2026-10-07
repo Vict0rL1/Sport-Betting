@@ -44,3 +44,12 @@ test('apuestas en inglés: registro, cartera y banco de papel', async ({ page })
   await expect(page.getByRole('button', { name: 'By hand' })).toBeVisible();
   await expect(page.getByText('Registrar apuesta')).toHaveCount(0);
 });
+
+test('piezas comunes en inglés: cabecera, tabla de partidos y panel de discrepancias', async ({ page }) => {
+  // El tenis es la pestaña con partidos en la base de demostración del e2e.
+  await page.goto('/tenis');
+  await expect(page.getByRole('button', { name: /Details|Hide details/ })).toBeVisible();
+  await expect(page.getByText('The matches').first()).toBeVisible();
+  await expect(page.getByText(/What the model sees as most likely|Where the model disagrees with the market/).first()).toBeVisible();
+  await expect(page.getByText('Los partidos', { exact: true })).toHaveCount(0);
+});

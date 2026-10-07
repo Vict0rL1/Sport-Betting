@@ -24,6 +24,14 @@ export function idiomaDelNavegador(): Idioma {
 
 export type Traducir = (clave: Clave, vars?: Record<string, string | number>) => string;
 
+/** El traductor puro, para lo que no es un componente (lib/format.ts): mismo resultado que `t`. */
+export function tr(idioma: Idioma, clave: Clave, vars?: Record<string, string | number>): string {
+  return traducir(idioma, clave, vars);
+}
+
+/** El locale de `Intl` / `toLocale*` para cada idioma. */
+export const localeDe = (idioma: Idioma) => (idioma === 'en' ? 'en-GB' : 'es');
+
 function traducir(idioma: Idioma, clave: Clave, vars?: Record<string, string | number>): string {
   let s: string = (idioma === 'en' ? en[clave] : undefined) ?? es[clave];
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));

@@ -1,6 +1,7 @@
 // Piezas compartidas de la interfaz: slate. Partido de ui/index.tsx en la Fase 5 (ningún import cambia: index.tsx reexporta).
 import { useState } from 'react';
 import type { SlateRow } from '../../lib/slate';
+import { conNodos, localeDe, useI18n, type Traducir } from '../../i18n';
 /**
  * LA TABLA DE PARTIDOS: qué se juega y qué dice el modelo, haya precios o no.
  * ===========================================================================
@@ -32,17 +33,18 @@ import type { SlateRow } from '../../lib/slate';
  * así que marcar en ámbar a la hora teñiría de aviso el funcionamiento normal, y un
  * aviso permanente se deja de leer.
  */
-function edadPrecios(iso: string | null | undefined): { texto: string; viejo: boolean } | null {
+function edadPrecios(t: Traducir, iso: string | null | undefined): { texto: string; viejo: boolean } | null {
   if (!iso) return null;
   const ms = Date.now() - new Date(iso).getTime();
   if (!Number.isFinite(ms) || ms < 0) return null;
   const min = Math.round(ms / 60_000);
+  const dias = Math.round(min / 1440);
   const texto =
     min < 60
-      ? `hace ${min} min`
+      ? t('estado.haceMin', { n: min })
       : min < 1440
-        ? `hace ${Math.round(min / 60)} h`
-        : `hace ${Math.round(min / 1440)} día${Math.round(min / 1440) === 1 ? '' : 's'}`;
+        ? t('estado.haceH', { n: Math.round(min / 60) })
+        : t(dias === 1 ? 'tabla.haceDias1' : 'tabla.haceDiasN', { n: dias });
   return { texto, viejo: ms > 6 * 3600_000 };
 }
 
@@ -82,6 +84,7 @@ export function SlateTable({
   // escondía cinco de cada seis partidos con «todos» marcado. Medido en pantalla:
   // cabecera «6 partidos», tabla con 1 fila.
   const [umbral, setUmbral] = useState(0);
+  const { t, idioma } = useI18n();
   if (rows.length === 0) return null;
 
   // La banda EXACTA del umbral, no «la más alta por debajo». Béisbol no tiene banda del
@@ -97,7 +100,8 @@ export function SlateTable({
   // Un mercado inventado por la app NO es un mercado. Se trata igual que no tener
   // ninguno en vez de enseñar un número que solo puede confundir.
   const hayMercado = !demoOdds && orden.some((r) => r.marketProb != null);
-  const edad = edadPrecios(refrescadas);
+  const edad = edadPrecios(t, refrescadas);
+  const loc = localeDe(idioma);
 
   return (
     <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
@@ -107,18 +111,18 @@ export function SlateTable({
         className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-(--tint)"
       >
         <span className="min-w-0">
-          <span className="block text-[16px] font-semibold text-(--ink-strong)">Los partidos</span>
+          <span className="block text-[16px] font-semibold text-(--ink-strong)">{t('tabla.titulo')}</span>
           <span className="block text-[13px] text-(--ink-muted)">
-            {rows.length === 1 ? '1 partido' : `${rows.length} partidos`} · a quién ve favorito el
-            modelo
-            {hayMercado ? ' y qué dice el mercado' : ''}
+            {rows.length === 1 ? t('tabla.unPartido') : t('tabla.nPartidos', { n: rows.length })}
+            {t('tabla.favorito')}
+            {hayMercado ? t('tabla.yMercado') : ''}
             {/* La edad de los precios, solo cuando hay precios de verdad que fechar. */}
             {hayMercado && edad && (
               <>
                 {' · '}
                 <span style={edad.viejo ? { color: '#d9a441' } : undefined}>
-                  precios {edad.texto}
-                  {edad.viejo ? ' — puede que ya no valgan' : ''}
+                  {t('tabla.precios', { edad: edad.texto })}
+                  {edad.viejo ? t('tabla.yaNoValgan') : ''}
                 </span>
               </>
             )}
@@ -135,11 +139,11 @@ export function SlateTable({
             <table className="w-full min-w-[520px] border-collapse text-[14px]">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
-                  <th className="px-4 py-2 font-medium">Cuándo</th>
-                  <th className="px-4 py-2 font-medium">Partido</th>
-                  <th className="px-4 py-2 font-medium">Favorito del modelo</th>
-                  <th className="px-4 py-2 text-right font-medium">Mercado</th>
-                  <th className="px-4 py-2 text-right font-medium">Cuota</th>
+                  <th className="px-4 py-2 font-medium">{t('tabla.cuando')}</th>
+                  <th className="px-4 py-2 font-medium">{t('tabla.partido')}</th>
+                  <th className="px-4 py-2 font-medium">{t('tabla.favoritoModelo')}</th>
+                  <th className="px-4 py-2 text-right font-medium">{t('tabla.mercado')}</th>
+                  <th className="px-4 py-2 text-right font-medium">{t('tabla.cuota')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,7 +152,7 @@ export function SlateTable({
                   return (
                     <tr key={r.id} className="border-t border-(--line)">
                       <td className="whitespace-nowrap px-4 py-2.5 text-(--ink-soft)">
-                        {new Date(r.when).toLocaleString('es', {
+                        {new Date(r.when).toLocaleString(loc, {
                           day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
                         })}
                       </td>
@@ -158,7 +162,7 @@ export function SlateTable({
                         <span className="font-semibold text-(--ink-strong)">{pct(r.pickProb)}</span>
                         {r.drawProb != null && (
                           <span className="block text-[12px] text-(--ink-muted)">
-                            empate {pct(r.drawProb)}
+                            {t('tabla.empate', { p: pct(r.drawProb) })}
                           </span>
                         )}
                       </td>
@@ -189,7 +193,7 @@ export function SlateTable({
 
           {/* El control del umbral, con lo que cuesta y lo que da, los dos medidos. */}
           <div className="flex flex-wrap items-center gap-2 border-t border-(--line) px-4 py-2.5">
-            <span className="text-[13px] text-(--ink-muted)">Solo los que el modelo ve claros:</span>
+            <span className="text-[13px] text-(--ink-muted)">{t('tabla.soloClaros')}</span>
             {[0, 0.6, 0.7, 0.8].map((u) => (
               <button
                 key={u}
@@ -198,7 +202,7 @@ export function SlateTable({
                   umbral === u ? 'bg-(--raised-2) text-(--ink-strong)' : 'text-(--ink-soft) hover:bg-(--raised)'
                 }`}
               >
-                {u === 0 ? 'todos' : `${u * 100}%+`}
+                {u === 0 ? t('tabla.todos') : `${u * 100}%+`}
               </button>
             ))}
             {umbral > 0 && (
@@ -206,16 +210,12 @@ export function SlateTable({
                 {/* Con la lista vacía no hay «estos» de los que acertar un porcentaje.
                     Decir «acierta el 87 % de estos» sobre cero partidos es una frase
                     sin referente, y de las que se leen como si prometieran algo. */}
-                {orden.length === 0
-                  ? `ninguno de los ${rows.length} de hoy llega a ese umbral`
-                  : `${orden.length} de ${rows.length}`}
+                {orden.length === 0 ? t('tabla.ninguno', { n: rows.length }) : t('tabla.deN', { a: orden.length, n: rows.length })}
                 {banda
-                  ? orden.length === 0
-                    ? ` · cuando los hay, el modelo acierta el ${(banda.acierto * 100).toFixed(0)} %, medido sobre ${banda.n.toLocaleString('es')} partidos`
-                    : ` · el modelo acierta el ${(banda.acierto * 100).toFixed(0)} % de estos, medido sobre ${banda.n.toLocaleString('es')} partidos`
+                  ? t(orden.length === 0 ? 'tabla.cuandoLosHay' : 'tabla.aciertaEstos', { p: (banda.acierto * 100).toFixed(0), n: banda.n.toLocaleString(loc) })
                   : bands?.length
-                    ? ' · el modelo casi nunca llega tan alto en este deporte: no hay partidos suficientes para medir su acierto ahí'
-                    : ' · sin acierto medido por banda en este deporte'}
+                    ? t('tabla.casiNunca')
+                    : t('tabla.sinBanda')}
               </span>
             )}
           </div>
@@ -225,7 +225,7 @@ export function SlateTable({
               onClick={() => setTodas(!todas)}
               className="w-full border-t border-(--line) px-4 py-2.5 text-[13px] text-(--ink-soft) transition hover:bg-(--tint)"
             >
-              {todas ? 'Ver solo los próximos' : `Ver los ${orden.length} partidos`}
+              {todas ? t('tabla.soloProximos') : t('tabla.verTodos', { n: orden.length })}
             </button>
           )}
 
@@ -233,10 +233,7 @@ export function SlateTable({
               todas las filas se lee como que la app no ha cargado algo. */}
           {!hayMercado && (
             <p className="border-t border-(--line) px-4 py-2.5 text-[13px] leading-relaxed text-(--ink-muted)">
-              Sin columna de mercado:{' '}
-              {demoOdds
-                ? 'las cuotas que hay se las ha inventado la app, así que compararlas con el modelo sería compararlo consigo mismo.'
-                : 'las casas no han publicado precio para estos partidos. El calendario y la probabilidad del modelo no dependen de eso.'}
+              {t('tabla.sinMercado')} {demoOdds ? t('tabla.sinMercadoDemo') : t('tabla.sinMercadoReal')}
             </p>
           )}
         </div>
@@ -269,28 +266,27 @@ export function VacioPorqueNoHayCuotas({
 }) {
   // Con la demostración encendida, un vacío significa otra cosa (no hay datos del
   // deporte) y lo explica `EmptySlate`. Esta nota es solo para el vacío deliberado.
+  const { t } = useI18n();
   if (demoFixtures) return null;
 
   return (
     <div className="mb-6 rounded-xl border border-(--line) bg-(--tint) px-4 py-4 text-[14px] leading-relaxed text-(--ink-soft)">
       <p className="mb-2 text-[15px] font-semibold text-(--ink-strong)">
-        No hay partidos con cuotas reales ahora mismo
+        {t('vacio.titulo')}
       </p>
       <p>
-        Y esta pestaña está vacía <strong className="text-(--ink-body)">a propósito</strong>: has
-        apagado los partidos de demostración, así que la app no se inventa nada para llenar el
-        hueco.{' '}
+        {conNodos(t('vacio.aProposito'), { aProposito: <strong className="text-(--ink-body)">{t('vacio.aPropositoPalabra')}</strong> })}{' '}
         {reason === 'sin_eventos'
-          ? 'Las casas no tienen precio publicado para ninguna de las competiciones configuradas. Entre jornadas es lo normal.'
+          ? t('vacio.sinEventos')
           : reason === 'sin_ligas'
-            ? 'El proveedor no ofrece ninguna de las competiciones configuradas ahora mismo.'
+            ? t('vacio.sinLigas')
             : reason === 'presupuesto'
-              ? 'La app se frenó sola para repartir el plan del mes y no llegó a preguntar — esto NO se arregla esperando: npm run odds las pide saltándose el freno.'
+              ? t('vacio.presupuesto')
               : reason === 'fuente_falla'
-                ? 'El proveedor de cuotas no contestó: cuota del mes agotada, clave inválida o sin conexión.'
+                ? t('vacio.fuenteFalla')
                 : reason === 'sin_clave' || !hasKey
-                  ? 'Falta ODDS_API_KEY en el .env de la raíz.'
-                  : 'Sin causa registrada; npm run doctor la desglosa sin gastar cuota.'}
+                  ? t('vacio.sinClave')
+                  : t('vacio.sinCausa')}
       </p>
       {detail && (
         <p className="mt-2 text-[13px] opacity-70">
@@ -298,9 +294,7 @@ export function VacioPorqueNoHayCuotas({
         </p>
       )}
       <p className="mt-3 text-[13px] text-(--ink-muted)">
-        El modelo, los Elo y el historial siguen ahí y son reales — lo que falta son los precios
-        con los que compararlos. Para volver a tener partidos de relleno:{' '}
-        <code>npm run demo -- --on</code>
+        {conNodos(t('vacio.siguenAhi'), { comando: <code>npm run demo -- --on</code> })}
       </p>
     </div>
   );

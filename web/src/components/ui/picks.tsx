@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { INK, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { relativeTime, shortTime } from '../../lib/format';
 import { StatusMark } from '../icons';
+import { conNodos, localeDe, useI18n } from '../../i18n';
 /**
  * "Lo que el modelo destacaría" — the ranked markets panel.
  *
@@ -48,6 +49,7 @@ import { StatusMark } from '../icons';
  */
 function CaveatNote({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   // Busca el primer punto seguido de espacio y mayúscula. Un `.` dentro de «0.2115» o de
   // «p = 0,0005» no separa frases, y partir ahí dejaría a la vista media cifra.
   const corte = text.search(/\.\s+(?=[A-ZÁÉÍÓÚÑ¡¿«])/);
@@ -69,7 +71,7 @@ function CaveatNote({ text }: { text: string }) {
             onClick={() => setOpen((o) => !o)}
             className="mt-1.5 text-[12px] font-medium text-amber-200/60 underline-offset-2 hover:text-amber-200 hover:underline"
           >
-            {open ? 'Ocultar el detalle' : 'Ver contra qué se ha medido'}
+            {open ? t('discrepancias.ocultar') : t('discrepancias.verMedido')}
           </button>
         </>
       )}
@@ -124,6 +126,7 @@ export function PicksPanel({
   onStakeChange: (n: number) => void;
 }) {
   const [open, setOpen] = useState(true);
+  const { t, idioma } = useI18n();
   // Nothing on the slate: say nothing. The message below is a claim ABOUT a model's
   // agreement with prices, and with no matches there is neither. The tab renders its
   // own explanation of why it is empty.
@@ -134,9 +137,7 @@ export function PicksPanel({
   if (picks.length === 0) {
     return (
       <p className="mb-6 rounded-xl border border-(--line) bg-(--tint) px-4 py-3 text-[14px] leading-relaxed text-(--ink-soft)">
-        El modelo <strong className="font-semibold text-(--ink-body)">no discrepa del mercado</strong> en
-        ningún mercado por más de 4 puntos porcentuales. Eso es lo normal y es buena señal: significa
-        que va calibrado con las casas.
+        {conNodos(t('discrepancias.noDiscrepa'), { noDiscrepa: <strong className="font-semibold text-(--ink-body)">{t('discrepancias.noDiscrepaPalabras')}</strong> })}
       </p>
     );
   }
@@ -152,18 +153,16 @@ export function PicksPanel({
       >
         <span className="min-w-0">
           <span className="block text-[16px] font-semibold text-(--ink-strong)">
-            {basis === 'edge'
-              ? 'Donde el modelo no está de acuerdo con el mercado'
-              : 'Lo que el modelo ve más probable'}
+            {basis === 'edge' ? t('discrepancias.tituloEdge') : t('discrepancias.tituloConfianza')}
           </span>
           <span className="block text-[13px] text-(--ink-muted)">
             {basis === 'edge'
-              ? `${picks.length} ${picks.length === 1 ? 'mercado' : 'mercados'} con diferencia de 4 pp o más, de mayor a menor`
+              ? t(picks.length === 1 ? 'discrepancias.mercados1' : 'discrepancias.mercadosN', { n: picks.length })
               : confidenceReason
                 ? confidenceReason
                 : demoOdds
-                  ? 'las cuotas son de demostración y salen del propio modelo, así que compararlas no diría nada — ordenado por probabilidad'
-                  : 'sin cuotas que comparar — ordenado por probabilidad, que es una base más débil'}
+                  ? t('discrepancias.demo')
+                  : t('discrepancias.sinCuotas')}
           </span>
         </span>
         <span aria-hidden className="shrink-0 text-(--ink-muted)">{open ? '▲' : '▼'}</span>
@@ -179,18 +178,15 @@ export function PicksPanel({
             <table className="w-full min-w-[46rem] border-collapse text-[14px]">
               <thead>
                 <tr className="border-y border-(--line) text-left text-[12px] uppercase tracking-[0.05em] text-(--ink-muted)">
-                  <th className="px-4 py-2 font-medium">Partido</th>
-                  <th className="px-3 py-2 font-medium">Apuesta</th>
-                  <th className="px-3 py-2 text-right font-medium">Modelo</th>
-                  <th className="px-3 py-2 text-right font-medium">Mercado</th>
-                  <th className="px-3 py-2 text-right font-medium">Dif.</th>
-                  <th
-                    className="px-3 py-2 text-right font-medium"
-                    title="1 ÷ probabilidad del modelo. Por encima de esta cuota el modelo cree que el precio es generoso; por debajo, que es caro."
-                  >
-                    Cuota mínima
+                  <th className="px-4 py-2 font-medium">{t('discrepancias.partido')}</th>
+                  <th className="px-3 py-2 font-medium">{t('discrepancias.apuesta')}</th>
+                  <th className="px-3 py-2 text-right font-medium">{t('discrepancias.modelo')}</th>
+                  <th className="px-3 py-2 text-right font-medium">{t('discrepancias.mercado')}</th>
+                  <th className="px-3 py-2 text-right font-medium">{t('discrepancias.dif')}</th>
+                  <th className="px-3 py-2 text-right font-medium" title={t('discrepancias.cuotaMinimaNota')}>
+                    {t('discrepancias.cuotaMinima')}
                   </th>
-                  <th className="px-4 py-2 text-right font-medium">Devolvería</th>
+                  <th className="px-4 py-2 text-right font-medium">{t('discrepancias.devolveria')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -202,7 +198,7 @@ export function PicksPanel({
                     <td className="max-w-[14rem] px-4 py-2.5">
                       <span className="block break-words text-(--ink-body)">{p.match}</span>
                       <span className="block text-[12px] text-(--ink-muted)">
-                        {shortTime(p.when)} · {relativeTime(p.when)}
+                        {shortTime(p.when, idioma)} · {relativeTime(p.when, new Date(), idioma)}
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
@@ -251,7 +247,7 @@ export function PicksPanel({
                           style={{
                             color: !demoOdds && p.odds > p.fairOdds ? PROFIT_COLOR : INK.muted,
                           }}
-                          title={`Cuota ofrecida: ${p.odds.toFixed(2)}`}
+                          title={t('discrepancias.cuotaOfrecida', { c: p.odds.toFixed(2) })}
                         >
                           ({p.odds.toFixed(2)})
                         </span>
@@ -265,10 +261,10 @@ export function PicksPanel({
                     <td className="px-4 py-2.5 text-right tabular-nums text-(--ink-body)">
                       {p.odds == null ? (
                         <span className="text-[13px] text-(--ink-muted)">
-                          busca ≥ {p.fairOdds.toFixed(2)}
+                          {t('discrepancias.busca', { c: p.fairOdds.toFixed(2) })}
                         </span>
                       ) : (
-                        (stake * p.odds).toLocaleString('es', { maximumFractionDigits: 0 })
+                        (stake * p.odds).toLocaleString(localeDe(idioma), { maximumFractionDigits: 0 })
                       )}
                     </td>
                   </tr>
@@ -279,7 +275,7 @@ export function PicksPanel({
 
           <div className="flex flex-wrap items-center gap-2 border-t border-(--line) px-4 py-3">
             <label htmlFor="picks-stake" className="text-[13px] text-(--ink-soft)">
-              Con una apuesta de
+              {t('discrepancias.conApuesta')}
             </label>
             <input
               id="picks-stake"
@@ -291,8 +287,7 @@ export function PicksPanel({
               className="w-28 rounded-lg bg-(--raised) px-2.5 py-1.5 text-right text-[14px] tabular-nums text-(--ink-strong) ring-1 ring-inset ring-(--line) focus:outline-none focus:ring-2 focus:ring-(--line-strong)"
             />
             <span className="text-[13px] text-(--ink-muted)">
-              · una diferencia a favor no es un beneficio: es una discrepancia entre dos
-              estimaciones, y la del mercado suele ser la buena.
+              {t('discrepancias.noBeneficio')}
             </span>
           </div>
         </div>

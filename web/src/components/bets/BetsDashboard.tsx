@@ -36,7 +36,7 @@ export default function BetsDashboard() {
   const [borrador, setBorrador] = useState<Record<string, unknown> | null>(null);
   const [minEdge, setMinEdge] = useState<number | null>(null);
   const [q, setQ] = useSearchParams();
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const subnav = useSubnavApuestas();
   // Un borrador desde «Mi selección» (Fase 5.15): se abre el formulario con él, una vez.
   useEffect(() => {
@@ -75,7 +75,7 @@ export default function BetsDashboard() {
   useEffect(load, [load]);
 
   const shown = useMemo(() => (day ? (bets ?? []).filter((b) => b.placed_on === day) : bets ?? []), [bets, day]);
-  const groups = useMemo(() => groupByDay(shown, (b) => `${b.placed_on}T12:00:00`), [shown]);
+  const groups = useMemo(() => groupByDay(shown, (b) => `${b.placed_on}T12:00:00`, idioma), [shown, idioma]);
 
   const settle = async (b: Bet, status: BetStatus) => {
     // A cashout needs an amount the odds cannot supply, so it is only settable
@@ -183,7 +183,7 @@ export default function BetsDashboard() {
           onClick={() => setDay(null)}
           className="text-[14px] text-(--ink-soft) underline decoration-white/20 hover:text-(--ink-strong)"
         >
-          {t('registro.viendoSolo', { dia: dayLabel(day) })}
+          {t('registro.viendoSolo', { dia: dayLabel(day, new Date(), idioma) })}
         </button>
       )}
 

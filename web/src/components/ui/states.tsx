@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { RELIABILITY_STYLE } from '../../lib/theme';
 import { StatusMark } from '../icons';
 import { Card } from './cards';
+import { conNodos, localeDe, useI18n } from '../../i18n';
 /**
  * Sub-navigation pill: a league, a tour, a tournament.
  *
@@ -164,22 +165,22 @@ export function StaleHistoryWarning({
   /** The command that refreshes this sport, e.g. "npm run update-data:bb". */
   fix: string;
 }) {
+  const { t, idioma } = useI18n();
   if (!info?.stale) return null;
-  const when = info.through.toLocaleDateString('es', { month: 'long', year: 'numeric' });
+  const when = info.through.toLocaleDateString(localeDe(idioma), { month: 'long', year: 'numeric' });
   // Under a year, months read more honestly than "0.6 años".
   const gap =
     info.yearsOld >= 1
-      ? `${info.yearsOld} ${info.yearsOld === 1 ? 'año' : 'años'}`
-      : `${Math.max(1, Math.round((info.yearsOld * 365.25) / 30.4))} meses`;
+      ? t(info.yearsOld === 1 ? 'historia.anio1' : 'historia.anioN', { n: info.yearsOld })
+      : t('historia.meses', { n: Math.max(1, Math.round((info.yearsOld * 365.25) / 30.4)) });
   return (
     <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/[0.07] p-4 text-[15px] leading-relaxed text-amber-100/90">
       <p className="font-semibold text-amber-100">
-        <StatusMark estado="aviso" color="#fcd34d" size={16} />El historial termina en {when} — hace {gap}
+        <StatusMark estado="aviso" color="#fcd34d" size={16} />
+        {t('historia.termina', { cuando: when, hueco: gap })}
       </p>
       <p className="mt-1">
-        {what} no reflejan a los equipos actuales, así que estas predicciones son poco fiables.
-        Ejecuta <code className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[14px]">{fix}</code>{' '}
-        desde una red que no bloquee las fuentes de datos.
+        {conNodos(t('historia.noReflejan', { que: what }), { fix: <code className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[14px]">{fix}</code> })}
       </p>
     </div>
   );

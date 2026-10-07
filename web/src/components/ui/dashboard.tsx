@@ -1,6 +1,14 @@
 // Piezas compartidas de la interfaz: dashboard. Partido de ui/index.tsx en la Fase 5 (ningún import cambia: index.tsx reexporta).
 import { useState, type ReactNode } from 'react';
 import { StatusMark } from '../icons';
+import { conNodos, useI18n } from '../../i18n';
+
+const CODIGOS = {
+  doctor: <code>npm run doctor</code>,
+  odds: <code>npm run odds</code>,
+  clave: <code>ODDS_API_KEY</code>,
+  env: <code>.env</code>,
+};
 /**
  * The per-sport header, collapsed by default.
  *
@@ -44,6 +52,7 @@ export function DashboardHeader({
   /** The full block. Hidden until asked for. */
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState<boolean>(() => {
     try {
       return localStorage.getItem(HEADER_OPEN_KEY) === '1';
@@ -71,14 +80,14 @@ export function DashboardHeader({
             title={refreshTitle}
             className="shrink-0 rounded-lg bg-(--raised) px-3 py-1.5 text-[14px] font-medium text-(--ink-body) ring-1 ring-inset ring-(--line) transition hover:bg-(--raised-2) disabled:opacity-50"
           >
-            {refreshing ? 'Actualizando…' : '↻ Actualizar'}
+            {refreshing ? t('cabecera.actualizando') : t('cabecera.actualizar')}
           </button>
         )}
         {chips && <span className="min-w-0 text-[13px] text-(--ink-muted)">{chips}</span>}
         {alert && (
           <span
             className="shrink-0 rounded-full bg-amber-500/[0.12] px-2.5 py-1 text-[13px] font-medium text-amber-200/90"
-            title="Los ratings no describen a los equipos actuales. Abre los detalles para ver cómo arreglarlo."
+            title={t('cabecera.alertaNota')}
           >
             <StatusMark estado="aviso" color="#fcd34d" size={13} />{alert}
           </span>
@@ -88,7 +97,7 @@ export function DashboardHeader({
           aria-expanded={open}
           className="ml-auto shrink-0 rounded-lg px-2 py-1 text-[13px] font-medium text-(--ink-muted) transition hover:bg-(--raised) hover:text-(--ink-body)"
         >
-          {open ? 'Ocultar detalles ▲' : 'Detalles ▼'}
+          {open ? t('cabecera.ocultar') : t('cabecera.detalles')}
         </button>
       </div>
       {open && <div className="mt-3">{children}</div>}
@@ -125,24 +134,14 @@ export function EmptySlate({
   detail?: ReactNode;
 }) {
   const noSource = reason === 'sin-fuente';
+  const { t } = useI18n();
   return (
     <div className="mb-6 rounded-xl border border-(--line) bg-(--tint) px-4 py-4">
       <p className="text-[15px] font-semibold text-(--ink-body)">
-        {noSource ? `No hay modelo para ${what}` : `No hay partidos próximos para ${what}`}
+        {noSource ? t('vacioDeporte.sinModelo', { que: what }) : t('vacioDeporte.sinPartidos', { que: what })}
       </p>
       <p className="mt-1.5 text-[13px] leading-relaxed text-(--ink-soft)">
-        {noSource ? (
-          <>
-            No hay ni un partido de {what} en la base, así que no hay Elo que calcular y las
-            tarjetas no tendrían nada que desglosar. La app prefiere decirlo a enseñar una
-            predicción inventada.
-          </>
-        ) : (
-          <>
-            El modelo está listo, pero no hay nada en el calendario dentro de la ventana que se
-            muestra. Es lo normal entre temporadas; el calendario se refresca solo.
-          </>
-        )}
+        {noSource ? t('vacioDeporte.sinFuente', { que: what }) : t('vacioDeporte.listo')}
       </p>
       {detail && <div className="mt-2 text-[13px] leading-relaxed text-(--ink-muted)">{detail}</div>}
     </div>
@@ -182,53 +181,32 @@ export function DemoOddsNote({
   /** El comando que refresca ESTE deporte, para no mandar a uno que no toca. */
   comando: string;
 }) {
+  const { t } = useI18n();
+  const fuerte = (texto: string) => <strong className="text-(--ink-soft)">{texto}</strong>;
   const cuerpo =
     reason === 'sin_eventos' ? (
-      <>
-        y <strong className="text-(--ink-soft)">no falta nada por tu parte</strong>: la fuente
-        respondió bien, pero ahora mismo las casas no tienen precio publicado para ningún
-        partido. Entre jornadas es lo normal. Aparecerán solas cuando lo publiquen.
-      </>
+      conNodos(t('demo.sinEventos'), { noFalta: fuerte(t('demo.noFalta')) })
     ) : reason === 'sin_ligas' ? (
-      <>
-        porque el proveedor no ofrece ninguna de las ligas configuradas ahora mismo. Fuera
-        de temporada es lo esperado y no hay nada que arreglar. Si la liga <em>sí</em> está
-        en juego, <code>npm run doctor</code> enseña las claves que la casa ofrece, que es
-        el dato con el que se arregla.
-      </>
+      conNodos(t('demo.sinLigas'), { si: <em>{t('demo.si')}</em>, ...CODIGOS })
     ) : reason === 'presupuesto' ? (
       <>
-        y esto <strong className="text-(--ink-soft)">no se arregla esperando</strong>: no se ha
-        llegado a preguntar. La app reparte el plan del mes y se frenó sola, así que el
-        refresco automático seguirá frenado mañana. Pídelas a mano con{' '}
-        <code>npm run odds</code>, que sí pasa el freno.
+        {conNodos(t('demo.presupuesto'), { noEsperando: fuerte(t('demo.noEsperando')), ...CODIGOS })}
         {detail ? <span className="block opacity-70">{detail}</span> : null}
       </>
     ) : reason === 'fuente_falla' ? (
       <>
-        porque el proveedor de cuotas no contestó.{' '}
-        <strong className="text-(--ink-soft)">Tu clave está puesta</strong>, así que suele ser
-        la cuota del mes agotada o falta de conexión. <code>npm run doctor</code> lo dice
-        sin gastar ni una petición.
-        {detail ? <span className="block opacity-70">último error: {detail}</span> : null}
+        {conNodos(t('demo.fuenteFalla'), { clavePuesta: fuerte(t('demo.clavePuesta')), ...CODIGOS })}
+        {detail ? <span className="block opacity-70">{t('demo.ultimoError', { e: detail })}</span> : null}
       </>
     ) : reason === 'sin_clave' || !hasKey ? (
-      <>
-        porque no hay <code>ODDS_API_KEY</code>. Ponla en el fichero <code>.env</code> de
-        la raíz y corre <code>npm run odds</code> para pedir las de verdad.
-      </>
+      conNodos(t('demo.sinClave'), CODIGOS)
     ) : (
-      <>
-        y la causa no está registrada — esta base se llenó antes de que se guardara. Corre{' '}
-        <code>{comando}</code> y, si siguen en demostración, <code>npm run doctor</code>{' '}
-        dice por qué sin gastar cuota.
-      </>
+      conNodos(t('demo.sinCausa'), { comando: <code>{comando}</code>, ...CODIGOS })
     );
 
   return (
     <p className="mb-4 text-[13px] leading-relaxed text-(--ink-muted)">
-      Las cuotas que ves son de <strong className="text-(--ink-soft)">demostración</strong>,
-      generadas por el propio modelo, {cuerpo}
+      {conNodos(t('demo.intro'), { demostracion: fuerte(t('demo.demostracion')), cuerpo: <>{cuerpo}</> })}
     </p>
   );
 }
@@ -250,37 +228,22 @@ export function NflNoLineNote({
   detail?: string | null;
   hasKey: boolean;
 }) {
+  const { t } = useI18n();
   if (reason == null && hasKey) return null;
-  return (
-    <p className="mb-4 text-[13px] leading-relaxed text-(--ink-muted)">
-      Sin línea de las casas ahora mismo —{' '}
-      {reason === 'sin_ligas' ? (
-        <>
-          la NFL no está en temporada. El calendario y las probabilidades del modelo son
-          reales; lo que falta es el precio con el que compararlas.
-        </>
-      ) : reason === 'presupuesto' ? (
-        <>
-          la app se frenó sola para repartir el plan del mes y no llegó a preguntar. No es
-          el calendario: <code>npm run odds</code> las pide saltándose el freno.
-        </>
-      ) : reason === 'fuente_falla' ? (
-        <>
-          el proveedor no contestó (cuota del mes o conexión). <code>npm run doctor</code>{' '}
-          lo desglosa sin gastar peticiones.
-          {detail ? <span className="block opacity-70">último error: {detail}</span> : null}
-        </>
-      ) : reason === 'sin_clave' || !hasKey ? (
-        <>
-          falta <code>ODDS_API_KEY</code> en el <code>.env</code>. El calendario y el modelo
-          funcionan igual; sin clave no hay precio con el que compararlos.
-        </>
-      ) : (
-        <>
-          están en temporada pero ninguna casa ha publicado línea todavía. Suele aparecer
-          unos días antes de la jornada.
-        </>
-      )}
-    </p>
-  );
+  const cuerpo =
+    reason === 'sin_ligas' ? (
+      t('nflLinea.sinLigas')
+    ) : reason === 'presupuesto' ? (
+      conNodos(t('nflLinea.presupuesto'), CODIGOS)
+    ) : reason === 'fuente_falla' ? (
+      <>
+        {conNodos(t('nflLinea.fuenteFalla'), CODIGOS)}
+        {detail ? <span className="block opacity-70">{t('demo.ultimoError', { e: detail })}</span> : null}
+      </>
+    ) : reason === 'sin_clave' || !hasKey ? (
+      conNodos(t('nflLinea.sinClave'), CODIGOS)
+    ) : (
+      t('nflLinea.sinPublicar')
+    );
+  return <p className="mb-4 text-[13px] leading-relaxed text-(--ink-muted)">{conNodos(t('nflLinea.intro'), { cuerpo: <>{cuerpo}</> })}</p>;
 }

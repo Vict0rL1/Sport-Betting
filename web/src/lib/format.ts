@@ -1,23 +1,15 @@
-// Presentation helpers (Spanish UI).
+// Presentation helpers. El texto sale del catálogo (i18n) y las fechas, del locale del idioma;
+// sin idioma, español (la fuente de verdad), así que lo que no lo pasa sigue como estaba.
+import { localeDe, tr, type Clave, type Idioma } from '../i18n';
 
 export function pct(p: number | null | undefined, digits = 0): string {
   if (p == null) return '—';
   return `${(p * 100).toFixed(digits)}%`;
 }
 
-export function surfaceLabelEs(surface: string | null): string {
-  switch ((surface || '').toLowerCase()) {
-    case 'hard':
-      return 'Dura';
-    case 'clay':
-      return 'Arcilla';
-    case 'grass':
-      return 'Hierba';
-    case 'carpet':
-      return 'Carpeta';
-    default:
-      return surface || '—';
-  }
+export function surfaceLabelEs(surface: string | null, idioma: Idioma = 'es'): string {
+  const s = (surface || '').toLowerCase();
+  return ['hard', 'clay', 'grass', 'carpet'].includes(s) ? tr(idioma, `superficie.${s}` as Clave) : surface || '—';
 }
 
 /** Accent color per surface (used sparingly, always paired with a text label). */
@@ -34,19 +26,8 @@ export function surfaceColor(surface: string | null): string {
   }
 }
 
-export function confidenceLabelEs(tier: string): string {
-  switch (tier) {
-    case 'toss_up':
-      return 'muy parejo';
-    case 'slight':
-      return 'ligera ventaja';
-    case 'clear':
-      return 'favorito claro';
-    case 'strong':
-      return 'favorito fuerte';
-    default:
-      return tier;
-  }
+export function confidenceLabelEs(tier: string, idioma: Idioma = 'es'): string {
+  return ['toss_up', 'slight', 'clear', 'strong'].includes(tier) ? tr(idioma, `ventaja.${tier}` as Clave) : tier;
 }
 
 export function formatDate(yyyymmdd: string | null): string {
@@ -57,10 +38,10 @@ export function formatDate(yyyymmdd: string | null): string {
   return yyyymmdd;
 }
 
-export function formatDateTime(iso: string): string {
+export function formatDateTime(iso: string, idioma: Idioma = 'es'): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString('es', {
+  return d.toLocaleString(localeDe(idioma), {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -128,14 +109,14 @@ export function daysFromToday(key: string, now = new Date()): number {
  * almost always looking for, and a weekday name does not tell you which of them
  * you are on.
  */
-export function dayLabel(key: string, now = new Date()): string {
+export function dayLabel(key: string, now = new Date(), idioma: Idioma = 'es'): string {
   const delta = daysFromToday(key, now);
-  if (delta === 0) return 'Hoy';
-  if (delta === 1) return 'Mañana';
-  if (delta === -1) return 'Ayer';
+  if (delta === 0) return tr(idioma, 'dia.hoy');
+  if (delta === 1) return tr(idioma, 'dia.manana');
+  if (delta === -1) return tr(idioma, 'dia.ayer');
   const [y, m, d] = key.split('-').map(Number);
   const date = new Date(y, m - 1, d);
-  const long = date.toLocaleDateString('es', {
+  const long = date.toLocaleDateString(localeDe(idioma), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -147,19 +128,19 @@ export function dayLabel(key: string, now = new Date()): string {
 }
 
 /** Compact label for a day chip: "Hoy", "Mañana", "sáb 13". */
-export function dayChipLabel(key: string, now = new Date()): string {
+export function dayChipLabel(key: string, now = new Date(), idioma: Idioma = 'es'): string {
   const delta = daysFromToday(key, now);
-  if (delta === 0) return 'Hoy';
-  if (delta === 1) return 'Mañana';
+  if (delta === 0) return tr(idioma, 'dia.hoy');
+  if (delta === 1) return tr(idioma, 'dia.manana');
   const [y, m, d] = key.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString('es', { weekday: 'short', day: 'numeric' });
+  return new Date(y, m - 1, d).toLocaleDateString(localeDe(idioma), { weekday: 'short', day: 'numeric' });
 }
 
 /** Just the clock, in the reader's zone: "20:20". The day is in the heading. */
-export function shortTime(iso: string): string {
+export function shortTime(iso: string, idioma: Idioma = 'es'): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString(localeDe(idioma), { hour: '2-digit', minute: '2-digit' });
 }
 
 /**
@@ -168,18 +149,18 @@ export function shortTime(iso: string): string {
  * Shown next to the time because "20:20" alone does not answer the question
  * people actually have, which is whether they have time to read the card.
  */
-export function relativeTime(iso: string, now = new Date()): string {
+export function relativeTime(iso: string, now = new Date(), idioma: Idioma = 'es'): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
   const mins = Math.round((d.getTime() - now.getTime()) / 60_000);
   const abs = Math.abs(mins);
   const phrase =
     abs < 60
-      ? `${abs} min`
+      ? tr(idioma, 'tiempo.min', { n: abs })
       : abs < 60 * 36
-        ? `${Math.round(abs / 60)} h`
-        : `${Math.round(abs / (60 * 24))} días`;
-  return mins >= 0 ? `en ${phrase}` : `hace ${phrase}`;
+        ? tr(idioma, 'tiempo.h', { n: Math.round(abs / 60) })
+        : tr(idioma, 'tiempo.dias', { n: Math.round(abs / (60 * 24)) });
+  return mins >= 0 ? tr(idioma, 'tiempo.en', { x: phrase }) : tr(idioma, 'tiempo.hace', { x: phrase });
 }
 
 export interface DayGroup<T> {
@@ -194,13 +175,13 @@ export interface DayGroup<T> {
  * Assumes the input is already sorted by time, which every /upcoming endpoint
  * guarantees with an ORDER BY — re-sorting here would hide it if one ever stopped.
  */
-export function groupByDay<T>(items: T[], time: (item: T) => string): DayGroup<T>[] {
+export function groupByDay<T>(items: T[], time: (item: T) => string, idioma: Idioma = 'es'): DayGroup<T>[] {
   const out: DayGroup<T>[] = [];
   for (const item of items) {
     const key = dayKey(time(item));
     const last = out[out.length - 1];
     if (last && last.key === key) last.items.push(item);
-    else out.push({ key, label: dayLabel(key), items: [item] });
+    else out.push({ key, label: dayLabel(key, new Date(), idioma), items: [item] });
   }
   return out;
 }

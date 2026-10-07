@@ -1,6 +1,7 @@
 // Piezas compartidas de la interfaz: rows. Partido de ui/index.tsx en la Fase 5 (ningún import cambia: index.tsx reexporta).
 import type { ReactNode } from 'react';
 import { SeriesDot } from './marks';
+import { useI18n } from '../../i18n';
 /**
  * One factor's contribution in a "why" list.
  *
@@ -178,13 +179,14 @@ export function FormDots({
   results: ('W' | 'D' | 'L')[];
   colors: { W: string; D: string; L: string };
 }) {
+  const { t } = useI18n();
   if (results.length === 0) return <span className="text-(--ink-faint)">—</span>;
   return (
     <span className="inline-flex gap-[3px] align-middle">
       {results.map((r, i) => (
         <span
           key={i}
-          title={r === 'W' ? 'ganado' : r === 'D' ? 'empatado' : 'perdido'}
+          title={r === 'W' ? t('forma.ganado') : r === 'D' ? t('forma.empatado') : t('forma.perdido')}
           className="inline-block h-2 w-2 rounded-full"
           style={{ backgroundColor: colors[r] }}
         />
