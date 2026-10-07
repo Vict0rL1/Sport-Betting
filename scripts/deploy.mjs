@@ -98,7 +98,7 @@ if (!/APP_PASSWORD/.test(secretos.salida)) {
     'Esta URL es pública. Sin contraseña quedarían al alcance de cualquiera tu registro\n' +
       'de apuestas y el endpoint que gasta tu cuota de The Odds API, así que el servidor\n' +
       'se niega a arrancar sin ella. Ponla (ocho caracteres mínimo, usa una frase):\n\n' +
-      `    fly secrets set APP_PASSWORD="una-frase-larga-y-tuya" --app ${nombre}`,
+      `    fly secrets set APP_PASSWORD="una-frase-larga-y-tuya" --app ${nombre}`, // secret-scan:ignore (ejemplo)
   );
 }
 ok('APP_PASSWORD configurada');

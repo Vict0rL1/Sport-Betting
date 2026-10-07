@@ -35,6 +35,7 @@
 import { env } from '../config.ts';
 import { enrutar, type Intencion } from './router.ts';
 import { apuntarUso } from './llmUsage.ts';
+import { validarIntencion } from './validate.ts';
 
 const API = 'https://api.anthropic.com/v1/messages';
 /** Barato y rápido: esto es clasificación entre seis salidas, no redacción. */
@@ -104,9 +105,6 @@ const HERRAMIENTAS = [
 
 // El tipo sale de la lista, no se escribe a mano: así, añadir una herramienta aquí sin
 // implementarla en `responder` es un error de compilación y no un fallo en caliente.
-type NombreHerramienta = (typeof HERRAMIENTAS)[number]['name'];
-const NOMBRES = new Set<string>(HERRAMIENTAS.map((h) => h.name));
-const esNombre = (s: string): s is NombreHerramienta => NOMBRES.has(s);
 
 const SISTEMA =
   'Eres el enrutador de una app de predicciones deportivas. Tu ÚNICA tarea es elegir ' +
@@ -128,32 +126,11 @@ function aIntencion(bloques: unknown): Intencion | null {
     (b): b is { type: string; name: string; input: Record<string, unknown> } =>
       typeof b === 'object' && b !== null && (b as { type?: string }).type === 'tool_use',
   );
-  if (!uso || !esNombre(uso.name)) return null;
-  const s = (k: string): string => {
-    const v = uso.input?.[k];
-    return typeof v === 'string' ? v.slice(0, 80) : '';
-  };
-  switch (uso.name) {
-    case 'jugador':
-      return s('nombre') ? { herramienta: 'jugador', argumentos: [s('nombre')] } : null;
-    case 'caraACara':
-      return s('a') && s('b') ? { herramienta: 'caraACara', argumentos: [s('a'), s('b')] } : null;
-    case 'prediccion':
-      return s('a') && s('b')
-        ? { herramienta: 'prediccion', argumentos: [s('a'), s('b'), s('superficie')] }
-        : null;
-    case 'clasificacion': {
-      const n = Number(uso.input?.n);
-      const tour = s('tour') === 'wta' ? 'wta' : 'atp';
-      return { herramienta: 'clasificacion', argumentos: [String(Number.isFinite(n) ? n : 10), tour] };
-    }
-    case 'estadoDatos':
-      return { herramienta: 'estadoDatos', argumentos: [] };
-    case 'precision':
-      return { herramienta: 'precision', argumentos: [] };
-    default:
-      return null;
-  }
+  if (!uso) return null;
+  // La lista permitida (ask/validate.ts) es la única puerta: nombre en la lista cerrada y
+  // argumentos con su tipo, tamaño y valores. Lo que no encaja es «ninguna».
+  const i = validarIntencion({ name: uso.name, input: uso.input });
+  return i.herramienta === 'ninguna' ? null : i;
 }
 
 export function hayModelo(): boolean {

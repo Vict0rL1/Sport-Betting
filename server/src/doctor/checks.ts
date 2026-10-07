@@ -19,6 +19,7 @@ export type Seccion =
   | 'BASE DE DATOS'
   | 'ACTUALIZACIÓN'
   | 'CONFIANZA'
+  | 'SEGURIDAD'
   | 'SERVIDOR Y PANTALLA';
 
 export interface Hallazgo {
@@ -571,6 +572,74 @@ export function comprobarConfianza(e: EstadoConfianza, ahora: Date): Hallazgo[] 
   }
   if (e.deriva7d) {
     out.push(h(S, 'aviso', `Deriva reciente del modelo: ${e.deriva7d}`, { detalle: ['Mientras dure, las apuestas de ese deporte van a la mitad de importe (RECORTES.deriva).'], accion: ['npm run model:report'] }));
+  }
+  return out;
+}
+
+// ===========================================================================
+// SEGURIDAD — la puerta, las cabeceras y que no se cuele ningún secreto
+// ===========================================================================
+
+export interface EstadoSeguridad {
+  produccion: boolean;
+  modo: 'auto' | 'on' | 'off';
+  authActiva: boolean;
+  passwordLongitud: number;
+  totp: boolean;
+  sesionesActivas: number;
+  cabeceras: boolean;
+  errorLog: boolean;
+  corsOrigenes: string[];
+  envIgnorado: boolean | null;
+  hookInstalado: boolean | null;
+  /** Resultado del escáner propio sobre los ficheros rastreados; null si no se pudo correr. */
+  escaner: { ficheros: number; hallazgos: { fichero: string; linea: number; patron: string }[] } | null;
+  gitleaks: boolean;
+  errores24h: number;
+}
+
+export function comprobarSeguridad(e: EstadoSeguridad): Hallazgo[] {
+  const S: Seccion = 'SEGURIDAD';
+  const out: Hallazgo[] = [];
+
+  // 1. La puerta.
+  if (e.authActiva) {
+    if (e.passwordLongitud < 8) {
+      out.push(h(S, 'error', `APP_PASSWORD tiene ${e.passwordLongitud} caracteres (mínimo 8): el servidor no arrancará`, { accion: ['Pon una frase larga en APP_PASSWORD (.env o fly secrets)'] }));
+    } else {
+      out.push(h(S, 'ok', `Contraseña activa (modo ${e.modo}) · ${e.passwordLongitud} caracteres · ${e.totp ? 'con segundo factor TOTP' : 'sin segundo factor'} · ${e.sesionesActivas} sesión(es) abierta(s)`));
+      if (!e.totp && e.produccion) out.push(h(S, 'info', 'Sin segundo factor. Opcional: npm run totp:secreto y TOTP_SECRET en los secretos.'));
+    }
+  } else if (e.produccion) {
+    out.push(h(S, 'error', 'Autenticación apagada en producción: el servidor no arrancará', { accion: ['Quita APP_AUTH=off y pon APP_PASSWORD'] }));
+  } else {
+    out.push(h(S, 'info', `Sin contraseña (modo ${e.modo}, no es producción). Para exigirla en tu red local: APP_AUTH=on y APP_PASSWORD en el .env.`));
+  }
+
+  // 2. Cabeceras, CORS y registro de errores.
+  out.push(e.cabeceras ? h(S, 'ok', 'Cabeceras de seguridad activas (CSP, nosniff, frame-ancestors, referrer, permissions)') : h(S, 'aviso', 'Cabeceras de seguridad apagadas (features.json: seguridad.cabeceras)', { accion: ['Pon "seguridad.cabeceras" en on en config/features.json'] }));
+  out.push(h(S, 'info', e.corsOrigenes.length ? `CORS abierto a: ${e.corsOrigenes.join(', ')}` : 'CORS cerrado: ningún origen ajeno puede llamar a la API desde un navegador'));
+  out.push(e.errorLog ? h(S, e.errores24h > 0 ? 'aviso' : 'ok', e.errores24h > 0 ? `${e.errores24h} error(es) de servidor en 24 h (error_log)` : 'Sin errores de servidor en 24 h', e.errores24h > 0 ? { detalle: ['Detalle en la pestaña Confianza → Diagnóstico (o SELECT * FROM error_log).'] } : {}) : h(S, 'aviso', 'Registro de errores apagado (features.json: seguridad.errorLog)'));
+
+  // 3. Secretos.
+  if (e.envIgnorado === false) out.push(h(S, 'error', 'El .env NO está ignorado por git: se puede subir con tu clave dentro', { accion: ['Añade .env a .gitignore y, si ya se subió, rota la clave'] }));
+  else if (e.envIgnorado === true) out.push(h(S, 'ok', '.env ignorado por git'));
+  if (e.escaner) {
+    if (e.escaner.hallazgos.length === 0) {
+      out.push(h(S, 'ok', `Escáner de secretos: ${e.escaner.ficheros} ficheros rastreados, sin secretos${e.gitleaks ? ' · gitleaks instalado' : ''}`));
+    } else {
+      out.push(
+        h(S, 'error', `Escáner de secretos: ${e.escaner.hallazgos.length} posible(s) secreto(s) en ficheros rastreados`, {
+          detalle: e.escaner.hallazgos.slice(0, 5).map((x) => `${x.fichero}${x.linea ? `:${x.linea}` : ''} — ${x.patron}`),
+          accion: ['node scripts/secret-scan.mjs --tracked   (y si es real: quítalo y ROTA la clave)'],
+        }),
+      );
+    }
+  }
+  if (e.hookInstalado === false) {
+    out.push(h(S, 'aviso', 'El hook de pre-commit (escáner de secretos) no está activado en este clon', { accion: ['git config core.hooksPath .githooks   (npm install lo hace solo)'] }));
+  } else if (e.hookInstalado === true) {
+    out.push(h(S, 'ok', `Hook de pre-commit activo${e.gitleaks ? ' (gitleaks + escáner propio)' : ' (escáner propio; gitleaks no instalado, opcional)'}`));
   }
   return out;
 }

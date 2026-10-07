@@ -23,6 +23,7 @@
 // que NO debe aportar nunca es el contenido de la respuesta.
 
 import * as T from './tools.ts';
+import { validarIntencion } from './validate.ts';
 import type { Respuesta } from './tools.ts';
 
 export interface Intencion {
@@ -129,7 +130,9 @@ export function responder(pregunta: string): Respuesta & { intencion: Intencion 
  * herramienta nueva se añade a dos de ellas y la tercera contesta «no te he entendido»
  * a una pregunta que las otras dos saben responder.
  */
-export function ejecutar(intencion: Intencion): Respuesta {
+export function ejecutar(entrada: Intencion): Respuesta {
+  // Venga de donde venga (regex, modelo, un cliente de la API), pasa por la lista permitida.
+  const intencion = validarIntencion(entrada);
   const [a, b, c] = intencion.argumentos;
   let r: Respuesta;
   switch (intencion.herramienta) {

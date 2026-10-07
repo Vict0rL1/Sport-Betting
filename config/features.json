@@ -1,0 +1,10 @@
+{
+  "$comment": "Interruptores de funciones. `on` las activa; `off` las apaga sin tocar código. Las marcadas `opcional` dependen además de una variable de entorno (la clave, el secreto), y la app lo dice en la pantalla cuando falta. Se leen al arrancar; `GET /api/features` las enseña a la pantalla.",
+  "features": {
+    "auth.sesiones": { "on": true, "descripcion": "Entrada por contraseña con sesión en cookie (además de Basic Auth)." },
+    "auth.totp": { "on": true, "opcional": "TOTP_SECRET", "descripcion": "Segundo factor TOTP al entrar." },
+    "seguridad.cabeceras": { "on": true, "descripcion": "Cabeceras de seguridad (CSP, nosniff, frame-ancestors…)." },
+    "seguridad.errorLog": { "on": true, "descripcion": "Los errores no controlados se guardan en error_log con su id de petición." },
+    "asistente.modelo": { "on": true, "opcional": "ANTHROPIC_API_KEY", "descripcion": "El asistente elige herramienta con un modelo de lenguaje (solo elige; nunca ejecuta SQL ni código)." }
+  }
+}

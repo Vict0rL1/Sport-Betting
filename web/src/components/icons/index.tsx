@@ -248,6 +248,37 @@ export function BanIcon(p: Props) {
   );
 }
 
+/** Persona: la cuenta y sus sesiones. */
+export function UserIcon(p: Props) {
+  return (
+    <Svg {...p}>
+      <circle cx="12" cy="8.5" r="3.6" />
+      <path d="M4.8 19.5c1.3-3.3 4-5 7.2-5s5.9 1.7 7.2 5" />
+    </Svg>
+  );
+}
+
+/** Candado: la entrada. */
+export function LockIcon(p: Props) {
+  return (
+    <Svg {...p}>
+      <rect x="5" y="10.5" width="14" height="10" rx="2" />
+      <path d="M8 10.5V7.8a4 4 0 0 1 8 0v2.7" />
+      <path d="M12 14.5v2.5" />
+    </Svg>
+  );
+}
+
+/** Salir. */
+export function LogoutIcon(p: Props) {
+  return (
+    <Svg {...p}>
+      <path d="M10 4.5H6.5A1.5 1.5 0 0 0 5 6v12a1.5 1.5 0 0 0 1.5 1.5H10" />
+      <path d="M14.5 15.5 18 12l-3.5-3.5M18 12H9.5" />
+    </Svg>
+  );
+}
+
 /** Estadio. */
 export function StadiumIcon(p: Props) {
   return (

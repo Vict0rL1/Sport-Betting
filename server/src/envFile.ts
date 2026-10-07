@@ -6,8 +6,8 @@
 // `env.oddsApiKey` solo sabe decir «hay clave» o «no hay clave». Y «no hay clave» tiene
 // causas que se arreglan de formas muy distintas, la más común de todas:
 //
-//     64674c4093d25c793bcebc2fa28ea339          ← el .env dice esto
-//     ODDS_API_KEY=64674c4093d25c793bcebc2fa28ea339   ← y tiene que decir esto
+//     <los 32 caracteres de tu clave>                 ← el .env dice esto
+//     ODDS_API_KEY=<los 32 caracteres de tu clave>    ← y tiene que decir esto
 //
 // Un .env no es una lista de valores, es una lista de `NOMBRE=valor`. Una línea suelta
 // sin `NOMBRE=` no es nada: dotenv la ignora en silencio y la app arranca en modo

@@ -19,7 +19,7 @@ test('doctor --probar: secciones, cupo, sondeo y resultado', () => {
       env: {
         ...process.env,
         NODE_OPTIONS: '',
-        ODDS_API_KEY: '0123456789abcdef0123456789abcdef',
+        ODDS_API_KEY: '0123456789abcdef0123456789abcdef', // secret-scan:ignore (clave falsa de test)
         DATA_DIR: fs.mkdtempSync(path.join(os.tmpdir(), 'doctor-e2e-')),
         PORT: '65531',
       },

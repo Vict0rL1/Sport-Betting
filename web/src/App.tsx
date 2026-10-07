@@ -10,6 +10,9 @@ import TopPicks from './components/picks/TopPicks';
 import { SPORT_THEMES, type SportId } from './lib/theme';
 import TodayPanel from './components/TodayPanel';
 import { AppMark, SportIcon } from './components/icons';
+import Login from './components/auth/Login';
+import AccountPanel from './components/auth/AccountPanel';
+import { estadoAuth, EVENTO_AUTH, instalarDetector401, type EstadoAuth } from './lib/auth';
 
 /**
  * Sports are separate tabs, not a merged feed.
@@ -68,6 +71,21 @@ function initialSport(): SportId {
 
 export default function App() {
   const [sport, setSport] = useState<SportId>(initialSport);
+  // La puerta: si el servidor pide contraseña y no hay sesión, se enseña la entrada y
+  // nada más (ningún panel pide datos hasta entonces). Un 401 en cualquier llamada
+  // posterior —sesión revocada o caducada— vuelve a enseñarla.
+  const [auth, setAuth] = useState<EstadoAuth | null>(null);
+  useEffect(() => {
+    instalarDetector401();
+    let vivo = true;
+    estadoAuth().then((a) => vivo && setAuth(a));
+    const alPedir = () => setAuth((a) => (a ? { ...a, dentro: false } : a));
+    window.addEventListener(EVENTO_AUTH, alPedir);
+    return () => {
+      vivo = false;
+      window.removeEventListener(EVENTO_AUTH, alPedir);
+    };
+  }, []);
   const headerRef = useRef<HTMLElement>(null);
   const activeTabRef = useRef<HTMLButtonElement>(null);
 
@@ -118,6 +136,12 @@ export default function App() {
     }
   }, [sport]);
 
+  if (auth === null) return <div className="min-h-screen bg-[#0b0d11]" aria-busy="true" />;
+  if (auth.auth && !auth.dentro) {
+    return <Login totp={auth.totp} onEntrar={() => void estadoAuth().then(setAuth)} />;
+  }
+  const alSalir = () => setAuth((a) => (a ? { ...a, dentro: false } : a));
+
   return (
     <div className="min-h-screen lg:flex">
       {/*
@@ -151,6 +175,7 @@ export default function App() {
             </div>
           </div>
           <SportNav sport={sport} onSelect={setSport} vertical />
+          {auth.auth && auth.sesiones && <AccountPanel usuario={auth.usuario} onSalir={alSalir} />}
         </div>
       </aside>
 
@@ -200,6 +225,12 @@ export default function App() {
         </main>
 
         <footer className={`mx-auto ${SHELL_WIDTH} px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))]`}>
+          {/* En el móvil no hay barra lateral: la cuenta va aquí, antes del pie. */}
+          {auth.auth && auth.sesiones && (
+            <div className="mb-3 rounded-xl border border-white/[0.07] lg:hidden">
+              <AccountPanel usuario={auth.usuario} onSalir={alSalir} compacto />
+            </div>
+          )}
           <p className="border-t border-white/[0.07] pt-4 text-[13px] leading-relaxed text-[#7b828d]">
             Estimación estadística. Cada modelo se mide contra resultados reales y la app registra sus
             propios aciertos, pero ninguno conoce las lesiones de última hora, el clima ni la

@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Web app + REST API to predict ATP/WTA tennis match results using historical stats, surface-aware Elo ratings, and bookmaker odds.",
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=22.13.0"
   },
   "workspaces": [
     "server",
@@ -79,7 +79,10 @@
     "demo": "node scripts/demo.mjs",
     "paper": "npm run paper --workspace server --",
     "tokens": "npm run tokens --workspace server --",
-    "ahorro": "node scripts/ahorro.mjs"
+    "ahorro": "node scripts/ahorro.mjs",
+    "prepare": "node -e \"const{execSync}=require('node:child_process');const fs=require('node:fs');if(fs.existsSync('.git'))try{execSync('git config core.hooksPath .githooks')}catch{}\"",
+    "secret-scan": "node scripts/secret-scan.mjs --tracked",
+    "totp:secreto": "npm run totp:secreto --workspace server --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

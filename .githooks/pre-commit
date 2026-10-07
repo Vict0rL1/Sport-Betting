@@ -1,0 +1,11 @@
+#!/bin/sh
+# Antes de cada commit: que no se cuele ningún secreto.
+#
+# Se activa con `git config core.hooksPath .githooks` (lo hace `npm install` por el script
+# `prepare`). gitleaks si está instalado (https://github.com/gitleaks/gitleaks); y siempre
+# el escáner propio, que no necesita nada.
+set -e
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --config .gitleaks.toml
+fi
+node scripts/secret-scan.mjs --staged

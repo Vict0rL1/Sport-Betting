@@ -1285,7 +1285,7 @@ sin clave no hace ni una petición HTTP ni gasta cuota.
 
 ## Requisitos
 
-- **Node.js ≥ 22.5** (usa el módulo integrado `node:sqlite`, sin dependencias nativas).
+- **Node.js ≥ 22.13** (usa el módulo integrado `node:sqlite`, que desde esa versión no necesita el flag experimental; sin dependencias nativas).
 
 ## Instalación
 
@@ -1804,6 +1804,16 @@ en un Mac— sencillamente no está en el PATH, y el doble clic abre una ventana
 comando de la Terminal escrito**, en vez de cerrarse. La ventana tampoco se cierra sola al
 terminar: si algo falló, el motivo está justo encima.
 
+## Seguridad
+
+Contraseña con sesiones por cookie (y segundo factor TOTP opcional), límite de intentos,
+cabeceras de seguridad, CORS cerrado, registro de errores y un escáner de secretos en el hook de
+pre-commit, en CI y en el doctor. Todo en **[docs/SEGURIDAD.md](docs/SEGURIDAD.md)**.
+
+**La clave de The Odds API la tiene que rotar el propietario.** Estuvo en un chat y un valor con
+su forma apareció en un comentario del código (ya retirado, pero sigue en el historial de git).
+Genera una nueva en tu cuenta y pon solo la nueva en el `.env`. Ver `docs/SEGURIDAD.md`.
+
 ## Ponerla en línea (Fly.io)
 
 Para abrirla desde el móvil en cualquier sitio, no solo en tu wifi. Cuatro comandos una
@@ -1814,7 +1824,7 @@ brew install flyctl
 fly auth login
 fly launch --no-deploy          # escribe tu nombre de app en fly.toml
 fly volumes create datos --size 3
-fly secrets set APP_PASSWORD="una-frase-larga-y-tuya"
+fly secrets set APP_PASSWORD="una-frase-larga-y-tuya"   # secret-scan:ignore (es un ejemplo)
 fly secrets set ODDS_API_KEY="tu-clave"   # opcional: sin ella, cuotas de demostración
 npm run deploy
 ```

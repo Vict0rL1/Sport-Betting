@@ -40,6 +40,7 @@ import {
   comprobarBaseDeDatos,
   comprobarFrescura,
   comprobarConfianza,
+  comprobarSeguridad,
   comprobarServidor,
   resultado,
   type Hallazgo,
@@ -48,10 +49,17 @@ import {
   type DeporteConfig,
   type ConteoDeporte,
   type EstadoConfianza,
+  type EstadoSeguridad,
   type FamiliaContada,
 } from '../doctor/checks.ts';
 import { META_CICLO } from '../prematch/snapshots.ts';
 import { familiaDeMotivo } from '../trust/decision.ts';
+import { execFileSync } from 'node:child_process';
+import { configAuth } from '../auth/mode.ts';
+import { sesionesActivas } from '../auth/sessions.ts';
+import { featureEncendida } from '../features.ts';
+import { origenesPermitidos } from '../security/cors.ts';
+import { contarErrores } from '../security/errors.ts';
 
 const SIN_RED = process.argv.includes('--sin-red') || process.argv.includes('--no-net');
 const PROBAR = process.argv.includes('--probar') || process.argv.includes('--probe');
@@ -317,6 +325,75 @@ if (dbExistia) {
 }
 
 // ---------------------------------------------------------------------------
+// SEGURIDAD — la puerta, las cabeceras y los secretos
+// ---------------------------------------------------------------------------
+{
+  const auth = configAuth();
+  const git = (args: string[]): string | null => {
+    try {
+      return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    } catch {
+      return null;
+    }
+  };
+  const hayGit = fs.existsSync(path.join(ROOT, '.git'));
+  // `git check-ignore` sale con 0 si el fichero está ignorado y 1 si no.
+  const envIgnorado = hayGit ? git(['check-ignore', '-q', '.env']) !== null : null;
+  const hooksPath = hayGit ? git(['config', 'core.hooksPath']) : null;
+  const hookInstalado = hayGit ? hooksPath === '.githooks' && fs.existsSync(path.join(ROOT, '.githooks', 'pre-commit')) : null;
+  let gitleaks = false;
+  try {
+    execFileSync('gitleaks', ['version'], { stdio: 'ignore' });
+    gitleaks = true;
+  } catch {
+    gitleaks = false;
+  }
+  let escaner: EstadoSeguridad['escaner'] = null;
+  if (hayGit) {
+    try {
+      const salida = execFileSync('node', [path.join(ROOT, 'scripts', 'secret-scan.mjs'), '--tracked', '--json'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+      escaner = JSON.parse(salida) as EstadoSeguridad['escaner'];
+    } catch (e) {
+      // Exit 1 = hay hallazgos; la salida JSON viene igual en stdout.
+      const stdout = (e as { stdout?: string }).stdout;
+      try {
+        escaner = stdout ? (JSON.parse(stdout) as EstadoSeguridad['escaner']) : null;
+      } catch {
+        escaner = null;
+      }
+    }
+  }
+  let sesiones = 0;
+  let errores24h = 0;
+  if (dbExistia) {
+    try {
+      sesiones = sesionesActivas().length;
+      errores24h = contarErrores(new Date(Date.now() - 24 * 3_600_000).toISOString());
+    } catch {
+      // Tablas aún no creadas: cero.
+    }
+  }
+  hallazgos.push(
+    ...comprobarSeguridad({
+      produccion: auth.produccion,
+      modo: auth.modo,
+      authActiva: auth.activa,
+      passwordLongitud: auth.password.length,
+      totp: !!auth.totpSecret,
+      sesionesActivas: sesiones,
+      cabeceras: featureEncendida('seguridad.cabeceras'),
+      errorLog: featureEncendida('seguridad.errorLog'),
+      corsOrigenes: origenesPermitidos(),
+      envIgnorado,
+      hookInstalado,
+      escaner,
+      gitleaks,
+      errores24h,
+    }),
+  );
+}
+
+// ---------------------------------------------------------------------------
 // SERVIDOR Y PANTALLA — ¿llega hasta la pantalla lo que hay en la base?
 // ---------------------------------------------------------------------------
 let puertos = { api: env.port, web: 7373 as number | null };
@@ -355,7 +432,7 @@ hallazgos.push(...comprobarServidor({ puertoApi: puertos.api, puertoWeb: puertos
 // Impresión
 // ---------------------------------------------------------------------------
 const marca = { ok: `${C.green}✓${C.off}`, aviso: `${C.amber}⚠${C.off}`, error: `${C.red}✗${C.off}`, info: `${C.dim}·${C.off}` };
-const orden: Seccion[] = ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'ACTUALIZACIÓN', 'CONFIANZA', 'SERVIDOR Y PANTALLA'];
+const orden: Seccion[] = ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'ACTUALIZACIÓN', 'CONFIANZA', 'SEGURIDAD', 'SERVIDOR Y PANTALLA'];
 for (const s of orden) {
   const hs = hallazgos.filter((x) => x.seccion === s);
   if (hs.length === 0) continue;

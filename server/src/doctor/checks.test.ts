@@ -251,3 +251,41 @@ test('confianza: una deriva reciente se avisa y remite al informe del modelo', (
   assert.deepEqual(d.accion, ['npm run model:report']);
   assert.ok(buscar(hs, /Alertas internas \(24 h\): 1 importante/));
 });
+
+// ---------------------------------------------------------------------------
+// SEGURIDAD
+// ---------------------------------------------------------------------------
+const { comprobarSeguridad } = await import('./checks.ts');
+const seguro = (over: Partial<Parameters<typeof comprobarSeguridad>[0]> = {}): Parameters<typeof comprobarSeguridad>[0] => ({
+  produccion: true, modo: 'auto', authActiva: true, passwordLongitud: 24, totp: true, sesionesActivas: 2,
+  cabeceras: true, errorLog: true, corsOrigenes: [], envIgnorado: true, hookInstalado: true,
+  escaner: { ficheros: 600, hallazgos: [] }, gitleaks: false, errores24h: 0, ...over,
+});
+
+test('seguridad: todo en orden → ni avisos ni errores, y el doctor lo dice en positivo', () => {
+  const hs = comprobarSeguridad(seguro());
+  assert.deepEqual(niveles(hs).filter((n) => n === 'aviso' || n === 'error'), []);
+  assert.ok(buscar(hs, /Contraseña activa .*con segundo factor TOTP .*2 sesión/));
+  assert.ok(buscar(hs, /CORS cerrado/));
+  assert.ok(buscar(hs, /sin secretos/));
+  assert.ok(buscar(hs, /Hook de pre-commit activo/));
+});
+
+test('seguridad: contraseña corta en producción es error; auth apagada en producción, error; en local, solo informa', () => {
+  assert.equal(buscar(comprobarSeguridad(seguro({ passwordLongitud: 5 })), /APP_PASSWORD tiene 5/)?.nivel, 'error');
+  assert.equal(buscar(comprobarSeguridad(seguro({ authActiva: false, modo: 'off' })), /apagada en producción/)?.nivel, 'error');
+  const local = comprobarSeguridad(seguro({ produccion: false, authActiva: false, modo: 'auto' }));
+  assert.equal(buscar(local, /Sin contraseña/)?.nivel, 'info');
+  assert.ok(!niveles(local).includes('error'));
+});
+
+test('seguridad: un secreto en ficheros rastreados o un .env sin ignorar son errores con qué hacer', () => {
+  const sec = comprobarSeguridad(seguro({ escaner: { ficheros: 600, hallazgos: [{ fichero: 'server/src/x.ts', linea: 9, patron: 'The Odds API' }] } }));
+  const e = buscar(sec, /1 posible\(s\) secreto/)!;
+  assert.equal(e.nivel, 'error');
+  assert.match(e.detalle![0], /server\/src\/x\.ts:9/);
+  assert.match(e.accion![0], /ROTA la clave/);
+  assert.equal(buscar(comprobarSeguridad(seguro({ envIgnorado: false })), /\.env NO está ignorado/)?.nivel, 'error');
+  assert.equal(buscar(comprobarSeguridad(seguro({ hookInstalado: false })), /hook de pre-commit .*no está activado/)?.nivel, 'aviso');
+  assert.equal(buscar(comprobarSeguridad(seguro({ errores24h: 3 })), /3 error\(es\) de servidor/)?.nivel, 'aviso');
+});
