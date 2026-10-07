@@ -59,3 +59,24 @@ minutos).
 10. **`CONTRIBUTING.md`**: el flujo por fases, el protocolo de experimentos (registro, holdout,
     `--unlock` nunca), la regla de no inventar datos, los umbrales de muestra, los interruptores y
     las validaciones de cada commit.
+
+## Lo que salió
+
+Las diez piezas, en tres commits (7A servidor, 7B pruebas, 7C web y experiencia de desarrollo).
+Tests: 426 → 442 (373 del servidor, 14 unitarios de la web, 55 de Playwright) más la prueba de carga
+en CI. Detalle y cifras en [RENDIMIENTO.md](../RENDIMIENTO.md).
+
+- **Servidor**: próximos de fútbol p95 8.570 → 129 ms con la base completa; el resto entre 20 y 100
+  veces más rápido. Nada cambia de lo que se responde.
+- **Web**: Lighthouse 59/63 → 96/94; el desplazamiento de diseño, de 0,28 a ≤ 0,03.
+- **Ficheros de `web/src/lib`** por debajo de 400 líneas: `picks.ts` en núcleo, datos y deportes;
+  los colores de club en `teamColorsDatos.ts`; los tipos de la API en `apiTipos.ts`. Las
+  importaciones públicas no cambian.
+- **Virtualizar listas**: con `content-visibility` y no con una librería de listas virtuales; el
+  archivo y la bandeja paginan. Si un día hiciera falta más (miles de tarjetas a la vez), habría que
+  medirlo primero.
+- **Precalcular tablas de referencia** (walk-forward, benchmark): ya se leen de ficheros pequeños de
+  `experiments/` y miden por debajo de 20 ms; no se tocaron. Las simulaciones ya se cachean por día.
+- **Mutación**: con un arnés propio sobre `decidir` y la política, no con Stryker (pesado para un
+  módulo); cubre las reglas de abstención, que es lo que pedía la hoja de ruta.
+

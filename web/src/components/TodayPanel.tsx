@@ -29,6 +29,40 @@ interface Partido {
 const CLAVE = 'predictor.today.open';
 const CLAVE_VISTA = 'predictor.today.view';
 
+const CLAVE_ALTO = 'predictor.hoy.alto';
+
+/**
+ * El alto con el que se pintó la última vez. Sin recuerdo (primera visita), el habitual: plegado,
+ * la cabecera (46 px); desplegado, cabecera, pestañas y la lista a su alto máximo de 22 rem, que es
+ * lo que ocupa en cuanto hay más de ocho partidos.
+ */
+function altoRecordado(abierto: boolean): number {
+  const porDefecto = abierto ? 46 + 41 + 352 : 46;
+  try {
+    const n = Number(localStorage.getItem(CLAVE_ALTO));
+    return Number.isFinite(n) && n > 0 && n < 1200 ? n : porDefecto;
+  } catch {
+    return porDefecto;
+  }
+}
+
+/** Guarda el alto real (también al plegar y desplegar), para reservarlo la próxima vez. */
+function medir(el: HTMLElement | null): (() => void) | void {
+  if (!el) return;
+  const guardar = () => {
+    try {
+      localStorage.setItem(CLAVE_ALTO, String(Math.round(el.getBoundingClientRect().height)));
+    } catch {
+      // Sin almacenamiento, la próxima vez se reserva solo la cabecera.
+    }
+  };
+  guardar();
+  if (typeof ResizeObserver === 'undefined') return;
+  const ro = new ResizeObserver(guardar);
+  ro.observe(el);
+  return () => ro.disconnect();
+}
+
 export default function TodayPanel() {
   const [datos, setDatos] = useState<{ partidos: Partido[]; nota: string | null } | null>(null);
   // Los resultados recientes (registro en vivo + reconstruidos), con su ventana.
@@ -88,6 +122,9 @@ export default function TodayPanel() {
   // hacía parecer que el historial de la semana no existía.
   const hayHoy = (datos?.partidos.length ?? 0) > 0;
   const hayRes = historial.h != null;
+  // Mientras carga, el hueco que ocupó la última vez (Fase 7.8): aparecer de la nada empujaba
+  // la página entera hacia abajo, que es el desplazamiento que más mide Lighthouse.
+  if (datos == null) return <div aria-hidden className="mb-5" style={{ height: altoRecordado(abierto) }} />;
   if (!hayHoy && !hayRes) return null;
   const activa: 'hoy' | 'resultados' = vista === 'resultados' && hayRes ? 'resultados' : hayHoy ? 'hoy' : 'resultados';
 
@@ -95,7 +132,7 @@ export default function TodayPanel() {
   const conPrecio = datos?.partidos.filter((p) => p.precioReal).length ?? 0;
 
   return (
-    <section className="mb-5 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
+    <section ref={medir} className="mb-5 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
       <button
         onClick={alternar}
         aria-expanded={abierto}

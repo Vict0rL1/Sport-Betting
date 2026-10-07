@@ -35,7 +35,7 @@
   --ink-strong: #14161b;
   --ink-body: #2b3038;
   --ink-soft: #4b525c;
-  --ink-muted: #6b7280;
+  --ink-muted: #626875;
   --ink-faint: #9aa1ac;
   --tint: rgba(20, 22, 27, 0.025);
   --raised: rgba(20, 22, 27, 0.05);
@@ -56,7 +56,7 @@
     --ink-strong: #14161b;
     --ink-body: #2b3038;
     --ink-soft: #4b525c;
-    --ink-muted: #6b7280;
+    --ink-muted: #626875;
     --ink-faint: #9aa1ac;
     --tint: rgba(20, 22, 27, 0.025);
     --raised: rgba(20, 22, 27, 0.05);
@@ -621,4 +621,12 @@ body {
   :root:not([data-theme='oscuro']):not([data-theme='claro']) .bg-sky-950\/60 {
     background-color: #e0f2fe;
   }
+}
+
+/* Fase 7.8: listas largas. Un día del calendario fuera de pantalla no se pinta ni se maqueta hasta
+   que se acerca (sin JavaScript ni librería de listas virtuales); `auto 900px` reserva su sitio y
+   recuerda el tamaño real la primera vez que se pinta, así que la barra de desplazamiento no salta. */
+.seccion-dia {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 900px;
 }

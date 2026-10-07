@@ -52,3 +52,41 @@ gzip). El bundle principal de la web: 354 KB → 98 KB con Brotli; los 133 fiche
   medido con la base de demostración (mínimo 150 ms; 400 ms para `/api/system-trust`; SSE: primer
   byte 250 ms). Una máquina de CI más lenta no da falsos fallos y una vuelta atrás como la de
   antes de la caché —decenas de veces más lenta— sí falla.
+
+## La web: Lighthouse
+
+Medido por primera vez en esta fase, con Lighthouse 12 (móvil, red y CPU simuladas) sobre la base
+de demostración. «Antes» es la misma app con la compresión apagada y la web sin precomprimir:
+
+| Página | Rendimiento | Primer pintado | Mayor pintado | Desplazamiento (CLS) | Peso |
+|---|---|---|---|---|---|
+| Destacados, antes | 59 | 4,0 s | 4,6 s | 0,284 | 563 KB |
+| Destacados, después | 96 | 1,6 s | 2,7 s | 0,026 | 213 KB |
+| Fútbol, antes | 63 | 3,6 s | 4,4 s | 0,258 | 649 KB |
+| Fútbol, después | 94 | 1,8 s | 2,9 s | 0,001 | 240 KB |
+
+Accesibilidad 92 → 96 y buenas prácticas 100 en las dos. Además de la compresión, dos arreglos de
+desplazamiento que Lighthouse señaló: el `main` ocupa al menos la pantalla (el pie ya no salta cuando
+llega la página, que se carga aparte) y el panel «Hoy» reserva su alto mientras carga (el de la
+última visita, o el habitual). Y dos de accesibilidad: el gris apagado del tema claro baja a
+`#626875` (contraste ≥ 4,5 en todas las superficies claras) y dos roles ARIA mal puestos. Los días
+de los calendarios llevan `content-visibility: auto`: los que están fuera de pantalla no se pintan
+hasta acercarse. Lighthouse falla a veces en este contenedor con `NO_NAVSTART` (un fallo de su
+trazado, no de la página); se repite la medida.
+
+## Pruebas de propiedades y de mutación
+
+- `server/src/test/propiedades.test.ts` (fast-check, 500 casos generados por propiedad): los tres
+  métodos de quitar el margen suman 1, dejan cada probabilidad en (0, 1) y conservan el orden, y el
+  multiplicativo recupera exactamente las probabilidades de partida; Kelly nunca apuesta sin ventaja
+  y crece con p; `decideStake` da céntimos hacia abajo, nunca pasa el tope por partido ni la
+  exposición libre y corta sin ventaja o por pérdidas; los topes por grupo de correlación nunca
+  dejan pasar un grupo; la exposición efectiva nunca pasa de la ingenua; y adelgazar snapshots
+  conserva apertura, última, cada marca y el cierre, y es idempotente.
+- `server/src/trust/mutantes.test.ts`: 26 casos frontera de la regla de abstención (exactos en
+  binario: ventaja mínima 0,25, p 0,625, cuota 2,0) que tienen que matar 35 mutantes de código de
+  `decidir` (cada comparación de las condiciones cambiada, cada `grave` negado, cada regla y cada
+  recorte quitados) y 14 mutantes de umbral (cada número de la política desplazado con una versión
+  nueva). Un mutante vivo es una regla que ningún caso vigila, y el test lo nombra. Se comprobó que
+  el arnés detecta los vivos: quitando dos casos frontera sobreviven exactamente sus dos mutantes.
+

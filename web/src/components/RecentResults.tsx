@@ -160,13 +160,14 @@ function FranjaDias({ porDia, max, diaSel, onDia }: { porDia: Historial['porDia'
           const okAlto = d.total === 0 ? 0 : Math.round((d.aciertos / d.total) * alto);
           const sel = diaSel === d.dia;
           return (
+            // El elemento de la lista es el contenedor y el botón va dentro: un botón no puede ser
+            // un «listitem» (axe, Fase 7.9).
+            <div key={d.dia} role="listitem" className="flex min-w-[1.75rem] flex-1">
             <button
-              key={d.dia}
-              role="listitem"
               onClick={() => onDia(sel ? null : d.dia)}
               disabled={d.total === 0}
               title={d.total === 0 ? `${f.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'short' })}: sin resultados` : `${d.aciertos} de ${d.total} acertados`}
-              className={`flex min-w-[1.75rem] flex-1 flex-col items-center gap-1 rounded-md py-1 transition ${sel ? 'bg-(--raised-2)' : d.total ? 'hover:bg-(--raised)' : 'cursor-default'}`}
+              className={`flex w-full flex-col items-center gap-1 rounded-md py-1 transition ${sel ? 'bg-(--raised-2)' : d.total ? 'hover:bg-(--raised)' : 'cursor-default'}`}
             >
               <span className="whitespace-nowrap text-[10.5px] tabular-nums text-(--ink-soft)">{d.total ? `${d.aciertos}/${d.total}` : '—'}</span>
               <span className="flex h-14 w-3.5 flex-col justify-end overflow-hidden rounded-sm bg-(--raised)">
@@ -179,6 +180,7 @@ function FranjaDias({ porDia, max, diaSel, onDia }: { porDia: Historial['porDia'
                 <span className={sel ? 'text-(--ink-strong)' : ''}>{f.getDate()}</span>
               </span>
             </button>
+            </div>
           );
         })}
       </div>
@@ -357,7 +359,7 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
         {porDia.map(([dia, xs]) => {
           const ok = xs.filter((x) => x.acerto).length;
           return (
-            <section key={dia}>
+            <section key={dia} className="seccion-dia">
               <h4 className="sticky top-0 z-10 flex items-baseline justify-between border-b border-(--line) bg-(--surface-card)/95 px-4 py-1.5 text-[12.5px] backdrop-blur">
                 <span className="font-medium capitalize text-(--ink-body)">
                   {fechaDe(dia).toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'short' })}

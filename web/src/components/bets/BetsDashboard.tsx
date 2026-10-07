@@ -196,7 +196,7 @@ export default function BetsDashboard() {
         </EmptyState>
       ) : (
         groups.map((g) => (
-          <section key={g.key}>
+          <section key={g.key} className="seccion-dia">
             <DayHeading
               label={g.label}
               count={g.items.length}

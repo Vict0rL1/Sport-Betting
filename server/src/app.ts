@@ -86,7 +86,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   // latencia dentro de la propia latencia añade ruido y no informa de nada.
   if (opts.onRoute) app.addHook('onRoute', (r) => opts.onRoute!({ method: r.method, url: r.url }));
   // Compresión y ETag/304 (Fase 7.1): antes de registrar ninguna ruta, para que valga para todas.
-  if (featureEncendida('rendimiento.compresion')) registrarCompresionYEtag(app);
+  registrarCompresionYEtag(app);
 
   app.addHook('onRequest', async (req) => {
     (req as { __t0?: bigint }).__t0 = process.hrtime.bigint();

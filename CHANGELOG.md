@@ -4,6 +4,33 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Fase 7 — Rendimiento y experiencia de desarrollo (2026-10-07)
+
+Línea base: 426 tests. Después: 442 (373 del servidor + 14 unitarios de la web + 55 de Playwright)
+y la prueba de carga con presupuestos en CI. Ninguna respuesta cambia de contenido. Detalle en
+`docs/RENDIMIENTO.md`.
+
+- **Caché de próximos con invalidación por datos** (firma de la tabla de próximos y
+  `PRAGMA data_version`, dos minutos como mucho, calentada por el ciclo pre-partido). Base
+  completa, p50 / p95 con seis peticiones a la vez: fútbol 3.808 / 8.570 → 64 / 129 ms, baloncesto
+  2.347 / 5.216 → 12 / 24, tenis 1.235 / 2.769 → 20 / 37, NFL 1.202 / 2.737 → 21 / 42, béisbol
+  613 / 1.370 → 13 / 27.
+- **Compresión y ETag**: Brotli/gzip en las respuestas de texto (la lista de fútbol, 1,4 MB →
+  147 KB), ETag con 304 en todo `GET /api/*`, assets precomprimidos en la build (bundle principal
+  354 → 98 KB).
+- **Prueba de carga** (`npm run carga`, `npm run carga:ci`): p95 por endpoint y 50 conexiones SSE,
+  con presupuestos en `config/presupuestos.json` que la CI hace cumplir.
+- **Lighthouse** (móvil, primera medida): Destacados 59 → 96 y Fútbol 63 → 94; primer pintado 4,0 →
+  1,6 s; CLS 0,28 → ≤ 0,03; accesibilidad 92 → 96 (gris apagado del tema claro con contraste ≥ 4,5
+  y dos roles ARIA corregidos).
+- **Pruebas de propiedades** (fast-check) para quitar el margen, Kelly, `decideStake`, topes por grupo,
+  exposición agregada y adelgazamiento de snapshots; **pruebas de mutación** de las reglas de
+  abstención: 35 mutantes de código y 14 de umbral, todos detectados.
+- **Experiencia de desarrollo**: `web/src/lib/picks.ts`, `teamColors.ts` y `api.ts` partidos por
+  debajo de 400 líneas sin cambiar importaciones; `content-visibility` en los días de los
+  calendarios; `CONTRIBUTING.md` con el flujo por fases, el protocolo de experimentos y la regla de
+  no inventar datos; `GET /api/rendimiento` y bloque de rendimiento en Diagnóstico.
+
 ## Fase 6 — Funciones de producto (2026-10-07)
 
 Línea base antes de la fase: 369 tests (319 del servidor + 9 unitarios de la web + 41 de

@@ -188,7 +188,9 @@ function Armazon() {
           {pestana != null && DEPORTES.includes(pestana) && <SportNav pestana={pestana} ocultos={ocultos} soloDeportes />}
         </header>
 
-        <main className={`mx-auto ${SHELL_WIDTH} px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 lg:pb-16`}>
+        {/* min-h: el pie empieza fuera de la pantalla, así que no salta cuando llega la página
+            (cada pantalla se carga aparte). Medido con Lighthouse: era el mayor desplazamiento. */}
+        <main className={`mx-auto ${SHELL_WIDTH} min-h-[100svh] px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 lg:pb-16`}>
           <BannerSinConexion />
           {conHoy && <TodayPanel />}
           <Suspense fallback={<p className="text-[13px] text-(--ink-muted)">{t('comun.cargando')}</p>}>

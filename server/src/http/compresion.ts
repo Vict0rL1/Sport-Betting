@@ -22,6 +22,7 @@ import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import zlib from 'node:zlib';
 import type { FastifyInstance } from 'fastify';
+import { featureEncendida } from '../features.ts';
 
 const brotli = promisify(zlib.brotliCompress);
 const gzip = promisify(zlib.gzip);
@@ -80,6 +81,8 @@ function conVary(actual: unknown, valor: string): string {
 
 export function registrarCompresionYEtag(app: FastifyInstance): void {
   app.addHook('onSend', async (req, reply, payload) => {
+    // El interruptor se mira en cada respuesta: apagarlo desde Ajustes vale sin reiniciar.
+    if (!featureEncendida('rendimiento.compresion')) return payload;
     if (typeof payload !== 'string' && !Buffer.isBuffer(payload)) return payload;
     if (req.method === 'GET' && reply.statusCode === 200 && req.url.startsWith('/api/') && !reply.getHeader('etag')) {
       const etag = etagDe(payload);
