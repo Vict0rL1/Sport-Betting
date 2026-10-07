@@ -27,6 +27,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Panel, SectionTitle, Disclosure } from './ui';
 import { money } from '../lib/bets';
+import { conNodos, useI18n } from '../i18n';
 
 interface BookEntry {
   key: string;
@@ -94,6 +95,7 @@ export default function ExposurePanel() {
   const [bankroll, setBankroll] = useState<number>(readBankroll);
   const [book, setBook] = useState<Book | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { t, idioma } = useI18n();
 
   useEffect(() => {
     try {
@@ -118,8 +120,8 @@ export default function ExposurePanel() {
   if (error) {
     return (
       <Panel className="mb-4">
-        <SectionTitle>Exposición de la cartera</SectionTitle>
-        <p className="text-[13px] text-(--ink-muted)">No se pudo leer /api/staking/book: {error}</p>
+        <SectionTitle>{t('cartera.titulo')}</SectionTitle>
+        <p className="text-[13px] text-(--ink-muted)">{t('cartera.errorLeer', { error })}</p>
       </Panel>
     );
   }
@@ -133,7 +135,7 @@ export default function ExposurePanel() {
       <SectionTitle
         right={
           <label className="flex items-center gap-1.5">
-            <span>banco</span>
+            <span>{t('cartera.banco')}</span>
             <input
               type="number"
               min={1}
@@ -141,76 +143,60 @@ export default function ExposurePanel() {
               value={bankroll}
               onChange={(e) => setBankroll(Math.max(1, Number(e.target.value) || 1))}
               className="w-24 rounded-md bg-(--raised) px-2 py-0.5 text-right text-[13px] tabular-nums text-(--ink-strong) ring-1 ring-inset ring-(--line) focus:outline-none focus:ring-(--line-strong)"
-              aria-label="Tu banco"
+              aria-label={t('cartera.tuBanco')}
             />
           </label>
         }
       >
-        Exposición de la cartera
+        {t('cartera.titulo')}
       </SectionTitle>
 
       {book.entries.length === 0 ? (
         <p className="text-[14px] leading-relaxed text-(--ink-soft)">
-          Ninguna apuesta se dimensionaría ahora mismo.{' '}
-          {book.demoOdds > 0 && book.priced === 0 ? (
-            <>
-              Los {book.demoOdds} partidos del calendario llevan cuotas de{' '}
-              <strong className="text-(--ink-body)">demostración</strong>, generadas por el propio
-              modelo: apostar contra tu propia salida no es una ventaja, es una identidad. Hace
-              falta una clave de The Odds API.
-            </>
-          ) : book.loss.dayBreached || book.loss.weekBreached ? (
-            <>Operativa cortada por límite de pérdida.</>
-          ) : (
-            <>
-              {book.blocked} candidatas se pararon en alguna de las ocho puertas. Nada que
-              arriesgar hoy es un resultado válido.
-            </>
-          )}
+          {t('cartera.ninguna')}{' '}
+          {book.demoOdds > 0 && book.priced === 0
+            ? conNodos(t('cartera.demo', { n: book.demoOdds }), { demostracion: <strong className="text-(--ink-body)">{t('cartera.demostracion')}</strong> })
+            : book.loss.dayBreached || book.loss.weekBreached
+              ? t('cartera.cortada')
+              : t('cartera.bloqueadas', { n: book.blocked })}
         </p>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
             <Figure
-              label="Suma ingenua"
+              label={t('cartera.sumaIngenua')}
               value={money(book.naiveStake)}
-              hint={`${pct(book.naiveStake / book.bankroll)} · cada apuesta por su cuenta`}
+              hint={t('cartera.sumaNota', { p: pct(book.naiveStake / book.bankroll) })}
             />
             <Figure
-              label="Se pone"
+              label={t('cartera.sePone')}
               value={money(book.totalStake)}
-              hint={
-                cut > 0.005
-                  ? `${pct(book.totalStake / book.bankroll)} · recortado ${money(cut)}`
-                  : `${pct(book.totalStake / book.bankroll)} · sin recorte`
-              }
+              hint={cut > 0.005 ? t('cartera.recortado', { p: pct(book.totalStake / book.bankroll), d: money(cut) }) : t('cartera.sinRecorte', { p: pct(book.totalStake / book.bankroll) })}
             />
             <Figure
-              label="Riesgo efectivo"
+              label={t('cartera.riesgo')}
               value={money(aggregate.effective * book.bankroll)}
-              hint={`${pct(aggregate.effective)} · una apuesta equivalente`}
+              hint={t('cartera.riesgoNota', { p: pct(aggregate.effective) })}
             />
             <Figure
-              label="Concentración"
+              label={t('cartera.concentracion')}
               value={`${(aggregate.concentration * 100).toFixed(0)} %`}
-              hint={aggregate.positions === 1 ? 'una sola posición' : '100 % = todo falla junto'}
+              hint={aggregate.positions === 1 ? t('cartera.unaPosicion') : t('cartera.todoJunto')}
             />
           </div>
 
           <p className="mt-3 text-[13px] leading-relaxed text-(--ink-muted)">
-            Las dos primeras responden <em>¿cuánto puedo perder?</em> y no dependen de la
-            correlación: si fallan todas, se pierde la suma. La tercera responde{' '}
-            <em>¿cuánto riesgo corro?</em>, que es otra pregunta.
+            {conNodos(t('cartera.dosPreguntas'), { cuanto: <em>{t('cartera.cuantoPerder')}</em>, riesgo: <em>{t('cartera.cuantoRiesgo')}</em> })}
           </p>
 
           {book.caps.length > 0 && (
             <div className="mt-3">
-              <SectionTitle>Topes que recortaron</SectionTitle>
+              <SectionTitle>{t('cartera.topes')}</SectionTitle>
               <ul className="space-y-1">
                 {book.caps.map((c) => (
                   <li key={c.scope} className="text-[13px] tabular-nums text-(--ink-soft)">
-                    <span className="text-(--ink-body)">{c.scope}</span> · tope {money(c.limit)} · ya
-                    en juego {money(c.used)} → ×{c.factor.toFixed(2)}
+                    <span className="text-(--ink-body)">{c.scope}</span>
+                    {t('cartera.topeLinea', { limite: money(c.limit), usado: money(c.used), factor: c.factor.toFixed(2) })}
                   </li>
                 ))}
               </ul>
@@ -218,7 +204,7 @@ export default function ExposurePanel() {
           )}
 
           <div className="mt-3">
-            <SectionTitle>Correlación entre posiciones</SectionTitle>
+            <SectionTitle>{t('cartera.correlacion')}</SectionTitle>
             {book.links.length > 0 ? (
               <ul className="space-y-1">
                 {book.links.map((l) => (
@@ -235,49 +221,45 @@ export default function ExposurePanel() {
               </ul>
             ) : (
               <p className="text-[13px] leading-relaxed text-(--ink-muted)">
-                Ninguna correlación relevante entre estas posiciones, y{' '}
-                <strong className="text-(--ink-soft)">eso es una medición, no un olvido</strong>: se
-                comprobó si las apuestas de una misma liga y jornada se arrastran entre sí y salió
-                ρ&nbsp;=&nbsp;{correlation.sameLeagueDay.rho.toFixed(4)}, con un intervalo que
-                incluye el cero. La que sí existe es entre mercados del mismo partido, y aquí solo
-                hay una apuesta por encuentro.
+                {conNodos(t('cartera.sinCorrelacion', { rho: correlation.sameLeagueDay.rho.toFixed(4) }), {
+                  medicion: <strong className="text-(--ink-soft)">{t('cartera.medicion')}</strong>,
+                })}
               </p>
             )}
           </div>
 
           <div className="mt-3">
-            <Disclosure summary="Qué se midió, y en qué se convierte">
+            <Disclosure summary={t('cartera.queSeMidio')}>
               <div className="space-y-2 text-[13px] leading-relaxed text-(--ink-muted)">
                 <p>
-                  Sobre {correlation.n.toLocaleString('es')} predicciones fuera de muestra del
-                  Dixon-Coles, comparando los <em>errores</em> del modelo entre pares de apuestas.
+                  {conNodos(t('cartera.sobre', { n: correlation.n.toLocaleString(idioma === 'en' ? 'en-GB' : 'es') }), { errores: <em>{t('cartera.errores')}</em> })}
                 </p>
                 <ul className="space-y-1 tabular-nums">
                   {Object.entries(correlation.sameMatch).map(([k, v]) => (
                     <li key={k}>
-                      mismo partido · {k.replace('~', ' ~ ')}: ρ {v.rho >= 0 ? '+' : ''}
-                      {v.rho.toFixed(3)} [{v.lo.toFixed(3)}, {v.hi.toFixed(3)}]
+                      {t('cartera.mismoPartido', { par: k.replace('~', ' ~ '), rho: `${v.rho >= 0 ? '+' : ''}${v.rho.toFixed(3)}`, lo: v.lo.toFixed(3), hi: v.hi.toFixed(3) })}
                     </li>
                   ))}
                   <li>
-                    partidos distintos, misma liga y jornada: ρ{' '}
-                    {correlation.sameLeagueDay.rho.toFixed(4)} [
-                    {correlation.sameLeagueDay.lo.toFixed(4)},{' '}
-                    {correlation.sameLeagueDay.hi.toFixed(4)}] — se usa{' '}
-                    {correlation.used.toFixed(4)}, el extremo alto
+                    {t('cartera.distintos', {
+                      rho: correlation.sameLeagueDay.rho.toFixed(4),
+                      lo: correlation.sameLeagueDay.lo.toFixed(4),
+                      hi: correlation.sameLeagueDay.hi.toFixed(4),
+                      usado: correlation.used.toFixed(4),
+                    })}
                   </li>
-                  <li>control (ligas y días distintos): ρ {correlation.control.toFixed(4)}</li>
+                  <li>{t('cartera.control', { rho: correlation.control.toFixed(4) })}</li>
                 </ul>
                 <p>
-                  El control es lo que convierte ese cero en un resultado y no en una excusa: el
-                  estimador detecta correlación cuando la hay — el 0.558 de arriba lo demuestra —
-                  así que el cero es una medición, no falta de potencia.
+                  {t('cartera.controlNota')}
                 </p>
                 <p>
-                  Topes vigentes: {pct(book.limits.maxPerEvent)} por evento,{' '}
-                  {pct(book.limits.maxTotalExposure)} en total,{' '}
-                  {pct(book.limits.maxExposurePerDay)} por día,{' '}
-                  {pct(book.limits.maxExposurePerLeague)} por liga.
+                  {t('cartera.topesVigentes', {
+                    evento: pct(book.limits.maxPerEvent),
+                    total: pct(book.limits.maxTotalExposure),
+                    dia: pct(book.limits.maxExposurePerDay),
+                    liga: pct(book.limits.maxExposurePerLeague),
+                  })}
                 </p>
               </div>
             </Disclosure>
@@ -287,10 +269,10 @@ export default function ExposurePanel() {
             <table className="w-full min-w-[30rem] text-[13px] tabular-nums">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-[0.06em] text-(--ink-muted)">
-                  <th className="pb-1 font-medium">apuesta</th>
-                  <th className="pb-1 text-right font-medium">en solitario</th>
-                  <th className="pb-1 text-right font-medium">de cartera</th>
-                  <th className="pb-1 text-right font-medium">factor</th>
+                  <th className="pb-1 font-medium">{t('cartera.thApuesta')}</th>
+                  <th className="pb-1 text-right font-medium">{t('cartera.thSolitario')}</th>
+                  <th className="pb-1 text-right font-medium">{t('cartera.thCartera')}</th>
+                  <th className="pb-1 text-right font-medium">{t('cartera.thFactor')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -308,7 +290,7 @@ export default function ExposurePanel() {
             </table>
             {book.entries.length > 10 && (
               <p className="mt-1 text-[13px] text-(--ink-faint)">
-                … y {book.entries.length - 10} más
+                {t('cartera.mas', { n: book.entries.length - 10 })}
               </p>
             )}
           </div>

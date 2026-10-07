@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { deleteBet, fetchBetSummary, fetchBets, patchBet, SPORT_LABEL, type Bet, type BetStatus, type BetSummary } from '../../lib/bets';
+import { deleteBet, deporteDe, fetchBetSummary, fetchBets, patchBet, type Bet, type BetStatus, type BetSummary } from '../../lib/bets';
 import { dayLabel, groupByDay } from '../../lib/format';
 import { Card, DayHeading, EmptyState, Panel, SkeletonList, pillClass } from '../ui';
 import ExposurePanel from '../ExposurePanel';
@@ -89,7 +89,7 @@ export default function BetsDashboard() {
   };
 
   const remove = async (b: Bet) => {
-    if (!confirm(`¿Borrar la apuesta «${b.selection}» de ${b.event}?`)) return;
+    if (!confirm(t('registro.confirmarBorrar', { sel: b.selection, evento: b.event }))) return;
     await deleteBet(b.id);
     load();
   };
@@ -101,15 +101,14 @@ export default function BetsDashboard() {
       <SubNav etiqueta={t('nav.subApuestas')} enlaces={subnav} />
       <div>
         <p className="mb-2 text-[15px] leading-relaxed text-(--ink-body)">
-          Tus apuestas: cuánto pusiste, qué volvió y qué días te costaron dinero. Lo que registras
-          aquí es tuyo — no sale de ningún modelo, y ningún modelo se puntúa con él.
+          {t('registro.intro')}
         </p>
         {!adding && !editing && (
           <button
             onClick={() => setAdding(true)}
             className="rounded-lg bg-(--raised-2) px-3.5 py-2 text-[15px] font-medium text-(--ink-strong) ring-1 ring-inset ring-(--line-strong) transition hover:bg-(--raised-3)"
           >
-            + Registrar apuesta
+            {t('registro.nueva')}
           </button>
         )}
         {!adding && !editing && (
@@ -169,11 +168,11 @@ export default function BetsDashboard() {
       {summary && summary.bySport.length > 1 && (
         <div className="flex flex-wrap gap-1.5">
           <button className={pillClass(sport == null)} onClick={() => setSport(null)}>
-            Todos
+            {t('registro.todos')}
           </button>
           {summary.bySport.map((g) => (
             <button key={g.key} className={pillClass(sport === g.key)} onClick={() => setSport(g.key)}>
-              {SPORT_LABEL[g.key] ?? g.key} <span className="ml-1 text-(--ink-muted)">{g.bets}</span>
+              {deporteDe(t, g.key)} <span className="ml-1 text-(--ink-muted)">{g.bets}</span>
             </button>
           ))}
         </div>
@@ -184,15 +183,13 @@ export default function BetsDashboard() {
           onClick={() => setDay(null)}
           className="text-[14px] text-(--ink-soft) underline decoration-white/20 hover:text-(--ink-strong)"
         >
-          Viendo solo {dayLabel(day)} — ver todo
+          {t('registro.viendoSolo', { dia: dayLabel(day) })}
         </button>
       )}
 
       {bets.length === 0 ? (
-        <EmptyState title="Todavía no has registrado ninguna apuesta">
-          Pulsa «Registrar apuesta». Si la eliges de un partido próximo, la app guarda también lo
-          que pensaban el modelo y el mercado en ese momento, y con el tiempo podrá decirte si
-          seguirlo te sirvió.
+        <EmptyState title={t('registro.vacioTitulo')}>
+          {t('registro.vacio')}
         </EmptyState>
       ) : (
         groups.map((g) => (

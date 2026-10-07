@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { AlertIcon, DeporteIcono } from '../icons';
+import { codigo, conNodos, useI18n, type Clave, type Traducir } from '../../i18n';
 
 interface Informe {
   origen: 'live';
@@ -81,14 +82,18 @@ const COLOR_VEREDICTO: Record<Prueba['veredicto'], string> = {
   'muestra insuficiente': 'var(--ink-muted)',
 };
 
-const NOMBRE: Record<string, string> = { tennis: 'Tenis', football: 'Fútbol', basketball: 'Baloncesto', baseball: 'Béisbol', nfl: 'NFL' };
-/** El deporte con su icono, para celdas y títulos (NOMBRE se queda para el texto corrido). */
-const Dep = ({ id }: { id: string }) => (
-  <span className="inline-flex items-center gap-1.5">
-    <DeporteIcono nombre={id} size={15} />
-    {NOMBRE[id] ?? id}
-  </span>
-);
+const DEPORTES = new Set(['tennis', 'football', 'basketball', 'baseball', 'nfl']);
+const nombreDe = (t: Traducir, id: string) => (DEPORTES.has(id) ? t(`deporte.${id}` as Clave) : id);
+/** El deporte con su icono, para celdas y títulos (`nombreDe` se queda para el texto corrido). */
+function Dep({ id }: { id: string }) {
+  const { t } = useI18n();
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <DeporteIcono nombre={id} size={15} />
+      {nombreDe(t, id)}
+    </span>
+  );
+}
 const f3 = (x: number | null | undefined) => (x == null ? '—' : x.toFixed(3).replace('.', ','));
 const pct = (x: number | null | undefined) => (x == null ? '—' : `${(x * 100).toFixed(1).replace('.', ',')} %`);
 const signo = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '+' : '−'}${Math.abs(x * 100).toFixed(1).replace('.', ',')} %`);
@@ -98,6 +103,7 @@ export default function LiveEvaluation() {
   const [v, setV] = useState<Validacion | null>(null);
   const [rend, setRend] = useState<Rendimiento | null>(null);
   const [sel, setSel] = useState<CalidadSeleccion | null>(null);
+  const { t } = useI18n();
   useEffect(() => {
     let vivo = true;
     fetch('/api/evaluation')
@@ -120,31 +126,28 @@ export default function LiveEvaluation() {
   return (
     <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
       <div className="px-4 py-3">
-        <h3 className="text-[16px] font-semibold text-(--ink-strong)">El modelo en vivo</h3>
+        <h3 className="text-[16px] font-semibold text-(--ink-strong)">{t('eval.titulo')}</h3>
         <p className="mt-1 text-[13px] leading-relaxed text-(--ink-muted)">
-          Predicciones registradas <strong>antes</strong> de cada partido real, contra lo que pasó. Solo en vivo:
-          los backtests van aparte. Manda el <strong>log loss</strong> (más bajo es mejor) comparado con el del
-          mercado en los mismos partidos; el acierto se da, pero no distingue un 51 % de un 90 %.
+          {conNodos(t('eval.intro'), { antes: <strong>{t('eval.antes')}</strong>, logloss: <strong>{t('eval.logloss')}</strong> })}
         </p>
       </div>
       {hay.length === 0 ? (
         <p className="border-t border-(--line) px-4 py-3 text-[14px] text-(--ink-soft)">
-          Todavía no hay predicciones en vivo con resultado. Se llenará solo a medida que se jueguen partidos
-          con cuotas reales.
+          {t('eval.vacio')}
         </p>
       ) : (
         <div className="overflow-x-auto border-t border-(--line)">
           <table className="w-full min-w-[620px] border-collapse text-[14px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
-                <th className="px-4 py-2 font-medium">Deporte</th>
-                <th className="px-4 py-2 text-right font-medium">Partidos</th>
-                <th className="px-4 py-2 text-right font-medium">Log loss</th>
-                <th className="px-4 py-2 text-right font-medium">Mercado</th>
-                <th className="px-4 py-2 text-right font-medium">No saber nada</th>
-                <th className="px-4 py-2 text-right font-medium">Brier</th>
-                <th className="px-4 py-2 text-right font-medium">Calibración</th>
-                <th className="px-4 py-2 text-right font-medium">Acierto</th>
+                <th className="px-4 py-2 font-medium">{t('eval.thDeporte')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('eval.thPartidos')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('eval.thLogLoss')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('eval.thMercado')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('eval.thNoSaber')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('eval.thBrier')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('eval.thCalibracion')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('eval.thAcierto')}</th>
               </tr>
             </thead>
             <tbody>
@@ -157,7 +160,7 @@ export default function LiveEvaluation() {
                     <td className="px-4 py-2.5 text-(--ink-body)"><Dep id={x.deporte} /></td>
                     <td className="px-4 py-2.5 text-right text-(--ink-soft)" title={x.aviso?.texto ?? undefined}>
                       {x.n}
-                      {x.aviso?.nivel === 'insuficiente' && <span className="ml-1 inline-flex align-[-2px]" style={{ color: '#d9a441' }} title="muestra insuficiente"><AlertIcon size={14} /></span>}
+                      {x.aviso?.nivel === 'insuficiente' && <span className="ml-1 inline-flex align-[-2px]" style={{ color: '#d9a441' }} title={t('eval.muestraInsuficiente')}><AlertIcon size={14} /></span>}
                     </td>
                     <td className="px-4 py-2.5 text-right font-semibold text-(--ink-strong)">{f3(x.logLoss)}</td>
                     <td className="px-4 py-2.5 text-right text-(--ink-soft)">
@@ -165,7 +168,7 @@ export default function LiveEvaluation() {
                         <>
                           {f3(x.mercado.logLoss)}
                           <span className="block text-[11px]" style={{ color: mejor ? PROFIT_COLOR : LOSS_COLOR }}>
-                            {mejor ? 'el modelo, mejor' : 'el mercado, mejor'} · {x.mercado.n} con precio
+                            {mejor ? t('eval.modeloMejor') : t('eval.mercadoMejor')} · {t('eval.conPrecio', { n: x.mercado.n })}
                           </span>
                         </>
                       ) : (
@@ -186,7 +189,7 @@ export default function LiveEvaluation() {
               cambio mejoró o empeoró sin que la vieja tape a la nueva. */}
           {hay.some((x) => (x.porVersion?.length ?? 0) > 1) && (
             <div className="border-t border-(--line) px-4 py-2 text-[12px] text-(--ink-soft)">
-              <p className="mb-1 text-(--ink-muted)">Por versión del modelo (cada una sobre sus propias predicciones):</p>
+              <p className="mb-1 text-(--ink-muted)">{t('eval.porVersion')}</p>
               {hay
                 .filter((x) => (x.porVersion?.length ?? 0) > 1)
                 .map((x) => (
@@ -195,9 +198,8 @@ export default function LiveEvaluation() {
                     {x.porVersion!.map((v, i) => (
                       <span key={v.version ?? 'sin'}>
                         {i > 0 && ' · '}
-                        <code className="text-(--ink-body)">{v.version ?? 'sin versión (anteriores)'}</code> {v.n} partidos, log loss{' '}
-                        {f3(v.logLoss)}
-                        {v.mercado && ` (en sus ${v.mercado.n} con precio: modelo ${f3(v.mercado.modeloLogLoss)}, mercado ${f3(v.mercado.logLoss)})`}
+                        <code className="text-(--ink-body)">{v.version ?? t('eval.sinVersion')}</code> {t('eval.versionPartidos', { n: v.n, ll: f3(v.logLoss) })}
+                        {v.mercado && t('eval.versionPrecio', { n: v.mercado.n, m: f3(v.mercado.modeloLogLoss), k: f3(v.mercado.logLoss) })}
                       </span>
                     ))}
                   </p>
@@ -206,8 +208,7 @@ export default function LiveEvaluation() {
           )}
           {hay.some((x) => x.n < 200) && (
             <p className="border-t border-(--line) px-4 py-2 text-[12px] text-(--ink-muted)">
-              Con menos de unos cientos de partidos estas cifras se mueven mucho por azar: son el registro de lo
-              que pasa, no todavía una medida del modelo.
+              {t('eval.pocosPartidos')}
             </p>
           )}
         </div>
@@ -216,17 +217,16 @@ export default function LiveEvaluation() {
           de lo que dio, y dónde: deporte, cuota y tamaño de la ventaja. */}
       {rend && (rend.total.n > 0 || rend.senalesPorEdge.some((t) => t.n > 0)) && (
         <div className="border-t border-(--line) px-4 py-3">
-          <h4 className="text-[14px] font-semibold text-(--ink-body)">El dinero, por tramos</h4>
+          <h4 className="text-[14px] font-semibold text-(--ink-body)">{t('eval.dineroTitulo')}</h4>
           {rend.total.n > 0 && (
             <>
               <p className="mt-1 text-[13px] leading-relaxed text-(--ink-soft)">
-                {rend.total.n} apuestas ganadas o perdidas · ROI{' '}
-                <strong style={{ color: (rend.total.roi ?? 0) >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>{signo(rend.total.roi)}</strong> ·
-                el modelo prometía {signo(rend.total.roiPrometido)}
-                {rend.aciertosEsperados != null &&
-                  ` · ${rend.aciertos} acertadas de ${rend.aciertosEsperados.toFixed(1).replace('.', ',')} esperadas`}
-                {rend.drawdown && rend.drawdown.importe > 0 && ` · peor caída desde un máximo −${pct(rend.drawdown.pct)} del banco`}
-                {rend.peorRacha > 0 && ` · racha más larga perdiendo: ${rend.peorRacha}`}
+                {conNodos(t('eval.dineroResumen', { n: rend.total.n, prometido: signo(rend.total.roiPrometido) }), {
+                  roi: <strong style={{ color: (rend.total.roi ?? 0) >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>{signo(rend.total.roi)}</strong>,
+                })}
+                {rend.aciertosEsperados != null && t('eval.aciertosEsperados', { a: rend.aciertos, e: rend.aciertosEsperados.toFixed(1).replace('.', ',') })}
+                {rend.drawdown && rend.drawdown.importe > 0 && t('eval.peorCaida', { p: pct(rend.drawdown.pct) })}
+                {rend.peorRacha > 0 && t('eval.racha', { n: rend.peorRacha })}
               </p>
               {rend.total.aviso?.texto && (
                 <p className="text-[12px]" style={{ color: '#d9a441' }}>
@@ -237,19 +237,19 @@ export default function LiveEvaluation() {
                 <table className="w-full border-collapse whitespace-nowrap text-[12px] sm:text-[13px]">
                   <thead>
                     <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
-                      <th className="py-1.5 pr-2 sm:pr-3 font-medium">Tramo</th>
-                      <th className="py-1.5 pr-2 sm:pr-3 text-right font-medium">N.º</th>
-                      <th className="py-1.5 pr-2 sm:pr-3 text-right font-medium">ROI</th>
-                      <th className="py-1.5 pr-2 sm:pr-3 text-right font-medium">Prometido</th>
-                      <th className="py-1.5 text-right font-medium">CLV</th>
+                      <th className="py-1.5 pr-2 sm:pr-3 font-medium">{t('eval.thTramo')}</th>
+                      <th className="py-1.5 pr-2 sm:pr-3 text-right font-medium">{t('eval.thN')}</th>
+                      <th className="py-1.5 pr-2 sm:pr-3 text-right font-medium">{t('eval.thRoi')}</th>
+                      <th className="py-1.5 pr-2 sm:pr-3 text-right font-medium">{t('eval.thPrometido')}</th>
+                      <th className="py-1.5 text-right font-medium">{t('eval.thClv')}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {(
                       [
-                        ['Por deporte', rend.porDeporte.map((t) => ({ ...t, etiqueta: NOMBRE[t.etiqueta] ?? t.etiqueta }))],
-                        ['Por cuota', rend.porCuota],
-                        ['Por ventaja al apostar', rend.porEdge],
+                        [t('eval.porDeporte'), rend.porDeporte.map((x) => ({ ...x, etiqueta: nombreDe(t, x.etiqueta) }))],
+                        [t('eval.porCuota'), rend.porCuota],
+                        [t('eval.porVentaja'), rend.porEdge],
                       ] as [string, Tramo[]][]
                     ).map(([grupo, ts]) => [
                       <tr key={grupo}>
@@ -257,18 +257,18 @@ export default function LiveEvaluation() {
                           {grupo}
                         </td>
                       </tr>,
-                      ...ts.map((t) => (
-                        <tr key={grupo + t.etiqueta} className="border-t border-(--line)">
-                          <td className="py-1.5 pr-2 sm:pr-3 text-(--ink-body)">{t.etiqueta}</td>
-                          <td className="py-1.5 pr-2 sm:pr-3 text-right text-(--ink-soft)" title={t.aviso?.texto ?? undefined}>
-                            {t.n}
-                            {t.aviso?.nivel === 'insuficiente' && <span className="ml-1 inline-flex align-[-2px]" style={{ color: '#d9a441' }} title="muestra insuficiente"><AlertIcon size={14} /></span>}
+                      ...ts.map((x) => (
+                        <tr key={grupo + x.etiqueta} className="border-t border-(--line)">
+                          <td className="py-1.5 pr-2 sm:pr-3 text-(--ink-body)">{x.etiqueta}</td>
+                          <td className="py-1.5 pr-2 sm:pr-3 text-right text-(--ink-soft)" title={x.aviso?.texto ?? undefined}>
+                            {x.n}
+                            {x.aviso?.nivel === 'insuficiente' && <span className="ml-1 inline-flex align-[-2px]" style={{ color: '#d9a441' }} title={t('eval.muestraInsuficiente')}><AlertIcon size={14} /></span>}
                           </td>
-                          <td className="py-1.5 pr-2 sm:pr-3 text-right" style={{ color: (t.roi ?? 0) >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
-                            {signo(t.roi)}
+                          <td className="py-1.5 pr-2 sm:pr-3 text-right" style={{ color: (x.roi ?? 0) >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
+                            {signo(x.roi)}
                           </td>
-                          <td className="py-1.5 pr-2 sm:pr-3 text-right text-(--ink-muted)">{signo(t.roiPrometido)}</td>
-                          <td className="py-1.5 text-right text-(--ink-soft)">{signo(t.clvMedio)}</td>
+                          <td className="py-1.5 pr-2 sm:pr-3 text-right text-(--ink-muted)">{signo(x.roiPrometido)}</td>
+                          <td className="py-1.5 text-right text-(--ink-soft)">{signo(x.clvMedio)}</td>
                         </tr>
                       )),
                     ])}
@@ -277,19 +277,19 @@ export default function LiveEvaluation() {
               </div>
             </>
           )}
-          {rend.senalesPorEdge.some((t) => t.n > 0) && (
+          {rend.senalesPorEdge.some((x) => x.n > 0) && (
             <div className="mt-3 text-[13px] leading-relaxed">
               <p className="text-(--ink-soft)">
-                ¿Le gana más al cierre una ventaja grande que una pequeña? (todas las señales, apostadas o no)
+                {t('eval.ventajaGrande')}
               </p>
               <ul className="mt-1 space-y-1">
                 {rend.senalesPorEdge
-                  .filter((t) => t.n > 0)
-                  .map((t) => (
-                    <li key={t.etiqueta}>
-                      <span className="text-(--ink-body)">{t.etiqueta}</span>{' '}
-                      <strong style={{ color: COLOR_VEREDICTO[t.veredicto] }}>{t.veredicto}</strong>
-                      <span className="text-(--ink-muted)"> · {t.lectura}</span>
+                  .filter((x) => x.n > 0)
+                  .map((x) => (
+                    <li key={x.etiqueta}>
+                      <span className="text-(--ink-body)">{x.etiqueta}</span>{' '}
+                      <strong style={{ color: COLOR_VEREDICTO[x.veredicto] }}>{codigo(t, x.veredicto)}</strong>
+                      <span className="text-(--ink-muted)"> · {x.lectura}</span>
                     </li>
                   ))}
               </ul>
@@ -302,7 +302,7 @@ export default function LiveEvaluation() {
           que pasó: apostables contra abstenidas, y participar solo en lo más fiable. */}
       {sel && (
         <div className="border-t border-(--line) px-4 py-3 text-[13px] leading-relaxed">
-          <h4 className="text-[14px] font-semibold text-(--ink-body)">¿Sirve abstenerse?</h4>
+          <h4 className="text-[14px] font-semibold text-(--ink-body)">{t('eval.abstenerse')}</h4>
           {sel.partidos === 0 ? (
             <p className="mt-1 text-(--ink-muted)">{sel.lectura}</p>
           ) : (
@@ -310,16 +310,15 @@ export default function LiveEvaluation() {
               <ul className="mt-1 space-y-1 text-(--ink-soft)">
                 {sel.grupos.filter((g) => g.informe.n > 0).map((g) => (
                   <li key={g.nombre}>
-                    <span className="text-(--ink-body)">{g.nombre}</span>: {g.informe.n} partidos · ganancia sobre no saber nada {f3(g.ganancia ?? null)} nats
-                    {g.mezcla && Object.keys(g.mezcla).length > 1 && ` (${Object.entries(g.mezcla).map(([d, n]) => `${NOMBRE[d] ?? d} ${n}`).join(', ')})`}
-                    {g.roiHipotetico && ` · ROI hipotético ${signo(g.roiHipotetico.roi)} (${g.roiHipotetico.apuestas})`}
+                    <span className="text-(--ink-body)">{g.nombre}</span>: {t('eval.grupoLinea', { n: g.informe.n, g: f3(g.ganancia ?? null) })}
+                    {g.mezcla && Object.keys(g.mezcla).length > 1 && ` (${Object.entries(g.mezcla).map(([d, n]) => `${nombreDe(t, d)} ${n}`).join(', ')})`}
+                    {g.roiHipotetico && t('eval.roiHipotetico', { roi: signo(g.roiHipotetico.roi), n: g.roiHipotetico.apuestas })}
                     {g.aviso.texto && <span className="block text-[12px]" style={{ color: '#d9a441' }}>{g.aviso.texto}</span>}
                   </li>
                 ))}
               </ul>
               <p className="mt-2 text-(--ink-soft)">
-                Cobertura contra rendimiento (de más a menos confianza):{' '}
-                {sel.cobertura.map((c) => `${Math.round(c.cobertura * 100)} %: ganancia ${f3(c.ganancia ?? null)} (${c.n})`).join(' · ')}
+                {t('eval.cobertura', { lista: sel.cobertura.map((c) => t('eval.coberturaItem', { pct: Math.round(c.cobertura * 100), g: f3(c.ganancia ?? null), n: c.n })).join(' · ') })}
               </p>
               {sel.porDeporte &&
                 Object.entries(sel.porDeporte).map(([d, gs]) => (
@@ -332,10 +331,10 @@ export default function LiveEvaluation() {
                   </p>
                 ))}
               <p className="text-[12px] text-(--ink-faint)">
-                La ganancia (ln K + ln p del resultado) se puede comparar entre deportes con 2 y 3 resultados; el log loss, solo dentro de cada deporte.
+                {t('eval.ganancia')}
               </p>
               <p className="text-(--ink-soft)">
-                CLV de las señales con ventaja: apostadas {signo(sel.clv.apostadas.media)} ({sel.clv.apostadas.n}) · abstenidas {signo(sel.clv.abstenidas.media)} ({sel.clv.abstenidas.n})
+                {t('eval.clvSenales', { a: signo(sel.clv.apostadas.media), na: sel.clv.apostadas.n, b: signo(sel.clv.abstenidas.media), nb: sel.clv.abstenidas.n })}
               </p>
               <p className="text-[12px] text-(--ink-muted)">{sel.lectura}</p>
             </>
@@ -346,23 +345,21 @@ export default function LiveEvaluation() {
           muestra sostiene: con pocos datos dice cuántos harían falta. */}
       {v && (
         <div className="border-t border-(--line) px-4 py-3">
-          <h4 className="text-[14px] font-semibold text-(--ink-body)">¿Es real?</h4>
+          <h4 className="text-[14px] font-semibold text-(--ink-body)">{t('eval.esReal')}</h4>
           <ul className="mt-2 space-y-1.5 text-[13px] leading-relaxed">
             {[
               ...Object.entries(v.modeloVsMercado)
                 .filter(([, p]) => p.n > 0)
-                .map(([dep, p]) => ({ ...p, pregunta: `${NOMBRE[dep] ?? dep}: ¿el modelo le gana al mercado?` })),
-              { ...v.clvSenales, pregunta: '¿El edge que detecta el modelo le gana al cierre? (todas las señales con ventaja)' },
-              { ...v.clvApostadas, pregunta: '¿Las apuestas del banco le ganan al cierre?' },
-              { ...v.clvRechazadas, pregunta: '¿Las señales que se rechazaron le ganaban al cierre?' },
-              { ...v.retornoBanco, pregunta: '¿El banco de papel gana dinero? (retorno medio por apuesta)' },
-              ...(v.promesa
-                ? [{ ...v.promesa, pregunta: '¿Las apuestas rinden lo que el modelo prometía? (retorno menos la ventaja con que se apostó)' }]
-                : []),
+                .map(([dep, p]) => ({ ...p, pregunta: t('eval.qModelo', { deporte: nombreDe(t, dep) }) })),
+              { ...v.clvSenales, pregunta: t('eval.qSenales') },
+              { ...v.clvApostadas, pregunta: t('eval.qApostadas') },
+              { ...v.clvRechazadas, pregunta: t('eval.qRechazadas') },
+              { ...v.retornoBanco, pregunta: t('eval.qBanco') },
+              ...(v.promesa ? [{ ...v.promesa, pregunta: t('eval.qPromesa') }] : []),
             ].map((p) => (
               <li key={p.pregunta}>
                 <span className="text-(--ink-soft)">{p.pregunta}</span>{' '}
-                <strong style={{ color: COLOR_VEREDICTO[p.veredicto] }}>{p.veredicto}</strong>
+                <strong style={{ color: COLOR_VEREDICTO[p.veredicto] }}>{codigo(t, p.veredicto)}</strong>
                 <span className="text-(--ink-muted)"> · {p.lectura}</span>
               </li>
             ))}

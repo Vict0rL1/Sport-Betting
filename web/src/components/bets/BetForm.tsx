@@ -3,9 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   BetRequestError,
   createBet,
-  MARKET_LABEL,
-  SPORT_LABEL,
+  deporteDe,
   fetchBetCandidates,
+  mercadoDe,
   patchBet,
   type Bet,
   type BetCandidate,
@@ -14,6 +14,7 @@ import {
 } from '../../lib/bets';
 import { HOME_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { Payout, ModeTab, Field, inputClass, selectClass, todayLocal } from './BetFormPartes';
+import { conNodos, useI18n } from '../../i18n';
 
 const MARKETS = ['moneyline', 'spread', 'total', 'btts', 'score', 'other'];
 const SPORTS = ['football', 'basketball', 'baseball', 'nfl', 'tennis', 'other'];
@@ -44,6 +45,7 @@ export default function BetForm({
   onCancel: () => void;
 }) {
   const b = (k: string): string => (borrador && borrador[k] != null ? String(borrador[k]) : '');
+  const { t, idioma } = useI18n();
   const [candidates, setCandidates] = useState<BetCandidate[] | null>(null);
   const [pickedKey, setPickedKey] = useState<string>('');
   const [manual, setManual] = useState(!!editing || !!borrador);
@@ -111,7 +113,7 @@ export default function BetForm({
       onDone();
     } catch (e) {
       if (e instanceof BetRequestError) setErrors(e.errors);
-      else setErrors([{ field: '_', message: 'No se pudo guardar. ¿Está el servidor arriba?' }]);
+      else setErrors([{ field: '_', message: t('form.errorGuardar') }]);
     } finally {
       setBusy(false);
     }
@@ -121,10 +123,10 @@ export default function BetForm({
     <div className="rounded-xl border border-(--line) bg-(--surface-card) p-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <h3 className="text-[16px] font-semibold text-(--ink-strong)">
-          {editing ? 'Editar apuesta' : 'Registrar apuesta'}
+          {editing ? t('form.editar') : t('form.registrar')}
         </h3>
         <button onClick={onCancel} className="text-[14px] text-(--ink-soft) hover:text-(--ink-strong)">
-          Cancelar
+          {t('comun.cancelar')}
         </button>
       </div>
 
@@ -132,23 +134,22 @@ export default function BetForm({
         <div className="mb-3">
           <div className="mb-1.5 flex gap-1">
             <ModeTab active={!manual} onClick={() => setManual(false)}>
-              Desde un partido
+              {t('form.desdePartido')}
             </ModeTab>
             <ModeTab active={manual} onClick={() => setManual(true)}>
-              A mano
+              {t('form.aMano')}
             </ModeTab>
           </div>
           {!manual &&
             (candidates == null ? (
-              <p className="text-[14px] text-(--ink-muted)">Cargando partidos…</p>
+              <p className="text-[14px] text-(--ink-muted)">{t('form.cargandoPartidos')}</p>
             ) : candidates.length === 0 ? (
               <p className="text-[14px] text-(--ink-muted)">
-                No hay partidos próximos cargados. Usa «A mano», o configura{' '}
-                <code className="text-(--ink-soft)">ODDS_API_KEY</code> y actualiza.
+                {conNodos(t('form.sinPartidos'), { clave: <code className="text-(--ink-soft)">ODDS_API_KEY</code> })}
               </p>
             ) : (
               <>
-                <Field label="Partido" error={errorFor('event')}>
+                <Field label={t('form.partido')} error={errorFor('event')}>
                   <select
                     className={selectClass}
                     value={pickedKey}
@@ -169,11 +170,11 @@ export default function BetForm({
                       }
                     }}
                   >
-                    <option value="">Elige un partido…</option>
+                    <option value="">{t('form.elige')}</option>
                     {candidates.map((c) => (
                       <option key={c.matchKey} value={c.matchKey}>
-                        {SPORT_LABEL[c.sport] ?? c.sport} · {c.event} ·{' '}
-                        {new Date(c.commenceTime).toLocaleDateString('es', {
+                        {deporteDe(t, c.sport)} · {c.event} ·{' '}
+                        {new Date(c.commenceTime).toLocaleDateString(idioma === 'en' ? 'en-GB' : 'es', {
                           day: 'numeric',
                           month: 'short',
                           hour: '2-digit',
@@ -187,7 +188,7 @@ export default function BetForm({
                 {picked && (
                   <div className="mt-2">
                     <span className="mb-1.5 block text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
-                      A qué le apostaste
+                      {t('form.aQue')}
                     </span>
                     <div className="flex flex-wrap gap-1.5">
                       {picked.sides.map((s) => {
@@ -215,12 +216,12 @@ export default function BetForm({
                           >
                             <span className="block font-medium">{s.label}</span>
                             <span className="block text-[11px] tabular-nums text-(--ink-muted)">
-                              {s.odds ? `cuota ${s.odds}` : 'sin cuota'}
-                              {s.marketProb != null && ` · mercado ${(s.marketProb * 100).toFixed(0)}%`}
+                              {s.odds ? t('form.cuota', { c: s.odds }) : t('form.sinCuota')}
+                              {s.marketProb != null && t('form.mercadoPct', { p: (s.marketProb * 100).toFixed(0) })}
                               {s.modelProb != null && (
                                 <span style={{ color: PROFIT_COLOR }}>
                                   {' '}
-                                  · modelo {(s.modelProb * 100).toFixed(0)}%
+                                  {t('form.modeloPct', { p: (s.modelProb * 100).toFixed(0) })}
                                 </span>
                               )}
                             </span>
@@ -230,8 +231,7 @@ export default function BetForm({
                     </div>
                     {probs.model == null && form.selection && (
                       <p className="mt-1.5 text-[11px] leading-relaxed text-(--ink-muted)">
-                        Sin probabilidad del modelo para este lado, así que esta apuesta no entrará
-                        en la comparación «con o contra el modelo». El resto se registra igual.
+                        {t('form.sinProbModelo')}
                       </p>
                     )}
                   </div>
@@ -245,7 +245,7 @@ export default function BetForm({
         <div className="grid gap-3 sm:grid-cols-2">
           {(manual || editing) && (
             <>
-              <Field label="Deporte" error={errorFor('sport')}>
+              <Field label={t('form.deporte')} error={errorFor('sport')}>
                 <select
                   className={selectClass}
                   value={form.sport}
@@ -253,12 +253,12 @@ export default function BetForm({
                 >
                   {SPORTS.map((s) => (
                     <option key={s} value={s}>
-                      {SPORT_LABEL[s] ?? s}
+                      {deporteDe(t, s)}
                     </option>
                   ))}
                 </select>
               </Field>
-              <Field label="Partido o evento" error={errorFor('event')}>
+              <Field label={t('form.evento')} error={errorFor('event')}>
                 <input
                   className={inputClass}
                   value={form.event}
@@ -269,7 +269,7 @@ export default function BetForm({
             </>
           )}
 
-          <Field label="Mercado" error={errorFor('market')}>
+          <Field label={t('form.mercado')} error={errorFor('market')}>
             <select
               className={selectClass}
               value={form.market}
@@ -277,13 +277,13 @@ export default function BetForm({
             >
               {MARKETS.map((m) => (
                 <option key={m} value={m}>
-                  {MARKET_LABEL[m] ?? m}
+                  {mercadoDe(t, m)}
                 </option>
               ))}
             </select>
           </Field>
 
-          <Field label="Selección" error={errorFor('selection')}>
+          <Field label={t('form.seleccion')} error={errorFor('selection')}>
             <input
               className={inputClass}
               value={form.selection}
@@ -292,7 +292,7 @@ export default function BetForm({
             />
           </Field>
 
-          <Field label="Cuota (decimal)" error={errorFor('odds')}>
+          <Field label={t('form.cuotaDecimal')} error={errorFor('odds')}>
             <input
               className={inputClass}
               value={form.odds}
@@ -302,7 +302,7 @@ export default function BetForm({
             />
           </Field>
 
-          <Field label="Cantidad" error={errorFor('stake')}>
+          <Field label={t('form.cantidad')} error={errorFor('stake')}>
             <input
               className={inputClass}
               value={form.stake}
@@ -312,7 +312,7 @@ export default function BetForm({
             />
           </Field>
 
-          <Field label="Fecha" error={errorFor('placed_on')}>
+          <Field label={t('form.fecha')} error={errorFor('placed_on')}>
             <input
               type="date"
               className={inputClass}
@@ -321,17 +321,17 @@ export default function BetForm({
             />
           </Field>
 
-          <Field label="Nota (opcional)" error={errorFor('notes')} full>
+          <Field label={t('form.nota')} error={errorFor('notes')} full>
             <input
               className={inputClass}
               value={form.notes}
-              placeholder="por qué la hiciste"
+              placeholder={t('form.notaPlaceholder')}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
           </Field>
 
-          <Field label="Etiquetas (opcional, separadas por comas)" error={errorFor('tags')} full>
-            <input className={inputClass} value={tags} placeholder="valor, directo, combinada" onChange={(e) => setTags(e.target.value)} />
+          <Field label={t('form.etiquetas')} error={errorFor('tags')} full>
+            <input className={inputClass} value={tags} placeholder={t('form.etiquetasPlaceholder')} onChange={(e) => setTags(e.target.value)} />
           </Field>
 
           {/* The payout the odds imply, so a typo in either field is visible before
@@ -349,7 +349,7 @@ export default function BetForm({
               className="w-full rounded-lg px-4 py-2.5 text-[16px] font-semibold text-[#0b0d11] transition disabled:opacity-60"
               style={{ backgroundColor: HOME_COLOR }}
             >
-              {busy ? 'Guardando…' : editing ? 'Guardar cambios' : 'Registrar apuesta'}
+              {busy ? t('form.guardando') : editing ? t('form.guardarCambios') : t('form.registrar')}
             </button>
           </div>
         </div>

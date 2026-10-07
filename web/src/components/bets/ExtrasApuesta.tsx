@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { PROFIT_COLOR, LOSS_COLOR } from '../../lib/theme';
 import type { Bet } from '../../lib/bets';
+import { conNodos, useI18n } from '../../i18n';
 
 interface Clv { clv: number | null; cierre: number | null; casas: number | null; motivo: string | null }
 
@@ -21,19 +22,22 @@ export function Etiquetas({ tags }: { tags: string[] }) {
 }
 
 export function LoHabriaApostado({ bet, minEdge }: { bet: Bet; minEdge: number | null }) {
+  const { t } = useI18n();
   if (bet.model_prob == null || minEdge == null) return null;
   const ventaja = bet.model_prob * bet.odds - 1;
   const si = ventaja >= minEdge;
   return (
-    <span className="text-(--ink-soft)" title="Con la probabilidad del modelo guardada en la apuesta y la ventaja mínima de la política vigente.">
-      ¿La habría apostado el modelo?{' '}
-      <strong style={{ color: si ? PROFIT_COLOR : LOSS_COLOR }}>{si ? 'sí' : 'no'}</strong> (ventaja {pct(ventaja)}, mínimo {pct(minEdge)})
+    <span className="text-(--ink-soft)" title={t('extras.lohabriaNota')}>
+      {conNodos(t('extras.lohabria', { ventaja: pct(ventaja), minimo: pct(minEdge) }), {
+        respuesta: <strong style={{ color: si ? PROFIT_COLOR : LOSS_COLOR }}>{si ? t('extras.si') : t('extras.no')}</strong>,
+      })}
     </span>
   );
 }
 
 export function ClvPropio({ id }: { id: number }) {
   const [c, setC] = useState<Clv | null>(null);
+  const { t } = useI18n();
   useEffect(() => {
     let vivo = true;
     fetch(`/api/bets/${id}/clv`).then((r) => (r.ok ? r.json() : null)).then((j) => vivo && setC(j)).catch(() => undefined);
@@ -42,16 +46,19 @@ export function ClvPropio({ id }: { id: number }) {
     };
   }, [id]);
   if (!c) return null;
-  if (c.clv == null) return <span className="text-(--ink-muted)" title={c.motivo ?? undefined}>CLV: sin cierre ({c.motivo})</span>;
+  if (c.clv == null) return <span className="text-(--ink-muted)" title={c.motivo ?? undefined}>{t('extras.clvSinCierre', { motivo: c.motivo ?? '—' })}</span>;
   return (
     <span className="text-(--ink-soft)">
-      CLV <strong style={{ color: c.clv >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>{pct(c.clv)}</strong> contra el cierre {c.cierre?.toFixed(2)} ({c.casas} casas)
+      {conNodos(t('extras.clv', { cierre: c.cierre?.toFixed(2) ?? '—', casas: c.casas ?? '—' }), {
+        clv: <strong style={{ color: c.clv >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>{pct(c.clv)}</strong>,
+      })}
     </span>
   );
 }
 
 export function Sugerencia({ odds, prob }: { odds: number; prob: number | null }) {
   const [s, setS] = useState<{ fraccion: number; importe: number | null; nota: string; bancoPersonal: number | null } | null>(null);
+  const { t } = useI18n();
   useEffect(() => {
     if (!(odds > 1) || prob == null || !(prob > 0 && prob < 1)) {
       setS(null);
@@ -66,8 +73,13 @@ export function Sugerencia({ odds, prob }: { odds: number; prob: number | null }
   if (!s) return null;
   return (
     <p className="text-[13px] text-(--ink-soft)" role="status">
-      Sugerencia de la política: <strong className="text-(--ink-strong)">{(s.fraccion * 100).toFixed(2).replace('.', ',')} % del banco</strong>
-      {s.importe != null ? ` (${s.importe.toFixed(2)} de ${s.bancoPersonal})` : ' (fija tu banco personal en Ajustes para ver el importe)'}. {s.nota}
+      {conNodos(
+        t('extras.sugerencia', {
+          importe: s.importe != null ? t('extras.importeDe', { importe: s.importe.toFixed(2), banco: s.bancoPersonal ?? '—' }) : t('extras.fijaBanco'),
+          nota: s.nota,
+        }),
+        { fraccion: <strong className="text-(--ink-strong)">{t('extras.delBanco', { p: (s.fraccion * 100).toFixed(2).replace('.', ',') })}</strong> },
+      )}
     </p>
   );
 }

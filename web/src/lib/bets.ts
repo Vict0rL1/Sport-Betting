@@ -4,6 +4,8 @@
 // you stake euros, pesos or units, and inventing a currency the user never chose
 // would be wrong on most installs.
 
+import type { Clave, Traducir } from '../i18n';
+
 export type BetStatus = 'pending' | 'won' | 'lost' | 'void' | 'half_won' | 'half_lost' | 'cashout';
 
 export interface Bet {
@@ -177,6 +179,11 @@ export const SPORT_LABEL: Record<string, string> = {
   tennis: 'Tenis',
   other: 'Otro',
 };
+
+/** Las mismas etiquetas, del catálogo (i18n): las tablas de arriba quedan como español de referencia. */
+export const estadoDe = (t: Traducir, s: string) => (s in STATUS_LABEL ? t(`estadoApuesta.${s}` as Clave) : s);
+export const mercadoDe = (t: Traducir, k: string) => (k in MARKET_LABEL ? t(`mercadoApuesta.${k}` as Clave) : k);
+export const deporteDe = (t: Traducir, k: string) => (k in SPORT_LABEL ? t(`deporte.${k}` as Clave) : k);
 
 /** A signed amount, always with its sign — so colour is never the only cue. */
 export function signed(n: number, digits = 2): string {

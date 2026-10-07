@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { BREAK_EVEN_COLOR, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { signed } from '../../lib/bets';
+import { useI18n } from '../../i18n';
 
 /**
  * A month of daily results, as a diverging heat map.
@@ -34,6 +35,7 @@ export default function BetCalendar({
   selectedDay?: string | null;
 }) {
   const byDay = useMemo(() => new Map(daily.map((d) => [d.day, d])), [daily]);
+  const { t, idioma } = useI18n();
 
   // Open on the most recent month that has anything in it, not on today: a tracker
   // you come back to after a fortnight should show the fortnight, not a blank grid.
@@ -73,9 +75,9 @@ export default function BetCalendar({
       maxAbs: max,
       // Capitalised HERE, not with CSS `capitalize`, which title-cases every word
       // and turned "agosto de 2026" into "Agosto De 2026".
-      label: upperFirst(first.toLocaleDateString('es', { month: 'long', year: 'numeric' })),
+      label: upperFirst(first.toLocaleDateString(idioma === 'en' ? 'en-GB' : 'es', { month: 'long', year: 'numeric' })),
     };
-  }, [view, byDay]);
+  }, [view, byDay, idioma]);
 
   const step = (delta: number) => {
     const d = new Date(view.year, view.month + delta, 1);
@@ -88,14 +90,14 @@ export default function BetCalendar({
         <div className="flex items-center gap-1">
           <button
             onClick={() => step(-1)}
-            aria-label="Mes anterior"
+            aria-label={t('calendario.mesAnterior')}
             className="grid h-9 w-9 place-items-center rounded-lg text-[16px] text-(--ink-soft) transition hover:bg-(--raised) hover:text-(--ink-strong)"
           >
             ‹
           </button>
           <button
             onClick={() => step(1)}
-            aria-label="Mes siguiente"
+            aria-label={t('calendario.mesSiguiente')}
             className="grid h-9 w-9 place-items-center rounded-lg text-[16px] text-(--ink-soft) transition hover:bg-(--raised) hover:text-(--ink-strong)"
           >
             ›
@@ -113,7 +115,7 @@ export default function BetCalendar({
       </div>
 
       <div className="grid grid-cols-7 gap-1 text-center">
-        {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d, i) => (
+        {t('calendario.dias').split(',').map((d, i) => (
           <div key={i} className="pb-1 text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-faint)">
             {d}
           </div>
@@ -151,6 +153,7 @@ function DayCell({
 }) {
   const has = cell.bets > 0;
   const decided = cell.settled > 0;
+  const { t } = useI18n();
   // Opacity floors at 0.18 so the smallest real day is still visibly coloured
   // rather than fading into an empty one.
   const weight = decided && maxAbs > 0 ? 0.18 + 0.62 * Math.min(1, Math.abs(cell.profit) / maxAbs) : 0;
@@ -159,11 +162,11 @@ function DayCell({
   const title = has
     ? [
         cell.day,
-        `${cell.bets} apuesta${cell.bets === 1 ? '' : 's'}`,
-        `arriesgado ${cell.staked}`,
-        decided ? `resultado ${signed(cell.profit)}` : 'sin resolver todavía',
+        t(cell.bets === 1 ? 'registro.apuestas1' : 'registro.apuestasN', { n: cell.bets }),
+        t('calendario.arriesgado', { d: cell.staked }),
+        decided ? t('calendario.resultado', { d: signed(cell.profit) }) : t('calendario.sinResolverTodavia'),
       ].join(' · ')
-    : `${cell.day} · sin apuestas`;
+    : t('calendario.sinApuestas', { dia: cell.day });
 
   return (
     <button
@@ -203,24 +206,25 @@ function withAlpha(hex: string, alpha: number): string {
 }
 
 function Legend() {
+  const { t } = useI18n();
   return (
     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-(--ink-muted)">
       <span className="flex items-center gap-1.5">
         <span className="h-3 w-3 rounded" style={{ backgroundColor: withAlpha(PROFIT_COLOR, 0.7) }} />
-        ganancia
+        {t('calendario.ganancia')}
       </span>
       <span className="flex items-center gap-1.5">
         <span className="h-3 w-3 rounded" style={{ backgroundColor: withAlpha(LOSS_COLOR, 0.7) }} />
-        pérdida
+        {t('calendario.perdida')}
       </span>
       <span className="flex items-center gap-1.5">
         <span
           className="h-3 w-3 rounded"
           style={{ backgroundColor: 'var(--raised)', boxShadow: 'inset 0 0 0 1px var(--raised-3)' }}
         />
-        sin resolver
+        {t('registro.sinResolver')}
       </span>
-      <span>La intensidad es el tamaño del día, comparado con el mayor del mes.</span>
+      <span>{t('calendario.intensidad')}</span>
     </div>
   );
 }

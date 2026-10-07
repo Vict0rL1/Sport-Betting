@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { BREAK_EVEN_COLOR, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { signed } from '../../lib/bets';
+import { useI18n } from '../../i18n';
 
 /**
  * Running profit over time. One series, so no legend — the heading names it.
@@ -23,6 +24,7 @@ export default function ProfitCurve({
   height?: number;
 }) {
   const [hover, setHover] = useState<number | null>(null);
+  const { t, idioma } = useI18n();
 
   const geo = useMemo(() => {
     if (points.length < 3) return null;
@@ -61,12 +63,12 @@ export default function ProfitCurve({
     <div>
       <div className="mb-1 flex items-baseline justify-between gap-3">
         <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
-          Beneficio acumulado
+          {t('curva.acumulado')}
         </span>
         <span className="text-[13px] tabular-nums text-(--ink-soft)">
           {shown ? (
             <>
-              {new Date(`${shown.day}T12:00:00`).toLocaleDateString('es', { day: 'numeric', month: 'short' })} ·{' '}
+              {new Date(`${shown.day}T12:00:00`).toLocaleDateString(idioma === 'en' ? 'en-GB' : 'es', { day: 'numeric', month: 'short' })} ·{' '}
               <span className="font-semibold text-(--ink-strong)">{signed(shown.profit)}</span>
             </>
           ) : (

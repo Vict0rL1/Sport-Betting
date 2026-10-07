@@ -33,3 +33,14 @@ test('motor en vivo del tenis en inglés', async ({ page }) => {
   await expect(page.getByLabel('Games 2')).toBeVisible();
   await expect(page.getByText("Today's serve points and live odds")).toBeVisible();
 });
+
+test('apuestas en inglés: registro, cartera y banco de papel', async ({ page }) => {
+  await page.goto('/apuestas');
+  await expect(page.getByRole('button', { name: '+ Record bet' })).toBeVisible();
+  await expect(page.getByText('Portfolio exposure').first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'The model betting on its own' })).toBeVisible();
+  await page.getByRole('button', { name: '+ Record bet' }).click();
+  await expect(page.getByRole('heading', { name: 'Record bet' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'By hand' })).toBeVisible();
+  await expect(page.getByText('Registrar apuesta')).toHaveCount(0);
+});

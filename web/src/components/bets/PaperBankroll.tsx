@@ -8,6 +8,7 @@ import ProfitCurve from './ProfitCurve';
 import { useEffect, useState } from 'react';
 import { BREAK_EVEN_COLOR, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { StatusMark } from '../icons';
+import { conNodos, useI18n, type Clave } from '../../i18n';
 
 interface Apuesta {
   /** Grupos de correlación (server/src/staking/risk.ts), en JSON: el primero es el evento. */
@@ -54,21 +55,18 @@ interface Resumen {
   conCierre?: number;
 }
 
-/** Los seis estados, en español. `push`: empate que devuelve el importe (NFL). */
-const ESTADO: Record<string, string> = {
-  pending: 'pendiente',
-  won: 'ganada',
-  lost: 'perdida',
-  push: 'empate (devuelta)',
-  void: 'anulada',
-  cancelled: 'cancelada',
-};
+/** Los seis estados, del catálogo (`apuesta.*`). `push`: empate que devuelve el importe (NFL). */
+const ESTADOS = new Set(['pending', 'won', 'lost', 'push', 'void', 'cancelled']);
 
 const dinero = (n: number) => `${n >= 0 ? '' : '−'}${Math.abs(n).toFixed(2)} $`;
 
 export default function PaperBankroll() {
   const [r, setR] = useState<Resumen | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { t, idioma } = useI18n();
+  const loc = idioma === 'en' ? 'en-GB' : 'es';
+  const plural = (n: number, uno: Clave, varios: Clave) => t(n === 1 ? uno : varios, { n });
+  const estado = (s: string) => (ESTADOS.has(s) ? t(`apuesta.${s}` as Clave) : s);
 
   useEffect(() => {
     let vivo = true;
@@ -84,7 +82,7 @@ export default function PaperBankroll() {
   if (error) {
     return (
       <section className="mb-6 rounded-xl border border-(--line) bg-(--tint) px-4 py-3 text-[14px] text-(--ink-soft)">
-        No he podido leer el banco del modelo ({error}).
+        {t('papel.error', { error })}
       </section>
     );
   }
@@ -95,24 +93,20 @@ export default function PaperBankroll() {
   return (
     <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
       <div className="px-4 py-3">
-        <h2 className="text-[16px] font-semibold text-(--ink-strong)">El modelo apostando solo</h2>
+        <h2 className="text-[16px] font-semibold text-(--ink-strong)">{t('papel.titulo')}</h2>
         <p className="mt-0.5 text-[13px] leading-relaxed text-(--ink-muted)">
-          Empieza con {r.bancoInicial} $ y apuesta por su cuenta, con la misma política de
-          dimensionamiento que recomienda la app: Kelly a un cuarto, 2 % máximo por evento y
-          topes de exposición por día y totales. Esto{' '}
-          <strong className="text-(--ink-soft)">no es dinero real</strong> y no es una recomendación
-          — es la única forma de contestar «si le hubiera hecho caso, ¿cuánto habría ganado?».
+          {conNodos(t('papel.intro', { inicial: r.bancoInicial }), { noReal: <strong className="text-(--ink-soft)">{t('papel.noReal')}</strong> })}
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-px border-t border-(--line) bg-(--raised) sm:grid-cols-4">
         {[
-          { k: 'Banco', v: dinero(r.banco), c: color },
-          { k: 'Beneficio', v: dinero(r.beneficio), c: color },
+          { k: t('papel.banco'), v: dinero(r.banco), c: color },
+          { k: t('papel.beneficio'), v: dinero(r.beneficio), c: color },
           // El ROI no existe sin apuestas liquidadas, y enseñar «0 %» se leería como
           // «no gana nada» cuando lo que pasa es que aún no ha jugado.
-          { k: 'ROI', v: r.roi === null ? '—' : `${(r.roi * 100).toFixed(1)} %`, c: r.roi === null ? undefined : color },
-          { k: 'Comprometido', v: dinero(r.expuesto) },
+          { k: t('papel.roi'), v: r.roi === null ? '—' : `${(r.roi * 100).toFixed(1)} %`, c: r.roi === null ? undefined : color },
+          { k: t('papel.comprometido'), v: dinero(r.expuesto) },
         ].map((x) => (
           <div key={x.k} className="bg-(--surface-page) px-4 py-3">
             <div className="text-[11px] uppercase tracking-wide text-(--ink-muted)">{x.k}</div>
@@ -134,7 +128,7 @@ export default function PaperBankroll() {
         const puntos = [...porDia.entries()].map(([day, v]) => ({ day, profit: (acc += v) }));
         return puntos.length >= 3 ? (
           <div className="border-t border-(--line) px-4 py-3">
-            <p className="mb-1 text-[12px] font-medium uppercase tracking-wide text-(--ink-muted)">Curva de capital</p>
+            <p className="mb-1 text-[12px] font-medium uppercase tracking-wide text-(--ink-muted)">{t('papel.curva')}</p>
             <ProfitCurve points={puntos} />
           </div>
         ) : null;
@@ -146,28 +140,24 @@ export default function PaperBankroll() {
       {r.conCierre != null && r.conCierre > 0 && r.clvMedio != null && (
         <p className="border-t border-(--line) px-4 py-2.5 text-[13px] text-(--ink-soft)">
           <strong style={{ color: r.clvMedio >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
-            CLV medio {r.clvMedio >= 0 ? '+' : '−'}
-            {Math.abs(r.clvMedio * 100).toFixed(1)} %
+            {t('papel.clvMedio', { v: `${r.clvMedio >= 0 ? '+' : '−'}${Math.abs(r.clvMedio * 100).toFixed(1)} %` })}
           </strong>{' '}
-          sobre {r.conCierre} apuesta{r.conCierre === 1 ? '' : 's'} con cuota de cierre:{' '}
-          {r.clvMedio >= 0
-            ? 'se apostó, de media, a mejor precio que el que dejó el mercado al cerrar.'
-            : 'el mercado cerró, de media, por encima de lo apostado: el precio empeoró tras apostar.'}
+          {plural(r.conCierre, 'papel.clvSobre1', 'papel.clvSobreN')}{' '}
+          {r.clvMedio >= 0 ? t('papel.clvBueno') : t('papel.clvMalo')}
         </p>
       )}
 
       <p className="border-t border-(--line) px-4 py-2.5 text-[13px] text-(--ink-muted)">
-        {r.liquidadas} liquidada{r.liquidadas === 1 ? '' : 's'} ({r.ganadas} ganada
-        {r.ganadas === 1 ? '' : 's'}, {r.perdidas} perdida{r.perdidas === 1 ? '' : 's'}) ·{' '}
-        {r.pendientes} sin resolver
-        {r.arriesgado > 0 && <> · {dinero(r.arriesgado)} arriesgados en total</>}
-        {r.empezado && <> · desde {new Date(r.empezado).toLocaleDateString('es')}</>}
+        {plural(r.liquidadas, 'papel.liquidada1', 'papel.liquidadaN')} ({plural(r.ganadas, 'papel.ganada1', 'papel.ganadaN')},{' '}
+        {plural(r.perdidas, 'papel.perdida1', 'papel.perdidaN')}) · {t('papel.sinResolver', { n: r.pendientes })}
+        {r.arriesgado > 0 && t('papel.arriesgados', { d: dinero(r.arriesgado) })}
+        {r.empezado && t('papel.desde', { fecha: new Date(r.empezado).toLocaleDateString(loc) })}
         {/* Mismos umbrales que server/src/evaluation/sample.ts (apuestas: 30 y 300). Un aviso,
             no una prueba: el veredicto con intervalo está en «¿Es real?». */}
         {r.roi !== null && r.liquidadas < 300 && (
           <span className="block" style={{ color: '#d9a441' }}>
-            <StatusMark estado="aviso" color="#d9a441" />{r.liquidadas} apuestas liquidadas:{' '}
-            {r.liquidadas < 30 ? 'muestra demasiado pequeña para sacar conclusiones del ROI.' : 'el ROI es orientativo; el azar todavía lo mueve mucho.'}
+            <StatusMark estado="aviso" color="#d9a441" />
+            {r.liquidadas < 30 ? t('papel.avisoPequena', { n: r.liquidadas }) : t('papel.avisoOrientativo', { n: r.liquidadas })}
           </span>
         )}
       </p>
@@ -176,7 +166,7 @@ export default function PaperBankroll() {
           vacía, sin explicación, se lee como que el experimento no funciona. */}
       {r.apuestas.length === 0 && r.motivo && (
         <div className="border-t border-(--line) px-4 py-3 text-[14px] leading-relaxed text-(--ink-soft)">
-          <strong className="text-(--ink-body)">Todavía no ha apostado nada.</strong> {r.motivo}
+          <strong className="text-(--ink-body)">{t('papel.nadaTodavia')}</strong> {r.motivo}
         </div>
       )}
 
@@ -185,14 +175,14 @@ export default function PaperBankroll() {
           tercera es el experimento funcionando, no una avería. */}
       {r.ultima && (r.ultima.candidatas > 0 || Object.keys(r.ultima.rechazos).length > 0) && (
         <div className="border-t border-(--line) px-4 py-2.5 text-[13px] leading-relaxed text-(--ink-muted)">
-          Última revisión {new Date(r.ultima.cuando).toLocaleString('es', {
-            day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
+          {t('papel.ultimaRevision', {
+            cuando: new Date(r.ultima.cuando).toLocaleString(loc, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+            partidos: plural(r.ultima.candidatas, 'papel.partidosReales1', 'papel.partidosRealesN'),
+            apostados: plural(r.ultima.colocadas, 'papel.apostado1', 'papel.apostadoN'),
           })}
-          : {r.ultima.candidatas} partido{r.ultima.candidatas === 1 ? '' : 's'} con cuotas reales,{' '}
-          {r.ultima.colocadas} apostado{r.ultima.colocadas === 1 ? '' : 's'}.
           {Object.entries(r.ultima.rechazos).map(([motivo, n]) => (
             <span key={motivo} className="block">
-              · {n} descartado{n === 1 ? '' : 's'} por {motivo}
+              {t(n === 1 ? 'papel.descartado1' : 'papel.descartadoN', { n, motivo })}
             </span>
           ))}
         </div>
@@ -203,12 +193,12 @@ export default function PaperBankroll() {
           <table className="w-full min-w-[560px] border-collapse text-[14px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
-                <th className="px-4 py-2 font-medium">Partido</th>
-                <th className="px-4 py-2 font-medium">Apuesta</th>
-                <th className="px-4 py-2 text-right font-medium">Modelo / mercado</th>
-                <th className="px-4 py-2 text-right font-medium">Cuota: apertura · apostada · cierre</th>
-                <th className="px-4 py-2 text-right font-medium">Importe</th>
-                <th className="px-4 py-2 text-right font-medium">Resultado</th>
+                <th className="px-4 py-2 font-medium">{t('papel.thPartido')}</th>
+                <th className="px-4 py-2 font-medium">{t('papel.thApuesta')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('papel.thModeloMercado')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('papel.thCuotas')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('papel.thImporte')}</th>
+                <th className="px-4 py-2 text-right font-medium">{t('papel.thResultado')}</th>
               </tr>
             </thead>
             <tbody>
@@ -218,7 +208,7 @@ export default function PaperBankroll() {
                     {a.label}
                     {a.correlation_groups && (
                       <span className="block text-[11px] text-(--ink-faint)" title={(JSON.parse(a.correlation_groups) as string[]).join(' · ')}>
-                        grupo {(JSON.parse(a.correlation_groups) as string[])[0]}
+                        {t('papel.grupo', { g: (JSON.parse(a.correlation_groups) as string[])[0] })}
                       </span>
                     )}
                     {/* Qué versión exacta del modelo tomó la decisión. */}
@@ -261,9 +251,9 @@ export default function PaperBankroll() {
                   >
                     {a.status === 'pending' || a.status === 'won' || a.status === 'lost'
                       ? a.status === 'pending'
-                        ? 'pendiente'
+                        ? estado('pending')
                         : dinero(a.profit ?? 0)
-                      : ESTADO[a.status] ?? a.status}
+                      : estado(a.status)}
                     {a.event_result && <span className="block text-[11px] font-normal text-(--ink-muted)">{a.event_result}</span>}
                   </td>
                 </tr>

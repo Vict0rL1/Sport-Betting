@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, type TrackRecord } from '../lib/api';
 import { CheckIcon, CrossIcon } from './icons';
+import { conNodos, useI18n, type Clave } from '../i18n';
 
 /**
  * The app's own scorecard.
@@ -18,6 +19,7 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
   const [data, setData] = useState<TrackRecord | null>(null);
   const [open, setOpen] = useState(false);
   const [failed, setFailed] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     let alive = true;
@@ -47,21 +49,21 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
       >
         <span className="text-[16px]">
           <span className="text-[14px] uppercase tracking-wide text-(--ink-muted)">
-            Aciertos reales de la app
+            {t('historial.titulo')}
           </span>
           <br />
           {data.resolved === 0 ? (
             <span className="text-(--ink-body)">
-              {data.pending} predicción(es) registradas, esperando resultado.
+              {t('historial.esperando', { n: data.pending })}
             </span>
           ) : (
             <span className="text-(--ink-strong)">
-              <strong className="tabular-nums">{((acc ?? 0) * 100).toFixed(1)}%</strong> de acierto
-              en <strong className="tabular-nums">{data.resolved}</strong> predicciones ya jugadas
-              {data.pending > 0 && (
-                <span className="text-(--ink-soft)"> · {data.pending} pendientes</span>
-              )}
-              {thin && <span className="text-amber-400"> · muestra pequeña</span>}
+              {conNodos(t('historial.resumen'), {
+                pct: <strong className="tabular-nums">{((acc ?? 0) * 100).toFixed(1)}%</strong>,
+                n: <strong className="tabular-nums">{data.resolved}</strong>,
+              })}
+              {data.pending > 0 && <span className="text-(--ink-soft)">{t('historial.pendientes', { n: data.pending })}</span>}
+              {thin && <span className="text-amber-400">{t('historial.muestraPequena')}</span>}
             </span>
           )}
         </span>
@@ -71,17 +73,17 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
       {open && (
         <div className="mt-3 space-y-4 border-t border-(--line) pt-3 text-[14px]">
           <p className="text-(--ink-soft)">
-            Cada predicción se guarda <strong>antes</strong> de que se juegue el partido y se
-            puntúa cuando llega el resultado real (al ejecutar{' '}
-            <code className="rounded bg-(--tint) px-1">npm run update-data</code>). No es el
-            backtest histórico: son los partidos que viste en esta app.
+            {conNodos(t('historial.explica'), {
+              antes: <strong>{t('historial.antes')}</strong>,
+              comando: <code className="rounded bg-(--tint) px-1">npm run update-data</code>,
+            })}
           </p>
 
           {data.resolved > 0 && (
             <div className="grid grid-cols-3 gap-2">
-              <Stat label="Acierto" value={`${((acc ?? 0) * 100).toFixed(1)}%`} />
-              <Stat label="Brier" value={data.brier?.toFixed(4) ?? '—'} hint="menor es mejor" />
-              <Stat label="Log loss" value={data.logLoss?.toFixed(4) ?? '—'} hint="menor es mejor" />
+              <Stat label={t('historial.acierto')} value={`${((acc ?? 0) * 100).toFixed(1)}%`} />
+              <Stat label={t('historial.brier')} value={data.brier?.toFixed(4) ?? '—'} hint={t('historial.menorMejor')} />
+              <Stat label={t('historial.logLoss')} value={data.logLoss?.toFixed(4) ?? '—'} hint={t('historial.menorMejor')} />
             </div>
           )}
 
@@ -89,24 +91,24 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
           {data.vsMarket && (
             <div>
               <div className="mb-1 uppercase tracking-wide text-(--ink-muted)">
-                Modelo vs mercado ({data.vsMarket.n} partidos con cuotas)
+                {t('historial.vsMercado', { n: data.vsMarket.n })}
               </div>
               <table className="w-full text-left tabular-nums">
                 <thead className="text-(--ink-muted)">
                   <tr>
                     <th className="py-1 font-normal">&nbsp;</th>
-                    <th className="py-1 font-normal">Acierto</th>
-                    <th className="py-1 font-normal">Brier</th>
+                    <th className="py-1 font-normal">{t('historial.acierto')}</th>
+                    <th className="py-1 font-normal">{t('historial.brier')}</th>
                   </tr>
                 </thead>
                 <tbody className="text-(--ink-body)">
                   <tr>
-                    <td className="py-1 text-(--ink-soft)">Modelo</td>
+                    <td className="py-1 text-(--ink-soft)">{t('historial.modelo')}</td>
                     <td>{fmtPct(data.vsMarket.modelAccuracy)}</td>
                     <td>{data.vsMarket.modelBrier?.toFixed(4) ?? '—'}</td>
                   </tr>
                   <tr>
-                    <td className="py-1 text-(--ink-soft)">Mercado</td>
+                    <td className="py-1 text-(--ink-soft)">{t('historial.mercado')}</td>
                     <td>{fmtPct(data.vsMarket.marketAccuracy)}</td>
                     <td>{data.vsMarket.marketBrier?.toFixed(4) ?? '—'}</td>
                   </tr>
@@ -114,8 +116,7 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
               </table>
               {data.vsMarket.disagreements > 0 && (
                 <p className="mt-1 text-(--ink-soft)">
-                  Discreparon en {data.vsMarket.disagreements} partidos; el modelo acertó en{' '}
-                  {fmtPct(data.vsMarket.modelRightOnDisagreement)} de ellos.
+                  {t('historial.discreparon', { n: data.vsMarket.disagreements, pct: fmtPct(data.vsMarket.modelRightOnDisagreement) })}
                 </p>
               )}
             </div>
@@ -125,21 +126,21 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
           {data.byReliability.length > 0 && (
             <div>
               <div className="mb-1 uppercase tracking-wide text-(--ink-muted)">
-                Por fiabilidad declarada
+                {t('historial.porFiabilidad')}
               </div>
               <table className="w-full text-left tabular-nums">
                 <thead className="text-(--ink-muted)">
                   <tr>
-                    <th className="py-1 font-normal">Nivel</th>
+                    <th className="py-1 font-normal">{t('historial.nivel')}</th>
                     <th className="py-1 font-normal">n</th>
-                    <th className="py-1 font-normal">Acierto</th>
-                    <th className="py-1 font-normal">Brier</th>
+                    <th className="py-1 font-normal">{t('historial.acierto')}</th>
+                    <th className="py-1 font-normal">{t('historial.brier')}</th>
                   </tr>
                 </thead>
                 <tbody className="text-(--ink-body)">
                   {data.byReliability.map((r) => (
                     <tr key={r.level}>
-                      <td className="py-1 text-(--ink-soft)">{LEVEL_ES[r.level] ?? r.level}</td>
+                      <td className="py-1 text-(--ink-soft)">{r.level in NIVEL ? t(NIVEL[r.level]) : r.level}</td>
                       <td>{r.n}</td>
                       <td>{fmtPct(r.accuracy)}</td>
                       <td>{r.brier?.toFixed(4) ?? '—'}</td>
@@ -148,7 +149,7 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
                 </tbody>
               </table>
               <p className="mt-1 text-(--ink-muted)">
-                Si el semáforo sirve, «alta» debería tener mejor Brier que «baja».
+                {t('historial.semaforo')}
               </p>
             </div>
           )}
@@ -157,15 +158,15 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
           {data.calibration.length > 0 && (
             <div>
               <div className="mb-1 uppercase tracking-wide text-(--ink-muted)">
-                Calibración (dicho vs ocurrido)
+                {t('historial.calibracion')}
               </div>
               <table className="w-full text-left tabular-nums">
                 <thead className="text-(--ink-muted)">
                   <tr>
-                    <th className="py-1 font-normal">Banda</th>
+                    <th className="py-1 font-normal">{t('historial.banda')}</th>
                     <th className="py-1 font-normal">n</th>
-                    <th className="py-1 font-normal">Dijo</th>
-                    <th className="py-1 font-normal">Ganó</th>
+                    <th className="py-1 font-normal">{t('historial.dijo')}</th>
+                    <th className="py-1 font-normal">{t('historial.gano')}</th>
                   </tr>
                 </thead>
                 <tbody className="text-(--ink-body)">
@@ -184,19 +185,17 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
 
           {data.recent.length > 0 && (
             <div>
-              <div className="mb-1 uppercase tracking-wide text-(--ink-muted)">Últimas resueltas</div>
+              <div className="mb-1 uppercase tracking-wide text-(--ink-muted)">{t('historial.ultimas')}</div>
               <ul className="space-y-1">
                 {data.recent.map((r, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span className={`mt-[3px] inline-flex ${r.hit ? 'text-emerald-400' : 'text-rose-400'}`} aria-label={r.hit ? 'acertó' : 'falló'}>
+                    <span className={`mt-[3px] inline-flex ${r.hit ? 'text-emerald-400' : 'text-rose-400'}`} aria-label={r.hit ? t('historial.acerto') : t('historial.fallo')}>
                       {r.hit ? <CheckIcon size={15} strokeWidth={2.4} /> : <CrossIcon size={15} strokeWidth={2.4} />}
                     </span>
                     <span className="text-(--ink-body)">
                       {r.p1} vs {r.p2}
                       <span className="text-(--ink-muted)">
-                        {' '}
-                        — dijo {fmtPct(Math.max(r.prob1, 1 - r.prob1))} para{' '}
-                        {r.prob1 >= 0.5 ? r.p1 : r.p2}; ganó {r.winnerIsP1 ? r.p1 : r.p2}
+                        {t('historial.dijoPara', { pct: fmtPct(Math.max(r.prob1, 1 - r.prob1)), favorito: (r.prob1 >= 0.5 ? r.p1 : r.p2) ?? '—', ganador: (r.winnerIsP1 ? r.p1 : r.p2) ?? '—' })}
                       </span>
                     </span>
                   </li>
@@ -210,7 +209,7 @@ export default function TrackRecordPanel({ tour }: { tour: string }) {
   );
 }
 
-const LEVEL_ES: Record<string, string> = { high: 'alta', medium: 'media', low: 'baja' };
+const NIVEL: Record<string, Clave> = { high: 'historial.alta', medium: 'historial.media', low: 'historial.baja' };
 
 function fmtPct(v: number | null): string {
   return v == null ? '—' : `${(v * 100).toFixed(1)}%`;

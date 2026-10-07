@@ -1,56 +1,57 @@
 // Piezas de BetsDashboard.tsx (partido en la Fase 5: ningún fichero de la interfaz pasa de ~400 líneas).
 import { ClvPropio, Etiquetas, LoHabriaApostado } from './ExtrasApuesta';
 import { useState } from 'react';
-import { MARKET_LABEL, money, pctSigned, signed, SPORT_LABEL, STATUS_LABEL, type Bet, type BetStatus, type BetSummary } from '../../lib/bets';
+import { deporteDe, estadoDe, mercadoDe, money, pctSigned, signed, type Bet, type BetStatus, type BetSummary } from '../../lib/bets';
+import { useI18n } from '../../i18n';
 import { BREAK_EVEN_COLOR, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { Card, SectionTitle } from '../ui';
 
 export function Headline({ summary }: { summary: BetSummary }) {
-  const t = summary.totals;
-  const tone = t.profit > 0 ? PROFIT_COLOR : t.profit < 0 ? LOSS_COLOR : BREAK_EVEN_COLOR;
+  const tot = summary.totals;
+  const { t } = useI18n();
+  const tone = tot.profit > 0 ? PROFIT_COLOR : tot.profit < 0 ? LOSS_COLOR : BREAK_EVEN_COLOR;
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <span className="block text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
-            Beneficio
+            {t('registro.beneficio')}
           </span>
           <span className="block text-[26px] font-bold leading-none tabular-nums" style={{ color: tone }}>
-            {signed(t.profit)}
+            {signed(tot.profit)}
           </span>
         </div>
         <div className="text-right">
           <span className="block text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
-            ROI
+            {t('registro.roi')}
           </span>
           <span className="block text-[26px] font-bold leading-none tabular-nums" style={{ color: tone }}>
-            {t.roi == null ? '—' : pctSigned(t.roi)}
+            {tot.roi == null ? '—' : pctSigned(tot.roi)}
           </span>
         </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-(--line) pt-3 sm:grid-cols-4">
-        <Stat label="Apostado" value={money(t.staked)} hint={`${t.bets} apuesta${t.bets === 1 ? '' : 's'}`} />
+        <Stat label={t('registro.apostado')} value={money(tot.staked)} hint={t(tot.bets === 1 ? 'registro.apuestas1' : 'registro.apuestasN', { n: tot.bets })} />
         <Stat
-          label="Acierto"
-          value={t.hitRate == null ? '—' : `${(t.hitRate * 100).toFixed(0)}%`}
-          hint={`${t.wins}-${t.losses}`}
+          label={t('registro.acierto')}
+          value={tot.hitRate == null ? '—' : `${(tot.hitRate * 100).toFixed(0)}%`}
+          hint={`${tot.wins}-${tot.losses}`}
         />
         <Stat
-          label="Pendientes"
+          label={t('registro.pendientes')}
           value={String(summary.pending.bets)}
-          hint={summary.pending.bets ? `${money(summary.pending.staked)} en juego` : 'nada en juego'}
+          hint={summary.pending.bets ? t('registro.enJuego', { d: money(summary.pending.staked) }) : t('registro.nadaEnJuego')}
         />
         <Stat
-          label="Rachas"
+          label={t('registro.rachas')}
           value={`${summary.longestWinStreak}W / ${summary.longestLoseStreak}L`}
-          hint="la mejor y la peor"
+          hint={t('registro.rachasNota')}
         />
       </div>
       {/* ROI is over stake AT RISK, and saying so matters: a run of voids would
           otherwise look like it had quietly dragged the number down. */}
       <p className="mt-2 text-[11px] leading-relaxed text-(--ink-muted)">
-        El ROI se calcula sobre lo que estuvo realmente en riesgo ({money(t.risked)}), así que las
-        anuladas no lo diluyen. Las pendientes no cuentan hasta que se resuelven.
+        {t('registro.roiNota', { d: money(tot.risked) })}
       </p>
     </>
   );
@@ -75,10 +76,11 @@ export function Stat({ label, value, hint }: { label: string; value: string; hin
  */
 export function ModelAgreement({ summary }: { summary: BetSummary }) {
   const a = summary.modelAgreement!;
+  const { t } = useI18n();
   const row = (g: typeof a.with, label: string) => (
     <div className="flex items-baseline justify-between gap-3 py-1">
       <span className="text-[14px] text-(--ink-soft)">
-        {label} <span className="text-(--ink-faint)">· {g.bets} apuestas</span>
+        {label} <span className="text-(--ink-faint)">{t('registro.nApuestas', { n: g.bets })}</span>
       </span>
       <span
         className="text-[16px] font-semibold tabular-nums"
@@ -93,19 +95,18 @@ export function ModelAgreement({ summary }: { summary: BetSummary }) {
   );
   return (
     <Card className="p-4">
-      <SectionTitle right="donde discrepaban">¿Te sirvió seguir al modelo?</SectionTitle>
-      {row(a.with, 'Cuando fuiste CON el modelo')}
-      {row(a.against, 'Cuando fuiste CONTRA el modelo')}
+      <SectionTitle right={t('registro.discrepaban')}>{t('registro.seguirModelo')}</SectionTitle>
+      {row(a.with, t('registro.conModelo'))}
+      {row(a.against, t('registro.contraModelo'))}
       <p className="mt-2 text-[11px] leading-relaxed text-(--ink-muted)">
-        Solo entran las apuestas que elegiste desde un partido de la app y en las que el modelo se
-        separaba al menos 2 puntos del mercado. Con pocas apuestas esto es ruido: míralo como una
-        tendencia a los meses, no como un veredicto.
+        {t('registro.acuerdoNota')}
       </p>
     </Card>
   );
 }
 
 export function Breakdown({ summary }: { summary: BetSummary }) {
+  const { t } = useI18n();
   const group = (
     title: string,
     rows: BetSummary['bySport'],
@@ -133,8 +134,8 @@ export function Breakdown({ summary }: { summary: BetSummary }) {
   return (
     <Card className="p-4">
       <div className="flex flex-col gap-4 sm:flex-row sm:gap-8">
-        {summary.bySport.length > 1 && group('Por deporte', summary.bySport, (k) => SPORT_LABEL[k] ?? k)}
-        {summary.byMarket.length > 1 && group('Por mercado', summary.byMarket, (k) => MARKET_LABEL[k] ?? k)}
+        {summary.bySport.length > 1 && group(t('registro.porDeporte'), summary.bySport, (k) => deporteDe(t, k))}
+        {summary.byMarket.length > 1 && group(t('registro.porMercado'), summary.byMarket, (k) => mercadoDe(t, k))}
       </div>
     </Card>
   );
@@ -142,7 +143,8 @@ export function Breakdown({ summary }: { summary: BetSummary }) {
 
 export function DayTotal({ bets }: { bets: Bet[] }) {
   const settled = bets.filter((b) => b.profit != null);
-  if (settled.length === 0) return <span className="text-[13px] text-(--ink-muted)">sin resolver</span>;
+  const { t } = useI18n();
+  if (settled.length === 0) return <span className="text-[13px] text-(--ink-muted)">{t('registro.sinResolver')}</span>;
   const net = settled.reduce((s, b) => s + (b.profit as number), 0);
   return (
     <span
@@ -170,6 +172,7 @@ export function BetRow({
   onDelete: (b: Bet) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const { t } = useI18n();
   const tone =
     bet.profit == null
       ? BREAK_EVEN_COLOR
@@ -197,18 +200,18 @@ export function BetRow({
               </div>
               <div className="mt-0.5 break-words text-[13px] text-(--ink-soft)">{bet.event}</div>
               <div className="mt-0.5 text-[11px] uppercase tracking-[0.06em] text-(--ink-faint)">
-                {SPORT_LABEL[bet.sport] ?? bet.sport} · {MARKET_LABEL[bet.market] ?? bet.market}
+                {deporteDe(t, bet.sport)} · {mercadoDe(t, bet.market)}
                 {bet.withModel != null && (
                   <span style={{ color: bet.withModel ? PROFIT_COLOR : LOSS_COLOR }}>
                     {' '}
-                    · {bet.withModel ? 'con el modelo' : 'contra el modelo'}
+                    · {bet.withModel ? t('registro.conElModelo') : t('registro.contraElModelo')}
                   </span>
                 )}
               </div>
             </div>
             <div className="shrink-0 text-right">
               <div className="text-[16px] font-semibold tabular-nums" style={{ color: tone }}>
-                {bet.profit == null ? STATUS_LABEL[bet.status] : signed(bet.profit)}
+                {bet.profit == null ? estadoDe(t, bet.status) : signed(bet.profit)}
               </div>
               <div className="text-[13px] tabular-nums text-(--ink-muted)">
                 {money(bet.stake)} @ {bet.odds}
@@ -224,15 +227,15 @@ export function BetRow({
                   onClick={() => onSettle(bet, s)}
                   className="rounded-md px-2.5 py-1 text-[13px] text-(--ink-body) ring-1 ring-inset ring-(--line) transition hover:bg-(--raised-2) hover:text-(--ink-strong)"
                 >
-                  {STATUS_LABEL[s]}
+                  {estadoDe(t, s)}
                 </button>
               ))}
             </div>
           ) : (
             <div className="mt-1.5 flex items-center gap-3 text-[13px]">
-              <span className="text-(--ink-muted)">{STATUS_LABEL[bet.status]}</span>
+              <span className="text-(--ink-muted)">{estadoDe(t, bet.status)}</span>
               <button onClick={() => setOpen((o) => !o)} className="text-(--ink-soft) hover:text-(--ink-strong)">
-                {open ? 'menos' : 'más'}
+                {open ? t('registro.menos') : t('registro.mas')}
               </button>
             </div>
           )}
@@ -241,8 +244,8 @@ export function BetRow({
             <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-(--line) pt-2 text-[13px]">
               {bet.model_prob != null && (
                 <span className="text-(--ink-muted)">
-                  modelo {(bet.model_prob * 100).toFixed(0)}%
-                  {bet.market_prob != null && ` · mercado ${(bet.market_prob * 100).toFixed(0)}%`}
+                  {t('registro.modeloPct', { p: (bet.model_prob * 100).toFixed(0) })}
+                  {bet.market_prob != null && t('registro.mercadoPct', { p: (bet.market_prob * 100).toFixed(0) })}
                 </span>
               )}
               {bet.notes && <span className="text-(--ink-soft)">{bet.notes}</span>}
@@ -250,10 +253,10 @@ export function BetRow({
               <LoHabriaApostado bet={bet} minEdge={minEdge} />
               {open && <ClvPropio id={bet.id} />}
               <button onClick={() => onEdit(bet)} className="text-(--ink-soft) hover:text-(--ink-strong)">
-                Editar
+                {t('registro.editar')}
               </button>
               <button onClick={() => onDelete(bet)} className="text-(--ink-soft) hover:text-[#d95926]">
-                Borrar
+                {t('registro.borrar')}
               </button>
             </div>
           )}

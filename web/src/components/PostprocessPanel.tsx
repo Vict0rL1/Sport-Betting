@@ -16,6 +16,7 @@
  * ninguna» es información, no un hueco.
  */
 import type { FbPostprocess } from '../lib/football';
+import { useI18n, type Traducir } from '../i18n';
 
 interface Row {
   label: string;
@@ -25,24 +26,22 @@ interface Row {
 
 const pct = (x: number): string => `${(x * 100).toFixed(1)}%`;
 
-function describe(pp: FbPostprocess): string {
+function describe(t: Traducir, pp: FbPostprocess): string {
   const parts: string[] = [];
   parts.push(
     pp.calibrator === 'ninguno'
-      ? 'Sin calibrar: se probaron Platt e isotónica y ninguna mejoró fuera de muestra'
+      ? t('postproceso.sinCalibrar')
       : pp.calibrator === 'platt'
-        ? 'Calibrada con Platt, ajustado sobre predicciones históricas fuera de muestra'
-        : 'Calibrada con regresión isotónica, ajustada sobre predicciones históricas fuera de muestra',
+        ? t('postproceso.platt')
+        : t('postproceso.isotonica'),
   );
   if (pp.weight !== null) {
     parts.push(
-      `mezclada con el mercado dándole al modelo un peso de ${pp.weight.toFixed(2)}` +
-        (pp.disagreement !== null && pp.disagreement > 0.05
-          ? ` (rebajado por discrepar ${pp.disagreement.toFixed(2)} nats del precio)`
-          : ''),
+      t('postproceso.mezclada', { peso: pp.weight.toFixed(2) }) +
+        (pp.disagreement !== null && pp.disagreement > 0.05 ? t('postproceso.rebajado', { nats: pp.disagreement.toFixed(2) }) : ''),
     );
   } else if (pp.note) {
-    parts.push(`sin mezclar con el mercado — ${pp.note}`);
+    parts.push(t('postproceso.sinMezclar', { nota: pp.note }));
   }
   return `${parts.join('; ')}.`;
 }
@@ -57,11 +56,12 @@ export function PostprocessPanel({
   // Si nada cambió, un panel entero comparando dos columnas idénticas es ruido. Se dice
   // en una línea y ya.
   const changed = rows.some((r) => Math.abs(r.raw - r.final) >= 0.001);
+  const { t } = useI18n();
   if (!changed) {
     return (
       <p className="mt-3 text-[12px] leading-relaxed text-(--ink-soft)">
-        <span className="font-medium text-(--ink-body)">Probabilidad publicada = cruda.</span>{' '}
-        {describe(postprocess)}
+        <span className="font-medium text-(--ink-body)">{t('postproceso.igual')}</span>{' '}
+        {describe(t, postprocess)}
       </p>
     );
   }
@@ -69,16 +69,16 @@ export function PostprocessPanel({
   return (
     <div className="mt-3 rounded-lg border border-slate-700/60 bg-slate-900/40 p-3">
       <div className="mb-2 flex items-baseline justify-between gap-2">
-        <h4 className="text-[13px] font-semibold text-(--ink-body)">Cruda → publicada</h4>
-        <span className="text-[11px] text-(--ink-muted)">post-proceso</span>
+        <h4 className="text-[13px] font-semibold text-(--ink-body)">{t('postproceso.titulo')}</h4>
+        <span className="text-[11px] text-(--ink-muted)">{t('postproceso.etiqueta')}</span>
       </div>
       <table className="w-full text-[13px] tabular-nums">
         <thead>
           <tr className="text-[11px] uppercase tracking-wide text-(--ink-muted)">
-            <th className="text-left font-medium">resultado</th>
-            <th className="text-right font-medium">modelo</th>
-            <th className="text-right font-medium">publicada</th>
-            <th className="text-right font-medium">cambio</th>
+            <th className="text-left font-medium">{t('postproceso.resultado')}</th>
+            <th className="text-right font-medium">{t('postproceso.modelo')}</th>
+            <th className="text-right font-medium">{t('postproceso.publicada')}</th>
+            <th className="text-right font-medium">{t('postproceso.cambio')}</th>
           </tr>
         </thead>
         <tbody>
@@ -106,7 +106,7 @@ export function PostprocessPanel({
           })}
         </tbody>
       </table>
-      <p className="mt-2 text-[12px] leading-relaxed text-(--ink-soft)">{describe(postprocess)}</p>
+      <p className="mt-2 text-[12px] leading-relaxed text-(--ink-soft)">{describe(t, postprocess)}</p>
     </div>
   );
 }
