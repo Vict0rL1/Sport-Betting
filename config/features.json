@@ -38,6 +38,10 @@
     "apuestas.importacion": { "on": true, "descripcion": "Importar el registro personal desde un CSV (POST /api/bets/import), etiquetas, CLV propio y sugerencia de stake con la política Kelly (solo sugerencia)." },
     "estrategias.laboratorio": { "on": true, "descripcion": "Laboratorio de estrategias: bancos de papel con nombre y su propia configuración, en paralelo sobre las mismas candidatas, comparados en CLV, ROI, drawdown y acierto con los avisos de muestra (GET/POST /api/estrategias)." },
     "estrategias.historico": { "on": true, "descripcion": "«¿Qué habría pasado?»: una estrategia reproducida sobre el histórico con cuotas de tenis, fútbol y NFL, sin el holdout (GET/POST /api/estrategias/historico)." },
+    "alertas.bandeja": { "on": true, "descripcion": "Bandeja en la app: cada notificación y cada alerta, con leída/no leída, filtros y enlace al partido o informe; campana con las no leídas (GET /api/bandeja)." },
+    "informes.diario": { "on": true, "descripcion": "Resumen del día a partir de las 7:00 de APP_TIMEZONE: partidos por confianza, resultados de ayer, banco de papel y alertas; archivado en /informes y enviado por los canales." },
+    "informes.semanal": { "on": true, "descripcion": "Informe de la semana anterior desde el lunes a las 7:00: salud del modelo, CLV, banco, deriva, frescura de datos y experimentos; archivado en /informes." },
+    "informes.pdf": { "on": true, "descripcion": "Descarga en PDF de cada informe, generado en el servidor sin dependencias (GET /api/informes/:id/pdf)." },
     "interfaz.muestras": { "on": false, "descripcion": "Galería de componentes con datos de EJEMPLO (/_muestras) para las capturas de Playwright. Apagada por defecto: no es una pantalla de uso." }
   }
 }

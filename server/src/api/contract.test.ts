@@ -8,7 +8,7 @@ import '../test/setup.ts';
 const { buildApp } = await import('../app.ts');
 const { configAuth } = await import('../auth/mode.ts');
 const { LimiteDeIntentos } = await import('../auth/rateLimit.ts');
-const { validar, ESQUEMA_HEALTH, ESQUEMA_READY, ESQUEMA_FEATURES, ESQUEMA_DATOS_ESTADO, ESQUEMA_INGESTION_RUNS, ESQUEMA_SCHEDULER, ESQUEMA_POLICY, ESQUEMA_CANALES, ESQUEMA_EXPORT_JSON, ESQUEMA_FIABILIDAD, ESQUEMA_SEGMENTOS, ESQUEMA_MONITORIZACION, ESQUEMA_SIMULACION, ESQUEMA_TORNEO, ESQUEMA_COMBINADA, ESQUEMA_INTEL, ESQUEMA_ESTADO, ESQUEMA_ERRORES, ESQUEMA_AJUSTES, ESQUEMA_WATCHLIST, ESQUEMA_HISTORIA_ELO, ESQUEMA_HISTORIAL_SIMULACION, ESQUEMA_BUSQUEDA, ESQUEMA_CUOTAS_POR_CASA, ESQUEMA_ESTRATEGIAS, ESQUEMA_ESTRATEGIA, ESQUEMA_HISTORICO_ESTRATEGIA, ESQUEMA_APUESTAS_ESTRATEGIA } = await import('./schemas.ts');
+const { validar, ESQUEMA_HEALTH, ESQUEMA_READY, ESQUEMA_FEATURES, ESQUEMA_DATOS_ESTADO, ESQUEMA_INGESTION_RUNS, ESQUEMA_SCHEDULER, ESQUEMA_POLICY, ESQUEMA_CANALES, ESQUEMA_EXPORT_JSON, ESQUEMA_FIABILIDAD, ESQUEMA_SEGMENTOS, ESQUEMA_MONITORIZACION, ESQUEMA_SIMULACION, ESQUEMA_TORNEO, ESQUEMA_COMBINADA, ESQUEMA_INTEL, ESQUEMA_ESTADO, ESQUEMA_ERRORES, ESQUEMA_AJUSTES, ESQUEMA_WATCHLIST, ESQUEMA_HISTORIA_ELO, ESQUEMA_HISTORIAL_SIMULACION, ESQUEMA_BUSQUEDA, ESQUEMA_CUOTAS_POR_CASA, ESQUEMA_ESTRATEGIAS, ESQUEMA_ESTRATEGIA, ESQUEMA_HISTORICO_ESTRATEGIA, ESQUEMA_APUESTAS_ESTRATEGIA, ESQUEMA_BANDEJA, ESQUEMA_CONTADOR_BANDEJA, ESQUEMA_MARCADAS, ESQUEMA_INFORMES, ESQUEMA_INFORME, ESQUEMA_INFORME_GENERADO } = await import('./schemas.ts');
 const { reiniciarRegistro, registrar, arrancar, parar } = await import('../scheduler/registry.ts');
 
 const rutas: { method: string | string[]; url: string }[] = [];
@@ -74,6 +74,9 @@ test('cada ruta con esquema responde algo que lo cumple', async () => {
     ['/api/odds/casas/no-existe', ESQUEMA_CUOTAS_POR_CASA],
     ['/api/estrategias', ESQUEMA_ESTRATEGIAS],
     ['/api/estrategias/historico?sport=nfl', ESQUEMA_HISTORICO_ESTRATEGIA],
+    ['/api/bandeja', ESQUEMA_BANDEJA],
+    ['/api/bandeja/contador', ESQUEMA_CONTADOR_BANDEJA],
+    ['/api/informes', ESQUEMA_INFORMES],
   ];
   for (const [url, esquema] of casos) {
     const res = await app.inject({ method: 'GET', url });
@@ -127,6 +130,25 @@ test('cada ruta con esquema responde algo que lo cumple', async () => {
   assert.equal((await app.inject({ method: 'GET', url: `/api/estrategias/historico?sport=football&id=${idEst}` })).statusCode, 400, 'la estrategia no apuesta fútbol');
   assert.equal((await app.inject({ method: 'POST', url: `/api/estrategias/${idEst}/archivar` })).statusCode, 200);
   assert.equal((await app.inject({ method: 'POST', url: `/api/estrategias/${idEst}/archivar` })).statusCode, 400);
+  // Informes y bandeja (Fase 6.4 y 6.7–6.9): generar el del día, leerlo, su PDF y el aviso.
+  const gen = await app.inject({ method: 'POST', url: '/api/informes/generar', payload: { tipo: 'diario' } });
+  assert.equal(gen.statusCode, 200, gen.body);
+  assert.deepEqual(validar(gen.json(), ESQUEMA_INFORME_GENERADO), [], 'POST /api/informes/generar');
+  const idInf = (gen.json() as { id: number }).id;
+  assert.equal((await app.inject({ method: 'POST', url: '/api/informes/generar', payload: { tipo: 'diario' } })).json().nuevo, false);
+  const inf = await app.inject({ method: 'GET', url: `/api/informes/${idInf}` });
+  assert.deepEqual(validar(inf.json(), ESQUEMA_INFORME), [], 'GET /api/informes/:id');
+  const pdf = await app.inject({ method: 'GET', url: `/api/informes/${idInf}/pdf` });
+  assert.equal(pdf.statusCode, 200);
+  assert.match(pdf.headers['content-type'] as string, /application\/pdf/);
+  assert.ok(pdf.rawPayload.subarray(0, 8).toString('latin1').startsWith('%PDF-1.4'));
+  assert.equal((await app.inject({ method: 'GET', url: '/api/informes/999999' })).statusCode, 404);
+  const band = (await app.inject({ method: 'GET', url: '/api/bandeja?leida=0' })).json() as { avisos: { id: number; tipo: string }[] };
+  assert.ok(band.avisos.some((a) => a.tipo === 'digest_listo'), 'el resumen avisa en la bandeja');
+  const mar = await app.inject({ method: 'POST', url: '/api/bandeja/marcar', payload: { todas: true, leida: true } });
+  assert.deepEqual(validar(mar.json(), ESQUEMA_MARCADAS), [], 'POST /api/bandeja/marcar');
+  assert.equal((mar.json() as { noLeidas: number }).noLeidas, 0);
+  assert.equal((await app.inject({ method: 'POST', url: '/api/bandeja/marcar', payload: { leida: true } })).statusCode, 400);
   const cad = await app.inject({ method: 'PATCH', url: '/api/scheduler/contrato', payload: { cadenciaMin: 30 } });
   assert.equal(cad.statusCode, 200, cad.body);
   assert.equal((cad.json() as { cadenciaMin: number; cadenciaPorDefecto: number }).cadenciaMin, 30);

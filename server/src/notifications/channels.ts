@@ -5,7 +5,7 @@
 export interface Mensaje {
   titulo: string;
   cuerpo: string;
-  /** Ruta de la app a abrir (p. ej. `/?tab=football`). */
+  /** Ruta de la app a abrir (p. ej. `/partido/football/<id>?clave=<match_key>`). */
   url?: string | null;
 }
 

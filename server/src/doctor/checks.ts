@@ -877,6 +877,9 @@ export interface EstadoProducto {
   /** Partidos con cuota guardados para «¿qué habría pasado?», por deporte. */
   historicos: { sport: string; partidos: number; generado: string | null }[];
   hayCuotasReales: boolean;
+  bandeja?: { on: boolean; total: number; noLeidas: number };
+  /** Último periodo archivado de cada tipo (YYYY-MM-DD / YYYY-Www) y su fecha de creación. */
+  informes?: { diarioOn: boolean; semanalOn: boolean; ultimoDiario: { periodo: string; creado: string } | null; ultimoSemanal: { periodo: string; creado: string } | null; total: number; zona: string };
 }
 
 export function comprobarProducto(e: EstadoProducto, ahora: Date): Hallazgo[] {
@@ -901,5 +904,30 @@ export function comprobarProducto(e: EstadoProducto, ahora: Date): Hallazgo[] {
   const con = e.historicos.filter((x) => x.partidos > 0);
   if (con.length === 0) out.push(h(S, 'info', '«¿Qué habría pasado?» sin histórico: lo escribe la corrida de referencia de los backtests de tenis, fútbol y NFL (experiments/estrategias/)'));
   else out.push(h(S, 'ok', `«¿Qué habría pasado?»: ${con.map((x) => `${x.sport} ${x.partidos.toLocaleString('es')} partidos`).join(' · ')} (sin holdout)`));
+  // Bandeja.
+  if (e.bandeja) {
+    if (!e.bandeja.on) out.push(h(S, 'info', 'Bandeja apagada (features.json: alertas.bandeja): los avisos solo salen por los canales'));
+    else out.push(h(S, e.bandeja.noLeidas > 100 ? 'info' : 'ok', `Bandeja: ${e.bandeja.total} aviso(s), ${e.bandeja.noLeidas} sin leer${e.bandeja.noLeidas > 100 ? ' (se acumulan: «Marcar todo como leído» en /bandeja)' : ''}`));
+  }
+  // Informes.
+  if (e.informes) {
+    const i = e.informes;
+    const hace = (iso: string) => Math.floor((ahora.getTime() - Date.parse(iso)) / 86_400_000);
+    if (!i.diarioOn && !i.semanalOn) out.push(h(S, 'info', 'Informes apagados (features.json: informes.diario e informes.semanal)'));
+    if (i.diarioOn) {
+      if (!i.ultimoDiario) out.push(h(S, 'info', `Resumen diario: ninguno archivado todavía. Lo genera el servidor a partir de las 7:00 (${i.zona}); a mano: npm run jobs -- ejecutar resumen-diario`));
+      else {
+        const d = hace(i.ultimoDiario.creado);
+        out.push(h(S, d > 2 ? 'aviso' : 'ok', `Resumen diario: el último es del ${i.ultimoDiario.periodo}${d > 2 ? ` (hace ${d} días: ¿está parado el trabajo «resumen-diario»?)` : ''}; zona ${i.zona}`));
+      }
+    }
+    if (i.semanalOn) {
+      if (!i.ultimoSemanal) out.push(h(S, 'info', 'Informe semanal: ninguno archivado todavía (el lunes a partir de las 7:00; a mano: npm run jobs -- ejecutar informe-semanal)'));
+      else {
+        const d = hace(i.ultimoSemanal.creado);
+        out.push(h(S, d > 14 ? 'aviso' : 'ok', `Informe semanal: el último es la ${i.ultimoSemanal.periodo}${d > 14 ? ` (hace ${d} días)` : ''}; ${i.total} informe(s) en el archivo`));
+      }
+    }
+  }
   return out;
 }

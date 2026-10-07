@@ -168,3 +168,17 @@ export const ESQUEMA_HISTORICO_ESTRATEGIA = o({
   notas: { type: 'array', items: str },
 });
 export const ESQUEMA_APUESTAS_ESTRATEGIA = o({ apuestas: { type: 'array', items: objetoLibre } });
+
+// --- Fase 6: bandeja e informes ---
+export const ESQUEMA_AVISO_BANDEJA = o({
+  id: int, created_at: str, origen: { type: 'string', enum: ['notificacion', 'alerta'] }, tipo: str, severidad: { type: 'string', enum: ['info', 'aviso', 'importante'] },
+  sport: nullable('string'), match_key: nullable('string'), titulo: str, cuerpo: str, url: nullable('string'), alert_id: nullable('integer'), leida_at: nullable('string'),
+});
+export const ESQUEMA_BANDEJA = o({ avisos: { type: 'array', items: ESQUEMA_AVISO_BANDEJA }, noLeidas: int, tipos: { type: 'array', items: o({ tipo: str, n: int }) }, hayMas: bool });
+export const ESQUEMA_CONTADOR_BANDEJA = o({ noLeidas: int });
+export const ESQUEMA_MARCADAS = o({ marcadas: int, noLeidas: int });
+const RESUMEN_INFORME = { id: int, tipo: { type: 'string', enum: ['diario', 'semanal'] }, periodo: str, created_at: str, titulo: str, resumen: str };
+export const ESQUEMA_RESUMEN_INFORME = o(RESUMEN_INFORME);
+export const ESQUEMA_INFORMES = o({ informes: { type: 'array', items: ESQUEMA_RESUMEN_INFORME }, zona: str, pdf: bool, diario: bool, semanal: bool });
+export const ESQUEMA_INFORME = o({ ...RESUMEN_INFORME, markdown: str, datos: objetoLibre, pdf: bool });
+export const ESQUEMA_INFORME_GENERADO = o({ id: int, nuevo: bool, periodo: str });

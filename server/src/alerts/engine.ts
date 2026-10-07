@@ -26,6 +26,7 @@ import { featureEncendida } from '../features.ts';
 
 export { ALERTS_SCHEMA } from './schema.ts';
 import { notificar, type TipoEvento } from '../notifications/index.ts';
+import { guardarEnBandeja, urlPartido } from '../bandeja/index.ts';
 
 export type TipoAlerta =
   | 'edge_umbral' | 'calidad_datos_baja' | 'cuotas_viejas' | 'deriva' | 'cambio_prediccion' | 'mercado_movido'
@@ -60,7 +61,7 @@ export function emitirAlerta(
       .prepare('SELECT 1 FROM alerts WHERE type = ? AND COALESCE(sport, \'\') = ? AND COALESCE(match_key, \'\') = ? AND created_at > ? LIMIT 1')
       .get(a.type, a.sport ?? '', a.matchKey ?? '', desde);
     if (reciente) return false;
-    db.prepare('INSERT INTO alerts (created_at, type, severity, sport, match_key, title, body, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+    const alta = db.prepare('INSERT INTO alerts (created_at, type, severity, sport, match_key, title, body, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
       now.toISOString(), a.type, a.severity ?? 'info', a.sport ?? null, a.matchKey ?? null, a.title, a.body, a.data === undefined ? null : JSON.stringify(a.data),
     );
     // Fuera de la app (Fase 3.6): las que vale la pena recibir sin estar mirando.
@@ -69,7 +70,10 @@ export function emitirAlerta(
     // (o alguno de sus participantes). La alerta dentro de la app se guarda igual.
     const seguirManda = a.type === 'mercado_movido' && featureEncendida('interfaz.seguimiento');
     const participantes = Array.isArray((a.data as { participantes?: unknown } | undefined)?.participantes) ? ((a.data as { participantes: string[] }).participantes) : [];
-    if (evento && (!seguirManda || seguido(a.sport ?? '', a.matchKey ?? '', participantes))) void notificar(evento, { titulo: a.title, cuerpo: a.body, url: a.sport ? `/?tab=${a.sport}` : '/' });
+    // La bandeja (Fase 6.4): todas las alertas, con enlace a la ficha del partido.
+    const url = urlPartido(a.sport, a.matchKey);
+    guardarEnBandeja({ origen: 'alerta', tipo: a.type, severidad: a.severity ?? 'info', sport: a.sport, matchKey: a.matchKey, titulo: a.title, cuerpo: a.body, url, alertId: Number(alta.lastInsertRowid) }, now);
+    if (evento && (!seguirManda || seguido(a.sport ?? '', a.matchKey ?? '', participantes))) void notificar(evento, { titulo: a.title, cuerpo: a.body, url: url ?? '/' }, { bandeja: false });
     return true;
   } catch {
     return false;

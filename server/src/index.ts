@@ -7,6 +7,7 @@ import { readOddsReason, type SportPrefix } from './oddsReason.ts';
 import { inspectEnvFile } from './envFile.ts';
 import { place, settle } from './paper/bankroll.ts';
 import { colocarEstrategias, liquidarEstrategias } from './estrategias/index.ts';
+import { cicloResumenDiario, cicloInformeSemanal } from './informes/index.ts';
 import { getDb } from './db.ts';
 import { countRows } from './repo.ts';
 import { refreshOdds } from './ingest/odds.ts';
@@ -560,6 +561,23 @@ async function main() {
       primeraEnMin: 8,
       cuando: () => featureEncendida('simulacion.temporada'),
       fn: (log) => cicloSimulacion(log),
+    });
+    // Informes (Fase 6.7–6.8): cada hora se mira si toca; se generan una vez por periodo.
+    registrar({
+      nombre: 'resumen-diario',
+      descripcion: 'Resumen del día (a partir de las 7:00 de APP_TIMEZONE), archivado y enviado por los canales',
+      cadenciaMin: 60,
+      primeraEnMin: 9,
+      cuando: () => featureEncendida('informes.diario'),
+      fn: (log) => cicloResumenDiario(log),
+    });
+    registrar({
+      nombre: 'informe-semanal',
+      descripcion: 'Informe de la semana anterior (desde el lunes a las 7:00), archivado y enviado por los canales',
+      cadenciaMin: 60,
+      primeraEnMin: 11,
+      cuando: () => featureEncendida('informes.semanal'),
+      fn: (log) => cicloInformeSemanal(log),
     });
     registrar({ nombre: 'cierre-cuotas', descripcion: 'Observa el cierre de los partidos con apuesta o señal abierta (gasta cuota)', cadenciaMin: 10, primeraEnMin: 10, cuando: () => !!env.oddsApiKey, fn: (log) => captureClosingOdds(log) });
 

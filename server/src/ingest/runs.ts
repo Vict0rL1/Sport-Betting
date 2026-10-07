@@ -47,7 +47,7 @@ export async function conRegistro<T extends ResultadoIngesta | void>(source: str
     return r;
   } catch (e) {
     terminarEjecucion(id, { error: (e as Error).message });
-    void notificar('trabajo_fallido', { titulo: `Trabajo de datos fallido: ${source}`, cuerpo: (e as Error).message.slice(0, 500) });
+    void notificar('trabajo_fallido', { titulo: `Trabajo de datos fallido: ${source}`, cuerpo: (e as Error).message.slice(0, 500), url: '/confianza/diagnostico' });
     throw e;
   }
 }

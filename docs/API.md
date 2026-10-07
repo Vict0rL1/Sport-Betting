@@ -64,6 +64,13 @@ una tiene interruptor en `config/features.json` (404 si está apagada) y esquema
 | `GET /api/estrategias/:id/apuestas` | Sus apuestas, las últimas primero |
 | `GET /api/estrategias/historico?sport=&id=` | «¿Qué habría pasado?» con la política vigente (`id=principal`) o una estrategia |
 | `POST /api/estrategias/historico` | Lo mismo con una configuración sin guardar (vista previa) |
+| `GET /api/bandeja?leida=&tipo=&sport=&antesDe=&limite=` | La bandeja: avisos, no leídas y tipos presentes |
+| `GET /api/bandeja/contador` | Las no leídas (la campana) |
+| `POST /api/bandeja/marcar` | `{"ids": [..]}` o `{"todas": true}`, con `leida: true\|false` |
+| `GET /api/informes?tipo=` | Informes archivados (diario, semanal) y la zona horaria |
+| `GET /api/informes/:id` | Un informe: Markdown y cifras |
+| `GET /api/informes/:id/pdf` | El mismo en PDF (`informes.pdf`) |
+| `POST /api/informes/generar` | `{"tipo": "diario"\|"semanal"}`: el del periodo actual si falta; uno archivado no se rehace |
 
 ## API REST (puerto 7374)
 

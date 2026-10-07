@@ -3,12 +3,22 @@
 import { getDb } from '../db.ts';
 import { cicloMonitorizacion } from '../monitoring/series.ts';
 import { cicloSimulacion } from '../simulation/season.ts';
+import { generarDiario, generarSemanal } from '../informes/index.ts';
 
 // `npm run jobs -- ejecutar <nombre>`: los trabajos que no necesitan el servidor en marcha se
 // pueden correr a mano (Fases 4–5). El resto, con el servidor: POST /api/scheduler/<nombre>/ejecutar.
 const A_MANO: Record<string, (log: (m: string) => void) => Promise<unknown> | unknown> = {
   monitorizacion: (log) => cicloMonitorizacion(log),
   'simulacion-temporada': (log) => cicloSimulacion(log),
+  // A mano no se espera a las 7:00: se genera el del periodo actual si falta (Fase 6).
+  'resumen-diario': (log) => {
+    const r = generarDiario();
+    log(r.nuevo ? `Resumen diario ${r.informe.periodo} archivado (#${r.informe.id}).` : `El resumen de ${r.informe.periodo} ya existía (#${r.informe.id}): un informe archivado no se rehace.`);
+  },
+  'informe-semanal': (log) => {
+    const r = generarSemanal();
+    log(r.nuevo ? `Informe semanal ${r.informe.periodo} archivado (#${r.informe.id}).` : `El informe de ${r.informe.periodo} ya existía (#${r.informe.id}): un informe archivado no se rehace.`);
+  },
 };
 const args = process.argv.slice(2);
 if (args[0] === 'ejecutar') {
@@ -32,4 +42,4 @@ for (const f of filas) {
   const marca = f.enabled ? (f.last_status === 'error' ? `${C.amber}⚠${C.off}` : `${C.green}✓${C.off}`) : `${C.dim}·${C.off}`;
   console.log(`${marca} ${f.name.padEnd(20)} cada ${String(f.cadence_minutes).padStart(5)} min  ${f.enabled ? 'encendido ' : 'APAGADO   '} última ${f.last_run_at?.slice(0, 16).replace('T', ' ') ?? '—'} ${f.last_status ?? ''} ${f.last_duration_ms != null ? `${(f.last_duration_ms / 1000).toFixed(1)} s` : ''} ok ${f.runs_ok} / error ${f.runs_error}${f.last_error ? `\n    ${C.red}${f.last_error}${C.off}` : ''}`);
 }
-console.log(`\n${C.dim}Encender/apagar: PATCH /api/scheduler/<nombre> {"enabled": false} o desde Ajustes › Trabajos programados. Ejecutar sin servidor: npm run jobs -- ejecutar monitorizacion | simulacion-temporada.${C.off}`);
+console.log(`\n${C.dim}Encender/apagar: PATCH /api/scheduler/<nombre> {"enabled": false} o desde Ajustes › Trabajos programados. Ejecutar sin servidor: npm run jobs -- ejecutar monitorizacion | simulacion-temporada | resumen-diario | informe-semanal.${C.off}`);

@@ -70,6 +70,7 @@ import { marcarMuertas, ultimasEjecuciones } from '../ingest/runs.ts';
 import { sesionesActivas } from '../auth/sessions.ts';
 import { featureEncendida } from '../features.ts';
 import { historicosDisponibles } from '../estrategias/historico.ts';
+import { zonaApp } from '../informes/tiempo.ts';
 import { origenesPermitidos } from '../security/cors.ts';
 import { monitorizacion as monitorizacionDe } from '../monitoring/series.ts';
 import { predicciones as prediccionesEnVivo } from '../evaluation/live.ts';
@@ -443,6 +444,21 @@ if (dbExistia) {
     }, { activas: 0, archivadas: 0, apuestas: 0, pendientes: 0, ultimaApuesta: null, laboratorio: featureEncendida('estrategias.laboratorio') }),
     historicos: uno(() => historicosDisponibles(), []),
     hayCuotasReales: !!env.oddsApiKey,
+    bandeja: uno(() => {
+      const r = db.prepare('SELECT COUNT(*) AS n, SUM(leida_at IS NULL) AS u FROM inbox').get() as { n: number; u: number | null };
+      return { on: featureEncendida('alertas.bandeja'), total: r.n, noLeidas: r.u ?? 0 };
+    }, { on: featureEncendida('alertas.bandeja'), total: 0, noLeidas: 0 }),
+    informes: uno(() => {
+      const ult = (tipo: string) => (db.prepare('SELECT periodo, created_at AS creado FROM reports WHERE tipo = ? ORDER BY created_at DESC LIMIT 1').get(tipo) as { periodo: string; creado: string } | undefined) ?? null;
+      return {
+        diarioOn: featureEncendida('informes.diario'),
+        semanalOn: featureEncendida('informes.semanal'),
+        ultimoDiario: ult('diario'),
+        ultimoSemanal: ult('semanal'),
+        total: (db.prepare('SELECT COUNT(*) AS n FROM reports').get() as { n: number }).n,
+        zona: zonaApp(),
+      };
+    }, undefined),
   };
   hallazgos.push(...comprobarProducto(estadoP, new Date()));
 }

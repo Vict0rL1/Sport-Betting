@@ -32,6 +32,9 @@ export const TABLAS_LEDGER: readonly string[] = [
   // Laboratorio de estrategias (Fase 6).
   'strategies',
   'strategy_bets',
+  // Bandeja e informes archivados (Fase 6).
+  'inbox',
+  'reports',
   // Operación.
   'sessions',
   'error_log',

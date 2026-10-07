@@ -9,8 +9,9 @@
 import { getDb } from '../db.ts';
 import { featureEncendida } from '../features.ts';
 import { email, telegram, webhook, webpush, type Canal, type Mensaje, type ResultadoEnvio, type SuscripcionPush } from './channels.ts';
+import { guardarEnBandeja, type Severidad } from '../bandeja/index.ts';
 
-export type TipoEvento = 'senal_valor' | 'linea_movida' | 'papel_apostada' | 'papel_liquidada' | 'digest_listo' | 'trabajo_fallido' | 'deriva' | 'prueba';
+export type TipoEvento = 'senal_valor' | 'linea_movida' | 'papel_apostada' | 'papel_liquidada' | 'digest_listo' | 'informe_semanal' | 'trabajo_fallido' | 'deriva' | 'prueba';
 
 export const EVENTOS: Record<TipoEvento, string> = {
   senal_valor: 'el modelo ve valor en un partido',
@@ -18,6 +19,7 @@ export const EVENTOS: Record<TipoEvento, string> = {
   papel_apostada: 'el banco de papel ha apostado',
   papel_liquidada: 'una apuesta de papel se ha liquidado',
   digest_listo: 'el resumen del día está listo',
+  informe_semanal: 'el informe semanal está listo',
   trabajo_fallido: 'un trabajo de datos ha fallado',
   deriva: 'deriva detectada en un modelo',
   prueba: 'mensaje de prueba',
@@ -74,8 +76,22 @@ function anotar(canal: string, evento: TipoEvento, titulo: string, r: ResultadoE
   }
 }
 
-/** Envía por todos los canales configurados. Nunca lanza. */
-export async function notificar(evento: TipoEvento, m: Mensaje): Promise<{ canal: string; ok: boolean; error: string | null }[]> {
+const SEVERIDAD: Partial<Record<TipoEvento, Severidad>> = { trabajo_fallido: 'aviso', deriva: 'importante' };
+
+/**
+ * Envía por todos los canales configurados. Nunca lanza.
+ *
+ * Y antes, a la bandeja de la app (Fase 6.4), haya canales o no: sin canales es el único sitio
+ * donde se ve el aviso. `bandeja: false` lo usa quien ya la ha escrito (las alertas).
+ */
+export async function notificar(
+  evento: TipoEvento,
+  m: Mensaje,
+  opciones: { bandeja?: boolean; sport?: string | null; matchKey?: string | null; severidad?: Severidad } = {},
+): Promise<{ canal: string; ok: boolean; error: string | null }[]> {
+  if (opciones.bandeja !== false && evento !== 'prueba') {
+    guardarEnBandeja({ origen: 'notificacion', tipo: evento, severidad: opciones.severidad ?? SEVERIDAD[evento] ?? 'info', sport: opciones.sport, matchKey: opciones.matchKey, titulo: m.titulo, cuerpo: m.cuerpo, url: m.url ?? null });
+  }
   if (!featureEncendida('notificaciones.canales')) return [];
   const out: { canal: string; ok: boolean; error: string | null }[] = [];
   for (const c of CANALES) {

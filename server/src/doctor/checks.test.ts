@@ -324,3 +324,15 @@ test('producto: laboratorio quieto con cuotas reales avisa; sin histórico es in
   const c = comprobarProducto({ ...base, hayCuotasReales: false }, ahora);
   assert.equal(c.find((x) => x.texto.startsWith('Laboratorio'))?.nivel, 'ok', 'sin cuotas reales no se puede apostar: no es avería');
 });
+
+test('producto: un resumen diario parado avisa; la bandeja cuenta las no leídas', async () => {
+  const { comprobarProducto } = await import('./checks.ts');
+  const ahora = new Date('2026-10-07T12:00:00Z');
+  const base = { estrategias: { activas: 0, archivadas: 0, apuestas: 0, pendientes: 0, ultimaApuesta: null, laboratorio: true }, historicos: [], hayCuotasReales: false };
+  const parado = comprobarProducto({ ...base, bandeja: { on: true, total: 5, noLeidas: 2 }, informes: { diarioOn: true, semanalOn: true, ultimoDiario: { periodo: '2026-10-01', creado: '2026-10-01T05:00:00Z' }, ultimoSemanal: null, total: 1, zona: 'Europe/Madrid' } }, ahora);
+  assert.equal(parado.find((x) => x.texto.startsWith('Resumen diario'))?.nivel, 'aviso');
+  assert.equal(parado.find((x) => x.texto.startsWith('Informe semanal'))?.nivel, 'info');
+  assert.match(parado.find((x) => x.texto.startsWith('Bandeja'))!.texto, /2 sin leer/);
+  const alDia = comprobarProducto({ ...base, informes: { diarioOn: true, semanalOn: false, ultimoDiario: { periodo: '2026-10-07', creado: '2026-10-07T05:00:00Z' }, ultimoSemanal: null, total: 3, zona: 'UTC' } }, ahora);
+  assert.equal(alDia.find((x) => x.texto.startsWith('Resumen diario'))?.nivel, 'ok');
+});

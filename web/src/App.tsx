@@ -15,6 +15,7 @@ import StatusPill from './components/estado/StatusPill';
 import MobileNav from './components/nav/MobileNav';
 import NoEncontrada from './pages/NoEncontrada';
 import Buscador from './components/busqueda/Buscador';
+import Campana from './components/bandeja/Campana';
 import Recorrido from './components/Recorrido';
 import { SeguimientoProvider } from './components/seguimiento';
 import { ultimaRed, useEnLinea } from './lib/sinConexion';
@@ -38,6 +39,9 @@ const Jugador = lazy(() => import('./pages/Jugador'));
 const Liga = lazy(() => import('./pages/Liga'));
 const Muestras = lazy(() => import('./pages/Muestras'));
 const Laboratorio = lazy(() => import('./pages/Laboratorio'));
+const Bandeja = lazy(() => import('./pages/Bandeja'));
+const Informes = lazy(() => import('./pages/Informes'));
+const InformeDetalle = lazy(() => import('./pages/Informe'));
 import { I18nProvider, idiomaGuardado, useI18n } from './i18n';
 import { aplicarTema, temaGuardado, type Tema } from './lib/tema';
 
@@ -155,6 +159,7 @@ function Armazon() {
           <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
             <StatusPill />
             <Buscador />
+            <Campana />
           </div>
           <SportNav pestana={pestana} ocultos={ocultos} vertical />
           <div className="mt-auto px-2 pb-3">
@@ -174,6 +179,7 @@ function Armazon() {
             </div>
             <span className="flex items-center gap-2">
               <Buscador />
+              <Campana />
               <StatusPill compacto />
             </span>
           </div>
@@ -194,6 +200,9 @@ function Armazon() {
             <Route path="/tenis/:league?" element={<TennisDashboard />} />
             <Route path="/apuestas" element={<BetsDashboard />} />
             <Route path="/apuestas/laboratorio" element={<Laboratorio />} />
+            <Route path="/bandeja" element={<Bandeja />} />
+            <Route path="/informes" element={<Informes />} />
+            <Route path="/informes/:id" element={<InformeDetalle />} />
             <Route path="/confianza" element={<SystemTrust />} />
             <Route path="/confianza/diagnostico" element={<Diagnostico />} />
             <Route path="/ajustes" element={<Ajustes />} />
@@ -247,6 +256,8 @@ function EnlacesSecundarios({ pathname, enLinea = false }: { pathname: string; e
   const { t } = useI18n();
   const navigate = useNavigate();
   const enlaces: [string, string][] = [
+    ['/informes', t('nav.informes')],
+    ['/bandeja', t('nav.bandeja')],
     [RUTA_AJUSTES, t('nav.ajustes')],
     ['/confianza/diagnostico', t('nav.diagnostico')],
     ['/glosario', t('nav.glosario')],

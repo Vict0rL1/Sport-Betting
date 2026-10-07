@@ -58,3 +58,41 @@ holdout final (fútbol 2026+, NFL 2024+) no entra: el fichero se escribe sin él
 a filtrar. Con la política vigente la NFL no apuesta nada —el freno de calibración la deja a cero— y
 la pantalla lo explica; sin el freno, 2.114 apuestas entre 2010 y 2023 dejan el banco en 51,76 con
 un ROI de −4,8 %, que es justo lo que el freno evita.
+
+## Bandeja
+
+`alertas.bandeja` · `/bandeja` y la campana · `GET /api/bandeja`
+
+Todo lo que la app avisa también queda dentro de la app: cada notificación de `notificar()` (el
+banco de papel apostó o liquidó, un trabajo de datos falló, un informe está listo) y cada alerta
+de `emitirAlerta()` (valor detectado, mercado movido, calidad de datos, deriva, topes de riesgo…),
+haya o no un canal configurado. Sin canales, es el único sitio donde se ve. Cada aviso lleva su
+tipo, su gravedad, su deporte y un enlace: a la ficha del partido (por el id de próximos, con la
+clave en `?clave=` para que un partido ya jugado enseñe su resultado) o al informe. Se filtra por
+leídas, tipo y deporte, se marca uno a uno o todo de golpe, y la campana de la barra lateral y de la
+cabecera móvil cuenta las no leídas. La tabla `inbox` es del libro mayor: de un aviso solo cambia si
+se ha leído y nada se borra.
+
+## Resumen diario e informe semanal
+
+`informes.diario`, `informes.semanal`, `informes.pdf` · `/informes` · `GET /api/informes`
+
+Cada mañana, a partir de las 7:00 de `APP_TIMEZONE` (sin ella, la zona del servidor), el trabajo
+`resumen-diario` archiva el resumen del día: los partidos de las próximas 24 horas ordenados por
+confianza, cuántos favoritos del modelo ganaron ayer por deporte (contado, no evaluado: un día no
+mide a nadie), el banco de papel con su aviso de muestra y, si está quieto, por qué, las estrategias
+activas y las alertas de las últimas 24 horas. El lunes, el trabajo `informe-semanal` archiva la
+semana anterior: salud del modelo por deporte (log loss y Brier de la ventana de 28 días contra el
+backtest, PSI, deriva, con su aviso de muestra), el CLV de las apuestas de papel que cerraron esa
+semana, el banco y cada estrategia, las alertas de deriva, la frescura de los datos y los
+experimentos registrados con su veredicto. Los dos trabajos corren cada hora y generan el informe
+solo si falta, así que un servidor que arranca a las 11 no se salta el día.
+
+Un informe archivado no se reescribe (tabla `reports`, append-only, uno por tipo y periodo): dice lo
+que se sabía el día que se escribió. Al archivarse sale por los canales configurados como
+`digest_listo` o `informe_semanal` y entra en la bandeja. Se lee en `/informes/:id`, que pinta su
+Markdown sin HTML incrustado, y se descarga en PDF: un PDF de texto escrito en el servidor sin
+dependencias (Helvetica con WinAnsi, así que tildes, ñ, «» y € salen bien). A mano:
+`npm run jobs -- ejecutar resumen-diario` o `informe-semanal`, o el botón de la página, generan el
+del periodo actual si falta.
+

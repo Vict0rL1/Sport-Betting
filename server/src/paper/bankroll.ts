@@ -37,6 +37,7 @@ import { getDb, getMeta, setMeta } from '../db.ts';
 import { decideEvent } from '../staking/policy.ts';
 import { politica, idPoliticaVigente } from '../staking/policyStore.ts';
 import { notificar } from '../notifications/index.ts';
+import { urlPartido } from '../bandeja/index.ts';
 import { fullKelly } from '../staking/kelly.ts';
 import { closingLine, marketAt, openingLine } from '../odds/snapshots.ts';
 import { versionsFor, type SportId } from '../versions.ts';
@@ -649,7 +650,7 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
     );
     for (const g of grupos) enGrupos.set(g, (enGrupos.get(g) ?? 0) + stake);
     senalDe('apostada', stake, Number(alta.changes) ? Number(alta.lastInsertRowid) : null);
-    if (Number(alta.changes)) void notificar('papel_apostada', { titulo: `Banco de papel: ${c.label}`, cuerpo: `${e.label} a ${e.odds.toFixed(2)} · ${stake.toFixed(2)} (${(d.edge * 100).toFixed(1)} pp de ventaja)`, url: `/?tab=${c.sport}` });
+    if (Number(alta.changes)) void notificar('papel_apostada', { titulo: `Banco de papel: ${c.label}`, cuerpo: `${e.label} a ${e.odds.toFixed(2)} · ${stake.toFixed(2)} (${(d.edge * 100).toFixed(1)} pp de ventaja)`, url: urlPartido(c.sport, c.match_key) ?? '/apuestas' }, { sport: c.sport, matchKey: c.match_key });
     // La exposición se acumula DENTRO del bucle: sin esto, veinte candidatas se
     // dimensionarían todas como si fueran la primera y los topes no servirían.
     abierto += stake;
@@ -746,7 +747,7 @@ export function settle(now = new Date()): { liquidadas: number } {
     banco += profit;
     upd.run(final.status, cuando, profit, final.resultado, Math.round(banco * 100) / 100, profit / a.stake, a.id);
     liquidadas++;
-    void notificar('papel_liquidada', { titulo: `Papel liquidada: ${a.label}`, cuerpo: `${a.selection} → ${final.status} (${profit >= 0 ? '+' : ''}${profit.toFixed(2)}) · banco ${banco.toFixed(2)}`, url: `/?tab=${a.sport}` });
+    void notificar('papel_liquidada', { titulo: `Papel liquidada: ${a.label}`, cuerpo: `${a.selection} → ${final.status} (${profit >= 0 ? '+' : ''}${profit.toFixed(2)}) · banco ${banco.toFixed(2)}`, url: urlPartido(a.sport, a.match_key) ?? '/apuestas' }, { sport: a.sport, matchKey: a.match_key });
   }
   return { liquidadas };
 }
