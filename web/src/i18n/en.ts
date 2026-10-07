@@ -294,4 +294,9 @@ export const en: Partial<Record<Clave, string>> = {
   'archivo.politica': 'policy v{v}',
   'archivo.paginas': 'Pages',
   'archivo.pagina': 'Page {n} of {de}',
+  'diag.rendimiento': 'Performance',
+  'diag.cache': 'Upcoming cache: {aciertos} served from cache and {fallos} computed since the server started; {entradas} lists stored, each for at most {ttl} s and while their data does not change.',
+  'diag.cacheApagada': 'Upcoming cache off: every request recomputes the predictions.',
+  'diag.compresion': 'Responses compressed (Brotli or gzip) and with ETag: what has not changed is not downloaded again.',
+  'diag.compresionApagada': 'Compression and ETag off.',
 };

@@ -1,13 +1,14 @@
 // Rutas de operación (Fase 3): métricas, trabajos programados, política y exportaciones.
 // Todas detrás de la contraseña; las de salud van en app.ts porque van sin ella.
 
+import { estadoCache, TTL_MS } from '../cache/respuestas.ts';
 import type { FastifyInstance } from 'fastify';
 import { renderPrometheus, fijar } from '../observability/metrics.ts';
 import { estado as estadoTrabajos, configurar, ejecutar, registroArrancado } from '../scheduler/registry.ts';
 import { getQuota } from '../oddsQuota.ts';
 import { getDb } from '../db.ts';
 import { contarErrores } from '../security/errors.ts';
-import { ESQUEMA_ERROR, ESQUEMA_SCHEDULER, ESQUEMA_TRABAJO, ESQUEMA_POLICY, ESQUEMA_POLICY_VERSION, ESQUEMA_CANALES, ESQUEMA_EXPORT_JSON } from '../api/schemas.ts';
+import { ESQUEMA_ERROR, ESQUEMA_SCHEDULER, ESQUEMA_TRABAJO, ESQUEMA_POLICY, ESQUEMA_POLICY_VERSION, ESQUEMA_CANALES, ESQUEMA_EXPORT_JSON, ESQUEMA_RENDIMIENTO } from '../api/schemas.ts';
 import { politicaVigente, historial, nuevaVersion, type CambiosPolitica } from '../staking/policyStore.ts';
 import { canales, probarCanal, ultimosEnvios, guardarSuscripcionPush, borrarSuscripcionPush, clavePublicaVapid } from '../notifications/index.ts';
 import { exportar, DATASETS, aCsv, type Dataset } from '../exports/datasets.ts';
@@ -37,6 +38,11 @@ export async function registerOperacionRoutes(app: FastifyInstance): Promise<voi
     return reply.type('text/plain; version=0.0.4; charset=utf-8').send(renderPrometheus());
   });
 
+  // Rendimiento (Fase 7): la caché de próximos y la compresión, para Diagnóstico.
+  app.get('/api/rendimiento', { schema: { tags: ['operación'], summary: 'Caché de respuestas (aciertos, fallos, entradas) y compresión', response: { 200: ESQUEMA_RENDIMIENTO } } }, async () => ({
+    cache: { ...estadoCache(), on: featureEncendida('rendimiento.cacheProximos'), ttlSegundos: TTL_MS / 1000 },
+    compresion: featureEncendida('rendimiento.compresion'),
+  }));
   app.get('/api/scheduler', { schema: { tags: ['operación'], summary: 'Trabajos programados', response: { 200: ESQUEMA_SCHEDULER } } }, async () => ({ arrancado: registroArrancado(), trabajos: estadoTrabajos() }));
   app.patch<{ Params: { nombre: string }; Body: { enabled?: boolean; cadenciaMin?: number | null } }>(
     '/api/scheduler/:nombre',

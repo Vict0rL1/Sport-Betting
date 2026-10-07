@@ -3,6 +3,7 @@
 // A fifth separate namespace. No endpoint here can return a game from another
 // sport, which is what keeps the five tabs genuinely independent.
 
+import { cacheado, firmaDe, registrarCalentador } from '../cache/respuestas.ts';
 import { versionsFor } from '../versions.ts';
 import type { FastifyInstance } from 'fastify';
 import { env, nflConfig } from '../config.ts';
@@ -112,6 +113,17 @@ function describeRow(row: NafUpcomingRow, withPrediction = true) {
   };
 }
 
+
+/** La lista de próximos, cacheada mientras no cambien sus datos (Fase 7.2). */
+function proximos(league: string, withPred: boolean) {
+  return cacheado(`nfl:proximos:${league ?? ''}:${withPred}`, firmaDe('naf_upcoming'), () => {
+      // Resolving first means the track record on screen is never a week stale (a lo sumo, lo que dura la caché).
+      resolveNflPredictions();
+      return listUpcoming(league).map((r) => describeRow(r, withPred));
+    });
+}
+registrarCalentador('nfl', () => proximos('nfl', true));
+
 export async function registerNflRoutes(app: FastifyInstance): Promise<void> {
   app.get('/meta', async () => {
     const state = getLeagueState('nfl');
@@ -171,13 +183,7 @@ export async function registerNflRoutes(app: FastifyInstance): Promise<void> {
 
   app.get<{ Querystring: { league?: string; predictions?: string } }>(
     '/games/upcoming',
-    async (req) => {
-      // Resolving first means the track record on screen is never a week stale.
-      resolveNflPredictions();
-      const rows = listUpcoming(req.query.league ?? 'nfl');
-      const withPred = req.query.predictions !== 'false';
-      return rows.map((r) => describeRow(r, withPred));
-    },
+    async (req) => proximos(req.query.league ?? 'nfl', req.query.predictions !== 'false'),
   );
 
   app.get<{ Params: { id: string } }>('/games/:id', async (req, reply) => {

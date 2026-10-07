@@ -215,3 +215,9 @@ export const ESQUEMA_ARCHIVO = o({
   resumen: o({ resueltas: int, aciertos: int, pendientes: int, aviso: ESQUEMA_AVISO }),
   ligas: { type: 'array', items: o({ sport: str, liga: str }) },
 });
+
+// --- Fase 7: rendimiento ---
+export const ESQUEMA_RENDIMIENTO = o({
+  cache: o({ entradas: int, aciertos: int, fallos: int, invalidadas: int, on: bool, ttlSegundos: num }),
+  compresion: bool,
+});

@@ -8,6 +8,7 @@ import { inspectEnvFile } from './envFile.ts';
 import { place, settle } from './paper/bankroll.ts';
 import { colocarEstrategias, liquidarEstrategias } from './estrategias/index.ts';
 import { cicloResumenDiario, cicloInformeSemanal } from './informes/index.ts';
+import { calentar } from './cache/respuestas.ts';
 import { getDb } from './db.ts';
 import { countRows } from './repo.ts';
 import { refreshOdds } from './ingest/odds.ts';
@@ -482,7 +483,11 @@ async function main() {
     // Puntuar el registro en vivo con los resultados que lleguen (y al arrancar, lo atrasado).
     registrar({ nombre: 'puntuar-en-vivo', descripcion: 'Puntúa las predicciones en vivo con los resultados del archivo', cadenciaMin: RESOLVE_EVERY_MINUTES, primeraEnMin: 0, fn: (log) => resolveAllPredictions(log) });
     // Instantáneas pre-partido (T-24h, T-6h, T-1h y la final congelada). Ver prematch/snapshots.ts.
-    registrar({ nombre: 'pre-partido', descripcion: 'Predice lo próximo, guarda instantáneas y congela la final de lo que empezó', cadenciaMin: 15, primeraEnMin: 0, fn: (log) => cicloPrePartido(log) });
+    registrar({ nombre: 'pre-partido', descripcion: 'Predice lo próximo, guarda instantáneas y congela la final de lo que empezó', cadenciaMin: 15, primeraEnMin: 0, fn: (log) => {
+        cicloPrePartido(log);
+        // Las listas de próximos por defecto quedan calculadas para la siguiente visita (Fase 7.2).
+        calentar(log);
+      } });
     // Copia del libro mayor (ver db/backup.ts). La primera, a los dos minutos si la última es
     // más vieja que el intervalo: reiniciar no dispara copias.
     registrar({

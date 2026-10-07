@@ -34,6 +34,7 @@ import { registerOperacionRoutes } from './routes/operacion.ts';
 import { registerAnaliticaRoutes } from './routes/analitica.ts';
 import { registerAjustesRoutes } from './routes/ajustes.ts';
 import { registerEstrategiasRoutes } from './routes/estrategias.ts';
+import { registrarCompresionYEtag } from './http/compresion.ts';
 import { registerInformesRoutes } from './routes/informes.ts';
 import { registerLineasArchivoRoutes } from './routes/lineasArchivo.ts';
 import { conLectorDeAnulaciones } from './features.ts';
@@ -84,6 +85,8 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   // olvidar en una ruta nueva. Solo se guardan las de predicción: medir el endpoint de
   // latencia dentro de la propia latencia añade ruido y no informa de nada.
   if (opts.onRoute) app.addHook('onRoute', (r) => opts.onRoute!({ method: r.method, url: r.url }));
+  // Compresión y ETag/304 (Fase 7.1): antes de registrar ninguna ruta, para que valga para todas.
+  if (featureEncendida('rendimiento.compresion')) registrarCompresionYEtag(app);
 
   app.addHook('onRequest', async (req) => {
     (req as { __t0?: bigint }).__t0 = process.hrtime.bigint();

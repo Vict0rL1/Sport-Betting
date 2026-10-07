@@ -4,6 +4,7 @@
 // a tennis match and nothing there can return a game, so the two sports cannot be
 // mixed up by a client — which is the whole point of the separate tab.
 
+import { cacheado, firmaDe, registrarCalentador } from '../cache/respuestas.ts';
 import { versionsFor } from '../versions.ts';
 import type { FastifyInstance } from 'fastify';
 import { basketballConfig, env } from '../config.ts';
@@ -109,6 +110,13 @@ function describeRow(row: UpcomingGameRow, withPrediction = true) {
   };
 }
 
+
+/** La lista de próximos, cacheada mientras no cambien sus datos (Fase 7.2). */
+function proximos(league: string | undefined, withPred: boolean) {
+  return cacheado(`basketball:proximos:${league ?? ''}:${withPred}`, firmaDe('bb_upcoming'), () => listUpcoming(league).map((r) => describeRow(r, withPred)));
+}
+registrarCalentador('basketball', () => proximos(undefined, true));
+
 export async function registerBasketballRoutes(app: FastifyInstance): Promise<void> {
   // --- meta: what data is loaded, and how fresh it is ---
   app.get('/meta', async () => {
@@ -166,11 +174,7 @@ export async function registerBasketballRoutes(app: FastifyInstance): Promise<vo
   // --- upcoming games with predictions ---
   app.get<{ Querystring: { league?: string; predictions?: string } }>(
     '/games/upcoming',
-    async (req) => {
-      const rows = listUpcoming(req.query.league);
-      const withPred = req.query.predictions !== 'false';
-      return rows.map((r) => describeRow(r, withPred));
-    },
+    async (req) => proximos(req.query.league, req.query.predictions !== 'false'),
   );
 
   // --- one game ---

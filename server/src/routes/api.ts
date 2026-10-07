@@ -44,6 +44,7 @@ import { responderAgente } from '../ask/agent.ts';
 import { enrutarConModelo } from '../ask/llm.ts';
 import { place, settle, resumen, bancoActual } from '../paper/bankroll.ts';
 import { colocarEstrategias, liquidarEstrategias } from '../estrategias/index.ts';
+import { cacheado, firmaDe, registrarCalentador } from '../cache/respuestas.ts';
 import { riesgoCartera } from '../staking/risk.ts';
 import { lineaTemporal } from '../audit/timeline.ts';
 import { reproducir } from '../audit/reproduce.ts';
@@ -154,6 +155,15 @@ function describeRow(row: UpcomingRow, withPrediction = true) {
     },
   };
 }
+
+
+/** La lista de próximos de tenis, cacheada mientras no cambien sus datos (Fase 7.2). */
+function proximosTenis(tour: string | undefined, tournament: string | undefined, withPred: boolean) {
+  return cacheado(`tennis:proximos:${tour ?? ''}:${tournament ?? ''}:${withPred}`, firmaDe('upcoming_matches'), () =>
+    listUpcoming({ tour, tournament }).map((row) => describeRow(row, withPred)),
+  );
+}
+registrarCalentador('tennis', () => proximosTenis(undefined, undefined, true));
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // Las ingestas: la última por fuente y el historial (filtrable por fuente). Para el
@@ -698,11 +708,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // --- upcoming matches (optionally with predictions) ---
   app.get<{ Querystring: { tour?: string; tournament?: string; predictions?: string } }>(
     '/matches/upcoming',
-    async (req) => {
-      const rows = listUpcoming({ tour: req.query.tour, tournament: req.query.tournament });
-      const withPred = req.query.predictions !== 'false';
-      return rows.map((row) => describeRow(row, withPred));
-    },
+    async (req) => proximosTenis(req.query.tour, req.query.tournament, req.query.predictions !== 'false'),
   );
 
   // --- head-to-head between two players ---

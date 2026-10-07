@@ -52,6 +52,7 @@ export default function Diagnostico() {
   const trabajos = usarJson<{ arrancado: boolean; trabajos: Trabajo[] }>('/api/scheduler');
   const datos = usarJson<DatosEstado>('/api/datos/estado');
   const cuota = usarJson<Cuota>('/api/odds-quota');
+  const rendimiento = usarJson<{ cache: { entradas: number; aciertos: number; fallos: number; on: boolean; ttlSegundos: number }; compresion: boolean }>('/api/rendimiento');
   return (
     <div>
       <p className="mb-1 text-[12px] text-(--ink-muted)">
@@ -80,6 +81,17 @@ export default function Diagnostico() {
           </>
         )}
       </Bloque>
+
+      {rendimiento && rendimiento !== 'error' && (
+        <Bloque titulo={t('diag.rendimiento')}>
+          <p>
+            {rendimiento.cache.on
+              ? t('diag.cache', { aciertos: rendimiento.cache.aciertos, fallos: rendimiento.cache.fallos, entradas: rendimiento.cache.entradas, ttl: rendimiento.cache.ttlSegundos })
+              : t('diag.cacheApagada')}
+          </p>
+          <p>{rendimiento.compresion ? t('diag.compresion') : t('diag.compresionApagada')}</p>
+        </Bloque>
+      )}
 
       <Bloque titulo={t('diag.ingestas')}>
         {ingestas === 'error' && <p>{t('comun.error')}</p>}

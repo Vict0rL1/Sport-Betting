@@ -4,6 +4,7 @@
 // basketball game or a tennis match, which is what keeps the four tabs genuinely
 // independent of one another.
 
+import { cacheado, firmaDe, registrarCalentador } from '../cache/respuestas.ts';
 import { versionsFor } from '../versions.ts';
 import type { FastifyInstance } from 'fastify';
 import { env, baseballConfig } from '../config.ts';
@@ -119,6 +120,13 @@ function describeRow(
   };
 }
 
+
+/** La lista de próximos, cacheada mientras no cambien sus datos (Fase 7.2). */
+function proximos(league: string | undefined, withPred: boolean) {
+  return cacheado(`baseball:proximos:${league ?? ''}:${withPred}`, firmaDe('bsb_upcoming'), () => listUpcoming(league).map((r) => describeRow(r, withPred)));
+}
+registrarCalentador('baseball', () => proximos(undefined, true));
+
 export async function registerBaseballRoutes(app: FastifyInstance): Promise<void> {
   app.get('/meta', async () => ({
     dataSource: getMeta('bsb_data_source') ?? 'unknown',
@@ -168,11 +176,7 @@ export async function registerBaseballRoutes(app: FastifyInstance): Promise<void
 
   app.get<{ Querystring: { league?: string; predictions?: string } }>(
     '/games/upcoming',
-    async (req) => {
-      const rows = listUpcoming(req.query.league);
-      const withPred = req.query.predictions !== 'false';
-      return rows.map((r) => describeRow(r, withPred));
-    },
+    async (req) => proximos(req.query.league, req.query.predictions !== 'false'),
   );
 
   // `homeStarter` / `awayStarter` let the user name the starting pitchers when

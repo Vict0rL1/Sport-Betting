@@ -92,3 +92,7 @@ jobs:
       - run: npm run e2e
         env:
           CI: 'true'
+      # Fase 7.3: p95 de los endpoints de predicciones y 50 conexiones SSE contra la base de
+      # demostración; falla si algo pasa de config/presupuestos.json.
+      - name: Prueba de carga con presupuestos
+        run: npm run carga:ci

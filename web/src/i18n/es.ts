@@ -294,6 +294,11 @@ export const es = {
   'archivo.politica': 'política v{v}',
   'archivo.paginas': 'Páginas',
   'archivo.pagina': 'Página {n} de {de}',
+  'diag.rendimiento': 'Rendimiento',
+  'diag.cache': 'Caché de próximos: {aciertos} servidas desde la caché y {fallos} calculadas desde que arrancó el servidor; {entradas} listas guardadas, cada una como mucho {ttl} s y mientras no cambien sus datos.',
+  'diag.cacheApagada': 'Caché de próximos apagada: cada petición recalcula las predicciones.',
+  'diag.compresion': 'Respuestas comprimidas (Brotli o gzip) y con ETag: lo que no cambia no se vuelve a bajar.',
+  'diag.compresionApagada': 'Compresión y ETag apagados.',
 } as const;
 
 export type Clave = keyof typeof es;

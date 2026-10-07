@@ -74,6 +74,16 @@ una tiene interruptor en `config/features.json` (404 si está apagada) y esquema
 | `GET /api/odds/lineas?sport=&market=` | Comparador de líneas: mejor, peor, consenso, dispersión, margen y surebets (solo lectura) |
 | `GET /api/archivo?q=&sport=&liga=&confianza=&banda=&resultado=&desde=&hasta=&pagina=` | Archivo de predicciones con resultado, confianza, CLV y política |
 
+## Rendimiento (Fase 7)
+
+| Ruta | Qué |
+|---|---|
+| `GET /api/rendimiento` | Caché de próximos (aciertos, fallos, entradas, TTL) y si la compresión está encendida |
+
+Todo `GET /api/*` con respuesta 200 lleva `ETag` débil y `Cache-Control: no-cache`; con
+`If-None-Match` igual responde 304 sin cuerpo. Las respuestas de texto de más de 1 KB van con
+Brotli o gzip según `Accept-Encoding`.
+
 ## API REST (puerto 7374)
 
 Los tres deportes viven en espacios de nombres distintos: ningún endpoint puede devolver dos.

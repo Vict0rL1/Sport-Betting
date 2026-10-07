@@ -3,6 +3,7 @@
 // A third separate namespace. No endpoint here can return a tennis match or a
 // basketball game, which is what keeps the three tabs genuinely independent.
 
+import { cacheado, firmaDe, registrarCalentador } from '../cache/respuestas.ts';
 import { versionsFor } from '../versions.ts';
 import type { FastifyInstance } from 'fastify';
 import { env, footballConfig } from '../config.ts';
@@ -113,6 +114,13 @@ function describeRow(
   };
 }
 
+
+/** La lista de próximos, cacheada mientras no cambien sus datos (Fase 7.2). */
+function proximos(league: string | undefined, withPred: boolean) {
+  return cacheado(`football:proximos:${league ?? ''}:${withPred}`, firmaDe('fb_upcoming', ['SELECT COUNT(*), MAX(rowid) FROM fb_lineups', 'SELECT COUNT(*), MAX(rowid) FROM fb_news']), () => listUpcoming(league).map((r) => describeRow(r, withPred)));
+}
+registrarCalentador('football', () => proximos(undefined, true));
+
 export async function registerFootballRoutes(app: FastifyInstance): Promise<void> {
   app.get('/meta', async () => ({
     dataSource: getMeta('fb_data_source') ?? 'unknown',
@@ -167,11 +175,7 @@ export async function registerFootballRoutes(app: FastifyInstance): Promise<void
 
   app.get<{ Querystring: { league?: string; predictions?: string } }>(
     '/fixtures/upcoming',
-    async (req) => {
-      const rows = listUpcoming(req.query.league);
-      const withPred = req.query.predictions !== 'false';
-      return rows.map((r) => describeRow(r, withPred));
-    },
+    async (req) => proximos(req.query.league, req.query.predictions !== 'false'),
   );
 
   // `outHome` / `outAway` are how the user tells the model the one thing it

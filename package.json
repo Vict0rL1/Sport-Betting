@@ -98,7 +98,9 @@
     "study": "npm run study --workspace server --",
     "help": "node scripts/help.mjs",
     "setup": "node scripts/setup.mjs",
-    "e2e": "npm run e2e --workspace web --"
+    "e2e": "npm run e2e --workspace web --",
+    "carga": "node scripts/carga.mjs",
+    "carga:ci": "node scripts/carga.mjs --arrancar --presupuesto"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

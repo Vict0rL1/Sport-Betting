@@ -1,0 +1,21 @@
+{
+  "$comment": "Presupuestos de latencia (Fase 7.3) para scripts/carga.mjs: p95 en ms, 60 peticiones por endpoint, 6 a la vez. Fijados tras medir (docs/RENDIMIENTO.md): unas cinco veces el p95 medido con la base de demostración del e2e, con un mínimo de 150 ms, para que una máquina de CI más lenta no dé falsos fallos y una regresión de verdad (decenas de veces más lento, como antes de la caché) sí falle.",
+  "peticiones": 60,
+  "concurrencia": 6,
+  "endpoints": [
+    { "ruta": "/api/estado", "p95Ms": 150 },
+    { "ruta": "/api/features", "p95Ms": 150 },
+    { "ruta": "/api/meta", "p95Ms": 150 },
+    { "ruta": "/api/today", "p95Ms": 150 },
+    { "ruta": "/api/top-picks?horas=48", "p95Ms": 150 },
+    { "ruta": "/api/matches/upcoming?tour=atp", "p95Ms": 150 },
+    { "ruta": "/api/football/fixtures/upcoming", "p95Ms": 150 },
+    { "ruta": "/api/basketball/games/upcoming", "p95Ms": 150 },
+    { "ruta": "/api/baseball/games/upcoming", "p95Ms": 150 },
+    { "ruta": "/api/nfl/games/upcoming", "p95Ms": 150 },
+    { "ruta": "/api/football/power?league=epl", "p95Ms": 150 },
+    { "ruta": "/api/system-trust", "p95Ms": 400 },
+    { "ruta": "/api/archivo", "p95Ms": 150 }
+  ],
+  "sse": { "ruta": "/api/latency/stream", "conexiones": 50, "sostenerMs": 2000, "primerByteP95Ms": 250, "mientras": "/api/meta", "bajoCargaP95Ms": 150 }
+}

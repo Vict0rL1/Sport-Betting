@@ -44,6 +44,9 @@ export async function registerStatic(app: FastifyInstance): Promise<void> {
     // contenido, cambia el nombre. Se pueden cachear para siempre sin riesgo de servir
     // una versión vieja, y eso convierte la segunda visita en instantánea.
     maxAge: '1y',
+    // Los .br y .gz que deja scripts/comprimir-dist.mjs al construir (Fase 7.1): se sirven según
+    // Accept-Encoding sin comprimir nada en cada petición.
+    preCompressed: true,
     // Recibe un `FastifyReply`, no el `ServerResponse` de Node, así que la cabecera se
     // pone con `.header()`. (Escrito primero con `setHeader` y cazado por el typecheck;
     // el `.d.ts` del plugin y su código coinciden en que es un reply.)
@@ -52,7 +55,7 @@ export async function registerStatic(app: FastifyInstance): Promise<void> {
       // cada despliegue. Cacheado un año, quien ya haya entrado seguiría pidiendo los
       // assets de la versión vieja —que ya no están— y vería una página en blanco
       // después de cada despliegue.
-      if (filePath.endsWith('index.html')) {
+      if (/index\.html(\.(br|gz))?$/.test(filePath)) {
         reply.header('cache-control', 'no-cache');
       }
     },
