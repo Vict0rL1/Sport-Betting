@@ -1,3 +1,4 @@
+import { Sugerencia } from './ExtrasApuesta';
 import { useEffect, useMemo, useState } from 'react';
 import {
   BetRequestError,
@@ -12,6 +13,7 @@ import {
   type FieldError,
 } from '../../lib/bets';
 import { HOME_COLOR, PROFIT_COLOR } from '../../lib/theme';
+import { Payout, ModeTab, Field, inputClass, selectClass, todayLocal } from './BetFormPartes';
 
 const MARKETS = ['moneyline', 'spread', 'total', 'btts', 'score', 'other'];
 const SPORTS = ['football', 'basketball', 'baseball', 'nfl', 'tennis', 'other'];
@@ -31,30 +33,35 @@ const SPORTS = ['football', 'basketball', 'baseball', 'nfl', 'tennis', 'other'];
  */
 export default function BetForm({
   editing,
+  borrador,
   onDone,
   onCancel,
 }: {
   editing?: Bet | null;
+  /** Un borrador que llega de «Mi selección» (Fase 5.15). */
+  borrador?: Record<string, unknown> | null;
   onDone: () => void;
   onCancel: () => void;
 }) {
+  const b = (k: string): string => (borrador && borrador[k] != null ? String(borrador[k]) : '');
   const [candidates, setCandidates] = useState<BetCandidate[] | null>(null);
   const [pickedKey, setPickedKey] = useState<string>('');
-  const [manual, setManual] = useState(!!editing);
+  const [manual, setManual] = useState(!!editing || !!borrador);
+  const [tags, setTags] = useState((editing?.tags ?? []).join(', '));
 
   const [form, setForm] = useState({
-    sport: editing?.sport ?? 'nfl',
-    league: editing?.league ?? '',
-    event: editing?.event ?? '',
-    market: editing?.market ?? 'moneyline',
-    selection: editing?.selection ?? '',
-    odds: editing ? String(editing.odds) : '',
+    sport: editing?.sport ?? (b('sport') || 'nfl'),
+    league: editing?.league ?? b('league'),
+    event: editing?.event ?? b('event'),
+    market: editing?.market ?? (b('market') || 'moneyline'),
+    selection: editing?.selection ?? b('selection'),
+    odds: editing ? String(editing.odds) : b('odds'),
     stake: editing ? String(editing.stake) : '',
-    placed_on: editing?.placed_on ?? todayLocal(),
-    notes: editing?.notes ?? '',
+    placed_on: editing?.placed_on ?? (b('placed_on') || todayLocal()),
+    notes: editing?.notes ?? b('notes'),
   });
   const [probs, setProbs] = useState<{ model: number | null; market: number | null }>({
-    model: editing?.model_prob ?? null,
+    model: editing?.model_prob ?? (borrador && typeof borrador.model_prob === 'number' ? borrador.model_prob : null),
     market: editing?.market_prob ?? null,
   });
   const [errors, setErrors] = useState<FieldError[]>([]);
@@ -95,7 +102,8 @@ export default function BetForm({
       notes: form.notes || null,
       model_prob: probs.model,
       market_prob: probs.market,
-      match_key: picked?.matchKey ?? editing?.match_key ?? null,
+      match_key: picked?.matchKey ?? editing?.match_key ?? (b('match_key') || null),
+      tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
     };
     try {
       if (editing) await patchBet(editing.id, input);
@@ -322,9 +330,16 @@ export default function BetForm({
             />
           </Field>
 
+          <Field label="Etiquetas (opcional, separadas por comas)" error={errorFor('tags')} full>
+            <input className={inputClass} value={tags} placeholder="valor, directo, combinada" onChange={(e) => setTags(e.target.value)} />
+          </Field>
+
           {/* The payout the odds imply, so a typo in either field is visible before
               it becomes a wrong P&L. */}
           <Payout odds={form.odds} stake={form.stake} />
+          <div className="sm:col-span-2">
+            <Sugerencia odds={Number(String(form.odds).replace(',', '.'))} prob={probs.model} />
+          </div>
 
           <div className="sm:col-span-2">
             {errorFor('_') && <p className="mb-2 text-[14px] text-[#d95926]">{errorFor('_')}</p>}
@@ -341,69 +356,4 @@ export default function BetForm({
       )}
     </div>
   );
-}
-
-/** What this bet returns if it wins — arithmetic shown before it can go wrong. */
-function Payout({ odds, stake }: { odds: string; stake: string }) {
-  const o = Number(odds.replace(',', '.'));
-  const s = Number(stake.replace(',', '.'));
-  if (!Number.isFinite(o) || !Number.isFinite(s) || o <= 1 || s <= 0) return <div className="hidden sm:block" />;
-  const win = s * (o - 1);
-  return (
-    <div className="flex items-end pb-1 text-[14px] text-(--ink-soft) sm:col-span-1">
-      Si gana:{' '}
-      <strong className="mx-1 font-semibold tabular-nums" style={{ color: PROFIT_COLOR }}>
-        +{win.toFixed(2).replace(/\.00$/, '')}
-      </strong>
-      · si pierde <span className="ml-1 tabular-nums">−{s.toFixed(2).replace(/\.00$/, '')}</span>
-    </div>
-  );
-}
-
-function ModeTab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-lg px-3 py-1.5 text-[14px] font-medium ring-1 ring-inset transition ${
-        active ? 'bg-(--raised-3) text-(--ink-strong) ring-(--line-strong)' : 'text-(--ink-soft) ring-(--line)'
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Field({
-  label,
-  error,
-  full,
-  children,
-}: {
-  label: string;
-  error?: string;
-  full?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className={`block ${full ? 'sm:col-span-2' : ''}`}>
-      <span className="mb-1 block text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
-        {label}
-      </span>
-      {children}
-      {/* The server's own message, under the field it names — not one generic
-          "revisa el formulario" that leaves you hunting. */}
-      {error && <span className="mt-1 block text-[13px] text-[#d95926]">{error}</span>}
-    </label>
-  );
-}
-
-const inputClass =
-  'w-full rounded-lg bg-(--raised) px-3 py-2 text-[16px] text-(--ink-strong) ring-1 ring-inset ring-(--line) placeholder:text-(--ink-faint) focus:outline-none focus:ring-(--line-strong)';
-const selectClass = `${inputClass} appearance-none`;
-
-function todayLocal(): string {
-  const d = new Date();
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }

@@ -147,6 +147,18 @@ export const es = {
   'jugador.ganados1': 'Ganados con el 1.º',
   'jugador.ganados2': 'Ganados con el 2.º',
   'jugador.bpSalvados': 'Bolas de break salvadas',
+  'diag.intro': '¿Funciona todo? Ingestas, trabajos programados, errores del servidor, copias, cuota de cuotas y la latencia del escáner, en una página.',
+  'diag.registroEnMarcha': 'Registro en marcha.',
+  'diag.registroParado': 'Registro parado: nada programado.',
+  'diag.ingestas': 'Ingestas (última por fuente)',
+  'diag.sinIngestas': 'Ninguna ingesta registrada todavía.',
+  'diag.errores': 'Errores del servidor',
+  'diag.erroresNoDisponibles': 'No se pudo leer el registro de errores (¿apagado en features.json?).',
+  'diag.errores24h': '{n} en las últimas 24 h.',
+  'diag.ningunError': 'Ninguno registrado.',
+  'diag.base': 'Base de datos y copias',
+  'diag.cuota': 'Cuota de The Odds API',
+  'diag.sinClave': 'Sin clave: modo demostración, nada que gastar.',
 } as const;
 
 export type Clave = keyof typeof es;

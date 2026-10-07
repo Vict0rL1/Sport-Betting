@@ -35,6 +35,7 @@
     "interfaz.sinConexion": { "on": true, "descripcion": "El service worker guarda el armazón y las últimas predicciones; banner «Sin conexión: datos de HH:MM»." },
     "interfaz.recorrido": { "on": true, "descripcion": "Recorrido corto de primer uso (píldora, insignia de confianza, modo demo), descartable y recordado." },
     "interfaz.glosario": { "on": true, "descripcion": "Glosario (CLV, Kelly, de-vig, Brier, ECE, log loss, abstención, walk-forward, holdout) y tooltips." },
-    "apuestas.importacion": { "on": true, "descripcion": "Importar el registro personal desde un CSV (POST /api/bets/import), etiquetas, CLV propio y sugerencia de stake con la política Kelly (solo sugerencia)." }
+    "apuestas.importacion": { "on": true, "descripcion": "Importar el registro personal desde un CSV (POST /api/bets/import), etiquetas, CLV propio y sugerencia de stake con la política Kelly (solo sugerencia)." },
+    "interfaz.muestras": { "on": false, "descripcion": "Galería de componentes con datos de EJEMPLO (/_muestras) para las capturas de Playwright. Apagada por defecto: no es una pantalla de uso." }
   }
 }

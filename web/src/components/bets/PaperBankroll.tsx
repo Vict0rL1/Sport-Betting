@@ -4,6 +4,7 @@
 // mezclar «lo que apostaste tú» con «lo que apostaría el modelo» en una sola cuenta
 // haría imposible responder a ninguna de las dos preguntas.
 
+import ProfitCurve from './ProfitCurve';
 import { useEffect, useState } from 'react';
 import { BREAK_EVEN_COLOR, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { StatusMark } from '../icons';
@@ -22,6 +23,7 @@ interface Apuesta {
   stake: number;
   status: string;
   profit: number | null;
+  settled_at?: string | null;
   // Auditoría: nulos en las apuestas anteriores a que existiera, y no se inventan.
   opening_odds?: number | null;
   closing_odds?: number | null;
@@ -120,6 +122,23 @@ export default function PaperBankroll() {
           </div>
         ))}
       </div>
+
+      {/* La curva de capital del banco de papel (Fase 5.22): beneficio acumulado por día de liquidación. */}
+      {(() => {
+        const porDia = new Map<string, number>();
+        for (const x of [...r.apuestas].filter((x) => x.profit != null && x.settled_at).sort((a, b) => String(a.settled_at).localeCompare(String(b.settled_at)))) {
+          const d = String(x.settled_at).slice(0, 10);
+          porDia.set(d, (porDia.get(d) ?? 0) + (x.profit as number));
+        }
+        let acc = 0;
+        const puntos = [...porDia.entries()].map(([day, v]) => ({ day, profit: (acc += v) }));
+        return puntos.length >= 3 ? (
+          <div className="border-t border-(--line) px-4 py-3">
+            <p className="mb-1 text-[12px] font-medium uppercase tracking-wide text-(--ink-muted)">Curva de capital</p>
+            <ProfitCurve points={puntos} />
+          </div>
+        ) : null;
+      })()}
 
       {/* EL CLV: si se consiguió mejor precio que el de cierre. Es la medida que no
           depende de la suerte del resultado: una apuesta perdida a 2,10 que cerró a

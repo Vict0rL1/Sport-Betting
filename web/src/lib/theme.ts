@@ -142,7 +142,8 @@ export interface SportTheme {
   /**
    * Label for narrow screens, when six tabs cannot share a phone's width.
    *
-   * Only where a genuine shorter name exists — "Basket" is what people actually
+   * Unused since Phase 5.24 (labels unified: «Baloncesto» everywhere). Kept for a future sport whose
+   * name genuinely does not fit. Only where a genuine shorter name exists — "Basket" is what people actually
    * say, so it costs nothing. Where there is no natural short form the full label
    * stays and the row scrolls instead of inventing an abbreviation nobody uses.
    */
@@ -156,7 +157,7 @@ export const SPORT_THEMES: Record<SportId, SportTheme> = {
   // Dorado: la pestaña que cruza todos los deportes no es ninguno de ellos.
   picks: { id: 'picks', label: 'Destacados', accent: '#f5b544', accentSoft: 'rgba(245,181,68,0.12)' },
   football: { id: 'football', label: 'Fútbol', accent: '#4ade80', accentSoft: 'rgba(74,222,128,0.12)' },
-  basketball: { id: 'basketball', label: 'Baloncesto', shortLabel: 'Basket', accent: '#fb923c', accentSoft: 'rgba(251,146,60,0.12)' },
+  basketball: { id: 'basketball', label: 'Baloncesto', accent: '#fb923c', accentSoft: 'rgba(251,146,60,0.12)' },
   baseball: { id: 'baseball', label: 'Béisbol', accent: '#facc15', accentSoft: 'rgba(250,204,21,0.12)' },
   nfl: { id: 'nfl', label: 'NFL', accent: '#f472b6', accentSoft: 'rgba(244,114,182,0.12)' },
   tennis: { id: 'tennis', label: 'Tenis', accent: '#a78bfa', accentSoft: 'rgba(167,139,250,0.12)' },

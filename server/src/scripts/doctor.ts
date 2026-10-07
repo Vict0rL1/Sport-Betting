@@ -41,6 +41,8 @@ import {
   comprobarConfianza,
   comprobarSeguridad,
   comprobarAlmacenamiento,
+  comprobarAnalitica,
+  type EstadoAnalitica,
   type EstadoAlmacenamiento,
   comprobarServidor,
   resultado,
@@ -66,6 +68,11 @@ import { marcarMuertas, ultimasEjecuciones } from '../ingest/runs.ts';
 import { sesionesActivas } from '../auth/sessions.ts';
 import { featureEncendida } from '../features.ts';
 import { origenesPermitidos } from '../security/cors.ts';
+import { monitorizacion as monitorizacionDe } from '../monitoring/series.ts';
+import { predicciones as prediccionesEnVivo } from '../evaluation/live.ts';
+import { leerDiagramasBacktest } from '../evaluation/reliability.ts';
+import { CLAVE_ANULACIONES } from '../features.ts';
+import { SPORT_IDS } from '../sports.ts';
 import { contarErrores } from '../security/errors.ts';
 
 const SIN_RED = process.argv.includes('--sin-red') || process.argv.includes('--no-net');
@@ -379,6 +386,41 @@ if (dbExistia) {
 }
 
 // ---------------------------------------------------------------------------
+// ANALÍTICA E INTERFAZ — monitorización, simulación, calendario, ajustes, seguimiento
+// ---------------------------------------------------------------------------
+{
+  const db = getDb();
+  const ahora = new Date();
+  const uno = <T,>(fn: () => T, porDefecto: T): T => {
+    try {
+      return fn();
+    } catch {
+      return porDefecto;
+    }
+  };
+  const monitorizacion = SPORT_IDS.map((dep) =>
+    uno(() => {
+      const m = monitorizacionDe(dep, ahora);
+      return { deporte: dep, n: m.deriva.n, deriva: m.deriva.hay, motivos: m.deriva.motivos };
+    }, { deporte: dep, n: 0, deriva: false, motivos: [] as string[] }),
+  );
+  const estadoA: EstadoAnalitica = {
+    monitorizacion,
+    ultimaSerie: uno(() => (db.prepare('SELECT MAX(day) AS d FROM monitoring_series').get() as { d: string | null }).d, null),
+    predichasConResultado: SPORT_IDS.reduce((a, dep) => a + uno(() => prediccionesEnVivo(dep).length, 0), 0),
+    simulacion: uno(() => {
+      const r = db.prepare('SELECT MAX(day) AS d, COUNT(DISTINCT sport || league) AS n FROM simulation_runs').get() as { d: string | null; n: number };
+      return { ultimoDia: r.d, ligas: r.n };
+    }, { ultimoDia: null, ligas: 0 }),
+    calendarioPendiente: uno(() => (db.prepare('SELECT COUNT(*) AS n FROM remaining_fixtures').get() as { n: number }).n, 0),
+    fiabilidadBacktest: uno(() => Object.keys(leerDiagramasBacktest()).length, 0),
+    anulaciones: uno(() => Object.keys(JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}') as Record<string, boolean>), [] as string[]),
+    seguidos: uno(() => (db.prepare('SELECT COUNT(*) AS n FROM watchlist').get() as { n: number }).n, 0),
+  };
+  hallazgos.push(...comprobarAnalitica(estadoA, ahora));
+}
+
+// ---------------------------------------------------------------------------
 // SEGURIDAD — la puerta, las cabeceras y los secretos
 // ---------------------------------------------------------------------------
 {
@@ -486,7 +528,7 @@ hallazgos.push(...comprobarServidor({ puertoApi: puertos.api, puertoWeb: puertos
 // Impresión
 // ---------------------------------------------------------------------------
 const marca = { ok: `${C.green}✓${C.off}`, aviso: `${C.amber}⚠${C.off}`, error: `${C.red}✗${C.off}`, info: `${C.dim}·${C.off}` };
-const orden: Seccion[] = ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'ACTUALIZACIÓN', 'CONFIANZA', 'DATOS Y COPIAS', 'SEGURIDAD', 'SERVIDOR Y PANTALLA'];
+const orden: Seccion[] = ['CONFIGURACIÓN', 'THE ODDS API', 'DEPORTES', 'BASE DE DATOS', 'ACTUALIZACIÓN', 'CONFIANZA', 'DATOS Y COPIAS', 'ANALÍTICA E INTERFAZ', 'SEGURIDAD', 'SERVIDOR Y PANTALLA'];
 for (const s of orden) {
   const hs = hallazgos.filter((x) => x.seccion === s);
   if (hs.length === 0) continue;

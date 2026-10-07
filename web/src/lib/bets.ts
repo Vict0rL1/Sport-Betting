@@ -24,6 +24,8 @@ export interface Bet {
   model_prob: number | null;
   market_prob: number | null;
   match_key: string | null;
+  /** Etiquetas libres (Fase 5.16). */
+  tags: string[];
   /** null while pending — never 0, which would claim a settled break-even. */
   profit: number | null;
   risked: number;
@@ -88,6 +90,7 @@ export interface BetInput {
   model_prob?: number | null;
   market_prob?: number | null;
   match_key?: string | null;
+  tags?: string[] | null;
 }
 
 export interface FieldError {

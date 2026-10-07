@@ -6,6 +6,9 @@ export interface Termino {
   larga: string;
 }
 
+/** La misma lista en inglés (Fase 5.25): el español manda; esto la traduce. */
+export type TerminoEn = Pick<Termino, 'nombre' | 'corta' | 'larga'>;
+
 export const GLOSARIO: Termino[] = [
   { clave: 'clv', nombre: 'CLV (closing line value)', corta: 'Cuánto mejor que la cuota de cierre fue la que tomaste.', larga: 'La cuota de cierre es la última antes de empezar y es la más informada. Si apostaste a 2,10 y cerró a 1,95, tu CLV es positivo: pillaste precio antes de que el mercado se moviera. A la larga, un CLV positivo sostenido es la mejor señal de que no es suerte.' },
   { clave: 'kelly', nombre: 'Kelly (fraccionado)', corta: 'Cuánto apostar según la ventaja y la cuota; aquí, un cuarto del Kelly completo.', larga: 'El criterio de Kelly maximiza el crecimiento del banco a largo plazo: fracción = (p·cuota − 1) / (cuota − 1). El Kelly completo es muy volátil y castiga cualquier error en la probabilidad, así que la política usa un cuarto (o un quinto) y además topes por partido, día y semana.' },
@@ -22,3 +25,24 @@ export const GLOSARIO: Termino[] = [
 ];
 
 export const terminoDe = (clave: string) => GLOSARIO.find((t) => t.clave === clave) ?? null;
+
+export const GLOSARIO_EN: Record<string, TerminoEn> = {
+  clv: { nombre: 'CLV (closing line value)', corta: 'How much better than the closing odds the price you took was.', larga: 'The closing odds are the last ones before kick-off and the best informed. If you bet at 2.10 and it closed at 1.95, your CLV is positive: you got the price before the market moved. Over time, a sustained positive CLV is the best sign that it is not luck.' },
+  kelly: { nombre: 'Kelly (fractional)', corta: 'How much to stake given the edge and the odds; here, a quarter of full Kelly.', larga: 'The Kelly criterion maximises long-run bankroll growth: fraction = (p·odds − 1) / (odds − 1). Full Kelly is very volatile and punishes any error in the probability, so the policy uses a quarter (or a fifth) plus caps per match, day and week.' },
+  devig: { nombre: 'De-vig (removing the margin)', corta: "Turning odds into probabilities after removing the bookmaker's cut.", larga: "A bookmaker's implied probabilities add up to more than 1: the excess is its margin. Removing it (de-vig) leaves the market's \"fair\" probability. The app uses Shin's method when Pinnacle odds exist and the proportional method otherwise." },
+  brier: { nombre: 'Brier', corta: 'Mean squared error of the probabilities; 0 is perfect, 0.25 is always saying 50/50.', larga: 'For each match, (stated probability − what happened)². It punishes both saying 90 % and missing and saying 55 % when it was obvious. The app computes it the same way in all five sports so the figures are comparable.' },
+  ece: { nombre: 'ECE (calibration error)', corta: 'How far what was said is from what happened, by probability band.', larga: 'Predictions are grouped into bins (50–60 %, 60–70 %…) and the mean stated probability is compared with the real hit rate in each. ECE is the weighted mean of those gaps: 2 pp means that, on average, what was said is two points off what happened.' },
+  logloss: { nombre: 'Log loss', corta: 'Punishes misplaced confidence: saying 99 % and missing costs a lot.', larga: 'Minus the logarithm of the probability given to the actual outcome, averaged. Lower is better; 0.693 is knowing nothing with two outcomes and 1.099 with three. It is the metric that decides experiments because it measures the probability, not just the hit.' },
+  abstencion: { nombre: 'Abstention', corta: 'When the trust layer decides NOT to bet even though there is an edge.', larga: 'Poor data, an unstable prediction, components that disagree or a low-quality market: any of these makes the decision "NO BET" even when the model probability beats the market. Abstaining is part of the model, not a failure.' },
+  walkforward: { nombre: 'Walk-forward', corta: 'Validating by predicting each period only with what came before it.', larga: 'The model is evaluated in chronological order: for each slice (season, month) it can only use what had already happened. That way there is no peeking at the future, and the baselines (home wins, the market) are computed the same way so they can be compared.' },
+  holdout: { nombre: 'Final holdout', corta: 'The matches nobody has looked at (football 2026+, NFL 2024+) until the final exam.', larga: 'A slice of the archive set aside from the start. No experiment touches it; promoting a change requires measuring it there ONCE. While it stays closed, everything new is recorded as a rejected experiment or as a shadow.' },
+  elo: { nombre: 'Elo', corta: 'A rating that goes up when you win and down when you lose, more the more surprising the result.', larga: 'The Elo gap between two teams becomes a probability through a logistic curve; home advantage is added to the home side. Each sport has its own version (margin in the NBA, starters in MLB, quarterback in the NFL, surface in tennis).' },
+  steam: { nombre: 'Steam move', corta: 'A fast, synchronised move of the odds across several bookmakers.', larga: 'When the consensus moves two or more probability points in under an hour with several bookmakers at once, there is usually informed money behind it. The app flags it as an approximation: it sees prices, not volume.' },
+  psi: { nombre: 'PSI (population stability index)', corta: 'How much the distribution of stated probabilities has changed from the backtest.', larga: 'It compares, by bins, what the model says live with what it said in the backtest. Above 0.25 the distribution is a different one and the drift alert fires, always with at least 100 predictions.' },
+};
+
+/** El término en el idioma pedido (el español si falta la traducción). */
+export function terminoEn(t: Termino, idioma: 'es' | 'en'): Termino {
+  const en = idioma === 'en' ? GLOSARIO_EN[t.clave] : undefined;
+  return en ? { ...t, ...en } : t;
+}

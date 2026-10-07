@@ -91,6 +91,7 @@ de una vez.
 | La capa de confianza: abstención, incertidumbre, auditoría | [docs/CONFIANZA.md](docs/CONFIANZA.md) |
 | Operación: doctor, despliegue, trabajos, métricas, exportaciones | [docs/OPERACION.md](docs/OPERACION.md) |
 | Notificaciones | [docs/NOTIFICACIONES.md](docs/NOTIFICACIONES.md) |
+| La interfaz: rutas, navegación, tema, idiomas, accesibilidad | [docs/INTERFAZ.md](docs/INTERFAZ.md) |
 | API (y `/docs` en el servidor) | [docs/API.md](docs/API.md) |
 | Experimentos, métricas y estudios | [docs/EXPERIMENTOS.md](docs/EXPERIMENTOS.md) |
 | Base de datos y copias | [docs/BASE_DE_DATOS.md](docs/BASE_DE_DATOS.md) |

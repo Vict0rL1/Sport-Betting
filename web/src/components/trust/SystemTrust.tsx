@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import LiveEvaluation from '../bets/LiveEvaluation';
+import Analitica from './Analitica';
 import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { DeporteIcono, ShieldCheckIcon, StatusMark } from '../icons';
 
@@ -268,6 +269,7 @@ export default function SystemTrust() {
       <div className="mb-4">
         <LiveEvaluation />
       </div>
+      <Analitica />
       <Bloque titulo="En vivo, por deporte">
         {s.brier.map((b) => (
           <p key={b.deporte}>

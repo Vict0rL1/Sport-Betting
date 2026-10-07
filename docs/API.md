@@ -36,6 +36,24 @@ una tiene interruptor en `config/features.json` (404 si está apagada) y esquema
 | `POST /api/picks/parlay` | Probabilidad conjunta de una selección descontando la correlación medida (cuerpo: `{ patas: [...] }`) |
 | `GET /api/odds/intel` | Steam moves, surebets y referencia afilada, como aproximación |
 
+## Rutas de la interfaz (Fase 5)
+
+| Ruta | Qué |
+|---|---|
+| `GET /api/estado` | La píldora de estado: cuotas, frescura por deporte, resultados, copia, errores |
+| `GET /api/errores` | Últimos errores del servidor, sin pila ni agente (Diagnóstico) |
+| `PATCH /api/features/:nombre` | Anular un interruptor (`{"on": true\|false\|null}`) |
+| `GET/PUT /api/ajustes` | Tema, idioma, deportes visibles, banco personal, recorrido visto |
+| `PATCH /api/scheduler/:nombre` | Ahora también `cadenciaMin` (minutos, o `null` para la del código) |
+| `GET/POST/DELETE /api/watchlist` | Seguimiento de equipos, jugadores y partidos |
+| `GET /api/buscar?q=` | Búsqueda global |
+| `GET /api/elo/historia/:sport/:league/:id` | Elo de un equipo antes de cada partido |
+| `GET /api/simulation/season/:sport/:league/historial` | Evolución diaria de la simulación |
+| `GET /api/resultado/:sport/:key` | «¿Acertó?» de un partido con predicción |
+| `GET /api/odds/casas/:id` | Cuotas por casa de un evento |
+| `POST /api/picks/tarjeta.svg` | La tarjeta de «Mi selección» en SVG |
+| `POST /api/bets/import`, `GET /api/bets/sugerencia`, `GET /api/bets/:id/clv` | Registro personal: CSV, sugerencia Kelly, CLV propio |
+
 ## API REST (puerto 7374)
 
 Los tres deportes viven en espacios de nombres distintos: ningún endpoint puede devolver dos.

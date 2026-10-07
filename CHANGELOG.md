@@ -4,6 +4,56 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Fase 5 — Rediseño de la interfaz y sistema visual (2026-10-07)
+
+Línea base antes de la fase: 309 tests (307 + 2 de Playwright). Ninguna probabilidad publicada
+cambia. Detalle en `docs/INTERFAZ.md`.
+
+- **Estructura**: `components/ui/index.tsx` (1.924 líneas) partido en ocho ficheros; Destacados,
+  las tarjetas y los paneles grandes, en piezas (ningún componente pasa de ~430 líneas). Rutas
+  reales con React Router para cada pestaña, liga, partido, equipo, jugador, Ajustes,
+  Diagnóstico y Glosario, con los filtros en la query; cada pantalla en su trozo (el bundle
+  principal baja de 687 kB a 333 kB). Barra inferior en el móvil (Destacados, Deportes en hoja,
+  Apuestas, Confianza). Píldora de estado única (`GET /api/estado`) en lugar de los avisos de
+  demo por pestaña. «Cómo le fue al modelo» solo en los deportes y Destacados; el modelo en
+  vivo pasa a Confianza; la latencia, a Diagnóstico (con ingestas, `GET /api/errores`,
+  trabajos, copias y cuota). Ajustes: política con «antes → después», interruptores
+  (`PATCH /api/features/:nombre`), deportes visibles, cadencias (`cadenciaMin`), notificaciones,
+  tema, idioma y banco personal (`GET/PUT /api/ajustes`).
+- **Tarjetas y páginas**: lo secundario detrás de «¿Por qué?»; insignia de confianza con «Sin
+  mercado» neutro aparte (y en la capa de confianza la falta de cuotas es DESCONOCIDO, no
+  rebaja la confianza); sin truncados; chips de liga en una fila. Página de partido (deriva
+  T-24h → final, cuotas por casa `GET /api/odds/casas/:id`, «¿Acertó?» `GET /api/resultado`),
+  de equipo (historia del Elo `GET /api/elo/historia`, balance, forma, rotación, próximos,
+  simulación), de liga (clasificación, Elo, simulación y su evolución) y de jugador.
+- **Producto**: seguimiento (`/api/watchlist`, sección en Destacados, notificación de línea
+  movida solo para lo seguido); «Mi selección» → borrador en Apuestas, texto, JSON, `.ics` y
+  PNG (SVG del servidor `POST /api/picks/tarjeta.svg`); registro personal con importación CSV,
+  etiquetas, CLV propio, «¿la habría apostado el modelo?», curva de capital y sugerencia Kelly
+  (solo sugerencia); búsqueda Ctrl/Cmd+K (`GET /api/buscar`); glosario con tooltips; recorrido
+  de primer uso; filtros del móvil en hoja.
+- **Visual**: IBM Plex Sans autoalojada; tinta, superficies y rellenos como variables con tema
+  claro (sigue al sistema o se fija en Ajustes) y los colores de estado de Tailwind en su tono
+  oscuro en claro; gráficos SVG propios con resumen accesible (fiabilidad, ventana de 4 semanas
+  con PSI, segmentos, deriva, cuotas por casa, Elo, simulación, curvas de capital); colores de
+  club de LaLiga, Serie A, Bundesliga y Ligue 1 y las 30 franquicias NBA; foco visible,
+  movimiento reducido, `aria-live`, «Baloncesto» en todas partes; catálogo i18n (español fuente,
+  inglés al lado) para el armazón y las páginas nuevas, con `Intl`; sin conexión (service worker
+  y aviso «Sin conexión: datos de HH:MM»).
+- **Doctor**: sección ANALÍTICA E INTERFAZ (monitorización y deriva, fiabilidad, simulación,
+  calendario pendiente, interruptores anulados, seguimiento). `npm run jobs -- ejecutar
+  monitorizacion | simulacion-temporada` sin servidor.
+- Migración v9 (`interfaz-fase-5`: `watchlist`, `scheduler_jobs.cadence_override`,
+  `bets.tags`). Interruptores nuevos: `interfaz.estado`, `interfaz.diagnostico`,
+  `interfaz.ajustes`, `interfaz.seguimiento`, `interfaz.busqueda`, `interfaz.temaClaro`,
+  `interfaz.idiomas`, `interfaz.sinConexion`, `interfaz.recorrido`, `interfaz.glosario`,
+  `apuestas.importacion`, `interfaz.muestras` (galería de capturas, apagada).
+- Tests: 309 → **369** (319 del servidor + 9 unitarios de la web + 41 de Playwright: cada ruta a
+  1280 y 390 px sin desbordes ni errores, barra inferior, enlaces profundos, búsqueda, recorrido,
+  sin conexión, axe en claro y oscuro, capturas de la píldora, insignias y tarjeta).
+  `verify:data`, doctor, typecheck, lint y build en verde. Lighthouse no está en el contenedor:
+  sin medir (queda para la Fase 7).
+
 ## Fase 4 — Modelos y analítica, vía registro de experimentos (2026-10-07)
 
 Línea base antes de la fase: 278 tests, 514 comprobaciones de `verify:data`. Ninguna probabilidad

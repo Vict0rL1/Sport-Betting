@@ -289,3 +289,23 @@ test('seguridad: un secreto en ficheros rastreados o un .env sin ignorar son err
   assert.equal(buscar(comprobarSeguridad(seguro({ hookInstalado: false })), /hook de pre-commit .*no está activado/)?.nivel, 'aviso');
   assert.equal(buscar(comprobarSeguridad(seguro({ errores24h: 3 })), /3 error\(es\) de servidor/)?.nivel, 'aviso');
 });
+
+// ---- ANALÍTICA E INTERFAZ (Fases 4 y 5) ----
+const { comprobarAnalitica } = await import('./checks.ts');
+
+test('comprobarAnalitica: deriva avisa; serie vieja avisa; sin datos solo informa; anulaciones y seguimiento se dicen', () => {
+  const ahora = new Date('2026-10-07T10:00:00Z');
+  const base = { monitorizacion: [], ultimaSerie: null, predichasConResultado: 0, simulacion: { ultimoDia: null, ligas: 0 }, calendarioPendiente: 0, fiabilidadBacktest: 0, anulaciones: [], seguidos: 0 };
+  const vacio = comprobarAnalitica(base, ahora);
+  assert.ok(vacio.every((x) => x.nivel === 'info' || x.nivel === 'ok'), 'sin estado no hay avisos');
+  const deriva = comprobarAnalitica({ ...base, monitorizacion: [{ deporte: 'nfl', n: 150, deriva: true, motivos: ['PSI 0,31 > 0,25'] }] }, ahora);
+  assert.ok(deriva.some((x) => x.nivel === 'aviso' && /Deriva en nfl: PSI/.test(x.texto)));
+  const sinSerie = comprobarAnalitica({ ...base, predichasConResultado: 40 }, ahora);
+  assert.ok(sinSerie.some((x) => x.nivel === 'aviso' && /nunca se ha guardado/.test(x.texto)));
+  const vieja = comprobarAnalitica({ ...base, ultimaSerie: '2026-09-30', simulacion: { ultimoDia: '2026-09-30', ligas: 3 } }, ahora);
+  assert.equal(vieja.filter((x) => x.nivel === 'aviso').length, 2, 'serie y simulación de hace una semana');
+  const ui = comprobarAnalitica({ ...base, anulaciones: ['api.docs'], seguidos: 2, calendarioPendiente: 300, fiabilidadBacktest: 5 }, ahora);
+  assert.ok(ui.some((x) => /api\.docs/.test(x.texto)));
+  assert.ok(ui.some((x) => /Seguimiento: 2/.test(x.texto)));
+  assert.ok(ui.some((x) => x.nivel === 'ok' && /300 partidos/.test(x.texto)));
+});

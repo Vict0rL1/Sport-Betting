@@ -125,3 +125,55 @@ test('sin conexión aparece el aviso con la hora de los datos', async ({ page, c
   await context.setOffline(false);
   await expect(page.getByTestId('sin-conexion')).toBeHidden();
 });
+
+test.describe('capturas de componentes (galería con datos de ejemplo)', () => {
+  test.use({ timezoneId: 'UTC' });
+  test.beforeAll(async ({ request }) => {
+    expect((await request.patch('/api/features/interfaz.muestras', { data: { on: true } })).ok()).toBeTruthy();
+  });
+  test.afterAll(async ({ request }) => {
+    await request.patch('/api/features/interfaz.muestras', { data: { on: null } });
+  });
+  for (const tema of ['oscuro', 'claro'] as const) {
+    test(`tarjeta e insignias en tema ${tema}`, async ({ page }) => {
+      await page.addInitScript((t) => localStorage.setItem('predictor.tema', t), tema);
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto('/_muestras');
+      await expect(page.getByRole('note')).toContainText('datos INVENTADOS');
+      await expect(page.getByTestId('muestra-insignias')).toHaveScreenshot(`insignias-${tema}.png`, { maxDiffPixelRatio: 0.02 });
+      await expect(page.getByTestId('muestra-tarjeta')).toHaveScreenshot(`tarjeta-${tema}.png`, { maxDiffPixelRatio: 0.02 });
+      await expect(page.getByText('Sin mercado')).toBeVisible();
+    });
+  }
+  test('apagada, la galería no existe', async ({ page, request }) => {
+    await request.patch('/api/features/interfaz.muestras', { data: { on: false } });
+    await page.goto('/_muestras');
+    await expect(page.getByText('Esta página no existe.')).toBeVisible();
+    await request.patch('/api/features/interfaz.muestras', { data: { on: true } });
+  });
+});
+
+for (const ruta of ['/partido/football/no-existe', '/equipo/football/epl/no-existe', '/liga/football/epl', '/jugador/atp/1']) {
+  test(`${ruta} pinta sin errores a 390 px`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    const errores: string[] = [];
+    page.on('pageerror', (e) => errores.push(e.message));
+    await page.goto(ruta);
+    await page.waitForLoadState('networkidle');
+    const ancho = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, cliente: document.documentElement.clientWidth }));
+    expect(ancho.scroll).toBeLessThanOrEqual(ancho.cliente + 1);
+    expect(errores).toEqual([]);
+  });
+}
+
+test('Ctrl+K abre la búsqueda y Escape la cierra', async ({ page }) => {
+  await page.goto('/destacados');
+  await page.waitForLoadState('networkidle');
+  await page.keyboard.press('Control+k');
+  const d = page.getByRole('dialog', { name: 'Buscar' });
+  await expect(d).toBeVisible();
+  await d.getByRole('textbox').fill('ajus');
+  await expect(d.getByRole('option').first()).toContainText('Ajustes');
+  await page.keyboard.press('Escape');
+  await expect(d).toBeHidden();
+});

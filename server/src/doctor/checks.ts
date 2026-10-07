@@ -20,6 +20,7 @@ export type Seccion =
   | 'ACTUALIZACIÓN'
   | 'CONFIANZA'
   | 'DATOS Y COPIAS'
+  | 'ANALÍTICA E INTERFAZ'
   | 'SEGURIDAD'
   | 'SERVIDOR Y PANTALLA';
 
@@ -815,4 +816,54 @@ export function resultado(hs: Hallazgo[]): { nivel: 'ok' | 'aviso' | 'error'; te
     return { nivel: 'aviso', texto: `⚠ Sistema funcional con ${avisos.length} advertencia(s).`, acciones };
   }
   return { nivel: 'ok', texto: '✓ Todo correcto.', acciones };
+}
+
+// ---------------------------------------------------------------------------
+// ANALÍTICA E INTERFAZ (Fases 4 y 5): lo que tiene estado en la base
+// ---------------------------------------------------------------------------
+export interface EstadoAnalitica {
+  /** Por deporte: predicciones en la ventana actual y si hay deriva. */
+  monitorizacion: { deporte: string; n: number; deriva: boolean; motivos: string[] }[];
+  /** Último día guardado en monitoring_series, o null si nunca corrió. */
+  ultimaSerie: string | null;
+  predichasConResultado: number;
+  /** Última corrida de simulación (día) y cuántas ligas la tienen. */
+  simulacion: { ultimoDia: string | null; ligas: number };
+  calendarioPendiente: number;
+  fiabilidadBacktest: number;
+  anulaciones: string[];
+  seguidos: number;
+}
+
+export function comprobarAnalitica(e: EstadoAnalitica, ahora: Date): Hallazgo[] {
+  const S: Seccion = 'ANALÍTICA E INTERFAZ';
+  const out: Hallazgo[] = [];
+  const dias = (d: string | null) => (d ? Math.floor((ahora.getTime() - Date.parse(`${d}T00:00:00Z`)) / 86_400_000) : null);
+  // Monitorización.
+  const conDeriva = e.monitorizacion.filter((m) => m.deriva);
+  if (conDeriva.length) {
+    for (const m of conDeriva) out.push(h(S, 'aviso', `Deriva en ${m.deporte}: ${m.motivos.join('; ')}`, { accion: ['Revisa Confianza › Analítica del modelo antes de seguir apostando con ese deporte.'] }));
+  } else if (e.predichasConResultado > 0 && !e.ultimaSerie) {
+    out.push(h(S, 'aviso', 'Hay predicciones en vivo con resultado y la serie de monitorización nunca se ha guardado', { accion: ['Deja el servidor en marcha (trabajo diario «monitorizacion») o: npm run jobs -- ejecutar monitorizacion'] }));
+  } else if (e.ultimaSerie) {
+    const d = dias(e.ultimaSerie);
+    out.push(h(S, d != null && d > 2 ? 'aviso' : 'ok', `Monitorización: serie hasta el ${e.ultimaSerie}${d != null && d > 2 ? ` (hace ${d} días)` : ''}; sin deriva en ningún deporte`));
+  } else {
+    out.push(h(S, 'info', 'Monitorización: todavía no hay predicciones en vivo con resultado (se necesitan 100 por deporte para concluir nada)'));
+  }
+  // Fiabilidad del backtest.
+  if (e.fiabilidadBacktest === 0) out.push(h(S, 'info', 'Sin diagramas de fiabilidad del backtest (experiments/reliability.json): salen al correr el backtest de referencia de cada deporte'));
+  else out.push(h(S, 'ok', `Diagramas de fiabilidad del backtest: ${e.fiabilidadBacktest} deporte(s)`));
+  // Simulación.
+  if (!e.simulacion.ultimoDia) out.push(h(S, 'info', 'Simulación de temporada: ninguna corrida guardada todavía (trabajo diario «simulacion-temporada»)'));
+  else {
+    const d = dias(e.simulacion.ultimoDia);
+    out.push(h(S, d != null && d > 2 ? 'aviso' : 'ok', `Simulación de temporada: ${e.simulacion.ligas} liga(s), la última del ${e.simulacion.ultimoDia}${d != null && d > 2 ? ` (hace ${d} días: ¿está parado el trabajo?)` : ''}`));
+  }
+  if (e.calendarioPendiente === 0) out.push(h(S, 'info', 'Calendario pendiente vacío: se llena con la próxima update-data (openfootball, nflverse, MLB). Hasta entonces el fútbol se simula con la doble vuelta reconstruida'));
+  else out.push(h(S, 'ok', `Calendario pendiente: ${e.calendarioPendiente.toLocaleString('es')} partidos guardados para simular`));
+  // Interfaz.
+  if (e.anulaciones.length) out.push(h(S, 'info', `Interruptores anulados desde Ajustes: ${e.anulaciones.join(', ')} (mandan sobre config/features.json)`));
+  out.push(h(S, 'info', e.seguidos ? `Seguimiento: ${e.seguidos} equipo(s), jugador(es) o partido(s); las notificaciones de línea movida solo salen para ellos` : 'Seguimiento vacío: con la estrella ☆ en tarjetas y fichas se sigue un equipo, jugador o partido'));
+  return out;
 }

@@ -110,6 +110,25 @@ Dependencias nuevas (npm, no CDN): `react-router` (rutas reales), `@fontsource/i
     en claro y oscuro. Capturas de la tarjeta de partido, la píldora de estado y la insignia de
     confianza.
 
+## Lo que salió
+
+- Hecho: 1–27 salvo lo que sigue. Las rutas incluyen la galería `/_muestras` para las capturas
+  (apagada por defecto, rotulada como datos de ejemplo).
+- **Ficheros de más de ~400 líneas**: los componentes quedan en ~430 como mucho; siguen por
+  encima tres módulos de `lib/` que no son pantallas: `picks.ts` (695), `teamColors.ts` (487, es
+  una tabla) y `api.ts` (420). Se parten en la Fase 7.
+- **i18n**: el armazón, las páginas nuevas (Partido, Equipo, Liga, Jugador, Diagnóstico,
+  Ajustes, Glosario con su contenido) y la navegación tienen español e inglés; las tarjetas de
+  cada deporte siguen con el texto en el componente y se extraen al tocarlas.
+- **Imagen de «Mi selección»**: el servidor dibuja SVG y el navegador lo pasa a PNG (no hay
+  rasterizador en el servidor sin una dependencia nativa).
+- **Colores de club**: recopilados a mano de las equipaciones y escudos; el hex se aproxima al
+  tono oficial. Lo que falta sale en gris.
+- **Lighthouse**: no hay Lighthouse en el contenedor; sin medir. El bundle principal ya bajó de
+  687 kB a 333 kB con las rutas en trozos; la medición va en la Fase 7.
+- Cambio en la capa de confianza (no en el modelo): sin cuotas, el dato de mercado es
+  DESCONOCIDO y no cuenta en la calidad de datos.
+
 ## Hecho cuando
 
 Playwright en verde en CI; cada página nueva con su juego de cadenas en español e inglés;

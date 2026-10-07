@@ -36,6 +36,7 @@ const Partido = lazy(() => import('./pages/Partido'));
 const Equipo = lazy(() => import('./pages/Equipo'));
 const Jugador = lazy(() => import('./pages/Jugador'));
 const Liga = lazy(() => import('./pages/Liga'));
+const Muestras = lazy(() => import('./pages/Muestras'));
 import { I18nProvider, idiomaGuardado, useI18n } from './i18n';
 import { aplicarTema, temaGuardado, type Tema } from './lib/tema';
 
@@ -199,6 +200,7 @@ function Armazon() {
             <Route path="/equipo/:sport/:league/:id" element={<Equipo />} />
             <Route path="/jugador/:tour/:id" element={<Jugador />} />
             <Route path="/liga/:sport/:league" element={<Liga />} />
+            <Route path="/_muestras" element={<Muestras />} />
             <Route path="*" element={<NoEncontrada />} />
           </Routes>
           </Suspense>

@@ -7,6 +7,7 @@ import { Link } from 'react-router';
 import LatencyPanel from '../components/LatencyPanel';
 import { STATUS } from '../lib/theme';
 import { StatusMark } from '../components/icons';
+import { useI18n } from '../i18n';
 
 interface Ejecucion { id: number; source: string; started_at: string; finished_at: string | null; status: 'running' | 'ok' | 'error'; rows_added: number | null; rows_updated: number | null; error: string | null; detail: string | null }
 interface Trabajo { nombre: string; descripcion: string; cadenciaMin: number; cadenciaPorDefecto: number; enabled: boolean; lastRunAt: string | null; lastDurationMs: number | null; lastStatus: 'ok' | 'error' | 'running' | null; lastError: string | null; nextRunAt: string | null; runsOk: number; runsError: number }
@@ -42,6 +43,7 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
 }
 
 export default function Diagnostico() {
+  const { t } = useI18n();
   const ingestas = usarJson<{ ultimas: Ejecucion[]; historial: Ejecucion[] }>('/api/ingestion-runs');
   const errores = usarJson<{ errores: ErrorFila[]; total24h: number }>('/api/errores?limite=30');
   const trabajos = usarJson<{ arrancado: boolean; trabajos: Trabajo[] }>('/api/scheduler');
@@ -52,14 +54,14 @@ export default function Diagnostico() {
       <p className="mb-1 text-[12px] text-(--ink-muted)">
         <Link to="/confianza" className="underline-offset-2 hover:underline">Confianza</Link> › Diagnóstico
       </p>
-      <h2 className="mb-1 text-[20px] font-semibold text-(--ink-strong)">Diagnóstico</h2>
-      <p className="mb-4 text-[13px] text-(--ink-muted)">¿Funciona todo? Ingestas, trabajos programados, errores del servidor, copias, cuota de cuotas y la latencia del escáner, en una página.</p>
+      <h2 className="mb-1 text-[20px] font-semibold text-(--ink-strong)">{t('nav.diagnostico')}</h2>
+      <p className="mb-4 text-[13px] text-(--ink-muted)">{t('diag.intro')}</p>
 
-      <Bloque titulo="Trabajos programados">
-        {trabajos === 'error' && <p>No se pudo leer el registro.</p>}
+      <Bloque titulo={t('ajustes.cadencias')}>
+        {trabajos === 'error' && <p>{t('comun.error')}</p>}
         {trabajos && trabajos !== 'error' && (
           <>
-            <p className="mb-2">{trabajos.arrancado ? 'Registro en marcha.' : 'Registro parado: nada programado.'}</p>
+            <p className="mb-2">{trabajos.arrancado ? t('diag.registroEnMarcha') : t('diag.registroParado')}</p>
             <ul className="space-y-1">
               {trabajos.trabajos.map((t) => (
                 <li key={t.nombre} className="flex flex-wrap items-baseline gap-x-2">
@@ -75,9 +77,9 @@ export default function Diagnostico() {
         )}
       </Bloque>
 
-      <Bloque titulo="Ingestas (última por fuente)">
-        {ingestas === 'error' && <p>No se pudo leer el historial de ingestas.</p>}
-        {ingestas && ingestas !== 'error' && (ingestas.ultimas.length === 0 ? <p>Ninguna ingesta registrada todavía.</p> : (
+      <Bloque titulo={t('diag.ingestas')}>
+        {ingestas === 'error' && <p>{t('comun.error')}</p>}
+        {ingestas && ingestas !== 'error' && (ingestas.ultimas.length === 0 ? <p>{t('diag.sinIngestas')}</p> : (
           <ul className="space-y-1">
             {ingestas.ultimas.map((e) => (
               <li key={e.id} className="flex flex-wrap items-baseline gap-x-2">
@@ -92,12 +94,12 @@ export default function Diagnostico() {
         ))}
       </Bloque>
 
-      <Bloque titulo="Errores del servidor">
-        {errores === 'error' && <p>No se pudo leer el registro de errores (¿apagado en features.json?).</p>}
+      <Bloque titulo={t('diag.errores')}>
+        {errores === 'error' && <p>{t('diag.erroresNoDisponibles')}</p>}
         {errores && errores !== 'error' && (
           <>
-            <p className="mb-1">{errores.total24h} en las últimas 24 h.</p>
-            {errores.errores.length === 0 ? <p>Ninguno registrado.</p> : (
+            <p className="mb-1">{t('diag.errores24h', { n: errores.total24h })}</p>
+            {errores.errores.length === 0 ? <p>{t('diag.ningunError')}</p> : (
               <ul className="space-y-1">
                 {errores.errores.map((e) => (
                   <li key={e.id} className="break-words">
@@ -111,8 +113,8 @@ export default function Diagnostico() {
         )}
       </Bloque>
 
-      <Bloque titulo="Base de datos y copias">
-        {datos === 'error' && <p>No se pudo leer el estado de los datos.</p>}
+      <Bloque titulo={t('diag.base')}>
+        {datos === 'error' && <p>{t('comun.error')}</p>}
         {datos && datos !== 'error' && (
           <>
             <p>Disposición: {datos.layout} · history.db {datos.history.mb != null ? `${datos.history.mb.toFixed(1)} MB` : ''}{datos.ledger ? ` · ledger.db ${datos.ledger.mb != null ? `${datos.ledger.mb.toFixed(1)} MB` : ''}` : ''}</p>
@@ -121,9 +123,9 @@ export default function Diagnostico() {
         )}
       </Bloque>
 
-      <Bloque titulo="Cuota de The Odds API">
-        {cuota === 'error' && <p>No se pudo leer la cuota.</p>}
-        {cuota && cuota !== 'error' && (!cuota.hasKey ? <p>Sin clave: modo demostración, nada que gastar.</p> : (
+      <Bloque titulo={t('diag.cuota')}>
+        {cuota === 'error' && <p>{t('comun.error')}</p>}
+        {cuota && cuota !== 'error' && (!cuota.hasKey ? <p>{t('diag.sinClave')}</p> : (
           <p>
             {cuota.remaining ?? '?'} peticiones restantes{cuota.plan ? ` de ${cuota.plan.toLocaleString('es')}` : ''}{cuota.used != null ? ` · ${cuota.used} usadas` : ''} · reserva {cuota.reserve} · refresco cada {cuota.recommendedRefreshMinutes ?? cuota.autoRefreshMinutes} min
             {cuota.lastError && <span style={{ color: STATUS.critical }}> · {cuota.lastError}</span>}
