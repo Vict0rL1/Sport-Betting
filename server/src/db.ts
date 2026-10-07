@@ -195,6 +195,19 @@ export const MIGRACIONES: Migracion[] = [
   { version: 11, nombre: 'bandeja-e-informes-fase-6', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(INBOX_SCHEMA + REPORTS_SCHEMA, ctx.ledger)) },
   // Fase 8.1: la NHL en sombra (historia: se vuelve a bajar).
   { version: 12, nombre: 'nhl-sombra-fase-8', destino: 'history', up: (d) => d.exec(NHL_SCHEMA) },
+  // Seguimiento: grupos de correlación en las apuestas de las estrategias (columna nueva, congelada
+  // como el resto; el trigger se rehace para nombrarla). Las filas existentes no se tocan: NULL.
+  {
+    version: 13,
+    nombre: 'grupos-estrategias',
+    destino: 'ledger',
+    up: (d, ctx) => {
+      addMissingColumns(d);
+      const t = d.prepare(`SELECT sql FROM ${masterDe('strategy_bets', ctx.ledger)} WHERE type = 'trigger' AND name = 'strategy_bets_congelada'`).get() as { sql: string } | undefined;
+      if (t && !t.sql.includes('correlation_groups')) d.exec('DROP TRIGGER strategy_bets_congelada');
+      d.exec(ledgerize(STRATEGIES_SCHEMA, ctx.ledger));
+    },
+  },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {
@@ -1188,6 +1201,8 @@ export function addMissingColumns(d: DatabaseSync): void {
     bets: { tags: 'TEXT' },
     // La versión de la política bajo la que se evaluó cada señal (Fase 3.5).
     edge_signals: { policy_version_id: 'INTEGER' },
+    // Seguimiento: los grupos de correlación de cada apuesta de estrategia, congelados al apostar.
+    strategy_bets: { correlation_groups: 'TEXT' },
     // Qué versión exacta produjo cada predicción (fase 5): ver versions.ts.
     prediction_log: VERSIONED,
     fb_prediction_log: { ...VERSIONED, shown_home: 'REAL', shown_draw: 'REAL', shown_away: 'REAL' },

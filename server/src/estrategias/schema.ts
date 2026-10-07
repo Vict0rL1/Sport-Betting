@@ -13,7 +13,7 @@
 const CONGELADAS = [
   'strategy_id', 'placed_at', 'sport', 'league', 'match_key', 'event_id', 'provider_event_id', 'label', 'selection',
   'provider_selection', 'commence_time', 'p_model', 'p_market', 'odds', 'edge', 'stake', 'bankroll_at', 'kelly_fraction',
-  'trust_factor',
+  'trust_factor', 'correlation_groups',
 ];
 const LIQUIDACION = ['status', 'settled_at', 'profit', 'event_result', 'bankroll_after'];
 const CIERRE = ['closing_odds', 'closing_observed_at', 'clv'];
@@ -69,6 +69,7 @@ export const STRATEGIES_SCHEMA = `
     profit              REAL,
     event_result        TEXT,
     bankroll_after      REAL,
+    correlation_groups  TEXT,           -- JSON: evento, equipos o jugadores (seguimiento; antes, NULL)
     UNIQUE (strategy_id, event_id)
   );
   CREATE INDEX IF NOT EXISTS idx_strategy_bets_estado ON strategy_bets (strategy_id, status);

@@ -53,12 +53,17 @@ export function gruposDe(sport: string, eventId: string, participantes: string[]
   return [`evento:${sport}:${eventId}`, ...participantes.filter(Boolean).map((p) => `${tipo}:${sport}:${p}`)];
 }
 
+/** Los límites por grupo de un banco con su propio tope por partido (una estrategia). */
+export function limitesConTopePorPartido(maxPorPartido: number): (grupo: string) => number {
+  return (grupo) => (grupo.startsWith('evento:') ? maxPorPartido : limiteDe(grupo));
+}
+
 const limiteDe = (grupo: string) => {
   const L = limitesVigentes();
   return grupo.startsWith('evento:') ? L.max_same_event_exposure : grupo.startsWith('jugador:') ? L.max_same_player_exposure : L.max_same_team_exposure;
 };
 
-interface Abierta {
+export interface Abierta {
   id: number;
   sport: string;
   stake: number;
@@ -77,14 +82,21 @@ function abiertas(): Abierta[] {
  * El máximo que cabe en esta apuesta sin pasar ningún tope de sus grupos, con lo ya
  * abierto (más lo decidido en esta misma pasada, en `extra`).
  */
-export function cabeEnGrupos(grupos: string[], banco: number, extra: Map<string, number> = new Map()): { cabe: number; limitante: string | null } {
+export function cabeEnGrupos(
+  grupos: string[],
+  banco: number,
+  extra: Map<string, number> = new Map(),
+  /** Otro banco (una estrategia): sus posiciones abiertas y sus límites. Por defecto, el banco de papel. */
+  otro: { abiertas: Abierta[]; limiteDe: (grupo: string) => number } | null = null,
+): { cabe: number; limitante: string | null } {
   const abierto = new Map<string, number>();
-  for (const a of abiertas()) for (const g of a.grupos) abierto.set(g, (abierto.get(g) ?? 0) + a.stake);
+  for (const a of otro?.abiertas ?? abiertas()) for (const g of a.grupos) abierto.set(g, (abierto.get(g) ?? 0) + a.stake);
   for (const [g, v] of extra) abierto.set(g, (abierto.get(g) ?? 0) + v);
+  const limite = otro?.limiteDe ?? limiteDe;
   let cabe = Infinity;
   let limitante: string | null = null;
   for (const g of grupos) {
-    const hueco = Math.max(0, limiteDe(g) * banco - (abierto.get(g) ?? 0));
+    const hueco = Math.max(0, limite(g) * banco - (abierto.get(g) ?? 0));
     if (hueco < cabe) {
       cabe = hueco;
       limitante = g;

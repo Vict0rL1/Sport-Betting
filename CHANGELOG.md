@@ -7,13 +7,18 @@ cambian.
 ## Seguimiento tras la hoja de ruta (2026-10-07)
 
 Lo que las fases dejaron anotado y se arregla sin decisiones nuevas de política. Plan en
-`docs/plans/seguimiento.md`.
+`docs/plans/seguimiento.md`. Tests: 467 → 473 (399 del servidor + 17 + 57); migraciones: 12 → 13.
 
 - **El banco de papel mira sus propias pérdidas.** Su corte por pérdida diaria (5 %) y semanal
   (10 %) leía el registro personal (`bets`), vacío en la práctica: el banco de papel no tenía
   límite de pérdida. Ahora sale de sus apuestas liquidadas hoy y desde el lunes, con la misma regla
   que las estrategias (`perdidasRealizadas`). Los umbrales no cambian; solo puede hacer que deje de
   apostar antes.
+- **Topes por grupo de correlación en las estrategias.** Aplicaban el tope por partido y el total,
+  pero no los de equipo y jugador. Migración 13: `strategy_bets.correlation_groups`, congelada desde
+  el alta (el trigger se rehace; las filas existentes quedan intactas, con NULL, y cuentan solo con
+  su partido). Límites: el tope por partido de la estrategia y los de equipo y jugador de la
+  política vigente, sobre su banco.
 
 ## Resumen de la hoja de ruta: antes y después
 

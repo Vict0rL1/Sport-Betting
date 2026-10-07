@@ -18,7 +18,11 @@ recorte, como el banco principal) y si respeta el freno de calibración medido
 el cierre). Parte siempre de la política vigente y se valida con los mismos rangos que una versión
 de la política. Todas apuestan en paralelo, en el mismo ciclo que el banco principal y sobre las
 mismas candidatas: las predicciones registradas con cuotas reales, nunca las de demostración. Cada
-banco empieza en 1.000, lleva su exposición y sus pérdidas, y no ve las de los demás.
+banco empieza en 1.000, lleva su exposición y sus pérdidas, y no ve las de los demás. Como el banco
+principal, respeta los **topes por grupo de correlación**: su propio tope por partido y los de
+equipo y jugador de la política vigente (3 %), sobre su banco. Los grupos de cada apuesta quedan
+congelados con ella (`strategy_bets.correlation_groups`, migración 13); las apuestas de antes de la
+migración cuentan solo con su partido.
 
 Una estrategia **no se edita**. Cambiar la ventaja mínima a mitad de camino mezclaría dos hipótesis
 en un mismo registro; para probar otra cosa se crea otra estrategia y se archiva la vieja (una vez:

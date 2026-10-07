@@ -90,8 +90,8 @@ Tests: 369 → 426 (357 del servidor, 14 unitarios de la web, 55 de Playwright).
   línea, como suponía la hoja de ruta), y su corte por pérdida diaria y semanal lee el registro
   personal `bets`. Las estrategias ya miran sus propias pérdidas; el banco principal queda igual
   hasta que se decida como versión de la política.
-- **Topes por grupo de correlación**: no se aplican a las estrategias (leen `paper_bets`); sí el
-  tope por partido y el total.
+- **Topes por grupo de correlación**: no se aplicaban a las estrategias (leían `paper_bets`); sí el
+  tope por partido y el total. Resuelto en el seguimiento ([seguimiento.md](seguimiento.md)).
 - **Archivo**: se calcula al vuelo (hasta 20.000 filas); si el volumen crece, la Fase 7 puede
   precalcularlo.
 

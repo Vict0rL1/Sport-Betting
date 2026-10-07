@@ -32,6 +32,7 @@ import {
   type Candidato,
 } from '../paper/bankroll.ts';
 import { closingLine } from '../odds/snapshots.ts';
+import { cabeEnGrupos, gruposDe, limitesConTopePorPartido, type Abierta } from '../staking/risk.ts';
 import { avisoMuestra, type AvisoMuestra } from '../evaluation/sample.ts';
 import { maxDrawdown } from '../evaluation/betting.ts';
 
@@ -152,6 +153,19 @@ export function bancoDe(id: number): number {
   return BANCO_INICIAL + r.p;
 }
 
+/**
+ * Las apuestas abiertas de una estrategia con sus grupos de correlación. Las anteriores a la
+ * migración 13 no los guardaron: cuentan con el de su partido (exacto desde el deporte y el id) y
+ * sin equipos ni jugadores, que no se inventan.
+ */
+export function abiertasDe(id: number): Abierta[] {
+  return (
+    getDb().prepare("SELECT id, sport, event_id, stake, correlation_groups FROM strategy_bets WHERE strategy_id = ? AND status = 'pending'").all(id) as {
+      id: number; sport: string; event_id: string; stake: number; correlation_groups: string | null;
+    }[]
+  ).map((r) => ({ id: r.id, sport: r.sport, stake: r.stake, grupos: r.correlation_groups ? (JSON.parse(r.correlation_groups) as string[]) : [`evento:${r.sport}:${r.event_id}`] }));
+}
+
 function expuestoDe(id: number): number {
   const r = getDb().prepare("SELECT COALESCE(SUM(stake), 0) s FROM strategy_bets WHERE strategy_id = ? AND status = 'pending'").get(id) as { s: number };
   return r.s;
@@ -195,8 +209,8 @@ export function colocarEstrategias(now = new Date(), candidatas?: Candidato[]): 
   const ins = db.prepare(
     `INSERT OR IGNORE INTO strategy_bets (
        strategy_id, placed_at, sport, league, match_key, event_id, provider_event_id, label, selection, provider_selection,
-       commence_time, p_model, p_market, odds, edge, stake, bankroll_at, kelly_fraction, trust_factor
-     ) VALUES (?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,?)`,
+       commence_time, p_model, p_market, odds, edge, stake, bankroll_at, kelly_fraction, trust_factor, correlation_groups
+     ) VALUES (?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,?,?)`,
   );
   const out: PasadaEstrategia[] = [];
   for (const e of activas) {
@@ -204,6 +218,10 @@ export function colocarEstrategias(now = new Date(), candidatas?: Candidato[]): 
     const banco = bancoDe(e.id);
     const perdidas = perdidasDe(e.id, now);
     let abierto = expuestoDe(e.id);
+    // Topes por grupo de correlación (partido, equipo, jugador) sobre el banco de la estrategia: su
+    // tope por partido y los de equipo y jugador de la política vigente. Solo recortan.
+    const otro = { abiertas: abiertasDe(e.id), limiteDe: limitesConTopePorPartido(e.config.staking.maxPerEvent) };
+    const enGrupos = new Map<string, number>();
     const pasada: PasadaEstrategia = { id: e.id, nombre: e.nombre, evaluadas: 0, colocadas: 0, rechazos: {} };
     const rechazo = (m: string) => (pasada.rechazos[m] = (pasada.rechazos[m] ?? 0) + 1);
     for (const c of todas) {
@@ -229,17 +247,24 @@ export function colocarEstrategias(now = new Date(), candidatas?: Candidato[]): 
         }
         factor = j.factor;
       }
-      const stake = Math.floor(d.stake * factor * 100) / 100;
+      const grupos = gruposDe(c.sport, c.event_id, c.participantes);
+      const { cabe } = cabeEnGrupos(grupos, banco, enGrupos, otro);
+      const stake = Math.floor(Math.min(d.stake * factor, cabe) * 100) / 100;
       const s = c.salidas.find((x) => x.label === d.label);
+      if (stake <= 0 && cabe < d.stake * factor) {
+        rechazo('tope de grupo de correlación alcanzado');
+        continue;
+      }
       if (stake <= 0 || !s) {
         rechazo('el recorte de confianza deja el importe en cero');
         continue;
       }
       const r = ins.run(
         e.id, ahora, c.sport, c.league, c.match_key, c.event_id, providerId(c.event_id), c.label, s.label, s.proveedor,
-        c.commence, s.p, s.pMarket, s.odds, d.edge, stake, banco, e.config.staking.kellyFraction, factor,
+        c.commence, s.p, s.pMarket, s.odds, d.edge, stake, banco, e.config.staking.kellyFraction, factor, JSON.stringify(grupos),
       );
       if (Number(r.changes)) {
+        for (const g of grupos) enGrupos.set(g, (enGrupos.get(g) ?? 0) + stake);
         abierto += stake;
         pasada.colocadas++;
         ya.add(c.event_id);
