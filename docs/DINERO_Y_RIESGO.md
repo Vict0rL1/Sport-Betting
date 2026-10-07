@@ -255,7 +255,9 @@ Una apuesta pasa por todas, en este orden:
    que probar Kelly completo exige editar el fichero.
 4. **Tope duro por evento** — 2 % del banco.
 5. **Límites de pérdida diario y semanal** — que **cortan**, no recortan. Un límite que
-   reduce el tamaño se puede cruzar apostando más veces, y entonces no es un límite.
+   reduce el tamaño se puede cruzar apostando más veces, y entonces no es un límite. Cada
+   banco cuenta **sus** pérdidas: el banco de papel y cada estrategia, las de sus apuestas
+   liquidadas hoy y desde el lunes; sin ellas, `decideStake` lee el registro personal.
 6. **Exposición total simultánea** — 10 % del banco en riesgo a la vez, contando lo
    pendiente. Las cinco primeras dimensionan cada apuesta como si fuera la única, y en
    un sábado no lo es: sin esta puerta, 25 candidatas al 2 % sumaban el 50 % del banco.

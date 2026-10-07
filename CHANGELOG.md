@@ -4,6 +4,17 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento tras la hoja de ruta (2026-10-07)
+
+Lo que las fases dejaron anotado y se arregla sin decisiones nuevas de política. Plan en
+`docs/plans/seguimiento.md`.
+
+- **El banco de papel mira sus propias pérdidas.** Su corte por pérdida diaria (5 %) y semanal
+  (10 %) leía el registro personal (`bets`), vacío en la práctica: el banco de papel no tenía
+  límite de pérdida. Ahora sale de sus apuestas liquidadas hoy y desde el lunes, con la misma regla
+  que las estrategias (`perdidasRealizadas`). Los umbrales no cambian; solo puede hacer que deje de
+  apostar antes.
+
 ## Resumen de la hoja de ruta: antes y después
 
 Línea base: `docs/plans/00-baseline.md` (commit `e40abbf`, 7 de octubre de 2026). Cada fase tiene

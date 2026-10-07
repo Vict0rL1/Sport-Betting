@@ -18,7 +18,7 @@
 import { createHash } from 'node:crypto';
 import { getDb } from '../db.ts';
 import { featureEncendida } from '../features.ts';
-import { decideEvent, type StakingConfig } from '../staking/policy.ts';
+import { decideEvent, desdeParaPerdidas, perdidasRealizadas, type StakingConfig } from '../staking/policy.ts';
 import type { CalibrationFile } from '../staking/calibration.ts';
 import { politica, politicaPorDefecto, validarPolitica } from '../staking/policyStore.ts';
 import {
@@ -157,25 +157,12 @@ function expuestoDe(id: number): number {
   return r.s;
 }
 
-const diaLocal = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
 /** Lo realizado hoy y esta semana (lunes a domingo, hora local), por fecha de liquidación. */
 export function perdidasDe(id: number, now = new Date()): { hoy: number; semana: number } {
-  const lunes = new Date(now);
-  lunes.setDate(lunes.getDate() - ((now.getDay() + 6) % 7));
-  const hoy = diaLocal(now);
-  const desde = diaLocal(lunes);
   const filas = getDb()
     .prepare("SELECT settled_at, profit FROM strategy_bets WHERE strategy_id = ? AND status <> 'pending' AND settled_at >= ?")
-    .all(id, new Date(now.getTime() - 8 * 86_400_000).toISOString()) as { settled_at: string; profit: number }[];
-  let h = 0;
-  let s = 0;
-  for (const f of filas) {
-    const d = diaLocal(new Date(f.settled_at));
-    if (d >= desde) s += f.profit;
-    if (d === hoy) h += f.profit;
-  }
-  return { hoy: h, semana: s };
+    .all(id, desdeParaPerdidas(now)) as { settled_at: string; profit: number }[];
+  return perdidasRealizadas(filas, now);
 }
 
 // ---------------------------------------------------------------------------

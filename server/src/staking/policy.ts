@@ -249,6 +249,31 @@ export function lossState(bankroll: number, cfg: StakingConfig, now = new Date()
   };
 }
 
+/**
+ * Lo realizado HOY y ESTA SEMANA (lunes a domingo, hora local) por fecha de liquidación, a partir
+ * de las apuestas liquidadas de un banco. Lo usan el banco de papel y cada estrategia: cada banco
+ * mira sus propias pérdidas, no las del registro personal.
+ */
+export function perdidasRealizadas(filas: { settled_at: string; profit: number | null }[], now = new Date()): { hoy: number; semana: number } {
+  const dia = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const lunes = new Date(now);
+  lunes.setDate(lunes.getDate() - ((now.getDay() + 6) % 7));
+  const hoy = dia(now);
+  const desde = dia(lunes);
+  let h = 0;
+  let s = 0;
+  for (const f of filas) {
+    const d = dia(new Date(f.settled_at));
+    if (d < desde || d > hoy) continue;
+    s += f.profit ?? 0;
+    if (d === hoy) h += f.profit ?? 0;
+  }
+  return { hoy: h, semana: s };
+}
+
+/** Desde cuándo pedir liquidaciones para `perdidasRealizadas`: ocho días cubren cualquier semana. */
+export const desdeParaPerdidas = (now = new Date()) => new Date(now.getTime() - 8 * 86_400_000).toISOString();
+
 /** El mismo estado que `lossState`, con unas pérdidas ya calculadas por quien llama. */
 export function estadoDePerdidas(bankroll: number, cfg: StakingConfig, p: { hoy: number; semana: number }): LossState {
   const dayLimit = -bankroll * cfg.dailyLossLimit;

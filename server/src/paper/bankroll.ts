@@ -34,7 +34,7 @@
 // dos políticas que se separan con el primer cambio.
 
 import { getDb, getMeta, setMeta } from '../db.ts';
-import { decideEvent } from '../staking/policy.ts';
+import { decideEvent, desdeParaPerdidas, perdidasRealizadas } from '../staking/policy.ts';
 import { politica, idPoliticaVigente } from '../staking/policyStore.ts';
 import { notificar } from '../notifications/index.ts';
 import { urlPartido } from '../bandeja/index.ts';
@@ -198,6 +198,19 @@ export function bancoActual(): number {
     .prepare("SELECT COALESCE(SUM(profit), 0) p FROM paper_bets WHERE status <> 'pending'")
     .get() as { p: number };
   return BANCO_INICIAL + (r?.p ?? 0);
+}
+
+/**
+ * Lo realizado hoy y esta semana por el banco de papel, para sus límites de pérdida.
+ *
+ * Antes no se pasaba y `decideStake` leía el registro PERSONAL (`bets`): con él vacío, el banco
+ * de papel no tenía límite de pérdida (hallazgo de la Fase 6, arreglado en el seguimiento).
+ */
+export function perdidasPapel(now = new Date()): { hoy: number; semana: number } {
+  const filas = getDb()
+    .prepare("SELECT settled_at, profit FROM paper_bets WHERE status <> 'pending' AND settled_at >= ?")
+    .all(desdeParaPerdidas(now)) as { settled_at: string; profit: number | null }[];
+  return perdidasRealizadas(filas, now);
 }
 
 function expuesto(): number {
@@ -569,6 +582,8 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
   const ahora = AHORA();
   const banco = bancoActual();
   let abierto = expuesto();
+  // Las pérdidas no cambian dentro de una pasada: apostar no realiza nada.
+  const perdidas = perdidasPapel(new Date(ahora));
   /** Lo decidido en esta pasada por grupo de correlación (aún no está en la base). */
   const enGrupos = new Map<string, number>();
   let colocadas = 0;
@@ -578,7 +593,7 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
   for (const c of candidatas) {
     const d = decideEvent(
       c.salidas.map((s) => ({ label: s.label, p: s.p, odds: s.odds })),
-      { sport: c.sport, bankroll: banco, openExposure: abierto },
+      { sport: c.sport, bankroll: banco, openExposure: abierto, perdidas },
       politica().staking,
     );
     // La señal se registra SIEMPRE, se apueste o no: el edge detectado se mide sobre todo

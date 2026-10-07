@@ -31,11 +31,11 @@ medio contra el cierre de consenso, caída máxima, acierto y apuestas. El orden
 no el de rendimiento, y una fila con menos de 30 apuestas liquidadas dice que no se compara con
 otras: ordenar por ROI con once apuestas sería coronar al azar.
 
-**Una diferencia con el banco principal que conviene saber.** El corte por pérdida diaria y semanal
-del banco principal lee el registro personal (`bets`), que es lo que `decideStake` hacía desde
-antes de esta fase. Las estrategias leen sus propias pérdidas (`perdidas` en la petición de
-`decideStake`). El banco principal no se ha cambiado aquí porque cambiaría sus decisiones; queda
-anotado para revisarlo como cambio de política.
+**Cada banco mira sus propias pérdidas.** El corte por pérdida diaria y semanal de cada estrategia
+y del banco principal sale de sus propias apuestas liquidadas hoy y desde el lunes (hora local),
+con la misma regla (`perdidasRealizadas` en `staking/policy.ts`). Hasta el seguimiento de la hoja
+de ruta, el banco principal leía el registro personal (`bets`) y, con él vacío, no tenía límite de
+pérdida; ver [plans/seguimiento.md](plans/seguimiento.md).
 
 ## «¿Qué habría pasado?»
 
