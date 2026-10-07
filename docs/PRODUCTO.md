@@ -96,3 +96,33 @@ dependencias (Helvetica con WinAnsi, así que tildes, ñ, «» y € salen bien)
 `npm run jobs -- ejecutar resumen-diario` o `informe-semanal`, o el botón de la página, generan el
 del periodo actual si falta.
 
+## Comparador de líneas
+
+`mercado.lineas` · Apuestas › Líneas · `GET /api/odds/lineas`
+
+Para cada mercado abierto con cuotas observadas en las últimas 48 horas (los snapshots que ya se
+guardan): por selección, la mejor cuota y su casa, la peor, el consenso (la mediana, el precio que
+usa la app), cuántas casas cotizan y su dispersión (desviación típica de la probabilidad implícita,
+en puntos porcentuales); por mercado, el margen del consenso y el que queda tomando la mejor cuota
+de cada lado, que si es negativo es una surebet (y sale arriba). En hándicaps y totales solo se
+comparan cuotas de la misma línea —la más cotizada—, porque −3,5 y −3 son apuestas distintas.
+
+Es de solo lectura. **El banco de papel apuesta al consenso, no a la mejor línea** (la hoja de ruta
+daba por hecho lo contrario): es conservador a propósito, porque la mejor cuota suele ser de una
+casa que limita o que tarda en mover. La columna «mejor sobre consenso» enseña cuánto precio deja
+esa decisión; cambiarla sería una versión nueva de la política, no de esta pantalla.
+
+## Archivo de predicciones
+
+`archivo.predicciones` · Confianza › Archivo · `GET /api/archivo`
+
+Todo lo que el modelo dijo antes de cada partido, de los cinco registros inmutables, en una lista:
+la probabilidad tal como se enseñó (la enseñada en fútbol y NFL, donde existe), el favorito y su
+banda (50–60, 60–75, ≥ 75 %), el mercado de entonces, el resultado (en la NFL un empate devuelve el
+moneyline y cuenta como nulo, ni acierto ni fallo), la confianza de la última evaluación anterior
+al inicio, el CLV de la apuesta de papel o, si no la hubo, de la señal registrada, y la versión de
+la política con la que se evaluó. Se busca por texto sin tildes y se filtra por deporte, liga,
+confianza, banda, resultado y fechas; los filtros van en la URL. El resumen cuenta aciertos sobre
+resueltas con su aviso de muestra (100 predicciones), sin convertirlo en conclusión. Lee y no
+escribe; con los volúmenes de hoy se calcula al vuelo.
+

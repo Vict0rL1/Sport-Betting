@@ -71,6 +71,7 @@ import { sesionesActivas } from '../auth/sessions.ts';
 import { featureEncendida } from '../features.ts';
 import { historicosDisponibles } from '../estrategias/historico.ts';
 import { zonaApp } from '../informes/tiempo.ts';
+import { eventosRecientes } from '../odds/intel.ts';
 import { origenesPermitidos } from '../security/cors.ts';
 import { monitorizacion as monitorizacionDe } from '../monitoring/series.ts';
 import { predicciones as prediccionesEnVivo } from '../evaluation/live.ts';
@@ -459,6 +460,11 @@ if (dbExistia) {
         zona: zonaApp(),
       };
     }, undefined),
+    lineas: { on: featureEncendida('mercado.lineas'), mercados: uno(() => eventosRecientes(new Date()).length, 0) },
+    archivo: {
+      on: featureEncendida('archivo.predicciones'),
+      predicciones: uno(() => ['prediction_log', 'fb_prediction_log', 'bb_prediction_log', 'bsb_prediction_log', 'naf_prediction_log'].reduce((a, t) => a + (db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get() as { n: number }).n, 0), 0),
+    },
   };
   hallazgos.push(...comprobarProducto(estadoP, new Date()));
 }

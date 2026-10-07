@@ -42,6 +42,8 @@
     "informes.diario": { "on": true, "descripcion": "Resumen del día a partir de las 7:00 de APP_TIMEZONE: partidos por confianza, resultados de ayer, banco de papel y alertas; archivado en /informes y enviado por los canales." },
     "informes.semanal": { "on": true, "descripcion": "Informe de la semana anterior desde el lunes a las 7:00: salud del modelo, CLV, banco, deriva, frescura de datos y experimentos; archivado en /informes." },
     "informes.pdf": { "on": true, "descripcion": "Descarga en PDF de cada informe, generado en el servidor sin dependencias (GET /api/informes/:id/pdf)." },
+    "mercado.lineas": { "on": true, "descripcion": "Comparador de líneas: mejor cuota por selección y casa, consenso, dispersión entre casas, margen y surebets, solo lectura (GET /api/odds/lineas). El banco de papel sigue apostando al consenso." },
+    "archivo.predicciones": { "on": true, "descripcion": "Archivo de todo lo que dijo el modelo, con resultado, confianza de entonces, CLV y versión de política; búsqueda y filtros por deporte, liga, banda y resultado (GET /api/archivo)." },
     "interfaz.muestras": { "on": false, "descripcion": "Galería de componentes con datos de EJEMPLO (/_muestras) para las capturas de Playwright. Apagada por defecto: no es una pantalla de uso." }
   }
 }

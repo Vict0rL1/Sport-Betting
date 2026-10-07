@@ -5,6 +5,9 @@
 import { useEffect, useState } from 'react';
 import LiveEvaluation from '../bets/LiveEvaluation';
 import Analitica from './Analitica';
+import { SubNav } from '../nav/SubNav';
+import { useSubnavConfianza } from '../../pages/subnav';
+import { useI18n } from '../../i18n';
 import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { DeporteIcono, ShieldCheckIcon, StatusMark } from '../icons';
 
@@ -192,6 +195,8 @@ function Rechazados() {
 }
 
 export default function SystemTrust() {
+  const { t } = useI18n();
+  const subnav = useSubnavConfianza();
   const [s, setS] = useState<Sistema | null>(null);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [riesgo, setRiesgo] = useState<Riesgo | null>(null);
@@ -205,8 +210,9 @@ export default function SystemTrust() {
       vivo = false;
     };
   }, []);
-  if (error) return <p className="text-[14px] text-(--ink-soft)">No se pudo leer el estado del sistema.</p>;
-  if (!s) return <p className="text-[14px] text-(--ink-muted)">Cargando…</p>;
+  const nav = <SubNav etiqueta={t('nav.subConfianza')} enlaces={subnav} />;
+  if (error) return <>{nav}<p className="text-[14px] text-(--ink-soft)">No se pudo leer el estado del sistema.</p></>;
+  if (!s) return <>{nav}<p className="text-[14px] text-(--ink-muted)">Cargando…</p></>;
   const tiles: [string, string][] = [
     ['Predicciones en vivo', `${s.prediccionesEnVivo} (${s.resueltas} con resultado)`],
     ['Apuestas de papel', `${s.apuestasEnVivo} (${s.liquidadas} liquidadas)`],
@@ -217,6 +223,7 @@ export default function SystemTrust() {
   ];
   return (
     <div>
+      {nav}
       <h2 className="mb-1 flex items-center gap-2.5 text-[20px] font-semibold text-(--ink-strong)">
           <span className="grid h-9 w-9 place-items-center rounded-xl" style={{ color: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.12)' }}>
             <ShieldCheckIcon size={21} />

@@ -71,6 +71,8 @@ una tiene interruptor en `config/features.json` (404 si está apagada) y esquema
 | `GET /api/informes/:id` | Un informe: Markdown y cifras |
 | `GET /api/informes/:id/pdf` | El mismo en PDF (`informes.pdf`) |
 | `POST /api/informes/generar` | `{"tipo": "diario"\|"semanal"}`: el del periodo actual si falta; uno archivado no se rehace |
+| `GET /api/odds/lineas?sport=&market=` | Comparador de líneas: mejor, peor, consenso, dispersión, margen y surebets (solo lectura) |
+| `GET /api/archivo?q=&sport=&liga=&confianza=&banda=&resultado=&desde=&hasta=&pagina=` | Archivo de predicciones con resultado, confianza, CLV y política |
 
 ## API REST (puerto 7374)
 

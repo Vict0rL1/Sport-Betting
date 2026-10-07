@@ -4,6 +4,43 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Fase 6 — Funciones de producto (2026-10-07)
+
+Línea base antes de la fase: 369 tests (319 del servidor + 9 unitarios de la web + 41 de
+Playwright). Después: 426 (357 + 14 + 55). Ninguna probabilidad publicada ni parámetro del modelo
+cambia; nada toca una fila de las tablas inmutables. Detalle en `docs/PRODUCTO.md`.
+
+- **Laboratorio de estrategias** (Apuestas › Laboratorio): bancos de papel con nombre y su
+  configuración (deportes, ventaja mínima, Kelly, topes, cortes por pérdida, capa de confianza,
+  freno de calibración), en paralelo sobre las mismas candidatas con cuotas reales que el banco
+  principal. `strategies` y `strategy_bets` en el libro mayor con los triggers de `paper_bets`;
+  una estrategia no se edita, se archiva. Comparación en banco, ROI, CLV, caída máxima y acierto
+  sin comparar filas por debajo de 30 apuestas liquidadas.
+- **«¿Qué habría pasado?»**: los backtests de tenis, fútbol y NFL guardan los partidos con cuota
+  fuera del holdout (`experiments/estrategias/`) y una estrategia se reproduce día a día con la
+  misma `decideEvent`. NFL guardado: 3.780 partidos de 2010 a 2023. Con la política vigente no
+  apuesta ninguno (el freno de calibración, medido: el modelo pierde contra el cierre); sin el
+  freno, 2.114 apuestas con ROI −4,8 % y el banco en 51,76. CLV DESCONOCIDO con solo cuota de
+  cierre. Tenis y fútbol, sin cuotas históricas en la base de este entorno: el fichero se
+  escribirá cuando la corrida de referencia las tenga.
+- **Bandeja** (`/bandeja`, campana): cada notificación y cada alerta, con o sin canales, con
+  leída/no leída, filtros y enlace al partido o al informe.
+- **Resumen diario e informe semanal** (`/informes`): a partir de las 7:00 de `APP_TIMEZONE`, y el
+  lunes la semana anterior; archivados sin reescritura (`reports`), enviados como `digest_listo` e
+  `informe_semanal`, con PDF de texto generado en el servidor sin dependencias.
+- **Comparador de líneas** (Apuestas › Líneas): mejor y peor cuota por selección y casa, consenso,
+  dispersión, margen y surebets, comparando solo dentro de la línea más cotizada. Solo lectura.
+- **Archivo de predicciones** (Confianza › Archivo): los cinco registros con resultado, confianza
+  de la última evaluación antes del inicio, CLV de la apuesta o la señal y versión de política;
+  búsqueda y filtros en la URL.
+- **Operación**: migraciones 10 y 11; ocho interruptores nuevos; trabajos `resumen-diario` e
+  `informe-semanal` (también con `npm run jobs -- ejecutar`); sección PRODUCTO en el doctor;
+  `decideStake` admite pérdidas explícitas por banco; enlaces de las notificaciones a las rutas
+  reales.
+- **Hallazgos que no se cambian aquí** (son política, no producto): el banco de papel apuesta al
+  consenso, no a la mejor línea como suponía la hoja de ruta; y su corte por pérdida lee el
+  registro personal (`bets`) en lugar de sus propias apuestas.
+
 ## Fase 5 — Rediseño de la interfaz y sistema visual (2026-10-07)
 
 Línea base antes de la fase: 309 tests (307 + 2 de Playwright). Ninguna probabilidad publicada

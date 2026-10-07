@@ -8,6 +8,8 @@ import LatencyPanel from '../components/LatencyPanel';
 import { STATUS } from '../lib/theme';
 import { StatusMark } from '../components/icons';
 import { useI18n } from '../i18n';
+import { SubNav } from '../components/nav/SubNav';
+import { useSubnavConfianza } from './subnav';
 
 interface Ejecucion { id: number; source: string; started_at: string; finished_at: string | null; status: 'running' | 'ok' | 'error'; rows_added: number | null; rows_updated: number | null; error: string | null; detail: string | null }
 interface Trabajo { nombre: string; descripcion: string; cadenciaMin: number; cadenciaPorDefecto: number; enabled: boolean; lastRunAt: string | null; lastDurationMs: number | null; lastStatus: 'ok' | 'error' | 'running' | null; lastError: string | null; nextRunAt: string | null; runsOk: number; runsError: number }
@@ -44,6 +46,7 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
 
 export default function Diagnostico() {
   const { t } = useI18n();
+  const subnav = useSubnavConfianza();
   const ingestas = usarJson<{ ultimas: Ejecucion[]; historial: Ejecucion[] }>('/api/ingestion-runs');
   const errores = usarJson<{ errores: ErrorFila[]; total24h: number }>('/api/errores?limite=30');
   const trabajos = usarJson<{ arrancado: boolean; trabajos: Trabajo[] }>('/api/scheduler');
@@ -54,6 +57,7 @@ export default function Diagnostico() {
       <p className="mb-1 text-[12px] text-(--ink-muted)">
         <Link to="/confianza" className="underline-offset-2 hover:underline">Confianza</Link> › Diagnóstico
       </p>
+      <SubNav etiqueta={t('nav.subConfianza')} enlaces={subnav} />
       <h2 className="mb-1 text-[20px] font-semibold text-(--ink-strong)">{t('nav.diagnostico')}</h2>
       <p className="mb-4 text-[13px] text-(--ink-muted)">{t('diag.intro')}</p>
 

@@ -42,6 +42,8 @@ const Laboratorio = lazy(() => import('./pages/Laboratorio'));
 const Bandeja = lazy(() => import('./pages/Bandeja'));
 const Informes = lazy(() => import('./pages/Informes'));
 const InformeDetalle = lazy(() => import('./pages/Informe'));
+const Lineas = lazy(() => import('./pages/Lineas'));
+const Archivo = lazy(() => import('./pages/Archivo'));
 import { I18nProvider, idiomaGuardado, useI18n } from './i18n';
 import { aplicarTema, temaGuardado, type Tema } from './lib/tema';
 
@@ -200,6 +202,8 @@ function Armazon() {
             <Route path="/tenis/:league?" element={<TennisDashboard />} />
             <Route path="/apuestas" element={<BetsDashboard />} />
             <Route path="/apuestas/laboratorio" element={<Laboratorio />} />
+            <Route path="/apuestas/lineas" element={<Lineas />} />
+            <Route path="/confianza/archivo" element={<Archivo />} />
             <Route path="/bandeja" element={<Bandeja />} />
             <Route path="/informes" element={<Informes />} />
             <Route path="/informes/:id" element={<InformeDetalle />} />

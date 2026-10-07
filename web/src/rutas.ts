@@ -41,6 +41,8 @@ export const RUTA_AJUSTES = '/ajustes';
 export const RUTA_DIAGNOSTICO = '/confianza/diagnostico';
 export const RUTA_GLOSARIO = '/glosario';
 export const RUTA_LABORATORIO = '/apuestas/laboratorio';
+export const RUTA_LINEAS = '/apuestas/lineas';
+export const RUTA_ARCHIVO = '/confianza/archivo';
 
 const CLAVE_ULTIMA = 'predictor.sport';
 

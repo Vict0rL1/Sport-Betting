@@ -336,3 +336,12 @@ test('producto: un resumen diario parado avisa; la bandeja cuenta las no leídas
   const alDia = comprobarProducto({ ...base, informes: { diarioOn: true, semanalOn: false, ultimoDiario: { periodo: '2026-10-07', creado: '2026-10-07T05:00:00Z' }, ultimoSemanal: null, total: 3, zona: 'UTC' } }, ahora);
   assert.equal(alDia.find((x) => x.texto.startsWith('Resumen diario'))?.nivel, 'ok');
 });
+
+test('producto: líneas sin cuotas recientes y archivo son información, nunca avería', async () => {
+  const { comprobarProducto } = await import('./checks.ts');
+  const base = { estrategias: { activas: 0, archivadas: 0, apuestas: 0, pendientes: 0, ultimaApuesta: null, laboratorio: true }, historicos: [], hayCuotasReales: false };
+  const r = comprobarProducto({ ...base, lineas: { on: true, mercados: 0 }, archivo: { on: true, predicciones: 56 } }, new Date());
+  assert.equal(r.find((x) => x.texto.startsWith('Comparador'))?.nivel, 'info');
+  assert.match(r.find((x) => x.texto.startsWith('Archivo'))!.texto, /56 predicción/);
+  assert.equal(comprobarProducto({ ...base, lineas: { on: true, mercados: 4 } }, new Date()).find((x) => x.texto.startsWith('Comparador'))?.nivel, 'ok');
+});

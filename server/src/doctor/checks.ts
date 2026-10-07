@@ -880,6 +880,9 @@ export interface EstadoProducto {
   bandeja?: { on: boolean; total: number; noLeidas: number };
   /** Último periodo archivado de cada tipo (YYYY-MM-DD / YYYY-Www) y su fecha de creación. */
   informes?: { diarioOn: boolean; semanalOn: boolean; ultimoDiario: { periodo: string; creado: string } | null; ultimoSemanal: { periodo: string; creado: string } | null; total: number; zona: string };
+  /** Mercados abiertos con cuotas observadas en 48 h (lo que enseña el comparador). */
+  lineas?: { on: boolean; mercados: number };
+  archivo?: { on: boolean; predicciones: number };
 }
 
 export function comprobarProducto(e: EstadoProducto, ahora: Date): Hallazgo[] {
@@ -928,6 +931,14 @@ export function comprobarProducto(e: EstadoProducto, ahora: Date): Hallazgo[] {
         out.push(h(S, d > 14 ? 'aviso' : 'ok', `Informe semanal: el último es la ${i.ultimoSemanal.periodo}${d > 14 ? ` (hace ${d} días)` : ''}; ${i.total} informe(s) en el archivo`));
       }
     }
+  }
+  if (e.lineas) {
+    if (!e.lineas.on) out.push(h(S, 'info', 'Comparador de líneas apagado (features.json: mercado.lineas)'));
+    else out.push(h(S, e.lineas.mercados ? 'ok' : 'info', e.lineas.mercados ? `Comparador de líneas: ${e.lineas.mercados} mercado(s) abierto(s) con cuotas de las últimas 48 h` : 'Comparador de líneas vacío: no hay cuotas reales de las últimas 48 h (sin ODDS_API_KEY no hay casas que comparar)'));
+  }
+  if (e.archivo) {
+    if (!e.archivo.on) out.push(h(S, 'info', 'Archivo de predicciones apagado (features.json: archivo.predicciones)'));
+    else out.push(h(S, 'info', `Archivo de predicciones: ${e.archivo.predicciones.toLocaleString('es')} predicción(es) registradas en los cinco registros`));
   }
   return out;
 }

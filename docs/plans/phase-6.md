@@ -71,3 +71,27 @@ Tres lotes, un commit cada uno:
   campo existe y solo admite `h2h`.
 - Topes por grupo de correlación en las estrategias: se aplican el tope por evento y el total; los
   de equipo/jugador leen `paper_bets` y se dejan para cuando se generalicen.
+
+## Lo que salió
+
+Las once piezas del plan, en tres commits (6A, 6B, 6C), con API, pantalla, tests, doctor y docs.
+Tests: 369 → 426 (357 del servidor, 14 unitarios de la web, 55 de Playwright).
+
+- **Histórico de estrategias**: solo la NFL tiene fichero en este entorno (3.780 partidos,
+  2010–2023). La base local no trae cuotas históricas de tenis (tennis-data.co.uk) ni de fútbol
+  (football-data.co.uk): los ganchos de los backtests las guardarán cuando la corrida de referencia
+  las tenga. La corrida de la NFL se hizo sin tocar nada más: el registro de experimentos, el
+  walk-forward, los ensembles y las métricas volvieron a su versión de git (correrla otra vez
+  añade una entrada duplicada al registro, que inflaría la familia de comparaciones).
+- **Con la política vigente, la NFL no apuesta en el histórico**: el freno de calibración la deja a
+  cero porque el modelo pierde contra el cierre. Por eso las estrategias tienen el interruptor
+  `calibracion`; sin el freno, el replay confirma que el freno acierta (ROI −4,8 %).
+- **Dos hallazgos de política, sin cambiar**: el banco de papel apuesta al consenso (no a la mejor
+  línea, como suponía la hoja de ruta), y su corte por pérdida diaria y semanal lee el registro
+  personal `bets`. Las estrategias ya miran sus propias pérdidas; el banco principal queda igual
+  hasta que se decida como versión de la política.
+- **Topes por grupo de correlación**: no se aplican a las estrategias (leen `paper_bets`); sí el
+  tope por partido y el total.
+- **Archivo**: se calcula al vuelo (hasta 20.000 filas); si el volumen crece, la Fase 7 puede
+  precalcularlo.
+

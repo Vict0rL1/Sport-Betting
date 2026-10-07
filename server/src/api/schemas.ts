@@ -182,3 +182,36 @@ export const ESQUEMA_RESUMEN_INFORME = o(RESUMEN_INFORME);
 export const ESQUEMA_INFORMES = o({ informes: { type: 'array', items: ESQUEMA_RESUMEN_INFORME }, zona: str, pdf: bool, diario: bool, semanal: bool });
 export const ESQUEMA_INFORME = o({ ...RESUMEN_INFORME, markdown: str, datos: objetoLibre, pdf: bool });
 export const ESQUEMA_INFORME_GENERADO = o({ id: int, nuevo: bool, periodo: str });
+
+// --- Fase 6: comparador de líneas y archivo de predicciones ---
+const CASA_CUOTA = o({ cuota: num, casa: str });
+export const ESQUEMA_LINEA = o({ seleccion: str, linea: nullable('number'), mejor: CASA_CUOTA, peor: CASA_CUOTA, consenso: num, casas: int, dispersionPp: num, mejorSobreConsenso: num });
+export const ESQUEMA_LINEAS = o({
+  generado: str,
+  ventanaHoras: num,
+  eventos: int,
+  bancoApuestaA: { type: 'string', enum: ['consenso'] },
+  nota: str,
+  mercados: {
+    type: 'array',
+    items: o({
+      eventId: str, sport: str, league: str, market: str, partido: str, cuando: nullable('string'), eventoId: nullable('string'),
+      selecciones: { type: 'array', items: ESQUEMA_LINEA }, margenMejor: nullable('number'), margenConsenso: nullable('number'), surebet: bool, observado: nullable('string'),
+    }),
+  },
+});
+export const ESQUEMA_FILA_ARCHIVO = o({
+  sport: str, matchKey: str, eventoId: nullable('string'), liga: nullable('string'), cuando: nullable('string'), registrada: str, partido: str, casa: str, fuera: str,
+  probabilidades: { type: 'array', items: num }, salidas: { type: 'array', items: str }, favorito: str, probabilidad: num, mercado: nullable('number'),
+  banda: str, resultado: { type: 'string', enum: ['acierto', 'fallo', 'nulo', 'pendiente'] }, marcador: nullable('string'),
+  confianza: { type: 'string', nullable: true, enum: ['ALTA', 'MEDIA', 'BAJA', null] }, decision: nullable('string'), clv: nullable('number'),
+  clvDe: { type: 'string', nullable: true, enum: ['papel', 'señal', null] }, politica: nullable('integer'), version: nullable('string'), url: str,
+});
+export const ESQUEMA_ARCHIVO = o({
+  filas: { type: 'array', items: ESQUEMA_FILA_ARCHIVO },
+  total: int,
+  pagina: int,
+  porPagina: int,
+  resumen: o({ resueltas: int, aciertos: int, pendientes: int, aviso: ESQUEMA_AVISO }),
+  ligas: { type: 'array', items: o({ sport: str, liga: str }) },
+});

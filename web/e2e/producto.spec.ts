@@ -56,3 +56,17 @@ test('informes: generar el de hoy, leerlo y su PDF; la bandeja lo avisa y la cam
   await lista.getByRole('button', { name: 'Abrir' }).first().click();
   await expect(page).toHaveURL(/\/informes\/\d+|\/partido\//);
 });
+
+test('archivo: los filtros van a la URL y sobreviven a recargar; líneas sin cuotas reales lo dice', async ({ page }) => {
+  await page.goto('/confianza/archivo');
+  await expect(page.getByTestId('resumen-archivo')).toBeVisible();
+  await page.getByLabel('Resultado').selectOption('pendiente');
+  await expect(page).toHaveURL(/resultado=pendiente/);
+  await page.reload();
+  await expect(page.getByLabel('Resultado')).toHaveValue('pendiente');
+  await expect(page.getByTestId('subnav').getByRole('link', { name: 'Archivo' })).toHaveAttribute('aria-current', 'page');
+
+  await page.goto('/apuestas/lineas');
+  await expect(page.getByRole('heading', { name: 'Comparador de líneas' })).toBeVisible();
+  await expect(page.getByText('Sin ODDS_API_KEY no hay casas que comparar')).toBeVisible();
+});
