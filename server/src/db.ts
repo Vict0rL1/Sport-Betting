@@ -18,6 +18,8 @@ import { WEATHER_SCHEMA } from './weather/schema.ts';
 import { SCHEDULER_SCHEMA } from './scheduler/schema.ts';
 import { POLICY_SCHEMA } from './staking/policySchema.ts';
 import { NOTIFICATIONS_SCHEMA } from './notifications/schema.ts';
+import { MONITORING_SCHEMA } from './monitoring/schema.ts';
+import { SIMULATION_SCHEMA } from './simulation/schema.ts';
 import { ERROR_LOG_SCHEMA } from './security/errors.ts';
 import { HISTORY_DB_PATH, LAYOUT, LEDGER_DB_PATH, LEDGER_SCHEMA, LEGACY_DB_PATH, rutaPrincipal } from './db/layout.ts';
 import { ledgerize, masterDe } from './db/ledgerize.ts';
@@ -43,7 +45,7 @@ let db: DatabaseSync | null = null;
 
 /** Todo el esquema (tablas, índices y triggers de los ocho módulos), ya con los prefijos. */
 export function esquemaCompleto(schema: string = LEDGER_SCHEMA): string {
-  return [ESQUEMA_BASE, ODDS_SNAPSHOT_SCHEMA, EDGE_SIGNALS_SCHEMA, PREMATCH_SCHEMA, ASSESSMENT_SCHEMA, SHADOW_SCHEMA, ALERTS_SCHEMA, SESSIONS_SCHEMA, ERROR_LOG_SCHEMA, SETTINGS_SCHEMA, INGESTION_RUNS_SCHEMA, EXTERNAL_ELO_SCHEMA, BULLPEN_SCHEMA, WEATHER_SCHEMA, SCHEDULER_SCHEMA, POLICY_SCHEMA, NOTIFICATIONS_SCHEMA]
+  return [ESQUEMA_BASE, ODDS_SNAPSHOT_SCHEMA, EDGE_SIGNALS_SCHEMA, PREMATCH_SCHEMA, ASSESSMENT_SCHEMA, SHADOW_SCHEMA, ALERTS_SCHEMA, SESSIONS_SCHEMA, ERROR_LOG_SCHEMA, SETTINGS_SCHEMA, INGESTION_RUNS_SCHEMA, EXTERNAL_ELO_SCHEMA, BULLPEN_SCHEMA, WEATHER_SCHEMA, SCHEDULER_SCHEMA, POLICY_SCHEMA, NOTIFICATIONS_SCHEMA, MONITORING_SCHEMA, SIMULATION_SCHEMA]
     .map((sql) => ledgerize(sql, schema))
     .join('\n');
 }
@@ -159,6 +161,17 @@ export const MIGRACIONES: Migracion[] = [
       }
       d.exec(ledgerize(PAPER_TRIGGERS, ctx.ledger));
       d.exec(ledgerize(EDGE_SIGNALS_SCHEMA, ctx.ledger));
+    },
+  },
+  // Fase 4: serie diaria de monitorización (historia: se reconstruye de las predicciones).
+  {
+    version: 8,
+    nombre: 'analitica-fase-4',
+    destino: 'history',
+    up: (d) => {
+      addMissingColumns(d);
+      d.exec(MONITORING_SCHEMA);
+      d.exec(SIMULATION_SCHEMA);
     },
   },
 ];
@@ -1104,6 +1117,11 @@ export function addMissingColumns(d: DatabaseSync): void {
     },
     naf_team_ratings: {
       current_qb: 'TEXT',
+    },
+    // Conferencia y división (nflverse teams.csv), para la simulación de temporada.
+    naf_teams: {
+      conference: 'TEXT',
+      division: 'TEXT',
     },
     fb_matches: {
       // Arrived with the openfootball source — see the note on the schema above.

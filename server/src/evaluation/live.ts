@@ -14,7 +14,7 @@ import { avisoMuestra, type AvisoMuestra } from './sample.ts';
 type Fila = Record<string, number | string | null>;
 
 /** Una predicción en vivo, con la versión del modelo que la hizo (null: anterior al versionado). */
-export type PrediccionEnVivo = Prediccion & { version: string | null };
+export type PrediccionEnVivo = Prediccion & { version: string | null; cuando: string | null; liga: string | null };
 
 function leer(sql: string): Fila[] {
   try {
@@ -30,20 +30,22 @@ const dos = (r: Fila): PrediccionEnVivo => ({
   y: r.y as number,
   mercado: r.m == null ? null : [r.m as number, 1 - (r.m as number)],
   version: (r.v as string | null) ?? null,
+  cuando: (r.t as string | null) ?? null,
+  liga: (r.l as string | null) ?? null,
 });
 
 export function predicciones(deporte: SportId): PrediccionEnVivo[] {
   switch (deporte) {
     case 'tennis':
       return leer(
-        `SELECT prob1 AS p, market_prob1 AS m, CASE WHEN winner_id = p1_id THEN 0 ELSE 1 END AS y, model_version AS v
+        `SELECT prob1 AS p, market_prob1 AS m, CASE WHEN winner_id = p1_id THEN 0 ELSE 1 END AS y, model_version AS v, commence_time AS t, tour AS l
            FROM prediction_log WHERE resolved_at IS NOT NULL AND winner_id IS NOT NULL ORDER BY rowid`,
       ).map(dos);
     case 'football':
       return leer(
         `SELECT COALESCE(shown_home, prob_home) AS h, COALESCE(shown_draw, prob_draw) AS d, COALESCE(shown_away, prob_away) AS a,
                 market_prob_home AS mh, market_prob_draw AS md, market_prob_away AS ma, home_goals AS g1, away_goals AS g2,
-                model_version AS v
+                model_version AS v, commence_time AS t, league AS l
            FROM fb_prediction_log WHERE resolved_at IS NOT NULL AND home_goals IS NOT NULL ORDER BY rowid`,
       ).map((r) => {
         // Renormalizado: el log guarda cinco decimales y las tres pueden sumar 0,99999.
@@ -54,23 +56,25 @@ export function predicciones(deporte: SportId): PrediccionEnVivo[] {
           y: (r.g1 as number) > (r.g2 as number) ? 0 : r.g1 === r.g2 ? 1 : 2,
           mercado: ms ? [(r.mh as number) / ms, (r.md as number) / ms, (r.ma as number) / ms] : null,
           version: (r.v as string | null) ?? null,
+          cuando: (r.t as string | null) ?? null,
+          liga: (r.l as string | null) ?? null,
         };
       });
     case 'basketball':
       return leer(
-        `SELECT prob_home AS p, market_prob_home AS m, CASE WHEN home_pts > away_pts THEN 0 ELSE 1 END AS y, model_version AS v
+        `SELECT prob_home AS p, market_prob_home AS m, CASE WHEN home_pts > away_pts THEN 0 ELSE 1 END AS y, model_version AS v, commence_time AS t, league AS l
            FROM bb_prediction_log WHERE home_pts IS NOT NULL AND home_pts <> away_pts ORDER BY rowid`,
       ).map(dos);
     case 'baseball':
       return leer(
-        `SELECT prob_home AS p, market_prob_home AS m, CASE WHEN home_runs > away_runs THEN 0 ELSE 1 END AS y, model_version AS v
+        `SELECT prob_home AS p, market_prob_home AS m, CASE WHEN home_runs > away_runs THEN 0 ELSE 1 END AS y, model_version AS v, commence_time AS t, league AS l
            FROM bsb_prediction_log WHERE home_runs IS NOT NULL AND home_runs <> away_runs ORDER BY rowid`,
       ).map(dos);
     case 'nfl':
       // Los empates se excluyen: el moneyline se devuelve y no hay resultado que puntuar.
       return leer(
         `SELECT COALESCE(shown_home, prob_home) AS p, market_prob_home AS m, CASE WHEN home_points > away_points THEN 0 ELSE 1 END AS y,
-                model_version AS v
+                model_version AS v, commence_time AS t, league AS l
            FROM naf_prediction_log WHERE home_points IS NOT NULL AND home_points <> away_points ORDER BY rowid`,
       ).map(dos);
   }

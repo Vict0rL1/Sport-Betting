@@ -48,6 +48,55 @@ function Fila({ titulo, valor, children }: { titulo: string; valor: React.ReactN
 
 const COLOR_ICONO = { ok: PROFIT_COLOR, aviso: AMBAR, desconocido: GRIS } as const;
 
+const logit = (p: number) => Math.log(Math.max(p, 1e-9) / Math.max(1 - p, 1e-9));
+const sigm = (x: number) => 1 / (1 + Math.exp(-x));
+/** El mismo desplazamiento logístico que usa la capa de confianza (server/src/trust/perturbation.ts: mover). */
+export function moverProbs(probs: number[], pendiente: number, delta: number): number[] {
+  if (probs.length === 2) {
+    const q = sigm(logit(probs[0]) + pendiente * delta);
+    return [q, 1 - q];
+  }
+  const [h, d, a] = probs;
+  const resto = h + a;
+  const q = sigm(logit(h / resto) + pendiente * delta);
+  return [resto * q, d, resto * (1 - q)];
+}
+
+/** Deslizadores «qué pasaría si»: cada factor dentro de su rango plausible; se recalcula aquí, nunca se registra. */
+function QueSi({ c }: { c: EvaluacionConfianza }) {
+  const q = c.queSi;
+  const [mult, setMult] = useState<Record<string, number>>({});
+  if (!q || q.factores.length === 0) return <p>Este partido no tiene factores que mover.</p>;
+  const delta = q.factores.reduce((s, f) => s + f.puntos * ((mult[f.clave] ?? 1) - 1), 0);
+  const probs = moverProbs(c.probs, q.pendiente, delta);
+  const tocado = Object.values(mult).some((m) => m !== 1);
+  return (
+    <>
+      {q.factores.map((f) => {
+        const m = mult[f.clave] ?? 1;
+        const [lo, hi] = f.rango;
+        return (
+          <label key={f.clave} className="block">
+            <span className="flex items-center justify-between gap-2">
+              <span className="text-[#c3c9d1]">{f.etiqueta}</span>
+              <span className="tabular-nums">{(f.puntos * m).toFixed(1).replace('.', ',')} <span className="text-[#5c636c]">(×{m.toFixed(2).replace('.', ',')})</span></span>
+            </span>
+            <input type="range" min={lo} max={hi} step={0.05} value={m} onChange={(e) => setMult((s) => ({ ...s, [f.clave]: Number(e.target.value) }))} className="mt-1 w-full accent-[#c3c9d1]" aria-label={`Qué pasaría si ${f.etiqueta}`} />
+            <span className="text-[#5c636c]">{f.porQue}</span>
+          </label>
+        );
+      })}
+      <p className="mt-1 text-[#c3c9d1]">
+        {c.outcomes.map((o, i) => (
+          <span key={o} className="mr-3 tabular-nums">{o}: {pct(probs[i])}{tocado ? ` (${pp((probs[i] - c.probs[i]) * 100)})` : ''}</span>
+        ))}
+      </p>
+      {tocado && <button onClick={() => setMult({})} className="text-[#7b828d] underline-offset-2 hover:underline">Volver a lo publicado</button>}
+      <p className="text-[#5c636c]">{q.etiqueta}{q.exacta ? '' : ' La curva es una aproximación logística local del modelo.'}</p>
+    </>
+  );
+}
+
 function HistorialPrePartido({ refP }: { refP: PrePartidoRef }) {
   const [d, setD] = useState<PrePartido | null>(null);
   const [error, setError] = useState(false);
@@ -198,6 +247,11 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
               <p>Final: {pct(c.sensibilidad.final)}</p>
               <p className="text-[#5c636c]">{c.sensibilidad.metodo}</p>
             </Fila>
+            {c.queSi && (
+              <Fila titulo="Qué pasaría si" valor="simulación">
+                <QueSi c={c} />
+              </Fila>
+            )}
             <Fila titulo="Calidad de mercado (proxy)" valor={<Etiqueta texto={c.mercado.calidad} />}>
               {c.mercado.lineas.map((l, i) => {
                 // La ventaja con cada cuota, con la probabilidad del modelo para esa selección.

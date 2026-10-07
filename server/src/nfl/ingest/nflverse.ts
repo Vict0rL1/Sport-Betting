@@ -16,6 +16,7 @@
 // every one of those a silent corruption.
 
 import { getDb } from '../../db.ts';
+import { guardarCalendario } from '../../simulation/calendario.ts';
 import { freshSince, pruneUpcoming } from '../../freshness.ts';
 import { zonedToUtc } from '../../timezone.ts';
 import type { LeagueId } from '../types.ts';
@@ -285,6 +286,33 @@ export function parseGames(
     a.gameDate === b.gameDate ? a.homeId.localeCompare(b.homeId) : a.gameDate.localeCompare(b.gameDate),
   );
   return { games, fixtures };
+}
+
+/** Conferencia y división de cada equipo (teams.csv: team_conf, team_division), para la simulación. */
+export function parseTeamGroups(csv: string): Map<string, { conference: string; division: string }> {
+  const out = new Map<string, { conference: string; division: string }>();
+  for (const r of parseCsv(csv)) {
+    const code = r.team ?? r.abbr ?? r.team_abbr;
+    const conf = r.team_conf ?? r.conference;
+    const div = r.team_division ?? r.division;
+    if (code && conf && div) out.set(canonicalTeam(code), { conference: conf, division: div });
+  }
+  return out;
+}
+
+export function storeTeamGroups(league: LeagueId, grupos: Map<string, { conference: string; division: string }>): number {
+  const up = getDb().prepare('UPDATE naf_teams SET conference = ?, division = ? WHERE league = ? AND id = ?');
+  let n = 0;
+  for (const [id, g] of grupos) n += Number(up.run(g.conference, g.division, league, id).changes);
+  return n;
+}
+
+/** Toda la temporada pendiente (no solo la ventana de 32) a remaining_fixtures, para la simulación. */
+export function storeRemainingFixtures(league: LeagueId, fixtures: ParsedFixture[], ahora = new Date()): number {
+  if (!fixtures.length) return 0;
+  const season = Math.max(...fixtures.map((f) => f.season));
+  const pendientes = fixtures.filter((f) => f.season === season).map((f) => ({ fecha: f.commenceTime.slice(0, 10).replace(/-/g, ''), homeId: f.homeId, awayId: f.awayId, neutral: !!f.neutral }));
+  return guardarCalendario('nfl', league, season, pendientes, 'nflverse', ahora);
 }
 
 /** Team display names, from nflverse's own teams file when it is reachable. */

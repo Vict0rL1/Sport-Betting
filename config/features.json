@@ -16,6 +16,14 @@
     "api.docs": { "on": true, "descripcion": "Visor de la API (Swagger UI) en /docs, detrás de la contraseña; /openapi.json siempre." },
     "operacion.registroTrabajos": { "on": true, "descripcion": "Los trabajos programados pasan por el registro (GET /api/scheduler) con interruptor por trabajo." },
     "notificaciones.canales": { "on": true, "descripcion": "Notificaciones por Web Push, Telegram, correo o webhook, según las variables de entorno presentes." },
-    "politica.versionada": { "on": true, "descripcion": "La política de apuestas se lee de policy_versions (append-only); cada apuesta y señal referencia su versión." }
+    "politica.versionada": { "on": true, "descripcion": "La política de apuestas se lee de policy_versions (append-only); cada apuesta y señal referencia su versión." },
+    "analitica.fiabilidad": { "on": true, "descripcion": "Diagramas de fiabilidad por deporte, backtest y vivo sin mezclar (GET /api/evaluation/reliability)." },
+    "analitica.segmentos": { "on": true, "descripcion": "Acierto, Brier y CLV por segmento en vivo; solo celdas con ≥ 100 predicciones o ≥ 30 apuestas (GET /api/evaluation/segmentos)." },
+    "analitica.monitorizacion": { "on": true, "descripcion": "Ventana móvil de 4 semanas, PSI contra el backtest y alerta de deriva, con trabajo diario (GET /api/monitoring)." },
+    "simulacion.temporada": { "on": true, "descripcion": "Simulación Monte Carlo de la temporada (10.000 corridas, semilla fija) con las probabilidades publicadas; cacheada por día (GET /api/simulation/season)." },
+    "simulacion.torneo": { "on": true, "descripcion": "Simulación de cuadro de tenis cuando hay cuadro; si no, lo dice (GET /api/simulation/torneo)." },
+    "picks.combinadasCorrelacion": { "on": true, "descripcion": "La probabilidad conjunta de «Mi selección» descuenta la correlación medida entre patas (POST /api/picks/parlay)." },
+    "mercado.inteligencia": { "on": true, "descripcion": "Steam moves, surebets entre casas y referencia afilada, etiquetados como aproximación (GET /api/odds/intel)." },
+    "confianza.queSi": { "on": true, "descripcion": "Deslizadores «qué pasaría si» en la ficha: simulación en el navegador, nunca predicción publicada." }
   }
 }

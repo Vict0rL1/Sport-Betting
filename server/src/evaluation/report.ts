@@ -16,6 +16,7 @@ import { ROOT } from '../config.ts';
 import { evaluate, type Informe, type Prediccion } from './metrics.ts';
 import { versionsFor } from '../versions.ts';
 import { OUTCOMES, isSportId, type SportId } from '../sports.ts';
+import { guardarDiagramaBacktest } from './reliability.ts';
 
 export const BACKTEST_METRICS_PATH = path.join(ROOT, 'experiments', 'backtest_metrics.json');
 
@@ -81,6 +82,8 @@ export function informeComun(sport: SportId, xs: Prediccion[], log: (s: string) 
     const ordenado = Object.fromEntries(Object.keys(todo).sort().map((k) => [k, todo[k]]));
     fs.mkdirSync(path.dirname(BACKTEST_METRICS_PATH), { recursive: true });
     fs.writeFileSync(BACKTEST_METRICS_PATH, JSON.stringify(ordenado, null, 2) + '\n');
+    // El diagrama de fiabilidad del backtest (Fase 4.3), con las mismas predicciones.
+    guardarDiagramaBacktest(sport, xs);
   }
   return r;
 }

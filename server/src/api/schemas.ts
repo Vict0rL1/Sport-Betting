@@ -45,6 +45,56 @@ export const ESQUEMA_POLICY_VERSION = o({ id: int, created_at: str, parent_id: n
 export const ESQUEMA_POLICY = o({ vigente: ESQUEMA_POLICY_VERSION, historial: { type: 'array', items: ESQUEMA_POLICY_VERSION } });
 export const ESQUEMA_CANAL = o({ nombre: str, configurado: bool, falta: { type: 'array', items: str }, descripcion: str });
 export const ESQUEMA_CANALES = o({ canales: { type: 'array', items: ESQUEMA_CANAL }, ultimos: { type: 'array', items: { type: 'object', additionalProperties: true } } });
+export const ESQUEMA_AVISO_MUESTRA = o({ nivel: { type: 'string', enum: ['insuficiente', 'orientativa', 'suficiente'] }, texto: nullable('string') });
+export const ESQUEMA_CUBETA = o({ desde: num, hasta: num, n: int, predicha: nullable('number'), observada: nullable('number') });
+export const ESQUEMA_DIAGRAMA = o({
+  origen: { type: 'string', enum: ['backtest', 'live'] }, deporte: str, partidos: int, cubetas: { type: 'array', items: ESQUEMA_CUBETA },
+  ece: nullable('number'), aviso: ESQUEMA_AVISO_MUESTRA, generado: str, model_version: nullable('string'),
+});
+export const ESQUEMA_FIABILIDAD = o({ backtest: { ...ESQUEMA_DIAGRAMA, nullable: true }, live: ESQUEMA_DIAGRAMA });
+export const ESQUEMA_CELDA_PREDICCION = o({ n: int, acierto: nullable('number'), brier: nullable('number'), logLoss: nullable('number'), publicada: bool });
+export const ESQUEMA_CELDA_APUESTAS = o({ n: int, conCierre: int, clvMedio: nullable('number'), roi: nullable('number'), publicada: bool });
+export const ESQUEMA_SEGMENTOS = o({
+  deporte: str, generado: str,
+  predicciones: o({ n: int, dimensiones: { type: 'object', additionalProperties: { type: 'object', additionalProperties: ESQUEMA_CELDA_PREDICCION } } }),
+  apuestas: o({ n: int, dimensiones: { type: 'object', additionalProperties: { type: 'object', additionalProperties: ESQUEMA_CELDA_APUESTAS } } }),
+  umbrales: o({ predicciones: int, apuestas: int }),
+});
+export const ESQUEMA_PUNTO_SERIE = o({ dia: str, n: int, logLoss: nullable('number'), brier: nullable('number'), psi: nullable('number') });
+export const ESQUEMA_MONITORIZACION = o({
+  deporte: str, ventanaDias: int, serie: { type: 'array', items: ESQUEMA_PUNTO_SERIE }, actual: { ...ESQUEMA_PUNTO_SERIE, nullable: true },
+  referencia: { ...o({ logLoss: nullable('number'), brier: nullable('number'), n: int }), nullable: true },
+  deriva: o({ hay: bool, motivos: { type: 'array', items: str }, n: int, aviso: ESQUEMA_AVISO_MUESTRA }),
+  umbrales: o({ psi: num, erroresTipicos: num, minVentana: int }), generado: str,
+});
+export const ESQUEMA_CLASIFICACION = o({ puntos: num, jugados: int, victorias: int, empates: int, derrotas: int });
+export const ESQUEMA_EQUIPO_SIMULADO = o({
+  id: str, nombre: str, grupo: nullable('string'), actual: ESQUEMA_CLASIFICACION, puntosEsperados: num, victoriasEsperadas: num,
+  titulo: num, top: num, descenso: num, posiciones: { type: 'array', items: num },
+});
+export const ESQUEMA_SIMULACION = o({
+  sport: str, league: str, season: nullable('integer'), generado: str, corridas: int, semilla: int, etiqueta: str,
+  reglas: { type: 'object', additionalProperties: true, nullable: true },
+  calendario: o({ origen: { type: 'string', enum: ['fuente', 'reconstruido', 'ninguno'] }, fuente: nullable('string'), pendientes: int, sinProbabilidad: int, nota: nullable('string') }),
+  jugados: int, equipos: { type: 'array', items: ESQUEMA_EQUIPO_SIMULADO }, motivo: nullable('string'),
+});
+export const ESQUEMA_TORNEO = o({
+  cuadroDisponible: bool, motivo: str, etiqueta: str, semilla: int,
+  siguientes: { type: 'array', items: o({ torneo: nullable('string'), superficie: nullable('string'), cuando: str, p1: str, p2: str, prob1: nullable('number') }) },
+});
+export const ESQUEMA_COMBINADA = o({
+  patas: int, independiente: num, conjunta: num, factorCorrelacion: num,
+  vinculos: { type: 'array', items: o({ a: str, b: str, rho: num, motivo: str }) }, incompatibles: { type: 'array', items: str },
+  cuotaCombinada: nullable('number'), cuotaJusta: nullable('number'), ventaja: nullable('number'), etiqueta: str,
+});
+const EVENTO_MERCADO = { eventId: str, sport: str, league: str, market: str, partido: str, cuando: nullable('string') };
+export const ESQUEMA_INTEL = o({
+  generado: str, ventanaHoras: int, eventos: int,
+  steam: { type: 'array', items: o({ ...EVENTO_MERCADO, seleccion: str, desde: num, hasta: num, movimientoPp: num, minutos: int, casas: int, observadoEn: str }) },
+  surebets: { type: 'array', items: o({ ...EVENTO_MERCADO, suma: num, margenPct: num, patas: { type: 'array', items: o({ seleccion: str, cuota: num, casa: str }) } }) },
+  referencia: { type: 'array', items: o({ ...EVENTO_MERCADO, casa: str, selecciones: { type: 'array', items: o({ seleccion: str, referencia: num, consenso: num, desviacionPp: num }) }, observadoEn: str }) },
+  etiqueta: str,
+});
 export const ESQUEMA_EXPORT_JSON = o({ dataset: str, filas: int, columnas: { type: 'array', items: str }, datos: { type: 'array', items: { type: 'object', additionalProperties: true } } });
 
 /** Comprueba que `valor` cumple `esquema`. Devuelve los problemas (vacío = cumple). */

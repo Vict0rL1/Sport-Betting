@@ -18,7 +18,7 @@ import {
 } from './perturbation.ts';
 import { confianza, decidir, type Confianza, type Decision } from './decision.ts';
 import { derivaReciente } from './drift.ts';
-import { DEFAULT_CONFIG } from '../staking/policy.ts';
+import { politica } from '../staking/policyStore.ts';
 import type { EventoConfianza } from './types.ts';
 import { registrarSombras } from '../shadow/shadows.ts';
 import { emitirAlerta } from '../alerts/engine.ts';
@@ -36,6 +36,12 @@ export interface Evaluacion {
   estabilidad: Estabilidad;
   desacuerdo: Desacuerdo;
   sensibilidad: Sensibilidad;
+  /**
+   * Qué pasaría si (Fase 4.10): lo que la ficha necesita para mover cada factor dentro de su
+   * rango plausible y recalcular la probabilidad en el navegador con el mismo desplazamiento
+   * logístico de la capa de confianza (perturbation.ts: mover). Simulación, no predicción publicada.
+   */
+  queSi: QueSi;
   mercado: CalidadMercado;
   ood: EventoConfianza['ood'];
   regimen: EventoConfianza['regimen'];
@@ -44,6 +50,24 @@ export interface Evaluacion {
   deriva: string;
   /** Por qué no hay un «Trust Score» único: ver trust/README en docs/CONFIANZA.md. */
   nota: string;
+}
+
+export interface QueSi {
+  pendiente: number;
+  exacta: boolean;
+  factores: { clave: string; etiqueta: string; puntos: number; rango: [number, number]; porQue: string }[];
+  etiqueta: string;
+}
+
+export const ETIQUETA_QUE_SI = 'Simulación, no predicción publicada: mueve cada factor dentro de su rango plausible y recalcula con la curva del modelo. No se registra en ningún sitio.';
+
+export function queSi(e: EventoConfianza): QueSi {
+  return {
+    pendiente: e.pendiente,
+    exacta: e.pendienteExacta,
+    factores: e.factores.filter((f) => f.puntos !== 0).map((f) => ({ clave: f.clave, etiqueta: f.etiqueta, puntos: f.puntos, rango: f.rango, porQue: f.porQue })),
+    etiqueta: ETIQUETA_QUE_SI,
+  };
 }
 
 /** Deriva por deporte, recalculada cada 15 minutos como mucho. */
@@ -80,11 +104,12 @@ export function evaluar(e: EventoConfianza, opts: { pRegistrada?: number[] | nul
     estabilidad: est,
     desacuerdo: des,
     sensibilidad: sensibilidad(e),
+    queSi: queSi(e),
     mercado,
     ood: e.ood,
     regimen: e.regimen,
     confianza: confianza(ctx),
-    decision: decidir({ ...ctx, desapareceDe: (i, cuota) => edgeDesaparece(e, i, cuota, DEFAULT_CONFIG.minEdge) }),
+    decision: decidir({ ...ctx, desapareceDe: (i, cuota) => edgeDesaparece(e, i, cuota, politica().staking.minEdge) }),
     deriva: d.texto,
     nota:
       'No hay un «Trust Score» único a propósito: sumar calidad de datos, estabilidad, calibración y mercado exigiría ' +

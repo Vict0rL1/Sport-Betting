@@ -208,7 +208,15 @@ export function confianzaBaloncesto(row: UpcomingGameRow, p: GamePrediction, now
     outcomes: snap.outcomes, probs: snap.probs, factores: fs, pendiente: pend, pendienteExacta: true,
     sigmaHueco: sigmaDesdeMargen(p.reliability.marginPp, snap.probs, pend),
     fiabilidad: { nivel: p.reliability.level, margenPp: p.reliability.marginPp, motivos: p.reliability.reasons },
-    componentes: [], datos, ood,
+    // Los mismos dos componentes que el backtest da al ensemble en sombra: el modelo y
+    // el modelo sin el ajuste por descanso (quitado en el logit con la pendiente exacta).
+    componentes: [
+      { nombre: 'Modelo completo (crudo)', probs: [p.model.probHome, 1 - p.model.probHome] },
+      { nombre: 'Modelo sin descanso', probs: (() => {
+        const q = 1 / (1 + Math.exp(-(logit(p.model.probHome) - pend * (p.teams.home.restAdjustment - p.teams.away.restAdjustment))));
+        return [q, 1 - q];
+      })() },
+    ], datos, ood,
     regimen:
       trasVerano
         ? { etiqueta: 'inicio de temporada', nota: `primer partido tras ${paron} días sin jugar` }

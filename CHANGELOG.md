@@ -4,6 +4,56 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Fase 4 — Modelos y analítica, vía registro de experimentos (2026-10-07)
+
+Línea base antes de la fase: 278 tests, 514 comprobaciones de `verify:data`. Ninguna probabilidad
+publicada cambia en esta fase; el holdout final sigue cerrado y cada experimento lo dice.
+
+- **Recalibración como experimento** (`experiments/recalibracion.ts`): el walk-forward devuelve las
+  pérdidas por partido (modelo y recalibrado; no van al JSON) y los cinco backtests las registran
+  con bootstrap emparejado y `accepted: false` (rechazado si mejora en validación, porque la
+  promoción exige el holdout; no concluyente si no). Mínimo 1.000 pares.
+- **Ensembles sombra en NBA, MLB y NFL**: los backtests añaden al flujo los mismos componentes que
+  la ficha (NBA «Modelo completo (crudo)» y «Modelo sin descanso», nuevos también en vivo; MLB con y
+  sin abridores; NFL con y sin QB) y entrenan, guardan y registran su ensemble como el tenis y el
+  fútbol. El motivo de cada ensemble cita el holdout cerrado.
+- **Diagramas de fiabilidad** (`evaluation/reliability.ts`, `experiments/reliability.json`, escrito
+  por `informeComun`): cubetas con recuento, backtest y vivo sin mezclar.
+  `GET /api/evaluation/reliability`.
+- **Acierto por segmento**: cuatro segmentos genéricos en el walk-forward (favorito, banda, mes, día)
+  y, en vivo, `evaluation/segmentos.ts` con acierto/Brier/log loss y CLV/ROI de papel por liga,
+  favorito, resultado o lado, banda, mes y día; celdas publicadas solo con ≥ 100 predicciones o
+  ≥ 30 apuestas. `GET /api/evaluation/segmentos`.
+- **Monitorización** (`monitoring/series.ts`, tabla `monitoring_series`): log loss y Brier en ventana
+  de 28 días, PSI contra el backtest, alerta `deriva` (PSI > 0,25 o > 2 errores típicos, nunca con
+  < 100 predicciones); trabajo diario `monitorizacion`. `GET /api/monitoring`.
+- **Simulación de temporada** (`simulation/`): calendario pendiente en `remaining_fixtures` desde
+  openfootball (lo no jugado), nflverse (temporada entera; conferencia y división de `teams.csv` a
+  `naf_teams`) y MLB Stats API (`Preview`), con reconstrucción de la doble vuelta en fútbol
+  («calendario reconstruido»); Monte Carlo de 10.000 corridas con semilla fija (`rng.ts`) y las
+  probabilidades del núcleo de cada deporte; reglas por liga en `config/simulation.json`; caché por
+  día en `simulation_runs`; trabajo diario `simulacion-temporada`. Etiquetado «simulación, no
+  predicción publicada». `GET /api/simulation/season/:sport/:league`. Test con liga sintética < 5 s.
+- **Cuadro de tenis** (`simulation/torneo.ts`): `simularCuadro` probado con un cuadro sintético; sin
+  fuente de cuadros la API devuelve `cuadroDisponible: false` con el motivo y los siguientes
+  partidos. `GET /api/simulation/torneo`.
+- **Combinadas con correlación** (`picks/parlay.ts`): conjunta de «Mi selección» con la corrección
+  por pares sobre los grupos medidos; mismo partido = incompatible. `POST /api/picks/parlay`;
+  Destacados enseña conjunta, independiente y vínculos.
+- **Inteligencia de mercado** (`odds/intel.ts`): steam moves, surebets y referencia Pinnacle sobre
+  los snapshots, etiquetado como aproximación. `GET /api/odds/intel`; panel en Destacados.
+- **Qué pasaría si**: `queSi` en la evaluación servida y deslizadores en la ficha (misma curva
+  logística que la capa de confianza; nunca se registra). La decisión BET/NO BET lee `minEdge` de
+  la política versionada.
+- Migración v8 (`analitica-fase-4`: `monitoring_series`, `remaining_fixtures`, `simulation_runs`,
+  `naf_teams.conference/division`). Interruptores nuevos: `analitica.fiabilidad`,
+  `analitica.segmentos`, `analitica.monitorizacion`, `simulacion.temporada`, `simulacion.torneo`,
+  `picks.combinadasCorrelacion`, `mercado.inteligencia`, `confianza.queSi`.
+- Docs: `docs/EXPERIMENTOS.md` (sección Fase 4), `docs/API.md` (rutas de analítica),
+  `docs/plans/phase-4.md`.
+- Tests: 278 → **309** (307 de node:test + 2 de Playwright). `verify:data` 514/514, doctor, typecheck, lint y
+  build en verde.
+
 ## Fase 3 — Backend, API y observabilidad (2026-10-07)
 
 Línea base antes de la fase: 260 tests, 514 comprobaciones de `verify:data`.

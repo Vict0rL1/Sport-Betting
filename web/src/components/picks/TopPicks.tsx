@@ -49,6 +49,27 @@ interface Pick {
   } | null;
   historico: { franja: string; acierto: number; n: number } | null;
 }
+interface Combinada {
+  patas: number;
+  independiente: number;
+  conjunta: number;
+  factorCorrelacion: number;
+  vinculos: { a: string; b: string; rho: number; motivo: string }[];
+  incompatibles: string[];
+  cuotaCombinada: number | null;
+  cuotaJusta: number | null;
+  ventaja: number | null;
+  etiqueta: string;
+}
+interface Inteligencia {
+  generado: string;
+  ventanaHoras: number;
+  eventos: number;
+  steam: { eventId: string; partido: string; market: string; seleccion: string; desde: number; hasta: number; movimientoPp: number; minutos: number; casas: number }[];
+  surebets: { eventId: string; partido: string; market: string; margenPct: number; patas: { seleccion: string; cuota: number; casa: string }[] }[];
+  referencia: { eventId: string; partido: string; market: string; casa: string; selecciones: { seleccion: string; referencia: number; consenso: number; desviacionPp: number }[] }[];
+  etiqueta: string;
+}
 interface Respuesta {
   horizontes: number[];
   horas: number;
@@ -253,7 +274,34 @@ function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: number; el
 }
 
 /** Qué pasa si se juntan los elegidos: probabilidad de acertar todos, cuota combinada… */
+/** La probabilidad conjunta con la correlación medida (POST /api/picks/parlay); si no responde, el producto. */
+function useCombinada(elegidos: Pick[]): Combinada | null {
+  const [c, setC] = useState<Combinada | null>(null);
+  const firma = elegidos.map((p) => `${clave(p)}|${p.probabilidad}|${p.cuota ?? ''}`).join(';');
+  useEffect(() => {
+    if (elegidos.length === 0) {
+      setC(null);
+      return;
+    }
+    let vivo = true;
+    const patas = elegidos.map((p) => ({
+      sport: p.sport, matchKey: p.matchKey, liga: p.liga, cuando: p.cuando, seleccion: p.favorito,
+      indice: p.opciones.findIndex((o) => o.nombre === p.favorito), resultados: p.opciones.length, p: p.probabilidad, cuota: p.cuota,
+    }));
+    fetch('/api/picks/parlay', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ patas }) })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j: Combinada) => vivo && setC(j))
+      .catch(() => vivo && setC(null));
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firma]);
+  return c;
+}
+
 function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quitar: (p: Pick) => void; vaciar: () => void }) {
+  const comb = useCombinada(elegidos);
   if (elegidos.length === 0) {
     return (
       <p className="text-[13px] leading-relaxed text-[#7b828d]">
@@ -262,17 +310,22 @@ function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quitar: (p:
       </p>
     );
   }
-  const todos = elegidos.reduce((a, p) => a * p.probabilidad, 1);
+  const producto = elegidos.reduce((a, p) => a * p.probabilidad, 1);
+  // Con el servidor: la conjunta descuenta la correlación medida; sin él, el producto.
+  const todos = comb ? comb.conjunta : producto;
   const esperados = elegidos.reduce((a, p) => a + p.probabilidad, 0);
   const conCuota = elegidos.every((p) => p.cuota);
   const cuota = conCuota ? elegidos.reduce((a, p) => a * (p.cuota as number), 1) : null;
-  const ventaja = cuota ? todos * cuota - 1 : null;
+  const ventaja = cuota && todos > 0 ? todos * cuota - 1 : null;
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-lg bg-white/[0.04] p-2.5">
           <div className="text-[11px] uppercase tracking-wide text-[#7b828d]">Acertar todos</div>
           <div className="text-[22px] font-semibold tabular-nums text-[#e8eaed]">{pct(todos, todos < 0.1 ? 1 : 0)}</div>
+          {comb && comb.conjunta !== comb.independiente && comb.incompatibles.length === 0 && (
+            <div className="text-[11px] text-[#7b828d]">independientes: {pct(comb.independiente, comb.independiente < 0.1 ? 1 : 0)}</div>
+          )}
         </div>
         <div className="rounded-lg bg-white/[0.04] p-2.5">
           <div className="text-[11px] uppercase tracking-wide text-[#7b828d]">Aciertos esperados</div>
@@ -283,14 +336,14 @@ function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quitar: (p:
         <div className="col-span-2 rounded-lg bg-white/[0.04] p-2.5 text-[13px] text-[#c3c9d1]">
           {cuota ? (
             <>
-              Cuota combinada <span className="font-semibold text-[#e8eaed]">{num(cuota)}</span> · justa {num(1 / todos)} ·{' '}
+              Cuota combinada <span className="font-semibold text-[#e8eaed]">{num(cuota)}</span> · justa {todos > 0 ? num(1 / todos) : '—'} ·{' '}
               <span style={{ color: (ventaja ?? 0) > 0 ? PROFIT_COLOR : LOSS_COLOR }}>
                 {(ventaja ?? 0) >= 0 ? '+' : '−'}
                 {pct(Math.abs(ventaja ?? 0), 1)}
               </span>
             </>
           ) : (
-            <>Cuota justa combinada {num(1 / todos)} · alguno no tiene cuota real</>
+            <>Cuota justa combinada {todos > 0 ? num(1 / todos) : '—'} · alguno no tiene cuota real</>
           )}
         </div>
       </div>
@@ -311,10 +364,70 @@ function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quitar: (p:
       <button onClick={vaciar} className="text-[12px] text-[#7b828d] underline-offset-2 hover:text-[#c3c9d1] hover:underline">
         Vaciar selección
       </button>
+      {comb && comb.incompatibles.length > 0 && (
+        <p className="text-[12px] leading-relaxed" style={{ color: LOSS_COLOR }}>
+          {comb.incompatibles.join('. ')}.
+        </p>
+      )}
+      {comb && comb.vinculos.length > 0 && comb.incompatibles.length === 0 && (
+        <p className="text-[11.5px] leading-relaxed text-[#7b828d]">
+          Correlación descontada en {comb.vinculos.length} par(es): {comb.vinculos.slice(0, 2).map((v) => `${v.a} / ${v.b} (ρ ${v.rho.toFixed(3).replace('.', ',')})`).join('; ')}
+          {comb.vinculos.length > 2 ? '…' : ''}.
+        </p>
+      )}
       <p className="text-[11.5px] leading-relaxed text-[#7b828d]">
-        «Acertar todos» multiplica las probabilidades, como si los partidos fueran independientes. Son estimaciones del modelo: con cinco
-        partidos al 75 %, acertarlos todos pasa menos de una de cada cuatro veces.
+        {comb
+          ? comb.etiqueta
+          : '«Acertar todos» multiplica las probabilidades, como si los partidos fueran independientes.'}{' '}
+        Son estimaciones del modelo: con cinco partidos al 75 %, acertarlos todos pasa menos de una de cada cuatro veces.
       </p>
+    </div>
+  );
+}
+
+/** Inteligencia de mercado (GET /api/odds/intel): steam moves, surebets y referencia afilada, como aproximación. */
+function Mercado() {
+  const [d, setD] = useState<Inteligencia | null | 'error'>(null);
+  useEffect(() => {
+    let vivo = true;
+    fetch('/api/odds/intel')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j: Inteligencia) => vivo && setD(j))
+      .catch(() => vivo && setD('error'));
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  if (d === 'error') return null;
+  return (
+    <div className="mt-3 rounded-xl border border-white/[0.06] p-4 text-[12px] leading-relaxed text-[#7b828d]">
+      <p className="mb-1.5 font-medium text-[#9aa1ac]">Mercado (aproximación)</p>
+      {!d && <p>Leyendo los precios observados…</p>}
+      {d && d.eventos === 0 && <p>Sin cuotas observadas en las últimas {d.ventanaHoras} h: no hay nada que leer del mercado.</p>}
+      {d && d.eventos > 0 && (
+        <>
+          <p>
+            {d.eventos} mercado(s) con precio · {d.steam.length} movimiento(s) rápido(s) · {d.surebets.length} surebet(s) · {d.referencia.length} con referencia afilada
+          </p>
+          {d.steam.slice(0, 4).map((s) => (
+            <p key={`${s.eventId}|${s.market}|${s.seleccion}`}>
+              <StatusMark estado="aviso" color={AMBAR} />{s.partido}: {s.seleccion} {num(s.desde)} → {num(s.hasta)} en {s.minutos} min ({s.casas} casas,{' '}
+              {s.movimientoPp > 0 ? '+' : '−'}{Math.abs(s.movimientoPp).toFixed(1).replace('.', ',')} pp)
+            </p>
+          ))}
+          {d.surebets.slice(0, 3).map((s) => (
+            <p key={`${s.eventId}|${s.market}`}>
+              <StatusMark estado="ok" color={PROFIT_COLOR} />{s.partido}: surebet {s.margenPct.toFixed(1).replace('.', ',')} % ({s.patas.map((p) => `${p.seleccion} ${num(p.cuota)} en ${p.casa}`).join(', ')})
+            </p>
+          ))}
+          {d.referencia.slice(0, 3).map((r) => (
+            <p key={`${r.eventId}|${r.market}`}>
+              {r.partido} frente a {r.casa}: {r.selecciones.map((s) => `${s.seleccion} ${s.desviacionPp > 0 ? '+' : '−'}${Math.abs(s.desviacionPp).toFixed(1).replace('.', ',')} pp`).join(' · ')}
+            </p>
+          ))}
+          <p className="mt-1 text-[#5c636c]">{d.etiqueta}</p>
+        </>
+      )}
     </div>
   );
 }
@@ -495,6 +608,7 @@ export default function TopPicks() {
               estadística, no una recomendación.
             </p>
           </div>
+          <Mercado />
         </aside>
       </div>
 

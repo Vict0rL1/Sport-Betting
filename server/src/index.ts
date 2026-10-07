@@ -13,6 +13,8 @@ import { conRegistro, marcarMuertas } from './ingest/runs.ts';
 import { horasDesdeEntorno, cicloResultados, PRIMERA_PASADA_MIN } from './ingest/scheduler.ts';
 import { registrar, arrancar } from './scheduler/registry.ts';
 import { cicloClima } from './weather/openMeteo.ts';
+import { cicloMonitorizacion } from './monitoring/series.ts';
+import { cicloSimulacion } from './simulation/season.ts';
 import { ingestBullpen } from './baseball/ingest/bullpen.ts';
 import { hacerCopia, ultimaCopia } from './db/backup.ts';
 import { featureEncendida } from './features.ts';
@@ -537,6 +539,24 @@ async function main() {
     });
     // La cuota de CIERRE de verdad: justo antes de que empiecen los partidos con una apuesta
     // de papel o una señal abierta (1 crédito por liga, respetando el presupuesto).
+    // Monitorización diaria (Fase 4.5): ventana de 4 semanas, PSI y alerta de deriva.
+    registrar({
+      nombre: 'monitorizacion',
+      descripcion: 'Serie diaria de log loss, Brier y PSI en vivo contra el backtest; alerta de deriva',
+      cadenciaMin: 24 * 60,
+      primeraEnMin: 6,
+      cuando: () => featureEncendida('analitica.monitorizacion'),
+      fn: (log) => cicloMonitorizacion(log),
+    });
+    // Simulación de temporada (Fase 4.6): una corrida por liga y día, cacheada.
+    registrar({
+      nombre: 'simulacion-temporada',
+      descripcion: 'Monte Carlo de la temporada por liga con las probabilidades de hoy (cacheado por día)',
+      cadenciaMin: 24 * 60,
+      primeraEnMin: 8,
+      cuando: () => featureEncendida('simulacion.temporada'),
+      fn: (log) => cicloSimulacion(log),
+    });
     registrar({ nombre: 'cierre-cuotas', descripcion: 'Observa el cierre de los partidos con apuesta o señal abierta (gasta cuota)', cadenciaMin: 10, primeraEnMin: 10, cuando: () => !!env.oddsApiKey, fn: (log) => captureClosingOdds(log) });
 
     if (featureEncendida('operacion.registroTrabajos')) arrancar(resolveLog);

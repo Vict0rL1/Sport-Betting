@@ -26,6 +26,7 @@
 // backs up — Retrosheet — is the one that was validated against real data.
 
 import { getDb } from '../../db.ts';
+import { guardarCalendario } from '../../simulation/calendario.ts';
 import { baseballConfig } from '../../config.ts';
 import type { LeagueId } from '../types.ts';
 
@@ -100,6 +101,8 @@ export async function ingestMlbSeason(
   let withStarters = 0;
   let through: string | null = null;
   let skippedNoScore = 0;
+  /** Lo que queda por jugar (Fase 4.6): va a remaining_fixtures, nunca a bsb_games. */
+  const pendientes: { fecha: string; homeId: string; awayId: string; neutral: boolean }[] = [];
 
   db.exec('BEGIN');
   try {
@@ -108,7 +111,13 @@ export async function ingestMlbSeason(
         // Only finished regular-season games. A postponed or in-progress game with
         // a 0-0 linescore would otherwise be ingested as a real tie.
         const state = g?.status?.abstractGameState;
-        if (state !== 'Final') continue;
+        if (state !== 'Final') {
+          const h = retrosheetCode(g?.teams?.home?.team?.abbreviation ?? '');
+          const a = retrosheetCode(g?.teams?.away?.team?.abbreviation ?? '');
+          const d = String(g?.officialDate ?? g?.gameDate ?? '').slice(0, 10).replace(/-/g, '');
+          if (state === 'Preview' && h && a && d) pendientes.push({ fecha: d, homeId: h, awayId: a, neutral: false });
+          continue;
+        }
 
         const home = g?.teams?.home;
         const away = g?.teams?.away;
@@ -165,6 +174,7 @@ export async function ingestMlbSeason(
       }
     }
     db.exec('COMMIT');
+    if (pendientes.length) guardarCalendario('baseball', league, season, pendientes, 'mlb-stats-api');
   } catch (e) {
     db.exec('ROLLBACK');
     throw e;

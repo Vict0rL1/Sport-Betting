@@ -21,6 +21,21 @@ La API REST: la especificación viva en `/docs` (Swagger UI, detrás de la contr
 Las rutas operativas llevan esquema de respuesta; `server/src/api/contract.test.ts` falla si una
 respuesta deja de cumplirlo o si una ruta registrada no aparece en la especificación.
 
+## Rutas de analítica (Fase 4)
+
+Nada de aquí cambia una probabilidad publicada: se lee, se enseña y se guarda para graficar. Cada
+una tiene interruptor en `config/features.json` (404 si está apagada) y esquema de respuesta.
+
+| Ruta | Qué |
+|---|---|
+| `GET /api/evaluation/reliability?sport=` | Diagrama de fiabilidad: backtest (`experiments/reliability.json`) y vivo, sin mezclar |
+| `GET /api/evaluation/segmentos?sport=` | Acierto, Brier, log loss y CLV por liga, favorito, resultado, banda, mes y día; solo celdas con ≥ 100 predicciones / ≥ 30 apuestas |
+| `GET /api/monitoring?sport=` | Ventana móvil de 28 días, PSI contra el backtest y deriva |
+| `GET /api/simulation/season/:sport/:league` | Monte Carlo de la temporada (10.000 corridas, semilla fija, cacheado por día); «simulación, no predicción publicada» |
+| `GET /api/simulation/torneo` | Cuadro de tenis: no hay fuente, y lo dice; siguientes partidos con su probabilidad |
+| `POST /api/picks/parlay` | Probabilidad conjunta de una selección descontando la correlación medida (cuerpo: `{ patas: [...] }`) |
+| `GET /api/odds/intel` | Steam moves, surebets y referencia afilada, como aproximación |
+
 ## API REST (puerto 7374)
 
 Los tres deportes viven en espacios de nombres distintos: ningún endpoint puede devolver dos.

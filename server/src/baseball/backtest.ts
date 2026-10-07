@@ -29,6 +29,8 @@
 
 import { informeComun } from '../evaluation/report.ts';
 import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
+import { registrarRecalibracion } from '../experiments/recalibracion.ts';
+import { entrenarEnsemble, guardarEnsemble, registrarEnsemble, idEstable } from '../shadow/ensemble.ts';
 import type { Prediccion } from '../evaluation/metrics.ts';
 import { baseballConfig } from '../config.ts';
 import {
@@ -129,7 +131,7 @@ export function runBacktest(opts: {
   /** Cada predicción con su temporada: para elegir y validar en tramos distintos. */
   preds?: { season: number; p: number; y: number }[];
   /** El flujo completo, en orden, para el walk-forward por periodos. */
-  flujo?: Juego[];
+  flujo?: (Juego & { componentes?: Record<string, number[]> })[];
 }): BacktestTotals {
   const warmup = opts.warmup ?? 60;
   const dispersion = opts.dispersion ?? RUN_DISPERSION;
@@ -196,7 +198,7 @@ export function runBacktest(opts: {
           parkDirty = true;
         }
         const calidad = (r: number | null) => (r == null ? 'sin datos' : r < 0.9 ? 'bueno' : r > 1.1 ? 'flojo' : 'normal');
-        const juego: Juego | null = opts.flujo
+        const juego: (Juego & { componentes?: Record<string, number[]> }) | null = opts.flujo
           ? {
               fecha: game.game_date,
               temporada: Number(game.season),
@@ -226,7 +228,15 @@ export function runBacktest(opts: {
         );
         const win = winProbability(dist);
         const homeWon = game.home_runs > game.away_runs ? 1 : 0;
-        if (juego) juego.modelo = [win.home, 1 - win.home];
+        if (juego) {
+          juego.modelo = [win.home, 1 - win.home];
+          // Componentes para el ensemble en sombra: el mismo modelo sin el ajuste por abridores.
+          const sin = winProbability(runDistribution(lambda.baseHome * factor, lambda.baseAway * factor, dispersion, undefined, extraHome)).home;
+          juego.componentes = {
+            [idEstable('Elo de equipos (sin abridores)')]: [sin, 1 - sin],
+            [idEstable('Modelo con abridores')]: [win.home, 1 - win.home],
+          };
+        }
 
         n++;
         brier += (win.home - homeWon) ** 2;
@@ -315,7 +325,7 @@ function main() {
   const bands = new Map<string, { n: number; pred: number; obs: number }>();
   const favs: { p: number; hit: boolean }[] = [];
   const preds: { season: number; p: number; y: number }[] = [];
-  const flujo: Juego[] = [];
+  const flujo: (Juego & { componentes?: Record<string, number[]> })[] = [];
   const r = runBacktest({ ...cfg, bands, favs, preds, flujo });
 
   if (r.n === 0) {
@@ -343,6 +353,14 @@ function main() {
     // Solo la corrida de referencia se guarda: con parámetros cambiados sería otro modelo.
     if ((!cfg.league || cfg.league === 'mlb') && Object.keys(args).every((k) => k === 'league')) {
       console.log(`  guardado en ${guardarWalkForward(wf)}`);
+      const rec = registrarRecalibracion('baseball', wf);
+      if (rec) console.log(`  recalibración registrada como experimento: ${rec.reason}`);
+      const ens = entrenarEnsemble('baseball', flujo);
+      if (ens) {
+        guardarEnsemble(ens);
+        registrarEnsemble(ens, ens.metodos[ens.mejor].validacion.n);
+        console.log(`  ensemble (sombra): mejor fuera de muestra = ${ens.mejor}; campeón ${ens.metodos[ens.mejor].validacion.logLossCampeon.toFixed(4)}`);
+      }
     }
   }
   console.log(`\nCarreras:`);

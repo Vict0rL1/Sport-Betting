@@ -33,6 +33,8 @@ export interface EvaluacionConfianza {
   };
   desacuerdo: { nivel: 'BAJO' | 'MEDIO' | 'ALTO' | 'SIN COMPONENTES'; rangoPp: number; componentes: { nombre: string; p: number }[]; criterio: string };
   sensibilidad: { base: number; contribuciones: { etiqueta: string; pp: number }[]; final: number; metodo: string; exacta: boolean };
+  /** Qué pasaría si: factores con su rango plausible y la pendiente de la curva (simulación, no predicción publicada). */
+  queSi?: { pendiente: number; exacta: boolean; factores: { clave: string; etiqueta: string; puntos: number; rango: [number, number]; porQue: string }[]; etiqueta: string };
   mercado: {
     etiqueta: string;
     calidad: 'ALTA' | 'MEDIA' | 'BAJA' | 'SIN DATOS';

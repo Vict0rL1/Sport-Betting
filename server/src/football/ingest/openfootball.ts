@@ -47,6 +47,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { getDb } from '../../db.ts';
+import { guardarCalendario } from '../../simulation/calendario.ts';
 import { RAW_DIR, footballConfig } from '../../config.ts';
 import { slugify } from './footballcsv.ts';
 import { buildTeamIndex, normalizeTeamName } from './teamNames.ts';
@@ -154,6 +155,26 @@ export function parseOpenFootball(json: string, source: string): OpenFootballMat
       htHome: ht ? ht[0] : null,
       htAway: ht ? ht[1] : null,
     });
+  }
+  return out;
+}
+
+/** Los partidos SIN resultado del fichero: el calendario pendiente (Fase 4.6). */
+export function parseOpenFootballPendientes(json: string): { date: string; homeName: string; awayName: string }[] {
+  let data: { matches?: RawMatch[] };
+  try {
+    data = JSON.parse(json);
+  } catch {
+    return [];
+  }
+  const out: { date: string; homeName: string; awayName: string }[] = [];
+  for (const m of data.matches ?? []) {
+    if (readScore(m.score).ft) continue;
+    const d = (m.date ?? '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const home = (m.team1 ?? '').trim();
+    const away = (m.team2 ?? '').trim();
+    if (!d || !home || !away) continue;
+    out.push({ date: `${d[1]}${d[2]}${d[3]}`, homeName: home, awayName: away });
   }
   return out;
 }
@@ -365,8 +386,11 @@ export async function ingestOpenFootball(
     const file = await fetchSeason(league, label);
     if (!file) continue;
     let parsed: OpenFootballMatch[];
+    let pendientes: ReturnType<typeof parseOpenFootballPendientes> = [];
     try {
-      parsed = parseOpenFootball(fs.readFileSync(file, 'utf8'), path.basename(file));
+      const texto = fs.readFileSync(file, 'utf8');
+      parsed = parseOpenFootball(texto, path.basename(file));
+      pendientes = parseOpenFootballPendientes(texto);
     } catch (e) {
       process.stderr.write(`  ${league.id} ${label}: ${(e as Error).message}\n`);
       continue;
@@ -404,6 +428,10 @@ export async function ingestOpenFootball(
     } catch (e) {
       db.exec('ROLLBACK');
       throw e;
+    }
+    // El calendario pendiente de la temporada (Fase 4.6): lo que el fichero lista sin marcador.
+    if (pendientes.length) {
+      guardarCalendario('football', league.id, season, pendientes.map((m) => ({ fecha: m.date, homeId: clubId(m.homeName), awayId: clubId(m.awayName), neutral: false })), 'openfootball');
     }
   }
 

@@ -250,7 +250,7 @@ export function registrarEnsemble(r: EnsembleRegistrado, n: number): void {
     reason: empeora
       ? 'empeora al campeón fuera de muestra'
       : mejora
-        ? 'mejora en validación walk-forward; NO se promociona: corre como sombra hasta tener muestra en vivo'
+        ? 'mejora en validación walk-forward; NO se promociona: la promoción exige el holdout final, que sigue cerrado (nunca --unlock); corre como sombra hasta tener muestra en vivo'
         : 'el intervalo incluye el cero: corre como sombra, sin cambiar nada',
   });
 }

@@ -193,6 +193,12 @@ export interface ResultadoWalkForward {
   porRegimen: Record<string, { n: number; modelo: Informe; mercado: Informe | null }>;
   porSegmento: Record<string, Record<string, { n: number; modelo: Informe; mercado: Informe | null }>>;
   cobertura: { cobertura: number; n: number; modelo: Informe; mercado: Informe | null }[];
+  /**
+   * Pérdidas por partido (modelo y recalibrado, mismo orden) de los tramos fuera de muestra,
+   * para el bootstrap emparejado del experimento de recalibración (Fase 4.1). No se guarda
+   * en el JSON: `guardarWalkForward` lo quita.
+   */
+  pares?: { modelo: number[]; recalibrado: number[] };
 }
 
 /** Segmentos con menos partidos que esto no se publican: serían ruido con etiqueta. */
@@ -247,6 +253,7 @@ export function walkForward(sport: SportId, juegos: Juego[]): ResultadoWalkForwa
   const periodos = [...new Set(puntuados.map((j) => j.periodo))];
   const out: MetricasPeriodo[] = [];
   const recalTodos: Prediccion[] = [];
+  const pares: { modelo: number[]; recalibrado: number[] } = { modelo: [], recalibrado: [] };
   let pasado: typeof puntuados = [];
   const minEdge = DEFAULT_CONFIG.minEdge;
 
@@ -288,6 +295,12 @@ export function walkForward(sport: SportId, juegos: Juego[]): ResultadoWalkForwa
     const modelo = evaluate('backtest', sport, xs.map((j) => pred(j, j.modelo as number[])));
     const recalXs = xs.map((j) => pred(j, recal(j.modelo as number[])));
     recalTodos.push(...recalXs);
+    if (pasado.length >= MIN_PASADO) {
+      for (let i = 0; i < xs.length; i++) {
+        pares.modelo.push(-Math.log(Math.max((xs[i].modelo as number[])[xs[i].y], 1e-15)));
+        pares.recalibrado.push(-Math.log(Math.max(recalXs[i].p[recalXs[i].y], 1e-15)));
+      }
+    }
     const baselines: Record<string, Informe> = {};
     for (const nombre of new Set(xs.flatMap((j) => Object.keys(j.baselines)))) {
       const con = xs.filter((j) => j.baselines[nombre]);
@@ -388,6 +401,9 @@ export function walkForward(sport: SportId, juegos: Juego[]): ResultadoWalkForwa
   for (const dim of new Set(puntuados.flatMap((j) => Object.keys(j.segmento ?? {})))) {
     porSegmento[dim] = agrupa((j) => j.segmento?.[dim]);
   }
+  // Segmentos genéricos (Fase 4.4), iguales en los cinco deportes: favorito, banda de
+  // probabilidad, mes y día de la semana. Derivados del propio partido, no de la etiqueta.
+  for (const [dim, clave] of Object.entries(SEGMENTOS_GENERICOS)) porSegmento[dim] = agrupa(clave);
 
   // Cobertura contra rendimiento: participar solo en las predicciones con más respaldo.
   // El orden lo da la PROFUNDIDAD de datos (no la probabilidad: ordenar por probabilidad
@@ -429,8 +445,35 @@ export function walkForward(sport: SportId, juegos: Juego[]): ResultadoWalkForwa
     porRegimen: agrupa((j) => j.regimen),
     porSegmento,
     cobertura,
+    pares,
   };
 }
+
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+/** Banda de la probabilidad máxima: «50–60 %», …, «90 %+». */
+export function bandaDe(p: number[]): string {
+  const m = Math.max(...p);
+  if (m >= 0.9) return '90 %+';
+  const lo = Math.floor(m * 10) * 10;
+  return `${lo}–${lo + 10} %`;
+}
+
+export const SEGMENTOS_GENERICOS: Record<string, (j: Juego) => string | undefined> = {
+  favorito: (j) => {
+    if (!j.modelo) return undefined;
+    const i = j.modelo.indexOf(Math.max(...j.modelo));
+    return i === 0 ? (j.local ? 'local favorito' : 'primero favorito') : i === j.modelo.length - 1 ? (j.local ? 'visitante favorito' : 'segundo favorito') : 'empate favorito';
+  },
+  'banda de probabilidad': (j) => (j.modelo ? bandaDe(j.modelo) : undefined),
+  mes: (j) => MESES[Number(j.fecha.replace(/-/g, '').slice(4, 6)) - 1],
+  'día de la semana': (j) => {
+    const f = j.fecha.replace(/-/g, '');
+    const d = new Date(Date.UTC(Number(f.slice(0, 4)), Number(f.slice(4, 6)) - 1, Number(f.slice(6, 8))));
+    return Number.isFinite(d.getTime()) ? DIAS[d.getUTCDay()] : undefined;
+  },
+};
 
 export const WALKFORWARD_DIR = path.join(ROOT, 'experiments', 'walkforward');
 
@@ -439,7 +482,9 @@ export function guardarWalkForward(r: ResultadoWalkForward): string {
   fs.mkdirSync(WALKFORWARD_DIR, { recursive: true });
   const f = path.join(WALKFORWARD_DIR, `${r.sport}.json`);
   const redondeo = (_k: string, v: unknown) => (typeof v === 'number' && !Number.isInteger(v) ? Math.round(v * 1e6) / 1e6 : v);
-  fs.writeFileSync(f, JSON.stringify(r, redondeo, 1) + '\n');
+  const { pares: _pares, ...sinPares } = r;
+  void _pares;
+  fs.writeFileSync(f, JSON.stringify(sinPares, redondeo, 1) + '\n');
   return f;
 }
 

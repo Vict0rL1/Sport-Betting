@@ -11,7 +11,7 @@
 
 import { getDb, setMeta } from '../../db.ts';
 import { nflConfig, env } from '../../config.ts';
-import { fetchText, parseGames, parseTeams, storeGames, storeSchedule } from '../ingest/nflverse.ts';
+import { fetchText, parseGames, parseTeams, parseTeamGroups, storeGames, storeSchedule, storeTeamGroups, storeRemainingFixtures } from '../ingest/nflverse.ts';
 import { refreshOdds } from '../ingest/odds.ts';
 import { countGames, countTeams, getLeagueState, rebuildRatings } from '../repo.ts';
 import { ELO_PER_POINT } from '../model.ts';
@@ -37,8 +37,11 @@ async function main(): Promise<void> {
     // table, and the ingest still succeeds. Failing the whole run because a
     // display name is missing would be the wrong trade.
     let names = new Map<string, string>();
+    let grupos = new Map<string, { conference: string; division: string }>();
     try {
-      names = parseTeams(await fetchText(history.teamsUrl));
+      const teamsCsv = await fetchText(history.teamsUrl);
+      names = parseTeams(teamsCsv);
+      grupos = parseTeamGroups(teamsCsv);
     } catch (err) {
       console.log(`  (nombres de equipo: usando la tabla interna — ${(err as Error).message})`);
     }
@@ -59,6 +62,8 @@ async function main(): Promise<void> {
     storeGames(league.id, games, names);
     const scheduled = storeSchedule(league.id, fixtures, names);
     console.log(`  ${scheduled} partidos próximos desde el calendario oficial`);
+    if (grupos.size) console.log(`  conferencia y división en ${storeTeamGroups(league.id, grupos)} equipos`);
+    console.log(`  ${storeRemainingFixtures(league.id, fixtures)} partidos pendientes de la temporada guardados para la simulación`);
 
     const built = rebuildRatings(league.id);
     const state = getLeagueState(league.id);

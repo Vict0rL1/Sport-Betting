@@ -23,12 +23,15 @@
 
 import { informeComun } from '../evaluation/report.ts';
 import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
+import { registrarRecalibracion } from '../experiments/recalibracion.ts';
+import { entrenarEnsemble, guardarEnsemble, registrarEnsemble, idEstable } from '../shadow/ensemble.ts';
 import { daysBetween } from './ratings.ts';
 import type { Prediccion } from '../evaluation/metrics.ts';
 import fs from 'node:fs';
 import path from 'node:path';
 import { RAW_DIR } from '../config.ts';
 import {
+  calibratedHomeWinProbability,
   coverProbability,
   CALIBRATION_SCALE,
   ELO_PER_POINT,
@@ -115,7 +118,7 @@ function main() {
   /** Cada predicción, para la capa común de métricas (evaluation/). */
   const comun: Prediccion[] = [];
   /** El flujo completo, en orden, para el walk-forward por periodos. */
-  const flujo: Juego[] = [];
+  const flujo: (Juego & { componentes?: Record<string, number[]> })[] = [];
   /** Partidos jugados por cada equipo en la temporada en curso (para el régimen). */
   const enTemporada = new Map<string, number>();
   let logloss = 0;
@@ -172,6 +175,17 @@ function main() {
           },
           profundidad: Math.min(home.games, away.games),
           externos: bm != null ? { FiveThirtyEight: [bm, 1 - bm] } : undefined,
+          // Componentes para el ensemble en sombra: el modelo completo y el mismo Elo sin
+          // el ajuste por descanso (lo que ya calcula el modelo, nada nuevo).
+          componentes: puntua
+            ? {
+                [idEstable('Modelo completo (crudo)')]: [probHome, 1 - probHome],
+                [idEstable('Modelo sin descanso')]: (() => {
+                  const q = calibratedHomeWinProbability(home.elo, away.elo, { neutral: Boolean(game.neutral), homeAdvantage, scale: calibrationScale });
+                  return [q, 1 - q];
+                })(),
+              }
+            : undefined,
         });
       }
       if (home.games < warmup || away.games < warmup) return;
@@ -235,7 +249,17 @@ function main() {
     imprimirWalkForward(wf);
     // Solo la corrida de referencia (NBA, parámetros por defecto) se guarda.
     const cambiados = ['home', 'mov', 'rest', 'carryover', 'k', 'calibration', 'eloPerPoint', 'from', 'warmup'].some((x) => args[x] !== undefined);
-    if (league === 'nba' && !cambiados) console.log(`  guardado en ${guardarWalkForward(wf)}`);
+    if (league === 'nba' && !cambiados) {
+      console.log(`  guardado en ${guardarWalkForward(wf)}`);
+      const rec = registrarRecalibracion('basketball', wf);
+      if (rec) console.log(`  recalibración registrada como experimento: ${rec.reason}`);
+      const ens = entrenarEnsemble('basketball', flujo);
+      if (ens) {
+        guardarEnsemble(ens);
+        registrarEnsemble(ens, ens.metodos[ens.mejor].validacion.n);
+        console.log(`  ensemble (sombra): mejor fuera de muestra = ${ens.mejor}; campeón ${ens.metodos[ens.mejor].validacion.logLossCampeon.toFixed(4)}`);
+      }
+    }
   }
   const bias = marginBias / scored;
   console.log(

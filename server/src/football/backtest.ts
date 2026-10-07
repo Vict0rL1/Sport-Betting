@@ -53,6 +53,7 @@ import { clvHistorico, shin1X2, type PartidoConPinnacle } from './clv.ts';
 import { prediccionFutbolEnReplay } from '../evaluation/replay.ts';
 import { eloExternoEn, hayEloExterno, probsClubElo } from './ingest/clubelo.ts';
 import { featureEncendida } from '../features.ts';
+import { registrarRecalibracion } from '../experiments/recalibracion.ts';
 import { getDb } from '../db.ts';
 import { evaluate } from '../evaluation/metrics.ts';
 import { VALUE_THRESHOLD } from '../model/market.ts';
@@ -435,6 +436,8 @@ function main() {
     imprimirWalkForward(wf);
     if (!onlyLeague && !holdoutOpen && Object.keys(args).length === 0) {
       console.log(`  guardado en ${guardarWalkForward(wf)}`);
+      const rec = registrarRecalibracion('football', wf);
+      if (rec) console.log(`  recalibración registrada como experimento: ${rec.reason}`);
       const ens = entrenarEnsemble('football', flujo);
       if (ens) {
         guardarEnsemble(ens);

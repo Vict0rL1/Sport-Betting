@@ -34,6 +34,9 @@
 
 import { informeComun } from '../evaluation/report.ts';
 import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
+import { prediccionNflEnReplay } from '../evaluation/replay.ts';
+import { registrarRecalibracion } from '../experiments/recalibracion.ts';
+import { entrenarEnsemble, guardarEnsemble, registrarEnsemble, idEstable } from '../shadow/ensemble.ts';
 import type { Prediccion } from '../evaluation/metrics.ts';
 import { getDb } from '../db.ts';
 import { nflConfig } from '../config.ts';
@@ -43,6 +46,7 @@ import { splitOf, unlockFinalHoldout, FINAL_HOLDOUT_FROM } from '../experiments/
 import {
   buildDistribution,
   coverProbability,
+  ELO_PER_POINT,
   marginProb,
   outcomeProbabilities,
   overProbability,
@@ -132,7 +136,7 @@ function main(): void {
   /** Cada predicción, para la capa común de métricas (evaluation/). */
   const comun: Prediccion[] = [];
   /** El flujo completo, en orden, para el walk-forward por periodos. */
-  const flujo: Juego[] = [];
+  const flujo: (Juego & { componentes?: Record<string, number[]> })[] = [];
   /** Salidas como titular de cada QB hasta ese partido (para «QB nuevo»). */
   const salidasQb = new Map<string, number>();
   let hits = 0;
@@ -191,14 +195,14 @@ function main(): void {
     eloPerPoint: args.perPoint,
     homeAdvantage: args.home,
     mov: args.mov,
-    onGame: ({ game, expectedMargin, expectedTotal }) => {
+    onGame: ({ game, expectedMargin, expectedTotal, homeQbAdjustment, awayQbAdjustment }) => {
       const row0 = marketByKey.get(`${game.season}|${game.week}|${game.home_id}|${game.away_id}`);
       const qbH = game.home_qb_id ? salidasQb.get(game.home_qb_id) ?? 0 : null;
       const qbA = game.away_qb_id ? salidasQb.get(game.away_qb_id) ?? 0 : null;
       if (game.home_qb_id) salidasQb.set(game.home_qb_id, (qbH ?? 0) + 1);
       if (game.away_qb_id) salidasQb.set(game.away_qb_id, (qbA ?? 0) + 1);
       const sp = row0?.close_spread ?? null;
-      const juego: Juego = {
+      const juego: Juego & { componentes?: Record<string, number[]> } = {
         fecha: game.game_date,
         temporada: game.season,
         a: game.home_id,
@@ -270,6 +274,11 @@ function main(): void {
         const mh = dh && da ? 1 / dh / (1 / dh + 1 / da) : null;
         comun.push({ p: [pHome, 1 - pHome], y: margin > 0 ? 0 : 1, mercado: mh == null ? null : [mh, 1 - mh] });
         juego.modelo = [pHome, 1 - pHome];
+        // Componentes para el ensemble en sombra: la curva margen→victoria con y sin QB.
+        juego.componentes = {
+          [idEstable('Modelo (margen, crudo)')]: [pHome, 1 - pHome],
+          [idEstable('Modelo sin QB')]: prediccionNflEnReplay(expectedMargin - (homeQbAdjustment - awayQbAdjustment) / ELO_PER_POINT, expectedTotal),
+        };
         if (mh != null && dh && da) {
           juego.mercado = [mh, 1 - mh];
           juego.cuotas = [dh, da];
@@ -355,7 +364,17 @@ function main(): void {
     const wf = walkForward('nfl', flujo);
     imprimirWalkForward(wf);
     const cambiados = ['home', 'k', 'carry', 'per-point', 'from', 'unlock'].some((x) => process.argv.includes(`--${x}`)) || !args.keyNumbers || !args.totalWeights || !args.mov;
-    if (args.league === 'nfl' && !cambiados) console.log(`  guardado en ${guardarWalkForward(wf)}`);
+    if (args.league === 'nfl' && !cambiados) {
+      console.log(`  guardado en ${guardarWalkForward(wf)}`);
+      const rec = registrarRecalibracion('nfl', wf);
+      if (rec) console.log(`  recalibración registrada como experimento: ${rec.reason}`);
+      const ens = entrenarEnsemble('nfl', flujo);
+      if (ens) {
+        guardarEnsemble(ens);
+        registrarEnsemble(ens, ens.metodos[ens.mejor].validacion.n);
+        console.log(`  ensemble (sombra): mejor fuera de muestra = ${ens.mejor}; campeón ${ens.metodos[ens.mejor].validacion.logLossCampeon.toFixed(4)}`);
+      }
+    }
   }
 
   console.log('\nMargen y total:');

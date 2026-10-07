@@ -893,6 +893,80 @@ Con datos que traen cuotas (tennis-data.co.uk), el backtest imprime además la c
 **modelo vs mercado real** sobre los mismos partidos, incluyendo si las señales de *«posible value»*
 ganaron más de lo que el mercado les daba. Es la prueba honesta de si esas señales valen algo.
 
+## Fase 4: modelos y analítica, solo a través del registro
+
+Regla de la fase: **ninguna probabilidad publicada cambió**. Todo lo nuevo o se registró como
+experimento (y se quedó de sombra) o es analítica que se lee y se enseña. El holdout final
+(fútbol 2026+, NFL 2024+) sigue cerrado y cada experimento lo dice en su motivo.
+
+**Recalibración como experimento formal** (`experiments/recalibracion.ts`). El walk-forward ya
+calculaba «recalibrado (solo pasado)» en cada periodo; ahora devuelve también las pérdidas por
+partido del modelo y del recalibrado (no se guardan en el JSON) y `registrarRecalibracion` las
+pasa por el bootstrap emparejado (2.000 remuestras) y escribe el experimento con `accepted:
+false`: si mejora en validación, «rechazado» porque la promoción exige el holdout; si no,
+«no concluyente». Lo llaman los cinco backtests en su corrida de referencia; con menos de 1.000
+pares no se registra nada.
+
+**Ensembles sombra en NBA, MLB y NFL** (`shadow/ensemble.ts`). Los tres backtests añaden al flujo
+los MISMOS componentes que la ficha en vivo —NBA «Modelo completo (crudo)» y «Modelo sin
+descanso» (nuevos también en vivo, en `trust/adapters.ts`), MLB «Elo de equipos (sin abridores)»
+y «Modelo con abridores», NFL «Modelo (margen, crudo)» y «Modelo sin QB»— y entrenan, guardan y
+registran su ensemble como el tenis y el fútbol. Corren de sombra; nunca apuestan.
+
+**Diagramas de fiabilidad** (`evaluation/reliability.ts`): cubetas de 10 puntos sobre cada
+probabilidad dicha (la misma definición que el ECE), con recuento, media predicha y frecuencia
+observada. Del backtest, en `experiments/reliability.json` (lo escribe `informeComun`); en vivo,
+de las predicciones puntuadas. `GET /api/evaluation/reliability?sport=`. Nunca se mezclan.
+
+**Acierto por segmento**: el walk-forward gana cuatro segmentos genéricos para los cinco
+deportes (favorito, banda de probabilidad, mes, día de la semana) con el umbral de 300 de
+siempre; en vivo, `evaluation/segmentos.ts` da acierto, Brier y log loss por liga, favorito,
+resultado, banda, mes y día, y CLV y ROI de las apuestas de papel por liga, favorito, lado,
+banda, mes y día. Cada celda se publica solo con ≥ 100 predicciones (≥ 30 apuestas para el
+CLV); por debajo se ve el recuento y nada más. `GET /api/evaluation/segmentos?sport=`.
+
+**Monitorización** (`monitoring/series.ts`): log loss y Brier en ventana móvil de 28 días por
+deporte, PSI de la distribución de probabilidades dichas (vivo contra el backtest) y la alerta
+`deriva` cuando el PSI pasa de 0,25 o el log loss se aleja del backtest más de dos errores
+típicos, nunca con menos de 100 predicciones en la ventana. Serie diaria en `monitoring_series`
+(historia, se reconstruye entera); trabajo diario `monitorizacion`. `GET /api/monitoring?sport=`.
+
+**Simulación de temporada** (`simulation/season.ts`): 10.000 temporadas con semilla fija
+(`rng.ts`, mulberry32) jugadas partido a partido con la probabilidad que el núcleo del modelo da
+hoy (Dixon-Coles en fútbol; Elo con ventaja de campo en NBA, MLB y NFL, sin descanso, abridor ni
+QB porque no se conocen con semanas de antelación), sumadas a la clasificación real. Por
+equipo: puntos y victorias esperados, probabilidad de acabar primero, de entrar arriba (top,
+playoffs, ascenso) y de bajar, y la distribución de la posición final. El calendario pendiente
+sale de las fuentes a `remaining_fixtures` (openfootball lista lo no jugado; nflverse, la
+temporada entera y la conferencia/división de `teams.csv`; MLB Stats API, los `Preview`); si a
+una liga de fútbol le falta, se reconstruye la doble vuelta y se dice «calendario
+reconstruido». Reglas por liga en `config/simulation.json`. Cacheada por día en
+`simulation_runs`; trabajo diario `simulacion-temporada`. Etiquetada en cada respuesta:
+simulación, no predicción publicada. `GET /api/simulation/season/:sport/:league`.
+
+**Cuadro de tenis** (`simulation/torneo.ts`): `simularCuadro` existe y está probado con un cuadro
+sintético (bye incluido), pero ninguna fuente trae el cuadro del torneo, así que
+`GET /api/simulation/torneo` devuelve `cuadroDisponible: false` con el motivo y el siguiente
+partido conocido de cada jugador con su probabilidad publicada. Sin cuadro no hay probabilidad
+de ganar el torneo, y no se inventa.
+
+**Combinadas con correlación** (`picks/parlay.ts`): la probabilidad conjunta de «Mi selección»
+descuenta la correlación medida en `staking/correlation.ts` con la corrección por pares
+P(A∧B) = p_A·p_B·(1 + ρ·√(q_A q_B / p_A p_B)); dos selecciones del mismo partido son
+incompatibles (conjunta 0, y se dice). `POST /api/picks/parlay`; Destacados enseña la
+conjunta, la independiente y los vínculos. Aproximación, y así se etiqueta.
+
+**Inteligencia de mercado** (`odds/intel.ts`): steam moves (consenso que se mueve ≥ 2 pp de
+probabilidad implícita en ≤ 60 min con ≥ 3 casas), surebets (Σ 1/mejor < 1 entre casas) y la
+referencia afilada (Pinnacle sin margen frente al consenso), sobre los snapshots guardados.
+`GET /api/odds/intel`; panel «Mercado (aproximación)» en Destacados. Informa; no apuesta.
+
+**Qué pasaría si**: la evaluación servida gana `queSi` (pendiente de la curva y cada factor con
+su rango plausible); la ficha ofrece deslizadores que recalculan la probabilidad en el navegador
+con el mismo desplazamiento logístico de la capa de confianza. Etiquetado «simulación, no
+predicción publicada»; no se escribe en ningún sitio. De paso, la decisión BET/NO BET lee
+`minEdge` de la política versionada en vez de la constante.
+
 ## Aciertos reales de la app
 
 El `npm run backtest` mide el modelo sobre 20 años de historial. Útil para ajustarlo, pero no

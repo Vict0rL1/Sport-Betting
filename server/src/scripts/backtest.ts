@@ -40,6 +40,7 @@ import { VALUE_THRESHOLD } from '../model/market.ts';
 import { readCalibration, writeCalibration } from '../staking/calibration.ts';
 import { walkForward, imprimirWalkForward, guardarWalkForward, type Juego } from '../evaluation/walkforward.ts';
 import { entrenarEnsemble, guardarEnsemble, registrarEnsemble } from '../shadow/ensemble.ts';
+import { registrarRecalibracion } from '../experiments/recalibracion.ts';
 
 interface Row {
   id: number;
@@ -480,6 +481,8 @@ function main() {
       imprimirWalkForward(wf);
       if (tour.id === 'atp' && !conParametrosCambiados(args)) {
         console.log(`  guardado en ${guardarWalkForward(wf)}`);
+        const rec = registrarRecalibracion('tennis', wf);
+        if (rec) console.log(`  recalibración registrada como experimento: ${rec.reason}`);
         // Solo partidos con los tres componentes: el ensemble necesita el mismo juego de entradas.
         const ens = entrenarEnsemble('tennis', flujo.filter((j) => j.componentes && Object.keys(j.componentes).length === 3));
         if (ens) {
