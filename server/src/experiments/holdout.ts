@@ -34,7 +34,7 @@
 
 import { recordUnlock } from './registry.ts';
 
-export type EvaluationSport = 'football' | 'nfl';
+export type EvaluationSport = 'football' | 'nfl' | 'nhl';
 
 /**
  * La primera temporada reservada, por deporte. Todo lo igual o posterior está cerrado.
@@ -49,6 +49,8 @@ export type EvaluationSport = 'football' | 'nfl';
 export const FINAL_HOLDOUT_FROM: Record<EvaluationSport, number> = {
   football: 2026,
   nfl: 2024,
+  // NHL (Fase 8.1, en sombra): reservada desde la 2025-26, la última completa cuando se escribió.
+  nhl: 2025,
 };
 
 /**
@@ -59,6 +61,7 @@ export const FINAL_HOLDOUT_FROM: Record<EvaluationSport, number> = {
 export const VALIDATION_SEASON: Record<EvaluationSport, number> = {
   football: 2025,
   nfl: 2023,
+  nhl: 2024,
 };
 
 /** ¿Esta temporada está cerrada? */

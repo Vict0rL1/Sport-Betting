@@ -883,6 +883,13 @@ export interface EstadoProducto {
   /** Mercados abiertos con cuotas observadas en 48 h (lo que enseña el comparador). */
   lineas?: { on: boolean; mercados: number };
   archivo?: { on: boolean; predicciones: number };
+  /** Las ampliaciones de la Fase 8, todas apagadas por defecto. */
+  ampliaciones?: {
+    nhl: { on: boolean; partidos: number; ultimo: string | null };
+    telegram: { on: boolean; token: boolean; chats: number; offset: number | null };
+    enVivo: boolean;
+    propsNba: boolean;
+  };
 }
 
 export function comprobarProducto(e: EstadoProducto, ahora: Date): Hallazgo[] {
@@ -940,5 +947,25 @@ export function comprobarProducto(e: EstadoProducto, ahora: Date): Hallazgo[] {
     if (!e.archivo.on) out.push(h(S, 'info', 'Archivo de predicciones apagado (features.json: archivo.predicciones)'));
     else out.push(h(S, 'info', `Archivo de predicciones: ${e.archivo.predicciones.toLocaleString('es')} predicción(es) registradas en los cinco registros`));
   }
+  if (e.ampliaciones) out.push(...comprobarAmpliaciones(e.ampliaciones));
+  return out;
+}
+
+/** Fase 8: NHL en sombra, asistente por Telegram, tenis punto a punto y props de la NBA. */
+function comprobarAmpliaciones(a: NonNullable<EstadoProducto['ampliaciones']>): Hallazgo[] {
+  const S: Seccion = 'PRODUCTO';
+  const out: Hallazgo[] = [];
+  const n = a.nhl.partidos.toLocaleString('es');
+  if (!a.nhl.on) out.push(h(S, 'info', `NHL en sombra apagada (features.json: deportes.nhl); ${n} partido(s) en nhl_games`));
+  else if (a.nhl.partidos === 0)
+    out.push(h(S, 'aviso', 'NHL en sombra encendida pero sin partidos: no hay nada que evaluar', { accion: ['npm run update-data:nhl (necesita alcanzar api-web.nhle.com) y después npm run backtest:nhl'] }));
+  else out.push(h(S, 'ok', `NHL en sombra: ${n} partido(s), el último del ${a.nhl.ultimo}; no se publica hasta tener su experimento en el registro`));
+  const t = a.telegram;
+  if (!t.on) out.push(h(S, 'info', 'Asistente por Telegram apagado (features.json: asistente.telegram)'));
+  else if (!t.token || t.chats === 0)
+    out.push(h(S, 'aviso', `Asistente por Telegram encendido pero ${!t.token ? 'sin TELEGRAM_BOT_TOKEN' : 'sin chats permitidos'}: no contesta a nadie`, { accion: ['Pon TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID (y, si quieres más, TELEGRAM_ASISTENTE_CHATS) en .env'] }));
+  else out.push(h(S, 'ok', `Asistente por Telegram: ${t.chats} chat(s) permitido(s); ${t.offset == null ? 'todavía no ha leído ningún mensaje' : `última actualización leída: la ${t.offset - 1}`}`));
+  out.push(h(S, 'info', a.enVivo ? 'Tenis en vivo punto a punto encendido: el marcador se teclea a mano (no hay fuente en vivo gratuita y fiable)' : 'Tenis en vivo punto a punto apagado (features.json: tenis.enVivo)'));
+  if (a.propsNba) out.push(h(S, 'aviso', 'Props de la NBA encendidos, pero no hay modelo: sin una fuente de box scores legítima y alcanzable el interruptor no hace nada (docs/plans/phase-8.md)'));
   return out;
 }

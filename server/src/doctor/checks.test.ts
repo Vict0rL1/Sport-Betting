@@ -345,3 +345,22 @@ test('producto: líneas sin cuotas recientes y archivo son información, nunca a
   assert.match(r.find((x) => x.texto.startsWith('Archivo'))!.texto, /56 predicción/);
   assert.equal(comprobarProducto({ ...base, lineas: { on: true, mercados: 4 } }, new Date()).find((x) => x.texto.startsWith('Comparador'))?.nivel, 'ok');
 });
+
+// ---- AMPLIACIONES (Fase 8) ----
+test('ampliaciones: apagadas son información; encendidas sin lo que necesitan avisan', async () => {
+  const { comprobarProducto } = await import('./checks.ts');
+  const base = { estrategias: { activas: 0, archivadas: 0, apuestas: 0, pendientes: 0, ultimaApuesta: null, laboratorio: true }, historicos: [], hayCuotasReales: false };
+  const apagadas = { nhl: { on: false, partidos: 0, ultimo: null }, telegram: { on: false, token: false, chats: 0, offset: null }, enVivo: false, propsNba: false };
+  const a = comprobarProducto({ ...base, ampliaciones: apagadas }, new Date());
+  for (const prefijo of ['NHL en sombra', 'Asistente por Telegram', 'Tenis en vivo']) assert.equal(a.find((x) => x.texto.startsWith(prefijo))?.nivel, 'info', prefijo);
+  assert.ok(!a.some((x) => x.texto.startsWith('Props')), 'los props apagados no dicen nada');
+
+  const sinNada = comprobarProducto({ ...base, ampliaciones: { nhl: { on: true, partidos: 0, ultimo: null }, telegram: { on: true, token: false, chats: 1, offset: null }, enVivo: true, propsNba: true } }, new Date());
+  assert.equal(sinNada.find((x) => x.texto.startsWith('NHL'))?.nivel, 'aviso');
+  assert.match(sinNada.find((x) => x.texto.startsWith('Asistente'))!.texto, /sin TELEGRAM_BOT_TOKEN/);
+  assert.equal(sinNada.find((x) => x.texto.startsWith('Props'))?.nivel, 'aviso');
+
+  const bien = comprobarProducto({ ...base, ampliaciones: { nhl: { on: true, partidos: 13_120, ultimo: '2025-04-17' }, telegram: { on: true, token: true, chats: 2, offset: 501 }, enVivo: true, propsNba: false } }, new Date());
+  assert.equal(bien.find((x) => x.texto.startsWith('NHL'))?.nivel, 'ok');
+  assert.match(bien.find((x) => x.texto.startsWith('Asistente'))!.texto, /2 chat\(s\).*la 500/);
+});

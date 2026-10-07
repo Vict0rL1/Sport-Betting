@@ -37,6 +37,7 @@ import { registerEstrategiasRoutes } from './routes/estrategias.ts';
 import { registrarCompresionYEtag } from './http/compresion.ts';
 import { registerInformesRoutes } from './routes/informes.ts';
 import { registerLineasArchivoRoutes } from './routes/lineasArchivo.ts';
+import { registerNhlRoutes } from './routes/nhl.ts';
 import { conLectorDeAnulaciones } from './features.ts';
 import { incrementar, grupoDeRuta } from './observability/metrics.ts';
 import { registroArrancado } from './scheduler/registry.ts';
@@ -161,6 +162,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   await app.register(registerEstrategiasRoutes);
   await app.register(registerInformesRoutes);
   await app.register(registerLineasArchivoRoutes);
+  await app.register(registerNhlRoutes);
 
   await app.register(registerRoutes, { prefix: '/api' });
   // Basketball lives in its own namespace: no endpoint can return both sports.

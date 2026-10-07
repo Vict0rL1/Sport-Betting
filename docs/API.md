@@ -84,6 +84,15 @@ Todo `GET /api/*` con respuesta 200 lleva `ETag` débil y `Cache-Control: no-cac
 `If-None-Match` igual responde 304 sin cuerpo. Las respuestas de texto de más de 1 KB van con
 Brotli o gzip según `Accept-Encoding`.
 
+## Ampliaciones (Fase 8, apagadas por defecto)
+
+| Ruta | Qué |
+|---|---|
+| `POST /api/live/avanzar` | `{"state": {sets, games, points, server, bestOf, inTiebreak}, "winner": 1\|2}`: el marcador tras un punto, con la regla del motor en vivo; `{terminado, ganador, state}` (`tenis.enVivo`) |
+| `GET /api/nhl/sombra` | NHL en sombra: evaluación del backtest sin el holdout, referencias, aviso de muestra y parámetros; nada se publica (`deportes.nhl`) |
+
+Con el interruptor apagado, las dos responden 404 con el motivo.
+
 ## API REST (puerto 7374)
 
 Los tres deportes viven en espacios de nombres distintos: ningún endpoint puede devolver dos.

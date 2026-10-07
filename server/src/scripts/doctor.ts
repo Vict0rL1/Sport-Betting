@@ -78,6 +78,7 @@ import { predicciones as prediccionesEnVivo } from '../evaluation/live.ts';
 import { leerDiagramasBacktest } from '../evaluation/reliability.ts';
 import { CLAVE_ANULACIONES } from '../features.ts';
 import { SPORT_IDS } from '../sports.ts';
+import { chatsPermitidos, CLAVE_OFFSET } from '../telegram/asistente.ts';
 import { contarErrores } from '../security/errors.ts';
 
 const SIN_RED = process.argv.includes('--sin-red') || process.argv.includes('--no-net');
@@ -464,6 +465,26 @@ if (dbExistia) {
     archivo: {
       on: featureEncendida('archivo.predicciones'),
       predicciones: uno(() => ['prediction_log', 'fb_prediction_log', 'bb_prediction_log', 'bsb_prediction_log', 'naf_prediction_log'].reduce((a, t) => a + (db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get() as { n: number }).n, 0), 0),
+    },
+    ampliaciones: {
+      nhl: {
+        on: featureEncendida('deportes.nhl'),
+        ...uno(() => {
+          const r = db.prepare('SELECT COUNT(*) AS n, MAX(game_date) AS u FROM nhl_games').get() as { n: number; u: string | null };
+          return { partidos: r.n, ultimo: r.u };
+        }, { partidos: 0, ultimo: null }),
+      },
+      telegram: {
+        on: featureEncendida('asistente.telegram'),
+        token: !!process.env.TELEGRAM_BOT_TOKEN?.trim(),
+        chats: chatsPermitidos(process.env).size,
+        offset: uno(() => {
+          const v = getMeta(CLAVE_OFFSET);
+          return v == null ? null : Number(v);
+        }, null),
+      },
+      enVivo: featureEncendida('tenis.enVivo'),
+      propsNba: featureEncendida('apuestas.propsNba'),
     },
   };
   hallazgos.push(...comprobarProducto(estadoP, new Date()));

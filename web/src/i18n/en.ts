@@ -299,4 +299,9 @@ export const en: Partial<Record<Clave, string>> = {
   'diag.cacheApagada': 'Upcoming cache off: every request recomputes the predictions.',
   'diag.compresion': 'Responses compressed (Brotli or gzip) and with ETag: what has not changed is not downloaded again.',
   'diag.compresionApagada': 'Compression and ETag off.',
+  'diag.nhl': 'NHL (shadow)',
+  'diag.nhlIntro': 'Sixth sport under evaluation: it does not appear in tabs, Highlights or the bank until its backtest is in the experiment registry with the same evidence as the others.',
+  'diag.nhlPartidos': '{partidos} games stored (latest {ultimo}); {puntuados} scored and {holdout} holdout games left untouched.',
+  'diag.nhlModelo': 'Elo + Poisson: log loss {ll} · Brier {brier} · accuracy {acierto}',
+  'diag.nhlParametros': 'Starting parameters, not fitted: K {k}, home {campo} points, {goles} goals per game, overtime at {prorroga} of Elo strength.',
 };

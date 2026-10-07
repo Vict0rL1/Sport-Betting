@@ -217,6 +217,19 @@ export const ESQUEMA_ARCHIVO = o({
 });
 
 // --- Fase 7: rendimiento ---
+export const ESQUEMA_NHL_SOMBRA = o({
+  partidos: int,
+  puntuados: int,
+  holdoutExcluido: int,
+  ultimo: nullable('string'),
+  modelo: { ...o({ n: int, logLoss: nullable('number'), brier: nullable('number'), accuracy: nullable('number'), ece: nullable('number') }), nullable: true },
+  referencias: { type: 'array', items: o({ nombre: str, logLoss: nullable('number') }) },
+  porTemporada: { type: 'array', items: o({ temporada: int, n: int, logLoss: nullable('number') }) },
+  aviso: ESQUEMA_AVISO_MUESTRA,
+  nota: str,
+  parametros: o({ k: num, campo: num, golesLiga: num, fuerzaProrroga: num }),
+});
+
 export const ESQUEMA_RENDIMIENTO = o({
   cache: o({ entradas: int, aciertos: int, fallos: int, invalidadas: int, on: bool, ttlSegundos: num }),
   compresion: bool,

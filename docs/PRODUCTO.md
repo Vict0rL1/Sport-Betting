@@ -126,3 +126,41 @@ confianza, banda, resultado y fechas; los filtros van en la URL. El resumen cuen
 resueltas con su aviso de muestra (100 predicciones), sin convertirlo en conclusión. Lee y no
 escribe; con los volúmenes de hoy se calcula al vuelo.
 
+
+## Ampliaciones (Fase 8)
+
+Todas detrás de un interruptor **apagado por defecto**. El plan, con lo que no se pudo hacer en el
+entorno donde se construyeron, está en [plans/phase-8.md](plans/phase-8.md).
+
+### Tenis en vivo punto a punto
+
+`tenis.enVivo` · la tarjeta de tenis desplegada, «Motor en vivo» · `POST /api/live/avanzar`
+
+Encima del marcador que ya se tecleaba, dos botones «Punto para…» y «Deshacer». El marcador avanza
+en el servidor con la misma regla que usa el motor en vivo (saque, ventajas, tiebreak y cambio de
+set), así que la pantalla no lleva una segunda copia de cómo se cuenta el tenis. De cada punto se
+apunta quién sacaba y quién lo ganó, y de ahí salen los puntos al saque de hoy (la actualización
+bayesiana del motor) y el último juego, con si fue break. Deshacer vuelve exactamente al estado
+anterior. No hay una fuente de marcador en vivo gratuita y fiable, así que no se conecta ninguna:
+se teclea mirando el partido, y la pantalla lo dice.
+
+### Asistente por Telegram
+
+`asistente.telegram` · trabajo `asistente-telegram` (cada minuto)
+
+El mismo asistente determinista de la app (las mismas plantillas, nada generado) contestando por
+Telegram con el bot de las notificaciones. Solo responde a los chats de `TELEGRAM_CHAT_ID` y de
+`TELEGRAM_ASISTENTE_CHATS`; a cualquier otro no le contesta. Detalle en
+[NOTIFICACIONES.md](NOTIFICACIONES.md#el-asistente-por-telegram).
+
+### NHL en sombra
+
+`deportes.nhl` · Confianza › Diagnóstico · `GET /api/nhl/sombra`. En [NHL.md](NHL.md).
+
+### Props de jugador de la NBA
+
+`apuestas.propsNba`, reservado y **sin modelo**. La hoja de ruta pedía evaluar primero si había box
+scores gratuitos: no hay una fuente legítima y alcanzable (`stats.nba.com` pide cabeceras de
+navegador y sus condiciones no permiten ingesta automática, las alternativas piden clave o prohíben
+el rastreo, y la red del entorno bloquea las de la NBA). Sin datos no se construye un modelo de
+jugador; si alguien enciende el interruptor, el doctor avisa de que no hace nada.

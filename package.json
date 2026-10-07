@@ -100,7 +100,9 @@
     "setup": "node scripts/setup.mjs",
     "e2e": "npm run e2e --workspace web --",
     "carga": "node scripts/carga.mjs",
-    "carga:ci": "node scripts/carga.mjs --arrancar --presupuesto"
+    "carga:ci": "node scripts/carga.mjs --arrancar --presupuesto",
+    "update-data:nhl": "npm run update-data:nhl --workspace server --",
+    "backtest:nhl": "npm run backtest:nhl --workspace server --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

@@ -70,3 +70,48 @@ test('archivo: los filtros van a la URL y sobreviven a recargar; líneas sin cuo
   await expect(page.getByRole('heading', { name: 'Comparador de líneas' })).toBeVisible();
   await expect(page.getByText('Sin ODDS_API_KEY no hay casas que comparar')).toBeVisible();
 });
+
+// Fase 8: lo opcional, apagado por defecto, y encendido desde los interruptores.
+test('tenis punto a punto: cuatro puntos son un juego, con el saque y el break; deshacer vuelve atrás', async ({ page, request }) => {
+  // Abrir una tarjeta de tenis calcula los mercados de puntos y el motor en vivo: lento con la base de demostración.
+  test.slow();
+  await page.goto('/tenis');
+  await page.getByRole('button', { name: /¿Por qué\?/ }).first().click();
+  await expect(page.getByTestId('punto-a-punto')).toHaveCount(0);
+  expect((await request.patch('/api/features/tenis.enVivo', { data: { on: true } })).ok()).toBeTruthy();
+  try {
+    await page.reload();
+    await page.getByRole('button', { name: /¿Por qué\?/ }).first().click();
+    const pap = page.getByTestId('punto-a-punto');
+    await expect(pap).toBeVisible();
+    // Saca el jugador 1; el 2 gana cuatro puntos seguidos: juego al resto, break.
+    const resto = pap.getByRole('button', { name: /^Punto para/ }).nth(1);
+    for (let i = 0; i < 4; i++) {
+      await resto.click();
+      await expect(pap).toContainText(`${i + 1} punto(s) apuntados`);
+    }
+    await expect(pap).toContainText('(break)');
+    await expect(page.getByLabel('Juegos 2')).toHaveValue('1');
+    await pap.getByRole('button', { name: 'Deshacer' }).click();
+    await expect(page.getByLabel('Juegos 2')).toHaveValue('0');
+    await expect(pap).not.toContainText('(break)');
+  } finally {
+    await request.patch('/api/features/tenis.enVivo', { data: { on: null } });
+  }
+});
+
+test('NHL en sombra: solo con su interruptor, y sin partidos lo dice sin inventar métricas', async ({ page, request }) => {
+  await page.goto('/confianza/diagnostico');
+  await expect(page.getByRole('heading', { name: 'Diagnóstico' })).toBeVisible();
+  await expect(page.getByTestId('nhl-sombra')).toHaveCount(0);
+  expect((await request.patch('/api/features/deportes.nhl', { data: { on: true } })).ok()).toBeTruthy();
+  try {
+    await page.reload();
+    const b = page.getByTestId('nhl-sombra');
+    await expect(b).toContainText('NHL en sombra');
+    await expect(b).toContainText('sin partidos en nhl_games');
+    await expect(b).not.toContainText('log loss');
+  } finally {
+    await request.patch('/api/features/deportes.nhl', { data: { on: null } });
+  }
+});

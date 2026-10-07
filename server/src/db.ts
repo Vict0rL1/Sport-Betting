@@ -24,6 +24,7 @@ import { WATCHLIST_SCHEMA } from './watchlist/schema.ts';
 import { STRATEGIES_SCHEMA } from './estrategias/schema.ts';
 import { INBOX_SCHEMA } from './bandeja/schema.ts';
 import { REPORTS_SCHEMA } from './informes/schema.ts';
+import { NHL_SCHEMA } from './nhl/schema.ts';
 import { ERROR_LOG_SCHEMA } from './security/errors.ts';
 import { HISTORY_DB_PATH, LAYOUT, LEDGER_DB_PATH, LEDGER_SCHEMA, LEGACY_DB_PATH, rutaPrincipal } from './db/layout.ts';
 import { ledgerize, masterDe } from './db/ledgerize.ts';
@@ -192,6 +193,8 @@ export const MIGRACIONES: Migracion[] = [
   { version: 10, nombre: 'estrategias-fase-6', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(STRATEGIES_SCHEMA, ctx.ledger)) },
   // Fase 6: bandeja (avisos con leída/no leída) e informes archivados.
   { version: 11, nombre: 'bandeja-e-informes-fase-6', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(INBOX_SCHEMA + REPORTS_SCHEMA, ctx.ledger)) },
+  // Fase 8.1: la NHL en sombra (historia: se vuelve a bajar).
+  { version: 12, nombre: 'nhl-sombra-fase-8', destino: 'history', up: (d) => d.exec(NHL_SCHEMA) },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {

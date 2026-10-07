@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import LatencyPanel from '../components/LatencyPanel';
+import NhlSombra from '../components/NhlSombra';
 import { STATUS } from '../lib/theme';
 import { StatusMark } from '../components/icons';
 import { useI18n } from '../i18n';
@@ -148,6 +149,8 @@ export default function Diagnostico() {
           </p>
         ))}
       </Bloque>
+
+      <NhlSombra />
 
       <LatencyPanel />
     </div>

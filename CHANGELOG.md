@@ -4,6 +4,27 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Fase 8 — Ampliaciones, apagadas por defecto (2026-10-07)
+
+Línea base: 442 tests. Después: 464 (390 del servidor + 17 unitarios de la web + 57 de
+Playwright). Las cuatro piezas van detrás de interruptores **apagados**; con los valores por
+defecto nada cambia (doctor, carga y pantallas iguales). Plan y límites en
+`docs/plans/phase-8.md`.
+
+- **NHL en sombra** (`deportes.nhl`): Elo con margen de goles y Poisson ligada al Elo (moneyline con
+  prórroga, empate a 60 minutos y total), ingesta de partidos terminados de la API web de la NHL a
+  `nhl_games` (migración v12), backtest contra «siempre el local» y un Elo básico con el holdout
+  final reservado desde la 2025-26, `GET /api/nhl/sombra` y bloque en Diagnóstico. No entra en
+  `SPORT_IDS`: nada se publica. **Sin cifras**: la red de este entorno no alcanza
+  `api-web.nhle.com`. Ver `docs/NHL.md`.
+- **Props de jugador de la NBA** (`apuestas.propsNba`): evaluados y no construidos; no hay box
+  scores gratuitos, legítimos y alcanzables.
+- **Asistente por Telegram** (`asistente.telegram`): el asistente determinista por el bot de las
+  notificaciones, solo para `TELEGRAM_CHAT_ID` y `TELEGRAM_ASISTENTE_CHATS`, cada minuto.
+- **Tenis en vivo punto a punto** (`tenis.enVivo`): «Punto para…» y «Deshacer» con la regla del
+  motor (`POST /api/live/avanzar`), y el recuento al saque y el último juego hacia el motor en vivo.
+- **Doctor**: líneas para las cuatro (apagadas, encendidas sin lo que necesitan, o en marcha).
+
 ## Fase 7 — Rendimiento y experiencia de desarrollo (2026-10-07)
 
 Línea base: 426 tests. Después: 442 (373 del servidor + 14 unitarios de la web + 55 de Playwright)

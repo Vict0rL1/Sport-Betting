@@ -98,6 +98,8 @@ export const SCRIPTS = {
   deploy: { grupo: 'operacion', ayuda: 'Despliega en Fly.io' },
   test: { grupo: 'desarrollo', ayuda: 'Tests del servidor' },
   e2e: { grupo: 'desarrollo', ayuda: 'Humo de punta a punta con Playwright (tras npm run build)' },
+  'update-data:nhl': { grupo: 'datos', ayuda: 'NHL en sombra: baja los partidos terminados de api-web.nhle.com (--desde, --hasta). No se publica nada' },
+  'backtest:nhl': { grupo: 'modelos', ayuda: 'NHL en sombra: Elo + Poisson contra dos referencias, sin el holdout (2025-26 en adelante)' },
   carga: { grupo: 'desarrollo', ayuda: 'Prueba de carga: p50/p95 de los endpoints de predicciones y 50 conexiones SSE (servidor en marcha; --url para otro)' },
   'carga:ci': { grupo: 'desarrollo', ayuda: 'La prueba de carga contra la base de demostración, fallando si algo pasa de config/presupuestos.json (tras npm run build)' },
   build: { grupo: 'desarrollo', ayuda: 'Build del frontend + typecheck del backend' },

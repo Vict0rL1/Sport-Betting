@@ -299,6 +299,11 @@ export const es = {
   'diag.cacheApagada': 'Caché de próximos apagada: cada petición recalcula las predicciones.',
   'diag.compresion': 'Respuestas comprimidas (Brotli o gzip) y con ETag: lo que no cambia no se vuelve a bajar.',
   'diag.compresionApagada': 'Compresión y ETag apagados.',
+  'diag.nhl': 'NHL en sombra',
+  'diag.nhlIntro': 'Sexto deporte en evaluación: no sale en pestañas, Destacados ni banco hasta que su backtest entre en el registro de experimentos con la misma evidencia que los demás.',
+  'diag.nhlPartidos': '{partidos} partidos guardados (el último del {ultimo}); {puntuados} puntuados y {holdout} del holdout sin tocar.',
+  'diag.nhlModelo': 'Elo + Poisson: log loss {ll} · Brier {brier} · acierto {acierto}',
+  'diag.nhlParametros': 'Parámetros de partida, sin ajustar: K {k}, campo {campo} puntos, {goles} goles por partido, prórroga a {prorroga} de la fuerza del Elo.',
 } as const;
 
 export type Clave = keyof typeof es;
