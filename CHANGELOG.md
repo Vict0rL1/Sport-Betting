@@ -7,7 +7,7 @@ cambian.
 ## Seguimiento tras la hoja de ruta (2026-10-07)
 
 Lo que las fases dejaron anotado y se arregla sin decisiones nuevas de política. Plan en
-`docs/plans/seguimiento.md`. Tests: 467 → 473 (399 del servidor + 17 + 57); migraciones: 12 → 13.
+`docs/plans/seguimiento.md`. Tests: 467 → 477 (403 del servidor + 17 + 57); migraciones: 12 → 13.
 
 - **El banco de papel mira sus propias pérdidas.** Su corte por pérdida diaria (5 %) y semanal
   (10 %) leía el registro personal (`bets`), vacío en la práctica: el banco de papel no tenía
@@ -19,6 +19,10 @@ Lo que las fases dejaron anotado y se arregla sin decisiones nuevas de política
   el alta (el trigger se rehace; las filas existentes quedan intactas, con NULL, y cuentan solo con
   su partido). Límites: el tope por partido de la estrategia y los de equipo y jugador de la
   política vigente, sobre su banco.
+- **`npm run audit` en verde (4.453 de 4.453).** La comprobación de la ventana de partidos daba
+  un falso positivo desde la línea base: comparaba con la ventana de ahora un refresco hecho con la
+  de su hora. La regla exacta (`sobrevivioARefresco` en `freshness.ts`, con test) sigue cazando un
+  pruning roto.
 - **CI fijada a `ubuntu-24.04`** en los tres workflows: `ubuntu-latest` pasa a Ubuntu 26 el 19 de
   octubre de 2026. Las acciones siguen en su versión (GitHub ya las corre con Node 24).
 

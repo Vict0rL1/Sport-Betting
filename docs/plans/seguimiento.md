@@ -28,6 +28,15 @@ no soportarlo el primer día. Los trabajos se fijan a `ubuntu-24.04`. Las accion
 `setup-node`, artefactos) siguen en su versión: GitHub ya las corre con Node 24 y desde aquí no se
 puede comprobar qué versión nueva hay.
 
+## 4. El falso positivo del audit
+
+`npm run audit` fallaba en «nada anterior a la ventana sobrevive a un refresco» (anotado en la
+línea base y nunca resuelto). La comprobación miraba si el último refresco era posterior al
+comienzo de la ventana de **ahora**, pero cada refresco limpia con la ventana de **su** hora: un
+partido de las 21:00 sigue dentro a la 01:00 y queda fuera a las 06:00 sin que ningún refresco haya
+podido quitarlo. La regla exacta, en `freshness.ts` (`sobrevivioARefresco`, con test): la fila
+cuenta como fallo solo si ya estaba fuera de la ventana cuando se hizo el último refresco.
+
 ## Fuera
 
 - Apostar a la mejor línea en vez de al consenso: es política, no un fallo.

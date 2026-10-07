@@ -33,7 +33,7 @@ import { coverProbability, buildDistribution, MAX_MARGIN } from '../nfl/model.ts
 import { buildPrediction } from '../model/predict.ts';
 import { listUpcoming as tennisUpcoming } from '../repo.ts';
 import { listParkFactors } from '../baseball/parkFactors.ts';
-import { DEMO_SOURCE, freshFilter, freshSince } from '../freshness.ts';
+import { DEMO_SOURCE, freshFilter, freshSince, sobrevivioARefresco } from '../freshness.ts';
 
 // ---------------------------------------------------------------------------
 let checks = 0;
@@ -766,18 +766,19 @@ function auditWindow(): void {
     // Hay filas fuera de la ventana. ¿Sobrevivieron a un refresco, o es que no ha
     // habido ninguno desde que caducaron?
     const refreshed = getMeta(refreshedKey);
-    const survivedARefresh = !!refreshed && refreshed > since;
+    // Fuera de la ventana YA cuando se hizo el último refresco (con la ventana de esa hora).
+    const survivedARefresh = sobrevivioARefresco(row.oldest, refreshed);
     check(
       `${label}: nada anterior a la ventana sobrevive a un refresco`,
       !survivedARefresh,
-      `más antiguo ${row.oldest}, ventana desde ${since}, último refresco ${refreshed ?? 'nunca'}`,
+      `más antiguo ${row.oldest}, ventana del último refresco desde ${refreshed ? freshSince(new Date(refreshed)) : '—'}, último refresco ${refreshed ?? 'nunca'}`,
     );
     if (!survivedARefresh) {
       console.log(
         `  ${label}: hay filas anteriores a la ventana (la más vieja ${row.oldest}), pero`,
       );
       console.log(
-        `    el último refresco fue ${refreshed ?? 'nunca'}, anterior a la ventana: se limpiarán`,
+        `    cuando se hizo el último refresco (${refreshed ?? 'nunca'}) aún estaban dentro: se limpiarán`,
       );
       console.log('    en el próximo. La app ya no las muestra. No es un defecto.');
     }

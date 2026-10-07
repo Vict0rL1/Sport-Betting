@@ -74,6 +74,21 @@ export function freshSince(now = new Date()): string {
 }
 
 /**
+ * ¿Sobrevivió una fila a un refresco que debía limpiarla?
+ *
+ * Solo si ya estaba fuera de la ventana EN EL MOMENTO de ese refresco: cada refresco limpia con
+ * `freshSince` de su propia hora. Comparar con la ventana de ahora daba falsos positivos: un
+ * partido de las 21:00 sigue dentro a la 01:00 (la ventana empieza seis horas antes), y a partir
+ * de las 06:00 queda fuera sin que haya habido ningún refresco que pudiera quitarlo.
+ */
+export function sobrevivioARefresco(masAntiguo: string | null, ultimoRefresco: string | null): boolean {
+  if (!masAntiguo || !ultimoRefresco) return false;
+  const t = Date.parse(ultimoRefresco);
+  if (!Number.isFinite(t)) return false;
+  return masAntiguo < freshSince(new Date(t));
+}
+
+/**
  * The source name for an invented slate.
  *
  * It does NOT affect the display window — see the note on that below. It is still
