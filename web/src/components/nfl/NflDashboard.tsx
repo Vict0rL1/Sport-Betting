@@ -14,6 +14,7 @@ import { nflApi, type NflGameWithPrediction, type NflLeague, type NflMeta } from
 import GameCard from './GameCard';
 import EloRanking from '../EloRanking';
 import { DataLine, NflTrackRecordPanel } from './NflDashboardPartes';
+import { conNodos, localeDe, useI18n } from '../../i18n';
 
 /**
  * The whole American football tab. Holds its own state and talks only to
@@ -27,6 +28,7 @@ import { DataLine, NflTrackRecordPanel } from './NflDashboardPartes';
  * learned rather than a constant somebody typed in.
  */
 export default function NflDashboard() {
+  const { t: tr, idioma } = useI18n();
   const [meta, setMeta] = useState<NflMeta | null>(null);
   const [leagues, setLeagues] = useState<NflLeague[]>([]);
   const [league, setLeague] = useLigaEnRuta('/nfl', 'predictor.nfl.league');
@@ -51,7 +53,7 @@ export default function NflDashboard() {
         setLeagues(l);
       })
       .catch((e) =>
-        setError(`No se pudo cargar el fútbol americano. ¿Ejecutaste "npm run update-data:naf"? (${e})`),
+        setError(tr('nfl.errorCargar', { error: String(e) })),
       );
   }, []);
 
@@ -97,17 +99,17 @@ export default function NflDashboard() {
       setLeagues(l);
       setGames(g);
     } catch (e) {
-      setError(`No se pudo actualizar: ${e}`);
+      setError(tr('comun.errorActualizar', { error: String(e) }));
     } finally {
       setRefreshing(false);
     }
   }
 
   // Grouped by the reader's own local day, and filtered to one of them if asked.
-  const dayGroups = useMemo(() => groupByDay(games, (g) => g.game.commence_time), [games]);
+  const dayGroups = useMemo(() => groupByDay(games, (g) => g.game.commence_time, idioma), [games, idioma]);
   const dayChips = useMemo(
-    () => dayGroups.map((d) => ({ key: d.key, label: dayChipLabel(d.key), count: d.items.length })),
-    [dayGroups],
+    () => dayGroups.map((d) => ({ key: d.key, label: dayChipLabel(d.key, new Date(), idioma), count: d.items.length })),
+    [dayGroups, idioma],
   );
   const shownGroups = day ? dayGroups.filter((d) => d.key === day) : dayGroups;
 
@@ -141,19 +143,17 @@ export default function NflDashboard() {
       <DashboardHeader
         onRefresh={handleRefresh}
         refreshing={refreshing}
-        refreshTitle="Vuelve a consultar los partidos próximos y sus cuotas"
-        chips={meta && (<>{meta.counts.games.toLocaleString('es')} partidos · {meta.counts.teams} equipos</>)}
+        refreshTitle={tr('eq.refrescarTitulo')}
+        chips={meta && (<>{tr('eq.chipsEquipos', { partidos: meta.counts.games.toLocaleString(localeDe(idioma)), equipos: meta.counts.teams })}</>)}
         alert={staleLabel(stale)}
       >
           <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
-            Hándicap, total y ganador con Elo por equipo y una distribución de margen que conoce los
-            números clave del deporte. Es el único deporte de la app cuyo modelo se puede medir
-            contra la línea de cierre real.
+            {tr('nfl.lema')}
           </p>
         {meta && <DataLine meta={meta} />}
         <StaleHistoryWarning
           info={stale}
-          what="Los Elo, el hándicap y el total"
+          what={tr('nfl.elos')}
           fix="npm run update-data:naf"
         />
         {league && <NflTrackRecordPanel league={league} />}
@@ -165,11 +165,7 @@ export default function NflDashboard() {
         {...picks}
         caveat={CAVEATS.nfl}
         demoOdds={demoOdds}
-        confidenceReason={
-          'ordenado por probabilidad del modelo, no por diferencia con el mercado: ' +
-          'en este deporte la línea de cierre acierta más que el modelo, así que ' +
-          'ordenar por discrepancia sería ordenar por dónde es más probable que se equivoque'
-        }
+        confidenceReason={tr('nfl.ordenConfianza')}
         stake={stake}
         onStakeChange={setStake}
       />
@@ -214,7 +210,7 @@ export default function NflDashboard() {
               {l.name}
               {l.upcomingCount > 0 && <span className="ml-1.5 opacity-60">{l.upcomingCount}</span>}
               {!l.hasModel && (
-                <span className="ml-1.5 text-amber-400" title="Sin modelo Elo">
+                <span className="ml-1.5 text-amber-400" title={tr('eq.sinModeloElo')}>
                   ◦
                 </span>
               )}
@@ -223,26 +219,24 @@ export default function NflDashboard() {
         </div>
       ) : (
         <div className="mb-6 rounded-xl border border-rose-500/25 bg-rose-500/[0.06] p-5 text-[15px] text-rose-200">
-          <p className="font-medium">No hay datos de fútbol americano todavía.</p>
+          <p className="font-medium">{tr('nfl.sinDatos')}</p>
           <p className="mt-1 text-rose-300/90">
-            Ejecuta <code className="rounded bg-rose-900/40 px-1">npm run update-data:naf</code> para
-            descargar equipos, resultados y el calendario.
+            {conNodos(tr('nfl.sinDatosCuerpo'), { cmd: <code className="rounded bg-rose-900/40 px-1">npm run update-data:naf</code> })}
           </p>
         </div>
       )}
 
       {activeLeague && !activeLeague.hasModel && (
         <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[15px] leading-relaxed text-amber-200/90">
-          <strong>{activeLeague.name} sin modelo Elo.</strong> No hay una fuente abierta de
-          resultados partido a partido para esta competición, así que se muestran los partidos y las
-          probabilidades <em>implícitas del mercado</em>, no una predicción propia.
+          <strong>{tr('eq.sinModeloTitulo', { liga: activeLeague.name })}</strong>{' '}
+          {conNodos(tr('nfl.sinModeloCuerpo'), { implicitas: <em>{tr('eq.implicitasMercado')}</em> })}
         </div>
       )}
 
       {loading ? (
         <SkeletonList />
       ) : games.length === 0 ? (
-        <EmptySlate what={activeLeague?.name ?? 'esta liga'} reason="sin-partidos" />
+        <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
@@ -272,7 +266,7 @@ export default function NflDashboard() {
       )}
 
       <EloRanking
-        title={`Todos los equipos · ${activeLeague?.name ?? ''}`}
+        title={tr('eq.todosLosEquipos', { liga: activeLeague?.name ?? '' })}
         rows={power.map((t) => ({
           id: t.id,
           name: t.name,
@@ -280,26 +274,21 @@ export default function NflDashboard() {
           badge: <TeamCrest league={league!} name={t.name} code={t.id} size={16} />,
           onOpen: () => setTeam({ league: league!, id: t.id }),
           extra: [
-            { label: 'Anota', value: t.pf?.toFixed(1) ?? '—', title: 'Puntos anotados por partido' },
-            { label: 'Recibe', value: t.pa?.toFixed(1) ?? '—', title: 'Puntos recibidos por partido' },
+            { label: tr('eq.anota'), value: t.pf?.toFixed(1) ?? '—', title: tr('eq.anotaTitulo') },
+            { label: tr('eq.recibe'), value: t.pa?.toFixed(1) ?? '—', title: tr('eq.recibeTitulo') },
             {
-              label: 'Dif.',
+              label: tr('eq.dif'),
               value:
                 t.pf != null && t.pa != null
                   ? `${t.pf - t.pa > 0 ? '+' : ''}${(t.pf - t.pa).toFixed(1)}`
                   : '—',
-              title: 'Diferencial de puntos por partido',
+              title: tr('eq.difPuntosTitulo'),
             },
           ],
         }))}
-        extraHeaders={['Anota', 'Recibe', 'Dif.']}
+        extraHeaders={[tr('eq.anota'), tr('eq.recibe'), tr('eq.dif')]}
         footer={
-          <>
-            Con 17 partidos por temporada, el Elo de la NFL se mueve mucho con cada resultado y
-            arrastra bastante del año anterior. Y una advertencia medida: en esta app el modelo
-            de la NFL es PEOR que la línea de cierre, así que esta tabla sirve para entender la
-            liga, no para apostar contra el mercado.
-          </>
+          <>{tr('nfl.eloPie')}</>
         }
       />
     </div>

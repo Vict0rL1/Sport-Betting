@@ -5,6 +5,7 @@ import EventTrustPanel from '../trust/EventTrustPanel';
 
 import { Badge, Card, Disclosure, EmptyState, HeroStat, MatchTime, ProbabilityBar, ReliabilityChip, ResultBanner, StatRow, StatTile, MarketGap } from '../ui';
 import { fmtLine, KeyNumbers, TeamName, Detail } from './GameCardPartes';
+import { conNodos, useI18n } from '../../i18n';
 
 /**
  * One NFL game.
@@ -27,6 +28,7 @@ export default function GameCard({
   item: NflGameWithPrediction;
   onOpenTeam: (league: string, id: string) => void;
 }) {
+  const { t } = useI18n();
   const { game, prediction, marketOnly, teams } = item;
   const probs = prediction?.model ?? marketOnly ?? null;
 
@@ -38,12 +40,12 @@ export default function GameCard({
             changes four times. */}
         <MatchTime
           iso={game.commence_time}
-          extra={game.week != null ? <span className="ml-1.5">· semana {game.week}</span> : undefined}
+          extra={game.week != null ? <span className="ml-1.5">{t('nflc.semana', { n: game.week })}</span> : undefined}
         />
         <div className="flex items-center gap-1.5">
-          {game.neutral === 1 && <Badge>campo neutral</Badge>}
-          {game.source === 'schedule' && <Badge>calendario oficial</Badge>}
-          {game.source === 'fixture' && <Badge tone="warning">partido demo</Badge>}
+          {game.neutral === 1 && <Badge>{t('nflc.neutral')}</Badge>}
+          {game.source === 'schedule' && <Badge>{t('nflc.calendario')}</Badge>}
+          {game.source === 'fixture' && <Badge tone="warning">{t('eq.partidoDemo')}</Badge>}
         </div>
       </div>
 
@@ -102,14 +104,14 @@ export default function GameCard({
           <div className="flex items-end justify-between gap-3">
             <HeroStat
               value={pct(probs.away)}
-              label="Visitante"
-              sub={game.odds_away ? `cuota ${game.odds_away}` : undefined}
+              label={t('eq.visitante')}
+              sub={game.odds_away ? t('tt.cuota', { c: game.odds_away }) : undefined}
               color={AWAY_COLOR}
             />
             <HeroStat
               value={pct(probs.home)}
-              label="Local"
-              sub={game.odds_home ? `cuota ${game.odds_home}` : undefined}
+              label={t('eq.local')}
+              sub={game.odds_home ? t('tt.cuota', { c: game.odds_home }) : undefined}
               color={HOME_COLOR}
               align="right"
             />
@@ -132,7 +134,7 @@ export default function GameCard({
 
           {!prediction && (
             <p className="mt-2 text-center text-[13px] text-amber-300/90">
-              Probabilidades implícitas del mercado, no del modelo.
+              {t('eq.implicitasNoModelo')}
             </p>
           )}
 
@@ -143,18 +145,23 @@ export default function GameCard({
                 <p className="min-w-0 text-[15px] leading-snug text-(--ink-body)">
                   {prediction.verdict.close ? (
                     <>
-                      Muy igualado —{' '}
-                      <strong className="font-semibold text-(--ink-strong)">
-                        {prediction.verdict.label}
-                      </strong>{' '}
-                      solo por poco
+                      {conNodos(t('bsc.igualado'), {
+                        cual: (
+                          <strong className="font-semibold text-(--ink-strong)">
+                            {prediction.verdict.label}
+                          </strong>
+                        ),
+                      })}
                     </>
                   ) : (
                     <>
-                      Lo más probable:{' '}
-                      <strong className="font-semibold text-(--ink-strong)">
-                        {prediction.verdict.label}
-                      </strong>
+                      {conNodos(t('fbc.loMasProbable'), {
+                        cual: (
+                          <strong className="font-semibold text-(--ink-strong)">
+                            {prediction.verdict.label}
+                          </strong>
+                        ),
+                      })}
                     </>
                   )}
                 </p>
@@ -168,18 +175,14 @@ export default function GameCard({
                     // measured that there is none.
                     <Badge
                       tone="neutral"
-                      title={
-                        'El modelo da más probabilidad que el mercado a este equipo. ' +
-                        'En la NFL eso NO es una ventaja: medido sobre 7.276 partidos, ' +
-                        'la línea de cierre acierta más que el modelo (Brier 0.2115 ' +
-                        'frente a 0.2180), así que lo más probable es que se equivoque ' +
-                        'el modelo.'
-                      }
+                      title={t('nflc.discrepaTitulo')}
                     >
-                      Discrepa:{' '}
-                      {prediction.market.verdict === 'differs_home'
-                        ? prediction.teams.home.name
-                        : prediction.teams.away.name}
+                      {t('nflc.discrepa', {
+                        nombre:
+                          prediction.market.verdict === 'differs_home'
+                            ? prediction.teams.home.name
+                            : prediction.teams.away.name,
+                      })}
                     </Badge>
                   )}
                   <ReliabilityChip
@@ -187,8 +190,8 @@ export default function GameCard({
                     label={prediction.reliability.label}
                     marginPp={prediction.reliability.marginPp}
                     title={[
-                      `Margen de incertidumbre: ±${prediction.reliability.marginPp} pp.`,
-                      'Calibrado contra la línea de cierre real: el modelo se separa 7.3 pp de media de ella.',
+                      t('eq.margenPp', { pp: prediction.reliability.marginPp }),
+                      t('nflc.calibrado'),
                       ...prediction.reliability.reasons,
                     ].join('\n')}
                   />
@@ -200,36 +203,36 @@ export default function GameCard({
               </div>
               <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
               <div className="mt-1">
-                <Disclosure summary="¿Por qué? · hándicap, total, números clave, márgenes y mercado">
+                <Disclosure summary={t('nflc.porQue')}>
                   <StatRow>
                 <StatTile
-                  label={`Hándicap ${fmtLine(prediction.spread.line)}`}
+                  label={t('nflc.handicap', { linea: fmtLine(prediction.spread.line) })}
                   value={pct(prediction.spread.home.cover)}
                   hint={
                     prediction.spread.home.push > 0.005
-                      ? `nulo ${pct(prediction.spread.home.push)}`
-                      : 'lo cubre el local'
+                      ? t('nflc.nulo', { p: pct(prediction.spread.home.push) })
+                      : t('nflc.loCubre')
                   }
                   title={
                     prediction.spread.fromMarket
-                      ? 'Línea tomada del mercado. Probabilidad de que el local la cubra.'
-                      : 'Sin línea del mercado: se usa la del propio modelo, redondeada.'
+                      ? t('nflc.lineaMercado')
+                      : t('nflc.lineaModelo')
                   }
                 />
                 <StatTile
-                  label={`Total ${prediction.total.line}`}
+                  label={t('nflc.total', { linea: prediction.total.line })}
                   value={pct(prediction.total.over)}
-                  hint={`under ${pct(prediction.total.under)}`}
+                  hint={t('nflc.under', { p: pct(prediction.total.under) })}
                 />
                 <StatTile
-                  label="Margen esperado"
+                  label={t('nflc.margenEsperado')}
                   value={prediction.spread.label}
                   hint={`${prediction.points.home}-${prediction.points.away}`}
                 />
                 <StatTile
-                  label="Marcador"
+                  label={t('fbc.marcador')}
                   value={prediction.scorelines[0]?.label ?? '—'}
-                  hint={`más probable · ${pct(prediction.scorelines[0]?.probability ?? 0)}`}
+                  hint={t('fbc.masProbable', { p: pct(prediction.scorelines[0]?.probability ?? 0) })}
                 />
               </StatRow>
                   <KeyNumbers prediction={prediction} />
@@ -240,9 +243,8 @@ export default function GameCard({
           )}
         </>
       ) : (
-        <EmptyState title="Sin modelo ni cuotas para este partido" tone="warning">
-          No encuentro a estos equipos en el historial, así que no puedo calcular nada para este
-          partido.
+        <EmptyState title={t('fbc.sinModeloNiCuotas')} tone="warning">
+          {t('nflc.noEncuentro')}
         </EmptyState>
       )}
     </Card>

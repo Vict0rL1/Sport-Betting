@@ -1,6 +1,7 @@
 import type { BsbPrediction, BsbRunMargin } from '../../lib/baseball';
 import { AWAY_COLOR, HOME_COLOR, inkOn, withAlpha } from '../../lib/theme';
 import { Panel, SectionTitle } from '../ui';
+import { useI18n } from '../../i18n';
 
 /**
  * The full run-by-run grid.
@@ -17,6 +18,7 @@ import { Panel, SectionTitle } from '../ui';
  * server has already pushed it into the one-run cells either side.
  */
 export default function RunMatrix({ prediction }: { prediction: BsbPrediction }) {
+  const { t } = useI18n();
   const { grid, margins, extraInnings } = prediction.runs;
   const home = prediction.teams.home;
   const away = prediction.teams.away;
@@ -32,8 +34,8 @@ export default function RunMatrix({ prediction }: { prediction: BsbPrediction })
 
   return (
     <Panel>
-      <SectionTitle right={`filas = ${home.name} · columnas = ${away.name}`}>
-        Probabilidad de cada marcador
+      <SectionTitle right={t('sm.ejes', { local: home.name, visitante: away.name })}>
+        {t('det.probMarcador')}
       </SectionTitle>
 
       <div className="-mx-1 overflow-x-auto px-1">
@@ -64,7 +66,7 @@ export default function RunMatrix({ prediction }: { prediction: BsbPrediction })
                     top={h === best.h && a === best.a}
                     title={
                       h === a
-                        ? 'Un marcador final nunca queda empatado: se va a entradas extra'
+                        ? t('rm.empate')
                         : `${home.name} ${h}–${a} ${away.name}: ${(p * 100).toFixed(2)}%`
                     }
                   />
@@ -78,25 +80,23 @@ export default function RunMatrix({ prediction }: { prediction: BsbPrediction })
       <div className="mt-2 grid grid-cols-2 gap-2 text-center text-[13px]">
         <div className="rounded bg-(--tint) px-1 py-1.5">
           <div className="mx-auto mb-1 h-1 w-8 rounded" style={{ backgroundColor: HOME_COLOR }} />
-          <div className="break-words text-(--ink-soft)" title={home.name}>Gana {home.name}</div>
+          <div className="break-words text-(--ink-soft)" title={home.name}>{t('pm.gana', { nombre: home.name })}</div>
           <div className="font-semibold tabular-nums text-(--ink-strong)">
             {(prediction.model.home * 100).toFixed(1)}%
           </div>
         </div>
         <div className="rounded bg-(--tint) px-1 py-1.5">
           <div className="mx-auto mb-1 h-1 w-8 rounded" style={{ backgroundColor: AWAY_COLOR }} />
-          <div className="break-words text-(--ink-soft)" title={away.name}>Gana {away.name}</div>
+          <div className="break-words text-(--ink-soft)" title={away.name}>{t('pm.gana', { nombre: away.name })}</div>
           <div className="font-semibold tabular-nums text-(--ink-strong)">
             {(prediction.model.away * 100).toFixed(1)}%
           </div>
         </div>
       </div>
       <p className="mt-1.5 text-[13px] leading-relaxed text-(--ink-muted)">
-        La diagonal está vacía porque un marcador final nunca queda empatado: esa probabilidad
-        ({(extraInnings * 100).toFixed(1)}%, las entradas extra) ya está repartida en las casillas de
-        una carrera de diferencia.
+        {t('rm.diagonal', { p: (extraInnings * 100).toFixed(1) })}
         {grid.tail > 0.0005 && (
-          <> Marcadores con más de {n} carreras por equipo: {(grid.tail * 100).toFixed(2)}%.</>
+          <> {t('rm.cola', { n, p: (grid.tail * 100).toFixed(2) })}</>
         )}
       </p>
 
@@ -110,12 +110,13 @@ function Cell({
 }: {
   p: number; peak: number; home: boolean; tied: boolean; top: boolean; title: string;
 }) {
+  const { t } = useI18n();
   if (tied) {
     return (
       <td
         title={title}
         className="rounded bg-(--tint) px-0.5 py-1 text-(--ink-faint)"
-        aria-label="imposible: empate"
+        aria-label={t('rm.imposible')}
       >
         ×
       </td>
@@ -150,18 +151,19 @@ function Margins({
 }: {
   margins: BsbRunMargin[]; homeName: string; awayName: string;
 }) {
+  const { t } = useI18n();
   const shown = margins.filter((m) => m.margin !== 0);
   const peak = Math.max(...shown.map((m) => m.probability));
   const edge = Math.max(...shown.map((m) => Math.abs(m.margin)));
   return (
     <div className="mt-3 border-t border-(--line) pt-2">
       <div className="mb-1.5 text-[14px] uppercase tracking-wide text-(--ink-muted)">
-        Diferencia de carreras
+        {t('rm.diferencia')}
       </div>
       <div className="space-y-0.5">
         {shown.map((m) => {
           const atEdge = Math.abs(m.margin) === edge;
-          const label = `${m.margin > 0 ? homeName : awayName} por ${Math.abs(m.margin)}${atEdge ? ' o más' : ''}`;
+          const label = t(atEdge ? 'rm.porMargenMas' : 'rm.porMargen', { equipo: m.margin > 0 ? homeName : awayName, n: Math.abs(m.margin) });
           return (
             <div key={m.margin} className="flex items-center gap-2 text-[13px]">
               <span className="w-9 text-right tabular-nums text-(--ink-body)">
@@ -185,8 +187,7 @@ function Margins({
         })}
       </div>
       <p className="mt-1.5 text-[13px] text-(--ink-muted)">
-        La línea de carreras se juega a ±1.5, así que todo lo que sea ganar por una carrera —el
-        margen más frecuente del béisbol— no cubre.
+        {t('rm.linea')}
       </p>
     </div>
   );

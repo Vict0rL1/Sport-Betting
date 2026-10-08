@@ -5,8 +5,10 @@ import { formatDate } from '../../lib/format';
 import { AWAY_COLOR, HOME_COLOR, pct } from '../../lib/theme';
 import { BarRow, CompareRow, EmptyState, FactorValue, FormDots, Panel, SectionTitle, SeriesDot, TeamCrest } from '../ui';
 import RunMatrix from './RunMatrix';
+import { conNodos, useI18n } from '../../i18n';
 
 export function StarterChip({ side, color }: { side: BsbSide; color: string }) {
+  const { t } = useI18n();
   const s = side.starter;
   const delta = s.rating != null ? Math.round((1 - s.rating) * 100) : null;
   return (
@@ -16,16 +18,15 @@ export function StarterChip({ side, color }: { side: BsbSide; color: string }) {
           read as belonging to them. */}
       <div className="flex items-baseline gap-2">
         <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
-          Abridor
+          {t('bsd.abridor')}
         </span>
         {delta != null && Math.abs(delta) >= 4 && (
           <span
             className="shrink-0 text-[11px] font-semibold tabular-nums"
             style={{ color: delta > 0 ? '#199e70' : '#e66767' }}
-            title="Carreras que permite frente a lo esperado de un abridor medio"
+            title={t('bsd.carrerasTitulo')}
           >
-            {delta > 0 ? '−' : '+'}
-            {Math.abs(delta)}% carreras
+            {t('bsd.pctCarreras', { n: `${delta > 0 ? '−' : '+'}${Math.abs(delta)}` })}
           </span>
         )}
       </div>
@@ -35,11 +36,11 @@ export function StarterChip({ side, color }: { side: BsbSide; color: string }) {
             baseball card, and "Madison Bumga…" in a two-column grid is the one
             thing here that must not be elided. */}
         <span className="min-w-0 break-words text-[15px] font-semibold leading-tight text-(--ink-strong)">
-          {s.name ?? 'sin anunciar'}
+          {s.name ?? t('bsd.sinAnunciar')}
         </span>
       </div>
       <div className="text-[11px] text-(--ink-muted)">
-        {s.starts > 0 ? `${s.starts} aperturas` : 'sin datos'}
+        {s.starts > 0 ? t('bsd.aperturas', { n: s.starts }) : t('td.sinDatos')}
       </div>
     </div>
   );
@@ -52,6 +53,7 @@ export function TeamName({
   name: string; elo: number | null; eloRank: number | null;
   odds: number | null; alignRight?: boolean; homeBadge?: boolean; onClick?: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className={`min-w-0 flex-1 ${alignRight ? 'text-right' : ''}`}>
       <span className={`flex items-center gap-1.5 ${alignRight ? 'justify-end' : ''}`}>
@@ -65,16 +67,16 @@ export function TeamName({
           // no longer fits half a phone-width card, and an ellipsis eats the one
           // thing the card exists to tell you. See nfl/GameCard for the detail.
           className={`max-w-full text-[17px] font-semibold break-words text-(--ink-strong) ${onClick ? 'hover:underline' : 'cursor-default'}`}
-          title={onClick ? 'Ver ficha del equipo' : undefined}
+          title={onClick ? t('eq.verFicha') : undefined}
         >
           {name}
-          {homeBadge && <span className="ml-1.5 text-[11px] text-(--ink-muted)">(local)</span>}
+          {homeBadge && <span className="ml-1.5 text-[11px] text-(--ink-muted)">{t('bsd.local')}</span>}
         </button>
         {alignRight && <TeamCrest league={league} name={name} code={id} />}
       </span>
       <div className="text-[13px] text-(--ink-muted)">
         {elo != null && <>Elo {Math.round(elo)}{eloRank != null && ` (#${eloRank})`}</>}
-        {odds != null && <> · cuota {odds}</>}
+        {odds != null && <> · {t('tt.cuota', { c: odds })}</>}
       </div>
     </div>
   );
@@ -82,19 +84,16 @@ export function TeamName({
 
 
 export function MissingModel({ item }: { item: BsbGameWithPrediction }) {
+  const { t } = useI18n();
   const { game } = item;
   const missing = [
     !game.away_id ? game.away_name : null,
     !game.home_id ? game.home_name : null,
   ].filter(Boolean) as string[];
   return (
-    <EmptyState title="Sin modelo ni cuotas para este partido" tone="warning">
+    <EmptyState title={t('fbc.sinModeloNiCuotas')} tone="warning">
       {missing.length > 0 && (
-        <>
-          No encuentro en el historial a <strong>{missing.join(', ')}</strong>. Ocurre en ligas sin
-          archivo abierto de resultados (NPB, KBO, universitario), donde solo se muestran las
-          probabilidades del mercado.
-        </>
+        <>{conNodos(t('bsd.noEncuentro'), { quien: <strong>{missing.join(', ')}</strong> })}</>
       )}
     </EmptyState>
   );
@@ -112,6 +111,7 @@ export function StarterPicker({
   announced: string | null;
   onChange: (id: string | null) => void;
 }) {
+  const { t } = useI18n();
   const [rotation, setRotation] = useState<BsbPitcher[] | null>(null);
   const [error, setError] = useState(false);
 
@@ -126,7 +126,7 @@ export function StarterPicker({
     };
   }, [league, teamId]);
 
-  if (error) return <p className="text-[13px] text-(--ink-muted)">Sin datos de lanzadores.</p>;
+  if (error) return <p className="text-[13px] text-(--ink-muted)">{t('bsd.sinLanzadores')}</p>;
   const current = value !== undefined ? value : announced;
 
   return (
@@ -138,12 +138,16 @@ export function StarterPicker({
         value={current ?? ''}
         onChange={(e) => onChange(e.target.value || null)}
         className="w-full rounded border border-(--line-strong) bg-(--surface-card) px-2 py-1 text-[14px] text-(--ink-body)"
-        aria-label={`Abridor de ${teamName}`}
+        aria-label={t('bsd.abridorDe', { equipo: teamName })}
       >
-        <option value="">— sin abridor conocido —</option>
+        <option value="">{t('bsd.sinAbridor')}</option>
         {(rotation ?? []).map((p) => (
           <option key={p.id} value={p.id}>
-            {p.name} · {p.starts} ap · {p.rating != null ? `${p.rating < 1 ? '−' : '+'}${Math.abs(Math.round((p.rating - 1) * 100))}%` : 's/d'}
+            {t('bsd.opcion', {
+              nombre: p.name,
+              n: p.starts,
+              r: p.rating != null ? `${p.rating < 1 ? '−' : '+'}${Math.abs(Math.round((p.rating - 1) * 100))}%` : t('bsd.sd'),
+            })}
           </option>
         ))}
       </select>
@@ -163,6 +167,7 @@ export function Detail({
   adjusting: boolean;
   adjusted: boolean;
 }) {
+  const { t } = useI18n();
   const { teams, runs, h2h, market, reasoning, reliability } = prediction;
   const home = teams.home;
   const away = teams.away;
@@ -170,13 +175,11 @@ export function Detail({
   return (
     <div className="space-y-3">
       <Panel>
-        <SectionTitle right={adjusting ? 'recalculando…' : adjusted ? 'ajustado a tu elección' : undefined}>
-          Quién abre
+        <SectionTitle right={adjusting ? t('eq.recalculando') : adjusted ? t('bsd.ajustadoEleccion') : undefined}>
+          {t('bsd.quienAbre')}
         </SectionTitle>
         <p className="mb-2.5 text-[13px] leading-relaxed text-(--ink-soft)">
-          El abridor es lo que más mueve un partido de béisbol y se anuncia con un día de
-          antelación. Si sabes quién lanza —o si lo han cambiado— elígelo aquí y se recalcula todo:
-          el ganador, las carreras y la matriz de marcadores.
+          {t('bsd.abridorExplica')}
         </p>
         <div className="flex flex-col gap-3 sm:flex-row">
           <StarterPicker
@@ -202,8 +205,8 @@ export function Detail({
         }`}
       >
         <p className="text-(--ink-body)">
-          <strong className="capitalize">{reliability.label}</strong> — margen ±{reliability.marginPp} pp.
-          Partidos tras cada Elo: {reliability.gamesBehind.away} y {reliability.gamesBehind.home}.
+          <strong className="capitalize">{reliability.label}</strong>{' '}
+          {t('eq.margenDetalle', { pp: reliability.marginPp, a: reliability.gamesBehind.away, b: reliability.gamesBehind.home })}
         </p>
         {reliability.reasons.length > 0 && (
           <ul className="mt-1.5 space-y-1">
@@ -218,7 +221,7 @@ export function Detail({
       </div>
 
       <Panel>
-        <SectionTitle>Por qué</SectionTitle>
+        <SectionTitle>{t('det.porQue')}</SectionTitle>
         <p className="mb-2 text-[15px] leading-relaxed text-(--ink-body)">{reasoning.text}</p>
         <dl className="space-y-1 text-[13px]">
           {reasoning.factors.map((f) => (
@@ -230,8 +233,8 @@ export function Detail({
                   neutral={f.pointsForHome === 0}
                 >
                   {f.pointsForHome === 0
-                    ? '0 (neutral)'
-                    : `+${Math.abs(f.pointsForHome)} para ${f.pointsForHome > 0 ? home.name : away.name}`}
+                    ? t('eq.neutral')
+                    : t('eq.paraEquipo', { n: Math.abs(f.pointsForHome), equipo: f.pointsForHome > 0 ? home.name : away.name })}
                 </FactorValue>
               </dd>
             </div>
@@ -240,7 +243,7 @@ export function Detail({
       </Panel>
 
       <Panel>
-        <SectionTitle>Los dos equipos</SectionTitle>
+        <SectionTitle>{t('eq.losDosEquipos')}</SectionTitle>
         <dl className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-[13px]">
           <div />
           <div className="w-24 break-words text-right font-medium" style={{ color: AWAY_COLOR }}>
@@ -250,22 +253,22 @@ export function Detail({
             {home.name}
           </div>
           <CompareRow label="Elo" left={Math.round(away.elo)} right={Math.round(home.elo)} />
-          <CompareRow label="Carreras a favor / partido" left={away.rs ?? '—'} right={home.rs ?? '—'} />
-          <CompareRow label="Carreras en contra / partido" left={away.ra ?? '—'} right={home.ra ?? '—'} />
+          <CompareRow label={t('bsd.cfPartido')} left={away.rs ?? '—'} right={home.rs ?? '—'} />
+          <CompareRow label={t('bsd.ccPartido')} left={away.ra ?? '—'} right={home.ra ?? '—'} />
           <CompareRow
-            label="Pitagórico"
-            title="Lo que dicen sus carreras que debería ser su balance. La diferencia con el real es la parte de suerte."
+            label={t('bsd.pitagorico')}
+            title={t('bsd.pitagoricoTitulo')}
             left={away.pythagorean != null ? pct(away.pythagorean) : '—'}
             right={home.pythagorean != null ? pct(home.pythagorean) : '—'}
           />
           <CompareRow
-            label="Balance (G-P)"
+            label={t('bsd.balance')}
             left={`${away.record.wins}-${away.record.losses}`}
             right={`${home.record.wins}-${home.record.losses}`}
           />
           <CompareRow
-            label="Últimos 10"
-            title="Azul = ganado · naranja = perdido"
+            label={t('bsd.ultimos10')}
+            title={t('bsd.coloresForma')}
             left={<FormDots results={away.last10} colors={formColors} />}
             right={<FormDots results={home.last10} colors={formColors} />}
           />
@@ -273,7 +276,7 @@ export function Detail({
       </Panel>
 
       <Panel>
-        <SectionTitle>Marcadores más probables</SectionTitle>
+        <SectionTitle>{t('fbc.marcadoresProbables')}</SectionTitle>
         <div className="space-y-1">
           {runs.scorelines.map((s) => (
             <BarRow
@@ -287,9 +290,7 @@ export function Detail({
           ))}
         </div>
         <p className="mt-2 text-[13px] leading-relaxed text-(--ink-muted)">
-          Fíjate en lo bajas que son: en béisbol el marcador más probable ronda el 3%, contra el 12%
-          de un partido de fútbol. Hay muchísimos resultados plausibles, y por eso el ganador es casi
-          una moneda.
+          {t('bsd.fijate')}
         </p>
       </Panel>
 
@@ -304,10 +305,10 @@ export function Detail({
             </>
           }
         >
-          Historial directo
+          {t('eq.historialDirecto')}
         </SectionTitle>
         {h2h.recent.length === 0 ? (
-          <p className="text-[13px] text-(--ink-muted)">Sin enfrentamientos previos en el historial.</p>
+          <p className="text-[13px] text-(--ink-muted)">{t('bsd.sinEnfrentamientos')}</p>
         ) : (
           <ul className="space-y-1 text-[13px]">
             {h2h.recent.map((m, i) => (
@@ -325,18 +326,22 @@ export function Detail({
 
       {market.market && (
         <Panel>
-          <SectionTitle right={`margen ${((market.market.overround - 1) * 100).toFixed(1)}%`}>
-            Mercado
+          <SectionTitle right={t('eq.margenPct', { p: ((market.market.overround - 1) * 100).toFixed(1) })}>
+            {t('eq.mercado')}
           </SectionTitle>
           <p className="text-[13px] leading-relaxed text-(--ink-body)">
-            Cuotas {market.market.odds.away} / {market.market.odds.home} · implícitas sin vig{' '}
-            {pct(market.market.away)} / {pct(market.market.home)}
+            {t('bsd.cuotasLinea', {
+              a: market.market.odds.away,
+              h: market.market.odds.home,
+              pa: pct(market.market.away),
+              ph: pct(market.market.home),
+            })}
           </p>
         </Panel>
       )}
 
       <Panel>
-        <SectionTitle>Lectura completa</SectionTitle>
+        <SectionTitle>{t('eq.lecturaCompleta')}</SectionTitle>
         <ul className="space-y-1.5">
           {prediction.summary.bullets.map((b, i) => (
             <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-(--ink-soft)">

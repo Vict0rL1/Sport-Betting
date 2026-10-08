@@ -8,6 +8,7 @@ import { EnlacePartido } from '../ui';
 import EventTrustPanel from '../trust/EventTrustPanel';
 import { StadiumIcon } from '../icons';
 import { StarterChip, TeamName, MissingModel, Detail } from './GameCardPartes';
+import { conNodos, useI18n } from '../../i18n';
 
 export default function GameCard({
   item,
@@ -16,6 +17,7 @@ export default function GameCard({
   item: BsbGameWithPrediction;
   onOpenTeam: (league: string, id: string) => void;
 }) {
+  const { t } = useI18n();
   // The starting pitchers the user has chosen, and the prediction the server
   // returns for them. Held here because EVERYTHING on the card comes out of the
   // same run distribution: change a starter and the winner, the total, the run
@@ -57,10 +59,10 @@ export default function GameCard({
       <div className="mb-3 flex items-center justify-between gap-2 text-[13px] text-(--ink-muted)">
         <MatchTime iso={game.commence_time} />
         <div className="flex items-center gap-1.5">
-          {dirty && <Badge tone="accent">{adjusting ? 'recalculando…' : 'con tu abridor'}</Badge>}
+          {dirty && <Badge tone="accent">{adjusting ? t('eq.recalculando') : t('bsc.conAbridor')}</Badge>}
           {!startersAnnounced && prediction && (
-            <Badge title="Ningún feed ha anunciado los abridores; se usa el número uno de cada rotación">
-              abridores estimados
+            <Badge title={t('bsc.estimadosTitulo')}>
+              {t('bsc.estimados')}
             </Badge>
           )}
           {cansados > 0 && (
@@ -68,13 +70,13 @@ export default function GameCard({
               tone="warning"
               title={[bullpen?.home, bullpen?.away]
                 .flatMap((b) => b?.cansados ?? [])
-                .map((c) => `${c.nombre}: ${c.apariciones3d} salidas y ${c.lanzamientos3d} lanzamientos en 3 días`)
+                .map((c) => t('bsc.cansado', { nombre: c.nombre, a: c.apariciones3d, l: c.lanzamientos3d }))
                 .join(' · ')}
             >
-              bullpen cargado · {cansados}
+              {t('bsc.bullpen', { n: cansados })}
             </Badge>
           )}
-          {game.source === 'fixture' && <Badge tone="warning">partido demo</Badge>}
+          {game.source === 'fixture' && <Badge tone="warning">{t('eq.partidoDemo')}</Badge>}
         </div>
       </div>
       <ClimaPanel clima={item.clima} />
@@ -134,19 +136,19 @@ export default function GameCard({
           <div className="flex items-end justify-between gap-3">
             <HeroStat
               value={pct(probs.away)}
-              label="Visitante"
+              label={t('eq.visitante')}
               sub={[
-                prediction ? `${prediction.runs.expectedAway} carreras esp.` : null,
-                game.odds_away ? `cuota ${game.odds_away}` : null,
+                prediction ? t('bsc.carrerasEsp', { n: prediction.runs.expectedAway }) : null,
+                game.odds_away ? t('tt.cuota', { c: game.odds_away }) : null,
               ].filter(Boolean).join(' · ') || undefined}
               color={AWAY_COLOR}
             />
             <HeroStat
               value={pct(probs.home)}
-              label="Local"
+              label={t('eq.local')}
               sub={[
-                prediction ? `${prediction.runs.expectedHome} carreras esp.` : null,
-                game.odds_home ? `cuota ${game.odds_home}` : null,
+                prediction ? t('bsc.carrerasEsp', { n: prediction.runs.expectedHome }) : null,
+                game.odds_home ? t('tt.cuota', { c: game.odds_home }) : null,
               ].filter(Boolean).join(' · ') || undefined}
               color={HOME_COLOR}
               align="right"
@@ -169,7 +171,7 @@ export default function GameCard({
           </div>
           {!fromModel && (
             <p className="mt-2 text-center text-[13px] text-amber-300/90">
-              Probabilidades implícitas del mercado, no del modelo.
+              {t('eq.implicitasNoModelo')}
             </p>
           )}
 
@@ -189,15 +191,21 @@ export default function GameCard({
               {prediction.park && Math.abs(prediction.park.factor - 1) >= 0.02 && (
                 <p className="mt-2 text-[14px] leading-snug text-(--ink-soft)">
                   <span aria-hidden className="mr-1.5 inline-flex align-[-3px] text-(--ink-soft)"><StadiumIcon size={16} /></span>
-                  <strong className="font-semibold text-(--ink-body)">{prediction.park.name}</strong>{' '}
-                  {prediction.park.runsVsNeutral > 0 ? 'sube' : 'baja'} el total{' '}
-                  <strong className="font-semibold tabular-nums text-(--ink-body)">
-                    {prediction.park.runsVsNeutral > 0 ? '+' : ''}
-                    {prediction.park.runsVsNeutral}
-                  </strong>{' '}
-                  carreras ({Math.round((prediction.park.factor - 1) * 100) > 0 ? '+' : ''}
-                  {Math.round((prediction.park.factor - 1) * 100)} %, medido en{' '}
-                  {prediction.park.games} partidos allí). Ya está dentro de las carreras esperadas.
+                  {conNodos(
+                    t(prediction.park.runsVsNeutral > 0 ? 'bsc.estadioSube' : 'bsc.estadioBaja', {
+                      pct: `${Math.round((prediction.park.factor - 1) * 100) > 0 ? '+' : ''}${Math.round((prediction.park.factor - 1) * 100)}`,
+                      g: prediction.park.games,
+                    }),
+                    {
+                      estadio: <strong className="font-semibold text-(--ink-body)">{prediction.park.name}</strong>,
+                      n: (
+                        <strong className="font-semibold tabular-nums text-(--ink-body)">
+                          {prediction.park.runsVsNeutral > 0 ? '+' : ''}
+                          {prediction.park.runsVsNeutral}
+                        </strong>
+                      ),
+                    },
+                  )}
                 </p>
               )}
 
@@ -205,18 +213,23 @@ export default function GameCard({
                 <p className="min-w-0 text-[15px] leading-snug text-(--ink-body)">
                   {prediction.verdict.close ? (
                     <>
-                      Muy igualado —{' '}
-                      <strong className="font-semibold text-(--ink-strong)">
-                        {prediction.verdict.label}
-                      </strong>{' '}
-                      solo por poco
+                      {conNodos(t('bsc.igualado'), {
+                        cual: (
+                          <strong className="font-semibold text-(--ink-strong)">
+                            {prediction.verdict.label}
+                          </strong>
+                        ),
+                      })}
                     </>
                   ) : (
                     <>
-                      Lo más probable:{' '}
-                      <strong className="font-semibold text-(--ink-strong)">
-                        {prediction.verdict.label}
-                      </strong>
+                      {conNodos(t('fbc.loMasProbable'), {
+                        cual: (
+                          <strong className="font-semibold text-(--ink-strong)">
+                            {prediction.verdict.label}
+                          </strong>
+                        ),
+                      })}
                     </>
                   )}
                 </p>
@@ -230,11 +243,13 @@ export default function GameCard({
                       while the panel above it said, in words, that those odds come
                       from the model and comparing them says nothing. */}
                   {realMarket(game.source) && prediction.market.verdict.startsWith('value_') && (
-                    <Badge tone="good" title="El modelo da más probabilidad que el mercado">
-                      Value:{' '}
-                      {prediction.market.verdict === 'value_home'
-                        ? prediction.teams.home.name
-                        : prediction.teams.away.name}
+                    <Badge tone="good" title={t('eq.valueTitulo')}>
+                      {t('eq.value', {
+                        nombre:
+                          prediction.market.verdict === 'value_home'
+                            ? prediction.teams.home.name
+                            : prediction.teams.away.name,
+                      })}
                     </Badge>
                   )}
                   <ReliabilityChip
@@ -242,8 +257,8 @@ export default function GameCard({
                     label={prediction.reliability.label}
                     marginPp={prediction.reliability.marginPp}
                     title={[
-                      `Margen de incertidumbre: ±${prediction.reliability.marginPp} pp.`,
-                      `Partidos tras cada Elo: ${prediction.reliability.gamesBehind.home} y ${prediction.reliability.gamesBehind.away}.`,
+                      t('eq.margenPp', { pp: prediction.reliability.marginPp }),
+                      t('eq.trasCadaElo', { a: prediction.reliability.gamesBehind.home, b: prediction.reliability.gamesBehind.away }),
                       ...prediction.reliability.reasons,
                     ].join('\n')}
                   />
@@ -255,27 +270,27 @@ export default function GameCard({
               </div>
               <EventTrustPanel confianza={item.confianza} prePartido={item.prePartido} />
               <div className="mt-1">
-                <Disclosure summary="¿Por qué? · carreras, abridores, marcadores y mercado">
+                <Disclosure summary={t('bsc.porQue')}>
                   <StatRow>
                 <StatTile
-                  label="Carreras esp."
+                  label={t('bsc.carrerasEspCorto')}
                   value={`${prediction.runs.expectedAway} – ${prediction.runs.expectedHome}`}
-                  hint={`total ${prediction.runs.expectedTotal}`}
+                  hint={t('fbc.total', { n: prediction.runs.expectedTotal })}
                 />
                 <StatTile
-                  label="Marcador"
+                  label={t('fbc.marcador')}
                   value={`${prediction.runs.scorelines[0].away}-${prediction.runs.scorelines[0].home}`}
-                  hint={`más probable · ${pct(prediction.runs.scorelines[0].probability)}`}
+                  hint={t('fbc.masProbable', { p: pct(prediction.runs.scorelines[0].probability) })}
                 />
                 <StatTile
-                  label={`+${prediction.runs.totalLine} carreras`}
+                  label={t('bsc.masCarreras', { n: prediction.runs.totalLine })}
                   value={pct(prediction.runs.over)}
                   hint={`−${prediction.runs.totalLine}: ${pct(prediction.runs.under)}`}
                 />
                 <StatTile
-                  label="Línea −1.5"
+                  label={t('bsc.linea')}
                   value={pct(prediction.runs.runLine.homeCovers)}
-                  hint="local por 2+"
+                  hint={t('bsc.localPor2')}
                 />
               </StatRow>
                   <Detail

@@ -20,6 +20,7 @@ import {
 import GameCard from './GameCard';
 import EloRanking from '../EloRanking';
 import { formatDate, formatDateTime, dayChipLabel, groupByDay } from '../../lib/format';
+import { conNodos, localeDe, useI18n, type Traducir } from '../../i18n';
 
 /**
  * The whole baseball tab. Holds its own state and talks only to /api/baseball/*,
@@ -27,6 +28,7 @@ import { formatDate, formatDateTime, dayChipLabel, groupByDay } from '../../lib/
  * this one is mounted.
  */
 export default function BaseballDashboard() {
+  const { t: tr, idioma } = useI18n();
   const [meta, setMeta] = useState<BsbMeta | null>(null);
   const [leagues, setLeagues] = useState<BsbLeague[]>([]);
   const [league, setLeague] = useLigaEnRuta('/beisbol', 'predictor.baseball.league');
@@ -49,7 +51,7 @@ export default function BaseballDashboard() {
         setLeagues(l);
       })
       .catch((e) =>
-        setError(`No se pudo cargar el béisbol. ¿Ejecutaste "npm run update-data:bsb"? (${e})`),
+        setError(tr('bsb.errorCargar', { error: String(e) })),
       );
   }, []);
 
@@ -99,17 +101,17 @@ export default function BaseballDashboard() {
       setLeagues(l);
       setGames(g);
     } catch (e) {
-      setError(`No se pudo actualizar: ${e}`);
+      setError(tr('comun.errorActualizar', { error: String(e) }));
     } finally {
       setRefreshing(false);
     }
   }
 
   // Grouped by the reader's own local day, and filtered to one of them if asked.
-  const dayGroups = useMemo(() => groupByDay(games, (g) => g.game.commence_time), [games]);
+  const dayGroups = useMemo(() => groupByDay(games, (g) => g.game.commence_time, idioma), [games, idioma]);
   const dayChips = useMemo(
-    () => dayGroups.map((d) => ({ key: d.key, label: dayChipLabel(d.key), count: d.items.length })),
-    [dayGroups],
+    () => dayGroups.map((d) => ({ key: d.key, label: dayChipLabel(d.key, new Date(), idioma), count: d.items.length })),
+    [dayGroups, idioma],
   );
   const shownGroups = day ? dayGroups.filter((d) => d.key === day) : dayGroups;
 
@@ -138,25 +140,23 @@ export default function BaseballDashboard() {
       <DashboardHeader
         onRefresh={handleRefresh}
         refreshing={refreshing}
-        refreshTitle="Vuelve a consultar los partidos próximos, sus cuotas y los abridores anunciados"
+        refreshTitle={tr('bsb.refrescarTitulo')}
         chips={
           meta && (
             <>
-              {meta.counts.games.toLocaleString('es')} partidos · {meta.counts.teams} equipos
+              {tr('eq.chipsEquipos', { partidos: meta.counts.games.toLocaleString(localeDe(idioma)), equipos: meta.counts.teams })}
             </>
           )
         }
         alert={staleLabel(stale)}
       >
         <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
-          Predicción con Elo por equipo, ventaja de campo, el <strong>lanzador abridor</strong>, el
-          factor del estadio y una distribución de carreras que produce ganador, total y línea de una
-          sola vez.
+          {conNodos(tr('bsb.lema'), { abridor: <strong>{tr('bsb.abridor')}</strong> })}
         </p>
         {meta && <DataLine meta={meta} />}
         <StaleHistoryWarning
           info={stale}
-          what="Los Elo y la distribución de carreras"
+          what={tr('bsb.elos')}
           fix="npm run update-data:bsb"
         />
         {league && <TrackRecordPanel league={league} />}
@@ -195,33 +195,30 @@ export default function BaseballDashboard() {
                 <LeagueFlag country={l.country} className="mr-1.5" />
               {l.name}
               {l.upcomingCount > 0 && <span className="ml-1.5 opacity-60">{l.upcomingCount}</span>}
-              {!l.hasModel && <span className="ml-1.5 text-amber-400" title="Sin modelo Elo">◦</span>}
+              {!l.hasModel && <span className="ml-1.5 text-amber-400" title={tr('eq.sinModeloElo')}>◦</span>}
             </button>
           ))}
         </div>
       ) : (
         <div className="mb-6 rounded-xl border border-rose-500/25 bg-rose-500/[0.06] p-5 text-[15px] text-rose-200">
-          <p className="font-medium">No hay datos de béisbol todavía.</p>
+          <p className="font-medium">{tr('bsb.sinDatos')}</p>
           <p className="mt-1 text-rose-300/90">
-            Ejecuta <code className="rounded bg-rose-900/40 px-1">npm run update-data:bsb</code> para
-            descargar equipos, resultados, lanzadores y partidos próximos.
+            {conNodos(tr('bsb.sinDatosCuerpo'), { cmd: <code className="rounded bg-rose-900/40 px-1">npm run update-data:bsb</code> })}
           </p>
         </div>
       )}
 
       {activeLeague && !activeLeague.hasModel && (
         <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] p-3 text-[15px] leading-relaxed text-amber-200/90">
-          <strong>{activeLeague.name} sin modelo propio.</strong> No existe un archivo abierto,
-          partido a partido, para esta liga —y menos aún con el abridor de cada encuentro, que es lo
-          que de verdad hace falta en béisbol—, así que se muestran los partidos y las
-          probabilidades <em>implícitas del mercado</em>.
+          <strong>{tr('bsb.sinModeloTitulo', { liga: activeLeague.name })}</strong>{' '}
+          {conNodos(tr('bsb.sinModeloCuerpo'), { implicitas: <em>{tr('eq.implicitasMercado')}</em> })}
         </div>
       )}
 
       {loading ? (
         <SkeletonList />
       ) : games.length === 0 ? (
-        <EmptySlate what={activeLeague?.name ?? 'esta liga'} reason="sin-partidos" />
+        <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
@@ -251,7 +248,7 @@ export default function BaseballDashboard() {
       )}
 
       <EloRanking
-        title={`Todos los equipos · ${activeLeague?.name ?? ''}`}
+        title={tr('eq.todosLosEquipos', { liga: activeLeague?.name ?? '' })}
         rows={power.map((t) => ({
           id: t.id,
           name: t.name ?? t.id,
@@ -260,18 +257,14 @@ export default function BaseballDashboard() {
           badge: <TeamCrest league={league!} name={t.name ?? t.id} code={t.id} size={16} />,
           onOpen: () => setTeam({ league: league!, id: t.id }),
           extra: [
-            { label: 'CF/p', value: t.rs?.toFixed(2) ?? '—', title: 'Carreras a favor por partido' },
-            { label: 'CC/p', value: t.ra?.toFixed(2) ?? '—', title: 'Carreras en contra por partido' },
-            { label: 'Partidos', value: String(t.games), title: 'Partidos que respaldan el Elo' },
+            { label: tr('bsb.cfp'), value: t.rs?.toFixed(2) ?? '—', title: tr('bsb.cfpTitulo') },
+            { label: tr('bsb.ccp'), value: t.ra?.toFixed(2) ?? '—', title: tr('bsb.ccpTitulo') },
+            { label: tr('bsb.partidos'), value: String(t.games), title: tr('bsb.partidosTitulo') },
           ],
         }))}
-        extraHeaders={['CF/p', 'CC/p', 'Partidos']}
+        extraHeaders={[tr('bsb.cfp'), tr('bsb.ccp'), tr('bsb.partidos')]}
         footer={
-          <>
-            El béisbol es el deporte con más azar por partido de los cinco, así que sus Elo se
-            aprietan más que los del resto: 50 puntos de diferencia aquí ya son muchos. Por eso
-            el porcentaje contra un rival medio rara vez se aleja del 55 %.
-          </>
+          <>{tr('bsb.eloPie')}</>
         }
       />
     </div>
@@ -292,64 +285,62 @@ export default function BaseballDashboard() {
  * than being called empty. (The tennis tab already got this right — this is the
  * check it had and baseball did not.)
  */
-function originBadge(meta: BsbMeta): { text: string; className: string; title: string } {
+function originBadge(meta: BsbMeta, t: Traducir): { text: string; className: string; title: string } {
   if (meta.counts.games === 0) {
     return {
-      text: 'sin datos',
+      text: t('td.sinDatos'),
       className: 'bg-rose-900/40 text-rose-300',
-      title: 'La base está vacía. Ejecuta npm run update-data:bsb.',
+      title: t('bsb.origen.vaciaTitulo'),
     };
   }
   if (meta.dataSource === 'retrosheet') {
     return {
-      text: 'datos reales (Retrosheet)',
+      text: t('bsb.origen.retrosheet'),
       className: 'bg-emerald-900/40 text-emerald-300',
-      title: 'Jugada a jugada desde los ficheros de eventos de Retrosheet.',
+      title: t('bsb.origen.retrosheetTitulo'),
     };
   }
   if (meta.dataSource === 'seed') {
     return {
-      text: 'datos demo',
+      text: t('td.datosDemo'),
       className: 'bg-amber-900/40 text-amber-300',
-      title: 'Partidos sintéticos. Ejecuta npm run update-data:bsb para datos reales.',
+      title: t('bsb.origen.demoTitulo'),
     };
   }
   return {
-    text: 'origen sin registrar',
+    text: t('bsb.origen.sinRegistrar'),
     className: 'bg-(--raised) text-(--ink-soft)',
-    title:
-      'Hay partidos en la base, pero nada anotó de dónde salieron. Ejecuta ' +
-      'npm run update-data:bsb para dejarlo registrado.',
+    title: t('bsb.origen.sinRegistrarTitulo'),
   };
 }
 
 function DataLine({ meta }: { meta: BsbMeta }) {
-  const origin = originBadge(meta);
+  const { t, idioma } = useI18n();
+  const origin = originBadge(meta, t);
   return (
     <div className="mt-2 space-y-1 text-[14px] text-(--ink-muted)">
       <p>
         <span className={`rounded px-1.5 py-0.5 ${origin.className}`} title={origin.title}>
           {origin.text}
         </span>{' '}
-        · {meta.counts.games.toLocaleString('es')} partidos · {meta.counts.teams} equipos
-        {meta.updatedAt && <> · actualizado {formatDate(meta.updatedAt.slice(0, 10).replace(/-/g, ''))}</>}
+        {t('bsb.lineaDatos', { partidos: meta.counts.games.toLocaleString(localeDe(idioma)), equipos: meta.counts.teams })}
+        {meta.updatedAt && <>{t('bsb.actualizado', { fecha: formatDate(meta.updatedAt.slice(0, 10).replace(/-/g, '')) })}</>}
       </p>
       <p>
-        {meta.oddsRefreshedAt && <>Cuotas: {formatDateTime(meta.oddsRefreshedAt)} · </>}
+        {meta.oddsRefreshedAt && <>{t('bsb.cuotasFecha', { fecha: formatDateTime(meta.oddsRefreshedAt, idioma) })}</>}
         {meta.probables > 0 ? (
-          <>abridores anunciados para {meta.probables} partidos</>
+          <>{t('bsb.abridoresAnunciados', { n: meta.probables })}</>
         ) : (
-          <>
-            sin feed de abridores: se usa el número uno de cada rotación y la tarjeta lo indica
-          </>
+          <>{t('bsb.sinFeed')}</>
         )}
-        {!meta.hasOddsKey && <> · configura ODDS_API_KEY para cuotas reales</>}
+        {!meta.hasOddsKey && <>{t('eq.configuraCuotas')}</>}
       </p>
     </div>
   );
 }
 
 function TrackRecordPanel({ league }: { league: string }) {
+  const { t } = useI18n();
   const [rec, setRec] = useState<BsbTrackRecord | null>(null);
   const [open, setOpen] = useState(false);
   useEffect(() => {
@@ -361,15 +352,15 @@ function TrackRecordPanel({ league }: { league: string }) {
     <div className="mt-3 rounded-xl border border-(--line) bg-(--tint) p-3 text-[14px]">
       <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between">
         <span className="text-(--ink-body)">
-          <span className="uppercase tracking-wide text-(--ink-muted)">Cómo va acertando</span>{' '}
+          <span className="uppercase tracking-wide text-(--ink-muted)">{t('bsbt.titulo')}</span>{' '}
           {rec.resolved > 0 ? (
             <>
-              — {rec.resolved} predicciones resueltas
-              {rec.accuracy != null && <>, {(rec.accuracy * 100).toFixed(1)}% de acierto</>}
+              {t('bsbt.resueltas', { n: rec.resolved })}
+              {rec.accuracy != null && <>{t('bsbt.acierto', { p: (rec.accuracy * 100).toFixed(1) })}</>}
               {rec.brier != null && <> · Brier {rec.brier.toFixed(4)}</>}
             </>
           ) : (
-            <>— {rec.pending} pendientes de jugarse</>
+            <>{t('bsbt.pendientes', { n: rec.pending })}</>
           )}
         </span>
         <span className="text-(--ink-faint)">{open ? '▲' : '▼'}</span>
@@ -378,18 +369,18 @@ function TrackRecordPanel({ league }: { league: string }) {
         <div className="mt-2 space-y-2 border-t border-(--line) pt-2 text-(--ink-body)">
           {rec.totalMae != null && (
             <p>
-              Error del total de carreras: {rec.totalMae.toFixed(2)}
+              {t('bsbt.errorTotal', { n: rec.totalMae.toFixed(2) })}
               {rec.totalBias != null && (
-                <> · sesgo {rec.totalBias >= 0 ? '+' : ''}{rec.totalBias.toFixed(2)}</>
+                <>{t('bsbt.sesgo', { n: `${rec.totalBias >= 0 ? '+' : ''}${rec.totalBias.toFixed(2)}` })}</>
               )}
             </p>
           )}
           {rec.byStarterKnown.length > 0 && (
             <div>
-              <div className="text-(--ink-muted)">Según se supieran los abridores:</div>
+              <div className="text-(--ink-muted)">{t('bsbt.segunAbridores')}</div>
               {rec.byStarterKnown.map((b) => (
                 <div key={String(b.known)} className="flex justify-between">
-                  <span>{b.known ? 'anunciados' : 'estimados'} ({b.n})</span>
+                  <span>{b.known ? t('bsbt.anunciados') : t('bsbt.estimados')} ({b.n})</span>
                   <span className="tabular-nums">
                     {b.accuracy != null ? `${(b.accuracy * 100).toFixed(1)}%` : '—'}
                     {b.brier != null && ` · Brier ${b.brier.toFixed(4)}`}
@@ -400,13 +391,15 @@ function TrackRecordPanel({ league }: { league: string }) {
           )}
           {rec.vsMarket && (
             <p>
-              Contra el mercado ({rec.vsMarket.n}): modelo Brier{' '}
-              {rec.vsMarket.modelBrier?.toFixed(4) ?? '—'} vs mercado{' '}
-              {rec.vsMarket.marketBrier?.toFixed(4) ?? '—'}
+              {t('bsbt.vsMercado', {
+                n: rec.vsMarket.n,
+                m: rec.vsMarket.modelBrier?.toFixed(4) ?? '—',
+                k: rec.vsMarket.marketBrier?.toFixed(4) ?? '—',
+              })}
             </p>
           )}
           <p className="text-(--ink-muted)">
-            Solo cuenta lo que la app dijo ANTES de cada partido y nunca se reescribe.
+            {t('bsbt.soloAntes')}
           </p>
         </div>
       )}

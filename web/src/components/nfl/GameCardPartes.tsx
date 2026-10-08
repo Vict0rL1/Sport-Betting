@@ -4,6 +4,7 @@ import { AWAY_COLOR, HOME_COLOR, NEUTRAL_COLOR, pct } from '../../lib/theme';
 import { PostprocessPanel } from '../PostprocessPanel';
 import { BarRow, CompareRow, FactorValue, FormDots, Panel, SectionTitle, TeamCrest } from '../ui';
 import { ClimaPanel } from '../ClimaPanel';
+import { useI18n } from '../../i18n';
 
 export const twoWay = (m: { home: number; away: number }): { home: number; away: number } => ({
   home: m.home / (m.home + m.away),
@@ -20,18 +21,19 @@ export const fmtLine = (l: number) => (l === 0 ? 'PK' : `${l > 0 ? '+' : ''}${l}
  * numbers, and the point is the comparison between them.
  */
 export function KeyNumbers({ prediction }: { prediction: NflPrediction }) {
+  const { t } = useI18n();
   const three = prediction.keyNumbers.find((k) => k.margin === 3)?.probability ?? 0;
   const seven = prediction.keyNumbers.find((k) => k.margin === 7)?.probability ?? 0;
   return (
     <div className="mt-3 border-b border-(--line) pb-3">
-      <SectionTitle right={`3 o 7: ${pct(three + seven)}`}>
-        El margen cae justo en…
+      <SectionTitle right={t('nfld.tresOSiete', { p: pct(three + seven) })}>
+        {t('nfld.margenCae')}
       </SectionTitle>
       <div className="flex flex-wrap gap-x-5 gap-y-2">
         {prediction.keyNumbers.map((k) => (
           <div key={k.margin} className="min-w-0">
             <div className="text-[11px] font-medium uppercase tracking-[0.06em] text-(--ink-muted)">
-              {k.margin} puntos
+              {t('nfld.nPuntos', { n: k.margin })}
             </div>
             <div className="text-[16px] font-semibold tabular-nums text-(--ink-strong)">
               {pct(k.probability)}
@@ -40,8 +42,7 @@ export function KeyNumbers({ prediction }: { prediction: NflPrediction }) {
         ))}
       </div>
       <p className="mt-1.5 text-[11px] leading-relaxed text-(--ink-muted)">
-        En la NFL el marcador se mueve de 3 en 3 y de 7 en 7, así que el margen final se amontona en
-        esos números. Por eso una línea de −3 y una de −3.5 no son la misma apuesta.
+        {t('nfld.numerosClave')}
       </p>
     </div>
   );
@@ -60,6 +61,7 @@ export function TeamName({
   homeBadge?: boolean;
   onClick?: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className={`min-w-0 flex-1 ${alignRight ? 'text-right' : ''}`}>
       <span className={`flex min-w-0 items-center gap-1.5 ${alignRight ? 'justify-end' : ''}`}>
@@ -77,14 +79,14 @@ export function TeamName({
           className={`max-w-full text-left text-[17px] font-semibold leading-tight break-words text-(--ink-strong) ${
             alignRight ? 'text-right' : ''
           } ${onClick ? 'hover:underline' : 'cursor-default'}`}
-          title={onClick ? 'Ver ficha del equipo' : name}
+          title={onClick ? t('eq.verFicha') : name}
         >
           {name}
         </button>
         {alignRight && <TeamCrest league={league} name={name} code={id} />}
       </span>
       <div className="text-[13px] text-(--ink-muted)">
-        {homeBadge && 'local · '}
+        {homeBadge && t('eq.localPunto')}
         {elo != null && (
           <>
             Elo {Math.round(elo)}
@@ -98,6 +100,7 @@ export function TeamName({
 }
 
 export function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: import('../../lib/clima').ClimaFicha | null }) {
+  const { t } = useI18n();
   const { teams, spread, total, bands, scorelines, h2h, market, reasoning, summary, context } =
     prediction;
   const home = teams.home;
@@ -109,7 +112,7 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
   return (
     <div className="space-y-3">
       <Panel>
-        <SectionTitle>Por qué</SectionTitle>
+        <SectionTitle>{t('det.porQue')}</SectionTitle>
         <p className="mb-2 text-[15px] leading-relaxed text-(--ink-body)">{reasoning.text}</p>
         <dl className="space-y-1 text-[13px]">
           {reasoning.factors.map((f) => (
@@ -121,8 +124,8 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
                   neutral={f.pointsForHome === 0}
                 >
                   {f.pointsForHome === 0
-                    ? '0 (neutral)'
-                    : `${Math.abs(f.pointsForHome)} pts para ${f.pointsForHome > 0 ? home.name : away.name}`}
+                    ? t('eq.neutral')
+                    : t('nfld.ptsPara', { n: Math.abs(f.pointsForHome), equipo: f.pointsForHome > 0 ? home.name : away.name })}
                 </FactorValue>
               </dd>
             </div>
@@ -138,7 +141,7 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
           the forecast is stale and one who only suspects it. */}
       {(prediction.quarterbacks.home || prediction.quarterbacks.away) && (
         <Panel>
-          <SectionTitle right="quien jugó el último partido">Quarterback titular</SectionTitle>
+          <SectionTitle right={t('nfld.ultimoPartido')}>{t('nfld.qbTitular')}</SectionTitle>
           <dl className="space-y-1 text-[13px]">
             {([
               ['home', home.name, prediction.quarterbacks.home, HOME_COLOR],
@@ -146,7 +149,7 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
             ] as const).map(([key, teamName, qb, color]) => (
               <div key={key} className="flex justify-between gap-3">
                 <dt className="text-(--ink-soft)">
-                  {qb?.name ?? 'sin dato'}{' '}
+                  {qb?.name ?? t('nfld.sinDato')}{' '}
                   <span className="text-(--ink-faint)">· {teamName}</span>
                 </dt>
                 <dd>
@@ -154,17 +157,15 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
                     {!qb
                       ? '—'
                       : qb.points === 0
-                        ? 'nivel medio de la liga'
-                        : `${qb.points > 0 ? '+' : ''}${qb.points} pts · ${qb.starts} titularidades`}
+                        ? t('nfld.nivelMedio')
+                        : t('nfld.qbPts', { p: `${qb.points > 0 ? '+' : ''}${qb.points}`, n: qb.starts })}
                   </FactorValue>
                 </dd>
               </div>
             ))}
           </dl>
           <p className="mt-2 text-[13px] leading-relaxed text-(--ink-muted)">
-            Medido sobre 27 temporadas: el 52% de los equipos usa más de un titular por temporada, así
-            que quién juega de quarterback mueve el pronóstico. Si sabes que hay un cambio esta semana,
-            el modelo aún no lo sabe.
+            {t('nfld.qbNota')}
           </p>
         </Panel>
       )}
@@ -175,8 +176,8 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
       {/* The handicap at the two lines the whole market is built around, priced
           at any line the reader might be looking at. */}
       <Panel>
-        <SectionTitle right={spread.fromMarket ? 'línea del mercado' : 'línea del modelo'}>
-          El hándicap, línea por línea
+        <SectionTitle right={spread.fromMarket ? t('nfld.lineaMercado') : t('nfld.lineaModelo')}>
+          {t('nfld.handicapLinea')}
         </SectionTitle>
         <div className="space-y-1 text-[13px]">
           {spread.keyLines.map((q) => (
@@ -184,13 +185,12 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
           ))}
         </div>
         <p className="mt-1.5 text-[11px] leading-relaxed text-(--ink-muted)">
-          «Nulo» es la probabilidad de que el margen caiga justo en la línea y te devuelvan la
-          apuesta. En una línea entera de 3 puntos eso pasa una de cada trece veces.
+          {t('nfld.nuloExplica')}
         </p>
       </Panel>
 
       <Panel>
-        <SectionTitle right={`${total.expected} esperados`}>Total de puntos</SectionTitle>
+        <SectionTitle right={t('nfld.esperados', { n: total.expected })}>{t('nfld.totalPuntos')}</SectionTitle>
         <div className="flex items-center gap-3 text-[13px]">
           <span className="w-16 shrink-0 text-(--ink-soft)">Over {total.line}</span>
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-(--raised)">
@@ -206,7 +206,7 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
       </Panel>
 
       <Panel>
-        <SectionTitle>Por cuánto gana</SectionTitle>
+        <SectionTitle>{t('bkc.porCuanto')}</SectionTitle>
         <div className="space-y-1">
           {bands.map((b) => (
             <BarRow
@@ -226,13 +226,12 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
           ))}
         </div>
         <p className="mt-1.5 text-[11px] leading-relaxed text-(--ink-muted)">
-          Los tramos son de una, dos y tres anotaciones: «dentro de una anotación» es la frase con la
-          que se sigue el último cuarto.
+          {t('nfld.tramos')}
         </p>
       </Panel>
 
       <Panel>
-        <SectionTitle>Marcadores más probables</SectionTitle>
+        <SectionTitle>{t('fbc.marcadoresProbables')}</SectionTitle>
         <div className="space-y-1">
           {scorelines.map((s) => (
             <BarRow
@@ -246,13 +245,12 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
           ))}
         </div>
         <p className="mt-1.5 text-[11px] leading-relaxed text-(--ink-muted)">
-          Salen de combinar el margen y el total, así que cuadran exactamente con los dos paneles de
-          arriba. A cambio, no saben que 22 puntos es un marcador raro y 24 uno corriente.
+          {t('nfld.combinar')}
         </p>
       </Panel>
 
       <Panel>
-        <SectionTitle>Los dos equipos</SectionTitle>
+        <SectionTitle>{t('eq.losDosEquipos')}</SectionTitle>
         <dl className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-[13px]">
           <div />
           <div className="flex w-20 items-center justify-end gap-1.5 font-medium text-(--ink-strong)">
@@ -264,22 +262,22 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
             <TeamCrest league={prediction.league} name={home.name} code={home.id} size={14} />
           </div>
           <CompareRow label="Elo" left={Math.round(away.elo)} right={Math.round(home.elo)} />
-          <CompareRow label="Puntos a favor / partido" left={away.pf ?? '—'} right={home.pf ?? '—'} />
-          <CompareRow label="Puntos en contra / partido" left={away.pa ?? '—'} right={home.pa ?? '—'} />
+          <CompareRow label={t('nfld.pfPartido')} left={away.pf ?? '—'} right={home.pf ?? '—'} />
+          <CompareRow label={t('nfld.paPartido')} left={away.pa ?? '—'} right={home.pa ?? '—'} />
           <CompareRow
-            label="Balance"
+            label={t('nfld.balance')}
             left={`${away.record.wins}-${away.record.losses}${away.record.ties ? `-${away.record.ties}` : ''}`}
             right={`${home.record.wins}-${home.record.losses}${home.record.ties ? `-${home.record.ties}` : ''}`}
           />
           <CompareRow
-            label="Pitagórico"
-            title="Victorias que sugieren los puntos anotados y encajados (exponente 2.37, el de la NFL)"
+            label={t('bsd.pitagorico')}
+            title={t('nfld.pitagoricoTitulo')}
             left={away.pythagorean != null ? pct(away.pythagorean) : '—'}
             right={home.pythagorean != null ? pct(home.pythagorean) : '—'}
           />
           <CompareRow
-            label="Últimos 5"
-            title="Azul = ganado · gris = empatado · naranja = perdido"
+            label={t('eq.ultimos5')}
+            title={t('nfld.coloresForma')}
             left={<FormDots results={away.last5} colors={formColors} />}
             right={<FormDots results={home.last5} colors={formColors} />}
           />
@@ -288,16 +286,16 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
 
       <Panel>
         <SectionTitle right={`${h2h.awayWins} · ${h2h.homeWins} (${h2h.total})`}>
-          Historial directo
+          {t('eq.historialDirecto')}
         </SectionTitle>
         {h2h.recent.length === 0 ? (
-          <p className="text-[13px] text-(--ink-muted)">Sin enfrentamientos previos en el archivo.</p>
+          <p className="text-[13px] text-(--ink-muted)">{t('nfld.sinEnfrentamientos')}</p>
         ) : (
           <ul className="space-y-1 text-[13px]">
             {h2h.recent.map((m, i) => (
               <li key={i} className="flex justify-between gap-3 text-(--ink-body)">
                 <span className="shrink-0 text-(--ink-muted)">
-                  {m.season} · sem {m.week}
+                  {t('nfld.temporadaSemana', { s: m.season, w: m.week })}
                 </span>
                 <span className="break-words text-right">
                   {m.awayId === away.id ? away.name : home.name} {m.awayPoints}–{m.homePoints}{' '}
@@ -310,12 +308,12 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
       </Panel>
 
       <Panel>
-        <SectionTitle>De dónde sale este número</SectionTitle>
+        <SectionTitle>{t('eq.deDondeNumero')}</SectionTitle>
         <PostprocessPanel
           postprocess={prediction.postprocess}
           rows={[
-            { label: 'Local', raw: twoWay(prediction.model).home, final: prediction.final.home },
-            { label: 'Visitante', raw: twoWay(prediction.model).away, final: prediction.final.away },
+            { label: t('eq.local'), raw: twoWay(prediction.model).home, final: prediction.final.home },
+            { label: t('eq.visitante'), raw: twoWay(prediction.model).away, final: prediction.final.away },
           ]}
         />
       </Panel>
@@ -325,30 +323,35 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
           <SectionTitle
             right={
               market.market.overround != null
-                ? `margen ${((market.market.overround - 1) * 100).toFixed(1)}%`
-                : 'de la línea de cierre'
+                ? t('eq.margenPct', { p: ((market.market.overround - 1) * 100).toFixed(1) })
+                : t('nfld.deCierre')
             }
           >
-            Mercado
+            {t('eq.mercado')}
           </SectionTitle>
           {market.market.odds ? (
             <p className="text-[13px] leading-relaxed text-(--ink-body)">
-              Cuotas {market.market.odds.away} / {market.market.odds.home} · implícitas sin vig{' '}
-              {pct(market.market.away)} / {pct(market.market.home)}
+              {t('bsd.cuotasLinea', {
+                a: market.market.odds.away,
+                h: market.market.odds.home,
+                pa: pct(market.market.away),
+                ph: pct(market.market.home),
+              })}
             </p>
           ) : (
             <>
               <p className="text-[13px] leading-relaxed text-(--ink-body)">
-                Línea de cierre {market.market.line! > 0 ? '+' : ''}
-                {market.market.line} → {pct(market.market.away)} / {pct(market.market.home)}
+                {t('nfld.lineaCierre', {
+                  linea: `${market.market.line! > 0 ? '+' : ''}${market.market.line}`,
+                  pa: pct(market.market.away),
+                  ph: pct(market.market.home),
+                })}
               </p>
               {/* Said on the card and not only in the docs, because it changes how the
                   number above it should be read: on this sport the market is the better
                   forecast, and the reader is entitled to know that before comparing. */}
               <p className="mt-1.5 text-[12px] leading-relaxed text-(--ink-soft)">
-                Medido sobre 7.276 partidos, esta cifra acierta más que la del modelo
-                (Brier 0.2115 frente a 0.2180). Cuando discrepan, lo más probable es que
-                tenga razón el mercado.
+                {t('nfld.mejorMercado')}
               </p>
             </>
           )}
@@ -356,8 +359,8 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
       )}
 
       <Panel>
-        <SectionTitle right={`${context.homeAdvantagePoints} pts de ventaja de campo`}>
-          Lectura completa
+        <SectionTitle right={t('nfld.ptsVentaja', { n: context.homeAdvantagePoints })}>
+          {t('eq.lecturaCompleta')}
         </SectionTitle>
         <ul className="space-y-1.5">
           {summary.bullets.map((b, i) => (
@@ -375,6 +378,7 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
 }
 
 export function SpreadLine({ quote, homeName }: { quote: NflSpreadQuote; homeName: string }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-2">
       <span className="w-16 shrink-0 tabular-nums text-(--ink-body)" title={quote.label}>
@@ -395,7 +399,7 @@ export function SpreadLine({ quote, homeName }: { quote: NflSpreadQuote; homeNam
       </div>
       <span className="w-24 shrink-0 text-right tabular-nums text-(--ink-soft)">
         {pct(quote.cover)}
-        {quote.push > 0.002 && <span className="text-(--ink-muted)"> · {pct(quote.push)} nulo</span>}
+        {quote.push > 0.002 && <span className="text-(--ink-muted)"> · {t('nfld.nuloSufijo', { p: pct(quote.push) })}</span>}
       </span>
     </div>
   );

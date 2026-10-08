@@ -1,21 +1,22 @@
 // Piezas de NflDashboard.tsx (partido en la Fase 5: ningún fichero de la interfaz pasa de ~400 líneas).
 import { useEffect, useState } from 'react';
 import { nflApi, type NflMeta, type NflTrackRecord } from '../../lib/nfl';
+import { conNodos, localeDe, useI18n } from '../../i18n';
 
 export function DataLine({ meta }: { meta: NflMeta }) {
+  const { t, idioma } = useI18n();
   return (
     <p className="mt-2 text-[13px] leading-relaxed text-(--ink-muted)">
       <span className="mr-1 rounded-full px-2 py-0.5 text-emerald-300 ring-1 ring-inset ring-emerald-500/30">
-        datos reales (nflverse)
+        {t('nfl.datosReales')}
       </span>
-      {meta.counts.games.toLocaleString('es')} partidos · {meta.counts.teams} equipos ·{' '}
+      {t('nfl.lineaDatos', { partidos: meta.counts.games.toLocaleString(localeDe(idioma)), equipos: meta.counts.teams })}
       {/* The two tracked league quantities. Worth a line of chrome: they are the
           model's own reading of how the sport is being played this year. */}
       <span className="text-(--ink-soft)">
-        ventaja de campo {meta.league.homeAdvantagePoints} pts · {meta.league.pointsPerGame} puntos
-        por partido
+        {t('nfl.ventaja', { v: meta.league.homeAdvantagePoints, p: meta.league.pointsPerGame })}
       </span>
-      {!meta.hasOddsKey && ' · configura ODDS_API_KEY para cuotas reales'}
+      {!meta.hasOddsKey && t('eq.configuraCuotas')}
     </p>
   );
 }
@@ -37,6 +38,7 @@ export function DataLine({ meta }: { meta: NflMeta }) {
  * where the market's number is recorded at the moment of the call.
  */
 export function NflTrackRecordPanel({ league }: { league: string }) {
+  const { t } = useI18n();
   const [data, setData] = useState<NflTrackRecord | null>(null);
   const [open, setOpen] = useState(false);
 
@@ -61,19 +63,21 @@ export function NflTrackRecordPanel({ league }: { league: string }) {
       >
         <span className="text-[16px]">
           <span className="text-[14px] uppercase tracking-wide text-(--ink-muted)">
-            Aciertos reales de la app
+            {t('fbt.titulo')}
           </span>
           <br />
           {data.resolved === 0 ? (
             <span className="text-(--ink-body)">
-              {data.pending} predicción(es) registradas, esperando resultado.
+              {t('fbt.pendientes', { n: data.pending })}
             </span>
           ) : (
             <span className="text-(--ink-strong)">
-              <strong className="tabular-nums">{((data.accuracy ?? 0) * 100).toFixed(1)}%</strong> de
-              acierto en <strong className="tabular-nums">{data.resolved}</strong> partidos
+              {conNodos(t('nflt.acierto'), {
+                pct: <strong className="tabular-nums">{((data.accuracy ?? 0) * 100).toFixed(1)}%</strong>,
+                n: <strong className="tabular-nums">{data.resolved}</strong>,
+              })}
               {data.marginMae != null && (
-                <span className="text-(--ink-soft)"> · error del margen {data.marginMae} pts</span>
+                <span className="text-(--ink-soft)"> {t('nflt.errorMargen', { n: data.marginMae })}</span>
               )}
             </span>
           )}
@@ -84,27 +88,28 @@ export function NflTrackRecordPanel({ league }: { league: string }) {
         <div className="mt-3 space-y-3 border-t border-(--line) pt-3 text-[14px] text-(--ink-body)">
           {data.vsMarket && (
             <p>
-              <strong>Contra el mercado</strong>, en los {data.vsMarket.n} partidos donde había
-              cuotas cuando se hizo la predicción: el modelo acertó el{' '}
-              {((data.vsMarket.modelAccuracy ?? 0) * 100).toFixed(1)}% y el mercado el{' '}
-              {((data.vsMarket.marketAccuracy ?? 0) * 100).toFixed(1)}% (Brier{' '}
-              {data.vsMarket.modelBrier} frente a {data.vsMarket.marketBrier}; menor es mejor).
+              {conNodos(
+                t('nflt.vsMercado', {
+                  n: data.vsMarket.n,
+                  m: ((data.vsMarket.modelAccuracy ?? 0) * 100).toFixed(1),
+                  k: ((data.vsMarket.marketAccuracy ?? 0) * 100).toFixed(1),
+                  bm: data.vsMarket.modelBrier ?? '',
+                  bk: data.vsMarket.marketBrier ?? '',
+                }),
+                { contra: <strong>{t('nflt.contra')}</strong> },
+              )}
             </p>
           )}
           <p className="text-(--ink-soft)">
-            La línea de cierre de la NFL es el precio más afinado del deporte. En 27 temporadas de
-            histórico el modelo no la bate — acierta el 50.9% contra el hándicap, por debajo del
-            52.4% que hace falta solo para cubrir la comisión. Esto se dice aquí, y no en letra
-            pequeña, porque es lo que hay.
+            {t('nflt.cierre')}
           </p>
           {data.calibration.length > 0 && (
             <div>
-              <div className="mb-1 text-(--ink-muted)">Calibración del favorito:</div>
+              <div className="mb-1 text-(--ink-muted)">{t('nflt.calibracion')}</div>
               <ul className="space-y-0.5">
                 {data.calibration.map((c) => (
                   <li key={c.label} className="tabular-nums">
-                    {c.label}: dijo {(c.predicted * 100).toFixed(0)}%, salió{' '}
-                    {(c.observed * 100).toFixed(0)}% ({c.n} partidos)
+                    {t('nflt.calibLinea', { label: c.label, p: (c.predicted * 100).toFixed(0), o: (c.observed * 100).toFixed(0), n: c.n })}
                   </li>
                 ))}
               </ul>
