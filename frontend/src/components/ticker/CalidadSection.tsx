@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { CalidadBeneficios, EvidenciaCalidad, Linaje } from '../../api/types'
+import { etiqueta } from '../../lib/etiquetas'
 import { fmtNum, fmtPct } from '../../lib/formato'
 
 const ESTADO: Record<string, string> = {
@@ -15,18 +16,6 @@ const GLOBAL: Record<string, string> = {
   vigilar: 'VIGILAR',
   precaucion: 'PRECAUCIÓN',
   desconocido: 'DESCONOCIDA',
-}
-
-const CATEGORIA: Record<string, string> = {
-  conversion_caja: 'Conversión a caja',
-  accruals: 'Accruals',
-  cuentas_por_cobrar: 'Cuentas por cobrar',
-  inventario: 'Inventario',
-  sbc: 'Compensación en acciones',
-  capital_circulante: 'Capital circulante',
-  costes_capitalizados: 'Costes capitalizados',
-  extraordinarios: 'Partidas no recurrentes',
-  calidad_fcf: 'Calidad del FCF',
 }
 
 function Entrada({ nombre, e }: { nombre: string; e: Linaje }) {
@@ -51,7 +40,7 @@ function Fila({ e }: { e: EvidenciaCalidad }) {
     <details className="border-b border-slate-100 py-2 last:border-0">
       <summary className="flex cursor-pointer flex-wrap items-baseline gap-2 text-xs">
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${ESTADO[e.estado]}`}>{e.estado.toUpperCase()}</span>
-        <span className="font-medium text-slate-800">{CATEGORIA[e.categoria] ?? e.categoria}</span>
+        <span className="font-medium text-slate-800">{etiqueta(e.categoria, { mayuscula: true })}</span>
         <span className="tabular-nums text-slate-600">
           {e.valor === null ? '—' : esFraccion ? fmtPct(e.valor, 1) : `${fmtNum(e.valor, 2)}×`}
         </span>

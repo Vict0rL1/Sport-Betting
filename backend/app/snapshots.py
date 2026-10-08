@@ -462,7 +462,7 @@ def reproducir(snap: DecisionSnapshot, resultados: list[DecisionOutcome] | None 
         "versiones": {"reglas": snap.reglas_version, "esquema": ctx.get("esquema"),
                       "generado_por": a.get("generado_por")},
         "proteccion_anticipacion": {
-            "regla": "information_available_at <= decision_timestamp",
+            "regla": "cada dato estaba disponible antes del momento de la decisión",
             "marcas_comprobadas": len(a.get("marcas") or []),
             "retiradas_por_fecha_futura": retirado,
             "sin_fecha_verificable": [m.get("dato") for m in revision["sin_fecha_verificable"]],

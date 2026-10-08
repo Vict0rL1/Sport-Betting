@@ -27,6 +27,7 @@ import json
 from datetime import date, datetime
 
 from app import datos
+from app.etiquetas import etiqueta
 from app.formato import fmt_num, fmt_pct
 
 OK, DEBIL, CRITICO, DESCONOCIDO = "ok", "debil", "critico", "desconocido"
@@ -71,7 +72,7 @@ def evaluar(analisis: dict, ahora: datetime) -> dict:
     factores.append(_f(
         "completitud", "Datos desconocidos en el análisis",
         OK if n <= MAX_DESCONOCIDOS_OK else DEBIL if n <= MAX_DESCONOCIDOS_DEBIL else CRITICO,
-        f"{n} dato(s) desconocido(s)" + (": " + ", ".join(f["dato"] for f in a["faltan"][:4]) if n else ""),
+        f"{n} dato(s) desconocido(s)" + (": " + ", ".join(etiqueta(f["dato"]) for f in a["faltan"][:4]) if n else ""),
     ))
 
     # 2) Frescura del precio

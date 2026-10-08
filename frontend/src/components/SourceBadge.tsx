@@ -1,11 +1,6 @@
 import type { Sourced } from '../api/types'
+import { etiqueta } from '../lib/etiquetas'
 import { fmtFecha, fmtAntiguedad } from '../lib/formato'
-
-const FRESHNESS_LABEL: Record<string, string> = {
-  live: 'en vivo',
-  delayed: 'retrasado ~15 min',
-  prev_close: 'cierre anterior',
-}
 
 // Principio de la app: toda cifra muestra su fuente y su fecha. Este badge
 // acompaña a cada bloque de datos; si viene de caché, lo dice.
@@ -34,7 +29,7 @@ export function SourceBadge({
   }
 
   const parts: string[] = [data.source]
-  if (freshness && FRESHNESS_LABEL[freshness]) parts.push(FRESHNESS_LABEL[freshness])
+  if (freshness) parts.push(etiqueta(freshness))
   if (data.cached) parts.push(`caché · ${fmtAntiguedad(data.fetched_at)}`)
   return (
     <span

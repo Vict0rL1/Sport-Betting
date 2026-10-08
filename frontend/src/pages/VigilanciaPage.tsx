@@ -10,6 +10,7 @@ import type {
   VigilanciaResponse,
   VigilanciaTesis,
 } from '../api/types'
+import { etiqueta } from '../lib/etiquetas'
 import { fmtAntiguedad, fmtNum, fmtPct } from '../lib/formato'
 
 const ACCIONES = ['comprar', 'reforzar', 'mantener', 'reducir', 'vender', 'descartar']
@@ -75,7 +76,7 @@ function Disparador({ d }: { d: DisparadorVigilado }) {
               }
             >
               {' '}
-              ({d.tendencia})
+              ({etiqueta(d.tendencia)})
             </span>
           )}
         </p>
@@ -314,7 +315,7 @@ function Decision({ d }: { d: DecisionRegistrada }) {
             TONO_ACCION[d.accion] ?? 'bg-slate-100 text-slate-700'
           }`}
         >
-          {d.accion}
+          {etiqueta(d.accion)}
         </span>
         <span className="font-medium text-slate-800">{d.symbol}</span>
         <span className="text-xs text-slate-400">

@@ -66,7 +66,7 @@ porque es una cita."""
 class Guidance(BaseModel):
     """Una previsión de la dirección. Lo que proyecta, no lo que reportó."""
 
-    metrica: str = Field(description="Qué se proyecta: ingresos, EPS, margen bruto…")
+    metrica: str = Field(description="Qué se proyecta: ingresos, BPA, margen bruto…")
     periodo: str = Field(description="Periodo al que aplica, p. ej. «Q1 2026», «FY2026»")
     valor_bajo: float | None = Field(description="Extremo bajo del rango, si lo da")
     valor_alto: float | None = Field(description="Extremo alto del rango; si es un valor único, igual que valor_bajo")

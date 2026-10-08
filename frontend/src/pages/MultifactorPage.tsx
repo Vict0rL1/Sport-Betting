@@ -8,6 +8,7 @@ import type {
   MultifactorResult,
   PercentilHistorico,
 } from '../api/types'
+import { etiqueta } from '../lib/etiquetas'
 import { fmtNum, fmtPct } from '../lib/formato'
 
 const FAMILIAS: Familia[] = [
@@ -43,19 +44,6 @@ const ADVERTENCIA: Record<Familia, string> = {
   low_volatility:
     'Real pero discutida: buena parte se explica por calidad. Además aquí se solapa con el dimensionador, que YA penaliza la volatilidad al decidir el tamaño.',
   size: 'La más erosionada de las seis. Casi desaparece al ajustar por calidad, y en un universo de grandes cotizadas «pequeña» significa 30.000 millones: no es el factor académico.',
-}
-
-const METRICA: Record<string, string> = {
-  roe: 'ROE',
-  roic: 'ROIC',
-  operating_margin: 'Margen operativo',
-  net_margin: 'Margen neto',
-  fcf_margin: 'Margen FCF',
-  gross_margin: 'Margen bruto',
-  debt_to_equity: 'Deuda / capital',
-  current_ratio: 'Ratio corriente',
-  interest_coverage: 'Cobertura de intereses',
-  asset_turnover: 'Rotación de activos',
 }
 
 const PORCENTAJE = new Set([
@@ -148,7 +136,7 @@ function HistoriaPropia({ fila }: { fila: FilaMultifactor }) {
                     : 'font-medium text-emerald-700'
                 }
               >
-                {aviso.metricas.map((m) => METRICA[m] ?? m).join(', ')}
+                {aviso.metricas.map((m) => etiqueta(m, { mayuscula: true })).join(', ')}
               </span>
               : {aviso.advertencia}
             </p>
@@ -169,7 +157,7 @@ function HistoriaPropia({ fila }: { fila: FilaMultifactor }) {
           <tbody>
             {medibles.map(([clave, d]) => (
               <tr key={clave} className="border-b border-slate-100 last:border-0">
-                <td className="py-1.5 text-slate-700">{METRICA[clave] ?? clave}</td>
+                <td className="py-1.5 text-slate-700">{etiqueta(clave, { mayuscula: true })}</td>
                 <td className="py-1.5 text-right tabular-nums text-slate-900">
                   {fmtMetrica(clave, d.actual)}
                 </td>

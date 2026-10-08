@@ -12,6 +12,7 @@ import type {
   SerieGuidance,
   WatchlistItem,
 } from '../api/types'
+import { etiqueta } from '../lib/etiquetas'
 import { fmtDinero, fmtNum, fmtPct } from '../lib/formato'
 
 /** Enlace al documento en la SEC. Cada dato de esta pantalla sale de uno, y sin
@@ -110,7 +111,7 @@ function FichaTrimestre({ e }: { e: Extraccion }) {
           <ul className="mt-2 space-y-2">
             {e.datos.guidance.map((g, i) => (
               <li key={i} className="text-sm">
-                <span className="font-medium text-slate-800">{g.metrica}</span>
+                <span className="font-medium text-slate-800">{etiqueta(g.metrica, { mayuscula: true })}</span>
                 <span className="text-slate-400"> · {g.periodo} · </span>
                 <span className="tabular-nums text-slate-900">
                   {rango(g.valor_bajo, g.valor_alto, g.unidad)}
@@ -204,7 +205,7 @@ function FichaComparacion({ c }: { c: Comparacion }) {
               <tbody>
                 {d.variaciones_calculadas.map((v, i) => (
                   <tr key={i} className="border-b border-slate-100 last:border-0">
-                    <td className="py-1.5 text-slate-800">{v.metrica}</td>
+                    <td className="py-1.5 text-slate-800">{etiqueta(v.metrica, { mayuscula: true })}</td>
                     <td className="py-1.5 text-xs text-slate-500">{v.periodo}</td>
                     <td className="py-1.5 text-right tabular-nums text-slate-500">
                       {rango(v.antes_bajo, v.antes_alto, null)}
@@ -248,7 +249,7 @@ function FichaComparacion({ c }: { c: Comparacion }) {
             {d.cambios_de_guidance.map((g, i) => (
               <li key={i}>
                 <span className={TONO[g.direccion]}>{FLECHA[g.direccion]}</span>{' '}
-                <span className="font-medium text-slate-800">{g.metrica}</span>
+                <span className="font-medium text-slate-800">{etiqueta(g.metrica, { mayuscula: true })}</span>
                 <span className="text-slate-400"> · {g.periodo}: </span>
                 <span className="text-slate-600">
                   {g.antes ?? '—'} → {g.ahora ?? '—'}
@@ -364,7 +365,7 @@ function SerieEnElTiempo({ series }: { series: SerieGuidance[] }) {
         {conVarios.map((s) => (
           <div key={`${s.metrica}|${s.periodo}`}>
             <div className="text-xs font-medium text-slate-700">
-              {s.metrica} <span className="text-slate-400">· {s.periodo}</span>
+              {etiqueta(s.metrica, { mayuscula: true })} <span className="text-slate-400">· {s.periodo}</span>
             </div>
             <ul className="mt-1 space-y-0.5 text-sm">
               {s.puntos.map((p, i) => (

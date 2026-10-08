@@ -1,4 +1,5 @@
 import type { AlternativaDecision, Decision, ReglaTraza } from '../api/types'
+import { etiqueta } from '../lib/etiquetas'
 import { fmtNum } from '../lib/formato'
 
 // Todo lo que se pinta aquí sale de la traza del motor de reglas: qué regla se
@@ -20,21 +21,10 @@ const RESULTADO: Record<string, { texto: string; tono: string }> = {
   desconocido: { texto: '? desconocido', tono: 'text-amber-800' },
 }
 
-const ACCION: Record<string, string> = {
-  comprar: 'Comprar',
-  vigilar: 'Vigilar',
-  mantener: 'Mantener',
-  reducir: 'Reducir',
-  vender: 'Vender',
-  evitar: 'Evitar',
-  ninguna: 'Sin acción',
-  sin_datos: 'Sin datos',
-}
-
 function valor(v: unknown): string {
   if (v === null || v === undefined) return '—'
   if (typeof v === 'number') return Math.abs(v) < 10 ? fmtNum(v, 2) : fmtNum(v, 2)
-  return String(v)
+  return etiqueta(String(v))
 }
 
 export function PorQue({ reglas }: { reglas: ReglaTraza[] }) {
@@ -58,7 +48,7 @@ export function PorQue({ reglas }: { reglas: ReglaTraza[] }) {
             )}
             <span className={`font-medium ${res.tono}`}>{res.texto}</span>
             {r.efecto && r.papel !== 'evaluada' && (
-              <span className="text-slate-400">→ {ACCION[r.efecto] ?? r.efecto}</span>
+              <span className="text-slate-400">→ {etiqueta(r.efecto, { mayuscula: true })}</span>
             )}
           </li>
         )
@@ -73,7 +63,7 @@ export function QueLaCambiaria({ cambiaria }: { cambiaria: AlternativaDecision[]
       {cambiaria.map((alt, i) => (
         <li key={i} className="text-xs">
           <div className="font-medium text-slate-800">
-            → {ACCION[alt.hacia] ?? alt.hacia}{' '}
+            → {etiqueta(alt.hacia, { mayuscula: true })}{' '}
             <span className="font-normal text-slate-400">
               {alt.condiciones.length > 1 ? (alt.requiere === 'todas' ? 'si se cumplen TODAS:' : 'si se cumple ALGUNA:') : 'si:'}
             </span>

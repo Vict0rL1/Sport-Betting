@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ScenarioRecord, ThesisRecord, TrackRecord } from '../api/types'
+import { etiqueta } from '../lib/etiquetas'
 import { fmtFecha, fmtNum, fmtPct } from '../lib/formato'
 
-const KIND_LABELS: Record<string, string> = { bear: 'Bajista', base: 'Base', bull: 'Alcista' }
 
 function OutcomeChip({ scenario }: { scenario: ScenarioRecord }) {
   if (!scenario.outcome) {
@@ -88,7 +88,7 @@ function TrackRecordPanel({ record }: { record: TrackRecord }) {
                       {s.symbol}
                     </Link>
                   </td>
-                  <td className="px-2 py-1.5 text-slate-600">{KIND_LABELS[s.kind] ?? s.kind}</td>
+                  <td className="px-2 py-1.5 text-slate-600">{etiqueta(s.kind, { mayuscula: true })}</td>
                   <td className="px-2 py-1.5 text-xs text-slate-500">
                     {s.created_at.slice(0, 10)} ({s.days_elapsed} d)
                   </td>
@@ -283,7 +283,7 @@ export function ThesesPage() {
                     className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm"
                   >
                     <span className="text-slate-700">
-                      <b>{KIND_LABELS[s.kind] ?? s.kind}</b>
+                      <b>{etiqueta(s.kind, { mayuscula: true })}</b>
                       {s.value_mid !== null && ` · valor estimado ${fmtNum(s.value_mid)}`}
                       {s.price_at_creation !== null &&
                         ` · precio entonces ${fmtNum(s.price_at_creation)}`}

@@ -270,7 +270,7 @@
     "symbol": "ACME",
     "valuation": {
      "caveats": [
-      "Los múltiplos usan el EPS y el patrimonio del último ejercicio ANUAL publicado, no cifras TTM trimestrales: la serie es más rugosa que la de un terminal profesional.",
+      "Los múltiplos usan el BPA y el patrimonio del último ejercicio ANUAL publicado, no cifras TTM trimestrales: la serie es más rugosa que la de un terminal profesional.",
       "Cotizar barato frente a su propia historia NO implica que esté infravalorada: una empresa en declive estructural se abarata de forma permanente porque el mercado ha rebajado lo que cree que vale. Antes de leer esto como oportunidad, comprueba si márgenes, ingresos y ROIC siguen intactos."
      ],
      "cheapness_score": null,
@@ -893,7 +893,7 @@
       },
       "veredicto": {
        "accion": "NO_ACCION",
-       "motivo": "La señal de ACME es «sin_datos», no de compra: no hay nada que financiar."
+       "motivo": "La señal de ACME es «sin datos», no de compra: no hay nada que financiar."
       }
      },
      "decision": {
@@ -950,7 +950,7 @@
        "clasificacion": "mixto",
        "en_contra": [
         "BPA diluido por debajo (consenso)",
-        "Margen operativo por debajo (modelo_interno)"
+        "Margen operativo por debajo (modelo interno)"
        ],
        "evento": {
         "creado_en": "2026-07-14T14:35:00+00:00",
@@ -2446,7 +2446,7 @@
     "corte": "2026-07-30",
     "en_contra": [
      "BPA diluido por debajo (consenso)",
-     "Margen operativo por debajo (modelo_interno)"
+     "Margen operativo por debajo (modelo interno)"
     ],
     "evento": {
      "creado_en": "2026-07-14T14:35:00+00:00",
@@ -4820,7 +4820,7 @@
     "proteccion_anticipacion": {
      "marcas_comprobadas": 22,
      "nota": "Los datos sin fecha verificable estaban DENTRO de la instantánea al congelarse (la huella lo garantiza), así que el sistema los tenía; lo que no se puede probar es cuándo se publicaron.",
-     "regla": "information_available_at <= decision_timestamp",
+     "regla": "cada dato estaba disponible antes del momento de la decisión",
      "retiradas_por_fecha_futura": [],
      "sin_fecha_verificable": []
     },
@@ -5396,7 +5396,7 @@
       },
       "veredicto": {
        "accion": "NO_ACCION",
-       "motivo": "La señal de ACME es «sin_datos», no de compra: no hay nada que financiar."
+       "motivo": "La señal de ACME es «sin datos», no de compra: no hay nada que financiar."
       }
      },
      "decision": {
@@ -6020,7 +6020,7 @@
     "proteccion_anticipacion": {
      "marcas_comprobadas": 22,
      "nota": "Los datos sin fecha verificable estaban DENTRO de la instantánea al congelarse (la huella lo garantiza), así que el sistema los tenía; lo que no se puede probar es cuándo se publicaron.",
-     "regla": "information_available_at <= decision_timestamp",
+     "regla": "cada dato estaba disponible antes del momento de la decisión",
      "retiradas_por_fecha_futura": [],
      "sin_fecha_verificable": []
     },
@@ -6603,7 +6603,7 @@
       },
       "veredicto": {
        "accion": "NO_ACCION",
-       "motivo": "La señal de ACME es «sin_datos», no de compra: no hay nada que financiar."
+       "motivo": "La señal de ACME es «sin datos», no de compra: no hay nada que financiar."
       }
      },
      "decision": {
@@ -6659,7 +6659,7 @@
        "clasificacion": "mixto",
        "en_contra": [
         "BPA diluido por debajo (consenso)",
-        "Margen operativo por debajo (modelo_interno)"
+        "Margen operativo por debajo (modelo interno)"
        ],
        "evento": {
         "creado_en": "2026-07-14T14:35:00+00:00",

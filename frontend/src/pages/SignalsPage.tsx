@@ -11,6 +11,7 @@ import type {
   SignalResponse,
   UniverseInfo,
 } from '../api/types'
+import { etiqueta } from '../lib/etiquetas'
 import { fmtNum, fmtPct } from '../lib/formato'
 import { useLlmStatus } from '../lib/llm'
 import { BloqueIA, BotonIA, EtiquetaIA } from '../components/ia/ContenidoIA'
@@ -22,21 +23,6 @@ const LABEL_STYLES: Record<string, string> = {
   desfavorable: 'bg-amber-50 text-amber-800',
   'muy desfavorable': 'bg-red-100 text-red-800',
   'sin datos': 'bg-slate-100 text-slate-400',
-}
-
-const FAMILY_LABELS: Record<string, string> = {
-  value: 'Valor',
-  quality: 'Calidad',
-  momentum: 'Momentum',
-  sentiment: 'Sentimiento',
-}
-
-const BUCKET_LABELS: Record<string, string> = {
-  muy_alto: 'Muy alto',
-  alto: 'Alto',
-  medio: 'Medio',
-  bajo: 'Bajo',
-  muy_bajo: 'Muy bajo',
 }
 
 /** Barra divergente centrada en cero: a la izquierda resta, a la derecha suma. */
@@ -141,7 +127,7 @@ function SignalCard({ signal }: { signal: QuantSignal }) {
           {Object.entries(signal.contributions).map(([family, value]) => (
             <div key={family} className="flex items-center gap-2 text-xs">
               <span className="w-24 shrink-0 text-slate-600">
-                {FAMILY_LABELS[family] ?? family}
+                {etiqueta(family, { mayuscula: true })}
               </span>
               <ContributionBar value={value} />
               <span
@@ -254,7 +240,7 @@ function BacktestPanel({ result }: { result: BacktestResponse }) {
                   const c = result.calibration[bucket]
                   return (
                     <tr key={bucket} className="border-b border-slate-100">
-                      <td className="px-2 py-1.5 text-slate-700">{BUCKET_LABELS[bucket]}</td>
+                      <td className="px-2 py-1.5 text-slate-700">{etiqueta(bucket, { mayuscula: true })}</td>
                       <td className="px-2 py-1.5 tabular-nums">{c.n}</td>
                       <td className="px-2 py-1.5 tabular-nums">{c.hits}</td>
                       <td className="px-2 py-1.5 tabular-nums">
@@ -409,7 +395,7 @@ function ScanMode() {
               {result.scored} de {result.requested} empresas puntuadas · momentum de{' '}
               {result.momentum_coverage} vía {result.momentum_source ?? 'n/d'} · pesos:{' '}
               {Object.entries(result.weights)
-                .map(([f, w]) => `${FAMILY_LABELS[f] ?? f} ${fmtPct(w, 0)}`)
+                .map(([f, w]) => `${etiqueta(f, { mayuscula: true })} ${fmtPct(w, 0)}`)
                 .join(' · ')}
             </p>
             {result.unavailable.length > 0 && (
@@ -632,7 +618,6 @@ function RuleBacktestPanel({ result }: { result: RuleBacktestResponse }) {
     </section>
   )
 }
-
 
 function ManualMode() {
   const [universe, setUniverse] = useState('AAPL, MSFT, GOOGL, JNJ, KO, XOM, JPM, PG')

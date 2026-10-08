@@ -28,6 +28,7 @@ from __future__ import annotations
 import math
 
 from app import datos
+from app.etiquetas import etiqueta
 from app.formato import fmt_pct
 
 NO_ACCION = "NO_ACCION"
@@ -185,7 +186,8 @@ def evaluar(
     if candidata.get("accion") != "comprar":
         return {**base, "veredicto": {
             "accion": NO_ACCION,
-            "motivo": f"La señal de {candidata.get('symbol')} es «{candidata.get('accion')}», no de compra: no hay nada que financiar.",
+            "motivo": f"La señal de {candidata.get('symbol')} es «{etiqueta(candidata.get('accion'))}», no de compra: "
+                      "no hay nada que financiar.",
         }}
     if tamano_maximo is None:
         return {**base, "veredicto": {"accion": INDETERMINADO,

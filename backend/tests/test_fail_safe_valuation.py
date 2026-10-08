@@ -177,7 +177,7 @@ def test_endpoint_sin_deuda_conocida_no_valora_por_accion(valorar):
     r = valorar(quitar=("long_term_debt", "short_term_debt"))
     assert r.status_code == 422, r.text
     assert "deuda" in r.json()["detail"].lower()
-    assert "net_debt" in r.json()["detail"]  # y dice cómo arreglarlo
+    assert "escribirla tú en el campo de deuda neta" in r.json()["detail"]  # y dice cómo arreglarlo
 
 
 def test_endpoint_sin_deuda_pero_con_la_tuya_si_valora(valorar):

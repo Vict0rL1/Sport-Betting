@@ -166,7 +166,7 @@ export function DashboardPage() {
                 </Link>
                 <span className="text-xs text-slate-500">
                   {ev.date}
-                  {ev.eps_estimate !== null ? ` · EPS est. ${fmtNum(ev.eps_estimate)}` : ''}
+                  {ev.eps_estimate !== null ? ` · BPA est. ${fmtNum(ev.eps_estimate)}` : ''}
                 </span>
               </li>
             ))}

@@ -5,6 +5,7 @@ import type {
   DeepDiveReport,
   MultipleStats,
 } from '../../api/types'
+import { etiqueta } from '../../lib/etiquetas'
 import { fmtCompacto, fmtNum, fmtPct } from '../../lib/formato'
 import { useLlmStatus } from '../../lib/llm'
 import { BloqueIA, BotonIA } from '../ia/ContenidoIA'
@@ -64,14 +65,13 @@ function RangeBar({ stats }: { stats: MultipleStats }) {
 }
 
 function ValuationBlock({ report }: { report: DeepDiveReport }) {
-  const labels: Record<string, string> = { pe: 'P/E', pb: 'P/B', fcf_yield: 'FCF yield' }
   return (
     <Section title="Valoración frente a su propia historia" reading={report.valuation.reading}>
       <div className="mt-3 space-y-4">
         {Object.entries(report.valuation.multiples).map(([key, stats]) => (
           <div key={key}>
             <div className="flex items-baseline justify-between text-sm">
-              <span className="font-medium text-slate-700">{labels[key] ?? key}</span>
+              <span className="font-medium text-slate-700">{etiqueta(key, { mayuscula: true })}</span>
               {stats.available ? (
                 <span className="tabular-nums text-slate-600">
                   actual{' '}

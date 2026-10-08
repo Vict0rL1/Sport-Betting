@@ -12,15 +12,9 @@ import type {
   Sizing,
   TodayResponse,
 } from '../api/types'
+import { etiqueta } from '../lib/etiquetas'
 import { fmtAntiguedad, fmtNum, fmtPct } from '../lib/formato'
 import { coord } from '../lib/svg'
-
-const FAMILY_LABELS: Record<string, string> = {
-  value: 'Valor',
-  quality: 'Calidad',
-  momentum: 'Momentum',
-  sentiment: 'Sentimiento',
-}
 
 type View = 'ideas' | 'comprar' | 'vigilar' | 'cartera' | 'todas'
 
@@ -471,7 +465,6 @@ function AvoidList({
   )
 }
 
-
 /** Por qué el peso final no es el que pedía el stop.
  *
  *  El dimensionador ya explicaba cada recorte y esas explicaciones no llegaban
@@ -570,7 +563,7 @@ function SizingPanel({ sizing }: { sizing: Sizing }) {
           <ul className="mt-1 space-y-1">
             {sinAplicar.map((c) => (
               <li key={c.limite}>
-                <span className="font-medium">Tope por {c.limite}.</span> {c.motivo}
+                <span className="font-medium">Tope por {etiqueta(c.limite)}.</span> {c.motivo}
               </li>
             ))}
           </ul>
@@ -582,7 +575,6 @@ function SizingPanel({ sizing }: { sizing: Sizing }) {
     </section>
   )
 }
-
 
 const FACTOR_KEYS = ['value', 'quality', 'momentum'] as const
 
@@ -603,12 +595,12 @@ function FactorBars({
           <div key={key} className="w-16">
             {withLabels && (
               <div className="mb-1 text-[10px] uppercase tracking-wide text-slate-400">
-                {FAMILY_LABELS[key]}
+                {etiqueta(key, { mayuscula: true })}
               </div>
             )}
             <div
               className="h-1 overflow-hidden rounded-full bg-slate-100"
-              title={`${FAMILY_LABELS[key]}: ${
+              title={`${etiqueta(key, { mayuscula: true })}: ${
                 raw === null || raw === undefined ? 'sin dato' : fmtNum(raw, 2)
               }`}
             >
@@ -638,7 +630,7 @@ function ListHeader() {
         <span className="flex gap-3">
           {FACTOR_KEYS.map((key) => (
             <span key={key} className="w-16">
-              {FAMILY_LABELS[key]}
+              {etiqueta(key, { mayuscula: true })}
             </span>
           ))}
         </span>
@@ -1197,7 +1189,6 @@ export function TodayPage() {
             )}
           </div>
           )}
-
 
           <div className="flex flex-wrap justify-between gap-3 text-xs text-slate-400">
             <span>

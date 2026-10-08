@@ -272,7 +272,7 @@
     "symbol": "PARC",
     "valuation": {
      "caveats": [
-      "Los múltiplos usan el EPS y el patrimonio del último ejercicio ANUAL publicado, no cifras TTM trimestrales: la serie es más rugosa que la de un terminal profesional.",
+      "Los múltiplos usan el BPA y el patrimonio del último ejercicio ANUAL publicado, no cifras TTM trimestrales: la serie es más rugosa que la de un terminal profesional.",
       "Cotizar barato frente a su propia historia NO implica que esté infravalorada: una empresa en declive estructural se abarata de forma permanente porque el mercado ha rebajado lo que cree que vale. Antes de leer esto como oportunidad, comprueba si márgenes, ingresos y ROIC siguen intactos."
      ],
      "cheapness_score": null,
@@ -704,7 +704,7 @@
       "debiles": 5,
       "factores": [
        {
-        "detalle": "1 dato(s) desconocido(s): deuda_neta (parcial)",
+        "detalle": "1 dato(s) desconocido(s): deuda neta (parcial)",
         "estado": "debil",
         "factor": "Datos desconocidos en el análisis",
         "id": "completitud"
@@ -769,7 +769,7 @@
       "nivel": "baja",
       "nota": "Mide la calidad de la evidencia que respalda la decisión, no la probabilidad de acertar.",
       "razones": [
-       "1 dato(s) desconocido(s): deuda_neta (parcial)",
+       "1 dato(s) desconocido(s): deuda neta (parcial)",
        "último trimestre (2025-Q4) publicado hace 214 días",
        "2 ejercicio(s) y 260 sesiones de precio",
        "el crecimiento implícito va de 22,7 % a 46,3 % entre un WACC del 7 % y del 12 %",
@@ -1079,7 +1079,7 @@
      },
      "faltan": [
       {
-       "dato": "deuda_neta (parcial)",
+       "dato": "deuda neta (parcial)",
        "motivo": "El filing no trae deuda a corto plazo: cuenta como cero. Si la empresa la tiene, la deuda neta está subestimada y el valor, sobreestimado.",
        "seccion": "fundamentales"
       }
@@ -1595,7 +1595,7 @@
       "estado": "valido",
       "families": null,
       "label": "favorable",
-      "origen": "lista diaria «us_sp500»",
+      "origen": "lista diaria «EE. UU. — S&P 500»",
       "probability": null,
       "publicado": "2026-09-12T14:35:00+00:00",
       "score": 0.6,
@@ -3850,7 +3850,7 @@
     "esquema": 2,
     "faltaban": [
      {
-      "dato": "deuda_neta (parcial)",
+      "dato": "deuda neta (parcial)",
       "motivo": "El filing no trae deuda a corto plazo: cuenta como cero. Si la empresa la tiene, la deuda neta está subestimada y el valor, sobreestimado.",
       "seccion": "fundamentales"
      }
@@ -3881,7 +3881,7 @@
     "proteccion_anticipacion": {
      "marcas_comprobadas": 22,
      "nota": "Los datos sin fecha verificable estaban DENTRO de la instantánea al congelarse (la huella lo garantiza), así que el sistema los tenía; lo que no se puede probar es cuándo se publicaron.",
-     "regla": "information_available_at <= decision_timestamp",
+     "regla": "cada dato estaba disponible antes del momento de la decisión",
      "retiradas_por_fecha_futura": [],
      "sin_fecha_verificable": []
     },
@@ -4273,7 +4273,7 @@
       "debiles": 5,
       "factores": [
        {
-        "detalle": "1 dato(s) desconocido(s): deuda_neta (parcial)",
+        "detalle": "1 dato(s) desconocido(s): deuda neta (parcial)",
         "estado": "debil",
         "factor": "Datos desconocidos en el análisis",
         "id": "completitud"
@@ -4338,7 +4338,7 @@
       "nivel": "baja",
       "nota": "Mide la calidad de la evidencia que respalda la decisión, no la probabilidad de acertar.",
       "razones": [
-       "1 dato(s) desconocido(s): deuda_neta (parcial)",
+       "1 dato(s) desconocido(s): deuda neta (parcial)",
        "último trimestre (2025-Q4) publicado hace 214 días",
        "2 ejercicio(s) y 260 sesiones de precio",
        "el crecimiento implícito va de 22,7 % a 46,3 % entre un WACC del 7 % y del 12 %",
@@ -5040,7 +5040,7 @@
       "estado": "valido",
       "families": null,
       "label": "favorable",
-      "origen": "lista diaria «us_sp500»",
+      "origen": "lista diaria «EE. UU. — S&P 500»",
       "probability": null,
       "publicado": "2026-09-12T14:35:00+00:00",
       "score": 0.6,

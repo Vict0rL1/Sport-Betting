@@ -1,20 +1,10 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { AnalisisEmpresaResponse, CambioMetrica, CosteOportunidad, RiesgoEnCartera } from '../../api/types'
+import { etiqueta } from '../../lib/etiquetas'
 import { fmtFecha, fmtNum, fmtPct } from '../../lib/formato'
 import { DecisionExplicada } from '../DecisionExplicada'
 import { BloqueIA, BotonIA } from '../ia/ContenidoIA'
-
-const CATEGORIAS: Record<string, string> = {
-  decision: 'Decisión',
-  mercado: 'Mercado',
-  valoracion: 'Valoración',
-  fundamentales: 'Fundamentales',
-  resultados: 'Resultados',
-  riesgo: 'Riesgo',
-  calidad: 'Calidad de beneficios',
-  tesis: 'Tesis',
-}
 
 const NIVEL: Record<string, string> = {
   alta: 'bg-emerald-100 text-emerald-800',
@@ -96,7 +86,7 @@ export function CosteOportunidadResumen({ oc }: { oc: CosteOportunidad }) {
     <div className="space-y-2 text-xs">
       <div className="flex flex-wrap items-center gap-2">
         <span className={`rounded px-2 py-0.5 font-medium ${VEREDICTO[oc.veredicto.accion] ?? ''}`}>
-          {oc.veredicto.accion.replace(/_/g, ' ')}
+          {etiqueta(oc.veredicto.accion, { mayuscula: true })}
         </span>
         {oc.tamano && (
           <span className="text-slate-500">
@@ -204,7 +194,7 @@ export function QueCambioSection({ symbol }: { symbol: string }) {
           <ul className="mt-2 space-y-0.5 text-xs">
             {a.confianza.factores.map((f) => (
               <li key={f.id}>
-                <span className={`font-medium ${FACTOR[f.estado]}`}>{f.estado}</span>{' '}
+                <span className={`font-medium ${FACTOR[f.estado]}`}>{etiqueta(f.estado)}</span>{' '}
                 <span className="text-slate-700">{f.factor}:</span> <span className="text-slate-500">{f.detalle}</span>
               </li>
             ))}
@@ -213,7 +203,7 @@ export function QueCambioSection({ symbol }: { symbol: string }) {
         </details>
         {a.faltan.length > 0 && (
           <p className="mt-3 rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
-            Desconocido (no vale cero): {a.faltan.map((f) => f.dato).join(', ')}.
+            Desconocido (no vale cero): {a.faltan.map((f) => etiqueta(f.dato)).join(', ')}.
           </p>
         )}
       </section>
@@ -234,7 +224,7 @@ export function QueCambioSection({ symbol }: { symbol: string }) {
             {cambios.decision?.cambio && (
               <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 text-xs">
                 <div className="font-semibold text-sky-900">
-                  {cambios.decision.antes} → {cambios.decision.ahora}
+                  {etiqueta(cambios.decision.antes, { mayuscula: true })} → {etiqueta(cambios.decision.ahora, { mayuscula: true })}
                 </div>
                 <ul className="mt-1 space-y-0.5 text-sky-900">
                   {cambios.decision.explicacion.map((e, i) => (
@@ -247,7 +237,7 @@ export function QueCambioSection({ symbol }: { symbol: string }) {
             <div className="grid gap-3 md:grid-cols-2">
               {Object.entries(cambios.categorias ?? {}).map(([cat, lista]) => (
                 <div key={cat}>
-                  <div className="text-[10px] uppercase tracking-wide text-slate-400">{CATEGORIAS[cat] ?? cat}</div>
+                  <div className="text-[10px] uppercase tracking-wide text-slate-400">{etiqueta(cat)}</div>
                   <ul>
                     {lista.map((c) => (
                       <Cambio key={c.clave} c={c} />

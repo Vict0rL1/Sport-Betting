@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { EtfComparison, EtfRecommendation } from '../api/types'
 import { SourceBadge } from '../components/SourceBadge'
+import { etiqueta } from '../lib/etiquetas'
 import { fmtCompacto, fmtPct } from '../lib/formato'
 
 const ETF_ACTION_STYLES: Record<string, string> = {
@@ -43,7 +44,7 @@ function EtfPicks({ reco }: { reco: EtfRecommendation }) {
                   ETF_ACTION_STYLES[e.action] ?? ETF_ACTION_STYLES.ninguna
                 }`}
               >
-                {e.action}
+                {etiqueta(e.action)}
               </span>
             </div>
             <ul className="mt-1.5 space-y-0.5 text-[11px] leading-snug text-slate-600">
@@ -159,9 +160,9 @@ export function EtfsPage() {
                 {[
                   ['Nombre', (e: (typeof data.etfs)[0]) => e.name ?? '—'],
                   ['Categoría', (e: (typeof data.etfs)[0]) => e.category ?? '—'],
-                  ['Expense ratio', (e: (typeof data.etfs)[0]) => fmtPct(e.expense_ratio, 2)],
+                  ['Coste anual', (e: (typeof data.etfs)[0]) => fmtPct(e.expense_ratio, 2)],
                   ['AUM', (e: (typeof data.etfs)[0]) => fmtCompacto(e.aum)],
-                  ['Div. yield', (e: (typeof data.etfs)[0]) => fmtPct(e.dividend_yield)],
+                  ['Rentabilidad por dividendo', (e: (typeof data.etfs)[0]) => fmtPct(e.dividend_yield)],
                 ].map(([label, get]) => (
                   <tr key={label as string} className="border-b border-slate-100">
                     <td className="py-1.5 pr-2 text-slate-500">{label as string}</td>

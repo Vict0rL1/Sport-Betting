@@ -16,7 +16,7 @@ const ROWS: { key: string; label: string; kind: Kind }[] = [
   { key: 'debt_to_equity', label: 'Deuda / Capital', kind: 'ratio' },
   { key: 'current_ratio', label: 'Ratio corriente', kind: 'ratio' },
   { key: 'dividend_yield', label: 'Rentabilidad por dividendo', kind: 'pct' },
-  { key: 'eps_growth_5y', label: 'Crec. EPS 5A (anualizado)', kind: 'pct' },
+  { key: 'eps_growth_5y', label: 'Crec. BPA 5A (anualizado)', kind: 'pct' },
   { key: 'revenue_growth_5y', label: 'Crec. ingresos 5A (anualizado)', kind: 'pct' },
   { key: 'beta', label: 'Beta', kind: 'ratio' },
   { key: 'week52_high', label: 'Máximo 52 semanas', kind: 'ratio' },

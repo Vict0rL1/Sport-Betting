@@ -285,7 +285,7 @@ def valorar(
                 "No se conoce la deuda neta de la empresa (el filing no trae deuda "
                 "a largo ni a corto plazo). Sin ella no hay valor por acción: "
                 "suponerla cero la valoraría como si no debiera nada. Puedes "
-                "mandarla tú en `net_debt` si la tienes."
+                "escribirla tú en el campo de deuda neta si la conoces."
             ),
         )
     if not acciones:

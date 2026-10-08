@@ -29,9 +29,18 @@ AJENAS = frozenset({
 })
 
 
+# Si no es None, `_recorrer` anota también cada código, por la clave que lo trae
+# (lo usa la guarda de etiquetas, `recoger_codigos`).
+_CODIGOS: dict[str, set[str]] | None = None
+
+
 def _recorrer(x, origen: str, salida: list[tuple[str, str]], clave: str = "") -> None:
     if isinstance(x, str):
-        if clave in AJENAS or x.startswith(("http://", "https://")) or es_codigo(x):
+        if clave in AJENAS or x.startswith(("http://", "https://")):
+            return
+        if es_codigo(x):
+            if _CODIGOS is not None:
+                _CODIGOS.setdefault(clave, set()).add(x)
             return
         salida.append((origen, x))
     elif isinstance(x, dict):
@@ -138,3 +147,14 @@ def recoger() -> list[tuple[str, str]]:
         _cartera(salida)
         _errores(salida)
     return salida
+
+
+def recoger_codigos() -> dict[str, set[str]]:
+    """Cada código que el backend emite sobre el paquete, por la clave que lo trae."""
+    global _CODIGOS
+    _CODIGOS = {}
+    try:
+        recoger()
+        return _CODIGOS
+    finally:
+        _CODIGOS = None

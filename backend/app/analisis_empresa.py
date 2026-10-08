@@ -49,6 +49,7 @@ from app.analysis.fundamentals import (
 from app.analysis.reverse_dcf import curva_de_crecimiento_implicito
 from app.analysis.signal import FAVORABLE_MIN, UNFAVORABLE_MAX
 from app.db.models import Instrument, Position, Thesis, ThesisTrigger
+from app.etiquetas import etiqueta
 from app.formato import fmt_pct
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
@@ -479,7 +480,7 @@ def _senal_cacheada(service, symbol: str) -> dict | None:
                 return {
                     "score": s.get("score"), "label": s.get("label"), "coverage": s.get("coverage"),
                     "probability": s.get("probability"), "families": s.get("families"),
-                    "origen": f"lista diaria «{clave}»", "publicado": lista.get("as_of"),
+                    "origen": f"lista diaria «{etiqueta(clave)}»", "publicado": lista.get("as_of"),
                     "sector": (s.get("context") or {}).get("sector_name"),
                 }
     return None
@@ -731,7 +732,7 @@ def datos_desconocidos(a: dict) -> list[dict]:
                 faltan.append({"dato": clave, "seccion": "fundamentales",
                                "motivo": f"falta una entrada ({metodo})" if metodo else "no reportado en el filing"})
             elif m.get("parcial"):
-                faltan.append({"dato": f"{clave} (parcial)", "seccion": "fundamentales", "motivo": m.get("nota")})
+                faltan.append({"dato": f"{etiqueta(clave)} (parcial)", "seccion": "fundamentales", "motivo": m.get("nota")})
     val = a["valoracion"]
     if (val.get("dcf_inverso") or {}).get("estado") == DESCONOCIDO:
         faltan.append({"dato": "DCF inverso", "seccion": "valoracion", "motivo": val["dcf_inverso"].get("motivo")})

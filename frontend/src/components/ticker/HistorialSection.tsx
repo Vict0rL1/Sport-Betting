@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { DecisionHistorica, ReplayDecision } from '../../api/types'
-import { fmtFecha, fmtNum, fmtPct } from '../../lib/formato'
+import { etiqueta, etiquetaOrigen } from '../../lib/etiquetas'
+import { fmtCompacto, fmtFecha, fmtNum, fmtPct } from '../../lib/formato'
 import { DecisionExplicada } from '../DecisionExplicada'
 import { CosteOportunidadResumen, RiesgoResumen } from './QueCambioSection'
 
@@ -21,9 +22,9 @@ function Replay({ r }: { r: ReplayDecision }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="font-semibold text-slate-800">
-          {r.symbol} — {r.fecha} — {r.accion.toUpperCase()}
+          {r.symbol} — {r.fecha} — {etiqueta(r.accion).toUpperCase()}
         </span>
-        <span className="text-slate-400">{r.momento ? fmtFecha(r.momento, { hora: true }) : ''} · origen {r.origen} · reglas v{r.reglas_version}</span>
+        <span className="text-slate-400">{r.momento ? fmtFecha(r.momento, { hora: true }) : ''} · {etiquetaOrigen(r.origen)} · reglas v{r.reglas_version}</span>
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${r.completo ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
           {r.completo ? 'completo' : 'INCOMPLETO'}
         </span>
@@ -43,8 +44,8 @@ function Replay({ r }: { r: ReplayDecision }) {
       )}
       {(r.no_congelado.length > 0 || (r.incompletas ?? []).length > 0) && (
         <p className="text-[11px] text-amber-800">
-          {r.no_congelado.length > 0 && <>No se congeló (y no se rellena con lo de hoy): {r.no_congelado.join(', ')}. </>}
-          {(r.incompletas ?? []).length > 0 && <>Desconocido entonces: {(r.incompletas ?? []).join(', ')}.</>}
+          {r.no_congelado.length > 0 && <>No se congeló (y no se rellena con lo de hoy): {r.no_congelado.map((c) => etiqueta(c)).join(', ')}. </>}
+          {(r.incompletas ?? []).length > 0 && <>Desconocido entonces: {(r.incompletas ?? []).map((c) => etiqueta(c)).join(', ')}.</>}
         </p>
       )}
 
@@ -52,7 +53,7 @@ function Replay({ r }: { r: ReplayDecision }) {
         {precio && (
           <Bloque titulo="Precio utilizado">
             <p className="text-xs text-slate-700">
-              {fmtNum(precio.valor, 2)} {precio.moneda ?? ''} · {precio.fuente ?? 'fuente desconocida'} · {precio.publicado ?? 'sin fecha'} · {precio.estado}
+              {fmtNum(precio.valor, 2)} {precio.moneda ?? ''} · {precio.fuente ?? 'fuente desconocida'} · {precio.publicado ?? 'sin fecha'} · {etiqueta(precio.estado)}
             </p>
           </Bloque>
         )}
@@ -68,8 +69,8 @@ function Replay({ r }: { r: ReplayDecision }) {
             <ul className="text-xs text-slate-700">
               {Object.entries((s.fundamentales as { metricas: Record<string, { valor: number | null; unidad?: string }> }).metricas).map(([k, m]) => (
                 <li key={k} className="flex justify-between">
-                  <span>{k.replace(/_/g, ' ')}</span>
-                  <span className="tabular-nums">{m.valor == null ? 'desconocido' : m.unidad === 'fracción' ? fmtPct(m.valor, 1) : Math.abs(m.valor) > 1e5 ? `${fmtNum(m.valor / 1e6, 1)} M` : fmtNum(m.valor, 2)}</span>
+                  <span>{etiqueta(k, { mayuscula: true })}</span>
+                  <span className="tabular-nums">{m.valor == null ? 'desconocido' : m.unidad === 'fracción' ? fmtPct(m.valor, 1) : Math.abs(m.valor) > 1e5 ? fmtCompacto(m.valor) : fmtNum(m.valor, 2)}</span>
                 </li>
               ))}
             </ul>
@@ -86,7 +87,7 @@ function Replay({ r }: { r: ReplayDecision }) {
         {s.tesis && (
           <Bloque titulo="Tesis vigente entonces">
             <p className="text-xs text-slate-700">
-              {(s.tesis as { titulo?: string }).titulo ?? 'sin tesis'} · estado {(s.tesis as { estado: string }).estado}
+              {(s.tesis as { titulo?: string }).titulo ?? 'sin tesis'} · estado {etiqueta((s.tesis as { estado: string }).estado)}
             </p>
             <ul className="mt-1 text-[11px] text-slate-500">
               {((s.tesis as { disparadores?: { id: number; descripcion: string; salta: boolean; medible: boolean }[] }).disparadores ?? []).map((t) => (
@@ -122,11 +123,11 @@ function Replay({ r }: { r: ReplayDecision }) {
         </Bloque>
       )}
       {r.faltaban && r.faltaban.length > 0 && (
-        <p className="text-[11px] text-amber-800">Datos desconocidos en ese momento: {r.faltaban.map((f) => f.dato).join(', ')}.</p>
+        <p className="text-[11px] text-amber-800">Datos desconocidos en ese momento: {r.faltaban.map((f) => etiqueta(f.dato)).join(', ')}.</p>
       )}
       {r.resultados.length > 0 && (
         <p className="text-[11px] text-slate-500">
-          Medido después (en filas aparte, sin tocar la instantánea): {r.resultados.map((x) => `${x.estado} ${x.retorno_pct ?? '—'} % a ${x.dias} días`).join(' · ')}
+          Medido después (en filas aparte, sin tocar la instantánea): {r.resultados.map((x) => `${etiqueta(x.estado)} ${fmtPct(x.retorno_pct, 1, { enPuntos: true })} a ${x.dias} días`).join(' · ')}
         </p>
       )}
     </div>
@@ -167,8 +168,8 @@ export function HistorialSection({ symbol }: { symbol: string }) {
               {filas.map((f) => (
                 <tr key={f.id} className={`border-t border-slate-100 ${replay?.id === f.id ? 'bg-slate-50' : ''}`}>
                   <td className="py-1 text-slate-700">{fmtFecha(f.creado_en, { hora: true })}</td>
-                  <td className="text-slate-500">{f.origen}</td>
-                  <td className="font-medium text-slate-800">{f.accion}</td>
+                  <td className="text-slate-500">{etiquetaOrigen(f.origen)}</td>
+                  <td className="font-medium text-slate-800">{etiqueta(f.accion, { mayuscula: true })}</td>
                   <td className="text-right tabular-nums">{fmtNum(f.precio, 2)}</td>
                   <td className="text-right tabular-nums">{fmtNum(f.score, 2)}</td>
                   <td className="text-right">

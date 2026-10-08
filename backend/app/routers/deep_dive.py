@@ -298,7 +298,7 @@ def _narrative_prompt(symbol: str, report: dict) -> str:
 
     multiples = valuation.get("multiples", {})
     val_lines = []
-    for key, label in (("pe", "P/E"), ("pb", "P/B"), ("fcf_yield", "FCF yield")):
+    for key, label in (("pe", "P/E"), ("pb", "P/B"), ("fcf_yield", "Rentabilidad por FCF")):
         entry = multiples.get(key, {})
         if entry.get("available"):
             val_lines.append(

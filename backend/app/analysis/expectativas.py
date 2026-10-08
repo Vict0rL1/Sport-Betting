@@ -29,6 +29,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from app import datos
 from app import punto_en_el_tiempo as pit
+from app.etiquetas import etiqueta
 from app.formato import fmt_num
 
 # --- Métricas y tolerancias ----------------------------------------------------
@@ -197,8 +198,8 @@ def clasificar(por_fuente: dict[str, list[dict]], direccion_guidance: str | None
         for c in por_fuente.get(fuente) or []:
             if c["lectura"] != DESCONOCIDO and c["metrica"] not in votos:
                 votos[c["metrica"]] = c
-    a_favor = [f"{c['etiqueta']} supera ({c['fuente_tipo']})" for c in votos.values() if c["lectura"] == SUPERA]
-    en_contra = [f"{c['etiqueta']} por debajo ({c['fuente_tipo']})" for c in votos.values() if c["lectura"] == POR_DEBAJO]
+    a_favor = [f"{c['etiqueta']} supera ({etiqueta(c['fuente_tipo'])})" for c in votos.values() if c["lectura"] == SUPERA]
+    en_contra = [f"{c['etiqueta']} por debajo ({etiqueta(c['fuente_tipo'])})" for c in votos.values() if c["lectura"] == POR_DEBAJO]
     if direccion_guidance == "sube":
         a_favor.append("guidance al alza")
     elif direccion_guidance == "baja":

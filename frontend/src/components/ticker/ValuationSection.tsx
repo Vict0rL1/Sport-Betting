@@ -1,16 +1,12 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { DcfResponse, ScenarioAssumptions, ValuationDefaults } from '../../api/types'
+import { etiqueta } from '../../lib/etiquetas'
 import { fmtCompacto, fmtNum, fmtPct, valorDeCampo } from '../../lib/formato'
 import { SourceBadge } from '../SourceBadge'
 import { Ventana } from '../Ventana'
 
 type ScenarioName = 'bear' | 'base' | 'bull'
-const SCENARIO_LABELS: Record<ScenarioName, string> = {
-  bear: 'Bajista',
-  base: 'Base',
-  bull: 'Alcista',
-}
 
 interface Inputs {
   base_fcf: string
@@ -167,7 +163,7 @@ export function ValuationSection({ symbol }: { symbol: string }) {
           {(['bear', 'base', 'bull'] as ScenarioName[]).map((name) => (
             <div key={name} className="rounded-lg border border-slate-200 p-3">
               <div className="mb-2 text-xs font-semibold text-slate-600">
-                {SCENARIO_LABELS[name]}
+                {etiqueta(name, { mayuscula: true })}
               </div>
               <label className="mb-1 block text-xs text-slate-500">
                 Crecimiento FCF (%/año)
@@ -240,7 +236,7 @@ export function ValuationSection({ symbol }: { symbol: string }) {
                   : null
               return (
                 <div key={name} className="rounded-lg border border-slate-200 p-3">
-                  <div className="text-xs text-slate-500">{SCENARIO_LABELS[name]}</div>
+                  <div className="text-xs text-slate-500">{etiqueta(name, { mayuscula: true })}</div>
                   <div className="text-2xl font-semibold tabular-nums text-slate-900">
                     {sc.value_per_share !== null
                       ? fmtNum(sc.value_per_share)

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { Financials, PeersResponse } from '../../api/types'
+import { etiqueta } from '../../lib/etiquetas'
 import { fmtCompacto, fmtNum, fmtPct } from '../../lib/formato'
 import { SourceBadge } from '../SourceBadge'
 import { Ventana } from '../Ventana'
@@ -8,7 +9,7 @@ import { Ventana } from '../Ventana'
 const METRIC_ROWS: { key: string; label: string; kind: 'big' | 'ratio' | 'pct' }[] = [
   { key: 'revenue', label: 'Ingresos', kind: 'big' },
   { key: 'net_income', label: 'Beneficio neto', kind: 'big' },
-  { key: 'eps_diluted', label: 'EPS diluido', kind: 'ratio' },
+  { key: 'eps_diluted', label: 'BPA diluido', kind: 'ratio' },
   { key: 'fcf', label: 'Free cash flow', kind: 'big' },
   { key: 'gross_margin', label: 'Margen bruto', kind: 'pct' },
   { key: 'operating_margin', label: 'Margen operativo', kind: 'pct' },
@@ -19,19 +20,6 @@ const METRIC_ROWS: { key: string; label: string; kind: 'big' | 'ratio' | 'pct' }
   { key: 'debt_to_equity', label: 'Deuda / Capital', kind: 'ratio' },
   { key: 'interest_coverage', label: 'Cobertura de intereses', kind: 'ratio' },
 ]
-
-const PEER_LABELS: Record<string, string> = {
-  pe_ttm: 'P/E',
-  pb: 'P/B',
-  ps_ttm: 'P/S',
-  roe: 'ROE',
-  operating_margin: 'M. operativo',
-  net_margin: 'M. neto',
-  debt_to_equity: 'Deuda/Cap',
-  dividend_yield: 'Div. yield',
-  revenue_growth_5y: 'Crec. 5A',
-  beta: 'Beta',
-}
 
 const PCT_KEYS = new Set([
   'roe', 'operating_margin', 'net_margin', 'dividend_yield', 'revenue_growth_5y',
@@ -82,7 +70,7 @@ export function FinancialsSection({ symbol }: { symbol: string }) {
             <b className="tabular-nums">{fmtPct(data.growth.revenue_cagr)}</b>
           </span>
           <span>
-            CAGR EPS: <b className="tabular-nums">{fmtPct(data.growth.eps_cagr)}</b>
+            CAGR BPA: <b className="tabular-nums">{fmtPct(data.growth.eps_cagr)}</b>
           </span>
           <span>
             CAGR FCF: <b className="tabular-nums">{fmtPct(data.growth.fcf_cagr)}</b>
@@ -139,7 +127,7 @@ export function FinancialsSection({ symbol }: { symbol: string }) {
                   <th className="py-1 pr-2 font-normal">Símbolo</th>
                   {peers.comparison_keys.map((k) => (
                     <th key={k} className="px-2 py-1 text-right font-normal">
-                      {PEER_LABELS[k] ?? k}
+                      {etiqueta(k, { mayuscula: true })}
                     </th>
                   ))}
                 </tr>

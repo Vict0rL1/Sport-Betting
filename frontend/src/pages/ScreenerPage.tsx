@@ -2,24 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { FilterSpec, ScreenerPreset, ScreenResult } from '../api/types'
+import { etiqueta } from '../lib/etiquetas'
 import { fmtNum, fmtPct } from '../lib/formato'
-
-const METRIC_LABELS: Record<string, string> = {
-  pe_ttm: 'P/E (TTM)',
-  pb: 'P/B',
-  ps_ttm: 'P/S',
-  roe: 'ROE',
-  gross_margin: 'Margen bruto',
-  operating_margin: 'Margen operativo',
-  net_margin: 'Margen neto',
-  debt_to_equity: 'Deuda / Capital',
-  current_ratio: 'Ratio corriente',
-  dividend_yield: 'Div. yield',
-  revenue_growth_5y: 'Crec. ingresos 5A',
-  eps_growth_5y: 'Crec. EPS 5A',
-  beta: 'Beta',
-  market_cap: 'Capitalización',
-}
 
 const PCT_METRICS = new Set([
   'roe', 'gross_margin', 'operating_margin', 'net_margin',
@@ -32,7 +16,7 @@ function fmtMetric(metric: string, value: number | null) {
 }
 
 function describeFilter(metric: string, spec: FilterSpec) {
-  const label = METRIC_LABELS[metric] ?? metric
+  const label = etiqueta(metric, { mayuscula: true })
   const op = spec.op === 'gte' ? '≥' : '≤'
   const value = PCT_METRICS.has(metric) ? fmtPct(spec.value) : fmtNum(spec.value)
   return `${label} ${op} ${value}`
@@ -176,7 +160,7 @@ export function ScreenerPage() {
                   {row.checks.map((check) => (
                     <span
                       key={check.metric}
-                      title={`${METRIC_LABELS[check.metric] ?? check.metric}: ${fmtMetric(
+                      title={`${etiqueta(check.metric, { mayuscula: true })}: ${fmtMetric(
                         check.metric,
                         check.actual,
                       )}`}
@@ -186,7 +170,7 @@ export function ScreenerPage() {
                           : 'bg-red-50 text-red-700 ring-1 ring-red-200'
                       }`}
                     >
-                      {METRIC_LABELS[check.metric] ?? check.metric}:{' '}
+                      {etiqueta(check.metric, { mayuscula: true })}:{' '}
                       {fmtMetric(check.metric, check.actual)}
                     </span>
                   ))}

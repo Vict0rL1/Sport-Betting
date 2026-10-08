@@ -256,7 +256,7 @@ def test_los_endpoints(session_factory, servicio):
         assert h["decisiones"][0]["replay"] is True
         rep = c.get(f"/api/snapshots/{r['instantanea']['id']}/replay").json()
         assert rep["esquema"] == 2 and rep["integridad"]["huella_coincide"]
-        assert rep["proteccion_anticipacion"]["regla"].startswith("information_available_at")
+        assert rep["proteccion_anticipacion"]["regla"] == "cada dato estaba disponible antes del momento de la decisión"
         assert c.get("/api/snapshots/999/replay").status_code == 404
         assert c.get("/api/empresa/A$B/analisis").status_code == 422
         lista = c.get("/api/snapshots?origen=analisis").json()
@@ -318,7 +318,7 @@ def test_una_deuda_parcial_no_se_lee_como_completa(session_factory):
     neta = a["fundamentales"]["metricas"]["deuda_neta"]
     assert neta["valor"] == pytest.approx(300.0 - 120.0)
     assert neta["parcial"] == ["short_term_debt"] and "sobreestimado" in neta["nota"]
-    assert any(f["dato"] == "deuda_neta (parcial)" for f in a["faltan"])
+    assert any(f["dato"] == "deuda neta (parcial)" for f in a["faltan"])
     assert a["valoracion"]["dcf_inverso"]["deuda_parcial"] == ["short_term_debt"]
     assert "PARCIAL" in a["valoracion"]["dcf_inverso"]["nota"]
 

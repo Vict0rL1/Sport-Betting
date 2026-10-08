@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { CalibracionExpectativas, EventoCatalizador, LecturaEvento } from '../../api/types'
+import { etiqueta } from '../../lib/etiquetas'
 import { fmtNum, fmtPct } from '../../lib/formato'
 
 const FUENTE: Record<string, string> = {
@@ -56,7 +57,7 @@ function Evento({ id, alCambiar }: { id: number; alCambiar: () => void }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className={`rounded px-2 py-0.5 text-xs font-medium ${CLASIFICACION[l.clasificacion]}`}>
-          {l.clasificacion.replace('_', ' ').toUpperCase()}
+          {etiqueta(l.clasificacion).toUpperCase()}
         </span>
         {l.parcial && <span className="text-xs text-amber-800">parcial: sin resultado para {l.sin_resultado.join(', ')}</span>}
         {l.guidance && <span className="text-xs text-slate-600">guidance: {l.guidance}</span>}
@@ -94,7 +95,7 @@ function Evento({ id, alCambiar }: { id: number; alCambiar: () => void }) {
                   <td className="text-right text-slate-600">
                     {c.sorpresa == null ? '—' : c.tipo_sorpresa === 'relativa' ? fmtPct(c.sorpresa, 1) : c.unidad === 'fracción' ? `${fmtNum(c.sorpresa * 100, 1)} pp` : fmtNum(c.sorpresa, 2)}
                   </td>
-                  <td className={`text-right font-medium ${LECTURA[c.lectura]}`}>{c.lectura.replace('_', ' ')}</td>
+                  <td className={`text-right font-medium ${LECTURA[c.lectura]}`}>{etiqueta(c.lectura)}</td>
                 </tr>
               ))}
             </tbody>
@@ -108,7 +109,7 @@ function Evento({ id, alCambiar }: { id: number; alCambiar: () => void }) {
           <ul>
             {l.impacto_en_tesis.map((i, k) => (
               <li key={k} className={i.estado === 'invalidado' ? 'text-red-700' : i.estado === 'debilitado' ? 'text-amber-800' : i.estado === 'confirmado' ? 'text-emerald-700' : 'text-slate-500'}>
-                {i.estado}: {i.punto}{i.real != null ? ` (real ${fmtPct(i.real, 1)}, umbral ${fmtPct(i.umbral ?? null, 1)})` : ''}{i.motivo ? ` — ${i.motivo}` : ''}
+                {etiqueta(i.estado, { mayuscula: true })}: {i.punto}{i.real != null ? ` (real ${fmtPct(i.real, 1)}, umbral ${fmtPct(i.umbral ?? null, 1)})` : ''}{i.motivo ? ` — ${i.motivo}` : ''}
               </li>
             ))}
           </ul>
@@ -117,7 +118,7 @@ function Evento({ id, alCambiar }: { id: number; alCambiar: () => void }) {
       {l.excluidas_por_fecha.length > 0 && (
         <p className="rounded bg-amber-50 p-2 text-[11px] text-amber-900">
           {l.excluidas_por_fecha.length} expectativa(s) excluidas por fecha (registradas cuando el resultado ya se conocía o el
-          mismo día): {l.excluidas_por_fecha.map((x) => `${x.metrica} (${x.fuente_tipo})`).join(', ')}.
+          mismo día): {l.excluidas_por_fecha.map((x) => `${etiqueta(x.metrica)} (${etiqueta(x.fuente_tipo)})`).join(', ')}.
         </p>
       )}
     </div>
@@ -173,7 +174,7 @@ export function ExpectativasSection({ symbol }: { symbol: string }) {
           {(eventos ?? []).map((e) => (
             <button key={e.id} type="button" onClick={() => setAbierto(e.id)}
               className={`rounded-md border px-2 py-1 text-xs ${abierto === e.id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 text-slate-700'}`}>
-              {e.tipo} {e.periodo ?? ''} · {e.fecha_prevista ?? 'sin fecha'} · {e.expectativas} exp / {e.reales} reales
+              {etiqueta(e.tipo, { mayuscula: true })} {e.periodo ?? ''} · {e.fecha_prevista ?? 'sin fecha'} · {e.expectativas} exp / {e.reales} reales
             </button>
           ))}
         </div>
@@ -193,7 +194,7 @@ export function ExpectativasSection({ symbol }: { symbol: string }) {
                   <td className="text-right">{fmtPct(c.total.error_medio_abs ?? null, 1)}</td>
                   <td className="text-right">{fmtPct(c.total.sesgo ?? null, 1)}</td>
                   <td className="text-right">{fmtPct(c.total.cerca_pct ?? null, 0)}</td>
-                  <td className="text-right">{c.mejor_prevista ?? '—'}</td>
+                  <td className="text-right">{etiqueta(c.mejor_prevista)}</td>
                 </tr>
               ))}
             </tbody>

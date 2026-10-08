@@ -42,6 +42,10 @@ una apuesta.
 information_available_at <= decision_timestamp
 ```
 
+En el replay (`proteccion_anticipacion.regla`) la API la da en palabras, porque
+se enseña en pantalla: «cada dato estaba disponible antes del momento de la
+decisión».
+
 Un solo helper, usado por el análisis, el replay, las expectativas y el backtest.
 Tres respuestas:
 

@@ -182,7 +182,7 @@ def valuation_vs_history(
         "reading": _reading(overall),
         "years_covered": years,
         "caveats": [
-            "Los múltiplos usan el EPS y el patrimonio del último ejercicio ANUAL "
+            "Los múltiplos usan el BPA y el patrimonio del último ejercicio ANUAL "
             "publicado, no cifras TTM trimestrales: la serie es más rugosa que la "
             "de un terminal profesional.",
             "Cotizar barato frente a su propia historia NO implica que esté "
