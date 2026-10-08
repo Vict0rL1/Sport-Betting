@@ -95,3 +95,7 @@ POST /api/expectativas/eventos/{id}/resultados     reales desde EDGAR
 GET  /api/expectativas/eventos/{id}                lectura completa
 GET  /api/expectativas/calibracion                 calibración
 ```
+
+`?symbol=` es opcional en `eventos` y `calibracion`: vacío (o solo espacios) significa «todos».
+Un ticker se recorta y se pasa a mayúsculas; uno con caracteres no válidos (o con más de 12)
+es un 422 con el mensaje «Símbolo inválido», el mismo en toda la API (`app/simbolos.py`).

@@ -31,11 +31,10 @@ from app.schemas.market import (
     ProfileResponse,
     QuoteResponse,
 )
-from app.simbolos import SIMBOLO_RE, SimboloRuta
+from app.simbolos import SimboloRuta, validar_simbolo
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
-_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
 # range -> (intervalo, nº de barras). 5A/10A usan barras semanales para
 # mantener el payload razonable; los indicadores se calculan sobre el
@@ -49,11 +48,6 @@ _RANGES: dict[str, tuple[str, int]] = {
     "10Y": ("1week", 522),
 }
 
-
-def _validate_symbol(symbol: str) -> str:
-    if not _SYMBOL_RE.match(symbol):
-        raise HTTPException(status_code=422, detail=f"Símbolo inválido: {symbol}")
-    return symbol.upper()
 
 
 def _fetch(service: MarketDataService, data_type: str, **kwargs) -> dict:
@@ -71,17 +65,17 @@ def _nan_to_none(series: pd.Series) -> list[float | None]:
 
 @router.get("/{symbol}/quote", response_model=QuoteResponse)
 def get_quote(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
-    return _fetch(service, "quote", symbol=_validate_symbol(symbol))
+    return _fetch(service, "quote", symbol=validar_simbolo(symbol))
 
 
 @router.get("/{symbol}/profile", response_model=ProfileResponse)
 def get_profile(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
-    return _fetch(service, "profile", symbol=_validate_symbol(symbol))
+    return _fetch(service, "profile", symbol=validar_simbolo(symbol))
 
 
 @router.get("/{symbol}/fundamentals", response_model=FundamentalsResponse)
 def get_fundamentals(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
-    return _fetch(service, "fundamentals", symbol=_validate_symbol(symbol))
+    return _fetch(service, "fundamentals", symbol=validar_simbolo(symbol))
 
 
 def _directorio_de_logos() -> Path:
@@ -102,7 +96,7 @@ def get_logo(symbol: SimboloRuta, service: MarketDataService = Depends(get_servi
     pequeñas —no tienen logo en ninguna fuente gratuita— y la UI pinta un
     monograma con las iniciales en vez de dejar un hueco que parece un error.
     """
-    symbol = _validate_symbol(symbol)
+    symbol = validar_simbolo(symbol)
     directorio = _directorio_de_logos()
 
     # 1. ¿Ya está en disco? Un logo no cambia; esto no caduca a propósito.
@@ -150,7 +144,7 @@ def get_history(
     range: str = Query("1Y", pattern="^(1M|3M|6M|YTD|1Y|5Y|10Y)$"),
     service: MarketDataService = Depends(get_service),
 ):
-    symbol = _validate_symbol(symbol)
+    symbol = validar_simbolo(symbol)
     if range == "YTD":
         days = (datetime.now(timezone.utc) - datetime(
             datetime.now(timezone.utc).year, 1, 1, tzinfo=timezone.utc
@@ -192,7 +186,7 @@ def get_financials(symbol: SimboloRuta, service: MarketDataService = Depends(get
     Una sola descarga cacheada 24 h alimenta todo el análisis fundamental:
     es la vía barata en créditos de API.
     """
-    payload = _fetch(service, "financials", symbol=_validate_symbol(symbol))
+    payload = _fetch(service, "financials", symbol=validar_simbolo(symbol))
     payload["ratios"] = derive_ratio_series(payload["periods"])
     payload["growth"] = growth_summary(payload["periods"])
     return payload
@@ -201,7 +195,7 @@ def get_financials(symbol: SimboloRuta, service: MarketDataService = Depends(get
 @router.get("/{symbol}/health")
 def get_health(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     """Altman Z, Piotroski F y cobertura de intereses, con desglose completo."""
-    symbol = _validate_symbol(symbol)
+    symbol = validar_simbolo(symbol)
     financials = _fetch(service, "financials", symbol=symbol)
     market_cap = None
     try:
@@ -226,7 +220,7 @@ def get_valuation_defaults(symbol: SimboloRuta, service: MarketDataService = Dep
     """Valores de partida para el DCF, derivados de datos reales (EDGAR +
     cotización cacheada). Son un punto de arranque editable, no una
     recomendación."""
-    symbol = _validate_symbol(symbol)
+    symbol = validar_simbolo(symbol)
     financials = _fetch(service, "financials", symbol=symbol)
     periods = financials["periods"]
     latest = periods[-1]
@@ -282,7 +276,7 @@ def post_dcf(
     Devuelve escenarios bajista/base/alcista + matriz de sensibilidad, nunca
     un único número.
     """
-    symbol = _validate_symbol(symbol)
+    symbol = validar_simbolo(symbol)
     if request.net_debt is None or request.net_debt != request.net_debt:
         raise HTTPException(
             status_code=422,
@@ -341,7 +335,7 @@ def get_peers(symbol: SimboloRuta, service: MarketDataService = Depends(get_serv
     Coste acotado: máx. 6 pares, fundamentales cacheados 24 h y lista de
     pares cacheada 7 días.
     """
-    symbol = _validate_symbol(symbol)
+    symbol = validar_simbolo(symbol)
     peers_payload = _fetch(service, "peers", symbol=symbol)
     peer_symbols = peers_payload["peers"][:6]
 
@@ -391,7 +385,7 @@ def get_risk(symbol: SimboloRuta, service: MarketDataService = Depends(get_servi
 
     Reutiliza el histórico ya cacheado del gráfico: coste marginal cero.
     """
-    symbol = _validate_symbol(symbol)
+    symbol = validar_simbolo(symbol)
     history = _fetch(service, "price_history", symbol=symbol, interval="1day", outputsize=252)
     closes = pd.Series(
         [b["close"] for b in history["bars"]],
@@ -427,4 +421,4 @@ def get_risk(symbol: SimboloRuta, service: MarketDataService = Depends(get_servi
 def get_filings(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     """Filings recientes (10-K/10-Q/8-K...) y filings de insiders (Forms 3/4/5)
     con enlace directo a EDGAR."""
-    return _fetch(service, "filings", symbol=_validate_symbol(symbol))
+    return _fetch(service, "filings", symbol=validar_simbolo(symbol))

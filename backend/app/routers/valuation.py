@@ -52,11 +52,10 @@ from app.db.engine import get_session
 from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
-from app.simbolos import SIMBOLO_RE, SimboloRuta
+from app.simbolos import SimboloRuta, validar_simbolo
 
 router = APIRouter(prefix="/api/valuation", tags=["valuation"])
 
-_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 MAX_PARES = 6
 
 # Supuestos de partida de cada escenario. Son un PUNTO DE ARRANQUE editable, no
@@ -88,11 +87,6 @@ class ValoracionRequest(BaseModel):
     net_debt: float | None = None
     shares_outstanding: float | None = None
 
-
-def _validar(symbol: str) -> str:
-    if not _SYMBOL_RE.match(symbol):
-        raise HTTPException(status_code=422, detail=f"Símbolo inválido: {symbol}")
-    return symbol.upper()
 
 
 def _traer(service: MarketDataService, tipo: str, **kw):
@@ -265,7 +259,7 @@ def valorar(
     Sin cuerpo, la app propone los escenarios desde el histórico de la empresa.
     Con cuerpo, manda lo que envíes: es tu tesis, no la suya.
     """
-    symbol = _validar(symbol)
+    symbol = validar_simbolo(symbol)
     datos = _cimientos(service, symbol)
 
     base_fcf = request.base_fcf if request.base_fcf is not None else datos["base_fcf"]

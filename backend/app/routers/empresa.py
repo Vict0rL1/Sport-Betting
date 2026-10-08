@@ -23,17 +23,11 @@ from app.db.models import DecisionSnapshot
 from app.db.models import LlmOutput
 from app.deps import get_llm, get_service
 from app.llm.base import LLMProvider, LLMUnavailableError
-from app.simbolos import SIMBOLO_RE, SimboloRuta
+from app.simbolos import SimboloRuta, validar_simbolo
 
 router = APIRouter(prefix="/api/empresa", tags=["empresa"])
 
-_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
-
-def _validar(symbol: str) -> str:
-    if not _SYMBOL_RE.match(symbol):
-        raise HTTPException(status_code=422, detail=f"Símbolo inválido: {symbol}")
-    return symbol.upper()
 
 
 def analizar_y_congelar(
@@ -83,7 +77,7 @@ def analisis(
     service: MarketDataService = Depends(get_service),
     session: Session = Depends(get_session),
 ):
-    return analizar_y_congelar(_validar(symbol), service, session, congelar=congelar, con_pares=pares,
+    return analizar_y_congelar(validar_simbolo(symbol), service, session, congelar=congelar, con_pares=pares,
                                tipo_impositivo=tipo_impositivo)
 
 
@@ -97,7 +91,7 @@ def materialidad():
 @router.get("/{symbol}/cambios/{snap_id}")
 def cambios_entre(symbol: SimboloRuta, snap_id: int, contra: int | None = None, session: Session = Depends(get_session)):
     """El diff entre una instantánea y la anterior comparable (u otra concreta)."""
-    symbol = _validar(symbol)
+    symbol = validar_simbolo(symbol)
     snap = session.get(DecisionSnapshot, snap_id)
     if snap is None or snap.symbol != symbol:
         raise HTTPException(status_code=404, detail="Instantánea no encontrada")
@@ -123,7 +117,7 @@ def resumen_ia(
     puede añadir cifras que no estén en él, y lo que diga no sustituye a la
     explicación de las reglas, que es la primaria.
     """
-    symbol = _validar(symbol)
+    symbol = validar_simbolo(symbol)
     if llm is None:
         raise HTTPException(status_code=503, detail="Capa de IA no configurada: añade ANTHROPIC_API_KEY en .env")
     import json
@@ -159,7 +153,7 @@ def calidad(symbol: SimboloRuta, service: MarketDataService = Depends(get_servic
     """Calidad de los beneficios: evidencias con regla, umbral, valor, periodo y fuente."""
     from app.analysis import calidad_beneficios
 
-    symbol = _validar(symbol)
+    symbol = validar_simbolo(symbol)
     financials, fallo = analisis_empresa._traer(service, "financials", symbol=symbol)
     if not financials or not financials.get("periods"):
         raise HTTPException(status_code=404, detail=f"Sin estados financieros de la SEC para {symbol}: {fallo}")
@@ -171,7 +165,7 @@ def calidad(symbol: SimboloRuta, service: MarketDataService = Depends(get_servic
 def historial(symbol: SimboloRuta, limite: int = Query(50, ge=1, le=500), session: Session = Depends(get_session)):
     """Todo lo que el sistema dijo de esta empresa, de la lista diaria y de los
     análisis, de lo más reciente a lo más antiguo."""
-    symbol = _validar(symbol)
+    symbol = validar_simbolo(symbol)
     filas = session.execute(
         select(DecisionSnapshot)
         .where(DecisionSnapshot.symbol == symbol)

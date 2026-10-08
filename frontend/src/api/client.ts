@@ -175,26 +175,26 @@ export const api = {
   // Evolución: análisis congelable, replay, expectativas, calidad, riesgo, coste de oportunidad
   analisisEmpresa: (symbol: string, tipoImpositivo?: number | null) =>
     fetchJson<AnalisisEmpresaResponse>(
-      `/api/empresa/${symbol}/analisis${tipoImpositivo != null ? `?tipo_impositivo=${tipoImpositivo}` : ''}`,
+      `/api/empresa/${encodeURIComponent(symbol)}/analisis${tipoImpositivo != null ? `?tipo_impositivo=${tipoImpositivo}` : ''}`,
       120_000,
     ),
   historialEmpresa: (symbol: string) =>
     fetchJson<{ symbol: string; decisiones: DecisionHistorica[]; reglas_version_actual: string }>(
-      `/api/empresa/${symbol}/historial`,
+      `/api/empresa/${encodeURIComponent(symbol)}/historial`,
     ),
   replay: (id: number) => fetchJson<ReplayDecision>(`/api/snapshots/${id}/replay`),
-  calidad: (symbol: string) => fetchJson<CalidadBeneficios & { symbol: string }>(`/api/empresa/${symbol}/calidad`),
+  calidad: (symbol: string) => fetchJson<CalidadBeneficios & { symbol: string }>(`/api/empresa/${encodeURIComponent(symbol)}/calidad`),
   resumenCambiosIa: (symbol: string, cambios: CambiosAnalisis) =>
     postJson<{ generado_por: 'ia'; content_md: string; model: string; aviso: string }>(
-      `/api/empresa/${symbol}/cambios/resumen-ia`,
+      `/api/empresa/${encodeURIComponent(symbol)}/cambios/resumen-ia`,
       cambios,
     ),
   eventos: (symbol: string) =>
-    fetchJson<{ eventos: EventoCatalizador[] }>(`/api/expectativas/eventos?symbol=${symbol}`),
+    fetchJson<{ eventos: EventoCatalizador[] }>(`/api/expectativas/eventos?symbol=${encodeURIComponent(symbol)}`),
   evento: (id: number) => fetchJson<LecturaEvento>(`/api/expectativas/eventos/${id}`),
   prepararResultados: (symbol: string) =>
     postJson<{ evento: EventoCatalizador; captura: { registradas: unknown[]; sin_fuente: string[] } }>(
-      `/api/expectativas/${symbol}/proximos-resultados`,
+      `/api/expectativas/${encodeURIComponent(symbol)}/proximos-resultados`,
       {},
     ),
   capturarExpectativas: (id: number) =>
@@ -202,25 +202,25 @@ export const api = {
   registrarResultados: (id: number) =>
     postJson<{ registrados: string[]; motivo?: string }>(`/api/expectativas/eventos/${id}/resultados`, {}),
   calibracion: (symbol?: string) =>
-    fetchJson<CalibracionExpectativas>(`/api/expectativas/calibracion${symbol ? `?symbol=${symbol}` : ''}`),
+    fetchJson<CalibracionExpectativas>(`/api/expectativas/calibracion${symbol ? `?symbol=${encodeURIComponent(symbol)}` : ''}`),
   contribucion: (descargar: boolean) =>
     fetchJson<ContribucionAlRiesgo>(`/api/portfolio/contribucion?descargar=${descargar}`, 120_000),
   efectivo: () => fetchJson<SaldosEfectivo>('/api/portfolio/efectivo'),
   anotarEfectivo: (body: { moneda: string; importe: number; as_of?: string; nota?: string }) =>
     postJson<{ id: number }>('/api/portfolio/efectivo', body),
-  quote: (symbol: string) => fetchJson<Quote>(`/api/stocks/${symbol}/quote`),
-  profile: (symbol: string) => fetchJson<Profile>(`/api/stocks/${symbol}/profile`),
+  quote: (symbol: string) => fetchJson<Quote>(`/api/stocks/${encodeURIComponent(symbol)}/quote`),
+  profile: (symbol: string) => fetchJson<Profile>(`/api/stocks/${encodeURIComponent(symbol)}/profile`),
   fundamentals: (symbol: string) =>
-    fetchJson<Fundamentals>(`/api/stocks/${symbol}/fundamentals`),
+    fetchJson<Fundamentals>(`/api/stocks/${encodeURIComponent(symbol)}/fundamentals`),
   history: (symbol: string, range: HistoryRange) =>
-    fetchJson<History>(`/api/stocks/${symbol}/history?range=${range}`),
+    fetchJson<History>(`/api/stocks/${encodeURIComponent(symbol)}/history?range=${range}`),
   usage: () => fetchJson<ProviderUsage[]>('/api/meta/usage'),
   llmStatus: () => fetchJson<LlmStatus>('/api/meta/llm'),
   // Fase 2
-  financials: (symbol: string) => fetchJson<Financials>(`/api/stocks/${symbol}/financials`),
-  health: (symbol: string) => fetchJson<Health>(`/api/stocks/${symbol}/health`),
+  financials: (symbol: string) => fetchJson<Financials>(`/api/stocks/${encodeURIComponent(symbol)}/financials`),
+  health: (symbol: string) => fetchJson<Health>(`/api/stocks/${encodeURIComponent(symbol)}/health`),
   valuationDefaults: (symbol: string) =>
-    fetchJson<ValuationDefaults>(`/api/stocks/${symbol}/valuation/defaults`),
+    fetchJson<ValuationDefaults>(`/api/stocks/${encodeURIComponent(symbol)}/valuation/defaults`),
   dcf: (
     symbol: string,
     body: {
@@ -230,18 +230,18 @@ export const api = {
       shares_outstanding: number | null
       scenarios: Record<string, ScenarioAssumptions>
     },
-  ) => postJson<DcfResponse>(`/api/stocks/${symbol}/valuation/dcf`, body),
-  peers: (symbol: string) => fetchJson<PeersResponse>(`/api/stocks/${symbol}/peers`),
-  risk: (symbol: string) => fetchJson<RiskResponse>(`/api/stocks/${symbol}/risk`),
-  filings: (symbol: string) => fetchJson<FilingsResponse>(`/api/stocks/${symbol}/filings`),
+  ) => postJson<DcfResponse>(`/api/stocks/${encodeURIComponent(symbol)}/valuation/dcf`, body),
+  peers: (symbol: string) => fetchJson<PeersResponse>(`/api/stocks/${encodeURIComponent(symbol)}/peers`),
+  risk: (symbol: string) => fetchJson<RiskResponse>(`/api/stocks/${encodeURIComponent(symbol)}/risk`),
+  filings: (symbol: string) => fetchJson<FilingsResponse>(`/api/stocks/${encodeURIComponent(symbol)}/filings`),
   news: (symbol: string | null, days = 7) =>
     fetchJson<NewsFeed>(
-      `/api/news?days=${days}${symbol ? `&symbol=${symbol}` : ''}`,
+      `/api/news?days=${days}${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ''}`,
     ),
   interpretNews: (body: { headline: string; summary: string | null; symbol: string | null }) =>
     postJson<Interpretation>('/api/news/interpret', body),
   // Fase 4
-  etf: (symbol: string) => fetchJson<EtfData>(`/api/etfs/${symbol}`),
+  etf: (symbol: string) => fetchJson<EtfData>(`/api/etfs/${encodeURIComponent(symbol)}`),
   recomendarEtfs: (symbols: string[]) =>
     fetchJson<EtfRecommendation>(
       `/api/etfs/recomendar?symbols=${encodeURIComponent(symbols.join(','))}`,
@@ -354,9 +354,9 @@ export const api = {
   trackRecord: () => fetchJson<TrackRecord>('/api/theses/track-record'),
   // Informe de analista
   deepDive: (symbol: string, years = 10) =>
-    fetchJson<DeepDiveReport>(`/api/deep-dive/${symbol}?history_years=${years}`),
+    fetchJson<DeepDiveReport>(`/api/deep-dive/${encodeURIComponent(symbol)}?history_years=${years}`),
   deepDiveNarrative: (symbol: string, report: DeepDiveReport) =>
-    postJson<DeepDiveNarrative>(`/api/deep-dive/${symbol}/narrative`, report),
+    postJson<DeepDiveNarrative>(`/api/deep-dive/${encodeURIComponent(symbol)}/narrative`, report),
   // Motor de señales cuantitativas
   markets: () =>
     fetchJson<{ markets: MarketInfo[]; meta: UniversesMeta }>('/api/signals/markets'),
@@ -386,7 +386,7 @@ export const api = {
       con_divisa: conDivisa,
     }),
   explainSignal: (symbol: string, signal: QuantSignal) =>
-    postJson<SignalExplanation>(`/api/signals/${symbol}/explain`, {
+    postJson<SignalExplanation>(`/api/signals/${encodeURIComponent(symbol)}/explain`, {
       signal,
       context: signal.context,
     }),

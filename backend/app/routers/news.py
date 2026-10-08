@@ -22,7 +22,7 @@ from app.deps import get_llm, get_service
 from app.llm.base import LLMProvider, LLMUnavailableError
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
-from app.simbolos import Simbolo, SimboloQuery
+from app.simbolos import SimboloOpcional, SimboloQuery
 
 router = APIRouter(prefix="/api/news", tags=["news"])
 
@@ -41,7 +41,7 @@ Reglas estrictas:
 class InterpretRequest(BaseModel):
     headline: str
     summary: str | None = None
-    symbol: Simbolo | None = None
+    symbol: SimboloOpcional = None
 
 
 @router.get("")

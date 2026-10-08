@@ -59,11 +59,10 @@ from app.llm.earnings_llm import (
 )
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
-from app.simbolos import SIMBOLO_RE, SimboloRuta
+from app.simbolos import SimboloRuta, validar_simbolo
 
 router = APIRouter(prefix="/api/earnings", tags=["earnings"])
 
-_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
 # Formularios que traen lenguaje de la dirección. El 10-K entra porque el cuarto
 # trimestre no tiene 10-Q: la comparación se rompería justo una vez al año.
@@ -81,11 +80,6 @@ class AnalizarRequest(BaseModel):
     )
     comparar: bool = Field(True, description="Comparar con el trimestre anterior ya analizado")
 
-
-def _validar(symbol: str) -> str:
-    if not _SYMBOL_RE.match(symbol):
-        raise HTTPException(status_code=422, detail=f"Símbolo inválido: {symbol}")
-    return symbol.upper()
 
 
 def _filings_de_resultados(service: MarketDataService, symbol: str) -> list[dict]:
@@ -199,7 +193,7 @@ def listar_disponibles(
     limite: int = Query(8, ge=1, le=20),
 ):
     """Qué reportes hay, cuáles están ya analizados y qué NO se puede analizar."""
-    symbol = _validar(symbol)
+    symbol = validar_simbolo(symbol)
     filings = _filings_de_resultados(service, symbol)[:limite]
     analizados = {
         r.accession_no
@@ -239,7 +233,7 @@ def estimar_coste(
     pedirlo a ciegas no es pedirlo: un 10-Q largo cuesta bastante más que uno
     corto y eso hay que saberlo antes, no en la factura.
     """
-    symbol = _validar(symbol)
+    symbol = validar_simbolo(symbol)
     filings = _filings_de_resultados(service, symbol)
     filing = _elegir(filings, accession_no)
     preparado = _preparar(service, symbol, filing)
@@ -289,7 +283,7 @@ def analizar(
     JSON (no los dos documentos). La segunda cuesta una fracción de la primera y
     es auditable, porque sus entradas quedan guardadas.
     """
-    symbol = _validar(symbol)
+    symbol = validar_simbolo(symbol)
     filings = _filings_de_resultados(service, symbol)
     filing = _elegir(filings, request.accession_no)
     preparado = _preparar(service, symbol, filing)
@@ -435,7 +429,7 @@ def historial(symbol: SimboloRuta, session: Session = Depends(get_session)):
     Misma forma cada trimestre: es lo que convierte una lista de análisis sueltos
     en una serie que se puede leer de arriba abajo.
     """
-    symbol = _validar(symbol)
+    symbol = validar_simbolo(symbol)
     filas = session.execute(
         select(EarningsAnalysis)
         .where(EarningsAnalysis.symbol == symbol)

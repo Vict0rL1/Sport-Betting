@@ -36,24 +36,18 @@ from app.db.models import (
 from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
-from app.simbolos import SIMBOLO_RE, Simbolo
+from app.simbolos import Simbolo, validar_simbolo
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 watchlist_router = APIRouter(prefix="/api/watchlist", tags=["watchlist"])
 
-_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
-
-def _validate(symbol: str) -> str:
-    if not _SYMBOL_RE.match(symbol):
-        raise HTTPException(status_code=422, detail=f"Símbolo inválido: {symbol}")
-    return symbol.upper()
 
 
 def get_or_create_instrument(session: Session, symbol: str, service=None) -> Instrument:
     """Busca el instrumento; si no existe lo crea, enriqueciéndolo con el
     perfil si está en caché o disponible (sin romper si la API falla)."""
-    symbol = _validate(symbol)
+    symbol = validar_simbolo(symbol)
     instrument = session.execute(
         select(Instrument).where(Instrument.symbol == symbol)
     ).scalar_one_or_none()

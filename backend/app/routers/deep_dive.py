@@ -27,11 +27,10 @@ from app.deps import get_llm, get_service
 from app.llm.base import LLMProvider, LLMUnavailableError
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
-from app.simbolos import SIMBOLO_RE, SimboloRuta
+from app.simbolos import SimboloRuta, validar_simbolo
 
 router = APIRouter(prefix="/api/deep-dive", tags=["deep-dive"])
 
-_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
 NARRATIVE_SYSTEM = """Eres un analista de renta variable escribiendo para un \
 estudiante de finanzas. Recibes un informe YA CALCULADO con cifras reales.
@@ -54,11 +53,6 @@ años de historia, factores ausentes).
 para que la tesis alcista funcione y qué la rompería.
 - Español, máximo 600 palabras, Markdown."""
 
-
-def _validate(symbol: str) -> str:
-    if not _SYMBOL_RE.match(symbol):
-        raise HTTPException(status_code=422, detail=f"Símbolo inválido: {symbol}")
-    return symbol.upper()
 
 
 def _safe(service: MarketDataService, data_type: str, **kwargs):
@@ -108,7 +102,7 @@ def deep_dive(
 
     Todo calculado a partir de datos. La narrativa del LLM va aparte.
     """
-    symbol = _validate(symbol)
+    symbol = validar_simbolo(symbol)
 
     financials = _safe(service, "financials", symbol=symbol)
     if financials is None or not financials.get("periods"):
@@ -252,7 +246,7 @@ def narrative(
     session: Session = Depends(get_session),
 ):
     """Narrativa del informe escrita por Claude sobre las cifras calculadas."""
-    symbol = _validate(symbol)
+    symbol = validar_simbolo(symbol)
     if llm is None:
         raise HTTPException(
             status_code=503,

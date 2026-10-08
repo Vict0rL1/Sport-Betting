@@ -4,6 +4,7 @@ import type { Interpretation, NewsFeed, NewsItem } from '../api/types'
 import { SourceBadge } from '../components/SourceBadge'
 import { fmtDateTime } from '../lib/format'
 import { useLlmStatus } from '../lib/llm'
+import { primerSimbolo } from '../lib/simbolos'
 
 function AiInterpretation({ data }: { data: Interpretation }) {
   return (
@@ -37,7 +38,7 @@ function NewsCard({ item, symbol }: { item: NewsItem; symbol: string | null }) {
         await api.interpretNews({
           headline: item.headline,
           summary: item.summary,
-          symbol: item.related ?? symbol,
+          symbol: primerSimbolo(item.related) ?? symbol,
         }),
       )
     } catch (e) {

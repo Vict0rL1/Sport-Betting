@@ -21,11 +21,10 @@ from app.db.models import TIPOS_DE_EVENTO, TIPOS_DE_FUENTE, CatalystEvent
 from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
-from app.simbolos import SIMBOLO_RE, Simbolo, SimboloQuery, SimboloRuta
+from app.simbolos import Simbolo, SimboloQuery, SimboloRuta
 
 router = APIRouter(prefix="/api/expectativas", tags=["expectativas"])
 
-_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 _FECHA = r"^\d{4}-\d{2}-\d{2}$"
 
 
@@ -59,8 +58,6 @@ def _evento(session: Session, evento_id: int) -> CatalystEvent:
 
 @router.post("/eventos")
 def crear_evento(body: EventoCrear, session: Session = Depends(get_session)):
-    if not _SYMBOL_RE.match(body.symbol):
-        raise HTTPException(status_code=422, detail=f"Símbolo inválido: {body.symbol}")
     try:
         e = svc.crear_evento(session, body.symbol, body.tipo, periodo=body.periodo,
                              periodo_fin=body.periodo_fin, fecha_prevista=body.fecha_prevista,
@@ -74,7 +71,7 @@ def crear_evento(body: EventoCrear, session: Session = Depends(get_session)):
 def listar(symbol: SimboloQuery = None, session: Session = Depends(get_session)):
     q = select(CatalystEvent).order_by(CatalystEvent.fecha_prevista.desc(), CatalystEvent.id.desc())
     if symbol:
-        q = q.where(CatalystEvent.symbol == symbol.strip().upper())
+        q = q.where(CatalystEvent.symbol == symbol)
     salida = []
     for e in session.execute(q).scalars():
         salida.append({**svc.serializar_evento(e),
@@ -138,9 +135,6 @@ def proximos_resultados(symbol: SimboloRuta, dias: int = Query(90, ge=1, le=180)
                         session: Session = Depends(get_session),
                         service: MarketDataService = Depends(get_service)):
     """Crea el evento de los próximos resultados desde el calendario y captura."""
-    if not _SYMBOL_RE.match(symbol):
-        raise HTTPException(status_code=422, detail=f"Símbolo inválido: {symbol}")
-    symbol = symbol.upper()
     hoy = datetime.now(timezone.utc).date()
     try:
         cal = service.get("earnings_calendar", start=hoy.isoformat(), end=(hoy + timedelta(days=dias)).isoformat())

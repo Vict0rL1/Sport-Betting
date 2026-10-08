@@ -45,7 +45,7 @@ def listar(
             raise HTTPException(status_code=422, detail=f"Fecha inválida: {f!r} (AAAA-MM-DD)")
     q = select(DecisionSnapshot).order_by(DecisionSnapshot.creado_en.desc()).limit(limite)
     if symbol:
-        q = q.where(DecisionSnapshot.symbol == symbol.strip().upper())
+        q = q.where(DecisionSnapshot.symbol == symbol)
     if origen:
         q = q.where(DecisionSnapshot.origen.like(f"{origen}%"))
     if desde:

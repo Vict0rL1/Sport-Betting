@@ -32,11 +32,10 @@ from app.db.models import ScreenerPreset
 from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
-from app.simbolos import SIMBOLO_RE, Simbolo
+from app.simbolos import Simbolo
 
 router = APIRouter(prefix="/api/screener", tags=["screener"])
 
-_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 MAX_UNIVERSE = 25  # tope de seguridad: 25 símbolos = máx. 25 llamadas nuevas
 SESIONES_ANO = 252
 
@@ -110,10 +109,7 @@ def run_screen(
 ):
     """Evalúa el universo indicado. Cada resultado explica qué filtro falló."""
     symbols = []
-    for raw in request.symbols:
-        symbol = raw.strip().upper()
-        if not _SYMBOL_RE.match(symbol):
-            raise HTTPException(status_code=422, detail=f"Símbolo inválido: {raw}")
+    for symbol in request.symbols:  # ya validados y en mayúsculas (tipo `Simbolo`)
         if symbol not in symbols:
             symbols.append(symbol)
 

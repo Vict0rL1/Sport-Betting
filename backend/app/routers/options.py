@@ -36,11 +36,10 @@ from app.db.models import OptionsSnapshot
 from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
-from app.simbolos import SIMBOLO_RE, SimboloRuta
+from app.simbolos import SimboloRuta, validar_simbolo
 
 router = APIRouter(prefix="/api/options", tags=["options"])
 
-_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
 # Cuántos trimestres hacia atrás se miran para el movimiento real en resultados.
 # Ocho son dos años: suficiente para una mediana y poco para que la empresa de
@@ -49,11 +48,6 @@ TRIMESTRES_ATRAS = 8
 # Cuánto histórico de precios hace falta alrededor de esos resultados.
 DIAS_HISTORICO = 900
 
-
-def _validar(symbol: str) -> str:
-    if not _SYMBOL_RE.match(symbol):
-        raise HTTPException(status_code=422, detail=f"Símbolo inválido: {symbol}")
-    return symbol.upper()
 
 
 def _cierres(service: MarketDataService, symbol: str) -> list[tuple[date, float]]:
@@ -189,7 +183,7 @@ def señales_de_opciones(
     movimiento esperado antes de resultados contra el real de esta empresa, y
     actividad inusual. Separadas, sin score, y al lado del fundamental.
     """
-    symbol = _validar(symbol)
+    symbol = validar_simbolo(symbol)
     hoy = date.today()
 
     try:

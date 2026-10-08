@@ -16,17 +16,11 @@ from app.cache.cache import MarketDataService
 from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
-from app.simbolos import ListaSimbolosQuery, SIMBOLO_RE, SimboloRuta
+from app.simbolos import ListaSimbolosQuery, SimboloRuta, validar_simbolo
 
 router = APIRouter(prefix="/api/etfs", tags=["etfs"])
 
-_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
-
-def _validate(symbol: str) -> str:
-    if not _SYMBOL_RE.match(symbol):
-        raise HTTPException(status_code=422, detail=f"Símbolo inválido: {symbol}")
-    return symbol.upper()
 
 
 def _fetch_etf(service: MarketDataService, symbol: str) -> dict:
@@ -44,7 +38,7 @@ def compare_etfs(
     service: MarketDataService = Depends(get_service),
 ):
     """Comparador lado a lado + matriz de solapamiento entre todos los pares."""
-    requested = [_validate(s.strip()) for s in symbols.split(",") if s.strip()][:4]
+    requested = symbols.split(",")[:4]  # `ListaSimbolosQuery`: ya validados y en mayúsculas
     if len(requested) < 1:
         raise HTTPException(status_code=422, detail="Indica al menos un ETF")
 
@@ -90,7 +84,7 @@ def recomendar_etfs(
     posiciones — un z-score de valor ahí produciría un ranking con aspecto
     riguroso y sin significado.
     """
-    requested = [_validate(s.strip()) for s in symbols.split(",") if s.strip()][:6]
+    requested = symbols.split(",")[:6]  # `ListaSimbolosQuery`: ya validados y en mayúsculas
     if len(requested) < 1:
         raise HTTPException(status_code=422, detail="Indica al menos un ETF")
 
@@ -142,7 +136,7 @@ def recomendar_etfs(
 @router.get("/{symbol}")
 def get_etf(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     """Composición, expense ratio, AUM y desglose sectorial."""
-    payload = _fetch_etf(service, _validate(symbol))
+    payload = _fetch_etf(service, validar_simbolo(symbol))
     payload["coverage_note"] = (
         "La fuente gratuita publica solo los mayores holdings; el desglose no "
         "suma 100 % y no es la cartera completa."

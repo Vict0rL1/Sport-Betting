@@ -59,12 +59,11 @@ from app.llm.base import LLMProvider, LLMUnavailableError
 from app.llm.signal_llm import explain_signal, extract_events, sentiment_from_events
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
-from app.simbolos import SIMBOLO_RE, Simbolo, SimboloRuta
+from app.simbolos import Simbolo, SimboloRuta
 
 router = APIRouter(prefix="/api/signals", tags=["signals"])
 logger = logging.getLogger(__name__)
 
-_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 MAX_UNIVERSE = 15  # tope de coste: cada símbolo cuesta llamadas de fundamentales
 
 # Fundamentales nuevos por petición de /today. Con Finnhub a 60/min, 120 deja
@@ -118,10 +117,7 @@ class RuleBacktestRequest(BaseModel):
 
 def _validate(symbols: list[str]) -> list[str]:
     out: list[str] = []
-    for raw in symbols:
-        symbol = raw.strip().upper()
-        if not _SYMBOL_RE.match(symbol):
-            raise HTTPException(status_code=422, detail=f"Símbolo inválido: {raw}")
+    for symbol in symbols:  # ya validados y en mayúsculas (tipo `Simbolo`)
         if symbol not in out:
             out.append(symbol)
     if len(out) < 3:

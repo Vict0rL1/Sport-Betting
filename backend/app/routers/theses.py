@@ -570,7 +570,7 @@ def registrar_decision(
     recordar lo que sabías, vas a recordar lo que pasó — y la memoria reescribe
     el pasado para que encaje.
     """
-    symbol = decision.symbol.strip().upper()
+    symbol = decision.symbol  # `Simbolo`: ya recortado y en mayúsculas
     precio = _price_of(service, symbol)
 
     tesis = session.get(Thesis, decision.thesis_id) if decision.thesis_id else None
@@ -639,7 +639,7 @@ def listar_decisiones(
     """
     consulta = select(Decision).order_by(Decision.created_at.desc())
     if symbol:
-        consulta = consulta.where(Decision.symbol == symbol.strip().upper())
+        consulta = consulta.where(Decision.symbol == symbol)
     filas = session.execute(consulta).scalars().all()
 
     precios: dict[str, float | None] = {}

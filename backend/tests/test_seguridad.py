@@ -131,10 +131,11 @@ def test_un_simbolo_malicioso_es_un_422_en_espanol_y_nunca_una_llamada(esquema, 
             url = re.sub(r"\{[a-z_]+\}", "1", url)  # otros parámetros de ruta: cualquier valor válido
             params = {nombre: malo} if donde == "query" else {}
             r = c.request(metodo.upper(), url, params=params, json={} if metodo != "get" else None)
-            assert r.status_code in (404, 422), (metodo, ruta, malo, r.status_code)
+            # Un 422 y en español: antes se aceptaba también un 404, que habría
+            # dejado pasar una ruta que no valida y encima no encuentra nada.
+            assert r.status_code == 422, (metodo, ruta, malo, r.status_code)
             assert not espia.llamadas, f"{metodo.upper()} {ruta} con «{malo}» llegó al proveedor"
-            if r.status_code == 422:
-                assert "Símbolo inválido" in r.text, (ruta, r.text[:200])
+            assert "Símbolo inválido" in r.text, (ruta, r.text[:200])
         probadas += 1
     assert probadas >= 35
 
@@ -160,6 +161,30 @@ def test_los_simbolos_buenos_siguen_pasando(cliente):
     for bueno in ("AAPL", "BRK-B", "RY.TO", "BTC-USD", "aapl"):
         r = c.get(f"/api/stocks/{bueno}/quote")
         assert r.status_code != 422, (bueno, r.text[:200])
+
+
+def test_los_simbolos_buenos_pasan_tambien_por_query_lista_y_cuerpo_y_llegan_en_mayusculas(cliente):
+    """La revisión de la Fase 0 vio que solo se probaba la ruta. Y que la
+    validación común había cambiado el contrato: un `?symbol=` vacío o con
+    espacios pasó a 422, cuando antes era «sin filtro» o se recortaba."""
+    c, espia = cliente
+    c.get("/api/news", params={"symbol": " aapl "})
+    c.get("/api/etfs/recomendar", params={"symbols": "spy , qqq"})
+    pedidos = {kw.get("symbol") for _, kw in espia.llamadas}
+    assert {"AAPL", "SPY", "QQQ"} <= pedidos, pedidos
+    r = c.post("/api/watchlist", json={"symbol": " brk-b "})
+    assert r.status_code != 422 and r.json().get("symbol", "BRK-B") == "BRK-B", r.text[:200]
+    # Lo vacío sigue siendo «sin filtro» en todas las queries opcionales con símbolo.
+    for url in ("/api/expectativas/eventos", "/api/snapshots", "/api/theses/decisiones", "/api/news"):
+        for vacio in ("", "  "):
+            r = c.get(url, params={"symbol": vacio})
+            assert r.status_code != 422, (url, repr(vacio), r.text[:200])
+
+
+def test_un_cuerpo_con_symbol_vacio_opcional_no_es_un_ticker_malo(cliente):
+    c, _ = cliente
+    r = c.post("/api/news/interpret", json={"headline": "x", "symbol": ""})
+    assert r.status_code != 422, r.text[:200]
 
 
 def test_el_backend_solo_escucha_en_local_y_cors_solo_admite_el_vite_local(cliente):
@@ -232,4 +257,35 @@ def test_ninguna_ruta_con_parametro_tapa_a_una_fija_declarada_despues():
             patron = "^" + re.sub(r"\{[^}]+\}", "[^/]+", p1) + "$"
             tapadas += [f"{f.name}: {m1.upper()} {p1} tapa a {p2}" for m2, p2 in rutas[i + 1:]
                         if m1 == m2 and p1 != p2 and "{" in p1 and re.match(patron, p2)]
+    assert not tapadas, tapadas
+
+
+def test_ninguna_ruta_tapa_a_otra_en_toda_la_app():
+    """Lo mismo, con el orden REAL de registro: los `include_router` de `main.py`
+    y, dentro de cada router, el orden de declaración. El test anterior solo
+    comparaba rutas de un mismo fichero; dos routers con el mismo prefijo
+    podían taparse sin que nada lo dijera."""
+    import ast
+    import importlib
+
+    principal = ast.parse((RAIZ / "backend" / "app" / "main.py").read_text(encoding="utf-8"))
+    incluidos = [n.args[0] for n in ast.walk(principal) if isinstance(n, ast.Call)
+                 and isinstance(n.func, ast.Attribute) and n.func.attr == "include_router" and n.args]
+    rutas = []
+    for arg in incluidos:
+        modulo, atributo = arg.value.id, arg.attr  # stocks.router, portfolio.watchlist_router…
+        router = getattr(importlib.import_module(f"app.routers.{modulo}"), atributo)
+        rutas += [(m, r.path) for r in router.routes for m in sorted(getattr(r, "methods", None) or [])]
+    # Todas las operaciones del esquema tienen que estar en la lista reconstruida.
+    from app.main import app
+
+    esquema = {(m.upper(), r) for r, ops in app.openapi()["paths"].items() for m in ops}
+    assert esquema <= set(rutas), f"rutas sin reconstruir: {sorted(esquema - set(rutas))[:5]}"
+    tapadas = []
+    for i, (m1, p1) in enumerate(rutas):
+        if "{" not in p1:
+            continue
+        patron = "^" + re.sub(r"\{[^}]+\}", "[^/]+", p1) + "$"
+        tapadas += [f"{m1} {p1} tapa a {p2}" for m2, p2 in rutas[i + 1:]
+                    if m1 == m2 and p1 != p2 and re.match(patron, p2)]
     assert not tapadas, tapadas
