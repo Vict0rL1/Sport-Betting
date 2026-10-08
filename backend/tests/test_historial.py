@@ -147,7 +147,7 @@ def test_sin_historico_de_tipo_la_posicion_queda_fuera_y_se_nombra():
     )
     assert [e["symbol"] for e in r["excluidas"]] == ["TOYO"]
     assert "JPY" in r["excluidas"][0]["motivo"]
-    assert "quedan fuera de la curva" in r["aviso"]
+    assert "1 posición queda fuera de la curva" in r["aviso"]
 
 
 def test_una_cartera_en_una_sola_divisa_no_menciona_cambios():

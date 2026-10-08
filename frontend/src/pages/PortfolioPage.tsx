@@ -13,7 +13,7 @@ import type {
   Vigilancia,
   WatchlistItem,
 } from '../api/types'
-import { fmtDinero, fmtNum, fmtPct } from '../lib/formato'
+import { fmtDinero, fmtNum, fmtPct, plural } from '../lib/formato'
 
 type Tab = 'portafolio' | 'watchlist' | 'alertas'
 
@@ -483,8 +483,11 @@ function PortfolioTab() {
 
           {data.summary.priced_positions < data.summary.total_positions && (
             <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-              {data.summary.total_positions - data.summary.priced_positions} posición(es) sin
-              precio disponible quedan fuera de los totales. {data.note}
+              {data.summary.total_positions - data.summary.priced_positions}{' '}
+              {plural(data.summary.total_positions - data.summary.priced_positions, 'posición', 'posiciones')} sin
+              precio disponible{' '}
+              {plural(data.summary.total_positions - data.summary.priced_positions, 'queda', 'quedan')} fuera de los
+              totales. {data.note}
             </p>
           )}
 
@@ -769,7 +772,8 @@ function AvisoDeVigilancia({ v }: { v: Vigilancia | null }) {
       <p>{v.nota}</p>
       {v.activa && v.revisadas != null && (
         <p className="mt-1 opacity-80">
-          {v.revisadas} alerta(s) revisadas, {fmtNum(v.nuevas, 0)} nueva(s)
+          {v.revisadas} {plural(v.revisadas, 'alerta revisada', 'alertas revisadas')},{' '}
+          {v.nuevas == null ? 'nuevas: sin dato' : `${v.nuevas} ${plural(v.nuevas, 'nueva', 'nuevas')}`}
           {v.no_evaluables ? `, ${v.no_evaluables} sin poder comprobar` : ''}.
         </p>
       )}

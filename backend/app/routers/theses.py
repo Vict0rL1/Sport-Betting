@@ -43,6 +43,7 @@ from app.db.models import (
     WatchlistItem,
 )
 from app.deps import get_service
+from app.formato import plural
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
 from app.routers.portfolio import get_or_create_instrument
@@ -477,7 +478,8 @@ def vigilancia(
         "total_saltan": total_saltan,
         "sin_disparadores": sin_disparadores,
         "nota": (
-            f"{total_saltan} punto(s) de invalidación cruzados. Que salte uno no es "
+            f"{total_saltan} {plural(total_saltan, 'punto de invalidación cruzado', 'puntos de invalidación cruzados')}. "
+            "Que salte uno no es "
             "una señal de venta: es que tú, cuando pensabas con más calma que ahora, "
             "dijiste que esto importaba. Toca releer la tesis, no vender."
             if total_saltan
@@ -534,7 +536,7 @@ def sin_tesis(session: Session = Depends(get_session)):
         "watchlist_total": len(set(vigiladas)),
         "nota": (
             (
-                f"{len(posiciones_sin)} posición(es) abiertas sin tesis escrita "
+                f"{len(posiciones_sin)} {plural(len(posiciones_sin), 'posición abierta', 'posiciones abiertas')} sin tesis escrita "
                 f"({', '.join(posiciones_sin[:6])}). Es dinero puesto sin una razón "
                 "que puedas releer: dentro de un año recordarás el resultado, no el "
                 "porqué."

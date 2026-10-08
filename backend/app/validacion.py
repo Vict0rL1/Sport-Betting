@@ -33,6 +33,7 @@ rango donde un precio puede estar. Detectar un 150,00 que en realidad era
 from __future__ import annotations
 
 from app import datos
+from app.formato import plural
 
 
 class PayloadInvalido(Exception):
@@ -96,7 +97,7 @@ def _barras(payload: dict) -> dict:
 
     if not limpias:
         raise PayloadInvalido(
-            f"histórico con {len(barras)} barra(s), ninguna utilizable"
+            f"histórico con {len(barras)} {plural(len(barras), 'barra', 'barras')}, ninguna utilizable"
         )
 
     salida = {**payload, "bars": limpias}

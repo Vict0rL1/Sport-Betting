@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import math
 from datetime import date, datetime, timezone
-from app.formato import fmt_num, fmt_pct
+from app.formato import fmt_num, fmt_pct, plural
 
 # Un contrato cuyo último cruce es de hace días no cotiza: su IV describe otro
 # mundo. Dos sesiones es generoso y aun así tira mucha morralla.
@@ -655,7 +655,7 @@ def actividad(contratos: list[dict], base: dict | None = None) -> dict:
         "volumen_sobre_oi": round(vol_total / oi_total, 3) if oi_total else None,
         "posiciones_nuevas": nuevos[:10],
         "nota_posiciones": (
-            f"{len(nuevos)} strike(s) con más volumen hoy que open interest abierto: "
+            f"{len(nuevos)} {plural(len(nuevos), 'strike', 'strikes')} con más volumen hoy que open interest abierto: "
             "ahí se está montando algo nuevo, no cerrando lo viejo. No dice quién ni "
             "por qué — un volumen enorme en puts puede ser miedo o puede ser la "
             "cobertura de alguien que acaba de comprar la acción."

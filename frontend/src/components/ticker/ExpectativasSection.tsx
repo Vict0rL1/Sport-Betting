@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { CalibracionExpectativas, EventoCatalizador, LecturaEvento } from '../../api/types'
 import { etiqueta } from '../../lib/etiquetas'
-import { fmtNum, fmtPct } from '../../lib/formato'
+import { fmtNum, fmtPct, plural } from '../../lib/formato'
 
 const FUENTE: Record<string, string> = {
   consenso: 'Consenso (Finnhub)',
@@ -117,7 +117,8 @@ function Evento({ id, alCambiar }: { id: number; alCambiar: () => void }) {
       )}
       {l.excluidas_por_fecha.length > 0 && (
         <p className="rounded bg-amber-50 p-2 text-[11px] text-amber-900">
-          {l.excluidas_por_fecha.length} expectativa(s) excluidas por fecha (registradas cuando el resultado ya se conocía o el
+          {l.excluidas_por_fecha.length}{' '}
+          {plural(l.excluidas_por_fecha.length, 'expectativa excluida', 'expectativas excluidas')} por fecha (registradas cuando el resultado ya se conocía o el
           mismo día): {l.excluidas_por_fecha.map((x) => `${etiqueta(x.metrica)} (${etiqueta(x.fuente_tipo)})`).join(', ')}.
         </p>
       )}
@@ -148,7 +149,7 @@ export function ExpectativasSection({ symbol }: { symbol: string }) {
   const preparar = () =>
     api.prepararResultados(symbol).then(
       (r) => {
-        setMsg(`Evento ${r.evento.periodo ?? ''} creado; ${r.captura.registradas.length} expectativa(s) capturadas.${r.captura.sin_fuente.length ? ' Sin fuente: ' + r.captura.sin_fuente.join(' · ') : ''}`)
+        setMsg(`Evento ${r.evento.periodo ?? ''} creado; ${r.captura.registradas.length} ${plural(r.captura.registradas.length, 'expectativa capturada', 'expectativas capturadas')}.${r.captura.sin_fuente.length ? ' Sin fuente: ' + r.captura.sin_fuente.join(' · ') : ''}`)
         setAbierto(r.evento.id)
         cargar()
       },

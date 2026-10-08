@@ -34,6 +34,7 @@ from app.cache.cache import MarketDataService
 from app.db.engine import get_session
 from app.db.models import OptionsSnapshot
 from app.deps import get_service
+from app.formato import plural
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
 from app.simbolos import SimboloRuta, validar_simbolo
@@ -257,7 +258,7 @@ def señales_de_opciones(
             "n": base["n"],
             "desde": base["desde"],
             "nota": (
-                f"{base['n']} lectura(s) guardadas desde {base['desde']}. Los juicios "
+                f"{base['n']} {plural(base['n'], 'lectura guardada', 'lecturas guardadas')} desde {base['desde']}. Los juicios "
                 "de «alto» o «inusual» se hacen contra esta historia, no contra un "
                 "umbral universal: un 40 % de IV es tranquilidad en una "
                 "biotecnológica y pánico en una eléctrica."

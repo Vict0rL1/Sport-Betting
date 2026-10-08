@@ -702,7 +702,7 @@
       "debiles": 5,
       "factores": [
        {
-        "detalle": "1 dato(s) desconocido(s): puntuación",
+        "detalle": "1 dato desconocido: puntuación",
         "estado": "debil",
         "factor": "Datos desconocidos en el análisis",
         "id": "completitud"
@@ -726,7 +726,7 @@
         "id": "contraste_proveedores"
        },
        {
-        "detalle": "2 ejercicio(s) y 260 sesiones de precio",
+        "detalle": "2 ejercicios y 260 sesiones de precio",
         "estado": "debil",
         "factor": "Histórico disponible",
         "id": "historico"
@@ -767,9 +767,9 @@
       "nivel": "baja",
       "nota": "Mide la calidad de la evidencia que respalda la decisión, no la probabilidad de acertar.",
       "razones": [
-       "1 dato(s) desconocido(s): puntuación",
+       "1 dato desconocido: puntuación",
        "finnhub y yfinance difieren un 11,5 %",
-       "2 ejercicio(s) y 260 sesiones de precio",
+       "2 ejercicios y 260 sesiones de precio",
        "el crecimiento implícito va de 19,7 % a 42,5 % entre un WACC del 7 % y del 12 %",
        "sin dato (ninguna)"
       ],
@@ -903,7 +903,7 @@
         "condiciones": [
          {
           "actual": null,
-          "condicion": "que haya puntuación válido",
+          "condicion": "que haya una puntuación válida",
           "regla": "datos_minimos",
           "umbral": null
          }
@@ -1512,7 +1512,7 @@
          "umbral": 0.18
         },
         "descripcion": "margen operativo < 18%",
-        "detalle": "Margen operativo = 0,210 y el umbral era cae por debajo de 0,180. Todavía no lo cruza.",
+        "detalle": "Margen operativo = 0,210; el punto salta si cae por debajo de 0,180. Todavía no lo cruza.",
         "id": 1,
         "kind": "metrica",
         "medible": true,
@@ -1754,7 +1754,7 @@
      "generado_por": "app",
      "irrelevantes": 11,
      "materiales": 8,
-     "nota": "8 cambio(s) material(es) y 11 por debajo de su umbral (se cuentan, no se enseñan). La aparición o pérdida de un dato se enseña siempre.",
+     "nota": "8 cambios materiales y 11 por debajo de su umbral (se cuentan, no se enseñan). La aparición o pérdida de un dato se enseña siempre.",
      "tesis": {
       "confirmados": [],
       "deteriorados": [],
@@ -5212,7 +5212,7 @@
       "debiles": 5,
       "factores": [
        {
-        "detalle": "1 dato(s) desconocido(s): puntuación",
+        "detalle": "1 dato desconocido: puntuación",
         "estado": "debil",
         "factor": "Datos desconocidos en el análisis",
         "id": "completitud"
@@ -5236,7 +5236,7 @@
         "id": "contraste_proveedores"
        },
        {
-        "detalle": "2 ejercicio(s) y 201 sesiones de precio",
+        "detalle": "2 ejercicios y 201 sesiones de precio",
         "estado": "debil",
         "factor": "Histórico disponible",
         "id": "historico"
@@ -5277,9 +5277,9 @@
       "nivel": "baja",
       "nota": "Mide la calidad de la evidencia que respalda la decisión, no la probabilidad de acertar.",
       "razones": [
-       "1 dato(s) desconocido(s): puntuación",
+       "1 dato desconocido: puntuación",
        "último trimestre (2025-Q4) publicado hace 154 días",
-       "2 ejercicio(s) y 201 sesiones de precio",
+       "2 ejercicios y 201 sesiones de precio",
        "el crecimiento implícito va de 22,7 % a 46,3 % entre un WACC del 7 % y del 12 %",
        "sin dato (ninguna)"
       ],
@@ -5406,7 +5406,7 @@
         "condiciones": [
          {
           "actual": null,
-          "condicion": "que haya puntuación válido",
+          "condicion": "que haya una puntuación válida",
           "regla": "datos_minimos",
           "umbral": null
          }
@@ -5850,7 +5850,7 @@
          "umbral": 0.18
         },
         "descripcion": "margen operativo < 18%",
-        "detalle": "Margen operativo = 0,210 y el umbral era cae por debajo de 0,180. Todavía no lo cruza.",
+        "detalle": "Margen operativo = 0,210; el punto salta si cae por debajo de 0,180. Todavía no lo cruza.",
         "id": 1,
         "kind": "metrica",
         "medible": true,
@@ -6412,7 +6412,7 @@
       "debiles": 5,
       "factores": [
        {
-        "detalle": "1 dato(s) desconocido(s): puntuación",
+        "detalle": "1 dato desconocido: puntuación",
         "estado": "debil",
         "factor": "Datos desconocidos en el análisis",
         "id": "completitud"
@@ -6436,7 +6436,7 @@
         "id": "contraste_proveedores"
        },
        {
-        "detalle": "2 ejercicio(s) y 260 sesiones de precio",
+        "detalle": "2 ejercicios y 260 sesiones de precio",
         "estado": "debil",
         "factor": "Histórico disponible",
         "id": "historico"
@@ -6477,9 +6477,9 @@
       "nivel": "baja",
       "nota": "Mide la calidad de la evidencia que respalda la decisión, no la probabilidad de acertar.",
       "razones": [
-       "1 dato(s) desconocido(s): puntuación",
+       "1 dato desconocido: puntuación",
        "finnhub y yfinance difieren un 11,5 %",
-       "2 ejercicio(s) y 260 sesiones de precio",
+       "2 ejercicios y 260 sesiones de precio",
        "el crecimiento implícito va de 19,7 % a 42,5 % entre un WACC del 7 % y del 12 %",
        "sin dato (ninguna)"
       ],
@@ -6613,7 +6613,7 @@
         "condiciones": [
          {
           "actual": null,
-          "condicion": "que haya puntuación válido",
+          "condicion": "que haya una puntuación válida",
           "regla": "datos_minimos",
           "umbral": null
          }
@@ -7097,7 +7097,7 @@
          "umbral": 0.18
         },
         "descripcion": "margen operativo < 18%",
-        "detalle": "Margen operativo = 0,210 y el umbral era cae por debajo de 0,180. Todavía no lo cruza.",
+        "detalle": "Margen operativo = 0,210; el punto salta si cae por debajo de 0,180. Todavía no lo cruza.",
         "id": 1,
         "kind": "metrica",
         "medible": true,

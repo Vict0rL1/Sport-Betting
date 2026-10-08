@@ -27,6 +27,7 @@ from __future__ import annotations
 
 from bisect import bisect_right
 from datetime import date
+from app.formato import plural
 
 # Por debajo de esto no hay curva: hay dos puntos y una recta entre ellos.
 MIN_PUNTOS = 10
@@ -309,7 +310,8 @@ def _aviso(base: str, cierres: list[date], excluidas: list[dict], hay_divisas: b
     ]
     if cierres:
         partes.append(
-            f"Cerraste algo en {len(cierres)} fecha(s) ({', '.join(c.isoformat() for c in cierres[:3])}"
+            f"Cerraste algo en {len(cierres)} {plural(len(cierres), 'fecha', 'fechas')} "
+            f"({', '.join(c.isoformat() for c in cierres[:3])}"
             f"{'…' if len(cierres) > 3 else ''}), y cada cierre hace BAJAR la línea. "
             "Eso es una retirada, no una pérdida."
         )
@@ -321,7 +323,7 @@ def _aviso(base: str, cierres: list[date], excluidas: list[dict], hay_divisas: b
     if excluidas:
         nombres = ", ".join(e["symbol"] for e in excluidas[:4])
         partes.append(
-            f"{len(excluidas)} posición(es) quedan fuera de la curva ({nombres}) por "
+            f"{len(excluidas)} {plural(len(excluidas), 'posición queda', 'posiciones quedan')} fuera de la curva ({nombres}) por "
             "no tener histórico: la línea describe el resto."
         )
     return " ".join(partes)

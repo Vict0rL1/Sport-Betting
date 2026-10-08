@@ -27,7 +27,7 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from app.formato import fmt_num
+from app.formato import fmt_num, plural
 
 OPERADORES = {
     "lt": ("por debajo de", lambda precio, umbral: precio < umbral),
@@ -178,10 +178,10 @@ def _frase(nuevas: list[dict], ya: int, rotas: list[dict], apagadas: int, total:
     # «Revisadas» cuenta solo las que se han mirado de verdad: sumar las
     # desactivadas daría un número tranquilizador que no corresponde a ninguna
     # comprobación.
-    partes = [f"{total - apagadas} alerta(s) revisadas."]
+    partes = [f"{total - apagadas} {plural(total - apagadas, 'alerta revisada', 'alertas revisadas')}."]
     if nuevas:
         partes.append(
-            f"{len(nuevas)} han saltado ahora: "
+            f"{len(nuevas)} {plural(len(nuevas), 'ha saltado', 'han saltado')} ahora: "
             + "; ".join(n["veredicto"]["motivo"] for n in nuevas[:5])
             + "."
         )

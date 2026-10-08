@@ -54,23 +54,6 @@ PERMITIDOS_RE = [("upper_snake", re.compile(r"^[A-Z]+_(?:API_KEY|USER_AGENT|MODE
 # «cotiza bajo su media de 200 sesiones (None)», «Margen operativo = nan»,
 # «0 dato(s) desconocido(s)», «lista diaria «us_sp500»», «La señal es «sin_datos»».
 PENDIENTES: dict[tuple[str, str, str], tuple[int, str]] = {
-    ("analisis/confianza/factores/detalle", "plural_parentesis", "(s)"): (58, "1.9"),
-    ("analisis/confianza/razones", "plural_parentesis", "(s)"): (42, "1.9"),
-    ("cartera/api/portfolio/contribucion/nota", "plural_parentesis", "(es)"): (2, "1.9"),
-    ("cartera/api/portfolio/divisas/nota", "plural_parentesis", "(es)"): (1, "1.9"),
-    ("cartera/api/portfolio/historial/aviso", "plural_parentesis", "(es)"): (1, "1.9"),
-    ("cartera/api/portfolio/note", "plural_parentesis", "(es)"): (1, "1.9"),
-    ("cartera/api/portfolio/risk_budget/avisos", "plural_parentesis", "(es)"): (1, "1.9"),
-    ("confianza/factores/detalle", "plural_parentesis", "(s)"): (88, "1.9"),
-    ("confianza/razones", "plural_parentesis", "(s)"): (10, "1.9"),
-    ("hoy/sizing/aviso_cartera", "plural_parentesis", "(es)"): (2, "1.9"),
-    ("hoy/sizing/aviso_cartera", "plural_parentesis", "(s)"): (2, "1.9"),
-    ("que_cambio/nota", "plural_parentesis", "(es)"): (1, "1.9"),
-    ("que_cambio/nota", "plural_parentesis", "(s)"): (1, "1.9"),
-    ("replay/secciones/confianza/factores/detalle", "plural_parentesis", "(s)"): (6, "1.9"),
-    ("replay/secciones/confianza/razones", "plural_parentesis", "(s)"): (6, "1.9"),
-    ("riesgo_cartera/nota", "plural_parentesis", "(es)"): (2, "1.9"),
-    ("tesis/disparadores/detalle", "plural_parentesis", "(es)"): (2, "1.9"),
 }
 
 

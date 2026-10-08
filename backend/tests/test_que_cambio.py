@@ -183,7 +183,7 @@ def test_resultados_en_dos_dias_debilitan_la_confianza(session_factory, servicio
     with session_factory() as s:
         a = analizar_y_congelar("AAPL", servicio, s, ahora=AHORA, con_pares=False)["analisis"]
     factor = next(f for f in a["confianza"]["factores"] if f["id"] == "resultados_proximos")
-    assert factor["estado"] == "debil" and "en 2 día(s)" in factor["detalle"]
+    assert factor["estado"] == "debil" and "en 2 días" in factor["detalle"]
 
 
 def test_un_factor_desconocido_cuenta_como_debil_nunca_como_bueno():

@@ -546,7 +546,7 @@
       "debiles": 4,
       "factores": [
        {
-        "detalle": "13 dato(s) desconocido(s): precio, media de 200 sesiones, ingresos, crecimiento de ingresos",
+        "detalle": "13 datos desconocidos: precio, media de 200 sesiones, ingresos, crecimiento de ingresos",
         "estado": "critico",
         "factor": "Datos desconocidos en el análisis",
         "id": "completitud"
@@ -570,7 +570,7 @@
         "id": "contraste_proveedores"
        },
        {
-        "detalle": "2 ejercicio(s) y 0 sesiones de precio",
+        "detalle": "2 ejercicios y 0 sesiones de precio",
         "estado": "debil",
         "factor": "Histórico disponible",
         "id": "historico"
@@ -611,10 +611,10 @@
       "nivel": "baja",
       "nota": "Mide la calidad de la evidencia que respalda la decisión, no la probabilidad de acertar.",
       "razones": [
-       "13 dato(s) desconocido(s): precio, media de 200 sesiones, ingresos, crecimiento de ingresos",
+       "13 datos desconocidos: precio, media de 200 sesiones, ingresos, crecimiento de ingresos",
        "sin precio",
        "un solo proveedor por dato: no hay contra qué contrastar",
-       "2 ejercicio(s) y 0 sesiones de precio",
+       "2 ejercicios y 0 sesiones de precio",
        "sin precio o sin acciones",
        "sin dato (ninguna)"
       ],
@@ -742,13 +742,13 @@
         "condiciones": [
          {
           "actual": null,
-          "condicion": "que haya precio válido",
+          "condicion": "que haya un precio válido",
           "regla": "datos_minimos",
           "umbral": null
          },
          {
           "actual": null,
-          "condicion": "que haya puntuación válido",
+          "condicion": "que haya una puntuación válida",
           "regla": "datos_minimos",
           "umbral": null
          }
@@ -2097,7 +2097,7 @@
       "debiles": 4,
       "factores": [
        {
-        "detalle": "13 dato(s) desconocido(s): precio, media de 200 sesiones, ingresos, crecimiento de ingresos",
+        "detalle": "13 datos desconocidos: precio, media de 200 sesiones, ingresos, crecimiento de ingresos",
         "estado": "critico",
         "factor": "Datos desconocidos en el análisis",
         "id": "completitud"
@@ -2121,7 +2121,7 @@
         "id": "contraste_proveedores"
        },
        {
-        "detalle": "2 ejercicio(s) y 0 sesiones de precio",
+        "detalle": "2 ejercicios y 0 sesiones de precio",
         "estado": "debil",
         "factor": "Histórico disponible",
         "id": "historico"
@@ -2162,10 +2162,10 @@
       "nivel": "baja",
       "nota": "Mide la calidad de la evidencia que respalda la decisión, no la probabilidad de acertar.",
       "razones": [
-       "13 dato(s) desconocido(s): precio, media de 200 sesiones, ingresos, crecimiento de ingresos",
+       "13 datos desconocidos: precio, media de 200 sesiones, ingresos, crecimiento de ingresos",
        "sin precio",
        "un solo proveedor por dato: no hay contra qué contrastar",
-       "2 ejercicio(s) y 0 sesiones de precio",
+       "2 ejercicios y 0 sesiones de precio",
        "sin precio o sin acciones",
        "sin dato (ninguna)"
       ],
@@ -2293,13 +2293,13 @@
         "condiciones": [
          {
           "actual": null,
-          "condicion": "que haya precio válido",
+          "condicion": "que haya un precio válido",
           "regla": "datos_minimos",
           "umbral": null
          },
          {
           "actual": null,
-          "condicion": "que haya puntuación válido",
+          "condicion": "que haya una puntuación válida",
           "regla": "datos_minimos",
           "umbral": null
          }

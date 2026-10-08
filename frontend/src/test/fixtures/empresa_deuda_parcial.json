@@ -704,7 +704,7 @@
       "debiles": 5,
       "factores": [
        {
-        "detalle": "1 dato(s) desconocido(s): deuda neta (parcial)",
+        "detalle": "1 dato desconocido: deuda neta (parcial)",
         "estado": "debil",
         "factor": "Datos desconocidos en el análisis",
         "id": "completitud"
@@ -728,7 +728,7 @@
         "id": "contraste_proveedores"
        },
        {
-        "detalle": "2 ejercicio(s) y 260 sesiones de precio",
+        "detalle": "2 ejercicios y 260 sesiones de precio",
         "estado": "debil",
         "factor": "Histórico disponible",
         "id": "historico"
@@ -769,9 +769,9 @@
       "nivel": "baja",
       "nota": "Mide la calidad de la evidencia que respalda la decisión, no la probabilidad de acertar.",
       "razones": [
-       "1 dato(s) desconocido(s): deuda neta (parcial)",
+       "1 dato desconocido: deuda neta (parcial)",
        "último trimestre (2025-Q4) publicado hace 214 días",
-       "2 ejercicio(s) y 260 sesiones de precio",
+       "2 ejercicios y 260 sesiones de precio",
        "el crecimiento implícito va de 22,7 % a 46,3 % entre un WACC del 7 % y del 12 %",
        "reglas razonables pero no validadas"
       ],
@@ -2156,7 +2156,7 @@
      "monedas": {
       "USD": 18000.0
      },
-     "nota": "Toda la cartera está en USD: no hay nada que convertir. 1 posición(es) quedan FUERA del total por no poder convertirse (SHOP.TO). Un total parcial que se sabe parcial sirve; uno que se cree completo, no.",
+     "nota": "Toda la cartera está en USD: no hay nada que convertir. 1 posición queda FUERA del total por no poder convertirse (SHOP.TO). Un total parcial que se sabe parcial sirve; uno que se cree completo, no.",
      "sin_convertir": [
       {
        "moneda": "CAD",
@@ -2170,7 +2170,7 @@
      "nota": "Sin cartera o sin histórico.",
      "suficiente": false
     },
-    "note": "Las posiciones sin precio disponible se excluyen de los totales y de los pesos; el resumen indica sobre cuántas se calculó. Toda la cartera está en USD: no hay nada que convertir. 1 posición(es) quedan FUERA del total por no poder convertirse (SHOP.TO). Un total parcial que se sabe parcial sirve; uno que se cree completo, no.",
+    "note": "Las posiciones sin precio disponible se excluyen de los totales y de los pesos; el resumen indica sobre cuántas se calculó. Toda la cartera está en USD: no hay nada que convertir. 1 posición queda FUERA del total por no poder convertirse (SHOP.TO). Un total parcial que se sabe parcial sirve; uno que se cree completo, no.",
     "positions": [
      {
       "asset_class": "accion",
@@ -2364,7 +2364,7 @@
     "hasta": "2026-09-11",
     "indice_beta": "SPY",
     "metodo": "descomposición de Euler de la volatilidad: σ_p = √(wᵀΣw), componente_i = w_i·(Σw)_i/σ_p",
-    "nota": "Riesgo medido sobre el 100 % de la cartera (504 sesiones comunes, 2025-04-25 → 2026-09-11). 1 posición(es) con riesgo DESCONOCIDO quedan fuera: el riesgo real es mayor que el medido, no igual.",
+    "nota": "Riesgo medido sobre el 100 % de la cartera (504 sesiones comunes, 2025-04-25 → 2026-09-11). 1 posición con riesgo DESCONOCIDO queda fuera: el riesgo real es mayor que el medido, no igual.",
     "observaciones": 504,
     "posiciones": [
      {
@@ -2406,7 +2406,7 @@
   },
   "/api/portfolio/historial?descargar=false": {
    "json": {
-    "aviso": "Es el valor de las posiciones ABIERTAS en USD, no el de tu cuenta: la app no lleva saldo en efectivo. 1 posición(es) quedan fuera de la curva (SHOP.TO) por no tener histórico: la línea describe el resto.",
+    "aviso": "Es el valor de las posiciones ABIERTAS en USD, no el de tu cuenta: la app no lleva saldo en efectivo. 1 posición queda fuera de la curva (SHOP.TO) por no tener histórico: la línea describe el resto.",
     "base": "USD",
     "cierres": [],
     "desde": "2026-02-24",
@@ -4273,7 +4273,7 @@
       "debiles": 5,
       "factores": [
        {
-        "detalle": "1 dato(s) desconocido(s): deuda neta (parcial)",
+        "detalle": "1 dato desconocido: deuda neta (parcial)",
         "estado": "debil",
         "factor": "Datos desconocidos en el análisis",
         "id": "completitud"
@@ -4297,7 +4297,7 @@
         "id": "contraste_proveedores"
        },
        {
-        "detalle": "2 ejercicio(s) y 260 sesiones de precio",
+        "detalle": "2 ejercicios y 260 sesiones de precio",
         "estado": "debil",
         "factor": "Histórico disponible",
         "id": "historico"
@@ -4338,9 +4338,9 @@
       "nivel": "baja",
       "nota": "Mide la calidad de la evidencia que respalda la decisión, no la probabilidad de acertar.",
       "razones": [
-       "1 dato(s) desconocido(s): deuda neta (parcial)",
+       "1 dato desconocido: deuda neta (parcial)",
        "último trimestre (2025-Q4) publicado hace 214 días",
-       "2 ejercicio(s) y 260 sesiones de precio",
+       "2 ejercicios y 260 sesiones de precio",
        "el crecimiento implícito va de 22,7 % a 46,3 % entre un WACC del 7 % y del 12 %",
        "reglas razonables pero no validadas"
       ],

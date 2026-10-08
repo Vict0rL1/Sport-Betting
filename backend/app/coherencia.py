@@ -22,7 +22,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 
 from app import datos
-from app.formato import fmt_num, fmt_pct
+from app.formato import fmt_num, fmt_pct, plural
 
 PASS, FAIL, UNKNOWN = "PASS", "FAIL", "UNKNOWN"
 
@@ -243,7 +243,7 @@ def ida_y_vuelta(simbolo: str, analisis: dict, replay: dict) -> list[dict]:
                    if replay.get("incompletas") else "")
     if retiradas:
         filas.append(_fila("replay:sin_datos_futuros", simbolo, FAIL,
-                           f"{len(retiradas)} dato(s) fechados después de la decisión: {retiradas[:5]}"))
+                           f"{len(retiradas)} {plural(len(retiradas), 'dato fechado', 'datos fechados')} después de la decisión: {retiradas[:5]}"))
     elif not comprobadas:
         # Sin ninguna marca no se ha comprobado nada: eso no es un PASS.
         filas.append(_fila("replay:sin_datos_futuros", simbolo, UNKNOWN,
@@ -265,7 +265,8 @@ def sin_anticipacion_en_el_pasado(simbolo: str, analisis_pasado: dict, momento: 
     futuras = [m.get("dato") for m in revision["futuras"]]
     if futuras:
         return [_fila("pasado:sin_anticipacion", simbolo, FAIL,
-                      f"a {momento.date()} entran {len(futuras)} dato(s) publicados después: {futuras[:5]}")]
+                      f"a {momento.date()} {plural(len(futuras), 'entra', 'entran')} {len(futuras)} "
+                      f"{plural(len(futuras), 'dato publicado', 'datos publicados')} después: {futuras[:5]}")]
     return [_fila("pasado:sin_anticipacion", simbolo, PASS,
                   f"a {momento.date()}: {len(marcas)} marcas, ninguna posterior; "
                   f"{len(revision['sin_fecha_verificable'])} sin fecha verificable")]

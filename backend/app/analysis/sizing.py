@@ -39,7 +39,7 @@ from __future__ import annotations
 import math
 
 from app import datos
-from app.formato import fmt_num, fmt_pct
+from app.formato import fmt_num, fmt_pct, plural
 from app.registro import log
 
 # --- Límites. Todos aquí, con nombre, para poder discutirlos. ---
@@ -335,7 +335,8 @@ def dimensionar(
                 None
                 if not sin_sector
                 else (
-                    f"{len(sin_sector)} posición(es) sin sector conocido se agrupan "
+                    f"{len(sin_sector)} {plural(len(sin_sector), 'posición', 'posiciones')} sin sector conocido "
+                    f"{plural(len(sin_sector), 'se agrupa', 'se agrupan')} "
                     "en «Sin sector», que se limita como cualquier otro. No se "
                     "reparten por ahí: eso fingiría diversificación."
                 )

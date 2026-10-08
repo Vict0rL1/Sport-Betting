@@ -27,7 +27,7 @@ from __future__ import annotations
 from datetime import date
 
 import numpy as np
-from app.formato import fmt_num, fmt_pct
+from app.formato import fmt_num, fmt_pct, plural
 
 # Ventanas de crisis, pico a valle del S&P 500. Fechas fijas y públicas: no se
 # eligen para que el resultado quede bonito, y por eso van escritas aquí y no
@@ -336,7 +336,7 @@ def look_through_etf(posiciones: list[dict], holdings: dict[str, list[dict]]) ->
         "duplicadas": [c["symbol"] for c in ocultas],
         "nota": (
             (
-                f"{len(ocultas)} empresa(s) las tienes por dos vías a la vez "
+                f"{len(ocultas)} {plural(len(ocultas), 'empresa la', 'empresas las')} tienes por dos vías a la vez "
                 f"({', '.join(c['symbol'] for c in ocultas[:5])}): posición directa "
                 "más lo que llevas dentro de un ETF. Es la forma más común de estar "
                 "más concentrado de lo que uno cree."
@@ -843,7 +843,8 @@ def contribucion_al_riesgo(
         "nota": (
             f"Riesgo medido sobre el {fmt_pct(peso_medido / (peso_total or 1), 0)} de la cartera "
             f"({len(fechas) - 1} sesiones comunes, {fechas[0].isoformat()} → {fechas[-1].isoformat()}). "
-            + (f"{len(desconocidas)} posición(es) con riesgo DESCONOCIDO quedan fuera: el riesgo "
+            + (f"{len(desconocidas)} {plural(len(desconocidas), 'posición', 'posiciones')} con riesgo DESCONOCIDO "
+               f"{plural(len(desconocidas), 'queda', 'quedan')} fuera: el riesgo "
                "real es mayor que el medido, no igual." if desconocidas else "Todas las posiciones medidas.")
         ),
     }

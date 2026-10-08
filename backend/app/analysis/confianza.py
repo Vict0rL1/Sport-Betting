@@ -28,7 +28,7 @@ from datetime import date, datetime
 
 from app import datos
 from app.etiquetas import etiqueta
-from app.formato import fmt_num, fmt_pct
+from app.formato import fmt_num, fmt_pct, plural
 
 OK, DEBIL, CRITICO, DESCONOCIDO = "ok", "debil", "critico", "desconocido"
 ALTA, MEDIA, BAJA = "alta", "media", "baja"
@@ -72,7 +72,7 @@ def evaluar(analisis: dict, ahora: datetime) -> dict:
     factores.append(_f(
         "completitud", "Datos desconocidos en el análisis",
         OK if n <= MAX_DESCONOCIDOS_OK else DEBIL if n <= MAX_DESCONOCIDOS_DEBIL else CRITICO,
-        f"{n} dato(s) desconocido(s)" + (": " + ", ".join(etiqueta(f["dato"]) for f in a["faltan"][:4]) if n else ""),
+        f"{n} {plural(n, 'dato desconocido', 'datos desconocidos')}" + (": " + ", ".join(etiqueta(f["dato"]) for f in a["faltan"][:4]) if n else ""),
     ))
 
     # 2) Frescura del precio
@@ -126,7 +126,7 @@ def evaluar(analisis: dict, ahora: datetime) -> dict:
         CRITICO if ejercicios < 2 else DEBIL
     )
     factores.append(_f("historico", "Histórico disponible", est,
-                       f"{ejercicios} ejercicio(s) y {sesiones} sesiones de precio"))
+                       f"{ejercicios} {plural(ejercicios, 'ejercicio', 'ejercicios')} y {sesiones} {plural(sesiones, 'sesión', 'sesiones')} de precio"))
 
     # 6) Sensibilidad de la valoración
     inv = (a.get("valoracion") or {}).get("dcf_inverso") or {}
@@ -174,7 +174,7 @@ def evaluar(analisis: dict, ahora: datetime) -> dict:
     factores.append(_f(
         "resultados_proximos", "Resultados inminentes",
         DEBIL if res else OK,
-        f"presenta resultados en {dias_res} día(s) ({res})" if res else "sin resultados en los próximos 7 días",
+        f"presenta resultados en {dias_res} {plural(dias_res, 'día', 'días')} ({res})" if res else "sin resultados en los próximos 7 días",
     ))
 
     # 10) Validación de las reglas

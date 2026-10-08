@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { AnalisisEmpresaResponse, CambioMetrica, CosteOportunidad, RiesgoEnCartera } from '../../api/types'
 import { etiqueta } from '../../lib/etiquetas'
-import { fmtFecha, fmtNum, fmtPct } from '../../lib/formato'
+import { fmtFecha, fmtNum, fmtPct, plural } from '../../lib/formato'
 import { DecisionExplicada } from '../DecisionExplicada'
 import { BloqueIA, BotonIA } from '../ia/ContenidoIA'
 
@@ -269,10 +269,13 @@ export function QueCambioSection({ symbol }: { symbol: string }) {
                   )}
               </div>
             )}
-            <p className="text-[10px] text-slate-400">
-              {cambios.materiales} cambio(s) material(es); {cambios.irrelevantes} por debajo de su umbral no se enseñan
-              (umbrales v{cambios.umbrales?.version}).
-            </p>
+            {cambios.materiales != null && cambios.irrelevantes != null && (
+              <p className="text-[10px] text-slate-400">
+                {cambios.materiales} {plural(cambios.materiales, 'cambio material', 'cambios materiales')};{' '}
+                {cambios.irrelevantes} por debajo de su umbral no se {plural(cambios.irrelevantes, 'enseña', 'enseñan')}
+                (umbrales v{cambios.umbrales?.version}).
+              </p>
+            )}
             <div>
               <BotonIA onClick={pedirResumen} disabled={pidiendoIa}>
                 {pidiendoIa ? 'Resumiendo…' : 'Resumir este diff con IA (opcional, gasta API)'}

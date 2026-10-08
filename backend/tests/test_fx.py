@@ -181,7 +181,7 @@ def test_lo_que_no_se_puede_convertir_queda_fuera_y_se_nombra():
     assert [p["symbol"] for p in r["posiciones"]] == ["AAPL"]
     assert r["sin_convertir"][0]["symbol"] == "TOYOTA"
     assert "JPY" in r["sin_convertir"][0]["motivo"]
-    assert "quedan FUERA del total" in r["nota"]
+    assert "1 posición queda FUERA del total" in r["nota"]
 
 
 def test_se_reporta_cuanto_pesa_cada_divisa():

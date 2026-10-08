@@ -163,7 +163,7 @@ def decide(
                     "hacia": "cualquier acción",
                     "requiere": "todas",
                     "condiciones": [
-                        {"regla": "datos_minimos", "condicion": f"que haya {f} válido",
+                        {"regla": "datos_minimos", "condicion": f"que haya {_VALIDO.get(f, f + ' válido')}",
                          "actual": None, "umbral": None}
                         for f in faltan
                     ],
@@ -488,6 +488,10 @@ def _umbral_salir(sma200: float | None) -> float | None:
 
 # Los rótulos salen de las constantes: antes «media 200 + 2 %» estaba escrito a
 # mano en cuatro sitios y, si la banda cambiaba, el texto seguía diciendo 2 %.
+# «que haya puntuación válido» no concordaba: cada dato con su artículo y su género.
+_VALIDO = {"precio": "un precio válido", "puntuación": "una puntuación válida"}
+
+
 def _banda(pct: float) -> str:
     return fmt_pct(pct, 2, en_puntos=True, ceros=False)
 

@@ -22,7 +22,7 @@ import hashlib
 import json
 
 from app import datos
-from app.formato import fmt_num
+from app.formato import fmt_num, plural
 
 # --- Umbrales de materialidad --------------------------------------------------
 #
@@ -193,7 +193,7 @@ def comparar(anterior: dict, actual: dict, umbrales: dict | None = None) -> dict
         "umbrales": {"version": version_materialidad(umbrales), "valores": umbrales},
         "generado_por": "app",
         "nota": (
-            f"{total} cambio(s) material(es) y {irrelevantes} por debajo de su umbral "
+            f"{total} {plural(total, 'cambio material', 'cambios materiales')} y {irrelevantes} por debajo de su umbral "
             "(se cuentan, no se enseñan). La aparición o pérdida de un dato se "
             "enseña siempre."
         ),

@@ -55,7 +55,7 @@ from app.cache.cache import MarketDataService
 from app.db.engine import get_session
 from app.db.models import Instrument, LlmOutput, Position, WatchlistItem
 from app.deps import get_llm, get_service
-from app.formato import fmt_num, fmt_pct
+from app.formato import fmt_num, fmt_pct, plural
 from app.llm.base import LLMProvider, LLMUnavailableError
 from app.llm.signal_llm import explain_signal, extract_events, sentiment_from_events
 from app.providers.base import DataNotFoundError
@@ -290,9 +290,10 @@ def _cartera_actual(
     if sin_valorar:
         muestra = ", ".join(sorted(sin_valorar)[:5])
         aviso = (
-            f"{len(sin_valorar)} posición(es) abierta(s) no entran en los topes "
-            f"por sector y correlación ({muestra}): este barrido no las cubre o "
-            "no tienen precio. Tu concentración real es mayor que la que se ve "
+            f"{len(sin_valorar)} {plural(len(sin_valorar), 'posición abierta no entra', 'posiciones abiertas no entran')} "
+            f"en los topes por sector y correlación ({muestra}): este barrido no "
+            f"{plural(len(sin_valorar), 'la cubre o no tiene', 'las cubre o no tienen')} precio. "
+            "Tu concentración real es mayor que la que se ve "
             "aquí."
         )
     if not total:

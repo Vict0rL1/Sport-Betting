@@ -83,6 +83,12 @@ def fmt_pct(
     return f"{fmt_num(v, decimales, signo=signo, ceros=ceros)}{ESPACIO_DURO}%"
 
 
+def plural(n, singular: str, plural: str) -> str:
+    """La forma que toca: «1 posición», «0 posiciones», «2 posiciones». Antes
+    se escribía «posición(es)» y el verbo no concordaba con ninguna de las dos."""
+    return singular if n in (1, -1) else plural
+
+
 def fmt_dinero(valor, moneda: str | None, decimales: int = 2, *, signo: bool = False) -> str:
     """6000 USD → «6.000,00 USD». Sin moneda conocida, solo la cifra."""
     if not _finito(valor):

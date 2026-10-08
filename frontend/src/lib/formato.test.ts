@@ -16,6 +16,7 @@ const FUNCIONES: Record<string, (args: unknown[], op: Record<string, unknown>) =
   fmt_dinero: ([v, m, d], op) => formato.fmtDinero(cifra(v), m as string | null, d as number | undefined, op),
   fmt_compacto: ([v, m]) => formato.fmtCompacto(cifra(v), m as string | undefined),
   fmt_fecha: ([v], op) => formato.fmtFecha(v as string | null, op),
+  plural: ([n, s, p]) => formato.plural(n as number, s as string, p as string),
   fmt_antiguedad: ([v, ahora]) => formato.fmtAntiguedad(v as string | null, new Date(ahora as string)),
 }
 
@@ -30,7 +31,7 @@ const tabla = casos as unknown as Record<string, Caso[]>
 describe('formato compartido con el backend', () => {
   it('la tabla cubre todas las funciones públicas', () => {
     const publicas = Object.keys(formato)
-      .filter((n) => n.startsWith('fmt'))
+      .filter((n) => n.startsWith('fmt') || n === 'plural')
       .map((n) => n.replace(/[A-Z]/g, (l) => `_${l.toLowerCase()}`))
     expect(Object.keys(tabla).filter((k) => !k.startsWith('_')).sort()).toEqual(publicas.sort())
   })

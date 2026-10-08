@@ -12,7 +12,7 @@ import type {
   MatrizCorrelacion,
   RiesgoDeCartera,
 } from '../api/types'
-import { fmtCompacto, fmtNum, fmtPct } from '../lib/formato'
+import { fmtCompacto, fmtNum, fmtPct, plural } from '../lib/formato'
 
 /** Color de una celda de correlación.
  *
@@ -522,7 +522,7 @@ export function CarteraPage() {
           {fuera.length > 0 && (
             <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
               <p className="text-sm text-amber-900">
-                {fuera.length} posición(es) quedan FUERA de todos los pesos de esta
+                {fuera.length} {plural(fuera.length, 'posición queda', 'posiciones quedan')} FUERA de todos los pesos de esta
                 página: {fuera.join(', ')}. La concentración, la exposición y el estrés
                 se calculan sin ellas — tu cartera real es más grande de lo que se ve
                 aquí.
@@ -533,7 +533,7 @@ export function CarteraPage() {
           {faltanHistoricos > 0 && (
             <div className="rounded-xl border border-sky-200 bg-sky-50 p-3">
               <p className="text-sm text-sky-900">
-                {faltanHistoricos} posición(es) sin histórico largo:{' '}
+                {faltanHistoricos} {plural(faltanHistoricos, 'posición', 'posiciones')} sin histórico largo:{' '}
                 {Object.keys(datos.sin_historico ?? {}).join(', ')}. El estrés de las
                 crisis las cuenta como no cubiertas — pulsa «Descargar histórico
                 completo» para incluirlas.

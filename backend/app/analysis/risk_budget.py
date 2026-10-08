@@ -18,7 +18,7 @@ tienes un 12 % en riesgo y todo va en la misma dirección, pierdes un 12 %.
 """
 
 from __future__ import annotations
-from app.formato import fmt_pct
+from app.formato import fmt_pct, plural
 
 # Topes. Convención habitual entre gestores; ajustables y discutibles.
 HEAT_MAXIMO_PCT = 6.0        # riesgo abierto total
@@ -98,7 +98,8 @@ def presupuesto_de_riesgo(posiciones: list[dict], total_cartera: float | None) -
 
     if sin_calcular:
         avisos.append(
-            f"{sin_calcular} posición(es) sin precio o sin stop no entran en el "
+            f"{sin_calcular} {plural(sin_calcular, 'posición', 'posiciones')} sin precio o sin stop no "
+            f"{plural(sin_calcular, 'entra', 'entran')} en el "
             "total. El riesgo real es mayor que el que ves aquí."
         )
 

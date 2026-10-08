@@ -30,7 +30,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
-from app.formato import fmt_num
+from app.formato import fmt_num, plural
 
 OPERADORES = {
     "lt": ("cae por debajo de", lambda v, u: v < u),
@@ -99,7 +99,7 @@ def _comprobar_umbral(valor: float | None, config: dict, etiqueta: str) -> dict 
         "valor": round(valor, 4),
         "umbral": umbral,
         "detalle": (
-            f"{etiqueta} = {fmt_num(valor, 3)} y el umbral era {texto_op} {fmt_num(umbral, 3)}."
+            f"{etiqueta} = {fmt_num(valor, 3)}; el punto salta si {texto_op} {fmt_num(umbral, 3)}."
             + ("" if salta else " Todavía no lo cruza.")
         ),
     }
@@ -182,11 +182,12 @@ def evaluar_noticia(config: dict, noticias: list[dict], dias: int = DIAS_NOTICIA
         "titulares_revisados": revisados,
         "palabras": palabras,
         "detalle": (
-            f"{len(coincidencias)} titular(es) de los últimos {dias} días contienen "
+            f"{len(coincidencias)} {plural(len(coincidencias), 'titular', 'titulares')} de los últimos {dias} días "
+            f"{plural(len(coincidencias), 'contiene', 'contienen')} "
             f"{', '.join(sorted({p for c in coincidencias for p in c['palabras']}))}."
             if coincidencias
-            else f"Ninguno de los {revisados} titulares de los últimos {dias} días "
-            "contiene esas palabras."
+            else (f"El único titular de los últimos {dias} días no contiene esas palabras." if revisados == 1
+                  else f"Ninguno de los {revisados} titulares de los últimos {dias} días contiene esas palabras.")
         ),
         "aviso": (
             "Esto BUSCA PALABRAS, no entiende. Da falsos positivos (la palabra "
@@ -242,15 +243,17 @@ def _resumen(saltan: int, sin_medir: int, total: int) -> str:
     partes = []
     if saltan:
         partes.append(
-            f"{saltan} de {total} puntos de invalidación se han cruzado. Eso no es "
+            f"{saltan} de {total} {plural(total, 'punto de invalidación', 'puntos de invalidación')} "
+            f"{plural(saltan, 'se ha cruzado', 'se han cruzado')}. Eso no es "
             "una señal de venta: es que tú, cuando pensabas con más calma, dijiste "
             "que esto importaba. Toca releer la tesis."
         )
     else:
-        partes.append(f"Ninguno de los {total} puntos de invalidación se ha cruzado.")
+        partes.append("El único punto de invalidación no se ha cruzado." if total == 1
+                      else f"Ninguno de los {total} puntos de invalidación se ha cruzado.")
     if sin_medir:
         partes.append(
-            f"{sin_medir} no se pudieron comprobar por falta de datos — que no es "
+            f"{sin_medir} {plural(sin_medir, 'no se pudo comprobar', 'no se pudieron comprobar')} por falta de datos — que no es "
             "lo mismo que estar bien."
         )
     return " ".join(partes)
@@ -316,7 +319,7 @@ def coherencia(decisiones: list[dict]) -> dict:
     ]
     if compras_con_disparadores:
         avisos.append(
-            f"{len(compras_con_disparadores)} compra(s) se hicieron con puntos de "
+            f"{len(compras_con_disparadores)} {plural(len(compras_con_disparadores), 'compra se hizo', 'compras se hicieron')} con puntos de "
             "invalidación ya saltando. Puede estar perfectamente justificado —los "
             "escribiste tú y puedes haber cambiado de opinión— pero conviene que "
             "el porqué esté escrito, porque es justo el caso que después cuesta "

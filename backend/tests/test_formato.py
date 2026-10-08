@@ -32,7 +32,7 @@ def _llamar(funcion: str, args: list, opciones: dict) -> str:
 
 
 def test_la_tabla_cubre_todas_las_funciones_publicas():
-    publicas = {n for n in dir(formato) if n.startswith("fmt_")}
+    publicas = {n for n in dir(formato) if n.startswith("fmt_")} | {"plural"}
     assert set(FUNCIONES) == publicas
 
 

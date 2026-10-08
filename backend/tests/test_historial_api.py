@@ -151,7 +151,7 @@ def test_sin_serie_de_cambio_la_posicion_queda_fuera_y_se_nombra(client):
     r = c.get("/api/portfolio/historial").json()
 
     assert [e["symbol"] for e in r["excluidas"]] == ["TOYO"]
-    assert "quedan fuera de la curva" in r["aviso"]
+    assert "1 posición queda fuera de la curva" in r["aviso"]
     # Y la curva sigue existiendo con el resto.
     assert r["disponible"] is True
 

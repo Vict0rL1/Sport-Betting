@@ -80,6 +80,14 @@
     [["no es una fecha"], {}, "no es una fecha"],
     [[null], {}, "—"]
   ],
+  "plural": [
+    [[1, "posición", "posiciones"], {}, "posición"],
+    [[1.0, "posición", "posiciones"], {}, "posición"],
+    [[-1, "punto", "puntos"], {}, "punto"],
+    [[0, "posición", "posiciones"], {}, "posiciones"],
+    [[2, "posición", "posiciones"], {}, "posiciones"],
+    [[1.5, "año", "años"], {}, "años"]
+  ],
   "fmt_antiguedad": [
     [["2026-09-12T14:35:00Z", "2026-09-12T14:40:00Z"], {}, "hace 5 min"],
     [["2026-09-12T14:39:40Z", "2026-09-12T14:40:00Z"], {}, "hace segundos"],

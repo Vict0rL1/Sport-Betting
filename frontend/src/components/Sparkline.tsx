@@ -7,7 +7,7 @@
  * apagar lo que no hace falta.
  */
 
-import { fmtNum, fmtPct } from '../lib/formato'
+import { fmtNum, fmtPct, plural } from '../lib/formato'
 import { coord } from '../lib/svg'
 
 /** Una serie en miniatura: la forma del año en una celda de tabla.
@@ -165,7 +165,7 @@ export function Histograma({
           <div
             key={b.desde}
             className="group relative flex-1"
-            title={`${tramo(b.desde)} a ${tramo(b.hasta)}: ${b.n} operación(es)`}
+            title={`${tramo(b.desde)} a ${tramo(b.hasta)}: ${b.n} ${plural(b.n, 'operación', 'operaciones')}`}
           >
             <div
               // Las que pierden en rojo: el eje del 0 % está en la frontera de

@@ -85,6 +85,11 @@ export function fmtPct(
   return `${fmtNum(enPuntos ? valor : valor * 100, decimales, { signo, ceros })}${ESPACIO_DURO}%`
 }
 
+/** La forma que toca: «1 posición», «0 posiciones», «2 posiciones», nunca «posición(es)». */
+export function plural(n: number, singular: string, plural: string): string {
+  return n === 1 || n === -1 ? singular : plural
+}
+
 /** 6000 USD → «6.000,00 USD». Sin moneda conocida, solo la cifra. */
 export function fmtDinero(
   valor: Num,

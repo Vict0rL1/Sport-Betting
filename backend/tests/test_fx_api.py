@@ -131,7 +131,7 @@ def test_sin_tipo_de_cambio_la_posicion_queda_fuera_del_total_y_se_dice(client):
 
     assert r["summary"]["total_market_value"] == pytest.approx(100.0)
     assert r["divisas"]["sin_convertir"][0]["symbol"] == "SHOP"
-    assert "quedan FUERA del total" in r["note"]
+    assert "1 posición queda FUERA del total" in r["note"]
     # Pero la posición sigue visible en la tabla, con su motivo.
     shop = next(p for p in r["positions"] if p["symbol"] == "SHOP")
     assert shop["market_value_base"] is None

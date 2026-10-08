@@ -63,12 +63,6 @@ const PERMITIDOS_RE: [string, RegExp][] = [['upper_snake', /^[A-Z]+_(?:API_KEY|U
 // Fugas conocidas: «sitio · tipo token» → [apariciones, ítem del plan que las arregla].
 // Cuando el test falla, su mensaje trae la tabla actual lista para pegar aquí.
 const PENDIENTES: Record<string, [number, string]> = {
-  'cartera/Contribución al riesgo · plural_parentesis (es)': [1, '1.9'],
-  'cartera/Portafolio · plural_parentesis (es)': [1, '1.9'],
-  'ficha/Qué cambió · plural_parentesis (es)': [1, '1.9'],
-  'ficha/Qué cambió · plural_parentesis (s)': [10, '1.9'],
-  'Hoy · plural_parentesis (es)': [1, '1.9'],
-  'Hoy · plural_parentesis (s)': [1, '1.9'],
 }
 
 // El momento de las capturas (los datos del backend son de las 14:35 UTC).

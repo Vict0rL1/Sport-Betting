@@ -31,7 +31,7 @@ Un total parcial que se sabe parcial sirve; uno que se cree completo, no.
 from __future__ import annotations
 
 from datetime import date, timedelta
-from app.formato import fmt_num
+from app.formato import fmt_num, plural
 
 # Serie de FRED por divisa, con su dirección explícita.
 #
@@ -379,7 +379,7 @@ def _nota(
     if sin_convertir:
         nombres = ", ".join(str(s.get("symbol")) for s in sin_convertir[:5])
         partes.append(
-            f"{len(sin_convertir)} posición(es) quedan FUERA del total por no poder "
+            f"{len(sin_convertir)} {plural(len(sin_convertir), 'posición queda', 'posiciones quedan')} FUERA del total por no poder "
             f"convertirse ({nombres}). Un total parcial que se sabe parcial sirve; "
             "uno que se cree completo, no."
         )
