@@ -24,7 +24,7 @@
     "update-all": "node scripts/update-all.mjs",
     "fetch-data": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/fetch-data.mjs",
     "fetch-flags": "node scripts/fetch-flags.mjs",
-    "check-publishable": "node --experimental-sqlite --disable-warning=ExperimentalWarning scripts/check-publishable.mjs",
+    "check-publishable": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx scripts/check-publishable.mjs",
     "backtest": "npm run backtest --workspace server --",
     "benchmark:report": "npm run benchmark:report --workspace server --",
     "model:report": "npm run model:report --workspace server --",

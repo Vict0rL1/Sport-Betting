@@ -180,3 +180,13 @@ test('A3: los interruptores auth.* y seguridad.* son de arranque: la API no los 
     reiniciarFeatures();
   }
 });
+
+test('B6: una cookie sp_session indescifrable no es un 500: se ignora y la puerta responde 401', async () => {
+  const app = await appConAuth();
+  const res = await app.inject({ method: 'GET', url: '/api/health', headers: { cookie: 'sp_session=%E0%A4%A; otra=%' } });
+  assert.equal(res.statusCode, 401, res.body);
+  const me = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie: 'sp_session=%E0%A4%A' } });
+  assert.equal(me.statusCode, 200);
+  assert.equal(me.json().dentro, false);
+  await app.close();
+});

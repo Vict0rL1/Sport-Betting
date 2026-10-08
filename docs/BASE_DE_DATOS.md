@@ -50,7 +50,8 @@ Las últimas, del seguimiento «NHL y UFC»:
 
 ## PRAGMAs e índices
 
-Los dos ficheros abren con `journal_mode=WAL`, `synchronous=NORMAL`, `foreign_keys=ON`,
+Los dos ficheros abren con `journal_mode=WAL` (`synchronous=FULL` el libro mayor —un corte de luz no
+puede llevarse una apuesta— y `NORMAL` la historia, que se reconstruye), `foreign_keys=ON`,
 `busy_timeout=5000` y `temp_store=MEMORY`. Los índices de la Fase 2 (migración v2) cubren las
 consultas más calientes —el registro de predicciones pendientes, los snapshots por evento y
 casa, las sesiones por token— y `server/src/db/hot.ts` las lista con su `EXPLAIN QUERY PLAN`:
@@ -71,8 +72,18 @@ el test `db/hot.test.ts` y `verify:data` fallan si alguna vuelve a recorrer su t
   después de arrancar si la última es más vieja que el intervalo, para que reiniciar no
   dispare copias. A mano: `npm run backup`.
 - **Restaurar**: `npm run restore` lista las copias; `npm run restore -- <fichero>`, **con el
-  servidor parado**, comprueba la integridad y que el fichero es un libro mayor, aparta el
-  actual como `ledger.db.antes-de-restaurar-<fecha>` y copia.
+  servidor parado** (y se niega si no lo está: comprueba que nadie tiene `ledger.db` abierto),
+  comprueba la integridad y que el fichero es un libro mayor, aparta el actual como
+  `ledger.db.antes-de-restaurar-<fecha>` con `VACUUM INTO` (completo, con lo que hubiera en su
+  WAL), reconstruye el nuevo también con `VACUUM INTO`, lo comprueba, quita los `-wal`/`-shm`
+  viejos y renombra. `npm run fetch-data -- --force` hace lo mismo con `history.db` (y conserva,
+  además de tus registros, lo medido en tu instalación: `fb_odds_history`, `fb_news`,
+  `fb_lineups`, `latency_samples`, `player_ids`).
+- **La marca `ledger.db.existe`**: la escribe la app al crear el libro mayor y la partición al
+  partir. Si está y `ledger.db` no, el servidor **no arranca** con uno vacío: dice que falta y
+  cómo restaurarlo (`LEDGER_NUEVO=si` para empezar uno nuevo a sabiendas).
+- **Parar bien**: SIGINT/SIGTERM paran los trabajos, cierran Fastify y la conexión, que vuelca el
+  WAL y quita `-wal`/`-shm`.
 - **Doctor**: sección DATOS Y COPIAS. Aviso si la última copia tiene más de 36 h; error si
   nunca se ha hecho una y hay apuestas de papel registradas.
 - En Fly, además, el volumen tiene instantáneas diarias (`fly.toml` → `snapshot_retention`;

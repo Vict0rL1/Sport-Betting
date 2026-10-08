@@ -4,6 +4,38 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Revisión del 8 de octubre · lote B, seguridad de los datos (2026-10-08)
+
+Los seis hallazgos de datos de la revisión, reproducidos con un test que fallaba antes y
+arreglados (`docs/plans/fixes-B.md`). Tests: 557 → 573 (480 del servidor + 20 + 73); migraciones
+19 → 20. Doctor, `verify:data`, `audit`, typecheck, lint, build y Playwright en verde (el doctor
+sigue con sus avisos de entorno).
+
+- **B1 · `restore` y `fetch-data --force`, de verdad con WAL.** Se niegan si otro proceso tiene la
+  base abierta (sonda con `locking_mode=EXCLUSIVE`, medida en el test); lo que se aparta se copia
+  con `VACUUM INTO` (completo, con lo que estuviera en el WAL); lo nuevo se reconstruye con
+  `VACUUM INTO`, pasa `integrity_check`, y los `-wal`/`-shm` del fichero viejo se quitan antes del
+  `rename`. El servidor cierra la base al recibir SIGINT/SIGTERM (`apagado.ts`).
+- **B2 · `odds_quote_state` al libro mayor.** Apunta a `odds_snapshots` y un `--force` la vaciaba;
+  migración 20 la mueve con sus filas.
+- **B3 · Lo medido en tu instalación sobrevive al `--force`.** `fb_odds_history`, `fb_news`,
+  `fb_lineups`, `latency_samples` y `player_ids` se conservan (como `bets` y los registros); se
+  eligió conservar y no mover, y el plan dice por qué.
+- **B4 · Sin `ledger.db` no se arranca uno vacío.** La marca `ledger.db.existe` (la escribe la app
+  al crearlo y la partición) hace que el servidor se niegue y diga cómo restaurar;
+  `LEDGER_NUEVO=si` para empezar de cero a sabiendas.
+- **B5 · Pequeños.** El libro mayor abre con `synchronous=FULL`; `BACKUP_HOURS` y
+  `RESULTS_REFRESH_HOURS` se acotan a 7 días (por encima de 24,8 días un `setTimeout` dispara en el
+  acto); cambiar una cadencia desde Ajustes mientras el trabajo corre ya no deja dos
+  temporizadores; la retención de cuotas ancla T-24h/T-6h/T-1h y el cierre en la ÚLTIMA hora de
+  inicio del partido; `check-publishable` importa la lista de tablas del libro mayor del servidor
+  (le faltaban ocho) y el workflow comprueba el fichero que de verdad exporta; la semilla de la
+  imagen es una exportación consistente (`VACUUM INTO` en la etapa de construcción, con el WAL en
+  el contexto) y `ledger.db` ya no viaja al contexto.
+- **B6 · Métricas y cookie.** Las etiquetas de `/api/metrics` salen del patrón de la ruta
+  (`estatico`, `sin-ruta`), no de la URL cruda; una cookie `sp_session` indescifrable ya no es un
+  500; `error_log` se acota a 5.000 filas.
+
 ## Revisión del 8 de octubre · lote A, bloqueantes (2026-10-08)
 
 Los siete hallazgos bloqueantes de la revisión, reproducidos con un test que fallaba antes de

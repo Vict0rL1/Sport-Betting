@@ -16,6 +16,7 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { conRegistro } from './runs.ts';
+import { horasDesdeEntorno as horasAcotadas } from '../scheduler/horas.ts';
 
 export const PASOS_RESULTADOS = [
   { nombre: 'fútbol', script: 'update-data:fb' },
@@ -32,10 +33,7 @@ export const HORAS_POR_DEFECTO = 6;
 export const TIEMPO_MAX_MIN = 25;
 
 export function horasDesdeEntorno(entorno: NodeJS.ProcessEnv = process.env): number {
-  const v = entorno.RESULTS_REFRESH_HOURS?.trim();
-  if (!v) return HORAS_POR_DEFECTO;
-  const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? n : HORAS_POR_DEFECTO;
+  return horasAcotadas(entorno, 'RESULTS_REFRESH_HOURS', HORAS_POR_DEFECTO);
 }
 
 export interface ResultadoPaso {

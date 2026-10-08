@@ -40,7 +40,7 @@ import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-import { hayHistoria } from './datos-estado.mjs';
+import { copiaConsistente, hayHistoria, integridadDe, otraConexionAbierta, quitarLaterales } from './datos-estado.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
@@ -78,6 +78,14 @@ const MINE = [
   'naf_prediction_log',
   'nhl_prediction_log',
   'ufc_prediction_log',
+  // Lo que se MIDIÓ en tu instalación y no se puede volver a conseguir (lote B, B3): precios
+  // observados por el refresco de fútbol, noticias con su fecha, alineaciones esperada y
+  // confirmada, latencias, y los ids de tenis que la ingesta asigna y nunca reinicia.
+  'fb_odds_history',
+  'fb_news',
+  'fb_lineups',
+  'latency_samples',
+  'player_ids',
 ];
 
 async function download(url) {
@@ -152,6 +160,16 @@ async function main() {
     );
   }
 
+  // Nada se reemplaza ni se aparta mientras otro proceso tenga la base abierta (B1): la conexión
+  // vieja seguiría escribiendo en el fichero viejo y el siguiente checkpoint aplicaría su WAL al
+  // nuevo. Se mira ANTES de descargar nada.
+  if (fs.existsSync(DB_PATH) && (force || !hayHistoria(DB_PATH)) && otraConexionAbierta(DB_PATH)) {
+    throw new Error(
+      `${path.relative(ROOT, DB_PATH)} está abierta por otro proceso (el servidor en marcha, o npm run dev).\n` +
+        '  Párala y vuelve a intentarlo: reemplazar la base bajo una conexión abierta la corrompe.',
+    );
+  }
+
   // Una base SIN FILAS (solo esquema: lo que deja db:migrate antes de bajar datos) cuenta como
   // ausente (A7). Se aparta con fecha, no se borra: nunca se destruye un fichero de data/.
   if (fs.existsSync(DB_PATH) && !hayHistoria(DB_PATH)) {
@@ -220,6 +238,8 @@ async function main() {
 
   let counts;
   try {
+    const integridad = integridadDe(tmpDb);
+    if (integridad !== 'ok') throw new Error(`integrity_check: ${integridad}`);
     counts = rowCounts(tmpDb);
   } catch (e) {
     throw new Error(`La base descargada no se puede abrir: ${e.message}`);
@@ -239,17 +259,22 @@ async function main() {
   );
 
   if (exists) {
-    // Copia con fecha ANTES de tocar nada. Es lo que hace que --force sea reversible.
+    // Copia con fecha ANTES de tocar nada. Es lo que hace que --force sea reversible. Con
+    // `VACUUM INTO` y no con una copia del fichero: así lleva también lo que estuviera en el WAL.
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const backup = `${DB_PATH}.backup-${stamp}`;
-    fs.copyFileSync(DB_PATH, backup);
-    console.log(`\n  Copia de la anterior en ${path.basename(backup)}`);
-    // Si la base vieja aún tuviera tablas del libro mayor (una instalación anterior a la
-    // Fase 2 que se partió a mano), se conservan igual que antes.
-    const moved = carryOver(DB_PATH, tmpDb);
-    if (moved > 0) console.log(`  · ${moved} fila(s) de tablas antiguas conservadas`);
+    if (otraConexionAbierta(DB_PATH)) throw new Error(`${path.relative(ROOT, DB_PATH)} se abrió por otro proceso mientras se descargaba. No se toca nada.`);
+    const integridad = copiaConsistente(DB_PATH, backup);
+    if (integridad !== 'ok') throw new Error(`La base actual no pasa integrity_check (${integridad}); no se reemplaza. La copia está en ${path.basename(backup)}.`);
+    console.log(`\n  Copia de la anterior en ${path.basename(backup)} (completa, con lo que hubiera en el WAL)`);
+    // Lo tuyo se conserva desde esa copia consistente. Si la base vieja aún tuviera tablas del
+    // libro mayor (una instalación anterior a la Fase 2 partida a mano), igual.
+    const moved = carryOver(backup, tmpDb);
+    if (moved > 0) console.log(`  · ${moved} fila(s) de tus tablas conservadas`);
   }
 
+  // Un -wal o -shm de la base anterior junto a la nueva sería un WAL ajeno: fuera antes del rename.
+  quitarLaterales(DB_PATH);
   fs.renameSync(tmpDb, DB_PATH);
   console.log(
     `\n✅ Historia instalada en data/history.db (${(fs.statSync(DB_PATH).size / 1048576).toFixed(0)} MB). Tu ledger.db no se ha tocado.\n` +

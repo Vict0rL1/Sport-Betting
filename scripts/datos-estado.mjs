@@ -34,3 +34,53 @@ export function hayHistoria(fichero) {
   const filas = filasDeHistoria(fichero);
   return !!filas && Object.values(filas).some((n) => n > 0);
 }
+
+// ---------------------------------------------------------------------------
+// Tocar la base desde FUERA sin romperla (lote B, B1). Lo mismo que server/src/db/sqliteSeguro.ts,
+// para los scripts que no corren con tsx.
+// ---------------------------------------------------------------------------
+
+/** ¿Hay otra conexión con el fichero abierto (el servidor en marcha, npm run dev)? */
+export function otraConexionAbierta(fichero) {
+  if (!fs.existsSync(fichero)) return false;
+  let db = null;
+  try {
+    db = new DatabaseSync(fichero);
+    db.exec('PRAGMA busy_timeout = 0; PRAGMA locking_mode = EXCLUSIVE;');
+    db.exec('BEGIN IMMEDIATE; COMMIT;');
+    return false;
+  } catch (e) {
+    return /locked|busy/i.test(e.message);
+  } finally {
+    try {
+      db?.close();
+    } catch {
+      // Ya cerrada.
+    }
+  }
+}
+
+export function integridadDe(fichero) {
+  const db = new DatabaseSync(fichero, { readOnly: true });
+  try {
+    return db.prepare('PRAGMA integrity_check').get().integrity_check;
+  } finally {
+    db.close();
+  }
+}
+
+/** Copia consistente (VACUUM INTO: con lo que haya en el WAL), comprobada. Devuelve el integrity_check. */
+export function copiaConsistente(origen, destino) {
+  fs.rmSync(destino, { force: true });
+  const db = new DatabaseSync(origen);
+  try {
+    db.exec(`VACUUM INTO '${destino.replace(/'/g, "''")}'`);
+  } finally {
+    db.close();
+  }
+  return integridadDe(destino);
+}
+
+export function quitarLaterales(fichero) {
+  for (const suf of ['-wal', '-shm', '-journal']) fs.rmSync(fichero + suf, { force: true });
+}

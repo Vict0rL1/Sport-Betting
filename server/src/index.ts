@@ -16,6 +16,8 @@ import { refreshOdds } from './ingest/odds.ts';
 import { conRegistro, marcarMuertas } from './ingest/runs.ts';
 import { horasDesdeEntorno, cicloResultados, PRIMERA_PASADA_MIN } from './ingest/scheduler.ts';
 import { registrar, arrancar } from './scheduler/registry.ts';
+import { horasDesdeEntorno as horasDeCadencia } from './scheduler/horas.ts';
+import { instalarApagado } from './apagado.ts';
 import { cicloClima } from './weather/openMeteo.ts';
 import { cicloMonitorizacion } from './monitoring/series.ts';
 import { cicloSimulacion } from './simulation/season.ts';
@@ -507,7 +509,8 @@ async function main() {
     // (scheduler/registry.ts): cadencia, primera pasada, última ejecución, duración, estado y
     // un interruptor por trabajo que se puede apagar desde la API sin reiniciar. Todos locales
     // y sin cuota salvo el cierre de cuotas, que solo se registra con clave.
-    const backupHoras = process.env.BACKUP_HOURS?.trim() ? Number(process.env.BACKUP_HOURS) || 0 : 24;
+    // Acotadas a 7 días (lote B, B5): un setTimeout por encima de 24,8 días dispara en el acto.
+    const backupHoras = horasDeCadencia(process.env, 'BACKUP_HOURS', 24);
     const horasResultados = horasDesdeEntorno();
 
     // Puntuar el registro en vivo con los resultados que lleguen (y al arrancar, lo atrasado).
@@ -630,6 +633,9 @@ async function main() {
 
     if (featureEncendida('operacion.registroTrabajos')) arrancar(resolveLog);
     else resolveLog('Registro de trabajos apagado (features.json: operacion.registroTrabajos): nada programado salvo el refresco de cuotas.');
+
+    // Parar bien: SIGINT/SIGTERM cierran los trabajos, el servidor y la base (ver apagado.ts).
+    instalarApagado(() => app.close(), resolveLog);
   } catch (err) {
     app.log.error(err);
     process.exit(1);

@@ -101,7 +101,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
     const url = req.url;
     // Métricas: cada petición por grupo de ruta y código; las de predicción, además por deporte.
     try {
-      const grupo = grupoDeRuta(url);
+      const grupo = grupoDeRuta(req.routeOptions?.url, url);
       incrementar('http_peticiones_total', { grupo, status: reply.statusCode }, 'peticiones HTTP por grupo de ruta y código');
     } catch {
       // Medir no puede tumbar una respuesta.

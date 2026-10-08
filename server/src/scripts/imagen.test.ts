@@ -30,3 +30,27 @@ test('A4: el arranque de la imagen usa el tsx instalado, no npx, y suelta los pr
   assert.match(sh, /setpriv|runuser/, 'el servidor corre como node, no como root');
   assert.match(sh, /chown/, 'el disco de Fly se monta de root: hay que cedérselo a node');
 });
+
+// ---------------------------------------------------------------------------
+// B5: la semilla de la imagen, y lo que se comprueba antes de publicar
+// ---------------------------------------------------------------------------
+test('B5: la semilla de la imagen es una exportación (VACUUM INTO), no el fichero crudo sin su WAL', () => {
+  const dockerfile = leer('Dockerfile');
+  assert.doesNotMatch(dockerfile, /COPY data\/history\.db /, 'el fichero crudo pierde lo que está en history.db-wal');
+  assert.match(dockerfile, /db:export-history/);
+  assert.match(dockerfile, /COPY --from=build \S*seed\S* \/seed\/history\.db/);
+  const ignore = leer('.dockerignore').split('\n').map((l) => l.trim());
+  assert.ok(!ignore.includes('data/*.db-wal'), 'history.db-wal tiene que entrar en el contexto para que la exportación vea sus páginas');
+  assert.ok(ignore.some((l) => /^data\/ledger\.db\*?$/.test(l)), 'el libro mayor no viaja al contexto de construcción');
+});
+
+test('B5: check-publishable usa la lista de tablas del libro mayor del servidor, y el workflow comprueba lo que exporta', () => {
+  const script = leer('scripts/check-publishable.mjs');
+  assert.doesNotMatch(script, /const TABLAS_LEDGER = \[/, 'sin copia a mano de la lista');
+  assert.match(script, /server\/src\/db\/tables\.ts/);
+  const wf = leer('.github/workflows/data.yml');
+  const exporta = wf.indexOf('db:export-history');
+  const comprueba = wf.indexOf('check-publishable');
+  assert.ok(exporta > 0 && comprueba > exporta, 'primero se exporta y después se comprueba el fichero exportado');
+  assert.match(wf, /check-publishable[^\n]*history\.export\.db/);
+});
