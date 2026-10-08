@@ -16,7 +16,7 @@ Material de partida: `docs/REVISION_GENERAL.md` (revisión del 8-oct-2026) y sus
 - [x] **0.6** Capturas repetibles con un solo comando — estado: hecho · commit: `399d9eb` · nota: `cd frontend && npm run capturas -- <salida>`; 5 escenarios, 85 capturas, reloj congelado en backend y navegador.
 - [x] **0.7** Grabar y reproducir respuestas reales de proveedores — estado: hecho (falta grabar con claves: **necesita a Victor**) · commit: `4f6042e` · nota: `python scripts/validar_con_datos_reales.py --grabar`; los tests de contrato se saltan hasta que haya grabaciones; la tubería está probada sobre una red simulada.
 - [x] **0.8** Copia de seguridad de la base en `start.sh` — estado: hecho · commit: `7b8994f` · nota: `backend/scripts/copia_base.sh` (API de copia de SQLite), 10 últimas en `backups/`; sigue a DATABASE_PATH.
-- [ ] **0.9** Repaso rápido de seguridad — estado: pendiente · commit: — · nota: —
+- [x] **0.9** Repaso rápido de seguridad — estado: hecho · commit: `5eee473` · nota: tipo común de ticker en 46 parámetros (6 rutas no validaban); «/api/etfs/recomendar» estaba tapada por «/{symbol}» (arreglado); CORS e historial ya limpios; host 127.0.0.1 explícito; npm audit sin avisos.
 
 ## Fase 1 — Corrección y fallos visuales (P1)
 
@@ -89,6 +89,18 @@ las etiquetas viven en local. Cada sesión nueva las recrea desde la tabla de ar
   momento del análisis: un análisis a fecha pasada filtra las noticias de la tesis con la ventana de hoy.
   Posible fuga de «punto en el tiempo». Encontrado al montar el golden (que congela el reloj por esto).
   Tocarlo cambia decisiones del replay: requiere tu visto bueno.
+
+## Informe del repaso de seguridad (0.9)
+
+| Punto | Estado | Detalle |
+|---|---|---|
+| `.env` en `.gitignore` y `.env.example` sin claves | Ya estaba bien | Corregida la pista de `DATABASE_PATH` (relativa a `backend/`). |
+| Ninguna clave en el historial de git | Ya estaba bien | Nunca se versionó un `.env`; ningún patrón de clave en `git log -p`. |
+| uvicorn solo en 127.0.0.1 | Ya estaba bien (por defecto) | Ahora explícito en `start.sh`, con guarda. |
+| CORS solo el Vite local | Ya estaba bien | `localhost:5173` y `127.0.0.1:5173`, sin credenciales. |
+| Tickers validados en la frontera | **Arreglado** | 6 rutas sin validar (2 llegaban al proveedor); patrón endurecido (empieza por letra o número). |
+| Rutas tapadas | **Arreglado** (encontrado de paso) | `/api/etfs/recomendar` nunca llegó a su manejador. |
+| Dependencias | **Arreglado** | `npm audit fix` (nanoid, source-map-js); `pip-audit` sin avisos. |
 
 ## Dónde me quedé
 
