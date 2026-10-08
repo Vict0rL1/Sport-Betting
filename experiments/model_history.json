@@ -1,0 +1,2235 @@
+{
+ "tennis": [
+  {
+   "version": "tennis-ffeee29b7a81",
+   "activada": "2026-07-21T18:11:11+00:00",
+   "desactivada": "2026-07-22T07:01:15+00:00",
+   "motivo": "Build tennis match prediction app (ATP/WTA) with explainable Elo model",
+   "git_commit": "f6b0e8ac7a9a",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "tennis-1e050ea0b7b3",
+   "activada": "2026-07-22T07:01:15+00:00",
+   "desactivada": "2026-07-29T23:59:26+00:00",
+   "motivo": "Enrich predictions and make demo data calendar-coherent",
+   "git_commit": "fb295bc15166",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "tennis-6e93ebc3fa8d",
+   "activada": "2026-07-29T23:59:26+00:00",
+   "desactivada": "2026-07-30T00:09:03+00:00",
+   "motivo": "Add a plain-language \"what's most likely to happen\" summary per match",
+   "git_commit": "51037d9a56b4",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "tennis-980fb9a1786b",
+   "activada": "2026-07-30T00:09:03+00:00",
+   "desactivada": "2026-07-30T21:23:55+00:00",
+   "motivo": "Show big win probabilities, and calibrate the model against a backtest",
+   "git_commit": "5be2d9a03f00",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "tennis-976b3a099980",
+   "activada": "2026-07-30T21:23:55+00:00",
+   "desactivada": "2026-07-31T04:39:18+00:00",
+   "motivo": "Re-fit calibration on real data and measure model-vs-market disagreement",
+   "git_commit": "596568100c18",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "tennis-2cf94932569b",
+   "activada": "2026-07-31T04:39:18+00:00",
+   "desactivada": "2026-07-31T05:49:22+00:00",
+   "motivo": "Add scoreline probabilities, fitness signals and tournament history",
+   "git_commit": "e53fab1f01fb",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "tennis-9a898dbbe7fb",
+   "activada": "2026-07-31T05:49:22+00:00",
+   "desactivada": "2026-07-31T06:01:19+00:00",
+   "motivo": "Measure the app's own accuracy, and say how solid each prediction is",
+   "git_commit": "7ec2701fad35",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "tennis-ef6f61c7b91d",
+   "activada": "2026-07-31T06:01:19+00:00",
+   "desactivada": "2026-08-31T15:22:04+00:00",
+   "motivo": "Use the scoreline, the calendar and the format, and measure each one",
+   "git_commit": "2dcaee78cd3f",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "tennis-e3b4c3f91497",
+   "activada": "2026-08-31T15:22:04+00:00",
+   "desactivada": "2026-09-13T14:05:57+00:00",
+   "motivo": "De-vig con Shin medido contra el multiplicativo, y features que se ganan el sitio o se borran",
+   "git_commit": "104bc4060f2d",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "tennis-7b8ef2fea48c",
+   "activada": "2026-09-13T14:05:57+00:00",
+   "desactivada": "2026-09-14T05:31:21+00:00",
+   "motivo": "El peso del Elo por superficie estaba a ojo: medido, baja de 0,7 a 0,5",
+   "git_commit": "886c27bdc5fa",
+   "experimentos": [
+    {
+     "id": "surfaceweight-0-5-mejora-el-log-loss-sob-2026-09-13",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0019030557131030931,
+     "ic": [
+      -0.0030130325660582664,
+      -0.0006826861408664372
+     ]
+    },
+    {
+     "id": "quitar-el-elo-por-superficie-empeora-el--2026-09-13",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0037133820865768645,
+     "ic": [
+      0.002328033729676985,
+      0.005208243824345045
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-empeora-el--2026-09-13",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.003517605209422161,
+     "ic": [
+      0.0028248794213609893,
+      0.004245952881237121
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-empeora-el-log--2026-09-13",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00012472454623518007,
+     "ic": [
+      -0.00025834080924578185,
+      0.0004981365367232968
+     ]
+    },
+    {
+     "id": "quitar-el-ajuste-por-cara-a-cara-empeora-2026-09-13",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005090919876059856,
+     "ic": [
+      0.00021411309766033507,
+      0.0008213299906000796
+     ]
+    },
+    {
+     "id": "quitar-la-penalizacion-por-inactividad-e-2026-09-13",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005181765230711335,
+     "ic": [
+      0.0002195468953923582,
+      0.0008231438697398635
+     ]
+    },
+    {
+     "id": "usar-un-solo-factor-de-calibracion-en-ve-2026-09-13",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.001658916796816043,
+     "ic": [
+      0.0011521936712654568,
+      0.002140553203678995
+     ]
+    },
+    {
+     "id": "quitar-el-elo-por-superficie-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.00371325541004919,
+     "ic": [
+      0.002327990474092317,
+      0.0052081734623984546
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0035176888226667404,
+     "ic": [
+      0.002824919758719298,
+      0.004246045454979606
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-empeora-el-log--2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.0001258164261397717,
+     "ic": [
+      -0.00025812858093403383,
+      0.000498692113372427
+     ]
+    },
+    {
+     "id": "quitar-el-ajuste-por-cara-a-cara-empeora-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.000509104311684698,
+     "ic": [
+      0.0002141096450363958,
+      0.0008213337052117557
+     ]
+    },
+    {
+     "id": "quitar-la-penalizacion-por-inactividad-e-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005181507754424283,
+     "ic": [
+      0.00021953789009415952,
+      0.000823130352158399
+     ]
+    },
+    {
+     "id": "usar-un-solo-factor-de-calibracion-en-ve-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0016587280341647296,
+     "ic": [
+      0.0011520592067475331,
+      0.0021404093338822814
+     ]
+    },
+    {
+     "id": "quitar-el-elo-por-superficie-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.00371325541004919,
+     "ic": [
+      0.002327990474092317,
+      0.0052081734623984546
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0035176888226667404,
+     "ic": [
+      0.002824919758719298,
+      0.004246045454979606
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-empeora-el-log--2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.0001258164261397717,
+     "ic": [
+      -0.00025812858093403383,
+      0.000498692113372427
+     ]
+    },
+    {
+     "id": "quitar-el-ajuste-por-cara-a-cara-empeora-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.000509104311684698,
+     "ic": [
+      0.0002141096450363958,
+      0.0008213337052117557
+     ]
+    },
+    {
+     "id": "quitar-la-penalizacion-por-inactividad-e-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005181507754424283,
+     "ic": [
+      0.00021953789009415952,
+      0.000823130352158399
+     ]
+    },
+    {
+     "id": "usar-un-solo-factor-de-calibracion-en-ve-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0016587280341647296,
+     "ic": [
+      0.0011520592067475331,
+      0.0021404093338822814
+     ]
+    },
+    {
+     "id": "quitar-el-elo-por-superficie-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.00371325541004919,
+     "ic": [
+      0.002327990474092317,
+      0.0052081734623984546
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0035176888226667404,
+     "ic": [
+      0.002824919758719298,
+      0.004246045454979606
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-empeora-el-log--2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.0001258164261397717,
+     "ic": [
+      -0.00025812858093403383,
+      0.000498692113372427
+     ]
+    },
+    {
+     "id": "quitar-el-ajuste-por-cara-a-cara-empeora-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.000509104311684698,
+     "ic": [
+      0.0002141096450363958,
+      0.0008213337052117557
+     ]
+    },
+    {
+     "id": "quitar-la-penalizacion-por-inactividad-e-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005181507754424283,
+     "ic": [
+      0.00021953789009415952,
+      0.000823130352158399
+     ]
+    },
+    {
+     "id": "usar-un-solo-factor-de-calibracion-en-ve-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0016587280341647296,
+     "ic": [
+      0.0011520592067475331,
+      0.0021404093338822814
+     ]
+    },
+    {
+     "id": "la-mejor-combinacion-conjunta-de-los-10--2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": -0.00021328884615007382,
+     "ic": [
+      -0.0012603679392717226,
+      0.0007521562583089767
+     ]
+    },
+    {
+     "id": "quitar-el-elo-por-superficie-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.00371325541004919,
+     "ic": [
+      0.002327990474092317,
+      0.0052081734623984546
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0035176888226667404,
+     "ic": [
+      0.002824919758719298,
+      0.004246045454979606
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-empeora-el-log--2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.0001258164261397717,
+     "ic": [
+      -0.00025812858093403383,
+      0.000498692113372427
+     ]
+    },
+    {
+     "id": "quitar-el-ajuste-por-cara-a-cara-empeora-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.000509104311684698,
+     "ic": [
+      0.0002141096450363958,
+      0.0008213337052117557
+     ]
+    },
+    {
+     "id": "quitar-la-penalizacion-por-inactividad-e-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005181507754424283,
+     "ic": [
+      0.00021953789009415952,
+      0.000823130352158399
+     ]
+    },
+    {
+     "id": "usar-un-solo-factor-de-calibracion-en-ve-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0016587280341647296,
+     "ic": [
+      0.0011520592067475331,
+      0.0021404093338822814
+     ]
+    },
+    {
+     "id": "quitar-el-elo-por-superficie-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.00371325541004919,
+     "ic": [
+      0.002327990474092317,
+      0.0052081734623984546
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0035176888226667404,
+     "ic": [
+      0.002824919758719298,
+      0.004246045454979606
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-empeora-el-log--2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.0001258164261397717,
+     "ic": [
+      -0.00025812858093403383,
+      0.000498692113372427
+     ]
+    },
+    {
+     "id": "quitar-el-ajuste-por-cara-a-cara-empeora-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.000509104311684698,
+     "ic": [
+      0.0002141096450363958,
+      0.0008213337052117557
+     ]
+    },
+    {
+     "id": "quitar-la-penalizacion-por-inactividad-e-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005181507754424283,
+     "ic": [
+      0.00021953789009415952,
+      0.000823130352158399
+     ]
+    },
+    {
+     "id": "usar-un-solo-factor-de-calibracion-en-ve-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0016587280341647296,
+     "ic": [
+      0.0011520592067475331,
+      0.0021404093338822814
+     ]
+    },
+    {
+     "id": "surfaceswitch-30-mejora-el-log-loss-sobr-2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": -0.00007060848940058063,
+     "ic": [
+      -0.0004567983520026519,
+      0.0002809200092457063
+     ]
+    }
+   ],
+   "metricas": "39 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "tennis-09cc4bf29962",
+   "activada": "2026-09-14T05:31:21+00:00",
+   "desactivada": "2026-09-26T11:15:00+00:00",
+   "motivo": "El generador de cuotas de demostración se quedó con el peso de superficie viejo",
+   "git_commit": "d7dbb0c52e66",
+   "experimentos": [
+    {
+     "id": "surfaceweight-0-5-mejora-el-log-loss-sob-2026-09-13",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0019030557131030931,
+     "ic": [
+      -0.0030130325660582664,
+      -0.0006826861408664372
+     ]
+    },
+    {
+     "id": "quitar-el-elo-por-superficie-empeora-el--2026-09-13",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0037133820865768645,
+     "ic": [
+      0.002328033729676985,
+      0.005208243824345045
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-empeora-el--2026-09-13",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.003517605209422161,
+     "ic": [
+      0.0028248794213609893,
+      0.004245952881237121
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-empeora-el-log--2026-09-13",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00012472454623518007,
+     "ic": [
+      -0.00025834080924578185,
+      0.0004981365367232968
+     ]
+    },
+    {
+     "id": "quitar-el-ajuste-por-cara-a-cara-empeora-2026-09-13",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005090919876059856,
+     "ic": [
+      0.00021411309766033507,
+      0.0008213299906000796
+     ]
+    },
+    {
+     "id": "quitar-la-penalizacion-por-inactividad-e-2026-09-13",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005181765230711335,
+     "ic": [
+      0.0002195468953923582,
+      0.0008231438697398635
+     ]
+    },
+    {
+     "id": "usar-un-solo-factor-de-calibracion-en-ve-2026-09-13",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.001658916796816043,
+     "ic": [
+      0.0011521936712654568,
+      0.002140553203678995
+     ]
+    },
+    {
+     "id": "quitar-el-elo-por-superficie-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.00371325541004919,
+     "ic": [
+      0.002327990474092317,
+      0.0052081734623984546
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0035176888226667404,
+     "ic": [
+      0.002824919758719298,
+      0.004246045454979606
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-empeora-el-log--2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.0001258164261397717,
+     "ic": [
+      -0.00025812858093403383,
+      0.000498692113372427
+     ]
+    },
+    {
+     "id": "quitar-el-ajuste-por-cara-a-cara-empeora-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.000509104311684698,
+     "ic": [
+      0.0002141096450363958,
+      0.0008213337052117557
+     ]
+    },
+    {
+     "id": "quitar-la-penalizacion-por-inactividad-e-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005181507754424283,
+     "ic": [
+      0.00021953789009415952,
+      0.000823130352158399
+     ]
+    },
+    {
+     "id": "usar-un-solo-factor-de-calibracion-en-ve-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0016587280341647296,
+     "ic": [
+      0.0011520592067475331,
+      0.0021404093338822814
+     ]
+    },
+    {
+     "id": "quitar-el-elo-por-superficie-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.00371325541004919,
+     "ic": [
+      0.002327990474092317,
+      0.0052081734623984546
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0035176888226667404,
+     "ic": [
+      0.002824919758719298,
+      0.004246045454979606
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-empeora-el-log--2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.0001258164261397717,
+     "ic": [
+      -0.00025812858093403383,
+      0.000498692113372427
+     ]
+    },
+    {
+     "id": "quitar-el-ajuste-por-cara-a-cara-empeora-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.000509104311684698,
+     "ic": [
+      0.0002141096450363958,
+      0.0008213337052117557
+     ]
+    },
+    {
+     "id": "quitar-la-penalizacion-por-inactividad-e-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005181507754424283,
+     "ic": [
+      0.00021953789009415952,
+      0.000823130352158399
+     ]
+    },
+    {
+     "id": "usar-un-solo-factor-de-calibracion-en-ve-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0016587280341647296,
+     "ic": [
+      0.0011520592067475331,
+      0.0021404093338822814
+     ]
+    },
+    {
+     "id": "quitar-el-elo-por-superficie-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.00371325541004919,
+     "ic": [
+      0.002327990474092317,
+      0.0052081734623984546
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0035176888226667404,
+     "ic": [
+      0.002824919758719298,
+      0.004246045454979606
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-empeora-el-log--2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.0001258164261397717,
+     "ic": [
+      -0.00025812858093403383,
+      0.000498692113372427
+     ]
+    },
+    {
+     "id": "quitar-el-ajuste-por-cara-a-cara-empeora-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.000509104311684698,
+     "ic": [
+      0.0002141096450363958,
+      0.0008213337052117557
+     ]
+    },
+    {
+     "id": "quitar-la-penalizacion-por-inactividad-e-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005181507754424283,
+     "ic": [
+      0.00021953789009415952,
+      0.000823130352158399
+     ]
+    },
+    {
+     "id": "usar-un-solo-factor-de-calibracion-en-ve-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0016587280341647296,
+     "ic": [
+      0.0011520592067475331,
+      0.0021404093338822814
+     ]
+    },
+    {
+     "id": "la-mejor-combinacion-conjunta-de-los-10--2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": -0.00021328884615007382,
+     "ic": [
+      -0.0012603679392717226,
+      0.0007521562583089767
+     ]
+    },
+    {
+     "id": "quitar-el-elo-por-superficie-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.00371325541004919,
+     "ic": [
+      0.002327990474092317,
+      0.0052081734623984546
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0035176888226667404,
+     "ic": [
+      0.002824919758719298,
+      0.004246045454979606
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-empeora-el-log--2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.0001258164261397717,
+     "ic": [
+      -0.00025812858093403383,
+      0.000498692113372427
+     ]
+    },
+    {
+     "id": "quitar-el-ajuste-por-cara-a-cara-empeora-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.000509104311684698,
+     "ic": [
+      0.0002141096450363958,
+      0.0008213337052117557
+     ]
+    },
+    {
+     "id": "quitar-la-penalizacion-por-inactividad-e-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005181507754424283,
+     "ic": [
+      0.00021953789009415952,
+      0.000823130352158399
+     ]
+    },
+    {
+     "id": "usar-un-solo-factor-de-calibracion-en-ve-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0016587280341647296,
+     "ic": [
+      0.0011520592067475331,
+      0.0021404093338822814
+     ]
+    },
+    {
+     "id": "quitar-el-elo-por-superficie-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.00371325541004919,
+     "ic": [
+      0.002327990474092317,
+      0.0052081734623984546
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-empeora-el--2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0035176888226667404,
+     "ic": [
+      0.002824919758719298,
+      0.004246045454979606
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-empeora-el-log--2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.0001258164261397717,
+     "ic": [
+      -0.00025812858093403383,
+      0.000498692113372427
+     ]
+    },
+    {
+     "id": "quitar-el-ajuste-por-cara-a-cara-empeora-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.000509104311684698,
+     "ic": [
+      0.0002141096450363958,
+      0.0008213337052117557
+     ]
+    },
+    {
+     "id": "quitar-la-penalizacion-por-inactividad-e-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0005181507754424283,
+     "ic": [
+      0.00021953789009415952,
+      0.000823130352158399
+     ]
+    },
+    {
+     "id": "usar-un-solo-factor-de-calibracion-en-ve-2026-09-15",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0016587280341647296,
+     "ic": [
+      0.0011520592067475331,
+      0.0021404093338822814
+     ]
+    },
+    {
+     "id": "surfaceswitch-30-mejora-el-log-loss-sobr-2026-09-15",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": -0.00007060848940058063,
+     "ic": [
+      -0.0004567983520026519,
+      0.0002809200092457063
+     ]
+    }
+   ],
+   "metricas": "39 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "tennis-849b50464243",
+   "activada": "2026-09-26T11:15:00+00:00",
+   "desactivada": null,
+   "motivo": "Tenis: calibración por año, y fuera las copias a mano de las constantes del modelo",
+   "git_commit": "93ccd9b91b4f",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  }
+ ],
+ "football": [
+  {
+   "version": "football-6189f71c7be7",
+   "activada": "2026-08-01T02:12:27+00:00",
+   "desactivada": "2026-08-01T02:57:12+00:00",
+   "motivo": "Add football as a third tab, with per-league sub-tabs",
+   "git_commit": "14cd20e48137",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "football-827c9bfd868c",
+   "activada": "2026-08-01T02:57:12+00:00",
+   "desactivada": "2026-08-09T01:47:17+00:00",
+   "motivo": "Add lineups, the score matrix, and three signals that didn't work",
+   "git_commit": "b82290026ec8",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "football-673e53917aee",
+   "activada": "2026-08-09T01:47:17+00:00",
+   "desactivada": "2026-08-18T01:43:03+00:00",
+   "motivo": "Fútbol: el bug que borraba los 0-0, sugerencias que responden \"quién gana\", y badges \"Value\" falsos",
+   "git_commit": "57a6fd8395a7",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "football-301d3fdfd72c",
+   "activada": "2026-08-18T01:43:03+00:00",
+   "desactivada": "2026-08-22T01:39:36+00:00",
+   "motivo": "Fútbol: los recién ascendidos ya tienen desglose, con el salto de división medido por país",
+   "git_commit": "bf3ff2f5932f",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "football-9d04b380afed",
+   "activada": "2026-08-22T01:39:36+00:00",
+   "desactivada": "2026-08-31T15:22:04+00:00",
+   "motivo": "Fútbol: la banda de fiabilidad ya está medida, y el partido abierto dice algo útil",
+   "git_commit": "793d86e497de",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "football-91b31275c7e6",
+   "activada": "2026-08-31T15:22:04+00:00",
+   "desactivada": "2026-09-02T22:47:03+00:00",
+   "motivo": "De-vig con Shin medido contra el multiplicativo, y features que se ganan el sitio o se borran",
+   "git_commit": "104bc4060f2d",
+   "experimentos": [
+    {
+     "id": "quitar-el-decay-entre-temporadas-mejora--2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00007443843770211883,
+     "ic": [
+      -0.0015672329350753594,
+      0.0015548798939032714
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-mejora-el-l-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.003997787407222208,
+     "ic": [
+      0.0020523528757330546,
+      0.006040306215844241
+     ]
+    },
+    {
+     "id": "quitar-ataque-defensa-por-equipo-mejora--2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-mejora-el-log-l-2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "quitar-el-descanso-y-la-congestion-mejor-2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "quitar-el-ancla-de-goles-movil-mejora-el-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0008707127003381745,
+     "ic": [
+      0.00014061578163432302,
+      0.0016561945452321408
+     ]
+    },
+    {
+     "id": "carryover-0-98-mejora-sobre-el-0-85-publ-2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": -0.00014973956161416736,
+     "ic": [
+      -0.0015186195939064014,
+      0.0011006807078313675
+     ]
+    },
+    {
+     "id": "rd-estilo-glicko-encogiendo-el-hueco-de--2026-09-01",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": 0.00008,
+     "ic": [
+      0.00004,
+      0.00012
+     ]
+    },
+    {
+     "id": "la-distancia-de-viaje-explica-el-residuo-2026-09-01",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": -0.0687,
+     "ic": [
+      -0.1328,
+      -0.0046
+     ]
+    },
+    {
+     "id": "elo-sigma-c-medido-105-describe-el-error-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "elo",
+     "delta": -158,
+     "ic": [
+      -185,
+      -136
+     ]
+    },
+    {
+     "id": "el-modelo-de-futbol-le-gana-al-elo-pelad-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.00472,
+     "ic": [
+      -0.00792,
+      -0.00154
+     ]
+    },
+    {
+     "id": "el-dixon-coles-jerarquico-mejora-el-log--2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.004261092167324145,
+     "ic": [
+      -0.008496967667546441,
+      0.00005616366557387839
+     ]
+    },
+    {
+     "id": "el-dixon-coles-jerarquico-mejora-el-log--2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0172241465395981,
+     "ic": [
+      -0.024279927741998792,
+      -0.009674841681298434
+     ]
+    },
+    {
+     "id": "la-rejilla-del-dixon-coles-mejora-el-log-2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.006145210582667788,
+     "ic": [
+      -0.011031006368808667,
+      -0.0010343873011470917
+     ]
+    },
+    {
+     "id": "la-rejilla-del-dixon-coles-mejora-el-log-2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0006689148211696418,
+     "ic": [
+      -0.004452159462146005,
+      0.003340170570281732
+     ]
+    },
+    {
+     "id": "la-rejilla-del-dixon-coles-mejora-el-log-2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.00905773781232997,
+     "ic": [
+      -0.012667128129338207,
+      -0.0052760331261212665
+     ]
+    },
+    {
+     "id": "calibrar-la-salida-platt-mejora-el-log-l-2026-09-03",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0008759701409116963,
+     "ic": [
+      -0.0017907362981810732,
+      -0.000003383881095060011
+     ]
+    }
+   ],
+   "metricas": "17 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "football-a9009bb63be0",
+   "activada": "2026-09-02T22:47:03+00:00",
+   "desactivada": "2026-09-03T04:52:02+00:00",
+   "motivo": "Modelo jerárquico bayesiano para fútbol: Dixon-Coles con priors que encogen",
+   "git_commit": "f94d64556e92",
+   "experimentos": [
+    {
+     "id": "quitar-el-decay-entre-temporadas-mejora--2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00007443843770211883,
+     "ic": [
+      -0.0015672329350753594,
+      0.0015548798939032714
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-mejora-el-l-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.003997787407222208,
+     "ic": [
+      0.0020523528757330546,
+      0.006040306215844241
+     ]
+    },
+    {
+     "id": "quitar-ataque-defensa-por-equipo-mejora--2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-mejora-el-log-l-2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "quitar-el-descanso-y-la-congestion-mejor-2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "quitar-el-ancla-de-goles-movil-mejora-el-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0008707127003381745,
+     "ic": [
+      0.00014061578163432302,
+      0.0016561945452321408
+     ]
+    },
+    {
+     "id": "carryover-0-98-mejora-sobre-el-0-85-publ-2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": -0.00014973956161416736,
+     "ic": [
+      -0.0015186195939064014,
+      0.0011006807078313675
+     ]
+    },
+    {
+     "id": "rd-estilo-glicko-encogiendo-el-hueco-de--2026-09-01",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": 0.00008,
+     "ic": [
+      0.00004,
+      0.00012
+     ]
+    },
+    {
+     "id": "la-distancia-de-viaje-explica-el-residuo-2026-09-01",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": -0.0687,
+     "ic": [
+      -0.1328,
+      -0.0046
+     ]
+    },
+    {
+     "id": "elo-sigma-c-medido-105-describe-el-error-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "elo",
+     "delta": -158,
+     "ic": [
+      -185,
+      -136
+     ]
+    },
+    {
+     "id": "el-modelo-de-futbol-le-gana-al-elo-pelad-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.00472,
+     "ic": [
+      -0.00792,
+      -0.00154
+     ]
+    },
+    {
+     "id": "el-dixon-coles-jerarquico-mejora-el-log--2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.004261092167324145,
+     "ic": [
+      -0.008496967667546441,
+      0.00005616366557387839
+     ]
+    },
+    {
+     "id": "el-dixon-coles-jerarquico-mejora-el-log--2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0172241465395981,
+     "ic": [
+      -0.024279927741998792,
+      -0.009674841681298434
+     ]
+    },
+    {
+     "id": "la-rejilla-del-dixon-coles-mejora-el-log-2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.006145210582667788,
+     "ic": [
+      -0.011031006368808667,
+      -0.0010343873011470917
+     ]
+    },
+    {
+     "id": "la-rejilla-del-dixon-coles-mejora-el-log-2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0006689148211696418,
+     "ic": [
+      -0.004452159462146005,
+      0.003340170570281732
+     ]
+    },
+    {
+     "id": "la-rejilla-del-dixon-coles-mejora-el-log-2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.00905773781232997,
+     "ic": [
+      -0.012667128129338207,
+      -0.0052760331261212665
+     ]
+    },
+    {
+     "id": "calibrar-la-salida-platt-mejora-el-log-l-2026-09-03",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0008759701409116963,
+     "ic": [
+      -0.0017907362981810732,
+      -0.000003383881095060011
+     ]
+    },
+    {
+     "id": "un-modelo-propio-por-mitad-dc-de-media-p-2026-09-03",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.000875312242335342,
+     "ic": [
+      -0.005091474071280633,
+      0.0032072803529269033
+     ]
+    }
+   ],
+   "metricas": "18 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "football-7d9aec6bc375",
+   "activada": "2026-09-03T04:52:02+00:00",
+   "desactivada": "2026-09-03T16:23:21+00:00",
+   "motivo": "Capa de post-proceso: calibración, mezcla con el mercado y encogimiento",
+   "git_commit": "384142649515",
+   "experimentos": [
+    {
+     "id": "quitar-el-decay-entre-temporadas-mejora--2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00007443843770211883,
+     "ic": [
+      -0.0015672329350753594,
+      0.0015548798939032714
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-mejora-el-l-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.003997787407222208,
+     "ic": [
+      0.0020523528757330546,
+      0.006040306215844241
+     ]
+    },
+    {
+     "id": "quitar-ataque-defensa-por-equipo-mejora--2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-mejora-el-log-l-2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "quitar-el-descanso-y-la-congestion-mejor-2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "quitar-el-ancla-de-goles-movil-mejora-el-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0008707127003381745,
+     "ic": [
+      0.00014061578163432302,
+      0.0016561945452321408
+     ]
+    },
+    {
+     "id": "carryover-0-98-mejora-sobre-el-0-85-publ-2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": -0.00014973956161416736,
+     "ic": [
+      -0.0015186195939064014,
+      0.0011006807078313675
+     ]
+    },
+    {
+     "id": "rd-estilo-glicko-encogiendo-el-hueco-de--2026-09-01",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": 0.00008,
+     "ic": [
+      0.00004,
+      0.00012
+     ]
+    },
+    {
+     "id": "la-distancia-de-viaje-explica-el-residuo-2026-09-01",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": -0.0687,
+     "ic": [
+      -0.1328,
+      -0.0046
+     ]
+    },
+    {
+     "id": "elo-sigma-c-medido-105-describe-el-error-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "elo",
+     "delta": -158,
+     "ic": [
+      -185,
+      -136
+     ]
+    },
+    {
+     "id": "el-modelo-de-futbol-le-gana-al-elo-pelad-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.00472,
+     "ic": [
+      -0.00792,
+      -0.00154
+     ]
+    },
+    {
+     "id": "el-dixon-coles-jerarquico-mejora-el-log--2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.004261092167324145,
+     "ic": [
+      -0.008496967667546441,
+      0.00005616366557387839
+     ]
+    },
+    {
+     "id": "el-dixon-coles-jerarquico-mejora-el-log--2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0172241465395981,
+     "ic": [
+      -0.024279927741998792,
+      -0.009674841681298434
+     ]
+    },
+    {
+     "id": "la-rejilla-del-dixon-coles-mejora-el-log-2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.006145210582667788,
+     "ic": [
+      -0.011031006368808667,
+      -0.0010343873011470917
+     ]
+    },
+    {
+     "id": "la-rejilla-del-dixon-coles-mejora-el-log-2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0006689148211696418,
+     "ic": [
+      -0.004452159462146005,
+      0.003340170570281732
+     ]
+    },
+    {
+     "id": "la-rejilla-del-dixon-coles-mejora-el-log-2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.00905773781232997,
+     "ic": [
+      -0.012667128129338207,
+      -0.0052760331261212665
+     ]
+    },
+    {
+     "id": "calibrar-la-salida-platt-mejora-el-log-l-2026-09-03",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0008759701409116963,
+     "ic": [
+      -0.0017907362981810732,
+      -0.000003383881095060011
+     ]
+    },
+    {
+     "id": "un-modelo-propio-por-mitad-dc-de-media-p-2026-09-03",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.000875312242335342,
+     "ic": [
+      -0.005091474071280633,
+      0.0032072803529269033
+     ]
+    }
+   ],
+   "metricas": "18 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "football-0adc2743c506",
+   "activada": "2026-09-03T16:23:21+00:00",
+   "desactivada": "2026-09-07T20:44:28+00:00",
+   "motivo": "Mercados de menos liquidez: mitades, props de jugador, córners y tarjetas",
+   "git_commit": "795d536ea1c0",
+   "experimentos": [
+    {
+     "id": "quitar-el-decay-entre-temporadas-mejora--2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00007443843770211883,
+     "ic": [
+      -0.0015672329350753594,
+      0.0015548798939032714
+     ]
+    },
+    {
+     "id": "quitar-el-margen-de-victoria-mejora-el-l-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.003997787407222208,
+     "ic": [
+      0.0020523528757330546,
+      0.006040306215844241
+     ]
+    },
+    {
+     "id": "quitar-ataque-defensa-por-equipo-mejora--2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "quitar-la-forma-reciente-mejora-el-log-l-2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "quitar-el-descanso-y-la-congestion-mejor-2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "quitar-el-ancla-de-goles-movil-mejora-el-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0008707127003381745,
+     "ic": [
+      0.00014061578163432302,
+      0.0016561945452321408
+     ]
+    },
+    {
+     "id": "carryover-0-98-mejora-sobre-el-0-85-publ-2026-09-01",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": -0.00014973956161416736,
+     "ic": [
+      -0.0015186195939064014,
+      0.0011006807078313675
+     ]
+    },
+    {
+     "id": "rd-estilo-glicko-encogiendo-el-hueco-de--2026-09-01",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": 0.00008,
+     "ic": [
+      0.00004,
+      0.00012
+     ]
+    },
+    {
+     "id": "la-distancia-de-viaje-explica-el-residuo-2026-09-01",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": -0.0687,
+     "ic": [
+      -0.1328,
+      -0.0046
+     ]
+    },
+    {
+     "id": "elo-sigma-c-medido-105-describe-el-error-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "elo",
+     "delta": -158,
+     "ic": [
+      -185,
+      -136
+     ]
+    },
+    {
+     "id": "el-modelo-de-futbol-le-gana-al-elo-pelad-2026-09-01",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.00472,
+     "ic": [
+      -0.00792,
+      -0.00154
+     ]
+    },
+    {
+     "id": "el-dixon-coles-jerarquico-mejora-el-log--2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.004261092167324145,
+     "ic": [
+      -0.008496967667546441,
+      0.00005616366557387839
+     ]
+    },
+    {
+     "id": "el-dixon-coles-jerarquico-mejora-el-log--2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0172241465395981,
+     "ic": [
+      -0.024279927741998792,
+      -0.009674841681298434
+     ]
+    },
+    {
+     "id": "la-rejilla-del-dixon-coles-mejora-el-log-2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.006145210582667788,
+     "ic": [
+      -0.011031006368808667,
+      -0.0010343873011470917
+     ]
+    },
+    {
+     "id": "la-rejilla-del-dixon-coles-mejora-el-log-2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0006689148211696418,
+     "ic": [
+      -0.004452159462146005,
+      0.003340170570281732
+     ]
+    },
+    {
+     "id": "la-rejilla-del-dixon-coles-mejora-el-log-2026-09-02",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.00905773781232997,
+     "ic": [
+      -0.012667128129338207,
+      -0.0052760331261212665
+     ]
+    },
+    {
+     "id": "calibrar-la-salida-platt-mejora-el-log-l-2026-09-03",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0008759701409116963,
+     "ic": [
+      -0.0017907362981810732,
+      -0.000003383881095060011
+     ]
+    },
+    {
+     "id": "un-modelo-propio-por-mitad-dc-de-media-p-2026-09-03",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.000875312242335342,
+     "ic": [
+      -0.005091474071280633,
+      0.0032072803529269033
+     ]
+    }
+   ],
+   "metricas": "18 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "football-00d537bee54b",
+   "activada": "2026-09-07T20:44:28+00:00",
+   "desactivada": "2026-09-26T08:38:39+00:00",
+   "motivo": "Pipeline de noticias: el texto libre entra en la λ, no en un recuadro",
+   "git_commit": "501558390881",
+   "experimentos": [
+    {
+     "id": "los-errores-del-modelo-entre-partidos-di-2026-09-08",
+     "veredicto": "rejected",
+     "metrica": "corr",
+     "delta": 0.0013367233731162765,
+     "ic": [
+      -0.002320951863905767,
+      0.005576051656218969
+     ]
+    },
+    {
+     "id": "dos-mercados-del-mismo-partido-1x2-over--2026-09-08",
+     "veredicto": "shipped",
+     "metrica": "corr",
+     "delta": 0.19380826860819247,
+     "ic": [
+      0.18381200912452228,
+      0.2031863443023447
+     ]
+    }
+   ],
+   "metricas": "2 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "football-07032489463b",
+   "activada": "2026-09-26T08:38:39+00:00",
+   "desactivada": "2026-09-29T12:06:14+00:00",
+   "motivo": "Fútbol: la ventaja de campo del Elo, de 65 a 35 — medida fuera de muestra",
+   "git_commit": "92e93ea3ab7f",
+   "experimentos": [
+    {
+     "id": "bajar-la-ventaja-de-campo-del-elo-de-fut-2026-09-26",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.0015656330131196953,
+     "ic": [
+      -0.003913857738044249,
+      0.0009149734211002682
+     ]
+    }
+   ],
+   "metricas": "1 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "football-355e6732ee07",
+   "activada": "2026-09-29T12:06:14+00:00",
+   "desactivada": null,
+   "motivo": "Versionado: cada predicción queda ligada a la versión exacta que la produjo",
+   "git_commit": "901b061ea3f3",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  }
+ ],
+ "basketball": [
+  {
+   "version": "basketball-b316f3b3724f",
+   "activada": "2026-07-31T20:21:21+00:00",
+   "desactivada": "2026-08-01T10:58:02+00:00",
+   "motivo": "Add basketball as its own tab, with its own model",
+   "git_commit": "d5075684172c",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "basketball-8537dd4a5d8f",
+   "activada": "2026-08-01T10:58:02+00:00",
+   "desactivada": "2026-08-07T20:46:29+00:00",
+   "motivo": "Unify the design across the four sports, and give basketball a distribution",
+   "git_commit": "2c0ac2610c90",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "basketball-de852711b6b0",
+   "activada": "2026-08-07T20:46:29+00:00",
+   "desactivada": "2026-09-26T10:53:57+00:00",
+   "motivo": "Datos de 2026 en fútbol y baloncesto, tenis real, y los errores que salieron al medirlo",
+   "git_commit": "081004c30538",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "basketball-995574e437d2",
+   "activada": "2026-09-26T10:53:57+00:00",
+   "desactivada": "2026-09-27T20:00:50+00:00",
+   "motivo": "NBA: la ventaja de campo se aprende — el local estaba inflado 7 puntos",
+   "git_commit": "4b35b6b43f6e",
+   "experimentos": [
+    {
+     "id": "aprender-la-ventaja-de-campo-del-balonce-2026-09-26",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.012245487126555469,
+     "ic": [
+      -0.015802835067107803,
+      -0.008525690615233757
+     ]
+    },
+    {
+     "id": "nba-k-22-mejora-el-log-loss-sobre-el-pub-2026-09-27",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00027555542614622153,
+     "ic": [
+      -0.00005608855657354582,
+      0.0006189561057578949
+     ]
+    },
+    {
+     "id": "nba-carryover-0-7-mejora-el-log-loss-sob-2026-09-27",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.00039528844569883124,
+     "ic": [
+      -0.0006122219112741419,
+      -0.00017005804885404188
+     ]
+    },
+    {
+     "id": "nba-restweight-0-5-mejora-el-log-loss-so-2026-09-27",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": 0.0004839516233434591,
+     "ic": [
+      0.00028152441819475965,
+      0.0007035689277898922
+     ]
+    }
+   ],
+   "metricas": "4 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "basketball-5bff821da691",
+   "activada": "2026-09-27T20:00:50+00:00",
+   "desactivada": null,
+   "motivo": "NBA: la pretemporada se aplica en vivo, y el arrastre revisado; béisbol sin cambios",
+   "git_commit": "7cae7a79bea4",
+   "experimentos": [
+    {
+     "id": "aprender-la-ventaja-de-campo-del-balonce-2026-09-26",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.012245487126555469,
+     "ic": [
+      -0.015802835067107803,
+      -0.008525690615233757
+     ]
+    },
+    {
+     "id": "nba-k-22-mejora-el-log-loss-sobre-el-pub-2026-09-27",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00027555542614622153,
+     "ic": [
+      -0.00005608855657354582,
+      0.0006189561057578949
+     ]
+    },
+    {
+     "id": "nba-carryover-0-7-mejora-el-log-loss-sob-2026-09-27",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.00039528844569883124,
+     "ic": [
+      -0.0006122219112741419,
+      -0.00017005804885404188
+     ]
+    },
+    {
+     "id": "nba-restweight-0-5-mejora-el-log-loss-so-2026-09-27",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": 0.0004839516233434591,
+     "ic": [
+      0.00028152441819475965,
+      0.0007035689277898922
+     ]
+    }
+   ],
+   "metricas": "4 experimento(s) registrados en esos días"
+  }
+ ],
+ "baseball": [
+  {
+   "version": "baseball-1df5cc089d44",
+   "activada": "2026-08-01T10:27:31+00:00",
+   "desactivada": "2026-08-01T21:29:08+00:00",
+   "motivo": "Add baseball as a fourth tab, built around the starting pitcher",
+   "git_commit": "da0d2c3ffabd",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "baseball-8f2f15fd38db",
+   "activada": "2026-08-01T21:29:08+00:00",
+   "desactivada": "2026-08-06T20:50:03+00:00",
+   "motivo": "Calmer colour, flatter shapes, and an audit that checks the numbers agree",
+   "git_commit": "65446556c9fb",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "baseball-b78a49d7bba8",
+   "activada": "2026-08-06T20:50:03+00:00",
+   "desactivada": "2026-08-07T00:24:35+00:00",
+   "motivo": "Park factors for baseball, one staleness warning, and honest demo kick-offs",
+   "git_commit": "df70e6c2bc1d",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "baseball-879209bca249",
+   "activada": "2026-08-07T00:24:35+00:00",
+   "desactivada": "2026-09-27T20:04:53+00:00",
+   "motivo": "Keep today's played matches, verify the data, and two measured rejections",
+   "git_commit": "3a48b199241c",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "baseball-216866108dbf",
+   "activada": "2026-09-27T20:04:53+00:00",
+   "desactivada": "2026-09-29T12:06:14+00:00",
+   "motivo": "Béisbol: los ratings cruzan el invierno también en vivo",
+   "git_commit": "100e1dd37fbe",
+   "experimentos": [
+    {
+     "id": "beisbol-k-6-mejora-el-log-loss-sobre-el--2026-09-27",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00021524760636516287,
+     "ic": [
+      -0.00001602498731934323,
+      0.00044614095936468
+     ]
+    },
+    {
+     "id": "beisbol-carryover-0-6-mejora-el-log-loss-2026-09-27",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00011484149797423371,
+     "ic": [
+      -0.00026127490354744425,
+      0.0004853437734029571
+     ]
+    },
+    {
+     "id": "beisbol-rundiffweight-1-8-mejora-el-log--2026-09-27",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00018752426296352203,
+     "ic": [
+      -0.000051453570480118654,
+      0.0004245003628420747
+     ]
+    },
+    {
+     "id": "beisbol-runsensitivity-0-275-mejora-el-l-2026-09-27",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": 0.00031945825903123776,
+     "ic": [
+      0.000043795954859218715,
+      0.0006040574488393645
+     ]
+    },
+    {
+     "id": "beisbol-pitcherweight-0-45-mejora-el-log-2026-09-27",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": -0.000008474754347465283,
+     "ic": [
+      -0.00014944283917497269,
+      0.00013862570737119834
+     ]
+    },
+    {
+     "id": "beisbol-pitcherregressionstarts-25-mejor-2026-09-27",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": -0.00009153578466903841,
+     "ic": [
+      -0.00023302412007454243,
+      0.000056070869420574214
+     ]
+    },
+    {
+     "id": "beisbol-dispersion-6-mejora-el-log-loss--2026-09-27",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": 0.00035111753559632003,
+     "ic": [
+      0.00005269266002706294,
+      0.0006483637086283705
+     ]
+    }
+   ],
+   "metricas": "7 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "baseball-1e7d64aa4aa5",
+   "activada": "2026-09-29T12:06:14+00:00",
+   "desactivada": null,
+   "motivo": "Versionado: cada predicción queda ligada a la versión exacta que la produjo",
+   "git_commit": "901b061ea3f3",
+   "experimentos": [
+    {
+     "id": "beisbol-k-6-mejora-el-log-loss-sobre-el--2026-09-27",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00021524760636516287,
+     "ic": [
+      -0.00001602498731934323,
+      0.00044614095936468
+     ]
+    },
+    {
+     "id": "beisbol-carryover-0-6-mejora-el-log-loss-2026-09-27",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00011484149797423371,
+     "ic": [
+      -0.00026127490354744425,
+      0.0004853437734029571
+     ]
+    },
+    {
+     "id": "beisbol-rundiffweight-1-8-mejora-el-log--2026-09-27",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": 0.00018752426296352203,
+     "ic": [
+      -0.000051453570480118654,
+      0.0004245003628420747
+     ]
+    },
+    {
+     "id": "beisbol-runsensitivity-0-275-mejora-el-l-2026-09-27",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": 0.00031945825903123776,
+     "ic": [
+      0.000043795954859218715,
+      0.0006040574488393645
+     ]
+    },
+    {
+     "id": "beisbol-pitcherweight-0-45-mejora-el-log-2026-09-27",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": -0.000008474754347465283,
+     "ic": [
+      -0.00014944283917497269,
+      0.00013862570737119834
+     ]
+    },
+    {
+     "id": "beisbol-pitcherregressionstarts-25-mejor-2026-09-27",
+     "veredicto": "inconclusive",
+     "metrica": "logloss",
+     "delta": -0.00009153578466903841,
+     "ic": [
+      -0.00023302412007454243,
+      0.000056070869420574214
+     ]
+    },
+    {
+     "id": "beisbol-dispersion-6-mejora-el-log-loss--2026-09-27",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": 0.00035111753559632003,
+     "ic": [
+      0.00005269266002706294,
+      0.0006483637086283705
+     ]
+    }
+   ],
+   "metricas": "7 experimento(s) registrados en esos días"
+  }
+ ],
+ "nfl": [
+  {
+   "version": "nfl-d2076fcdbcd6",
+   "activada": "2026-08-02T06:19:39+00:00",
+   "desactivada": "2026-08-05T08:41:31+00:00",
+   "motivo": "Add American football, the one sport whose model can be scored against the market",
+   "git_commit": "8df0489d6e6d",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "nfl-13948855cd01",
+   "activada": "2026-08-05T08:41:31+00:00",
+   "desactivada": "2026-08-07T00:24:35+00:00",
+   "motivo": "Teach the NFL model who plays quarterback, and make the app readable",
+   "git_commit": "e71ee0aeb23e",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "nfl-96018787dcd4",
+   "activada": "2026-08-07T00:24:35+00:00",
+   "desactivada": "2026-08-08T20:53:23+00:00",
+   "motivo": "Keep today's played matches, verify the data, and two measured rejections",
+   "git_commit": "3a48b199241c",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "nfl-24ea39c880e9",
+   "activada": "2026-08-08T20:53:23+00:00",
+   "desactivada": "2026-09-03T04:52:02+00:00",
+   "motivo": "NFL: publicar la probabilidad del mercado, que estaba medida como mejor y guardada sin usar",
+   "git_commit": "dc65797c4b3c",
+   "experimentos": [],
+   "metricas": "sin métricas registradas para este cambio"
+  },
+  {
+   "version": "nfl-d6344b970f52",
+   "activada": "2026-09-03T04:52:02+00:00",
+   "desactivada": "2026-09-26T07:58:28+00:00",
+   "motivo": "Capa de post-proceso: calibración, mezcla con el mercado y encogimiento",
+   "git_commit": "384142649515",
+   "experimentos": [
+    {
+     "id": "shin-reparte-el-vig-mejor-que-el-multipl-2026-09-01",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": -0.00014,
+     "ic": [
+      -0.0005,
+      0.00022
+     ]
+    },
+    {
+     "id": "el-de-vig-de-potencia-mejora-sobre-el-mu-2026-09-01",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": -0.00015,
+     "ic": [
+      -0.00052,
+      0.00021
+     ]
+    },
+    {
+     "id": "el-modelo-de-la-nfl-le-gana-a-la-linea-d-2026-09-01",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": 0.02162,
+     "ic": [
+      0.01474,
+      0.02837
+     ]
+    },
+    {
+     "id": "calibrar-la-salida-ninguno-mejora-el-log-2026-09-03",
+     "veredicto": "rejected",
+     "metrica": "logloss",
+     "delta": 0,
+     "ic": [
+      0,
+      0
+     ]
+    },
+    {
+     "id": "mezclar-el-modelo-con-el-mercado-mejora--2026-09-03",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": 0.0011006048342952998,
+     "ic": [
+      -0.0005682626569301415,
+      0.0028816661573659694
+     ]
+    }
+   ],
+   "metricas": "5 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "nfl-acd18d9c4264",
+   "activada": "2026-09-26T07:58:28+00:00",
+   "desactivada": "2026-09-26T20:45:03+00:00",
+   "motivo": "El filtro de confianza, medido en los cinco deportes — y tres fallos que escondía",
+   "git_commit": "2697b2539785",
+   "experimentos": [
+    {
+     "id": "convertir-la-linea-de-handicap-de-la-nfl-2026-09-26",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.002275551452693059,
+     "ic": [
+      -0.003801827562126402,
+      -0.0007503138878051219
+     ]
+    }
+   ],
+   "metricas": "1 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "nfl-03dbf4028f48",
+   "activada": "2026-09-26T20:45:03+00:00",
+   "desactivada": "2026-09-29T12:06:14+00:00",
+   "motivo": "NFL: la línea de hándicap, convertida en probabilidad con una curva ajustada",
+   "git_commit": "cce2e893b0e6",
+   "experimentos": [
+    {
+     "id": "convertir-la-linea-de-handicap-de-la-nfl-2026-09-26",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.002275551452693059,
+     "ic": [
+      -0.003801827562126402,
+      -0.0007503138878051219
+     ]
+    }
+   ],
+   "metricas": "1 experimento(s) registrados en esos días"
+  },
+  {
+   "version": "nfl-01c4731bbc1a",
+   "activada": "2026-09-29T12:06:14+00:00",
+   "desactivada": null,
+   "motivo": "Versionado: cada predicción queda ligada a la versión exacta que la produjo",
+   "git_commit": "901b061ea3f3",
+   "experimentos": [
+    {
+     "id": "convertir-la-linea-de-handicap-de-la-nfl-2026-09-26",
+     "veredicto": "shipped",
+     "metrica": "logloss",
+     "delta": -0.002275551452693059,
+     "ic": [
+      -0.003801827562126402,
+      -0.0007503138878051219
+     ]
+    }
+   ],
+   "metricas": "1 experimento(s) registrados en esos días"
+  }
+ ]
+}
