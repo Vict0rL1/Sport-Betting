@@ -71,7 +71,7 @@ Material de partida: `docs/REVISION_GENERAL.md` (revisión del 8-oct-2026) y sus
 
 | Fase | Etiqueta de inicio | Revisión independiente | Capturas «después» | Etiqueta de cierre |
 |---|---|---|---|---|
-| 0 | `fase-0-inicio` = `e917365` | — | — | — |
+| 0 | `fase-0-inicio` = `e917365` | hecha: 13 hallazgos, 12 arreglados y 1 para Victor (R1–R13, abajo) | no toca pantallas (las capturas de 0.6 se verificaron) | `fase-0-hecha` = commit de cierre (ver «Etiquetas») |
 | 1 | — | — | — | — |
 | 2 | — | — | — | — |
 | 3 | — | — | — | — |
@@ -92,11 +92,11 @@ la red de seguridad tenía agujeros. Cada hallazgo, su arreglo y su commit:
 | R6 | `capturas.ts` sale con 0 ante fallos; `scripts/` fuera de ESLint y tsc | hecho: lista de fallos y código 1 (botón ausente o «Cargando…» a los 15 s cuentan); `tsconfig.scripts.json` y ESLint con globals de Node | `95d7efb` |
 | R7 | La copia de la base se salta en silencio (`backend/.env`, espacios, otros caminos que migran) | hecho: una sola implementación en Python que resuelve la ruta como el backend; copia también `migrar()` y `alembic upgrade`; aviso si no hay base; adiós `copia_base.sh` | `95d7efb` |
 | R8 | `?symbol=` vacío y con espacios pasó a 422 sin documentar; validadores duplicados; `client.ts` sin codificar | hecho: los tipos normalizan (vacío = sin filtro, recorte, mayúsculas, «A, B» en listas); un solo validador (`validar_simbolo`), adiós a 9 copias y 13 alias; 28 URLs codificadas y guarda; `related` con varios tickers → el primero | `a0f0255` |
-| R9 | Tests de contrato que pasan en vacío; unidades | hecho: datos obligatorios por empresa (falla si se grabó con claves caducadas); unidades por cociente (P/S, BPA, márgenes en fracción, capitalización); `null` grabado; grabación que cruza la medianoche se rechaza | (este commit) |
-| R10 | Casos extremos que no son lo que dicen (`solo_cache_viejo`, `precio_nan`) | hecho: descripciones honestas (el rescate real lo prueba `test_e2e_ciclo`, escenario E); caso nuevo `precio_nan_sin_historico`; el paquete ya no importa de `test_scan` | (este commit) |
+| R9 | Tests de contrato que pasan en vacío; unidades | hecho: datos obligatorios por empresa (falla si se grabó con claves caducadas); unidades por cociente (P/S, BPA, márgenes en fracción, capitalización); `null` grabado; grabación que cruza la medianoche se rechaza | `9a71543` |
+| R10 | Casos extremos que no son lo que dicen (`solo_cache_viejo`, `precio_nan`) | hecho: descripciones honestas (el rescate real lo prueba `test_e2e_ciclo`, escenario E); caso nuevo `precio_nan_sin_historico`; el paquete ya no importa de `test_scan` | `9a71543` |
 | R11 | Huecos de `test_seguridad.py` (símbolos buenos, rutas tapadas entre routers) | hecho: buenos por query, lista y cuerpo; vacío no es 422; solo 422 (no 404) para los malos; rutas tapadas con el orden real de registro | `a0f0255` |
 | R12 | `/api/etfs/recomendar` sin verificación visual; README dice POST | hecho: ETF ficticios en la demo y captura `22b_etfs_recomendar` (1440 y 390, verificada); README con GET | `95d7efb` |
-| R13 | El tipo de cambio de la cartera usa la hora real | anotado abajo (cambia el replay: necesita a Victor) | — |
+| R13 | El tipo de cambio de la cartera usa la hora real | **necesita a Victor**: anotado abajo (arreglarlo cambia el replay) | — |
 
 ## Etiquetas
 

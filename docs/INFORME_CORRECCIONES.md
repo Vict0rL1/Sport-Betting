@@ -4,7 +4,7 @@ Se actualiza al cierre de cada fase de `docs/FIX_PLAN.md`. Estados: **hecho** ·
 **no hecho** · **necesita a Victor**. Las capturas «antes» están en `docs/revision/`; las de
 cada fase, en `docs/revision/despues-faseN/` cuando la fase toca pantallas.
 
-Última actualización: cierre de la Fase 0.
+Última actualización: cierre de la Fase 0, tras la revisión independiente y sus arreglos.
 
 ## Fallos visuales de la revisión (V1–V18)
 
@@ -59,14 +59,29 @@ cada fase, en `docs/revision/despues-faseN/` cuando la fase toca pantallas.
 |---|---|---|---|---|
 | 0.1 | hecho | El frontend no tenía tests | `a3aa047` | `npm test` (Vitest + jsdom) |
 | 0.2 | hecho | No había CI | `1fa46c5` | `.github/workflows/ci.yml`; en verde en GitHub |
-| 0.3 | hecho | Nada demostraba que un arreglo no cambiara decisiones | `9439108` (+ ampliado en `0c6ec32`) | `tests/test_golden.py` + sensibilidad de 12 umbrales |
-| 0.4 | hecho | Datos raros dispersos por cada test | `1c99295` | `tests/test_extremos.py` |
-| 0.5 | hecho | Ningún test miraba el texto que ve la persona | `0c6ec32` | fugas backend y frontend con trinquete |
-| 0.6 | hecho | Capturas hechas a mano fuera del repositorio | `399d9eb` | `npm run capturas -- <salida>` |
-| 0.7 | hecho · **falta grabar (Victor)** | Sin forma de probar datos reales en la suite | `4f6042e` | `tests/test_contrato_reales.py` |
-| 0.8 | hecho | Migración al arrancar sin copia previa | `7b8994f` | `tests/test_copia_base.py` |
-| 0.9 | hecho | Validación de ticker copiada a mano; 6 rutas sin ella; una ruta tapada | `5eee473` | `tests/test_seguridad.py` |
+| 0.3 | hecho | Nada demostraba que un arreglo no cambiara decisiones | `9439108`, `0c6ec32`, `4742548` | `tests/test_golden.py`: 11 componentes; inventario automático de 117 umbrales del motor, 95 cubiertos con prueba de sensibilidad y 22 exentos con motivo |
+| 0.4 | hecho | Datos raros dispersos por cada test | `1c99295`, `9a71543` | `tests/test_extremos.py` (+ `precio_nan_sin_historico`) |
+| 0.5 | hecho | Ningún test miraba el texto que ve la persona | `0c6ec32`, `e7cc849` | fugas backend y frontend con trinquete por sitio y recuento |
+| 0.6 | hecho | Capturas hechas a mano fuera del repositorio | `399d9eb`, `3807b51`, `95d7efb` | `npm run capturas -- <salida>` (sale con 1 ante cualquier fallo); `tests/test_servidor_demo.py` |
+| 0.7 | hecho · **falta grabar (Victor)** | Sin forma de probar datos reales en la suite | `4f6042e`, `9a71543` | `tests/test_contrato_reales.py` (datos obligatorios y unidades por cociente) |
+| 0.8 | hecho | Migración al arrancar sin copia previa | `7b8994f`, `13aefc3` | `tests/test_copia_base.py` (también `migrar()` y `alembic upgrade`) |
+| 0.9 | hecho | Validación de ticker copiada a mano; 6 rutas sin ella; una ruta tapada | `5eee473`, `a0f0255` | `tests/test_seguridad.py`; `frontend/src/api/client.test.ts` |
 | 1.1–4.6 | no hecho | — | — | — |
+
+## Revisión independiente de la Fase 0
+
+Un revisor sin contexto previo leyó `git diff fase-0-inicio..HEAD` contra `CLAUDE.md` y §3 del plan.
+Veredicto: «no se puede cerrar tal cual». No había violaciones que cambiaran decisiones, pero sí
+agujeros en la red de seguridad. Encontró 13 hallazgos: 12 están arreglados y uno necesita a Victor
+(el tipo de cambio con la hora real). Detalle, uno por uno y con su commit, en `docs/PROGRESS.md`
+(«Revisión independiente de la Fase 0»). Lo más grave:
+
+- El golden **no cumplía su criterio de hecho**: 14 umbrales se podían mover sin que fallara, y
+  descartaba decisiones dichas con palabras («posición», «puntuación»).
+- El trinquete de fugas contaba por token: una fuga nueva de un tipo conocido pasaba sin fallar.
+- La demo de las capturas **inventaba** precio y PER para la empresa «sin datos». Al quitarlo
+  apareció un fallo real: sin cotización, la ficha entera desaparece (anotado para 2.1).
+- La copia de la base se podía saltar en silencio, y algunos caminos migraban sin copia.
 
 ## Lo que no se pudo verificar aquí
 
@@ -81,17 +96,28 @@ cada fase, en `docs/revision/despues-faseN/` cuando la fase toca pantallas.
 
 ## Qué cambió en el comportamiento
 
-Ninguna decisión del motor. El golden master (9 componentes) es idéntico desde su
-grabación; las dos ampliaciones (veredictos largos, Hoy con cartera) solo añadieron campos y
-casos, comprobado contra la grabación anterior.
+Ninguna decisión del motor. El golden master es idéntico desde su grabación en todo lo que
+ya grababa. Sus ampliaciones solo añadieron cosas, comprobado campo a campo contra la grabación
+anterior:
+
+- veredictos largos y Hoy con cartera;
+- los códigos con tilde que antes se descartaban;
+- dos componentes nuevos, confianza y riesgo de cartera;
+- casos al borde de cada umbral.
 
 Cambios de comportamiento que NO son decisiones, todos en la frontera de la API:
 
 - Un ticker inválido es ahora un 422 en todas las rutas (antes, seis lo aceptaban) y el patrón
-  exige empezar por letra o número.
+  exige empezar por letra o número. Lo que ya funcionaba sigue igual: un `?symbol=` vacío es «sin
+  filtro», los espacios de los extremos se recortan, el ticker llega en mayúsculas y «AAPL, MSFT»
+  vale en las listas. El frontend codifica todo símbolo que pone en una URL.
+- «¿Por qué importa?» en Noticias manda el primer ticker de `related` cuando Finnhub trae varios.
 - `GET /api/etfs/recomendar` llega por fin a su manejador (antes lo tapaba `/api/etfs/{symbol}`):
   el botón «Analizar y recomendar» de ETFs empieza a funcionar.
-- `start.sh` copia la base antes de arrancar y no arranca si la copia falla.
+- `start.sh` copia la base antes de arrancar y no arranca si la copia falla. El backend también
+  copia antes de aplicar cualquier migración pendiente (también un `alembic upgrade` a mano), y no
+  migra si la copia falla. Las copias van a `copias/` junto a la base (por defecto
+  `backend/data/copias/`); las que hubiera en `backups/` se quedan donde están.
 
 ## Riesgos o dudas para revisar
 
@@ -100,3 +126,9 @@ Cambios de comportamiento que NO son decisiones, todos en la frontera de la API:
   cambia decisiones del replay → necesita tu visto bueno antes de tocarlo.
 - El patrón de ticker endurecido rechaza símbolos que empiecen por «.» o «-». Ningún ticker real
   lo hace, pero si usas alguno raro, dímelo.
+- **El tipo de cambio de la cartera también usa la hora real** (hallazgo del revisor): un análisis a
+  fecha pasada convierte con el tipo de hoy. Misma familia que el de la tesis; mismo motivo para
+  esperar tu visto bueno.
+- **Sin cotización, la ficha entera desaparece** aunque EDGAR tenga datos. Previsto para 2.1.
+- **El golden guarda `levels.objetivo`**, que la pantalla Hoy enseña: choca con «sin precios
+  objetivo». Si se retira en una fase posterior, el golden cambiará y se explicará.
