@@ -33,7 +33,7 @@ PROSA = frozenset({
 
 _CODIGO = re.compile(
     r"^(?:[a-z][a-z0-9_]*"                       # comprar, puntuacion_favorable
-    r"|[A-Z0-9][A-Z0-9_.\-]{0,15}"               # NO_TRADE, AAPL, RY.TO, BRK-B
+    r"|[A-Z0-9][A-Z0-9_.\-]{0,39}"               # NO_TRADE, COMPRAR_CON_EFECTIVO, AAPL, RY.TO
     r"|\d{4}-\d{2}-\d{2}(?:[T ][0-9:.+\-Z]*)?"   # fechas e instantes ISO
     r"|\d{4}-Q[1-4]"                             # periodos
     r"|[a-z_]+:[a-z0-9_:.]+"                     # analisis:14:35:00, hoy:us_sp500

@@ -48,8 +48,13 @@ def _fabrica():
     return sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
+# Lo que se guarda de cada salida. El golden guarda la forma canónica; los
+# tests contra fugas de texto (0.5) reutilizan los MISMOS escenarios en crudo.
+_transformar = canon
+
+
 def _caso(id_: str, salida) -> dict:
-    return {"caso": id_, "salida": canon(salida)}
+    return {"caso": id_, "salida": _transformar(salida)}
 
 
 # --- decide() ---------------------------------------------------------------------------------
@@ -364,9 +369,12 @@ def golden_hoy() -> list[dict]:
     from app.routers.signals import _today
 
     casos = []
-    for caso in ex.LISTAS:
+    variantes = [(caso, False) for caso in ex.LISTAS] + [("dia_sin_candidatas", True), ("dia_completo_502", True)]
+    for caso, con_cartera in variantes:
         sv = ex.servicio_lista(caso)
         with _fabrica()() as s:
+            if con_cartera:
+                ex.sembrar_cartera_lista(s)
             d = _today("us_sp500", False, 600, sv, s)
         compacta = {
             "counts": d["counts"], "thresholds": d["thresholds"], "scored": d["scored"],
@@ -379,7 +387,7 @@ def golden_hoy() -> list[dict]:
                          "accion": x["decision"]["action"], "niveles": x["decision"].get("levels")}
                         for x in d["signals"]],
         }
-        casos.append(_caso(caso, compacta))
+        casos.append(_caso(f"{caso}|cartera" if con_cartera else caso, compacta))
     return casos
 
 
@@ -399,3 +407,13 @@ COMPONENTES = {
 def generar(nombre: str) -> list[dict]:
     with reloj_fijo():
         return COMPONENTES[nombre]()
+
+
+def generar_crudo(nombre: str) -> list[dict]:
+    """Los mismos escenarios, con la salida entera (texto incluido)."""
+    global _transformar
+    anterior, _transformar = _transformar, (lambda x: x)
+    try:
+        return generar(nombre)
+    finally:
+        _transformar = anterior

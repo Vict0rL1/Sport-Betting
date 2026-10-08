@@ -26,7 +26,7 @@ from tests.fakes_empresa import AHORA, ServicioFalso, barras, financieros_base, 
 
 __all__ = [
     "AHORA", "EMPRESAS", "CARTERAS", "LISTAS",
-    "montar_empresa", "montar_cartera", "servicio_lista", "trimestres_base",
+    "montar_empresa", "montar_cartera", "servicio_lista", "sembrar_cartera_lista", "trimestres_base",
 ]
 
 # --- Empresas ---------------------------------------------------------------------------------
@@ -287,4 +287,12 @@ LISTAS = {
 
 def servicio_lista(caso: str) -> ServicioLista:
     return LISTAS[caso]()
+
+
+def sembrar_cartera_lista(session) -> None:
+    """Posiciones para la lista diaria: KO está en el S&P 500 (la lista la
+    decide); CHIP no está en ningún universo (la lista no la cubre y lo dice)."""
+    _posicion(session, _instrumento(session, "KO", "Consumer Staples"), 300, 58.0, 50.0)
+    _posicion(session, _instrumento(session, "CHIP", "Technology"), 200, 20.0, 18.0)
+    session.commit()
 
