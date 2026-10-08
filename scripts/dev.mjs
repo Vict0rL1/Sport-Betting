@@ -28,6 +28,11 @@
 // Set PORT or WEB_PORT to pin either one; a pinned port that is busy is reported
 // rather than silently moved, because "I told it 4100" deserves an answer about
 // 4100.
+//
+// THIRD, moving is wrong when the port is held by ANOTHER COPY OF THIS APP (an old
+// folder, a forgotten terminal): the new copy lands on 7376, the bookmark still says
+// 7373, and the page that opens is the other one. So that case stops and says how to
+// close it, unless `npm run dev -- --junto` asks for both on purpose. See otra-copia.mjs.
 
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -36,6 +41,7 @@ import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:net';
 import { networkInterfaces } from 'node:os';
 import { DEFAULT_API, DEFAULT_PREVIEW, DEFAULT_WEB } from './ports.mjs';
+import { mensajeOtraCopia, pareceEstaApp } from './otra-copia.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -128,6 +134,19 @@ function lanAddresses() {
 
 const apiPinned = !!process.env.PORT?.trim();
 const webPinned = !!process.env.WEB_PORT?.trim();
+
+// Before walking to another port: is the busy one held by another copy of THIS app?
+// Then moving would hide the new copy behind the old one's address (see the header).
+if (!process.argv.includes('--junto')) {
+  const ocupadoPorEstaApp = async (port) => !(await free(port)) && (await pareceEstaApp(port));
+  const webDeseado = Number(process.env.WEB_PORT) || DEFAULT_WEB;
+  const apiDeseado = Number(process.env.PORT) || DEFAULT_API;
+  const [webNuestro, apiNuestro] = await Promise.all([ocupadoPorEstaApp(webDeseado), ocupadoPorEstaApp(apiDeseado)]);
+  if (webNuestro || apiNuestro) {
+    console.error(mensajeOtraCopia({ web: webNuestro ? webDeseado : null, api: apiNuestro ? apiDeseado : null }));
+    process.exit(1);
+  }
+}
 /** Ports handed out in this run — see the note in pick(). */
 const claimed = new Set();
 const api = await pick(Number(process.env.PORT) || DEFAULT_API, apiPinned, 'API', claimed);

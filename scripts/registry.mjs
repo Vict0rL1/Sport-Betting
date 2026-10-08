@@ -17,7 +17,7 @@ export const GRUPOS = {
 export const SCRIPTS = {
   go: { grupo: 'empezar', ayuda: 'Un solo comando: comprueba, descarga o construye los datos y arranca' },
   setup: { grupo: 'empezar', ayuda: 'Asistente de primera puesta en marcha (.env, migraciones, datos, doctor)' },
-  dev: { grupo: 'empezar', ayuda: 'Levanta backend y frontend a la vez' },
+  dev: { grupo: 'empezar', ayuda: 'Levanta backend y frontend a la vez (se para si ya hay otra copia abierta; -- --junto para las dos)' },
   'dev:server': { grupo: 'desarrollo', ayuda: 'Solo el backend, con recarga' },
   'dev:web': { grupo: 'desarrollo', ayuda: 'Solo el frontend (Vite)' },
   'dev:fixed': { grupo: 'desarrollo', ayuda: 'Backend y frontend en los puertos fijos (7374/7373)' },

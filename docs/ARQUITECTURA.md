@@ -558,8 +558,8 @@ frontend apuntaría a un puerto donde el backend no acabó.
 ====================================================
 ```
 
-Con el 7373 ocupado (una segunda copia de esto, por ejemplo) lo dice y se corre, sin que nadie
-edite un archivo de configuración. Salta el 7375, que está reservado para `npm run preview`:
+Con el 7373 ocupado por otro programa lo dice y se corre, sin que nadie edite un archivo de
+configuración. Salta el 7375, que está reservado para `npm run preview`:
 
 ```
 ℹ️  Puertos por defecto ocupados (¿otra app corriendo?), uso otros:
@@ -571,6 +571,24 @@ Verificado con otra app ocupando el 5173: esta arranca en el 7373/7374 y **no to
 Y con dos copias a la vez, cada una recibe **puertos distintos** y —matando la API de la
 segunda— su web devuelve 500 mientras la primera sigue sirviendo: **cada proxy llega a su
 propia API**, que es la propiedad que importa.
+
+**Si lo que ocupa el puerto es otra copia de esta app, no se corre: se para.** Moverse ahí es
+una trampa: la copia nueva acaba en el 7377, el marcador sigue diciendo 7373 y la página que se
+abre es la otra (otra carpeta, otra versión, quizá sin la clave de cuotas). Pasó de verdad. La
+reconoce por el `<title>` de la página o por la forma de `/ready` (`scripts/otra-copia.mjs`) y
+dice cómo cerrarla:
+
+```
+❌ Ya hay otra copia de esta app abierta en http://localhost:7373.
+   …
+   Ciérrala con Ctrl+C en su terminal, o desde aquí:
+     lsof -ti tcp:7373-7374 -sTCP:LISTEN | xargs kill
+```
+
+El `-sTCP:LISTEN` no es adorno: `lsof -ti :7373` a secas lista también a quien está
+**conectado** al puerto —el navegador con la app abierta— y `xargs kill` lo cerraría con ella.
+Las dos a la vez, a propósito: `npm run dev -- --junto` (se corre como con cualquier otro
+programa).
 
 Si quieres números concretos, `PORT` y `WEB_PORT` en el `.env` los fijan. Un puerto fijado que
 esté ocupado **no se mueve**: se para y lo dice, porque si pediste el 7400 mereces una respuesta
