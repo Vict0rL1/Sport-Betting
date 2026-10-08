@@ -137,6 +137,9 @@ test('base de datos: totales, demo y sin cuotas', () => {
   assert.ok(buscar(hs, /59 próximos eventos/));
   assert.ok(buscar(hs, /53 con cuotas reales/));
   assert.equal(buscar(hs, /6 sin cuotas/)?.nivel, 'aviso');
+  // Sin clave, un calendario sin precio (la NFL y la NHL sin cuotas) es lo esperado: información.
+  const sinClave = comprobarBaseDeDatos('/x.db', true, [{ nombre: 'NHL', total: 209, reales: 0, demo: 0, sinCuotas: 209 }], false);
+  assert.equal(buscar(sinClave, /209 sin cuotas/)?.nivel, 'info');
   assert.equal(comprobarBaseDeDatos('/x.db', false, [], true)[0].nivel, 'error');
 });
 

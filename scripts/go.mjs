@@ -136,6 +136,7 @@ function diasDeRetraso() {
       ['bb_games', "max(replace(game_date,'-',''))"],
       ['bsb_games', "max(replace(game_date,'-',''))"],
       ['naf_games', "max(replace(game_date,'-',''))"],
+      ['nhl_games', "max(replace(game_date,'-',''))"],
     ];
     let ultima = null;
     for (const [tabla, expr] of fuentes) {
@@ -205,6 +206,7 @@ function estadoCuotas() {
     ['Baloncesto', 'bb_upcoming', 'home_odds', 'bb_'],
     ['Béisbol', 'bsb_upcoming', 'odds_home', 'bsb_'],
     ['NFL', 'naf_upcoming', 'odds_home', 'naf_'],
+    ['NHL', 'nhl_upcoming', 'odds_home', 'nhl_'],
     ['Tenis', 'upcoming_matches', 'p1_odds', ''],
   ];
   try {
@@ -231,10 +233,10 @@ function estadoCuotas() {
           reales.push(`${nombre} ${r.reales}`);
         } else {
           const causa = meta(`${prefijo}odds_fallback_reason`);
-          // La NFL sin causa registrada NO es un problema: nunca inventa cuotas, así que
+          // La NFL (y la NHL) sin causa registrada NO es un problema: nunca inventa cuotas, así que
           // «sin precio» ahí significa «no hay línea publicada» y su calendario sigue
           // siendo real. Meterla en la lista de pendientes inventaría una avería.
-          if (prefijo === 'naf_' && !causa) continue;
+          if ((prefijo === 'naf_' || prefijo === 'nhl_') && !causa) continue;
           sinPrecio.push([nombre, causa]);
         }
       } catch {

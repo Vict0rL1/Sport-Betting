@@ -127,7 +127,7 @@ function Armazon() {
     if (pestana) recordarPestana(pestana);
   }, [pestana]);
 
-  // Atajos (Fase 5.17): 1–8 cambian de pestaña fuera de un campo de texto.
+  // Atajos (Fase 5.17): 1–9 cambian de pestaña fuera de un campo de texto (tantas como pestañas).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;

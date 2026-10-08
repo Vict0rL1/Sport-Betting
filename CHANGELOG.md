@@ -4,6 +4,32 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## NHL y UFC (2026-10-08)
+
+Petición: añadir la NHL y la UFC. Con la regla de la Fase 8 por delante —un deporte no se publica
+sin la misma evidencia que los demás—. Plan y resultados en `docs/plans/nhl-ufc.md`. Tests: 488 →
+514 (426 del servidor + 20 + 68); migraciones: 13 → 17; bundle principal 437 → 442 kB, inglés 105
+→ 109 kB.
+
+- **NHL, publicada (sexto deporte).** Historia real desde sportsdataverse en GitHub (21.960 partidos
+  desde la 2009-10; nueve temporadas con marcadores de relleno arregladas con las «team box», solo
+  si cruzan todos los partidos). Sobre 20.214 partidos puntuables gana a «siempre el local» (log
+  loss 0,6731 frente a 0,6896, Δ −0,0165 [−0,0193, −0,0135]) y a un Elo básico (0,6805, Δ −0,0073
+  [−0,0090, −0,0057]). El ajuste de K, campo y vuelta a la media, y los goles de la liga móviles, no
+  mejoraron de forma demostrable: registrados como no concluyentes, se quedan los de partida.
+  Pestaña propia con próximos del calendario (sin clave) o de The Odds API (`icehockey_nhl`, ganador
+  y total), registro de escritura única (`nhl_prediction_log`), Hoy, ¿Acertó? (también
+  reconstruido), Destacados, banco de papel y estrategias, confianza, archivo, búsqueda, doctor,
+  auditoría, `update-results` y `update-all`. Sin post-proceso ni mezcla con el mercado (no hay
+  cuotas históricas), sin simulación de temporada. Ver `docs/NHL.md`.
+- **UFC, en sombra.** Ingesta de ufcstats vía Greco1899/scrape_ufc_stats (8.923 peleas), Elo de
+  luchador simétrico (el orden de la fuente pone al ganador primero hasta ~2009 y no se usa) y
+  backtest contra cuatro referencias con holdout desde 2026. **No pasa**: gana a la moneda, a «más
+  peleas» y al Elo básico, pero no queda demostrado que gane a «el de mejor récord» (Δ −0,0028
+  [−0,0056, +0,0000]; en 2025, +0,0038). Detrás de `deportes.ufc`, con sus cifras en Diagnóstico. Ver
+  `docs/UFC.md`.
+- Destacados: la cabecera de la tarjeta ya no se aplasta cuando lleva dos insignias.
+
 ## Seguimiento tras la hoja de ruta (2026-10-07)
 
 Lo que las fases dejaron anotado y se arregla sin decisiones nuevas de política. Plan en

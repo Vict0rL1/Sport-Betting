@@ -73,7 +73,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Actualizar los cinco deportes
+      - name: Actualizar los seis deportes
         # --skip-odds a propósito: ver la cabecera. El script no para en el primer
         # fallo y sale con código 1 si alguno falló, así que un deporte con la fuente
         # caída no impide publicar los otros cuatro — pero sí queda anotado en el log.

@@ -4,7 +4,7 @@ Desde la Fase 2 la app guarda sus datos en **dos ficheros SQLite** dentro de `da
 
 | Fichero | Qué contiene | Si se pierde |
 |---|---|---|
-| `history.db` | Historia de los cinco deportes: resultados, equipos, jugadores, ratings, próximos partidos, medidas derivadas. | Se vuelve a bajar (`npm run fetch-data`) o a reconstruir (`npm run update-all`). |
+| `history.db` | Historia de los seis deportes (y de la UFC en sombra): resultados, equipos, jugadores, ratings, próximos partidos, medidas derivadas. | Se vuelve a bajar (`npm run fetch-data`) o a reconstruir (`npm run update-all`). |
 | `ledger.db` | **El libro mayor**: lo que el modelo dijo antes de cada partido (`*_prediction_log`), las apuestas de papel y las tuyas (`paper_bets`, `bets`), cada precio observado (`odds_snapshots`), las evaluaciones de confianza, las alertas, las sesiones, `settings`, `ingestion_runs`. | **No se puede volver a conseguir.** Por eso tiene copias y por eso nunca se publica. |
 
 El servidor abre `history.db` como base principal y adjunta `ledger.db` como esquema `ledger`.
@@ -36,6 +36,15 @@ Una migración corre dentro de una transacción; si falla, se deshace entera, qu
 como `failed` y **el servidor no arranca** hasta que se mire el error y se vuelva a intentar
 con `npm run db:migrate -- --reintentar` (o se restaure la última copia). `npm run db:migrate`
 sin argumentos enseña el estado de cada versión en cada fichero.
+
+Las últimas, del seguimiento «NHL y UFC»:
+
+| Versión | Destino | Qué |
+|---|---|---|
+| 14 `nhl-segunda-fuente` | historia | `nhl_games`: `final_period` admite NULL (la fuente no dice si hubo prórroga) y se añade `fuente`; la tabla se rehace copiando las filas |
+| 15 `ufc-sombra` | historia | `ufc_events`, `ufc_fighters`, `ufc_fights` (la UFC en sombra) |
+| 16 `nhl-publicada` | historia | `nhl_teams`, `nhl_upcoming` y los índices por equipo de `nhl_games` |
+| 17 `nhl-registro` | libro mayor | `nhl_prediction_log` con los mismos triggers que los otros cinco registros (no se borra; lo que dijo no se reescribe; el resultado y la probabilidad enseñada se anotan una vez) |
 
 ## PRAGMAs e índices
 

@@ -56,7 +56,7 @@ como detalle.
 npm run odds
 ```
 
-Pide las cuotas de los cinco deportes y dice, deporte a deporte, si han llegado y —cuando
+Pide las cuotas de los seis deportes y dice, deporte a deporte, si han llegado y —cuando
 no— **por qué no**:
 
 ```
@@ -176,7 +176,9 @@ respuesta. Con ese número la app calcula tres cosas que antes eran constantes e
 
 El coste de un ciclo también se mide en vez de suponerse: es la diferencia del contador `used` de
 la propia API entre el principio y el final del ciclo. Con las ligas de hoy sale **34 créditos**
-(13 de fútbol + 7 de baloncesto + 4 de béisbol + 6 de NFL + ~4 de tenis, a una región).
+(13 de fútbol + 7 de baloncesto + 4 de béisbol + 6 de NFL + ~4 de tenis, a una región). La NHL
+suma **2 por ciclo** en temporada (ganador y total, `icehockey_nhl`) y cero de junio a septiembre:
+el listado gratuito de `/sports` dice si está activa.
 
 El 40 % que no se presupuesta no es timidez: absorbe lo que una recta no puede prever — trece ligas
 de fútbol configuradas de las que juegan cinco en una semana cualquiera, y los refrescos que pidas

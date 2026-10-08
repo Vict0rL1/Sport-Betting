@@ -81,3 +81,25 @@ totales: se quedan los de partida.
 En 2025 sola (501 peleas), «mejor récord» queda por delante (+0,0038 [−0,0088, +0,0171]). **No pasa
 la prueba**: la UFC se queda en sombra, con sus cifras en Diagnóstico. La rejilla tampoco mejora de
 forma demostrable a los valores de partida (validación: −0,0017 [−0,0045, +0,0013], p 0,25).
+
+## Etapa B: lo que se publicó
+
+**La NHL**, que pasó. Entró en `SPORT_IDS` con todo lo que tienen los otros cinco: pestaña, tarjeta,
+registro de predicciones en el libro mayor (migraciones 16 y 17), Hoy, ¿Acertó?, Destacados, banco
+de papel y estrategias, confianza, pre-partido, evaluación en vivo, archivo, búsqueda, historia del
+Elo, versiones, doctor, auditoría, `update-results`, `update-all` y los backtests nocturnos. El
+backtest de referencia escribe la capa común, la calibración con bandas de acierto y el
+walk-forward. Decisiones:
+
+- Sin post-proceso ni mezcla con el mercado: no hay cuotas históricas con las que ajustarlos. La
+  diferencia con la casa se enseña como desacuerdo, no como valor.
+- El total de goles está en la tarjeta pero no en «lo más probable»: sale de una media de la liga
+  fija y repetía «menos de 6,5» al 55 % en cada partido.
+- El banco reprecia con la cuota de ahora (como siempre) y no exige que la predicción tuviera precio
+  al registrarse: en la NHL casi todas se registran desde el calendario, antes de que haya cuota.
+- Sin simulación de temporada (calendario de 30 días; la clasificación da un punto por la derrota en
+  la prórroga, que el archivo no dice). La página de liga enseña el Elo.
+- Escudos neutros: el conjunto abierto de colores pone a casi todos los equipos en negro y no tiene
+  a Seattle ni a Utah.
+
+**La UFC**, que no pasó, se queda en sombra con sus cifras en Diagnóstico.

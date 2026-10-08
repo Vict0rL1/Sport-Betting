@@ -1,6 +1,6 @@
 # Arquitectura y diseño
 
-Cómo está montada la app (dos procesos, dos ficheros de base, cinco deportes en pestañas) y las decisiones de pantalla que se tomaron por un motivo. El árbol de abajo se genera del repo real con `node scripts/estructura.mjs`.
+Cómo está montada la app (dos procesos, dos ficheros de base, seis deportes en pestañas) y las decisiones de pantalla que se tomaron por un motivo. El árbol de abajo se genera del repo real con `node scripts/estructura.mjs`.
 
 ## Estructura del proyecto
 
@@ -20,7 +20,7 @@ web/
   src/components/nfl/        fútbol americano
 ```
 
-Los cinco deportes están separados a propósito en todas las capas —tablas, modelo, endpoints y
+Los seis deportes están separados a propósito en todas las capas —tablas, modelo, endpoints y
 pestaña— porque discrepan justo en los campos que un modelo necesita: el tenis tiene superficie y no
 tiene campo propio; el baloncesto tiene cancha y margen de puntos; el fútbol tiene **empate** y
 mercados de goles; el béisbol tiene **abridor**; y el fútbol americano tiene un margen que se

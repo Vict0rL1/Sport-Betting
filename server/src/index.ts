@@ -524,7 +524,7 @@ async function main() {
           return { rowsAdded: 1, detail: c.fichero };
         }),
     });
-    // Resultados de los cuatro deportes de equipo, en procesos hijo (ver ingest/scheduler.ts).
+    // Resultados de los cinco deportes de equipo, en procesos hijo (ver ingest/scheduler.ts).
     registrar({
       nombre: 'resultados',
       descripcion: 'update-results: resultados de fútbol, baloncesto, béisbol, NFL y NHL en procesos hijo, sin cuota',

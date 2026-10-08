@@ -1,4 +1,4 @@
-// Los cinco deportes, en una sola tirada.
+// Los seis deportes, en una sola tirada.
 //
 // CLI:
 //   npm run update-all                  todo, con cuotas
@@ -52,6 +52,7 @@ const SPORTS = [
   { id: 'bb', label: '🏀 Baloncesto', script: 'update-data:bb' },
   { id: 'bsb', label: '⚾ Béisbol', script: 'update-data:bsb' },
   { id: 'naf', label: '🏈 NFL', script: 'update-data:naf' },
+  { id: 'nhl', label: '🏒 NHL', script: 'update-data:nhl' },
 ];
 
 const chosen = only ? SPORTS.filter((s) => only.has(s.id)) : SPORTS;

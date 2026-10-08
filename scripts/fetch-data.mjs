@@ -74,6 +74,7 @@ const MINE = [
   'bb_prediction_log',
   'bsb_prediction_log',
   'naf_prediction_log',
+  'nhl_prediction_log',
 ];
 
 async function download(url) {

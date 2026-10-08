@@ -84,15 +84,32 @@ Todo `GET /api/*` con respuesta 200 lleva `ETag` débil y `Cache-Control: no-cac
 `If-None-Match` igual responde 304 sin cuerpo. Las respuestas de texto de más de 1 KB van con
 Brotli o gzip según `Accept-Encoding`.
 
+## NHL (seguimiento: publicada)
+
+Bajo `/api/nhl`, como los otros cinco deportes bajo el suyo. Una sola liga. Detalle en [NHL.md](NHL.md).
+
+| Ruta | Qué |
+|---|---|
+| `GET /api/nhl/meta` | Última ingesta, calendario y cuotas; por qué no hay cuotas; bandas de acierto; recuentos; ventaja de campo |
+| `GET /api/nhl/games/upcoming?limit=` | Próximos (24 por defecto, hasta 64) con predicción, confianza, resultado si ya se jugó y fichas de los equipos. Servirlos registra la predicción |
+| `GET /api/nhl/games/:id` | Un partido (`nhl-<id de la NHL>` del calendario u `odds-<id>` de la casa) |
+| `GET /api/nhl/teams`, `GET /api/nhl/teams/:id` | Equipos en activo; la ficha de uno (Elo, puesto, balance de la temporada, goles, forma) |
+| `GET /api/nhl/power` | Clasificación por Elo |
+| `POST /api/nhl/predict` | `{home, away, oddsHome?, oddsAway?, totalLine?}` con abreviaturas (TOR, BOS…) |
+| `GET /api/nhl/track-record` | El historial en vivo: acierto, Brier, log loss, error del total, calibración y contra la casa |
+| `GET /api/nhl/backtest` | La evaluación con la que se publicó (sin el holdout), referencias y parámetros |
+| `POST /api/nhl/refresh` | Pide las cuotas ahora (manual: no lo frena el ritmo mensual) |
+
+`GET /api/simulation/season/nhl/:league` responde 404: la NHL no tiene simulación de temporada.
+
 ## Ampliaciones (Fase 8, apagadas por defecto)
 
 | Ruta | Qué |
 |---|---|
 | `POST /api/live/avanzar` | `{"state": {sets, games, points, server, bestOf, inTiebreak}, "winner": 1\|2}`: el marcador tras un punto, con la regla del motor en vivo; `{terminado, ganador, state}` (`tenis.enVivo`) |
-| `GET /api/nhl/sombra` | NHL en sombra: evaluación del backtest sin el holdout, referencias, aviso de muestra y parámetros; nada se publica (`deportes.nhl`) |
 | `GET /api/ufc/sombra` | UFC en sombra: evaluación del backtest sin el holdout, las cuatro referencias, la prueba para publicar (Δ e intervalo por referencia, en todo y en la validación) y parámetros; nada se publica (`deportes.ufc`) |
 
-Con el interruptor apagado, las dos responden 404 con el motivo.
+Con el interruptor apagado, responden 404 con el motivo.
 
 ## API REST (puerto 7374)
 

@@ -1,4 +1,4 @@
-// CLI: `npm run update-results` — los resultados de los cuatro deportes de equipo, de
+// CLI: `npm run update-results` — los resultados de los cinco deportes de equipo, de
 // una vez, y sin gastar ni un crédito de cuotas.
 //
 // Existe porque «¿Acertó?» enseñaba días vacíos y casi nunca era porque no hubiera

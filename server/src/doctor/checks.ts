@@ -367,11 +367,12 @@ export function comprobarBaseDeDatos(ruta: string, existe: boolean, conteos: Con
   if (t.demo > 0) {
     out.push(
       h(S, hayClave ? 'aviso' : 'info', `${t.demo} de DEMOSTRACIÓN (cuotas inventadas por la app, marcadas como demo)`, {
-        accion: hayClave ? ['npm run odds   # pide las cuotas reales de los cinco deportes'] : undefined,
+        accion: hayClave ? ['npm run odds   # pide las cuotas reales de los seis deportes'] : undefined,
       }),
     );
   }
-  if (t.sin > 0) out.push(h(S, 'aviso', `${t.sin} sin cuotas (calendario sin precio publicado)`));
+  // Sin clave, un calendario sin precio es lo esperado (NFL y NHL lo traen sin cuotas): información, no aviso.
+  if (t.sin > 0) out.push(h(S, hayClave ? 'aviso' : 'info', `${t.sin} sin cuotas (calendario sin precio publicado)`));
   for (const c of conteos) {
     if (c.total === 0) continue;
     const partes = [`${c.total} próximos`, `${c.reales} con cuotas reales`];
