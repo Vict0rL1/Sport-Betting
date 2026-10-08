@@ -87,8 +87,8 @@ la red de seguridad tenía agujeros. Cada hallazgo, su arreglo y su commit:
 | R1 | El golden descartaba códigos con tildes o espacios (`limite: "posición"`, `faltan: ["puntuación"]`…) | hecho: se guardan; un texto sin clasificar es un error | `4742548` |
 | R2 | 14 umbrales (confianza, calidad) y los de `sizing` por defecto sin cubrir | hecho: inventario automático de 117 constantes, 95 cubiertas con prueba, 22 exentas con motivo | `4742548` |
 | R3 | `generar.py` y `exportar_frontend.py` con `setdefault(DATABASE_PATH)` | hecho: asignación | `4742548` |
-| R4 | El trinquete de fugas cuenta por token, no por sitio ni recuento | pendiente | — |
-| R5 | El servidor de demostración inventa datos para VACIA y usa `or 0` | hecho: `ServicioPantallas` completa sin inventar; la demo solo inventa fuera del paquete | (commit de la demo) |
+| R4 | El trinquete de fugas cuenta por token, no por sitio ni recuento | hecho: por sitio y con recuento (backend 30 filas, frontend 55); el frontend congela el reloj, exige un botón de replay por instantánea y pinta también cabecera, informe, valoración y portafolio | (este commit) |
+| R5 | El servidor de demostración inventa datos para VACIA y usa `or 0` | hecho: `ServicioPantallas` completa sin inventar; la demo solo inventa fuera del paquete | `3807b51` |
 | R6 | `capturas.ts` sale con 0 ante fallos; `scripts/` fuera de ESLint y tsc | pendiente | — |
 | R7 | La copia de la base se salta en silencio (`backend/.env`, espacios, otros caminos que migran) | pendiente | — |
 | R8 | `?symbol=` vacío y con espacios pasó a 422 sin documentar; validadores duplicados; `client.ts` sin codificar | pendiente | — |

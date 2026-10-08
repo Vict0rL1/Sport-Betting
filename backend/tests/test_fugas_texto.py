@@ -6,10 +6,22 @@ familia de V3, V6 y V8: un `None` o un `NaN` dentro de una frase, un «-0 %», u
 código interno (`sin_datos`, `NO_TRADE`, `analisis:03:09:37`) o un plural
 entre paréntesis («dato(s)»).
 
-**Trinquete.** Las fugas que ya existían cuando se escribió este test están en
-`PENDIENTES`, cada una con el ítem del plan que la arregla. Una fuga nueva rompe
-el test. Y una pendiente que deja de aparecer TAMBIÉN lo rompe, para que quien la
-arregle la quite de la lista: la lista solo puede encoger.
+**Trinquete, por sitio y con recuento.** Las fugas que ya existían cuando se
+escribió este test están en `PENDIENTES`: el sitio de donde salen (la ruta en la
+salida, sin el caso concreto), el tipo, el token y cuántas veces aparecen, con
+el ítem del plan que las arregla. Rompe el test:
+
+- una fuga en un sitio nuevo, aunque el token ya esté pendiente en otro (un
+  `None` nuevo en otra frase no se esconde detrás de los conocidos);
+- MÁS apariciones de las anotadas en un sitio conocido;
+- MENOS apariciones, o ninguna: alguien arregló algo y tiene que bajar el
+  recuento o quitar la fila. La lista solo puede encoger.
+
+La primera versión contaba por token y sin recuento, y la revisión de la fase
+lo señaló: con `(s)` pendiente en seis sitios, un `(s)` nuevo en un séptimo
+pasaba sin fallar, y arreglar 98 de 99 no obligaba a tocar la lista.
+
+Para regenerar la tabla tras un arreglo: `python -m tests.test_fugas_texto`.
 """
 
 from __future__ import annotations
@@ -35,49 +47,85 @@ PERMITIDOS = {
 }
 PERMITIDOS_RE = [("upper_snake", re.compile(r"^[A-Z]+_(?:API_KEY|USER_AGENT|MODEL)$"))]
 
-# Fugas conocidas a 8-oct-2026 → ítem del plan que las arregla.
-PENDIENTES = {
-    ("vacio", "None"): "1.7",              # «cotiza bajo su media de 200 sesiones (None)»
-    ("vacio", "nan"): "1.7",               # «Margen operativo = nan …» en la tesis
-    ("plural_parentesis", "(s)"): "1.9",   # «0 dato(s) desconocido(s)»
-    ("plural_parentesis", "(es)"): "1.9",  # «1 titular(es) …»
-    ("snake", "us_sp500"): "1.8",          # «lista diaria «us_sp500»»
-    ("snake", "sin_datos"): "1.8",         # «La señal de X es «sin_datos»»
-    ("snake", "deuda_neta"): "1.8",        # «deuda_neta (parcial)» en lo que falta
-    ("snake", "revenue_growth"): "1.8",    # confianza: «… revenue, revenue_growth»
-    ("snake", "net_debt"): "1.8",          # 422 de la valoración: «mándala en `net_debt`»
-    ("snake", "information_available_at"): "1.8",  # regla del replay en inglés
-    ("snake", "decision_timestamp"): "1.8",
+# Fugas conocidas → (apariciones, ítem del plan que las arregla). Ejemplos:
+# «cotiza bajo su media de 200 sesiones (None)», «Margen operativo = nan»,
+# «0 dato(s) desconocido(s)», «lista diaria «us_sp500»», «La señal es «sin_datos»».
+PENDIENTES: dict[tuple[str, str, str], tuple[int, str]] = {
+    ("analisis/confianza/factores/detalle", "plural_parentesis", "(s)"): (55, "1.9"),
+    ("analisis/confianza/factores/detalle", "snake", "deuda_neta"): (2, "1.8"),
+    ("analisis/confianza/factores/detalle", "snake", "revenue_growth"): (2, "1.8"),
+    ("analisis/confianza/razones", "plural_parentesis", "(s)"): (39, "1.9"),
+    ("analisis/confianza/razones", "snake", "deuda_neta"): (2, "1.8"),
+    ("analisis/confianza/razones", "snake", "revenue_growth"): (2, "1.8"),
+    ("analisis/coste_oportunidad/veredicto/motivo", "snake", "sin_datos"): (5, "1.8"),
+    ("analisis/faltan/dato", "snake", "deuda_neta"): (2, "1.8"),
+    ("analisis/senal/origen", "snake", "us_sp500"): (13, "1.8"),
+    ("cartera/api/portfolio/contribucion/nota", "plural_parentesis", "(es)"): (2, "1.9"),
+    ("cartera/api/portfolio/divisas/nota", "plural_parentesis", "(es)"): (1, "1.9"),
+    ("cartera/api/portfolio/historial/aviso", "plural_parentesis", "(es)"): (1, "1.9"),
+    ("cartera/api/portfolio/note", "plural_parentesis", "(es)"): (1, "1.9"),
+    ("cartera/api/portfolio/risk_budget/avisos", "plural_parentesis", "(es)"): (1, "1.9"),
+    ("confianza/factores/detalle", "plural_parentesis", "(s)"): (88, "1.9"),
+    ("confianza/razones", "plural_parentesis", "(s)"): (10, "1.9"),
+    ("dcf_modulo/json/detail", "snake", "net_debt"): (2, "1.8"),
+    ("decide/reasons", "vacio", "None"): (8, "1.7"),
+    ("hoy/sizing/aviso_cartera", "plural_parentesis", "(es)"): (2, "1.9"),
+    ("hoy/sizing/aviso_cartera", "plural_parentesis", "(s)"): (2, "1.9"),
+    ("que_cambio/nota", "plural_parentesis", "(es)"): (1, "1.9"),
+    ("que_cambio/nota", "plural_parentesis", "(s)"): (1, "1.9"),
+    ("replay/proteccion_anticipacion/regla", "snake", "decision_timestamp"): (2, "1.8"),
+    ("replay/proteccion_anticipacion/regla", "snake", "information_available_at"): (2, "1.8"),
+    ("replay/secciones/confianza/factores/detalle", "plural_parentesis", "(s)"): (6, "1.9"),
+    ("replay/secciones/confianza/razones", "plural_parentesis", "(s)"): (6, "1.9"),
+    ("replay/secciones/coste_oportunidad/veredicto/motivo", "snake", "sin_datos"): (2, "1.8"),
+    ("riesgo_cartera/nota", "plural_parentesis", "(es)"): (2, "1.9"),
+    ("tesis/disparadores/detalle", "plural_parentesis", "(es)"): (2, "1.9"),
+    ("tesis/disparadores/detalle", "vacio", "nan"): (1, "1.7"),
 }
+
+
+def sitio(origen: str) -> str:
+    """«analisis[completa|vacia]/faltan/motivo» → «analisis/faltan/motivo»."""
+    return re.sub(r"\[[^\]]*\]", "", origen)
 
 
 def _permitido(tipo: str, token: str) -> bool:
     return (tipo, token) in PERMITIDOS or any(t == tipo and r.match(token) for t, r in PERMITIDOS_RE)
 
 
-@pytest.fixture(scope="module")
-def fugas():
+def contar() -> dict[tuple[str, str, str], list[str]]:
+    """(sitio, tipo, token) → los textos donde aparece, uno por aparición."""
     from tests.fixtures.textos import recoger
 
-    encontradas: dict[tuple[str, str], list[tuple[str, str]]] = defaultdict(list)
+    encontradas: dict[tuple[str, str, str], list[str]] = defaultdict(list)
     for origen, texto in recoger():
         for tipo, patron in PATRONES.items():
             for m in patron.finditer(texto):
                 if not _permitido(tipo, m.group(0)):
-                    encontradas[(tipo, m.group(0))].append((origen, texto))
+                    encontradas[(sitio(origen), tipo, m.group(0))].append(f"{origen}: «{texto[:120]}»")
     return encontradas
 
 
+@pytest.fixture(scope="module")
+def fugas():
+    return contar()
+
+
 def test_ningun_texto_nuevo_ensena_tripas(fugas):
-    nuevas = {k: v for k, v in fugas.items() if k not in PENDIENTES}
-    detalle = [f"{tipo} {tok!r} ×{len(ej)} — {ej[0][0]}: «{ej[0][1][:120]}»" for (tipo, tok), ej in nuevas.items()]
-    assert not nuevas, "Texto con tripas a la vista:\n  " + "\n  ".join(detalle)
+    nuevas = [f"{s} · {tipo} {tok!r} ×{len(ej)} (sin anotar) — {ej[0]}"
+              for (s, tipo, tok), ej in fugas.items() if (s, tipo, tok) not in PENDIENTES]
+    mas = [f"{s} · {tipo} {tok!r}: {len(ej)} apariciones, anotadas {PENDIENTES[(s, tipo, tok)][0]} — {ej[-1]}"
+           for (s, tipo, tok), ej in fugas.items()
+           if (s, tipo, tok) in PENDIENTES and len(ej) > PENDIENTES[(s, tipo, tok)][0]]
+    assert not nuevas + mas, "Texto con tripas a la vista:\n  " + "\n  ".join(nuevas + mas)
 
 
 def test_las_fugas_pendientes_siguen_existiendo(fugas):
-    """Si una ya no aparece, se arregló: quítala de PENDIENTES (la lista solo encoge)."""
-    arregladas = [f"{k} (ítem {v})" for k, v in PENDIENTES.items() if k not in fugas]
-    assert not arregladas, "Ya no aparecen, quítalas de PENDIENTES:\n  " + "\n  ".join(arregladas)
+    """Si bajan o desaparecen, se arregló algo: baja el recuento o quita la fila (la lista solo encoge)."""
+    arregladas = [f"{k} (ítem {item}): anotadas {n}, quedan {len(fugas.get(k, []))}"
+                  for k, (n, item) in PENDIENTES.items() if len(fugas.get(k, [])) < n]
+    assert not arregladas, ("Hay menos de las anotadas: actualiza PENDIENTES "
+                            "(`python -m tests.test_fugas_texto`):\n  " + "\n  ".join(arregladas))
 
 
 @pytest.mark.parametrize("texto,tipo", [
@@ -95,3 +143,14 @@ def test_los_patrones_detectan_cada_familia(texto, tipo):
 def test_los_patrones_no_confunden_texto_legitimo(texto):
     assert not PATRONES["menos_cero"].search(texto)
     assert not PATRONES["vacio"].search(texto)
+
+
+if __name__ == "__main__":
+    # La tabla actual, para pegarla en PENDIENTES después de un arreglo.
+    import os
+    import tempfile
+
+    os.environ["DATABASE_PATH"] = os.path.join(tempfile.mkdtemp(prefix="fugas-"), "fugas.db")
+    for (s, tipo, tok), ej in sorted(contar().items()):
+        item = PENDIENTES.get((s, tipo, tok), (0, "?"))[1]
+        print(f"    ({s!r}, {tipo!r}, {tok!r}): ({len(ej)}, {item!r}),")

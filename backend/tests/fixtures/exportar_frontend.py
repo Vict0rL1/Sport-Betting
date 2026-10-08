@@ -33,6 +33,7 @@ import time_machine  # noqa: E402
 
 from tests.fakes_empresa import trimestre  # noqa: E402
 from tests.fixtures import extremos as ex  # noqa: E402
+from tests.fixtures.servicio_pantallas import ServicioPantallas  # noqa: E402
 from tests.golden import motor  # noqa: E402
 
 DESTINO = Path(__file__).resolve().parents[3] / "frontend" / "src" / "test" / "fixtures"
@@ -55,7 +56,9 @@ def _pedir(c, rutas: dict, url: str) -> dict:
 def _empresa(caso: str, cartera: str, con_historia: bool) -> dict:
     from app import expectativas as seg
 
-    sv, symbol = ex.montar_empresa(caso)
+    # Con las respuestas completas que piden las pantallas (frescura, velas…),
+    # sin inventar nada que el paquete no defina.
+    sv, symbol = ex.montar_empresa(caso, ServicioPantallas(ex.AHORA))
     rutas: dict = {}
     with motor._cliente(sv) as c:
         with _sesion() as s:
@@ -96,6 +99,14 @@ def _empresa(caso: str, cartera: str, con_historia: bool) -> dict:
         _pedir(c, rutas, f"/api/expectativas/calibracion?symbol={symbol}")
         _pedir(c, rutas, "/api/portfolio/contribucion?descargar=false")
         _pedir(c, rutas, "/api/portfolio/efectivo")
+        # La cabecera de la ficha, el informe, la valoración y la cartera: lo que
+        # pinta el test de fugas además de las secciones de arriba.
+        for url in (f"/api/stocks/{symbol}/quote", f"/api/stocks/{symbol}/profile",
+                    f"/api/stocks/{symbol}/fundamentals", f"/api/stocks/{symbol}/history?range=1Y",
+                    "/api/meta/llm", f"/api/deep-dive/{symbol}?history_years=10",
+                    f"/api/stocks/{symbol}/valuation/defaults", "/api/portfolio",
+                    "/api/portfolio/historial?descargar=false"):
+            _pedir(c, rutas, url)
     return {"symbol": symbol, "rutas": rutas}
 
 

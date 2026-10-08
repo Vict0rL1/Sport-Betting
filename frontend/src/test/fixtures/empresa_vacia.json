@@ -1,5 +1,244 @@
 {
  "rutas": {
+  "/api/deep-dive/VACIA?history_years=10": {
+   "json": {
+    "business": {
+     "country": null,
+     "latest_fiscal_year": "2025",
+     "latest_revenue": null,
+     "market_cap": null,
+     "name": null,
+     "note": "El desglose por segmento y la concentración de clientes no salen de companyfacts de EDGAR: para eso hay que leer el 10-K (enlace en la pestaña Filings).",
+     "revenue_by_year": [
+      {
+       "revenue": null,
+       "year": "2024"
+      },
+      {
+       "revenue": null,
+       "year": "2025"
+      }
+     ],
+     "sector": null,
+     "website": null,
+     "years_of_history": 0
+    },
+    "cash_flow": {
+     "by_year": [
+      {
+       "capex": null,
+       "capex_intensity": null,
+       "cfo": null,
+       "fcf": null,
+       "fcf_conversion": null,
+       "fcf_margin": null,
+       "year": "2024"
+      },
+      {
+       "capex": null,
+       "capex_intensity": null,
+       "cfo": null,
+       "fcf": null,
+       "fcf_conversion": null,
+       "fcf_margin": null,
+       "year": "2025"
+      }
+     ],
+     "current": {
+      "capex": null,
+      "capex_intensity": null,
+      "cfo": null,
+      "fcf": null,
+      "fcf_conversion": null,
+      "fcf_margin": null,
+      "year": "2025"
+     },
+     "fcf_trend": null,
+     "reading": "Sin datos de flujo de caja."
+    },
+    "catalysts": [],
+    "computed_by": "app",
+    "data_sources": {
+     "as_of": "2026-09-12T14:35:00+00:00",
+     "financials": "edgar",
+     "quote": null
+    },
+    "dcf": null,
+    "debt": {
+     "altman_z": {
+      "components": {
+       "x1_working_capital_over_assets": null,
+       "x2_retained_earnings_over_assets": null,
+       "x3_ebit_over_assets": null,
+       "x4_market_cap_over_liabilities": null,
+       "x5_sales_over_assets": null
+      },
+      "note": "Fórmula original (1968) para industriales cotizadas; no aplicable a bancos/financieras.",
+      "score": null,
+      "zone": null
+     },
+     "by_year": [
+      {
+       "cash": null,
+       "total_debt": null,
+       "year": "2024"
+      },
+      {
+       "cash": null,
+       "total_debt": null,
+       "year": "2025"
+      }
+     ],
+     "cash": null,
+     "debt_to_equity": null,
+     "interest_coverage": null,
+     "leverage_trend": null,
+     "net_debt": null,
+     "piotroski_f": {
+      "fiscal_years": [
+       "2024",
+       "2025"
+      ],
+      "max_possible": 0,
+      "score": 0,
+      "signals": [
+       {
+        "detail": "ROA del último ejercicio > 0: sin datos",
+        "name": "Rentabilidad: ROA positivo",
+        "passed": null
+       },
+       {
+        "detail": "Flujo de caja operativo > 0: sin datos",
+        "name": "Rentabilidad: CFO positivo",
+        "passed": null
+       },
+       {
+        "detail": "ROA sube vs. ejercicio anterior: sin datos",
+        "name": "Rentabilidad: ROA en mejora",
+        "passed": null
+       },
+       {
+        "detail": "Caja operativa mayor que beneficio (menos devengos): sin datos",
+        "name": "Calidad: CFO > beneficio neto",
+        "passed": null
+       },
+       {
+        "detail": "Deuda a largo plazo / activos baja: sin datos",
+        "name": "Apalancamiento: deuda LP baja",
+        "passed": null
+       },
+       {
+        "detail": "Ratio corriente mejora: sin datos",
+        "name": "Liquidez: ratio corriente sube",
+        "passed": null
+       },
+       {
+        "detail": "Acciones en circulación no aumentan: sin datos",
+        "name": "Dilución: sin nuevas acciones",
+        "passed": null
+       },
+       {
+        "detail": "Margen bruto mejora: sin datos",
+        "name": "Eficiencia: margen bruto sube",
+        "passed": null
+       },
+       {
+        "detail": "Ingresos/activos mejora: sin datos",
+        "name": "Eficiencia: rotación de activos sube",
+        "passed": null
+       }
+      ]
+     },
+     "reading": "Sin datos de endeudamiento.",
+     "total_debt": null
+    },
+    "generated_at": "2026-09-12T14:35:00+00:00",
+    "growth": {
+     "acceleration": null,
+     "eps_cagr": null,
+     "fcf_cagr": null,
+     "reading": "Sin histórico suficiente para medir el crecimiento.",
+     "revenue_cagr": null,
+     "revenue_cagr_3y": null,
+     "years": 0,
+     "yoy": []
+    },
+    "margins": {
+     "by_year": [
+      {
+       "gross_margin": null,
+       "net_margin": null,
+       "operating_margin": null,
+       "year": "2024"
+      },
+      {
+       "gross_margin": null,
+       "net_margin": null,
+       "operating_margin": null,
+       "year": "2025"
+      }
+     ],
+     "current": {
+      "gross_margin": null,
+      "net_margin": null,
+      "operating_margin": null
+     },
+     "reading": "Sin datos de márgenes.",
+     "trends": {
+      "gross_margin": null,
+      "net_margin": null,
+      "operating_margin": null
+     }
+    },
+    "price": null,
+    "quant_signal": null,
+    "risk_metrics": null,
+    "risks": [],
+    "symbol": "VACIA",
+    "valuation": {
+     "caveats": [
+      "Los múltiplos usan el EPS y el patrimonio del último ejercicio ANUAL publicado, no cifras TTM trimestrales: la serie es más rugosa que la de un terminal profesional.",
+      "Cotizar barato frente a su propia historia NO implica que esté infravalorada: una empresa en declive estructural se abarata de forma permanente porque el mercado ha rebajado lo que cree que vale. Antes de leer esto como oportunidad, comprueba si márgenes, ingresos y ROIC siguen intactos."
+     ],
+     "cheapness_score": null,
+     "multiples": {
+      "fcf_yield": {
+       "available": false,
+       "n": 0,
+       "reason": "Solo 0 observaciones (mínimo 12): la serie no describe un rango histórico utilizable."
+      },
+      "pb": {
+       "available": false,
+       "n": 0,
+       "reason": "Solo 0 observaciones (mínimo 12): la serie no describe un rango histórico utilizable."
+      },
+      "pe": {
+       "available": false,
+       "n": 0,
+       "reason": "Solo 0 observaciones (mínimo 12): la serie no describe un rango histórico utilizable."
+      }
+     },
+     "reading": "Sin histórico suficiente para situar la valoración actual.",
+     "years_covered": 10
+    },
+    "verdict": {
+     "disclaimer": "Lectura conjunta de los datos, no una recomendación de compra o venta. Qué hacer depende de tu cartera, horizonte y tolerancia al riesgo, que el modelo no conoce. Un informe favorable sobre una empresa excelente sigue pudiendo ser una mala compra al precio equivocado.",
+     "negatives": [],
+     "positives": [],
+     "quant_label": null,
+     "quant_score": null,
+     "stance": "mixta",
+     "summary": "Datos insuficientes para una lectura conjunta.",
+     "what_would_change_it": [
+      "Dos trimestres seguidos de caída del margen operativo.",
+      "Que el crecimiento de ingresos se vuelva negativo de forma sostenida.",
+      "Un salto del apalancamiento o una caída de la cobertura de intereses por debajo de 3×.",
+      "Que el flujo de caja libre pase a negativo sin una explicación de inversión clara."
+     ]
+    }
+   },
+   "status": 200
+  },
   "/api/empresa/VACIA/analisis": {
    "json": {
     "analisis": {
@@ -1363,6 +1602,62 @@
    },
    "status": 200
   },
+  "/api/meta/llm": {
+   "json": {
+    "configured": false,
+    "model": null
+   },
+   "status": 200
+  },
+  "/api/portfolio": {
+   "json": {
+    "allocation_by_position": [],
+    "allocation_by_sector": [],
+    "closed_positions": [],
+    "concentration_warnings": [],
+    "divisas": {
+     "base": "USD",
+     "coste_al_tipo_de_hoy": [],
+     "efecto_divisa_base": null,
+     "mezcla_de_divisas": false,
+     "monedas": {},
+     "nota": "Toda la cartera está en USD: no hay nada que convertir.",
+     "sin_convertir": [],
+     "tipos_usados": {}
+    },
+    "estres": {
+     "nota": "Sin cartera o sin histórico.",
+     "suficiente": false
+    },
+    "note": "Las posiciones sin precio disponible se excluyen de los totales y de los pesos; el resumen indica sobre cuántas se calculó. Toda la cartera está en USD: no hay nada que convertir.",
+    "positions": [],
+    "risk_budget": {
+     "avisos": [],
+     "margen_pct": 6.0,
+     "nota": "El riesgo abierto es lo que perderías si TODAS tus posiciones tocaran su stop. Se agrupa por sector —y cripto en bloque, porque las grandes se correlacionan casi por completo— ya que lo que se mueve junto no diversifica. Los topes son convención de gestión de riesgo, no un resultado medido en esta app; la aritmética sí es exacta.",
+     "por_grupo": {},
+     "posiciones": [],
+     "riesgo_total_pct": 0,
+     "sin_calcular": 0,
+     "tope_grupo_pct": 3.0,
+     "tope_pct": 6.0
+    },
+    "summary": {
+     "aviso_cobertura": "Sin histórico suficiente para estimar la caída máxima. Un retorno esperado sin su caída al lado no se puede interpretar.",
+     "max_drawdown_esperado_pct": null,
+     "precios_viejos": [],
+     "priced_positions": 0,
+     "realizado_sin_convertir": [],
+     "realized_pnl": null,
+     "total_invested": 0,
+     "total_market_value": null,
+     "total_positions": 0,
+     "unrealized_pct": null,
+     "unrealized_pnl": null
+    }
+   },
+   "status": 200
+  },
   "/api/portfolio/contribucion?descargar=false": {
    "json": {
     "desconocidas": [],
@@ -1376,6 +1671,13 @@
    "json": {
     "nota": "Sin efectivo anotado: el motor de coste de oportunidad lo trata como DESCONOCIDO.",
     "saldos": []
+   },
+   "status": 200
+  },
+  "/api/portfolio/historial?descargar=false": {
+   "json": {
+    "disponible": false,
+    "nota": "No hay posiciones que recorrer."
    },
    "status": 200
   },
@@ -2440,6 +2742,54 @@
      "generado_por": "app",
      "reglas": "5c98dd9a4ec0"
     }
+   },
+   "status": 200
+  },
+  "/api/stocks/VACIA/fundamentals": {
+   "json": {
+    "detail": "sin fundamentales"
+   },
+   "status": 404
+  },
+  "/api/stocks/VACIA/history?range=1Y": {
+   "json": {
+    "detail": "sin histórico"
+   },
+   "status": 404
+  },
+  "/api/stocks/VACIA/profile": {
+   "json": {
+    "detail": "sin perfil de VACIA"
+   },
+   "status": 404
+  },
+  "/api/stocks/VACIA/quote": {
+   "json": {
+    "detail": "sin cotización de VACIA"
+   },
+   "status": 404
+  },
+  "/api/stocks/VACIA/valuation/defaults": {
+   "json": {
+    "as_of": "2026-09-12T14:35:00+00:00",
+    "base_fcf": null,
+    "cached": false,
+    "current_price": null,
+    "deuda_parcial": null,
+    "fiscal_year": "2025",
+    "historical_growth": {
+     "eps_cagr": null,
+     "fcf_cagr": null,
+     "revenue_cagr": null,
+     "years": 0
+    },
+    "net_debt": null,
+    "nota_deuda": null,
+    "note": "Punto de partida calculado desde estados financieros reales; edita cada supuesto según tu propia tesis.",
+    "shares_outstanding": null,
+    "source": "edgar",
+    "suggested_growth_capped": null,
+    "symbol": "VACIA"
    },
    "status": 200
   }

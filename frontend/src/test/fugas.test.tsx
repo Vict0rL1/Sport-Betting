@@ -10,24 +10,37 @@
  *
  * Sobre cada nodo de texto visible se buscan las mismas familias que en el
  * backend: «undefined», «NaN», «-0 %», códigos internos, claves como
- * «analisis:03:09:37» y plurales «dato(s)». Mismo trinquete: lo que ya existía
- * está en PENDIENTES con el ítem que lo arregla, y la lista solo encoge.
+ * «analisis:03:09:37» y plurales «dato(s)». Mismo trinquete que en el backend,
+ * por SITIO (la pantalla o sección) y con RECUENTO: una fuga en un sitio nuevo,
+ * o más apariciones de las anotadas, rompe; menos apariciones también, para que
+ * quien arregle baje el número. La lista solo encoge.
+ *
+ * El reloj va congelado en el momento de las capturas: «hace 5 min» no puede
+ * depender del día en que se pasa el test.
  */
 import { act, cleanup, fireEvent, render, waitFor } from '@testing-library/react'
 import type { ReactElement } from 'react'
-import { MemoryRouter } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { ContribucionAlRiesgoPanel, CosteOportunidadPanel } from '../components/cartera/RiesgoYOportunidad'
 import { CalidadSection } from '../components/ticker/CalidadSection'
+import { DeepDiveSection } from '../components/ticker/DeepDiveSection'
 import { ExpectativasSection } from '../components/ticker/ExpectativasSection'
 import { HistorialSection } from '../components/ticker/HistorialSection'
 import { QueCambioSection } from '../components/ticker/QueCambioSection'
+import { ValuationSection } from '../components/ticker/ValuationSection'
+import { PortfolioPage } from '../pages/PortfolioPage'
+import { TickerPage } from '../pages/TickerPage'
 import { TodayPage } from '../pages/TodayPage'
 import empresaCompleta from './fixtures/empresa_completa.json'
 import empresaDeudaParcial from './fixtures/empresa_deuda_parcial.json'
 import empresaVacia from './fixtures/empresa_vacia.json'
 import hoyCompleto from './fixtures/hoy_completo.json'
 import hoySinCandidatas from './fixtures/hoy_sin_candidatas.json'
+
+// El gráfico de precios dibuja en un canvas (jsdom no tiene ni canvas ni
+// matchMedia) y su texto no está en el DOM: aquí no hay nada que leer.
+vi.mock('../components/PriceChart', () => ({ PriceChart: () => null }))
 
 type Escenario = { symbol?: string; rutas: Record<string, { status: number; json: unknown }> }
 
@@ -44,28 +57,61 @@ export const PATRONES: Record<string, RegExp> = {
 const PERMITIDOS = new Set(['snake w_i', 'snake componente_i'])
 const PERMITIDOS_RE: [string, RegExp][] = [['upper_snake', /^[A-Z]+_(?:API_KEY|USER_AGENT|MODEL)$/]]
 
-// Fugas conocidas a 8-oct-2026 → ítem del plan que las arregla.
-const PENDIENTES: Record<string, string> = {
-  'vacio undefined': '1.4', // «undefined %» en «Cómo se repartió el tamaño» (V3)
-  'menos_cero -0': '1.7', // «-0 %» (V8)
-  'menos_cero -0,00': '1.7',
-  'plural_parentesis (s)': '1.9', // «1 dato(s) desconocido(s)»
-  'plural_parentesis (es)': '1.9', // «cambio(s) material(es)»
-  'snake sin_datos': '1.8', // «La señal de ACME es «sin_datos»»
-  'upper_snake SIN_DATOS': '1.8',
-  'snake sin_tesis': '1.8',
-  'snake us_sp500': '1.8', // «lista diaria «us_sp500»»
-  'clave_interna analisis:14:35': '1.8', // origen del replay «analisis:14:35:00»
-  'snake information_available_at': '1.8', // regla del replay en inglés
-  'snake decision_timestamp': '1.8',
-  'snake gross_margin': '1.8', // métricas en crudo en «lo que falta» y en la mejor prevista
-  'snake operating_margin': '1.8',
-  'snake net_margin': '1.8',
-  'snake fcf_growth': '1.8',
-  'snake eps_diluted': '1.8',
-  'snake deuda_neta': '1.8',
-  'snake revenue_growth': '1.8',
+// Fugas conocidas: «sitio · tipo token» → [apariciones, ítem del plan que las arregla].
+// Cuando el test falla, su mensaje trae la tabla actual lista para pegar aquí.
+const PENDIENTES: Record<string, [number, string]> = {
+  'cartera/Contribución al riesgo · plural_parentesis (es)': [1, '1.9'],
+  'cartera/Portafolio · plural_parentesis (es)': [1, '1.9'],
+  'ficha/Expectativas · snake gross_margin': [1, '1.8'],
+  'ficha/Historial · clave_interna analisis:14:35': [7, '1.8'],
+  'ficha/Historial · menos_cero -0': [1, '1.7'],
+  'ficha/Historial · menos_cero -0,00': [1, '1.7'],
+  'ficha/Historial · snake decision_timestamp': [3, '1.8'],
+  'ficha/Historial · snake deuda_neta': [2, '1.8'],
+  'ficha/Historial · snake eps_diluted': [1, '1.8'],
+  'ficha/Historial · snake fcf_growth': [1, '1.8'],
+  'ficha/Historial · snake gross_margin': [1, '1.8'],
+  'ficha/Historial · snake information_available_at': [3, '1.8'],
+  'ficha/Historial · snake net_margin': [1, '1.8'],
+  'ficha/Historial · snake operating_margin': [1, '1.8'],
+  'ficha/Historial · snake revenue_growth': [1, '1.8'],
+  'ficha/Historial · snake sin_datos': [5, '1.8'],
+  'ficha/Historial · snake sin_tesis': [2, '1.8'],
+  'ficha/Historial · snake us_sp500': [1, '1.8'],
+  'ficha/Historial · upper_snake SIN_DATOS': [2, '1.8'],
+  'ficha/Qué cambió · plural_parentesis (es)': [1, '1.9'],
+  'ficha/Qué cambió · plural_parentesis (s)': [10, '1.9'],
+  'ficha/Qué cambió · snake deuda_neta': [3, '1.8'],
+  'ficha/Qué cambió · snake eps_diluted': [1, '1.8'],
+  'ficha/Qué cambió · snake fcf_growth': [1, '1.8'],
+  'ficha/Qué cambió · snake gross_margin': [1, '1.8'],
+  'ficha/Qué cambió · snake net_margin': [1, '1.8'],
+  'ficha/Qué cambió · snake operating_margin': [1, '1.8'],
+  'ficha/Qué cambió · snake revenue_growth': [2, '1.8'],
+  'ficha/Qué cambió · snake sin_datos': [2, '1.8'],
+  'ficha/Replay · clave_interna analisis:14:35': [10, '1.8'],
+  'ficha/Replay · menos_cero -0': [1, '1.7'],
+  'ficha/Replay · menos_cero -0,00': [1, '1.7'],
+  'ficha/Replay · snake decision_timestamp': [4, '1.8'],
+  'ficha/Replay · snake deuda_neta': [2, '1.8'],
+  'ficha/Replay · snake eps_diluted': [1, '1.8'],
+  'ficha/Replay · snake fcf_growth': [1, '1.8'],
+  'ficha/Replay · snake gross_margin': [1, '1.8'],
+  'ficha/Replay · snake information_available_at': [4, '1.8'],
+  'ficha/Replay · snake net_margin': [1, '1.8'],
+  'ficha/Replay · snake operating_margin': [1, '1.8'],
+  'ficha/Replay · snake revenue_growth': [1, '1.8'],
+  'ficha/Replay · snake sin_datos': [8, '1.8'],
+  'ficha/Replay · snake sin_tesis': [2, '1.8'],
+  'ficha/Replay · snake us_sp500': [1, '1.8'],
+  'ficha/Replay · upper_snake SIN_DATOS': [3, '1.8'],
+  'Hoy · plural_parentesis (es)': [1, '1.9'],
+  'Hoy · plural_parentesis (s)': [1, '1.9'],
+  'Hoy · vacio undefined': [4, '1.4'],
 }
+
+// El momento de las capturas (los datos del backend son de las 14:35 UTC).
+const AHORA = new Date('2026-09-12T14:40:00Z')
 
 function servir(e: Escenario) {
   const pedidas: string[] = []
@@ -94,13 +140,13 @@ function textosVisibles(raiz: Node): string[] {
   return salida
 }
 
-function fugas(textos: string[]): Map<string, string[]> {
+function fugas(sitio: string, textos: string[]): Map<string, string[]> {
   const salida = new Map<string, string[]>()
   for (const t of textos) {
     for (const [tipo, re] of Object.entries(PATRONES)) {
       for (const m of t.matchAll(re)) {
-        const clave = `${tipo} ${m[0]}`
-        if (PERMITIDOS.has(clave) || PERMITIDOS_RE.some(([tt, r]) => tt === tipo && r.test(m[0]))) continue
+        if (PERMITIDOS.has(`${tipo} ${m[0]}`) || PERMITIDOS_RE.some(([tt, r]) => tt === tipo && r.test(m[0]))) continue
+        const clave = `${sitio} · ${tipo} ${m[0]}`
         salida.set(clave, [...(salida.get(clave) ?? []), t])
       }
     }
@@ -110,9 +156,19 @@ function fugas(textos: string[]): Map<string, string[]> {
 
 const CARGANDO = /Cargando|Analizando|Calculando…|Calculando\.\.\./
 
-async function pintar(e: Escenario, ui: ReactElement, despues?: () => Promise<void>) {
+async function pintar(e: Escenario, ui: ReactElement, despues?: () => Promise<void>, ruta?: string) {
   const pedidas = servir(e)
-  const { container } = render(<MemoryRouter>{ui}</MemoryRouter>)
+  const { container } = render(
+    ruta ? (
+      <MemoryRouter initialEntries={[ruta]}>
+        <Routes>
+          <Route path="/ticker/:symbol" element={ui} />
+        </Routes>
+      </MemoryRouter>
+    ) : (
+      <MemoryRouter>{ui}</MemoryRouter>
+    ),
+  )
   await waitFor(() => expect(container.textContent ?? '').not.toMatch(CARGANDO), { timeout: 4000 })
   if (despues) await despues()
   const sinFixture = pedidas.filter((u) => !e.rutas[u])
@@ -126,9 +182,18 @@ const EMPRESAS: [string, Escenario][] = [
 ]
 
 const encontradas = new Map<string, string[]>()
-const anotar = (textos: string[]) => {
-  for (const [k, v] of fugas(textos)) encontradas.set(k, [...(encontradas.get(k) ?? []), ...v])
+const anotar = (sitio: string, textos: string[]) => {
+  for (const [k, v] of fugas(sitio, textos)) encontradas.set(k, [...(encontradas.get(k) ?? []), ...v])
 }
+
+beforeAll(() => {
+  // Solo la fecha: los temporizadores siguen siendo reales para que `waitFor` funcione.
+  vi.useFakeTimers({ toFake: ['Date'], now: AHORA })
+})
+
+afterAll(() => {
+  vi.useRealTimers()
+})
 
 afterEach(() => {
   cleanup()
@@ -139,29 +204,41 @@ describe('fugas de texto en pantalla', () => {
   for (const [nombre, e] of EMPRESAS) {
     const s = e.symbol!
     it(`ficha · ${nombre}`, async () => {
-      for (const ui of [
-        <QueCambioSection symbol={s} />,
-        <CalidadSection symbol={s} />,
-        <ExpectativasSection symbol={s} />,
-        <ContribucionAlRiesgoPanel />,
-        <CosteOportunidadPanel />,
-      ]) {
+      const secciones: [string, ReactElement][] = [
+        ['ficha/Qué cambió', <QueCambioSection symbol={s} />],
+        ['ficha/Calidad', <CalidadSection symbol={s} />],
+        ['ficha/Expectativas', <ExpectativasSection symbol={s} />],
+        ['ficha/Informe', <DeepDiveSection symbol={s} />],
+        ['ficha/Valoración', <ValuationSection symbol={s} />],
+        ['cartera/Contribución al riesgo', <ContribucionAlRiesgoPanel />],
+        ['cartera/Coste de oportunidad', <CosteOportunidadPanel />],
+        ['cartera/Portafolio', <PortfolioPage />],
+      ]
+      for (const [sitio, ui] of secciones) {
         const r = await pintar(e, ui)
-        expect(r.sinFixture).toEqual([])
-        anotar(r.textos)
+        expect(r.sinFixture, sitio).toEqual([])
+        anotar(sitio, r.textos)
         cleanup()
       }
-      // El historial, y el replay de cada instantánea.
+      // La cabecera de la ficha (pestaña Resumen), con su ruta.
+      const cabecera = await pintar(e, <TickerPage />, undefined, `/ticker/${s}`)
+      expect(cabecera.sinFixture).toEqual([])
+      anotar('ficha/Cabecera', cabecera.textos)
+      cleanup()
+      // El historial, y el replay de CADA instantánea: si el botón cambia de
+      // nombre, el bucle no puede quedarse callado sin probar nada.
+      const historial = e.rutas[`/api/empresa/${s}/historial`].json as { decisiones?: unknown[] }
       const r = await pintar(e, <HistorialSection symbol={s} />, async () => {
         const botones = Array.from(document.querySelectorAll('button')).filter((b) => b.textContent === 'Replay')
+        expect(botones.length).toBe((historial.decisiones ?? []).length)
         for (const b of botones) {
           await act(async () => fireEvent.click(b))
           await waitFor(() => expect(document.body.textContent).toMatch(/Replay del|replay/i))
-          anotar(textosVisibles(document.body))
+          anotar('ficha/Replay', textosVisibles(document.body))
         }
       })
       expect(r.sinFixture).toEqual([])
-      anotar(r.textos)
+      anotar('ficha/Historial', r.textos)
     })
   }
 
@@ -169,14 +246,22 @@ describe('fugas de texto en pantalla', () => {
     it(`Hoy · ${nombre}`, async () => {
       const r = await pintar(e as Escenario, <TodayPage />)
       expect(r.sinFixture).toEqual([])
-      anotar(r.textos)
+      anotar('Hoy', r.textos)
     })
   }
 
-  it('nada nuevo enseña tripas y las pendientes siguen existiendo', () => {
-    const nuevas = [...encontradas].filter(([k]) => !(k in PENDIENTES))
-    const arregladas = Object.keys(PENDIENTES).filter((k) => !encontradas.has(k))
-    expect(nuevas.map(([k, v]) => `${k} — «${v[0].slice(0, 100)}»`)).toEqual([])
-    expect(arregladas).toEqual([])
+  it('nada nuevo enseña tripas y las pendientes siguen igual', () => {
+    const tabla = [...encontradas]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([k, v]) => `  '${k}': [${v.length}, '${PENDIENTES[k]?.[1] ?? '?'}'],`)
+      .join('\n')
+    const nuevas = [...encontradas]
+      .filter(([k, v]) => !(k in PENDIENTES) || v.length > PENDIENTES[k][0])
+      .map(([k, v]) => `${k} ×${v.length} (anotadas ${PENDIENTES[k]?.[0] ?? 0}) — «${v[v.length - 1].slice(0, 100)}»`)
+    const arregladas = Object.entries(PENDIENTES)
+      .filter(([k, [n]]) => (encontradas.get(k)?.length ?? 0) < n)
+      .map(([k, [n, item]]) => `${k} (ítem ${item}): anotadas ${n}, quedan ${encontradas.get(k)?.length ?? 0}`)
+    expect(nuevas, `Tabla actual de PENDIENTES:\n${tabla}\n`).toEqual([])
+    expect(arregladas, `Tabla actual de PENDIENTES:\n${tabla}\n`).toEqual([])
   })
 })
