@@ -8,7 +8,7 @@ Material de partida: `docs/REVISION_GENERAL.md` (revisión del 8-oct-2026) y sus
 
 ## Fase 0 — Red de seguridad
 
-- [ ] **0.1** Tests de frontend (Vitest + Testing Library + jsdom, `npm test`) — estado: pendiente · commit: — · nota: —
+- [x] **0.1** Tests de frontend (Vitest + Testing Library + jsdom, `npm test`) — estado: hecho · commit: `a3aa047` · nota: vitest 5 + jsdom 30; tests junto al código (`*.test.tsx`), también pasan por `tsc -b`.
 - [ ] **0.2** Integración continua (`.github/workflows/ci.yml`) — estado: pendiente · commit: — · nota: —
 - [ ] **0.3** Golden master del motor (`backend/tests/golden/`) — estado: pendiente · commit: — · nota: —
 - [ ] **0.4** Paquete de casos extremos (`backend/tests/fixtures/extremos/`) — estado: pendiente · commit: — · nota: —
@@ -71,11 +71,17 @@ Material de partida: `docs/REVISION_GENERAL.md` (revisión del 8-oct-2026) y sus
 
 | Fase | Etiqueta de inicio | Revisión independiente | Capturas «después» | Etiqueta de cierre |
 |---|---|---|---|---|
-| 0 | `fase-0-inicio` | — | — | — |
+| 0 | `fase-0-inicio` = `e917365` | — | — | — |
 | 1 | — | — | — | — |
 | 2 | — | — | — | — |
 | 3 | — | — | — | — |
 | 4 | — | — | — | — |
+
+## Etiquetas
+
+El proxy de este entorno deja empujar la rama pero corta los push de etiquetas, así que
+las etiquetas viven en local. Cada sesión nueva las recrea desde la tabla de arriba:
+`git tag fase-0-inicio e917365` (y así con las demás).
 
 ## Dónde me quedé
 
