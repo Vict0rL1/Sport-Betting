@@ -36,20 +36,27 @@ import time_machine  # noqa: E402
 
 from app.llm.base import LLMProvider  # noqa: E402
 from app.providers.base import DataNotFoundError  # noqa: E402
-from tests.fakes_empresa import ServicioFalso, trimestre  # noqa: E402
+from tests.fakes_empresa import trimestre  # noqa: E402
 from tests.fixtures import extremos as ex  # noqa: E402
+from tests.fixtures.servicio_pantallas import ServicioPantallas  # noqa: E402
 
 ESCENARIOS = ("normal", "cartera_vacia", "sin_candidatas", "empresa_sin_datos", "con_ia")
 
 
-class ServicioDemo(ServicioFalso):
-    """El servicio falso de los tests, completado para que TODAS las pantallas
-    tengan algo que enseñar: cotizaciones y perfiles para cualquier símbolo,
-    series de FRED, noticias generales y la lista diaria entera."""
+class ServicioDemo(ServicioPantallas):
+    """El servicio de las pantallas, completado para que TODAS tengan algo que
+    enseñar: cotizaciones y fundamentales para símbolos que el paquete no
+    conoce (los del screener, los ETF), series de FRED, noticias generales y la
+    lista diaria entera.
 
-    def __init__(self, lista: ex.ServicioLista):
+    `ausentes`: empresas del paquete que existen para enseñar el estado «sin un
+    solo dato». Para ellas no se inventa nada: antes la captura de VACIA salía
+    con precio 254 y PER 34 inventados, y el estado vacío no se veía nunca."""
+
+    def __init__(self, lista: ex.ServicioLista, ausentes: frozenset[str] = frozenset()):
         super().__init__(ex.AHORA)
         self.lista = lista
+        self.ausentes = ausentes
 
     @staticmethod
     def _semilla(texto: str) -> int:
@@ -59,18 +66,17 @@ class ServicioDemo(ServicioFalso):
         symbol = kw.get("symbol")
         if tipo == "bulk_momentum":
             return self.lista.get(tipo, **kw)
+        if symbol in self.ausentes:
+            return super().get(tipo, **kw)
         if tipo == "fundamentals" and symbol not in self.fundamentales:
             return self.lista.get(tipo, **kw)
-        if tipo == "profile":
-            moneda = (self.quotes.get(symbol) or {}).get("currency", "USD")
-            return {"symbol": symbol, "name": f"{symbol} Corp", "sector": "Technology", "industry": "Software",
-                    "country": "CA" if moneda == "CAD" else "US", "currency": moneda, "source": "finnhub",
-                    "as_of": self.ahora.isoformat(), "cached": False}
         if tipo == "quote" and symbol not in self.quotes:
             precio = 20.0 + self._semilla(symbol) % 400
             self.quotes[symbol] = {"symbol": symbol, "price": precio, "currency": "USD", "source": "finnhub",
                                    "as_of": self.ahora.isoformat(), "estado": "valido",
                                    "change_pct": (self._semilla(symbol) % 7 - 3) / 2}
+        if tipo == "profile" and symbol not in self.quotes:
+            self.get("quote", symbol=symbol)
         if tipo == "macro" and kw.get("series_id") not in self.macro:
             return self._macro(kw["series_id"])
         if tipo == "news" and symbol is None:
@@ -78,21 +84,7 @@ class ServicioDemo(ServicioFalso):
                                "published_at": (self.ahora - timedelta(hours=3 * i)).isoformat(),
                                "url": f"https://example.com/demo/{i}", "source": "Demo", "symbol": "ACME"}
                               for i in range(1, 6)], "source": "finnhub", "as_of": self.ahora.isoformat()}
-        try:
-            r = super().get(tipo, **kw)
-        except DataNotFoundError:
-            raise
-        # Lo que las pantallas antiguas piden y el doble de los tests no trae.
-        if tipo == "earnings_calendar":
-            r = {"source": "finnhub", **r}
-        if tipo == "quote":
-            r = {"freshness": "delayed", "change": -1.2, "change_pct": -1.2, "prev_close": (r["price"] or 0) + 1.2,
-                 "day_high": (r["price"] or 0) * 1.01, "day_low": (r["price"] or 0) * 0.99, **r}
-        if tipo in ("price_history", "price_history_long"):
-            r = {**r, "interval": kw.get("interval", "1day"), "symbol": symbol,
-                 "bars": [{**b, "open": b["close"] * 0.998, "high": b["close"] * 1.006, "low": b["close"] * 0.992,
-                           "volume": 1e6 * (1 + (i % 7) / 10)} for i, b in enumerate(r["bars"])]}
-        return r
+        return super().get(tipo, **kw)
 
     def _macro(self, serie: str) -> dict:
         base = {"UNRATE": 4.1, "FEDFUNDS": 4.33, "CPIAUCSL": 320.0, "T10Y2Y": 0.35}.get(serie)
@@ -159,7 +151,9 @@ def montar(escenario: str):
     init_db()
     sv = ServicioDemo(ex.servicio_lista("dia_sin_candidatas" if escenario == "sin_candidatas" else "dia_completo_502"))
     for caso in ("completa", "todo_ausente", "deuda_parcial", "stop_perforado"):
-        ex.montar_empresa(caso, sv)
+        _, symbol = ex.montar_empresa(caso, sv)
+        if caso == "todo_ausente":
+            sv.ausentes = frozenset({symbol})
     if escenario != "cartera_vacia":
         with SessionLocal() as s:
             ex.montar_cartera("cad_en_usd", s, sv)
