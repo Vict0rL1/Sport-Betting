@@ -86,23 +86,17 @@ if [[ ! -d frontend/node_modules ]]; then
 fi
 
 # --- Copia de seguridad de la base -------------------------------------------
-# El backend migra la base al arrancar. Antes, una copia con fecha en backups/
-# (se guardan las 10 últimas). Si la copia falla, no se arranca: migrar sin red
-# de seguridad es justo lo que esto evita.
+# El backend migra la base al arrancar. Antes, una copia con fecha en
+# copias/, junto a la base (se guardan las 10 últimas). Si la copia falla, no
+# se arranca: migrar sin red de seguridad es justo lo que esto evita.
+#
+# La ruta la resuelve el propio backend (`app.config.settings`): la misma base
+# que va a abrir, venga de DATABASE_PATH, de backend/.env o de .env, con
+# espacios o sin ellos. Resolverla aquí con grep era copiar otra base.
 
-# La misma base que usará el backend: DATABASE_PATH del entorno, o de .env
-# (relativa a backend/, que es donde arranca uvicorn), o la de por defecto.
-DB_PATH=${DATABASE_PATH:-$(grep -E '^DATABASE_PATH=' .env 2>/dev/null | tail -1 | cut -d= -f2- | tr -d '"'"'"' ')}
-if [[ -z "$DB_PATH" ]]; then
-  DB_PATH=backend/data/app.db
-elif [[ "$DB_PATH" != /* ]]; then
-  DB_PATH="backend/$DB_PATH"
-fi
-if [[ -f "$DB_PATH" ]]; then
-  COPIA=$(backend/scripts/copia_base.sh "$DB_PATH" backups 10) \
-    || die "No pude copiar la base antes de migrar ($DB_PATH). No arranco sin copia."
-  printf '%s  Copia de la base: %s%s\n' "$DIM" "$COPIA" "$RESET"
-fi
+COPIA=$(cd backend && .venv/bin/python -m app.db.copia) \
+  || die "No pude copiar la base antes de migrar. No arranco sin copia."
+[[ -n "$COPIA" ]] && printf '%s  Copia de la base: %s%s\n' "$DIM" "$COPIA" "$RESET"
 
 # --- Arranque ---------------------------------------------------------------
 

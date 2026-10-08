@@ -19,6 +19,7 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 
+from app.db.copia import copiar, ruta_de_sqlite
 from app.registro import log
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
@@ -42,11 +43,19 @@ def version_objetivo() -> str:
 
 
 def migrar(engine) -> dict:
-    """Lleva la base a la última versión. Lanza si no puede: ver el docstring."""
+    """Lleva la base a la última versión, con una copia antes. Lanza si no puede: ver el docstring."""
     antes = version_actual(engine)
     objetivo = version_objetivo()
     if antes == objetivo:
         return {"antes": antes, "despues": antes, "migrada": False}
+    # Antes de tocar nada, una copia. Si la copia falla, se lanza y no se migra:
+    # migrar sin red de seguridad es justo lo que esto evita. Cubre a todo el que
+    # llame a `init_db()`, no solo a `start.sh` (el script de validación con
+    # datos reales migraba la base de verdad sin copia).
+    ruta = ruta_de_sqlite(str(engine.url))
+    copia = copiar(ruta) if ruta else None
+    if copia:
+        log("db").info("copia de la base antes de migrar: %s", copia)
     cfg = _config()
     with engine.begin() as conexion:
         cfg.attributes["connection"] = conexion

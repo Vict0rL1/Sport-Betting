@@ -100,8 +100,11 @@ cp backend/data/app.db backend/data/app.db.antes-rc1   # copia de seguridad
 ./start.sh
 ```
 
-Además, `./start.sh` hace una copia de la base en `backups/app-AAAAMMDD-HHMMSS.db`
-cada vez que arranca, antes de que el backend migre, y guarda las 10 últimas.
+Además hay una copia automática en `copias/app-AAAAMMDD-HHMMSS.db`, junto a la base
+(por defecto `backend/data/copias/`), que guarda las 10 últimas: `./start.sh` la hace cada
+vez que arranca, y el backend la hace también antes de aplicar cualquier migración pendiente
+(venga de `start.sh`, de un script o de un `alembic upgrade` a mano). Si la copia falla, no
+se migra. Para copiar a mano: `cd backend && .venv/bin/python -m app.db.copia`.
 
 Las migraciones son 0001–0008 y ninguna borra datos. Si encuentra posiciones imposibles (cantidad ≤ 0 o
 coste negativo) se niega a seguir y dice cuáles: corrígelas y vuelve a

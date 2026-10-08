@@ -19,6 +19,7 @@ from alembic import context
 from sqlalchemy import create_engine
 
 from app.config import settings
+from app.db.copia import copiar, ruta_de_sqlite
 from app.db import models  # noqa: F401  (registra las tablas en Base.metadata)
 from app.db.engine import Base
 
@@ -48,8 +49,14 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     conexion = config.attributes.get("connection")
     if conexion is not None:
-        _migrar(conexion)
+        _migrar(conexion)  # viene de `migrar()`, que ya hizo la copia
         return
+    # Un `alembic upgrade` o `downgrade` a mano: también con copia antes (lanza
+    # si no puede). `alembic current` o `history` no tocan nada y no copian.
+    orden = getattr(config.cmd_opts, "cmd", None)
+    ruta = ruta_de_sqlite(_url())
+    if ruta and orden and getattr(orden[0], "__name__", "") in ("upgrade", "downgrade"):
+        copiar(ruta)
     engine = create_engine(_url())
     with engine.connect() as conexion:
         _migrar(conexion)
