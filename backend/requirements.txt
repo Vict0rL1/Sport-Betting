@@ -10,3 +10,4 @@ numpy>=1.26
 yfinance>=0.2.40
 anthropic>=0.60
 pytest>=8.0
+time-machine>=2.14

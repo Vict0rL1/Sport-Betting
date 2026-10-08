@@ -75,6 +75,9 @@ class ServicioFalso:
         self.noticias: dict[str, list[dict]] = {}
         self.calendario: list[dict] = []
         self.fundamentales: dict[str, dict] = {}
+        # Series de FRED por `series_id` (tipos de cambio). Sin entrada, la
+        # serie no existe, como antes.
+        self.macro: dict[str, list[dict]] = {}
         self.llamadas: list[tuple] = []
 
     # --- Atajos para montar escenarios ---
@@ -134,7 +137,11 @@ class ServicioFalso:
         if tipo in ("peers", "profile"):
             raise DataNotFoundError(tipo)
         if tipo == "macro":
-            raise DataNotFoundError("sin macro")
+            serie = kw.get("series_id")
+            if serie not in self.macro:
+                raise DataNotFoundError("sin macro")
+            return {"series_id": serie, "points": list(self.macro[serie]), "source": "fred",
+                    "as_of": self.ahora.isoformat()}
         raise DataNotFoundError(f"tipo no simulado: {tipo}")
 
 
