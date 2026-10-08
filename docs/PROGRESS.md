@@ -77,6 +77,27 @@ Material de partida: `docs/REVISION_GENERAL.md` (revisión del 8-oct-2026) y sus
 | 3 | — | — | — | — |
 | 4 | — | — | — | — |
 
+## Revisión independiente de la Fase 0
+
+Veredicto del revisor: «no se puede cerrar tal cual»; ninguna violación cambia decisiones, pero
+la red de seguridad tenía agujeros. Cada hallazgo, su arreglo y su commit:
+
+| # | Hallazgo | Estado | Commit |
+|---|---|---|---|
+| R1 | El golden descartaba códigos con tildes o espacios (`limite: "posición"`, `faltan: ["puntuación"]`…) | hecho: se guardan; un texto sin clasificar es un error | (este commit) |
+| R2 | 14 umbrales (confianza, calidad) y los de `sizing` por defecto sin cubrir | hecho: inventario automático de 117 constantes, 95 cubiertas con prueba, 22 exentas con motivo | (este commit) |
+| R3 | `generar.py` y `exportar_frontend.py` con `setdefault(DATABASE_PATH)` | hecho: asignación | (este commit) |
+| R4 | El trinquete de fugas cuenta por token, no por sitio ni recuento | pendiente | — |
+| R5 | El servidor de demostración inventa datos para VACIA y usa `or 0` | pendiente | — |
+| R6 | `capturas.ts` sale con 0 ante fallos; `scripts/` fuera de ESLint y tsc | pendiente | — |
+| R7 | La copia de la base se salta en silencio (`backend/.env`, espacios, otros caminos que migran) | pendiente | — |
+| R8 | `?symbol=` vacío y con espacios pasó a 422 sin documentar; validadores duplicados; `client.ts` sin codificar | pendiente | — |
+| R9 | Tests de contrato que pasan en vacío; unidades | pendiente | — |
+| R10 | Casos extremos que no son lo que dicen (`solo_cache_viejo`, `precio_nan`) | pendiente | — |
+| R11 | Huecos de `test_seguridad.py` (símbolos buenos, rutas tapadas entre routers) | pendiente | — |
+| R12 | `/api/etfs/recomendar` sin verificación visual; README dice POST | pendiente | — |
+| R13 | El tipo de cambio de la cartera usa la hora real | anotado abajo (cambia el replay: necesita a Victor) | — |
+
 ## Etiquetas
 
 El proxy de este entorno deja empujar la rama pero corta los push de etiquetas, así que
@@ -89,6 +110,15 @@ las etiquetas viven en local. Cada sesión nueva las recrea desde la tabla de ar
   momento del análisis: un análisis a fecha pasada filtra las noticias de la tesis con la ventana de hoy.
   Posible fuga de «punto en el tiempo». Encontrado al montar el golden (que congela el reloj por esto).
   Tocarlo cambia decisiones del replay: requiere tu visto bueno.
+- **El tipo de cambio de la cartera también usa la hora real** (encontrado por el revisor de la Fase 0).
+  `contexto_cartera` llama a `_fx_completo` (`routers/portfolio.py`) sin pasarle el momento del
+  análisis; `fx.inicio_de_ventana()` y `fx.tipo_desde_observaciones()` usan `date.today()` y no
+  descartan observaciones posteriores. Un análisis a fecha pasada (o un replay) convierte con el tipo de
+  hoy, un dato del futuro respecto a esa fecha. Misma familia que el anterior; mismo motivo para no
+  tocarlo sin visto bueno.
+- **El golden congela `levels.objetivo` / `objetivo_pct`** y la pantalla Hoy lo muestra. Choca con
+  «sin precios objetivo» (§3). No lo causa esta fase; si una fase lo retira, el golden cambiará y habrá
+  que explicarlo.
 
 ## Informe del repaso de seguridad (0.9)
 

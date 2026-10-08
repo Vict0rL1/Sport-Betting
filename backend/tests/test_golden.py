@@ -14,13 +14,14 @@ qué decisión cambió y por qué, y se pide el visto bueno.
 
 from __future__ import annotations
 
-import importlib
+import functools
 import json
 
 import pytest
 
 from tests.golden import generar as g
-from tests.golden.motor import COMPONENTES, generar
+from tests.golden import umbrales
+from tests.golden.motor import COMPONENTES, generar, generar_perezoso
 
 
 def _por_caso(casos: list[dict]) -> dict[str, object]:
@@ -71,35 +72,69 @@ def test_el_motor_decide_lo_mismo_que_en_el_golden(nombre):
         )
 
 
-# El golden sirve si de verdad VE los umbrales. Cada fila mueve uno —de los que
-# el motor lee al ejecutarse— y exige que el componente que lo usa cambie. Si
-# alguien recorta las entradas del golden hasta dejar un umbral sin cubrir, esto
-# lo dice. (Los umbrales que viajan como argumento por defecto, como el +0,35 de
-# `decide()` o el 10 % por posición, se comprobaron a mano editando el fichero.)
-SENSIBILIDAD = [
-    # STOP_MIN_PCT se copia en TOPES_STOP al importar: lo que se lee es la tabla.
-    ("app.analysis.decision", "TOPES_STOP", {"accion": (9.0, 25.0), "cripto": (15.0, 60.0), "etf": (6.0, 20.0)},
-     "decide"),
-    ("app.analysis.decision", "TOPES_STOP", {"accion": (8.0, 25.0), "cripto": (15.0, 50.0), "etf": (6.0, 20.0)},
-     "decide"),
-    ("app.analysis.decision", "RATIO_OBJETIVO", 2.5, "decide"),
-    ("app.analysis.decision", "BANDA_TENDENCIA_ENTRAR_PCT", 3.0, "decide"),
-    ("app.analysis.decision", "BANDA_TENDENCIA_SALIR_PCT", 2.0, "decide"),
-    ("app.analysis.sizing", "FACTOR_EVIDENCIA_BAJA", 0.6, "sizing"),
-    ("app.analysis.coste_de_oportunidad", "MEJORA_MINIMA", 4, "oportunidad"),
-    ("app.analysis.coste_de_oportunidad", "TENENCIA_MINIMA_DIAS", 5, "oportunidad"),
-    ("app.analysis.coste_de_oportunidad", "PUNTOS_PRUDENCIA_IMPUESTOS", 2, "oportunidad"),
-    ("app.analysis.calidad_beneficios", "CFO_NI_BUENO", 1.5, "calidad"),
-    ("app.analysis.calidad_beneficios", "SBC_NORMAL", 0.01, "calidad"),
-    ("app.analysis.confianza", "MAX_DESCONOCIDOS_DEBIL", 0, "analisis"),
-    ("app.routers.signals", "FAVORABLE_MIN", 0.5, "hoy"),
-]
+# El golden sirve si de verdad VE los umbrales. El inventario sale del código
+# (`tests/golden/umbrales.py`): toda constante numérica de un módulo del motor
+# está cubierta —se mueve y el componente que la usa tiene que cambiar— o exenta
+# con su motivo. La primera versión era una lista escrita a mano de lo que sí se
+# veía, y por eso no podía decir lo que no: la revisión de la fase encontró
+# catorce umbrales (confianza, calidad) que se podían doblar sin que nada fallara.
+
+def test_todo_umbral_del_motor_esta_cubierto_o_exento_con_motivo():
+    inventario = set(umbrales.inventario())
+    clasificados = set(umbrales.UMBRALES) | set(umbrales.EXENTOS)
+    assert not set(umbrales.UMBRALES) & set(umbrales.EXENTOS), "un umbral no puede estar cubierto y exento"
+    sin_clasificar = sorted(inventario - clasificados)
+    assert not sin_clasificar, (
+        "Umbrales nuevos sin clasificar. Añade un caso al golden que los roce y ponlos en UMBRALES, o "
+        "explica en EXENTOS por qué no deciden nada:\n  " + "\n  ".join(sin_clasificar))
+    assert not clasificados - inventario, f"Ya no existen: {sorted(clasificados - inventario)}"
+    assert all(len(m) > 20 for m in umbrales.EXENTOS.values()), "cada exención lleva su motivo"
 
 
-@pytest.mark.parametrize("modulo,constante,valor,componente", SENSIBILIDAD,
-                         ids=[f"{m.rsplit('.', 1)[-1]}.{c}.{i}" for i, (m, c, _, _) in enumerate(SENSIBILIDAD)])
-def test_el_golden_detecta_un_umbral_movido(monkeypatch, modulo, constante, valor, componente):
-    monkeypatch.setattr(importlib.import_module(modulo), constante, valor)
-    esperado = json.loads(g.ruta(componente).read_text(encoding="utf-8"))
-    actual = json.loads(g.serializar(generar(componente)))
-    assert actual != esperado, f"Mover {constante} no cambia «{componente}»: el golden no cubre ese umbral"
+@functools.cache
+def _grabado(componente: str) -> dict[str, object]:
+    return _por_caso(json.loads(g.ruta(componente).read_text(encoding="utf-8")))
+
+
+_MOVIDOS = [(ruta, valor, comp) for ruta, filas in umbrales.UMBRALES.items() for valor, comp in filas]
+
+
+@pytest.mark.parametrize("ruta,valor,componente", _MOVIDOS,
+                         ids=[f"{r.rsplit('.', 2)[-2]}.{r.rsplit('.', 1)[-1]}.{i}" for i, (r, _, _) in enumerate(_MOVIDOS)])
+def test_el_golden_detecta_un_umbral_movido(ruta, valor, componente):
+    esperado = _grabado(componente)
+    vistos = 0
+    with umbrales.mover(ruta, valor):
+        # Caso a caso: basta con el primero que cambie (regenerar el análisis
+        # entero para cada uno de los ~100 umbrales costaba más de un minuto).
+        for caso in generar_perezoso(componente):
+            vistos += 1
+            normal = json.loads(g.serializar([caso]))[0]
+            if esperado.get(normal["caso"]) != normal["salida"]:
+                return
+    if vistos != len(esperado):
+        return  # desaparecieron casos: también es un cambio visto
+    pytest.fail(f"Mover {ruta} a {valor!r} no cambia «{componente}»: el golden no cubre ese umbral")
+
+
+def test_canon_guarda_las_decisiones_dichas_con_palabras():
+    """Antes se descartaban por llevar tilde o espacio: el golden no veía qué tope
+    recortó el tamaño ni qué dato faltaba."""
+    from tests.golden.canon import canon
+
+    assert canon({"limite": "posición", "faltan": ["puntuación"], "hacia": "cualquier acción",
+                  "impuestos": "sin plusvalía", "key": "Consumer Staples"}) == {
+        "limite": "posición", "faltan": ["puntuación"], "hacia": "cualquier acción",
+        "impuestos": "sin plusvalía", "key": "Consumer Staples"}
+    # Una frase bajo la misma clave es texto (la calidad usa `limite` para el límite del método).
+    assert canon({"limite": "Las partidas salen de etiquetas concretas."}) == {}
+
+
+def test_canon_no_descarta_en_silencio_un_texto_sin_clasificar():
+    from tests.golden.canon import TextoSinClasificar, canon
+
+    with pytest.raises(TextoSinClasificar, match="clave_nueva"):
+        canon({"clave_nueva": "Un texto que nadie ha clasificado"})
+    with pytest.raises(TextoSinClasificar):
+        canon({"limite": "tope: raro"})  # ni palabra-código ni frase
+    assert canon({"motivo": "Prosa conocida"}) == {} and canon({"regla": "r_precio"}) == {"regla": "r_precio"}

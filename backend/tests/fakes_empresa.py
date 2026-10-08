@@ -123,8 +123,14 @@ class ServicioFalso:
                 raise DataNotFoundError(f"edgar: {symbol} no está registrado")
             return json.loads(json.dumps(self.financials[symbol]))
         if tipo == "news":
-            return {"items": list(self.noticias.get(symbol, [])), "source": "finnhub",
-                    "as_of": self.ahora.isoformat()}
+            # Como el proveedor real: solo los días pedidos hacia atrás. Lo que no
+            # trae fecha se deja pasar (no hay con qué filtrarlo) y lo descarta
+            # el punto en el tiempo, que es lo que se quiere probar con eso.
+            items = list(self.noticias.get(symbol, []))
+            if kw.get("days") is not None:
+                desde = (self.ahora.date() - timedelta(days=kw["days"])).isoformat()
+                items = [n for n in items if not n.get("published_at") or str(n["published_at"])[:10] >= desde]
+            return {"items": items, "source": "finnhub", "as_of": self.ahora.isoformat()}
         if tipo == "earnings_calendar":
             # Como el proveedor real: solo los eventos dentro de la ventana pedida.
             desde, hasta = kw.get("start") or "0000", kw.get("end") or "9999"

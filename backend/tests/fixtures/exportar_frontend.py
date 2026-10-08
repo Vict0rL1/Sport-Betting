@@ -25,7 +25,9 @@ import tempfile
 from datetime import timedelta
 from pathlib import Path
 
-os.environ.setdefault("DATABASE_PATH", os.path.join(tempfile.mkdtemp(prefix="export-"), "export.db"))
+# Se ASIGNA, como en conftest.py: con DATABASE_PATH exportado en la shell, un
+# `setdefault` dejaría al motor conectado a la base de verdad.
+os.environ["DATABASE_PATH"] = os.path.join(tempfile.mkdtemp(prefix="export-"), "export.db")
 
 import time_machine  # noqa: E402
 

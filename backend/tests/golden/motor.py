@@ -20,6 +20,7 @@ from __future__ import annotations
 import contextlib
 import itertools
 import math
+from collections.abc import Iterator
 from datetime import timedelta
 
 import time_machine
@@ -209,8 +210,179 @@ def golden_calidad() -> list[dict]:
         "cobros_disparados": (cuentas, ex.trimestres_base()),
         "fcf_negativo": ([{**p, "capex": 400.0} for p in base], []),
         "beneficio_negativo": ([{**p, "net_income": -50.0} for p in base], []),
+        # Cada uno roza un umbral que los anteriores no tocaban (circulante,
+        # capitalizado, extraordinarios, tipo fiscal, divergencia del FCF):
+        # sin ellos, mover esos umbrales no cambiaba nada del golden.
+        "circulante_normal": (_tres_ejercicios(change_receivables=-10.0, change_inventory=-5.0,
+                                               change_payables=15.0), []),       # 12 % del CFO
+        "circulante_aviso": (_tres_ejercicios(change_receivables=-40.0, change_inventory=-20.0,
+                                              change_payables=15.0), []),       # 30 % del CFO
+        "capitalizado_alto": (_tres_ejercicios(capitalized_software=66.0), []),   # 6 % de ingresos
+        "capitalizado_bajo": (_tres_ejercicios(capitalized_software=44.0), []),   # 4 %
+        "extraordinarios_altos": (_tres_ejercicios(restructuring=19.8, pretax_income=210.0,
+                                                   income_tax=44.0), []),       # 12 % del beneficio
+        "tipo_fiscal_bajo": (_tres_ejercicios(restructuring=3.3, pretax_income=180.0,
+                                              income_tax=14.4), []),            # 8 %
+        "fcf_diverge": (_tres_ejercicios(net_income=162.0, cfo=236.0), []),      # beneficio +8 %, FCF −7 %
     }
     return [_caso(k, cb.analizar(p, q, obtenido_en=ex.AHORA.isoformat())) for k, (p, q) in escenarios.items()]
+
+
+def _tres_ejercicios(**ultimo) -> list[dict]:
+    """2023-2025 con todas las partidas que miran las reglas; `ultimo` cambia el de 2025."""
+    from tests.fakes_empresa import periodo
+
+    comunes = dict(gross_profit=400.0, operating_income=200.0, eps_diluted=1.5, shares_outstanding=100.0,
+                   cash=100.0, long_term_debt=300.0, short_term_debt=0.0, sbc=20.0, total_assets=2000.0,
+                   accounts_receivable=100.0, inventory=80.0)
+    return [
+        periodo(2023, "2024-02-12", **comunes, revenue=900.0, net_income=150.0, cfo=240.0, capex=40.0),
+        periodo(2024, "2025-02-12", **comunes, revenue=1000.0, net_income=155.0, cfo=245.0, capex=45.0),
+        periodo(2025, "2026-02-10", **{**comunes, "revenue": 1100.0, "net_income": 165.0, "cfo": 250.0,
+                                       "capex": 50.0, **ultimo}),
+    ]
+
+
+# --- Confianza por evidencia -------------------------------------------------------------------
+
+
+def _analisis_para_confianza(**cambios) -> dict:
+    """Un análisis mínimo con todos los factores en `ok`; cada caso mueve uno."""
+    hace = lambda dias: (ex.AHORA.date() - timedelta(days=dias)).isoformat()  # noqa: E731
+    a = {
+        "faltan": [],
+        "mercado": {"precio": {"estado": "valido", "fuente": "finnhub", "valor": 100.0},
+                    "historico": {"fuente": "yfinance", "ultimo_cierre": 100.0, "sesiones": 250}},
+        "fundamentales": {"trimestre": {"publicado": hace(30), "periodo": "2026-Q2"},
+                          "publicado": hace(200), "ejercicio": "2025", "ejercicios_disponibles": 5},
+        "valoracion": {"dcf_inverso": {"estado": "valido", "rango": {"bajo": 0.02, "alto": 0.07}}},
+        "decision": {"cambiaria": [{"hacia": "vender", "condiciones": [
+                         {"condicion": "puntuación", "distancia": 0.5, "unidad": "puntos"}]}],
+                     "reglas": [{"regla": "precio", "resultado": "cumple"}], "confidence": "calibrada"},
+        "resultados_proximos": None,
+    }
+    for ruta, valor in cambios.items():
+        destino = a
+        *padres, hoja = ruta.split("__")
+        for p in padres:
+            destino = destino[p]
+        destino[hoja] = valor
+    return a
+
+
+def golden_confianza() -> list[dict]:
+    """Los diez factores de `confianza.evaluar`, cada uno a ambos lados de su umbral.
+
+    El análisis de empresa entero solo rozaba tres o cuatro (casi todo salía
+    «desconocido»), así que mover DIAS_EJERCICIO_VIEJO o DESACUERDO_PRECIO no
+    cambiaba el golden. Aquí cada umbral tiene un caso justo por debajo y otro
+    justo por encima."""
+    from app.analysis import confianza
+
+    hace = lambda dias: (ex.AHORA.date() - timedelta(days=dias)).isoformat()  # noqa: E731
+    sin_trimestre = {"fundamentales__trimestre": {}}
+    cambio = lambda distancia, unidad: {"decision__cambiaria": [  # noqa: E731
+        {"hacia": "vender", "condiciones": [{"condicion": "c", "distancia": distancia, "unidad": unidad}]}]}
+    casos = {
+        "todo_ok": {},
+        **{f"faltan_{n}": {"faltan": [{"dato": f"d{i}"} for i in range(n)]} for n in (1, 3, 4)},
+        "precio_viejo": {"mercado__precio": {"estado": "viejo", "fuente": "finnhub", "valor": 100.0}},
+        "sin_precio": {"mercado__precio": {}},
+        "trimestre_134_dias": {"fundamentales__trimestre": {"publicado": hace(134), "periodo": "2026-Q1"}},
+        "trimestre_136_dias": {"fundamentales__trimestre": {"publicado": hace(136), "periodo": "2026-Q1"}},
+        "ejercicio_454_dias": {**sin_trimestre, "fundamentales__publicado": hace(454)},
+        "ejercicio_456_dias": {**sin_trimestre, "fundamentales__publicado": hace(456)},
+        "sin_fechas": {**sin_trimestre, "fundamentales__publicado": None},
+        "proveedores_9pct": {"mercado__historico__ultimo_cierre": 91.7},
+        "proveedores_11pct": {"mercado__historico__ultimo_cierre": 90.0},
+        "un_solo_proveedor": {"mercado__historico__fuente": "finnhub"},
+        "historico_justo": {"fundamentales__ejercicios_disponibles": 3, "mercado__historico__sesiones": 200},
+        "sesiones_199": {"fundamentales__ejercicios_disponibles": 3, "mercado__historico__sesiones": 199},
+        "dos_ejercicios": {"fundamentales__ejercicios_disponibles": 2},
+        "un_ejercicio": {"fundamentales__ejercicios_disponibles": 1},
+        "dcf_estrecho": {"valoracion__dcf_inverso__rango": {"bajo": 0.02, "alto": 0.11}},
+        "dcf_ancho": {"valoracion__dcf_inverso__rango": {"bajo": 0.02, "alto": 0.13}},
+        "sin_dcf_inverso": {"valoracion__dcf_inverso": {"estado": "desconocido"}},
+        "puntos_a_004": cambio(0.04, "puntos"),
+        "puntos_a_006": cambio(0.06, "puntos"),
+        "precio_a_09pct": cambio(0.9, "%"),
+        "precio_a_11pct": cambio(1.1, "%"),
+        "regla_sin_evaluar": {"decision__reglas": [{"regla": "precio", "resultado": "desconocido"}]},
+        "resultados_en_3_dias": {"resultados_proximos": (ex.AHORA.date() + timedelta(days=3)).isoformat()},
+        "reglas_refutadas": {"decision__confidence": "refutada"},
+        "reglas_sin_calibrar": {"decision__confidence": "sin_calibrar"},
+    }
+    return [_caso(k, confianza.evaluar(_analisis_para_confianza(**v), ex.AHORA)) for k, v in casos.items()]
+
+
+# --- Riesgo de cartera (contribución, clústeres, estrés) ---------------------------------------
+
+
+def _serie_precios(retornos: list[float], hasta=None) -> list[tuple]:
+    """Cierres diarios (sin fines de semana) que acaban `hasta`, desde un precio de 100."""
+    fin = hasta or ex.AHORA.date() - timedelta(days=1)
+    fechas, d = [], fin
+    while len(fechas) < len(retornos) + 1:
+        if d.weekday() < 5:
+            fechas.append(d)
+        d -= timedelta(days=1)
+    fechas.reverse()
+    precios, p = [], 100.0
+    for i, f in enumerate(fechas):
+        if i:
+            p *= 1 + retornos[i - 1]
+        precios.append((f, round(p, 6)))
+    return precios
+
+
+def _ruido(semilla: int, n: int) -> list[float]:
+    import random
+
+    r = random.Random(semilla)
+    return [r.gauss(0, 0.01) for _ in range(n)]
+
+
+def golden_riesgo_cartera() -> list[dict]:
+    """Contribución al riesgo, clústeres, beta, riesgo de añadir, estrés con
+    cobertura y peor ventana. Lo usan el análisis de empresa y el coste de
+    oportunidad, pero con una sola posición en cartera nunca se medían parejas:
+    los umbrales de clúster, beta, cobertura y observaciones mínimas no se veían."""
+    from app.analysis import portfolio_risk as pr
+    from app.analysis.sizing import peor_ventana
+
+    n = 600
+    m = _ruido(1, n)
+    a = [1.4 * x + 0.3 * e for x, e in zip(m, _ruido(2, n))]           # beta ≈ 1,4
+    b = [0.85 * x + 0.55 * e for x, e in zip(a, _ruido(3, n))]         # correlación con A ≈ 0,8
+    c = [0.55 * x + 0.85 * e for x, e in zip(a, _ruido(4, n))]         # ≈ 0,55
+    series = {"A": _serie_precios(a), "B": _serie_precios(b), "C": _serie_precios(c),
+              "D": _serie_precios(_ruido(5, 41)), "E": _serie_precios(_ruido(6, 80))}
+    mercado = _serie_precios(m)
+    posiciones = [
+        {"symbol": "A", "peso": 0.30, "sector": "Tech", "industria": "Chips", "moneda": "USD"},
+        {"symbol": "B", "peso": 0.25, "sector": "Tech", "industria": "Software", "moneda": "USD"},
+        {"symbol": "C", "peso": 0.20, "sector": "Energy", "industria": "Oil", "moneda": "CAD"},
+        {"symbol": "D", "peso": 0.15, "sector": "Health", "industria": "Pharma", "moneda": "USD"},
+        {"symbol": "Z", "peso": 0.10, "sector": "Utilities", "industria": "Power", "moneda": "USD"},
+    ]
+    sin_corta = [p for p in posiciones if p["symbol"] != "D"]
+    # Crisis a medida dentro del histórico sintético: A, B y C la cubren; D, E y Z no.
+    crisis = [{"clave": "prueba", "nombre": "n", "contexto": "c", "caida_sp500_pct": -20.0,
+               "desde": series["A"][-300][0], "hasta": series["A"][-200][0]}]
+    cobertura_45 = [{"symbol": "A", "peso_pct": 45.0}, {"symbol": "Z", "peso_pct": 55.0}]
+    cobertura_55 = [{"symbol": "A", "peso_pct": 55.0}, {"symbol": "Z", "peso_pct": 45.0}]
+    casos = {
+        "contribucion|sin_corta": pr.contribucion_al_riesgo(sin_corta, series, mercado=mercado),
+        "contribucion|con_corta": pr.contribucion_al_riesgo(posiciones, series, mercado=mercado),
+        "contribucion|historia_80": pr.contribucion_al_riesgo(
+            [{"symbol": "A", "peso": 0.5}, {"symbol": "E", "peso": 0.5}], series),
+        "anadir_c": pr.riesgo_de_anadir(sin_corta[:2], series, "C", series["C"], 0.10),
+        "estres|cobertura_45": pr.estres_en_crisis(cobertura_45, series, crisis),
+        "estres|cobertura_55": pr.estres_en_crisis(cobertura_55, series, crisis),
+        "peor_ventana": peor_ventana({"A": 0.6, "C": 0.4}, series),
+        "peor_ventana|corta": peor_ventana({"E": 1.0}, series),
+    }
+    return [_caso(k, v) for k, v in casos.items()]
 
 
 # --- Tesis ------------------------------------------------------------------------------------
@@ -239,8 +411,20 @@ def golden_tesis() -> list[dict]:
         "vacios": {},
         "un_ejercicio": {"ratios": ratios[-1:], "crecimiento": {"revenue_cagr": None}, "noticias": []},
         "con_nan": {"ratios": [{**r, "operating_margin": NAN} for r in ratios], "crecimiento": {}, "noticias": []},
+        # Dentro de la ventana de 14 días, pero fuera si se acortara a 7.
+        "noticia_a_10_dias": {"ratios": ratios, "crecimiento": {"revenue_cagr": 0.03}, "noticias": [
+            {"headline": "Investigan un fraude en Acme", "published_at": (ex.AHORA - timedelta(days=10)).isoformat()}]},
     }
-    return [_caso(k, tw.vigilar(disparadores, d)) for k, d in datos.items()]
+    casos = [_caso(k, tw.vigilar(disparadores, d)) for k, d in datos.items()]
+    # El ROIC calculado de verdad (con su tipo impositivo supuesto) frente a un
+    # punto de tesis: con ratios ya hechos, ese supuesto no se veía.
+    from app.analysis.fundamentals import derive_ratio_series
+
+    roic = [{"kind": "metrica", "config": {"metrica": "roic", "op": op, "umbral": u}}
+            for op, u in (("lt", 0.22), ("gt", 0.26))]
+    casos.append(_caso("ratios_calculados_roic", tw.vigilar(roic, {
+        "ratios": derive_ratio_series(_periodos_valoracion()), "crecimiento": {}, "noticias": []})))
+    return casos
 
 
 # --- Análisis de empresa (decisión, confianza, riesgo, oportunidad, valoración, tesis) ---------
@@ -252,10 +436,9 @@ COMBINACIONES = [(e, "vacia") for e in ex.EMPRESAS] + [
 ]
 
 
-def golden_analisis() -> list[dict]:
+def golden_analisis() -> Iterator[dict]:
     from app import analisis_empresa
 
-    casos = []
     for empresa, cartera in COMBINACIONES:
         sv, symbol = ex.montar_empresa(empresa)
         with _fabrica()() as s:
@@ -263,8 +446,29 @@ def golden_analisis() -> list[dict]:
             if empresa in ("completa", "deuda_parcial"):
                 ex.tesis_con_punto(s, symbol)
             a = analisis_empresa.analizar(symbol, sv, s, ahora=ex.AHORA, con_pares=False)
-        casos.append(_caso(f"{empresa}|{cartera}", a))
-    return casos
+        yield _caso(f"{empresa}|{cartera}", a)
+    yield from _analisis_al_borde(analisis_empresa)
+
+
+def _analisis_al_borde(analisis_empresa) -> Iterator[dict]:
+    """Ventanas del análisis que el paquete de extremos no rozaba: resultados a
+    cinco días (dentro de la ventana de 7) y noticias a 10 y 20 días (la de 14)."""
+    def resultados(sv, symbol, s):
+        sv.calendario = [{"symbol": symbol, "date": (ex.AHORA.date() + timedelta(days=5)).isoformat()}]
+
+    def noticias(sv, symbol, s):
+        sv.noticias[symbol] = [
+            {"headline": "Acme presenta producto", "published_at": (ex.AHORA - timedelta(days=d)).isoformat()}
+            for d in (10, 20)]
+
+    for nombre, cartera, preparar in (("resultados_en_5_dias", "vacia", resultados),
+                                      ("noticias_a_10_y_20_dias", "vacia", noticias)):
+        sv, symbol = ex.montar_empresa("completa")
+        with _fabrica()() as s:
+            ex.montar_cartera(cartera, s, sv)
+            preparar(sv, symbol, s)
+            a = analisis_empresa.analizar(symbol, sv, s, ahora=ex.AHORA, con_pares=False)
+        yield _caso(f"completa|{cartera}|{nombre}", a)
 
 
 # --- Los dos DCF ------------------------------------------------------------------------------
@@ -336,42 +540,54 @@ def _cliente(servicio):
         app.dependency_overrides.clear()
 
 
-def golden_dcf_ficha() -> list[dict]:
-    casos = []
+def golden_dcf_ficha() -> Iterator[dict]:
     for k, periodos in VARIANTES_DCF.items():
         with _cliente(_ServicioValoracion(periodos)) as c:
             d = c.get("/api/stocks/AAPL/valuation/defaults")
-            casos.append(_caso(f"{k}|defaults", {"status": d.status_code, "json": d.json()}))
+            yield _caso(f"{k}|defaults", {"status": d.status_code, "json": d.json()})
             for deuda in (None, 0.0, 1500e6):
                 cuerpo = {"base_fcf": 1000e6, "years": 5, "net_debt": deuda, "shares_outstanding": 100e6,
                           "scenarios": ESCENARIOS_FICHA}
                 r = c.post("/api/stocks/AAPL/valuation/dcf", json=cuerpo)
-                casos.append(_caso(f"{k}|dcf|deuda={deuda}", {"status": r.status_code, "json": r.json()}))
-    return casos
+                yield _caso(f"{k}|dcf|deuda={deuda}", {"status": r.status_code, "json": r.json()})
 
 
-def golden_dcf_modulo() -> list[dict]:
-    casos = []
+def golden_dcf_modulo() -> Iterator[dict]:
     for k, periodos in VARIANTES_DCF.items():
         for precio in (120.0, None):
             with _cliente(_ServicioValoracion(periodos, precio)) as c:
                 r = c.post("/api/valuation/AAPL", json=None)
-                casos.append(_caso(f"{k}|precio={precio}", {"status": r.status_code, "json": r.json()}))
+                yield _caso(f"{k}|precio={precio}", {"status": r.status_code, "json": r.json()})
                 r = c.post("/api/valuation/AAPL", json={"net_debt": 0.0})
-                casos.append(_caso(f"{k}|precio={precio}|deuda_tuya", {"status": r.status_code, "json": r.json()}))
-    return casos
+                yield _caso(f"{k}|precio={precio}|deuda_tuya", {"status": r.status_code, "json": r.json()})
+    # Un precio tan bajo que el DCF inverso pide una caída del FCF fuera de su rango,
+    # y un solo ejercicio (sin crecimiento medible: entra el supuesto declarado).
+    for k, periodos, precio in (("base", VARIANTES_DCF["base"], 3.0),
+                                ("un_ejercicio", _periodos_valoracion()[-1:], 120.0)):
+        with _cliente(_ServicioValoracion(periodos, precio)) as c:
+            r = c.post("/api/valuation/AAPL", json=None)
+            yield _caso(f"{k}|precio={precio}", {"status": r.status_code, "json": r.json()})
 
 
 # --- Lista diaria -----------------------------------------------------------------------------
 
 
-def golden_hoy() -> list[dict]:
+class _ListaHistorialesDistintos(ex.ServicioLista):
+    """Históricos de longitud distinta (240 y 270 sesiones frente a 251): la
+    correlación entre candidatas descarta los que se alejan más de un 5 % de la
+    mediana. Con todos iguales, esa tolerancia no se veía."""
+
+    def _precio(self, i: int, s: str) -> dict:
+        return {**super()._precio(i, s), "points": (251, 240, 270)[i % 3]}
+
+
+def golden_hoy() -> Iterator[dict]:
     from app.routers.signals import _today
 
-    casos = []
-    variantes = [(caso, False) for caso in ex.LISTAS] + [("dia_sin_candidatas", True), ("dia_completo_502", True)]
+    variantes = [(caso, False) for caso in ex.LISTAS] + [("dia_sin_candidatas", True), ("dia_completo_502", True),
+                                                       ("historiales_distintos", False)]
     for caso, con_cartera in variantes:
-        sv = ex.servicio_lista(caso)
+        sv = _ListaHistorialesDistintos() if caso == "historiales_distintos" else ex.servicio_lista(caso)
         with _fabrica()() as s:
             if con_cartera:
                 ex.sembrar_cartera_lista(s)
@@ -387,8 +603,19 @@ def golden_hoy() -> list[dict]:
                          "accion": x["decision"]["action"], "niveles": x["decision"].get("levels")}
                         for x in d["signals"]],
         }
-        casos.append(_caso(f"{caso}|cartera" if con_cartera else caso, compacta))
-    return casos
+        yield _caso(f"{caso}|cartera" if con_cartera else caso, compacta)
+    yield from _conviccion_al_borde()
+
+
+def _conviccion_al_borde() -> Iterator[dict]:
+    """La convicción de una idea a ambos lados de «un factor rema en contra»
+    (−0,5). En la lista sintética las ideas tienen todos los factores a favor."""
+    from app.analysis.shortlist import conviccion
+
+    for en_contra in (-0.2, -0.45, -0.55, -1.1):
+        senal = {"score": 0.5, "families": {"value": 1.2, "quality": 0.8, "momentum": en_contra},
+                 "decision": {"levels": {"stop_pct": 9.0}}}
+        yield _caso(f"conviccion|momentum={en_contra}", conviccion(senal))
 
 
 COMPONENTES = {
@@ -396,6 +623,8 @@ COMPONENTES = {
     "sizing": golden_sizing,
     "oportunidad": golden_oportunidad,
     "calidad": golden_calidad,
+    "confianza": golden_confianza,
+    "riesgo_cartera": golden_riesgo_cartera,
     "tesis": golden_tesis,
     "analisis": golden_analisis,
     "dcf_ficha": golden_dcf_ficha,
@@ -405,8 +634,14 @@ COMPONENTES = {
 
 
 def generar(nombre: str) -> list[dict]:
+    return list(generar_perezoso(nombre))
+
+
+def generar_perezoso(nombre: str) -> Iterator[dict]:
+    """Caso a caso, con el reloj congelado mientras se consumen: el test de
+    sensibilidad para en el primero que cambia en vez de calcularlos todos."""
     with reloj_fijo():
-        return COMPONENTES[nombre]()
+        yield from COMPONENTES[nombre]()
 
 
 def generar_crudo(nombre: str) -> list[dict]:

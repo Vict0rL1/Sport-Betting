@@ -15,8 +15,9 @@ import sys
 import tempfile
 from pathlib import Path
 
-# Como en conftest.py: nunca la base real.
-os.environ.setdefault("DATABASE_PATH", os.path.join(tempfile.mkdtemp(prefix="golden-"), "golden.db"))
+# Como en conftest.py: nunca la base real. Se ASIGNA, no `setdefault`: con
+# DATABASE_PATH exportado en la shell, el motor se conectaría a la base de verdad.
+os.environ["DATABASE_PATH"] = os.path.join(tempfile.mkdtemp(prefix="golden-"), "golden.db")
 
 DIR = Path(__file__).resolve().parent
 
