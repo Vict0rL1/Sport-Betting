@@ -8,7 +8,9 @@ export default defineConfig({
   server: {
     proxy: {
       // El frontend habla siempre con el backend local; nada de keys en el navegador.
-      '/api': 'http://localhost:8000',
+      // API_URL solo lo cambian las capturas de pantalla, que levantan su
+      // propio backend de demostración sin pisar el de la app (8000).
+      '/api': process.env.API_URL ?? 'http://localhost:8000',
     },
   },
   test: {

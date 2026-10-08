@@ -146,6 +146,21 @@ cd backend && .venv/bin/python -m pytest   # lógica financiera, caché, router,
 cd frontend && npm run build               # type-check estricto + build
 ```
 
+### Capturas de pantalla
+
+Todas las pantallas, a 1440 px y a 390 px, con datos ficticios (nunca tu base):
+
+```bash
+cd frontend && npm run capturas -- /ruta/de/salida               # todos los escenarios
+cd frontend && npm run capturas -- /ruta --escenarios con_ia --solo 08_
+```
+
+Levanta su propio backend de demostración (`backend/tests/fixtures/servidor_demo.py`,
+puerto 8077) con el paquete de casos extremos y el reloj congelado, así que dos
+pasadas del mismo código dan las mismas imágenes. Escenarios: normal, cartera vacía,
+día sin candidatas, empresa sin datos y contenido de IA visible. La primera vez:
+`npx playwright install chromium`.
+
 ### Validación con datos reales
 
 Los tests usan datos fabricados; no pueden ver si EDGAR etiqueta los trimestres

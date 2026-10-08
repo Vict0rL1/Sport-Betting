@@ -12,7 +12,7 @@ Material de partida: `docs/REVISION_GENERAL.md` (revisión del 8-oct-2026) y sus
 - [x] **0.2** Integración continua (`.github/workflows/ci.yml`) — estado: hecho · commit: `1fa46c5` · nota: ESLint nuevo (recomendado, pasa limpio); ruff laxo (E9/F63/F7/F82); `tsc -b` en vez de `tsc --noEmit` (el tsconfig raíz no comprueba nada); auditorías solo informan.
 - [x] **0.3** Golden master del motor (`backend/tests/golden/`) — estado: hecho · commit: `9439108` · nota: 9 componentes, reloj congelado con time-machine; 12 umbrales con prueba de sensibilidad; regenerar solo con visto bueno (`python -m tests.golden.generar --escribir`). Ampliado en el commit de 0.5 (veredictos largos y Hoy con cartera), comprobado que lo anterior no cambió.
 - [x] **0.4** Paquete de casos extremos (`backend/tests/fixtures/extremos/`) — estado: hecho · commit: `1c99295` · nota: 8 empresas, 5 carteras, 3 listas diarias; `tests/test_extremos.py` comprueba que cada caso provoca su rareza.
-- [ ] **0.5** Tests contra fugas de texto (backend y frontend) — estado: pendiente · commit: — · nota: —
+- [x] **0.5** Tests contra fugas de texto (backend y frontend) — estado: hecho · commit: `0c6ec32` · nota: trinquete con PENDIENTES por ítem (backend 11, frontend 19); respuestas reales exportadas para el frontend (`python -m tests.fixtures.exportar_frontend`).
 - [ ] **0.6** Capturas repetibles con un solo comando — estado: pendiente · commit: — · nota: —
 - [ ] **0.7** Grabar y reproducir respuestas reales de proveedores — estado: pendiente · commit: — · nota: —
 - [ ] **0.8** Copia de seguridad de la base en `start.sh` — estado: pendiente · commit: — · nota: —
