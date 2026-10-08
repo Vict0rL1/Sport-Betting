@@ -129,6 +129,45 @@ def _finito(x) -> bool:
     return isinstance(x, (int, float)) and math.isfinite(x)
 
 
+# Lo que una grabación TIENE que traer bien. Antes todo iba dentro de
+# `if pedidos[...]["ok"]`: una grabación hecha con claves caducadas (todo 401)
+# pasaba el contrato sin comprobar nada. RY.TO no está en la SEC: sin estados.
+OBLIGATORIOS = {
+    "AAPL": {"quote", "price_history", "financials", "fundamentals"},
+    "T": {"quote", "price_history", "financials", "fundamentals"},
+    "RY.TO": {"quote", "price_history"},
+}
+OBLIGATORIOS_POR_DEFECTO = {"quote", "price_history"}
+MARGENES = ("gross_margin", "operating_margin", "net_margin")
+
+
+def comprobar_unidades(simbolo: str, precio: float | None, ultimo: dict | None, metricas: dict | None) -> None:
+    """Unidades que no dependen del tamaño de la empresa.
+
+    «Ingresos > 1 millón» no veía unos ingresos de Apple en miles (3,9e8 sigue
+    siendo > 1e6). Un cociente sí: precio × acciones / ingresos (el P/S) sale
+    1.000 veces mayor con los ingresos en miles, y el BPA deja de cuadrar con
+    beneficio / acciones si cualquiera de los dos viene en otra escala."""
+    if ultimo:
+        ingresos, acciones, beneficio, bpa = (ultimo.get(k) for k in ("revenue", "shares_outstanding",
+                                                                       "net_income", "eps_diluted"))
+        if precio and ingresos and acciones and ingresos > 0:
+            ps = precio * acciones / ingresos
+            assert 0.05 < ps < 200, f"{simbolo}: P/S de {ps:.4g}; ¿ingresos o acciones en otra escala?"
+        if bpa and beneficio and acciones and abs(beneficio / acciones) > 0.01:
+            cociente = bpa / (beneficio / acciones)
+            assert 0.5 < cociente < 2, f"{simbolo}: BPA {bpa} frente a beneficio/acciones {beneficio / acciones:.4g}"
+    if metricas:
+        for m in MARGENES:
+            v = metricas.get(m)
+            assert v is None or -5 <= v <= 1, f"{simbolo}: {m} = {v}; ¿en porcentaje en vez de fracción?"
+        cap = metricas.get("market_cap")
+        assert cap is None or cap > 1e8, f"{simbolo}: capitalización {cap}; ¿en millones en vez de dólares?"
+        if cap and precio and ultimo and ultimo.get("shares_outstanding"):
+            r = cap / (precio * ultimo["shares_outstanding"])
+            assert 0.5 < r < 2, f"{simbolo}: capitalización {cap:.4g} frente a precio × acciones ({r:.3g}×)"
+
+
 def comprobar_empresa(casete: dict, session_factory) -> dict:
     """Lo grabado de UNA empresa, por proveedores → validación → motor."""
     from app import analisis_empresa
@@ -137,10 +176,16 @@ def comprobar_empresa(casete: dict, session_factory) -> dict:
 
     simbolo = casete["nombre"]
     momento = datetime.fromisoformat(casete["grabado_en"])
+    pedidos = {p["tipo"]: p for p in casete.get("pedidos") or []}
+    faltan = sorted(t for t in OBLIGATORIOS.get(simbolo, OBLIGATORIOS_POR_DEFECTO)
+                    if not pedidos.get(t, {}).get("ok"))
+    assert not faltan, (f"La grabación de {simbolo} no trae {', '.join(faltan)} "
+                        f"({'; '.join(str(pedidos.get(t, {}).get('motivo', 'no se pidió')) for t in faltan)}). "
+                        "¿Claves caducadas o sin red al grabar? Vuelve a grabar.")
     with reales.reproducir(casete), time_machine.travel(momento, tick=False):
         sv = reales.servicio(casete, session_factory)
-        pedidos = {p["tipo"]: p for p in casete.get("pedidos") or []}
 
+        q = ultimo = metricas = None
         if pedidos.get("quote", {}).get("ok"):
             q = sv.get("quote", symbol=simbolo)
             assert _finito(q["price"]) and q["price"] > 0, q
@@ -150,17 +195,19 @@ def comprobar_empresa(casete: dict, session_factory) -> dict:
             assert len(cierres) >= 100 and all(_finito(c) and c > 0 for c in cierres)
             fechas = [str(b["ts"])[:10] for b in h["bars"]]
             assert fechas == sorted(fechas), "el histórico tiene que venir ordenado"
-            if pedidos.get("quote", {}).get("ok"):
+            if q:
                 assert co.cotizacion_frente_a_cierre(simbolo, q, h["bars"], momento.date())[0]["estado"] != co.FAIL
         if pedidos.get("financials", {}).get("ok"):
             f = sv.get("financials", symbol=simbolo)
             ultimo = f["periods"][-1]
-            # Unidades: ingresos en dólares (no en miles), acciones en unidades, BPA por acción.
             assert ultimo.get("revenue") is None or ultimo["revenue"] > 1e6, ultimo.get("revenue")
             assert ultimo.get("shares_outstanding") is None or ultimo["shares_outstanding"] > 1e5
             assert ultimo.get("eps_diluted") is None or -100 < ultimo["eps_diluted"] < 500
             for fila in co.trimestres_frente_al_ano(simbolo, f) + co.fechas_de_publicacion(simbolo, f, momento.date()):
                 assert fila["estado"] != co.FAIL, fila
+        if pedidos.get("fundamentals", {}).get("ok"):
+            metricas = sv.get("fundamentals", symbol=simbolo).get("metrics") or {}
+        comprobar_unidades(simbolo, q["price"] if q else None, ultimo, metricas)
 
         with session_factory() as s:
             a = analisis_empresa.analizar(simbolo, sv, s, ahora=momento, con_pares=False)
@@ -253,3 +300,57 @@ def test_grabar_y_reproducir_de_punta_a_punta(monkeypatch, tmp_path, session_fac
     assert a["noticias"]["items"], "las noticias que pidió el análisis no se reprodujeron"
     assert a["resultados_proximos"], "el calendario que pidió el análisis no se reprodujo"
     assert comprobar_comun(reales.cargar(tmp_path / "_comun.json.gz"), session_factory) == 2
+
+
+# --- 4. Que el contrato no pueda pasar en vacío (revisión de la Fase 0) ----------------------
+
+
+def test_una_grabacion_con_las_claves_caducadas_no_pasa_el_contrato(session_factory):
+    casete = {"nombre": "AAPL", "grabado_en": "2026-10-08T10:00:00+00:00", "http": [], "yfinance": [],
+              "pedidos": [{"tipo": t, "kwargs": {}, "ok": False, "motivo": "401 Unauthorized"}
+                          for t in ("quote", "price_history", "financials", "fundamentals")]}
+    with pytest.raises(AssertionError, match="Claves caducadas"):
+        comprobar_empresa(casete, session_factory)
+
+
+BUENOS = {"revenue": 3.9e11, "shares_outstanding": 1.5e10, "net_income": 9.4e10, "eps_diluted": 6.1}
+
+
+@pytest.mark.parametrize("ultimo,metricas,culpa", [
+    ({**BUENOS, "revenue": 3.9e8}, None, "P/S"),                              # ingresos en miles
+    ({**BUENOS, "shares_outstanding": 1.5e7}, None, "P/S"),                   # acciones en miles
+    ({**BUENOS, "eps_diluted": 6100.0}, None, "BPA"),
+    (BUENOS, {"operating_margin": 30.5}, "porcentaje"),                       # margen en %, no en fracción
+    (BUENOS, {"market_cap": 3.4e6}, "millones"),                              # capitalización en millones
+    (BUENOS, {"market_cap": 3.4e13}, "precio × acciones"),
+])
+def test_las_unidades_raras_se_detectan_sea_cual_sea_el_tamano(ultimo, metricas, culpa):
+    with pytest.raises(AssertionError, match=culpa):
+        comprobar_unidades("AAPL", 227.0, ultimo, metricas)
+
+
+def test_las_unidades_buenas_pasan():
+    comprobar_unidades("AAPL", 227.0, BUENOS, {"operating_margin": 0.31, "gross_margin": 0.46,
+                                               "net_margin": 0.24, "market_cap": 3.4e12})
+
+
+def test_un_cuerpo_json_null_se_reproduce_como_null():
+    casete = reales.casete_vacio("PRUEBA", ["finnhub"])
+    casete["http"].append({"url": "https://x.example/api", "params": {}, "status": 200, "json": None})
+    with reales.reproducir(casete):
+        assert httpx.get("https://x.example/api").json() is None
+
+
+def test_una_grabacion_que_cruza_la_medianoche_no_se_guarda():
+    import importlib.util
+    from datetime import timedelta, timezone
+    from pathlib import Path
+
+    ruta = Path(__file__).resolve().parent.parent / "scripts" / "validar_con_datos_reales.py"
+    spec = importlib.util.spec_from_file_location("validar_con_datos_reales_medianoche", ruta)
+    script = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(script)
+    ayer = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    with pytest.raises(RuntimeError, match="medianoche"):
+        script._sin_cruzar_medianoche({"nombre": "AAPL", "grabado_en": ayer})
+    script._sin_cruzar_medianoche({"nombre": "AAPL", "grabado_en": datetime.now(timezone.utc).isoformat()})

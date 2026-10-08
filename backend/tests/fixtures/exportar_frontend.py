@@ -120,6 +120,10 @@ def _hoy(caso: str, con_cartera: bool = False) -> dict:
         for url in ("/api/signals/today?market=us_sp500", "/api/signals/today?market=us_sp500&refresh=true"):
             d = _pedir(c, rutas, url)
             # Las 502 filas pesan ~1 MB: se guardan las de la lista corta y las primeras.
+            # Las cuentas (`scored`, `requested`, `counts`, sectores) siguen
+            # describiendo el barrido entero: la respuesta queda recortada, no
+            # inventada. Un test que cuadre totales contra la lista no puede usar
+            # estos ficheros (el de fugas solo lee texto).
             corta = {i["symbol"] for i in (d.get("shortlist") or {}).get("ideas") or []}
             d["signals"] = [x for x in d["signals"] if x["symbol"] in corta] + \
                 [x for x in d["signals"] if x["symbol"] not in corta][:MAX_SENALES]

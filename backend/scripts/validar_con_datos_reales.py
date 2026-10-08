@@ -235,6 +235,7 @@ def grabar(simbolos: list[str], destino=None, sesiones_cuota=None) -> list:
                     analisis_empresa.analizar(simbolo, servicio, s, con_pares=False)
                 except Exception as exc:  # noqa: BLE001 — se anota y se sigue con la siguiente
                     casete["analisis_error"] = f"{type(exc).__name__}: {exc}"[:300]
+        _sin_cruzar_medianoche(casete)
         rutas.append(reales.guardar(casete, destino))
 
     comun = reales.casete_vacio("_comun", list(proveedores))
@@ -243,8 +244,20 @@ def grabar(simbolos: list[str], destino=None, sesiones_cuota=None) -> list:
         pedir(comun, "earnings_calendar", start=hoy.isoformat(), end=(hoy + timedelta(days=DIAS_CALENDARIO)).isoformat())
         for moneda in ("CAD", "EUR"):
             pedir(comun, "macro", series_id=fx.SERIES[moneda]["serie"], start=fx.inicio_de_ventana())
+    _sin_cruzar_medianoche(comun)
     rutas.append(reales.guardar(comun, destino))
     return rutas
+
+
+def _sin_cruzar_medianoche(casete: dict) -> None:
+    """La reproducción congela el reloj en `grabado_en`, y la app pide ventanas
+    por fecha (noticias de los últimos días, calendario de los próximos). Si la
+    grabación cruza la medianoche UTC, lo pedido después lleva otra fecha y no se
+    reproduce. No se guarda una grabación que fallaría sin decir por qué."""
+    empezo = datetime.fromisoformat(casete["grabado_en"]).date()
+    if datetime.now(timezone.utc).date() != empezo:
+        raise RuntimeError(f"La grabación de {casete['nombre']} cruzó la medianoche UTC (empezó el {empezo}): "
+                           "vuelve a grabar; lo grabado no se reproduciría.")
 
 
 def main(argv: list[str] | None = None) -> int:

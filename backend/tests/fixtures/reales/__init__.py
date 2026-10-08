@@ -106,12 +106,15 @@ def grabar(casete: dict, recortar_tickers: set[str] | None = None):
 class _Respuesta:
     def __init__(self, e: dict):
         self.status_code = e["status"]
+        # Se mira si se GRABÓ un JSON, no si vale None: un cuerpo `null` es un JSON
+        # válido y antes se reproducía como «sin JSON».
+        self._con_json = "json" in e
         self._json = e.get("json")
         self.text = e.get("text") if "text" in e else json.dumps(self._json)
-        self.headers = {"content-type": "application/json" if "json" in e else "text/html"}
+        self.headers = {"content-type": "application/json" if self._con_json else "text/html"}
 
     def json(self):
-        if self._json is None and "text" in self.__dict__ and self.text is not None:
+        if not self._con_json:
             raise ValueError("sin JSON")
         return self._json
 

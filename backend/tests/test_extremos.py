@@ -18,8 +18,8 @@ from tests.fixtures import extremos as ex
 
 
 def test_estan_todos_los_casos_del_plan():
-    assert {"completa", "todo_ausente", "deuda_parcial", "precio_nan", "precio_negativo",
-            "solo_cache_viejo", "no_sec"} <= set(ex.EMPRESAS)
+    assert {"completa", "todo_ausente", "deuda_parcial", "precio_nan", "precio_nan_sin_historico",
+            "precio_negativo", "solo_cache_viejo", "no_sec"} <= set(ex.EMPRESAS)
     assert {"vacia", "una_posicion", "cad_en_usd", "fx_invertido"} <= set(ex.CARTERAS)
     assert {"dia_completo_502", "dia_sin_candidatas", "sector_pequeno"} <= set(ex.LISTAS)
 
@@ -31,7 +31,18 @@ def _analizar(session_factory, empresa: str, cartera: str = "vacia") -> dict:
         return analisis_empresa.analizar(symbol, sv, s, ahora=ex.AHORA, con_pares=False)
 
 
-@pytest.mark.parametrize("empresa", ["precio_nan", "precio_negativo", "solo_cache_viejo"])
+def test_un_precio_nan_sin_historico_acaba_sin_precio_y_no_cruza_la_frontera(session_factory):
+    """La otra mitad de `precio_nan`: sin cierre al que recurrir, el NaN no puede
+    llegar a `decide` como número; el análisis se queda sin precio y lo dice."""
+    sv, symbol = ex.montar_empresa("precio_nan_sin_historico")
+    assert math.isnan(sv.quotes[symbol]["price"]) and symbol not in sv.historias
+    a = _analizar(session_factory, "precio_nan_sin_historico")
+    precio = a["mercado"]["precio"]
+    assert precio.get("valor") is None and precio.get("estado") != "valido", precio
+    assert a["decision"]["action"] != "comprar"
+
+
+@pytest.mark.parametrize("empresa", ["precio_nan", "precio_nan_sin_historico", "precio_negativo", "solo_cache_viejo"])
 def test_un_precio_dudoso_nunca_produce_una_compra(session_factory, empresa):
     sv, symbol = ex.montar_empresa(empresa)
     precio = sv.quotes[symbol]["price"]

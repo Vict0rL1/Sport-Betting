@@ -72,8 +72,21 @@ def _deuda_parcial(sv: ServicioFalso) -> str:
 
 
 def _precio_nan(sv: ServicioFalso) -> str:
+    """La cotización llega como NaN. El análisis la descarta y cae al último
+    cierre del histórico (marcado «viejo»): lo que llega a `decide` es ese
+    cierre, no el NaN. Para el NaN sin red debajo, `precio_nan_sin_historico`."""
     symbol = _completa(sv, "PNAN")
     sv.quotes[symbol]["price"] = float("nan")
+    return symbol
+
+
+def _precio_nan_sin_historico(sv: ServicioFalso) -> str:
+    """NaN en la cotización y ningún cierre al que recurrir: el análisis tiene
+    que acabar SIN precio, no con un NaN que cruce la frontera hasta `decide`.
+    (La revisión de la Fase 0 vio que `precio_nan` nunca llegaba a probarlo.)"""
+    symbol = _completa(sv, "PNSH")
+    sv.quotes[symbol]["price"] = float("nan")
+    del sv.historias[symbol]
     return symbol
 
 
@@ -84,7 +97,11 @@ def _precio_negativo(sv: ServicioFalso) -> str:
 
 
 def _solo_cache_viejo(sv: ServicioFalso) -> str:
-    """Todas las fuentes fallaron: la cotización es la última copia, de hace 30 min."""
+    """La cotización llega RESCATADA de la caché: marcada «viejo», de hace 30 min
+    y con su aviso, como la sirve `MarketDataService` cuando todas las fuentes
+    fallan. El resto llega fresco: aquí se prueba qué hace el MOTOR con un
+    precio rescatado. El rescate en sí (fuentes caídas, solo caché caducada)
+    lo prueba con la pila real `tests/test_e2e_ciclo.py`, escenario E."""
     symbol = _completa(sv, "VIEJ")
     sv.quotes[symbol].update(estado="viejo", antiguedad_segundos=1800,
                              aviso="Todas las fuentes fallaron: última copia guardada.")
@@ -108,6 +125,7 @@ EMPRESAS = {
     "todo_ausente": _todo_ausente,
     "deuda_parcial": _deuda_parcial,
     "precio_nan": _precio_nan,
+    "precio_nan_sin_historico": _precio_nan_sin_historico,
     "precio_negativo": _precio_negativo,
     "solo_cache_viejo": _solo_cache_viejo,
     "no_sec": _no_sec,
@@ -220,6 +238,28 @@ def tesis_con_punto(session, symbol: str, umbral: float = 0.18) -> None:
 # --- Listas diarias ---------------------------------------------------------------------------
 
 
+class _CacheMemoria:
+    """La caché en memoria de la lista diaria. Propia: el paquete no depende de
+    un fichero de tests (antes importaba `FakeCache` de `tests/test_scan.py`)."""
+
+    def __init__(self):
+        self.datos: dict[str, dict] = {}
+
+    @staticmethod
+    def _clave(tipo, params: dict) -> str:
+        return f"{tipo}|{sorted(params.items())!r}"
+
+    def get(self, tipo, params):
+        payload = self.datos.get(self._clave(tipo, params))
+        return None if payload is None else {**payload, "cached": True}
+
+    def set(self, tipo, params, payload):
+        self.datos[self._clave(tipo, params)] = payload
+
+    def invalidate(self, tipo, params):
+        return self.datos.pop(self._clave(tipo, params), None) is not None
+
+
 class ServicioLista:
     """Puntúa cualquier símbolo con fundamentales deterministas (como el doble
     de `test_today.py`), con precios que SÍ traen media de 200 sesiones y
@@ -230,11 +270,9 @@ class ServicioLista:
     """
 
     def __init__(self, tendencia: str = "a_favor", fallan: set[str] | None = None):
-        from tests.test_scan import FakeCache
-
         self.tendencia = tendencia
         self.fallan = fallan or set()
-        self.cache = FakeCache()
+        self.cache = _CacheMemoria()
         self.ahora = AHORA
 
     def _precio(self, i: int, s: str) -> dict:

@@ -51,15 +51,15 @@ PERMITIDOS_RE = [("upper_snake", re.compile(r"^[A-Z]+_(?:API_KEY|USER_AGENT|MODE
 # «cotiza bajo su media de 200 sesiones (None)», «Margen operativo = nan»,
 # «0 dato(s) desconocido(s)», «lista diaria «us_sp500»», «La señal es «sin_datos»».
 PENDIENTES: dict[tuple[str, str, str], tuple[int, str]] = {
-    ("analisis/confianza/factores/detalle", "plural_parentesis", "(s)"): (55, "1.9"),
+    ("analisis/confianza/factores/detalle", "plural_parentesis", "(s)"): (58, "1.9"),
     ("analisis/confianza/factores/detalle", "snake", "deuda_neta"): (2, "1.8"),
     ("analisis/confianza/factores/detalle", "snake", "revenue_growth"): (2, "1.8"),
-    ("analisis/confianza/razones", "plural_parentesis", "(s)"): (39, "1.9"),
+    ("analisis/confianza/razones", "plural_parentesis", "(s)"): (42, "1.9"),
     ("analisis/confianza/razones", "snake", "deuda_neta"): (2, "1.8"),
     ("analisis/confianza/razones", "snake", "revenue_growth"): (2, "1.8"),
-    ("analisis/coste_oportunidad/veredicto/motivo", "snake", "sin_datos"): (5, "1.8"),
+    ("analisis/coste_oportunidad/veredicto/motivo", "snake", "sin_datos"): (6, "1.8"),
     ("analisis/faltan/dato", "snake", "deuda_neta"): (2, "1.8"),
-    ("analisis/senal/origen", "snake", "us_sp500"): (13, "1.8"),
+    ("analisis/senal/origen", "snake", "us_sp500"): (14, "1.8"),
     ("cartera/api/portfolio/contribucion/nota", "plural_parentesis", "(es)"): (2, "1.9"),
     ("cartera/api/portfolio/divisas/nota", "plural_parentesis", "(es)"): (1, "1.9"),
     ("cartera/api/portfolio/historial/aviso", "plural_parentesis", "(es)"): (1, "1.9"),
@@ -153,4 +153,4 @@ if __name__ == "__main__":
     os.environ["DATABASE_PATH"] = os.path.join(tempfile.mkdtemp(prefix="fugas-"), "fugas.db")
     for (s, tipo, tok), ej in sorted(contar().items()):
         item = PENDIENTES.get((s, tipo, tok), (0, "?"))[1]
-        print(f"    ({s!r}, {tipo!r}, {tok!r}): ({len(ej)}, {item!r}),")
+        print(f'    ("{s}", "{tipo}", "{tok}"): ({len(ej)}, "{item}"),')
