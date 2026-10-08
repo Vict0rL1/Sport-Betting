@@ -87,15 +87,15 @@ la red de seguridad tenía agujeros. Cada hallazgo, su arreglo y su commit:
 | R1 | El golden descartaba códigos con tildes o espacios (`limite: "posición"`, `faltan: ["puntuación"]`…) | hecho: se guardan; un texto sin clasificar es un error | `4742548` |
 | R2 | 14 umbrales (confianza, calidad) y los de `sizing` por defecto sin cubrir | hecho: inventario automático de 117 constantes, 95 cubiertas con prueba, 22 exentas con motivo | `4742548` |
 | R3 | `generar.py` y `exportar_frontend.py` con `setdefault(DATABASE_PATH)` | hecho: asignación | `4742548` |
-| R4 | El trinquete de fugas cuenta por token, no por sitio ni recuento | hecho: por sitio y con recuento (backend 30 filas, frontend 55); el frontend congela el reloj, exige un botón de replay por instantánea y pinta también cabecera, informe, valoración y portafolio | (este commit) |
+| R4 | El trinquete de fugas cuenta por token, no por sitio ni recuento | hecho: por sitio y con recuento (backend 30 filas, frontend 55); el frontend congela el reloj, exige un botón de replay por instantánea y pinta también cabecera, informe, valoración y portafolio | `e7cc849` |
 | R5 | El servidor de demostración inventa datos para VACIA y usa `or 0` | hecho: `ServicioPantallas` completa sin inventar; la demo solo inventa fuera del paquete | `3807b51` |
-| R6 | `capturas.ts` sale con 0 ante fallos; `scripts/` fuera de ESLint y tsc | pendiente | — |
+| R6 | `capturas.ts` sale con 0 ante fallos; `scripts/` fuera de ESLint y tsc | hecho: lista de fallos y código 1 (botón ausente o «Cargando…» a los 15 s cuentan); `tsconfig.scripts.json` y ESLint con globals de Node | (este commit) |
 | R7 | La copia de la base se salta en silencio (`backend/.env`, espacios, otros caminos que migran) | pendiente | — |
 | R8 | `?symbol=` vacío y con espacios pasó a 422 sin documentar; validadores duplicados; `client.ts` sin codificar | pendiente | — |
 | R9 | Tests de contrato que pasan en vacío; unidades | pendiente | — |
 | R10 | Casos extremos que no son lo que dicen (`solo_cache_viejo`, `precio_nan`) | pendiente | — |
 | R11 | Huecos de `test_seguridad.py` (símbolos buenos, rutas tapadas entre routers) | pendiente | — |
-| R12 | `/api/etfs/recomendar` sin verificación visual; README dice POST | pendiente | — |
+| R12 | `/api/etfs/recomendar` sin verificación visual; README dice POST | hecho: ETF ficticios en la demo y captura `22b_etfs_recomendar` (1440 y 390, verificada); README con GET | (este commit) |
 | R13 | El tipo de cambio de la cartera usa la hora real | anotado abajo (cambia el replay: necesita a Victor) | — |
 
 ## Etiquetas
@@ -116,6 +116,15 @@ las etiquetas viven en local. Cada sesión nueva las recrea desde la tabla de ar
   descartan observaciones posteriores. Un análisis a fecha pasada (o un replay) convierte con el tipo de
   hoy, un dato del futuro respecto a esa fecha. Misma familia que el anterior; mismo motivo para no
   tocarlo sin visto bueno.
+- **Sin cotización, la ficha entera desaparece** (destapado al dejar de inventar datos en la demo).
+  `TickerPage` trata la cotización como imprescindible: si falta, enseña «No se encontró el símbolo» y
+  ninguna pestaña, aunque EDGAR tenga estados financieros, análisis, calidad e historial. Ausente ≠ «no
+  existe». Para el ítem 2.1 (estados de dato); hasta entonces la captura `empresa_sin_datos` fotografía eso.
+- **37 `?? 0` en el frontend** (`grep -rn "?? 0" frontend/src`): la mayoría solo eligen un color por el
+  signo, pero alguno puede pintar un 0 donde falta el dato. Misma familia que el `or 0` de la demo. Para
+  1.7 (formato) y 2.1 (estados de dato).
+- **ETFs (captura `22b_etfs_recomendar`)**: «Patrimonio 400.0 B$» en la recomendación frente a «400 mM»
+  en la tabla, y «3 € al año por cada 10.000» en fondos en dólares. Para 1.7 (formato y moneda).
 - **El golden congela `levels.objetivo` / `objetivo_pct`** y la pantalla Hoy lo muestra. Choca con
   «sin precios objetivo» (§3). No lo causa esta fase; si una fase lo retira, el golden cambiará y habrá
   que explicarlo.

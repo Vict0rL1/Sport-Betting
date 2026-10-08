@@ -43,6 +43,26 @@ from tests.fixtures.servicio_pantallas import ServicioPantallas  # noqa: E402
 ESCENARIOS = ("normal", "cartera_vacia", "sin_candidatas", "empresa_sin_datos", "con_ia")
 
 
+# Tres ETF ficticios para la pantalla de ETFs y su recomendación (la ruta que
+# hasta la revisión de la Fase 0 tapaba «/api/etfs/{symbol}»). Comparten
+# posiciones a propósito: así se ve el solapamiento.
+def _cartera_etf(pesos: dict[str, float]) -> list[dict]:
+    return [{"symbol": s, "name": f"{s} Corp", "weight": w} for s, w in pesos.items()]
+
+
+ETFS_DEMO = {
+    "INDX": {"name": "Índice Amplio Demo", "category": "Large Blend", "expense_ratio": 0.0003, "aum": 4.0e11,
+             "dividend_yield": 0.013, "sector_weights": {"technology": 0.31, "healthcare": 0.12, "financial": 0.13},
+             "top_holdings": _cartera_etf({"ACME": 0.07, "PARC": 0.06, "STOP": 0.05, "KO": 0.02})},
+    "TECX": {"name": "Tecnología Demo", "category": "Technology", "expense_ratio": 0.002, "aum": 9.0e10,
+             "dividend_yield": 0.006, "sector_weights": {"technology": 0.62, "communication_services": 0.15},
+             "top_holdings": _cartera_etf({"ACME": 0.12, "PARC": 0.10, "STOP": 0.08})},
+    "TOTX": {"name": "Mercado Total Demo", "category": "Large Blend", "expense_ratio": 0.0004, "aum": 5.5e11,
+             "dividend_yield": 0.014, "sector_weights": {"technology": 0.29, "healthcare": 0.13, "industrials": 0.10},
+             "top_holdings": _cartera_etf({"ACME": 0.06, "PARC": 0.05, "KO": 0.02, "SHOP.TO": 0.01})},
+}
+
+
 class ServicioDemo(ServicioPantallas):
     """El servicio de las pantallas, completado para que TODAS tengan algo que
     enseñar: cotizaciones y fundamentales para símbolos que el paquete no
@@ -79,6 +99,9 @@ class ServicioDemo(ServicioPantallas):
             self.get("quote", symbol=symbol)
         if tipo == "macro" and kw.get("series_id") not in self.macro:
             return self._macro(kw["series_id"])
+        if tipo == "etf_data" and symbol in ETFS_DEMO:
+            return {**ETFS_DEMO[symbol], "symbol": symbol, "currency": "USD", "composicion_error": None,
+                    "as_of": self.ahora.isoformat()}
         if tipo == "news" and symbol is None:
             return {"items": [{"headline": f"Titular de demostración {i}", "summary": "Texto ficticio.",
                                "published_at": (self.ahora - timedelta(hours=3 * i)).isoformat(),

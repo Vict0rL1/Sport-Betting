@@ -13,6 +13,11 @@
  * Salida: <carpeta>/<escenario>/<pantalla>_<ancho>.png. El conjunto «antes» del
  * plan está en docs/revision/.
  *
+ * Si una pantalla no se puede fotografiar —no carga, sigue «Cargando…» o no
+ * existe el botón que había que pulsar— se sigue con las demás y al final se
+ * sale con código 1 y la lista de fallos. Antes se escribía «✗» y se salía con
+ * 0, y una captura de IA podía salir sin IA sin que nada fallara.
+ *
  * Requisitos: el entorno de Python del backend y el Chromium de Playwright
  * (`npx playwright install chromium` la primera vez).
  */
@@ -64,12 +69,11 @@ const ficha = (symbol: string, cuales?: string[]): Pantalla[] =>
 
 const pulsar = (texto: RegExp) => async (p: Page) => {
   const boton = p.getByRole('button', { name: texto }).first()
-  if (await boton.count()) {
-    // `force`: en 390 px la barra lateral tapa el contenido (V2) y el clic
-    // normal espera para siempre a que el botón quede libre.
-    await boton.click({ force: true, timeout: 10000 })
-    await esperar(p)
-  }
+  if (!(await boton.count())) throw new Error(`no aparece el botón ${texto}`)
+  // `force`: en 390 px la barra lateral tapa el contenido (V2) y el clic
+  // normal espera para siempre a que el botón quede libre.
+  await boton.click({ force: true, timeout: 10000 })
+  await esperar(p)
 }
 
 const TODAS: Pantalla[] = [
@@ -86,6 +90,16 @@ const TODAS: Pantalla[] = [
   { nombre: '20_resultados', ruta: '/resultados' },
   { nombre: '21_senales', ruta: '/senales' },
   { nombre: '22_etfs', ruta: '/etfs' },
+  // La recomendación de ETFs: hasta la revisión de la Fase 0, «/api/etfs/{symbol}»
+  // tapaba su ruta y este botón nunca había funcionado.
+  {
+    nombre: '22b_etfs_recomendar',
+    ruta: '/etfs',
+    accion: async (p) => {
+      await p.getByPlaceholder(/Hasta 4 ETFs/).fill('INDX, TECX, TOTX')
+      await pulsar(/Analizar y recomendar/)(p)
+    },
+  },
   { nombre: '23_noticias', ruta: '/noticias' },
 ]
 
@@ -93,10 +107,11 @@ const ESCENARIOS: Record<string, Pantalla[]> = {
   normal: TODAS,
   cartera_vacia: TODAS.filter((p) => ['01_hoy', '13_cartera', '14_portafolio'].includes(p.nombre)),
   sin_candidatas: TODAS.filter((p) => p.nombre === '01_hoy'),
-  empresa_sin_datos: ficha('VACIA', [
-    '03_ficha_resumen', '04_ficha_informe', '06_ficha_valoracion', '07_ficha_salud',
-    '08_ficha_que_cambio', '10_ficha_calidad', '11_ficha_historial',
-  ]),
+  // Sin cotización, la ficha entera se sustituye por «No se encontró el símbolo»
+  // y sus pestañas no existen, aunque EDGAR sí tenga datos (hallazgo de la
+  // revisión de la Fase 0, para el ítem 2.1). Mientras tanto se fotografía eso.
+  // Antes no se veía porque la demo inventaba una cotización para VACIA.
+  empresa_sin_datos: [{ nombre: '03_ficha_sin_cotizacion', ruta: '/ticker/VACIA' }],
   con_ia: [
     { nombre: '04_ficha_informe_ia', ruta: '/ticker/ACME', pestana: 'Informe completo', accion: pulsar(/Redactar informe \(IA\)/) },
     { nombre: '08_ficha_que_cambio_ia', ruta: '/ticker/ACME', pestana: 'Qué cambió', accion: pulsar(/Resumir este diff con IA/) },
@@ -106,13 +121,17 @@ const ESCENARIOS: Record<string, Pantalla[]> = {
 
 async function esperar(p: Page) {
   await p.waitForLoadState('networkidle').catch(() => {})
+  // Una pantalla que sigue cargando a los 15 s no es una captura: es un fallo.
   await p
-    .waitForFunction((re) => !new RegExp(re).test(document.body.innerText), CARGANDO.source, { timeout: 8000 })
-    .catch(() => {})
+    .waitForFunction((re) => !new RegExp(re).test(document.body.innerText), CARGANDO.source, { timeout: 15000 })
+    .catch(() => {
+      throw new Error('la pantalla sigue cargando a los 15 s')
+    })
   await p.waitForTimeout(400)
 }
 
-async function fotografiar(navegador: Browser, pantallas: Pantalla[], carpeta: string, solo?: string[]) {
+async function fotografiar(navegador: Browser, pantallas: Pantalla[], carpeta: string, solo?: string[]): Promise<string[]> {
+  const fallos: string[] = []
   for (const ancho of ANCHOS) {
     const contexto = await navegador.newContext({
       viewport: ancho.viewport,
@@ -142,11 +161,14 @@ async function fotografiar(navegador: Browser, pantallas: Pantalla[], carpeta: s
         })
         console.log(`  ✓ ${archivo}`)
       } catch (e) {
-        console.log(`  ✗ ${archivo}: ${String(e).split('\n')[0]}`)
+        const motivo = String(e).split('\n')[0]
+        console.log(`  ✗ ${archivo}: ${motivo}`)
+        fallos.push(`${archivo}: ${motivo}`)
       }
     }
     await contexto.close()
   }
+  return fallos
 }
 
 async function hastaQueResponda(url: string, segundos = 90) {
@@ -195,6 +217,7 @@ async function main() {
     API_URL: `http://127.0.0.1:${PUERTO_API}`,
   })
   let api: ChildProcess | null = null
+  const fallos: string[] = []
   const navegador = await chromium.launch()
   try {
     await hastaQueResponda(WEB)
@@ -205,7 +228,7 @@ async function main() {
       await hastaQueResponda(`http://127.0.0.1:${PUERTO_API}/api/meta/llm`)
       const carpeta = resolve(salida, escenario)
       mkdirSync(carpeta, { recursive: true })
-      await fotografiar(navegador, ESCENARIOS[escenario], carpeta, solo)
+      fallos.push(...(await fotografiar(navegador, ESCENARIOS[escenario], carpeta, solo)))
       parar(api)
       api = null
       await new Promise((r) => setTimeout(r, 800))
@@ -214,6 +237,10 @@ async function main() {
     await navegador.close()
     parar(api)
     parar(web)
+  }
+  if (fallos.length) {
+    console.error(`\n${fallos.length} ${fallos.length === 1 ? 'captura fallida' : 'capturas fallidas'}:\n  ${fallos.join('\n  ')}`)
+    process.exit(1)
   }
 }
 

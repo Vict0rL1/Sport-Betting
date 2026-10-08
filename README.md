@@ -615,8 +615,8 @@ son medias de sus posiciones — comparar el «P/E» de un ETF de tecnología co
 de uno de utilities mide en qué invierte cada uno, no cuál es mejor. Un z-score
 de valor ahí produciría un ranking con aspecto riguroso y sin significado.
 
-`POST /api/etfs/recomendar` (botón **Analizar y recomendar** en la vista ETFs)
-usa lo que sí predice el resultado de un ETF:
+`GET /api/etfs/recomendar?symbols=VOO,QQQ` (botón **Analizar y recomendar** en la vista
+ETFs) usa lo que sí predice el resultado de un ETF:
 
 1. **El coste, con peso doble.** Es el único factor con evidencia robusta y, a
    diferencia de la rentabilidad, es un dato conocido y garantizado: lo pagas
