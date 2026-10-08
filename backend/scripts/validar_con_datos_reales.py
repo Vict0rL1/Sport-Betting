@@ -4,6 +4,7 @@
     python scripts/validar_con_datos_reales.py NVDA KO --monedas CAD
     python scripts/validar_con_datos_reales.py --solo-cache    # sin descargar nada
     python scripts/validar_con_datos_reales.py --json > validacion.json
+    python scripts/validar_con_datos_reales.py --grabar        # graba respuestas para los tests de contrato
 
 Los tests prueban el código con datos fabricados; esto prueba lo que los tests
 no pueden ver: que los datos reales cuadren entre sí. Ninguna comprobación
@@ -174,6 +175,78 @@ def _imprimir(filas: list[dict]) -> None:
           " (UNKNOWN no es PASS: no se pudo comprobar)")
 
 
+# Empresas por defecto para grabar: una grande de EE. UU., una con mucha deuda y
+# una canadiense (sin registro en la SEC: la grabación dice qué falla).
+GRABAR_POR_DEFECTO = ["AAPL", "T", "RY.TO"]
+
+
+def grabar(simbolos: list[str], destino=None, sesiones_cuota=None) -> list:
+    """Graba las respuestas reales de cada proveedor (ítem 0.7 del plan).
+
+    Cada empresa va a su casete en tests/fixtures/reales/, más uno común con el
+    calendario de resultados y los tipos de cambio. Se descarga TODO de nuevo
+    (caché en memoria) para que cada petición quede grabada; la cuota se cuenta
+    en el registro de llamadas de la app, como siempre.
+    """
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from sqlalchemy.pool import StaticPool
+
+    from app.analysis import fx
+    from app.cache.cache import CacheStore, MarketDataService
+    from app.db import models  # noqa: F401
+    from app.db.engine import Base, SessionLocal
+    from app.deps import build_providers
+    from app.providers.router import DataRouter, RateLimiter
+    from tests.fixtures import reales
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    memoria = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    proveedores = build_providers()
+    servicio = MarketDataService(DataRouter(proveedores, RateLimiter(sesiones_cuota or SessionLocal)),
+                                 CacheStore(memoria))
+    destino = destino or reales.DIR
+    rutas = []
+
+    def pedir(casete, tipo, **kw):
+        try:
+            servicio.get(tipo, **kw)
+            casete.setdefault("pedidos", []).append({"tipo": tipo, "kwargs": kw, "ok": True})
+        except (DataNotFoundError, AllProvidersFailedError) as exc:
+            casete.setdefault("pedidos", []).append({"tipo": tipo, "kwargs": kw, "ok": False, "motivo": str(exc)[:200]})
+
+    for simbolo in simbolos:
+        casete = reales.casete_vacio(simbolo, list(proveedores))
+        with reales.grabar(casete, recortar_tickers={simbolo.split(".")[0]}):
+            pedir(casete, "quote", symbol=simbolo)
+            pedir(casete, "profile", symbol=simbolo)
+            pedir(casete, "price_history", symbol=simbolo, **PARAMS_HISTORIA)
+            pedir(casete, "financials", symbol=simbolo)
+            pedir(casete, "fundamentals", symbol=simbolo)
+            pedir(casete, "news", symbol=simbolo, days=7)
+            # Y el análisis entero: así quedan grabadas las peticiones EXACTAS
+            # que hace la app (ventanas de noticias y de calendario incluidas),
+            # no una aproximación que luego no coincide al reproducir.
+            from app import analisis_empresa
+
+            with memoria() as s:
+                try:
+                    analisis_empresa.analizar(simbolo, servicio, s, con_pares=False)
+                except Exception as exc:  # noqa: BLE001 — se anota y se sigue con la siguiente
+                    casete["analisis_error"] = f"{type(exc).__name__}: {exc}"[:300]
+        rutas.append(reales.guardar(casete, destino))
+
+    comun = reales.casete_vacio("_comun", list(proveedores))
+    hoy = datetime.now(timezone.utc).date()
+    with reales.grabar(comun):
+        pedir(comun, "earnings_calendar", start=hoy.isoformat(), end=(hoy + timedelta(days=DIAS_CALENDARIO)).isoformat())
+        for moneda in ("CAD", "EUR"):
+            pedir(comun, "macro", series_id=fx.SERIES[moneda]["serie"], start=fx.inicio_de_ventana())
+    rutas.append(reales.guardar(comun, destino))
+    return rutas
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description="Coherencia interna de los datos reales.")
     p.add_argument("simbolos", nargs="*", default=SIMBOLOS_POR_DEFECTO)
@@ -184,6 +257,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dias-pasado", type=int, default=DIAS_PASADO,
                    help="antigüedad del análisis a fecha pasada (por defecto 120 días)")
     p.add_argument("--json", action="store_true", help="salida en JSON")
+    p.add_argument("--grabar", action="store_true",
+                   help="graba las respuestas reales para los tests de contrato (por defecto AAPL T RY.TO)")
     args = p.parse_args(argv)
 
     from app.config import settings
@@ -193,6 +268,14 @@ def main(argv: list[str] | None = None) -> int:
 
     configurar_registro()
     init_db()
+    if args.grabar:
+        simbolos = [s.upper() for s in args.simbolos] if args.simbolos != SIMBOLOS_POR_DEFECTO else GRABAR_POR_DEFECTO
+        for ruta in grabar(simbolos):
+            print(f"grabado {ruta}")
+        print("\nRevisa que no haya nada tuyo antes de hacer commit: las claves y las cabeceras no se "
+              "guardan, y cualquier aparición de una clave en un cuerpo sale como ***.\n"
+              "Después: `python -m pytest tests/test_contrato_reales.py -v`.")
+        return 0
     service = get_service()
     monedas = [m.strip().upper() for m in args.monedas.split(",") if m.strip()]
     filas = validar(service, [s.upper() for s in args.simbolos], monedas, solo_cache=args.solo_cache,
