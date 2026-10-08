@@ -65,7 +65,9 @@ npm run setup        # asistente: .env, migraciones, datos (descarga, construcci
 npm run dev          # API (:7374) + web (:7373) → http://localhost:7373
 ```
 
-O a mano: `cp .env.example .env` (pon `ODDS_API_KEY` para cuotas reales), `npm run fetch-data`
+La clave de cuotas se pone con `npm run clave`: la pide sin enseñarla, deja una sola línea
+`ODDS_API_KEY=` en el `.env` de la raíz y la comprueba sin gastar créditos (y avisa si la terminal
+tiene otra que le gana). O a mano: `cp .env.example .env` (y la clave en `ODDS_API_KEY=`), `npm run fetch-data`
 (historia publicada, 9 MB) o `npm run update-all -- --skip-odds` (construirla), y `npm run dev`.
 Sin clave la app arranca en demostración, etiquetada como tal. `npm run go` hace todo lo anterior
 de una vez.

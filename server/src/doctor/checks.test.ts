@@ -42,7 +42,8 @@ test('sin clave: error con la acción exacta', () => {
   const hs = comprobarConfiguracion({ ...base, envCrudo: '', valoresFichero: {}, valoresProceso: {}, clave: { value: '', name: null } });
   const e = buscar(hs, /ODDS_API_KEY no encontrada/);
   assert.equal(e?.nivel, 'error');
-  assert.match(e!.accion!.join(' '), /ODDS_API_KEY=/);
+  // El camino que no se rompe: `npm run clave` (una sola línea, sin eco, comprobada).
+  assert.match(e!.accion![0]!, /^npm run clave/);
 });
 
 test('el alias THE_ODDS_API_KEY se reconoce y se dice de dónde salió', () => {

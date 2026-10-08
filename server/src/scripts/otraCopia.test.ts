@@ -9,10 +9,28 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const { pareceEstaApp, comandoCerrar, mensajeOtraCopia } = (await import(path.join(ROOT, 'scripts', 'otra-copia.mjs'))) as {
-  pareceEstaApp: (port: number, opts?: { timeoutMs?: number }) => Promise<boolean>;
+  pareceEstaApp: (port: number, opts?: { timeoutMs?: number; fetch?: typeof fetch }) => Promise<boolean>;
   comandoCerrar: (puertos: number[], plataforma?: string) => string[];
   mensajeOtraCopia: (o: { web: number | null; api: number | null; plataforma?: string }) => string;
 };
+
+/**
+ * `fetch` está bloqueado en los tests (src/test/setup.ts: nunca la red). Este solo llega a
+ * 127.0.0.1, que es lo único que estas pruebas necesitan.
+ */
+const fetchLocal = ((url: string) =>
+  new Promise((ok, mal) => {
+    const u = new URL(url);
+    if (u.hostname !== '127.0.0.1') return mal(new Error(`solo 127.0.0.1: ${url}`));
+    const req = http.get(u, (res) => {
+      let cuerpo = '';
+      res.setEncoding('utf8');
+      res.on('data', (c: string) => (cuerpo += c));
+      res.on('end', () => ok({ status: res.statusCode ?? 0, text: async () => cuerpo }));
+    });
+    req.on('error', mal);
+    req.setTimeout(500, () => req.destroy(new Error('timeout')));
+  })) as unknown as typeof fetch;
 
 /** Un servidor local que responde lo que se le diga; devuelve su puerto y cómo cerrarlo. */
 async function servidor(responder: (url: string) => { status: number; cuerpo: string }) {
@@ -30,7 +48,7 @@ test('la página de esta app (el <title> de web/index.html) se reconoce', async 
   const html = fs.readFileSync(path.join(ROOT, 'web', 'index.html'), 'utf8');
   const s = await servidor(() => ({ status: 200, cuerpo: html }));
   try {
-    assert.equal(await pareceEstaApp(s.port), true);
+    assert.equal(await pareceEstaApp(s.port, { fetch: fetchLocal }), true);
   } finally {
     await s.cerrar();
   }
@@ -41,7 +59,7 @@ test('la API de esta app (/ready con migraciones y trabajos, aunque sea 503) se 
     url === '/ready' ? { status: 503, cuerpo: JSON.stringify({ ok: false, migraciones: 'pendientes', trabajos: 'ok', detalle: [] }) } : { status: 404, cuerpo: '{"error":"no"}' },
   );
   try {
-    assert.equal(await pareceEstaApp(s.port), true);
+    assert.equal(await pareceEstaApp(s.port, { fetch: fetchLocal }), true);
   } finally {
     await s.cerrar();
   }
@@ -50,12 +68,12 @@ test('la API de esta app (/ready con migraciones y trabajos, aunque sea 503) se 
 test('otro programa en el puerto, o nadie, no es esta app', async () => {
   const otro = await servidor((url) => (url === '/ready' ? { status: 200, cuerpo: '{"ok":true}' } : { status: 200, cuerpo: '<title>Otra cosa</title>' }));
   try {
-    assert.equal(await pareceEstaApp(otro.port), false);
+    assert.equal(await pareceEstaApp(otro.port, { fetch: fetchLocal }), false);
   } finally {
     await otro.cerrar();
   }
   // El puerto de un servidor recién cerrado: nadie escucha.
-  assert.equal(await pareceEstaApp(otro.port, { timeoutMs: 300 }), false);
+  assert.equal(await pareceEstaApp(otro.port, { timeoutMs: 300, fetch: fetchLocal }), false);
 });
 
 test('el comando para cerrarla filtra por LISTEN: nunca el `lsof -ti :puerto` que también mata al navegador', () => {

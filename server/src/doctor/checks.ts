@@ -82,7 +82,7 @@ export function comprobarConfiguracion(e: EntradaConfig): Hallazgo[] {
     out.push(
       h(S, 'error', `No hay .env en ${e.envPath}`, {
         detalle: ['La app lee el .env de la raíz del proyecto, la misma carpeta que package.json.'],
-        accion: [`cp .env.example .env`, `# y escribe tu clave en la línea ODDS_API_KEY=`],
+        accion: ['npm run clave   # crea el .env y pone tu clave (o: cp .env.example .env y escríbela en ODDS_API_KEY=)'],
       }),
     );
   }
@@ -116,7 +116,7 @@ export function comprobarConfiguracion(e: EntradaConfig): Hallazgo[] {
     out.push(
       h(S, 'error', 'Hay una línea que parece tu clave, pero sin `ODDS_API_KEY=` delante', {
         detalle: ['Un .env es una lista de NOMBRE=valor: una línea sin nombre se ignora entera.'],
-        accion: [`nano "${e.envPath}"   # escribe ODDS_API_KEY= delante de la clave`],
+        accion: ['npm run clave   # la pega bien, con su nombre delante', `# o a mano: nano "${e.envPath}" y escribe ODDS_API_KEY= delante de la clave`],
       }),
     );
   }
@@ -125,7 +125,7 @@ export function comprobarConfiguracion(e: EntradaConfig): Hallazgo[] {
   if (!e.clave.value) {
     out.push(
       h(S, 'error', 'ODDS_API_KEY no encontrada: la app arrancará en modo demostración', {
-        accion: [`echo 'ODDS_API_KEY=tu-clave' >> "${e.envPath}"`, '# y reinicia el servidor: npm run dev'],
+        accion: ['npm run clave   # la pide sin enseñarla, la escribe en el .env y la comprueba', '# y reinicia el servidor: npm run dev'],
       }),
     );
   } else {

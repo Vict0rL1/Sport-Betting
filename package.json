@@ -98,6 +98,7 @@
     "study": "npm run study --workspace server --",
     "help": "node scripts/help.mjs",
     "setup": "node scripts/setup.mjs",
+    "clave": "node scripts/clave.mjs",
     "e2e": "npm run e2e --workspace web --",
     "carga": "node scripts/carga.mjs",
     "carga:ci": "node scripts/carga.mjs --arrancar --presupuesto",

@@ -32,7 +32,7 @@ Solo se guardaba *que* había caído, no *por qué*.
 
 | razón | qué pasa | qué hacer |
 | --- | --- | --- |
-| `sin_clave` | falta `ODDS_API_KEY` | ponerla en `.env` y `npm run update-data` |
+| `sin_clave` | falta `ODDS_API_KEY` | `npm run clave` y `npm run update-data` |
 | `fuente_falla` | la clave está, pero el proveedor no contestó: cuota agotada, clave inválida o sin internet | `npm run doctor` — lo dice sin gastar cuota |
 | `sin_eventos` | todo bien, pero no hay tenis en juego | **nada**: entre torneos no se publica nada |
 
@@ -96,7 +96,16 @@ The Odds API. Sin key, la app muestra un demo con partidos de ejemplo.
 
 1. Regístrate gratis en **https://the-odds-api.com** y copia tu API key (botón *Get API Key*).
    El plan gratuito da 500 requests/mes.
-2. En tu archivo `.env`:
+2. Ponla con
+
+   ```bash
+   npm run clave
+   ```
+
+   que la pide sin enseñarla, la escribe en el `.env` de la raíz (lo crea desde `.env.example` si
+   no existe), deja **una sola** línea `ODDS_API_KEY=` aunque hubiera varias, la comprueba contra el
+   listado gratuito del proveedor (no gasta créditos) y avisa si la terminal tiene otra
+   `ODDS_API_KEY` que gana sobre el `.env`. A mano también vale:
 
    ```bash
    ODDS_API_KEY=tu_clave_aqui

@@ -4,6 +4,24 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Puesta en marcha: la clave y la otra copia (2026-10-08)
+
+Lo que falló al instalar la versión con la NHL en otro ordenador, arreglado en la app y no solo
+explicado. Tests: 514 → 524 (436 del servidor + 20 + 68).
+
+- **`npm run clave`**: pide la clave de The Odds API sin enseñarla, la limpia (comillas, `export`,
+  la línea entera pegada, `\r`), deja **una** línea `ODDS_API_KEY=` en el `.env` de la raíz
+  (creándolo desde `.env.example`), la comprueba contra el listado gratuito (no gasta créditos) y
+  avisa si la terminal tiene una `ODDS_API_KEY` —distinta o vacía— que gana sobre el `.env`. No
+  la acepta como argumento (se quedaría en el historial). `npm run setup`, el doctor, `npm run
+  odds`, el arranque del servidor y los avisos de la app apuntan a él.
+- **`npm run dev` se para si ya hay otra copia de la app abierta** en su puerto (la reconoce por
+  el título de la página o por `/ready`), en vez de irse al 7377 y dejar que la dirección de
+  siempre abra la vieja. Da el comando para cerrarla con `-sTCP:LISTEN`: sin ese filtro, `lsof`
+  lista también al navegador conectado y `xargs kill` lo cerraba. `-- --junto` arranca las dos.
+- El título, la descripción y el manifiesto de la web nombran la NHL; el glosario dice «seis
+  deportes».
+
 ## NHL y UFC (2026-10-08)
 
 Petición: añadir la NHL y la UFC. Con la regla de la Fase 8 por delante —un deporte no se publica

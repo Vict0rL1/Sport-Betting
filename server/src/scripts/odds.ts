@@ -83,8 +83,8 @@ if (!env.oddsApiKey) {
   // alguien que ya tiene un problema.
   console.error(
     `\n${C.red}✗ No hay ODDS_API_KEY.${C.off}\n\n` +
-      'Sin clave no hay cuotas reales que pedir. Ponla en el fichero .env de la raíz:\n\n' +
-      "    echo 'ODDS_API_KEY=tu-clave' >> .env\n\n" +
+      'Sin clave no hay cuotas reales que pedir. Ponla en el fichero .env de la raíz con\n\n' +
+      '    npm run clave\n\n' +
       'y vuelve a correr esto. `npm run doctor` comprueba que la clave funciona sin gastar\n' +
       'ni una petición.\n',
   );
@@ -188,7 +188,7 @@ if (sinCuotas.length > 0) {
         console.log(`    si dice 429 o la cuota está a 0, es el plan del mes. \`npm run doctor\`${C.off}`);
         break;
       case 'sin_clave':
-        console.log(`    ${C.dim}Falta ODDS_API_KEY en el .env de la raíz.${C.off}`);
+        console.log(`    ${C.dim}Falta ODDS_API_KEY en el .env de la raíz: npm run clave la pone.${C.off}`);
         break;
       case 'presupuesto':
         console.log(`    ${C.dim}NO se llegó a preguntar: la app se frenó sola para repartir el plan`);

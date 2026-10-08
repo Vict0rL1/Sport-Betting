@@ -140,11 +140,10 @@ function avisoDeCuotas(estado: { nombre: string; vivo: boolean; prefijo: SportPr
           L.push('    Y después:   npm run odds');
           break;
         }
-        L.push('    Falta ODDS_API_KEY. Tiene que estar en el .env de la RAÍZ del proyecto:');
-        L.push(`      ${ENV_PATH}`);
-        L.push('    Con una línea así dentro:   ODDS_API_KEY=tu-clave');
-        L.push('    OJO con `>` y `>>`: `>` BORRA el fichero y escribe encima, `>>` añade.');
-        L.push('    Y después, en otra terminal y dentro de la carpeta:   npm run odds');
+        L.push('    Falta ODDS_API_KEY. Lo más fácil, en otra terminal y dentro de la carpeta:');
+        L.push('      npm run clave   (la pide sin enseñarla, la escribe en el .env y la comprueba)');
+        L.push(`    A mano: una línea ODDS_API_KEY=tu-clave en ${ENV_PATH}`);
+        L.push('    Y después: reinicia esto (Ctrl+C y npm run dev) y, si quieres cuotas ya, npm run odds');
         break;
       }
       case 'fuente_falla':

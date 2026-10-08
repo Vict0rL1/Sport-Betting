@@ -17,6 +17,7 @@ export const GRUPOS = {
 export const SCRIPTS = {
   go: { grupo: 'empezar', ayuda: 'Un solo comando: comprueba, descarga o construye los datos y arranca' },
   setup: { grupo: 'empezar', ayuda: 'Asistente de primera puesta en marcha (.env, migraciones, datos, doctor)' },
+  clave: { grupo: 'empezar', ayuda: 'Pon tu clave de The Odds API en el .env (sin eco, una sola línea) y compruébala gratis' },
   dev: { grupo: 'empezar', ayuda: 'Levanta backend y frontend a la vez (se para si ya hay otra copia abierta; -- --junto para las dos)' },
   'dev:server': { grupo: 'desarrollo', ayuda: 'Solo el backend, con recarga' },
   'dev:web': { grupo: 'desarrollo', ayuda: 'Solo el frontend (Vite)' },
