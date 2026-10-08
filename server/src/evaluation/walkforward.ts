@@ -47,6 +47,7 @@ import { DEFAULT_CONFIG } from '../staking/policy.ts';
 import { versionsFor } from '../versions.ts';
 import { isFinalHoldout, type EvaluationSport } from '../experiments/holdout.ts';
 import type { SportId } from '../sports.ts';
+import { roiDe } from './roi.ts';
 
 /** Un partido del histórico, en orden. `modelo` es null en los de calentamiento. */
 export interface Juego {
@@ -334,10 +335,11 @@ export function walkForward(sport: SportId, juegos: Juego[]): ResultadoWalkForwa
       };
       const r1 = conCuotas.map((j) => apuesta(j.modelo as number[], j)).filter((x): x is number => x != null);
       const r2 = conCuotas.map((j) => apuesta(recal(j.modelo as number[]), j)).filter((x): x is number => x != null);
+      // Una unidad por apuesta: lo arriesgado es el número de apuestas.
       roi = {
         apuestas: r1.length,
-        roi: r1.length ? r1.reduce((u, v) => u + v, 0) / r1.length : null,
-        roiRecalibrado: r2.length ? r2.reduce((u, v) => u + v, 0) / r2.length : null,
+        roi: roiDe(r1.reduce((u, v) => u + v, 0), r1.length),
+        roiRecalibrado: roiDe(r2.reduce((u, v) => u + v, 0), r2.length),
       };
     }
 

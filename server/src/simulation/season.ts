@@ -19,7 +19,7 @@ import path from 'node:path';
 import { CONFIG_DIR, footballLeagueById, leagueById as basketballLeagueById, baseballLeagueById, nflLeagueById } from '../config.ts';
 import { getDb } from '../db.ts';
 import { rng, elegir } from './rng.ts';
-import { calendarioGuardado, reconstruirDobleVuelta, type Fixture, type Calendario } from './calendario.ts';
+import { calendarioGuardado, reconstruirDobleVuelta, type Fixture, type Calendario, pendientesDe } from './calendario.ts';
 import { SPORT_IDS, type SportId } from '../sports.ts';
 
 // ---------------------------------------------------------------------------
@@ -336,8 +336,10 @@ export async function simulacionTemporada(sport: DeporteSimulable, league: strin
   if (!liga) return vacio('liga desconocida');
   const temp = temporadaActual(sport, league);
   if (temp.season == null) return vacio('sin partidos en la base');
-  const hoy = ahora.toISOString().slice(0, 10).replace(/-/g, '');
-  let cal = calendarioGuardado(sport, league, temp.season, hoy);
+  // El calendario ENTERO y, pendiente, lo que no tiene resultado emparejado (lote C, C6): ni se
+  // simula lo ya jugado aunque su fecha sea de hoy, ni se olvida lo aplazado.
+  let cal = calendarioGuardado(sport, league, temp.season);
+  if (cal.origen === 'fuente') cal = { ...cal, partidos: pendientesDe(cal.partidos, temp.jugados) };
   const ids = new Set<string>();
   for (const j of temp.jugados) {
     ids.add(j.homeId);

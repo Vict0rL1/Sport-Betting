@@ -259,6 +259,20 @@ export const MIGRACIONES: Migracion[] = [
       }
     },
   },
+  // strategy_bets.policy_version_id (lote C, C5): la versión de la política con la que se apostó,
+  // como en paper_bets. ALTER TABLE sobre una tabla con triggers de solo-lectura es válido.
+  {
+    version: 21,
+    nombre: 'strategy-bets-politica',
+    destino: 'ledger',
+    up: (d, ctx) => {
+      const tabla = ctx.ledger === 'main' ? 'strategy_bets' : `${ctx.ledger}.strategy_bets`;
+      const existe = (d.prepare(`SELECT COUNT(*) AS n FROM ${ctx.ledger === 'main' ? '' : `${ctx.ledger}.`}sqlite_master WHERE type = 'table' AND name = 'strategy_bets'`).get() as { n: number }).n;
+      if (!existe) return;
+      const cols = (d.prepare(`PRAGMA ${ctx.ledger === 'main' ? '' : `${ctx.ledger}.`}table_info(strategy_bets)`).all() as { name: string }[]).map((c) => c.name);
+      if (!cols.includes('policy_version_id')) d.exec(`ALTER TABLE ${tabla} ADD COLUMN policy_version_id INTEGER`);
+    },
+  },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {

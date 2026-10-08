@@ -4,6 +4,41 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Revisión del 8 de octubre · lote C, dinero y modelo (2026-10-08)
+
+Los diez hallazgos de dinero y medición, reproducidos con un test que fallaba antes y arreglados
+(`docs/plans/fixes-C.md`); ningún parámetro de modelo cambia. Tests: 573 → 585 (492 del servidor
++ 20 + 73); migraciones 20 → 21. Doctor, `verify:data`, `audit`, typecheck, lint, build y
+Playwright en verde.
+
+- **C1 · La combinada no se infla.** Entre partidos distintos la ρ de «misma liga y día» pasa a 0
+  (la medida es indistinguible de cero; la 0,0047 del libro manual es el extremo prudente para
+  dimensionar, no para multiplicar probabilidades) y la corrección nunca sube la conjunta. Dos
+  patas del mismo partido siguen siendo incompatibles (solo se combina el ganador).
+- **C2 · Nada mezcla líneas.** El consenso por instante (`marketAt`) describe la línea más
+  cotizada; las surebets exigen líneas complementarias (misma |línea|) y dicen cuál; el steam
+  solo mide dentro de la misma línea.
+- **C3 · La ventana del steam se aplica.** Sin ningún punto anterior dentro de los 60 minutos no
+  hay steam (antes se medía contra el punto de hace horas).
+- **C4 · La deriva compara lo mismo.** `predicciones()` trae `pModelo` (lo que dijo el modelo) y la
+  monitorización mide PSI y log loss con ello, que es lo que midió el backtest; `p` sigue siendo
+  lo publicado para segmentos y diagramas en vivo.
+- **C5 · Estrategias congeladas del todo.** La configuración guarda también los topes de grupo;
+  el tope de equipo/jugador nunca baja del tope por partido del banco (la primera apuesta de una
+  estrategia con el 4 % ya no se recortaba al 3 %); `strategy_bets.policy_version_id`
+  (migración 21).
+- **C6 · Simulación de temporada.** Pendiente es «sin resultado emparejado» (mismo par y fecha
+  ±1 día), no «fecha futura»: ni se simula lo ya jugado ni se olvida lo aplazado.
+- **C7 · Un solo ROI.** `evaluation/roi.ts` (beneficio / arriesgado) para los siete sitios que lo
+  calculaban; las dos fórmulas daban hoy lo mismo (una unidad por apuesta) y ya no pueden
+  separarse.
+- **C8 · CLV honesto.** El cierre exige una observación POSTERIOR a la apuesta; sin ella se queda a
+  NULL (banco y estrategias).
+- **C9 · Segmentos sin desenlace.** La dimensión «ganó el visitante» (lo que pasó) se sustituye
+  por `lado` (el que favoreció el modelo), que se sabe antes del partido.
+- **C10 · Tenis por id.** La apuesta resuelve su lado contra los nombres del registro y se liquida
+  por `winner_id`; una selección que no es ninguno de los dos se anula, no se pierde.
+
 ## Revisión del 8 de octubre · lote B, seguridad de los datos (2026-10-08)
 
 Los seis hallazgos de datos de la revisión, reproducidos con un test que fallaba antes y

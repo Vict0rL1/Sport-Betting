@@ -178,17 +178,31 @@ export interface MarketPoint {
   line: number | null;
 }
 
-function toPoint(at: string, qs: BookQuote[]): MarketPoint | null {
-  if (qs.length === 0) return null;
+/**
+ * Las cotizaciones de la línea más cotizada (todas, si no hay línea). Un mercado con línea
+ * (totales, hándicap) no se puede resumir mezclando líneas: Más de 2,5 a 1,90 y Más de 3,0 a
+ * 2,20 son la misma `selection` y precios de cosas distintas (lote C, C2).
+ */
+export function deLaLineaMasCotizada(qs: BookQuote[]): { linea: number | null; cuotas: BookQuote[] } {
+  if (qs.every((q) => q.line == null)) return { linea: null, cuotas: qs };
+  const cuenta = new Map<number, number>();
+  for (const q of qs) if (q.line != null) cuenta.set(q.line, (cuenta.get(q.line) ?? 0) + 1);
+  const [linea] = [...cuenta].sort((a, b) => b[1] - a[1] || Math.abs(a[0]) - Math.abs(b[0]))[0];
+  return { linea, cuotas: qs.filter((q) => q.line === linea) };
+}
+
+function toPoint(at: string, todas: BookQuote[]): MarketPoint | null {
+  if (todas.length === 0) return null;
+  // Un punto describe UNA línea: la más cotizada en ese instante.
+  const { linea, cuotas: qs } = deLaLineaMasCotizada(todas);
   const best = qs.reduce((a, b) => (b.odds > a.odds ? b : a));
-  const lines = qs.map((q) => q.line).filter((x): x is number => x != null);
   return {
     at,
     consensus: median(qs.map((q) => q.odds)),
     best: best.odds,
     bestBookmaker: best.bookmaker,
     books: qs.length,
-    line: lines.length ? median(lines) : null,
+    line: linea,
   };
 }
 

@@ -46,6 +46,7 @@ import { devig } from '../market/devig.ts';
 import { gruposDe, cabeEnGrupos } from '../staking/risk.ts';
 import { anotarEnCubos, cabeEnCubos, cubosDe } from '../staking/cubos.ts';
 import { emitirAlerta } from '../alerts/engine.ts';
+import { roiDe } from '../evaluation/roi.ts';
 
 /** El banco inicial del experimento. Se guarda para que cambiarlo sea deliberado. */
 export const BANCO_INICIAL = 1000;
@@ -237,7 +238,7 @@ export function resumen(motivo: string | null = null): Resumen {
     pendientes: todas.length - liq.length,
     // Sin apuestas liquidadas el ROI no es cero: no existe. Enseñar «0 %» invitaría a
     // leerlo como «no gana nada» cuando lo que pasa es que todavía no ha jugado.
-    roi: arriesgado > 0 ? beneficio / arriesgado : null,
+    roi: roiDe(beneficio, arriesgado),
     arriesgado,
     empezado: getMeta(KEY_INICIO),
     ultima: ultimaPasada(),
@@ -737,15 +738,17 @@ export function captureClosing(now = new Date()): { fijados: number } {
   const db = getDb();
   const sinCierre = db
     .prepare(
-      `SELECT id, provider_event_id, provider_selection, market, commence_time, odds FROM paper_bets
+      `SELECT id, provider_event_id, provider_selection, market, commence_time, odds, placed_at FROM paper_bets
         WHERE closing_odds IS NULL AND provider_event_id IS NOT NULL AND commence_time IS NOT NULL AND commence_time <= ?`,
     )
-    .all(now.toISOString()) as { id: number; provider_event_id: string; provider_selection: string; market: string; commence_time: string; odds: number }[];
+    .all(now.toISOString()) as { id: number; provider_event_id: string; provider_selection: string; market: string; commence_time: string; odds: number; placed_at: string }[];
   const upd = db.prepare('UPDATE paper_bets SET closing_odds = ?, closing_line = ?, closing_observed_at = ?, clv = ? WHERE id = ?');
   let fijados = 0;
   for (const a of sinCierre) {
     const cl = closingLine(a.provider_event_id, a.market ?? 'h2h', a.provider_selection, a.commence_time);
-    if (!cl) continue;
+    // Un cierre tiene que ser POSTERIOR a la apuesta (lote C, C8): si nadie volvió a pedir cuotas,
+    // el «cierre» sería el snapshot con el que se apostó (CLV 0) o uno anterior, y no mide nada.
+    if (!cl || cl.at <= a.placed_at) continue;
     upd.run(cl.consensus, cl.line, cl.at, a.odds / cl.consensus - 1, a.id);
     fijados++;
   }
@@ -810,12 +813,11 @@ type Stmt = ReturnType<ReturnType<typeof getDb>['prepare']>;
  */
 export function liquidador(): (a: Pick<ApuestaPapel, 'sport' | 'match_key' | 'selection'>) => Liquidacion | null {
   const db = getDb();
+  // Los nombres del REGISTRO, que son los que vio la apuesta; no los actuales de `players`.
   const tenis = db.prepare(
-    `SELECT l.winner_id, l.p1_id, p1.name AS p1, p2.name AS p2
+    `SELECT l.winner_id, l.p1_id, l.p2_id, l.p1_name AS p1, l.p2_name AS p2
        FROM prediction_log l
-       LEFT JOIN players p1 ON p1.tour = l.tour AND p1.id = l.p1_id
-       LEFT JOIN players p2 ON p2.tour = l.tour AND p2.id = l.p2_id
-      WHERE l.match_key = ? AND l.resolved_at IS NOT NULL`,
+      WHERE l.match_key = ? AND l.resolved_at IS NOT NULL AND l.winner_id IS NOT NULL`,
   );
   const futbol = db.prepare(
     'SELECT home_name, away_name, home_goals AS pc, away_goals AS pf FROM fb_prediction_log WHERE match_key = ? AND resolved_at IS NOT NULL',
@@ -843,12 +845,15 @@ function liquidar(a: Pick<ApuestaPapel, 'sport' | 'match_key' | 'selection'>, q:
     return { status: ganador === a.selection ? 'won' : 'lost', resultado: `ganó ${ganador}${como}` };
   }
   if (a.sport === 'tennis') {
-    const r = q.tenis.get(a.match_key) as { winner_id: number; p1_id: number; p1: string; p2: string } | undefined;
+    const r = q.tenis.get(a.match_key) as { winner_id: number; p1_id: number; p2_id: number; p1: string | null; p2: string | null } | undefined;
     if (!r) return null;
-    // El log guarda el id del ganador; la apuesta, el nombre. Se compara por nombre
-    // porque es lo que se enseñó y lo que se puede auditar leyendo la fila.
+    // La apuesta guarda el nombre que se enseñó (el del registro). Con él se resuelve el LADO y se
+    // liquida por id (lote C, C10): antes se comparaba con el nombre actual de la ficha y una
+    // inicial o un acento distinto la daban por perdida.
+    const ladoId = a.selection === r.p1 ? r.p1_id : a.selection === r.p2 ? r.p2_id : null;
     const ganador = r.winner_id === r.p1_id ? r.p1 : r.p2;
-    return { status: ganador === a.selection ? 'won' : 'lost', resultado: `ganó ${ganador}` };
+    if (ladoId == null) return { status: 'void', resultado: `la selección «${a.selection}» no es ninguno de los dos del registro (${r.p1} / ${r.p2}); anulada` };
+    return { status: ladoId === r.winner_id ? 'won' : 'lost', resultado: `ganó ${ganador}` };
   }
   const st = a.sport === 'football' ? q.futbol : a.sport === 'basketball' ? q.bb : a.sport === 'baseball' ? q.bsb : a.sport === 'nfl' ? q.nfl : a.sport === 'nhl' ? q.nhl : null;
   if (!st) return null;
