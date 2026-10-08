@@ -100,6 +100,9 @@ cp backend/data/app.db backend/data/app.db.antes-rc1   # copia de seguridad
 ./start.sh
 ```
 
+Además, `./start.sh` hace una copia de la base en `backups/app-AAAAMMDD-HHMMSS.db`
+cada vez que arranca, antes de que el backend migre, y guarda las 10 últimas.
+
 Las migraciones son 0001–0008 y ninguna borra datos. Si encuentra posiciones imposibles (cantidad ≤ 0 o
 coste negativo) se niega a seguir y dice cuáles: corrígelas y vuelve a
 arrancar. Para mirar o mover versiones a mano: `cd backend && alembic current`.
