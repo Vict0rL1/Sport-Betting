@@ -75,7 +75,7 @@ export function NuevaEstrategia({ datos, onCreada }: { datos: RespuestaLab; onCr
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
         <span className="text-[12px] text-(--ink-muted)">{t('lab.plantillas')}:</span>
         {(Object.keys(PLANTILLAS) as (keyof typeof PLANTILLAS)[]).map((k) => (
-          <button key={k} type="button" className={pillClass(false)} onClick={() => setF((x) => PLANTILLAS[k](x))}>
+          <button key={k} type="button" className={pillClass(false)} onClick={() => setF((x) => ({ ...PLANTILLAS[k](x), nombre: t(`lab.plantilla.${k}`) }))}>
             {t(`lab.plantilla.${k}`)}
           </button>
         ))}

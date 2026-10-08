@@ -130,7 +130,7 @@ export function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quit
 
 /** Las acciones de «Mi selección» (Fase 5.15). */
 function Acciones({ elegidos, comb }: { elegidos: Pick[]; comb: Combinada | null }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const navigate = useNavigate();
   const [aviso, setAviso] = useState<string | null>(null);
   const decir = (m: string) => {
@@ -146,7 +146,7 @@ function Acciones({ elegidos, comb }: { elegidos: Pick[]; comb: Combinada | null
           className={`${boton} font-medium text-(--ink-strong)`}
           onClick={() => {
             try {
-              localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(borradorDe(elegidos, comb)));
+              localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(borradorDe(elegidos, comb, idioma)));
             } catch {
               // Sin almacenamiento no hay borrador; la página de Apuestas abre el formulario vacío.
             }
@@ -159,7 +159,7 @@ function Acciones({ elegidos, comb }: { elegidos: Pick[]; comb: Combinada | null
           className={boton}
           onClick={() =>
             void navigator.clipboard
-              .writeText(comoTexto(elegidos, comb))
+              .writeText(comoTexto(elegidos, comb, idioma))
               .then(() => decir(t('sel.copiada')))
               .catch(() => decir(t('sel.noCopiar')))
           }
@@ -169,13 +169,13 @@ function Acciones({ elegidos, comb }: { elegidos: Pick[]; comb: Combinada | null
         <button className={boton} onClick={() => descargar(`seleccion-${fecha}.json`, JSON.stringify({ patas: patasDe(elegidos), combinada: comb }, null, 2), 'application/json')}>
           JSON
         </button>
-        <button className={boton} onClick={() => descargar(`seleccion-${fecha}.ics`, comoIcs(elegidos), 'text/calendar;charset=utf-8')}>
+        <button className={boton} onClick={() => descargar(`seleccion-${fecha}.ics`, comoIcs(elegidos, new Date(), idioma), 'text/calendar;charset=utf-8')}>
           {t('sel.calendario')}
         </button>
         <button
           className={boton}
           onClick={() =>
-            void imagenPng(elegidos)
+            void imagenPng(elegidos, idioma)
               .then((b) => descargar(`seleccion-${fecha}.png`, b))
               .catch((e: Error) => decir(t('sel.noImagen', { error: e.message })))
           }

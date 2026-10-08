@@ -33,12 +33,15 @@ export async function suscripcionActual(): Promise<PushSubscription | null> {
 }
 
 /** Pide permiso, se suscribe con la clave VAPID del servidor y guarda la suscripción. */
-export async function activarPush(): Promise<{ ok: boolean; motivo?: string }> {
-  if (!pushDisponible()) return { ok: false, motivo: 'este navegador no soporta notificaciones push' };
+/** El motivo es un código: la pantalla lo dice en su idioma (notif.motivo.*). */
+export type MotivoPush = 'sinSoporte' | 'sinVapid' | 'denegado';
+
+export async function activarPush(): Promise<{ ok: boolean; motivo?: MotivoPush }> {
+  if (!pushDisponible()) return { ok: false, motivo: 'sinSoporte' };
   const { clave } = await json<{ clave: string | null }>('/api/notifications/push/clave');
-  if (!clave) return { ok: false, motivo: 'el servidor no tiene VAPID_PUBLIC_KEY (npm run vapid:generar)' };
+  if (!clave) return { ok: false, motivo: 'sinVapid' };
   const permiso = await Notification.requestPermission();
-  if (permiso !== 'granted') return { ok: false, motivo: 'permiso denegado en el navegador' };
+  if (permiso !== 'granted') return { ok: false, motivo: 'denegado' };
   const reg = await navigator.serviceWorker.register('/sw.js');
   const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64aUint8(clave) as BufferSource });
   const j = sub.toJSON();

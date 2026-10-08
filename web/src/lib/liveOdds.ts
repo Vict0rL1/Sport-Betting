@@ -190,6 +190,6 @@ export interface LatencyReport {
 
 export async function fetchLatency(hours = 24): Promise<LatencyReport> {
   const res = await fetch(`${API}/latency?hours=${hours}`);
-  if (!res.ok) throw new Error(`/api/latency respondió ${res.status}`);
+  if (!res.ok) throw new Error(`/api/latency: HTTP ${res.status}`);
   return (await res.json()) as LatencyReport;
 }

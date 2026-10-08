@@ -18,6 +18,7 @@
 // So the test is against EACH SPORT'S OWN OFF-SEASON. A gap the length of a normal
 // summer break is normal; a gap longer than that means a season is missing.
 
+import { localeDe, tr, type Idioma } from '../i18n';
 /** The sports whose history recency is worth checking. */
 export type StaleSport = 'football' | 'basketball' | 'baseball' | 'nfl' | 'tennis';
 
@@ -104,7 +105,7 @@ export function staleness(
  *
  * Null when the data is current, so the chip simply is not there.
  */
-export function staleLabel(info: Staleness | null): string | null {
+export function staleLabel(info: Staleness | null, idioma: Idioma = 'es'): string | null {
   if (!info?.stale) return null;
-  return `datos de ${info.through.toLocaleDateString('es', { month: 'short', year: 'numeric' })}`;
+  return tr(idioma, 'historia.datosDe', { mes: info.through.toLocaleDateString(localeDe(idioma), { month: 'short', year: 'numeric' }) });
 }

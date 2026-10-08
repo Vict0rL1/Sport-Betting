@@ -3,6 +3,7 @@
 // navegador salvo la imagen, que el servidor dibuja en SVG con los colores de datos.
 
 import type { Combinada, Pick } from './tipos';
+import { localeDe, tr, type Idioma } from '../../i18n';
 
 export const CLAVE_BORRADOR = 'predictor.borradorApuesta';
 
@@ -21,14 +22,16 @@ export interface Pata {
 export const patasDe = (xs: Pick[]): Pata[] =>
   xs.map((p) => ({ sport: p.sport, matchKey: p.matchKey, liga: p.liga, cuando: p.cuando, seleccion: p.favorito, indice: p.opciones.findIndex((o) => o.nombre === p.favorito), resultados: p.opciones.length, p: p.probabilidad, cuota: p.cuota }));
 
-const pctTxt = (x: number) => `${(x * 100).toFixed(1).replace('.', ',')} %`;
+// El texto que sale de la app (portapapeles, calendario, notas) va en el idioma de la pantalla;
+// en español con la coma decimal, como estaba.
+const pctTxt = (x: number, idioma: Idioma = 'es') => `${idioma === 'es' ? (x * 100).toFixed(1).replace('.', ',') : (x * 100).toFixed(1)} %`;
 
 /** El borrador de apuesta personal: una pata, su mercado; varias, una combinada. */
-export function borradorDe(xs: Pick[], c: Combinada | null): Record<string, unknown> {
+export function borradorDe(xs: Pick[], c: Combinada | null, idioma: Idioma = 'es'): Record<string, unknown> {
   const hoy = new Date().toISOString().slice(0, 10);
   if (xs.length === 1) {
     const p = xs[0];
-    return { sport: p.sport, league: p.liga, event: p.partido, market: 'moneyline', selection: p.favorito, odds: p.cuota ?? '', placed_on: hoy, model_prob: p.probabilidad, match_key: p.matchKey, notes: 'Desde Destacados' };
+    return { sport: p.sport, league: p.liga, event: p.partido, market: 'moneyline', selection: p.favorito, odds: p.cuota ?? '', placed_on: hoy, model_prob: p.probabilidad, match_key: p.matchKey, notes: tr(idioma, 'exp.desdeDestacados') };
   }
   return {
     sport: new Set(xs.map((p) => p.sport)).size === 1 ? xs[0].sport : 'other',
@@ -38,14 +41,20 @@ export function borradorDe(xs: Pick[], c: Combinada | null): Record<string, unkn
     odds: c?.cuotaCombinada != null ? Number(c.cuotaCombinada.toFixed(2)) : '',
     placed_on: hoy,
     model_prob: c ? c.conjunta : null,
-    notes: `Combinada de ${xs.length} desde Destacados${c ? ` · conjunta ${pctTxt(c.conjunta)} (correlación descontada)` : ''}`,
+    notes: `${tr(idioma, 'exp.combinada', { n: xs.length })}${c ? tr(idioma, 'exp.conjunta', { p: pctTxt(c.conjunta, idioma) }) : ''}`,
   };
 }
 
-export function comoTexto(xs: Pick[], c: Combinada | null): string {
-  const lineas = xs.map((p) => `• ${p.partido} — ${p.favorito} ${pctTxt(p.probabilidad)}${p.cuota ? ` @ ${p.cuota.toFixed(2)}` : ''} (${new Date(p.cuando).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })})`);
-  const pie = c ? `Acertar todos: ${pctTxt(c.conjunta)}${c.cuotaCombinada != null ? ` · cuota combinada ${c.cuotaCombinada.toFixed(2)}${c.ventaja != null ? ` · ventaja ${c.ventaja >= 0 ? '+' : '−'}${pctTxt(Math.abs(c.ventaja))}` : ''}` : ''}` : '';
-  return ['Mi selección (Sports Predictor)', ...lineas, pie, 'Estimación estadística, no una recomendación.'].filter(Boolean).join('\n');
+export function comoTexto(xs: Pick[], c: Combinada | null, idioma: Idioma = 'es'): string {
+  const lineas = xs.map((p) => `• ${p.partido} — ${p.favorito} ${pctTxt(p.probabilidad, idioma)}${p.cuota ? ` @ ${p.cuota.toFixed(2)}` : ''} (${new Date(p.cuando).toLocaleString(localeDe(idioma), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })})`);
+  const pie = c
+    ? `${tr(idioma, 'exp.acertarTodos', { p: pctTxt(c.conjunta, idioma) })}${
+        c.cuotaCombinada != null
+          ? `${tr(idioma, 'exp.cuotaCombinada', { c: c.cuotaCombinada.toFixed(2) })}${c.ventaja != null ? tr(idioma, 'exp.ventaja', { v: `${c.ventaja >= 0 ? '+' : '−'}${pctTxt(Math.abs(c.ventaja), idioma)}` }) : ''}`
+          : ''
+      }`
+    : '';
+  return [tr(idioma, 'exp.titulo'), ...lineas, pie, tr(idioma, 'exp.estimacion')].filter(Boolean).join('\n');
 }
 
 const fechaIcs = (iso: string) => new Date(iso).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
@@ -68,7 +77,7 @@ export function plegar(linea: string): string {
 }
 
 /** Un VEVENT por partido, con la probabilidad en la descripción (RFC 5545). */
-export function comoIcs(xs: Pick[], ahora = new Date()): string {
+export function comoIcs(xs: Pick[], ahora = new Date(), idioma: Idioma = 'es'): string {
   const eventos = xs.map((p) => {
     const ini = fechaIcs(p.cuando);
     const fin = fechaIcs(new Date(Date.parse(p.cuando) + 2 * 3_600_000).toISOString());
@@ -79,7 +88,7 @@ export function comoIcs(xs: Pick[], ahora = new Date()): string {
       `DTSTART:${ini}`,
       `DTEND:${fin}`,
       `SUMMARY:${escIcs(p.partido)}`,
-      `DESCRIPTION:${escIcs(`${p.favorito}: ${pctTxt(p.probabilidad)} según el modelo${p.cuota ? ` · cuota ${p.cuota.toFixed(2)}` : ''}. Estimación estadística, no una recomendación.`)}`,
+      `DESCRIPTION:${escIcs(tr(idioma, 'exp.ics', { fav: p.favorito, p: pctTxt(p.probabilidad, idioma), cuota: p.cuota ? tr(idioma, 'exp.icsCuota', { c: p.cuota.toFixed(2) }) : '' }))}`,
       'END:VEVENT',
     ].map(plegar).join('\r\n');
   });
@@ -99,7 +108,7 @@ export function descargar(nombre: string, contenido: Blob | string, tipo = 'text
 }
 
 /** Pide el SVG al servidor y lo pasa a PNG en un canvas del navegador. */
-export async function imagenPng(xs: Pick[]): Promise<Blob> {
+export async function imagenPng(xs: Pick[], idioma: Idioma = 'es'): Promise<Blob> {
   const r = await fetch('/api/picks/tarjeta.svg', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ patas: patasDe(xs) }) });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const svg = await r.text();
@@ -108,7 +117,7 @@ export async function imagenPng(xs: Pick[]): Promise<Blob> {
     const img = new Image();
     await new Promise<void>((ok, mal) => {
       img.onload = () => ok();
-      img.onerror = () => mal(new Error('no se pudo dibujar la tarjeta'));
+      img.onerror = () => mal(new Error(tr(idioma, 'exp.noDibujar')));
       img.src = url;
     });
     const escala = 2;
@@ -116,10 +125,10 @@ export async function imagenPng(xs: Pick[]): Promise<Blob> {
     canvas.width = img.width * escala;
     canvas.height = img.height * escala;
     const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('sin canvas');
+    if (!ctx) throw new Error(tr(idioma, 'exp.sinCanvas'));
     ctx.scale(escala, escala);
     ctx.drawImage(img, 0, 0);
-    return await new Promise<Blob>((ok, mal) => canvas.toBlob((b) => (b ? ok(b) : mal(new Error('sin PNG'))), 'image/png'));
+    return await new Promise<Blob>((ok, mal) => canvas.toBlob((b) => (b ? ok(b) : mal(new Error(tr(idioma, 'exp.sinPng')))), 'image/png'));
   } finally {
     URL.revokeObjectURL(url);
   }

@@ -1,6 +1,6 @@
 // La NHL en sombra (Fase 8.1) en Diagnóstico: solo con `deportes.nhl` encendido. Enseña la
 // evaluación del backtest tal cual (sin holdout) y lo que falta; nunca una predicción.
-import { useI18n } from '../i18n';
+import { localeDe, useI18n } from '../i18n';
 import { useFeature } from '../lib/features';
 import { useJson } from '../lib/usarJson';
 
@@ -21,7 +21,7 @@ const f4 = (x: number | null) => (x == null ? '—' : x.toFixed(4));
 const pct = (x: number | null) => (x == null ? '—' : `${(x * 100).toFixed(1)} %`);
 
 function Contenido() {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const d = useJson<Sombra>('/api/nhl/sombra');
   if (d.error) return <p>{d.error}</p>;
   if (!d.datos) return null;
@@ -29,7 +29,7 @@ function Contenido() {
   return (
     <>
       <p className="mb-1">{t('diag.nhlIntro')}</p>
-      <p className="mb-1">{t('diag.nhlPartidos', { partidos: s.partidos.toLocaleString('es'), ultimo: s.ultimo ?? '—', puntuados: s.puntuados.toLocaleString('es'), holdout: s.holdoutExcluido.toLocaleString('es') })}</p>
+      <p className="mb-1">{t('diag.nhlPartidos', { partidos: s.partidos.toLocaleString(localeDe(idioma)), ultimo: s.ultimo ?? '—', puntuados: s.puntuados.toLocaleString(localeDe(idioma)), holdout: s.holdoutExcluido.toLocaleString(localeDe(idioma)) })}</p>
       {s.modelo && (
         <>
           <p>{t('diag.nhlModelo', { ll: f4(s.modelo.logLoss), brier: f4(s.modelo.brier), acierto: pct(s.modelo.accuracy) })}</p>
@@ -43,7 +43,7 @@ function Contenido() {
         </>
       )}
       {s.aviso.texto && <p className="mb-1">{s.aviso.texto}</p>}
-      <p className="mb-1">{t('diag.nhlParametros', { k: s.parametros.k, campo: s.parametros.campo, goles: s.parametros.golesLiga.toLocaleString('es'), prorroga: s.parametros.fuerzaProrroga.toLocaleString('es') })}</p>
+      <p className="mb-1">{t('diag.nhlParametros', { k: s.parametros.k, campo: s.parametros.campo, goles: s.parametros.golesLiga.toLocaleString(localeDe(idioma)), prorroga: s.parametros.fuerzaProrroga.toLocaleString(localeDe(idioma)) })}</p>
       <p className="text-(--ink-muted)">{s.nota}</p>
     </>
   );

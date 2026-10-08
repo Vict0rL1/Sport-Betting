@@ -148,7 +148,7 @@ export default function BaseballDashboard() {
             </>
           )
         }
-        alert={staleLabel(stale)}
+        alert={staleLabel(stale, idioma)}
       >
         <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
           {conNodos(tr('bsb.lema'), { abridor: <strong>{tr('bsb.abridor')}</strong> })}
@@ -164,7 +164,7 @@ export default function BaseballDashboard() {
 
       {/* The ranked-markets panel. Built from the SAME rows the cards below
           render, so the two can never disagree about a number. */}
-      <PicksPanel {...picks} caveat={CAVEATS.baseball} demoOdds={demoOdds} stake={stake} onStakeChange={setStake} />
+      <PicksPanel {...picks} caveat={tr(CAVEATS.baseball)} demoOdds={demoOdds} stake={stake} onStakeChange={setStake} />
 
       <SlateTable rows={slate} demoOdds={demoOdds} refrescadas={meta?.oddsRefreshedAt} bands={meta?.bands} />
 

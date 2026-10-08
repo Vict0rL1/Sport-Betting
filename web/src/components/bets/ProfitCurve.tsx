@@ -84,7 +84,7 @@ export default function ProfitCurve({
         style={{ height }}
         preserveAspectRatio="none"
         role="img"
-        aria-label={`Beneficio acumulado, termina en ${signed(final)}`}
+        aria-label={t('curva.aria', { v: signed(final) })}
         onMouseLeave={() => setHover(null)}
         onMouseMove={(e) => {
           const r = e.currentTarget.getBoundingClientRect();

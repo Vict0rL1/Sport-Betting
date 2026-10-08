@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { crestColors, crestPaint, monogram } from '../../lib/teamColors';
 import { countryName, flagSrc, leagueCountryLabel, leagueFlagSrc, UNKNOWN_COUNTRY } from '../../lib/countries';
+import { useI18n } from '../../i18n';
 /**
  * The 6px dot that says which side something belongs to.
  *
@@ -145,6 +146,7 @@ export function Flag({
   height?: number;
   className?: string;
 }) {
+  const { idioma } = useI18n();
   const code = country?.trim().toUpperCase() ?? '';
   // Sin país no se pinta NADA. Ni un hueco, ni un interrogante: la fila de al lado no
   // tiene por qué desalinearse porque a un jugador le falte un dato.
@@ -152,7 +154,7 @@ export function Flag({
   return (
     <FlagImg
       src={flagSrc(country)}
-      label={name ?? countryName(country)}
+      label={name ?? countryName(country, idioma)}
       code={code}
       height={height}
       className={className}
@@ -182,12 +184,13 @@ export function LeagueFlag({
   height?: number;
   className?: string;
 }) {
+  const { idioma } = useI18n();
   const src = leagueFlagSrc(country);
   if (!src) return null;
   return (
     <FlagImg
       src={src}
-      label={leagueCountryLabel(country)}
+      label={leagueCountryLabel(country, idioma)}
       code=""
       height={height}
       className={className}

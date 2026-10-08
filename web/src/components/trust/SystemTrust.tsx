@@ -7,7 +7,7 @@ import LiveEvaluation from '../bets/LiveEvaluation';
 import Analitica from './Analitica';
 import { SubNav } from '../nav/SubNav';
 import { useSubnavConfianza } from '../../pages/subnav';
-import { useI18n } from '../../i18n';
+import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../../i18n';
 import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { DeporteIcono, ShieldCheckIcon, StatusMark } from '../icons';
 
@@ -40,13 +40,32 @@ interface Riesgo {
   nota: string;
 }
 
-const NOMBRE_TXT: Record<string, string> = { tennis: 'Tenis', football: 'Fútbol', basketball: 'NBA', baseball: 'MLB', nfl: 'NFL' };
-/** El deporte con su icono. */
-const NOMBRE: Record<string, React.ReactNode> = Object.fromEntries(
-  Object.entries(NOMBRE_TXT).map(([k, v]) => [k, <span key={k} className="inline-flex items-center gap-1.5"><DeporteIcono nombre={k} size={15} />{v}</span>]),
-);
-const f3 = (x: number | null | undefined) => (x == null ? '—' : x.toFixed(3).replace('.', ','));
-const pct = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '' : '−'}${Math.abs(x * 100).toFixed(1).replace('.', ',')} %`);
+// Tenis y fútbol salen del catálogo; NBA, MLB y NFL se dicen igual en los dos idiomas.
+const NOMBRE_TXT: Record<string, string> = { tennis: 'deporte.tennis', football: 'deporte.football', basketball: 'NBA', baseball: 'MLB', nfl: 'NFL' };
+const nombreTxt = (t: Traducir, k: string) => {
+  const v = NOMBRE_TXT[k];
+  return v == null ? k : v.startsWith('deporte.') ? t(v as Clave) : v;
+};
+/** El deporte con su icono (nada si no es uno de los cinco, como antes). */
+function Nombre({ sport }: { sport: string }) {
+  const { t } = useI18n();
+  if (!(sport in NOMBRE_TXT)) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <DeporteIcono nombre={sport} size={15} />
+      {nombreTxt(t, sport)}
+    </span>
+  );
+}
+/** Las cifras con la coma decimal en español, como estaban; con punto en inglés. */
+function useCifras() {
+  const { idioma } = useI18n();
+  const dec = (x: string) => (idioma === 'es' ? x.replace('.', ',') : x);
+  return {
+    f3: (x: number | null | undefined) => (x == null ? '—' : dec(x.toFixed(3))),
+    pct: (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '' : '−'}${dec(Math.abs(x * 100).toFixed(1))} %`),
+  };
+}
 const AMBAR = '#d9a441';
 
 function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
@@ -59,6 +78,7 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
 }
 
 function Reproducir() {
+  const { t } = useI18n();
   const [id, setId] = useState('');
   const [r, setR] = useState<{ encontrado: boolean; campos: [string, string][]; avisos: string[] } | null>(null);
   return (
@@ -76,7 +96,7 @@ function Reproducir() {
           placeholder="apuesta:12 · senal:5 · evaluacion:3 · nfl:<clave>"
           className="min-w-0 flex-1 rounded border border-(--line) bg-transparent px-2 py-1 text-[13px] text-(--ink-strong)"
         />
-        <button className="rounded border border-(--line-strong) px-3 py-1 text-[13px] text-(--ink-body)">Reproducir</button>
+        <button className="rounded border border-(--line-strong) px-3 py-1 text-[13px] text-(--ink-body)">{t('st.reproducir')}</button>
       </form>
       {r && (
         <div className="mt-2">
@@ -86,7 +106,7 @@ function Reproducir() {
           {r.avisos.map((a) => <p key={a} style={{ color: AMBAR }}><StatusMark estado="aviso" color={AMBAR} />{a}</p>)}
         </div>
       )}
-      <p className="mt-1 text-[12px] text-(--ink-faint)">Devuelve lo que se guardó en su momento; no recalcula nada con los datos de hoy. También en terminal: npm run reproduce -- &lt;id&gt;.</p>
+      <p className="mt-1 text-[12px] text-(--ink-faint)">{t('st.reproducirNota')}</p>
     </div>
   );
 }
@@ -111,54 +131,65 @@ interface Experimentos {
 }
 
 function ModelosSombra() {
+  const { t } = useI18n();
+  const { f3 } = useCifras();
   const [d, setD] = useState<Sombras | null>(null);
   useEffect(() => {
     fetch('/api/shadows').then((r) => r.json()).then(setD).catch(() => {});
   }, []);
-  if (!d) return <p>Cargando…</p>;
+  if (!d) return <p>{t('comun.cargando')}</p>;
   return (
     <>
       {d.sombras.length === 0 ? (
-        <p>Todavía no hay sombras con partidos resueltos: se guardan al servir cada partido real, en el mismo instante que el modelo principal.</p>
+        <p>{t('st.sinSombras')}</p>
       ) : (
         d.sombras.map((x) => (
           <p key={x.sport + x.nombre}>
-            {NOMBRE[x.sport]} · {x.nombre}: N {x.n} · log loss sombra {f3(x.sombra.logLoss)} contra campeón {f3(x.campeon.logLoss)} · {x.diferencia.veredicto}
-            {x.aviso.texto && <span style={{ color: AMBAR }}> · <StatusMark estado="aviso" color={AMBAR} size={13} />muestra pequeña</span>}
+            <Nombre sport={x.sport} /> · {t('st.sombraLinea', { nombre: x.nombre, n: x.n, s: f3(x.sombra.logLoss), c: f3(x.campeon.logLoss), veredicto: x.diferencia.veredicto })}
+            {x.aviso.texto && <span style={{ color: AMBAR }}> · <StatusMark estado="aviso" color={AMBAR} size={13} />{t('st.muestraPequena')}</span>}
           </p>
         ))
       )}
       {Object.entries(d.ensembles).map(([sport, e]) =>
         e ? (
           <p key={sport}>
-            Ensemble {NOMBRE[sport]} ({e.componentes.join(' + ')}): mejor fuera de muestra «{e.mejor}», log loss {f3(e.metodos[e.mejor].validacion.logLoss)} contra
-            campeón {f3(e.metodos[e.mejor].validacion.logLossCampeon)} en {e.metodos[e.mejor].validacion.n} partidos del histórico.
+            {conNodos(
+              t('st.ensemble', {
+                componentes: e.componentes.join(' + '),
+                mejor: e.mejor,
+                ll: f3(e.metodos[e.mejor].validacion.logLoss),
+                llc: f3(e.metodos[e.mejor].validacion.logLossCampeon),
+                n: e.metodos[e.mejor].validacion.n,
+              }),
+              { deporte: <Nombre sport={sport} /> },
+            )}
           </p>
         ) : null,
       )}
-      <p className="text-[12px] text-(--ink-faint)">Ninguna sombra apuesta ni se promociona sola: cambiar de modelo exige un experimento registrado.</p>
+      <p className="text-[12px] text-(--ink-faint)">{t('st.ningunaSombra')}</p>
     </>
   );
 }
 
 function HistoriaVersiones() {
+  const { t } = useI18n();
   const [d, setD] = useState<{ historial: Record<string, Version[]>; nota: string | null } | null>(null);
   useEffect(() => {
     fetch('/api/model-history').then((r) => r.json()).then(setD).catch(() => {});
   }, []);
-  if (!d) return <p>Cargando…</p>;
+  if (!d) return <p>{t('comun.cargando')}</p>;
   if (d.nota) return <p>{d.nota}</p>;
   return (
     <>
       {Object.entries(d.historial).map(([sport, vs]) => (
         <details key={sport} className="mb-1">
           <summary className="cursor-pointer text-(--ink-body)">
-            {NOMBRE[sport]}: {vs.length} versiones · activa {vs[vs.length - 1]?.version}
+            <Nombre sport={sport} />: {t('st.versiones', { n: vs.length, v: vs[vs.length - 1]?.version ?? '' })}
           </summary>
           <ul className="ml-3 mt-1">
             {[...vs].reverse().map((v, i) => (
               <li key={v.version}>
-                v{vs.length - i} <span className="text-(--ink-body)">{v.version}</span> · {v.activada.slice(0, 10)} → {v.desactivada ? v.desactivada.slice(0, 10) : 'activa'} · {v.git_commit} — {v.motivo}
+                v{vs.length - i} <span className="text-(--ink-body)">{v.version}</span> · {v.activada.slice(0, 10)} → {v.desactivada ? v.desactivada.slice(0, 10) : t('st.activa')} · {v.git_commit} — {v.motivo}
                 <span className="text-(--ink-faint)"> ({v.metricas})</span>
               </li>
             ))}
@@ -170,32 +201,31 @@ function HistoriaVersiones() {
 }
 
 function Rechazados() {
+  const { t } = useI18n();
   const [d, setD] = useState<Experimentos | null>(null);
   useEffect(() => {
     fetch('/api/experiments').then((r) => r.json()).then(setD).catch(() => {});
   }, []);
-  if (!d) return <p>Cargando…</p>;
+  if (!d) return <p>{t('comun.cargando')}</p>;
   return (
     <>
-      <p>
-        {d.total} experimentos registrados: {d.aceptados} aceptados, {d.rechazados.length} rechazados y {d.noConcluyentes} no concluyentes. Los rechazados no se
-        borran:
-      </p>
+      <p>{t('st.experimentos', { total: d.total, a: d.aceptados, r: d.rechazados.length, nc: d.noConcluyentes })}</p>
       <ul className="mt-1 space-y-1">
         {d.rechazados.slice(0, 12).map((x) => (
           <li key={x.id}>
             <span className="text-(--ink-faint)">{x.date.slice(0, 10)}</span> <span className="text-(--ink-body)">{x.hypothesis}</span>
-            <span className="block text-[12px]">Rechazado. Motivo: {x.motivo}</span>
+            <span className="block text-[12px]">{t('st.rechazado', { motivo: x.motivo })}</span>
           </li>
         ))}
       </ul>
-      {d.rechazados.length > 12 && <p className="text-[12px] text-(--ink-faint)">…y {d.rechazados.length - 12} más (npm run experiments).</p>}
+      {d.rechazados.length > 12 && <p className="text-[12px] text-(--ink-faint)">{t('st.yMas', { n: d.rechazados.length - 12 })}</p>}
     </>
   );
 }
 
 export default function SystemTrust() {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
+  const { f3, pct } = useCifras();
   const subnav = useSubnavConfianza();
   const [s, setS] = useState<Sistema | null>(null);
   const [alertas, setAlertas] = useState<Alerta[]>([]);
@@ -211,15 +241,15 @@ export default function SystemTrust() {
     };
   }, []);
   const nav = <SubNav etiqueta={t('nav.subConfianza')} enlaces={subnav} />;
-  if (error) return <>{nav}<p className="text-[14px] text-(--ink-soft)">No se pudo leer el estado del sistema.</p></>;
-  if (!s) return <>{nav}<p className="text-[14px] text-(--ink-muted)">Cargando…</p></>;
+  if (error) return <>{nav}<p className="text-[14px] text-(--ink-soft)">{t('st.errorLeer')}</p></>;
+  if (!s) return <>{nav}<p className="text-[14px] text-(--ink-muted)">{t('comun.cargando')}</p></>;
   const tiles: [string, string][] = [
-    ['Predicciones en vivo', `${s.prediccionesEnVivo} (${s.resueltas} con resultado)`],
-    ['Apuestas de papel', `${s.apuestasEnVivo} (${s.liquidadas} liquidadas)`],
-    ['Días registrados', s.diasRegistrados == null ? '—' : String(s.diasRegistrados)],
-    ['CLV medio', pct(s.clvMedio)],
+    [t('st.tile.predicciones'), t('st.tile.prediccionesValor', { n: s.prediccionesEnVivo, r: s.resueltas })],
+    [t('st.tile.apuestas'), t('st.tile.apuestasValor', { n: s.apuestasEnVivo, l: s.liquidadas })],
+    [t('st.tile.dias'), s.diasRegistrados == null ? '—' : String(s.diasRegistrados)],
+    [t('st.tile.clv'), pct(s.clvMedio)],
     ['ROI', pct(s.roi)],
-    ['Peor caída', s.maxDrawdownPct == null ? '—' : `−${pct(s.maxDrawdownPct)}`],
+    [t('st.tile.caida'), s.maxDrawdownPct == null ? '—' : `−${pct(s.maxDrawdownPct)}`],
   ];
   return (
     <div>
@@ -228,10 +258,10 @@ export default function SystemTrust() {
           <span className="grid h-9 w-9 place-items-center rounded-xl" style={{ color: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.12)' }}>
             <ShieldCheckIcon size={21} />
           </span>
-          ¿Podemos confiar en el modelo?
+          {t('st.titulo')}
         </h2>
       <p className="mb-4 text-[13px] text-(--ink-muted)">
-        Lo que está demostrado, lo que todavía no, y las cifras detrás. Las listas se generan con reglas sobre las muestras reales: cambian solas cuando hay más datos.
+        {t('st.intro')}
       </p>
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {tiles.map(([k, v]) => (
@@ -241,77 +271,83 @@ export default function SystemTrust() {
           </div>
         ))}
       </div>
-      <Bloque titulo="Lo que sabemos">
+      <Bloque titulo={t('st.sabemos')}>
         <ul className="space-y-1">{s.sabemos.map((x) => <li key={x}><StatusMark estado="ok" color={PROFIT_COLOR} />{x}</li>)}</ul>
       </Bloque>
-      <Bloque titulo="Lo que todavía no podemos concluir">
+      <Bloque titulo={t('st.noSabemos')}>
         <ul className="space-y-1">{s.noSabemos.map((x) => <li key={x}><StatusMark estado="aviso" color={AMBAR} />{x}</li>)}</ul>
       </Bloque>
-      <Bloque titulo="Histórico (walk-forward): modelo, mejor baseline y mercado">
+      <Bloque titulo={t('st.historico')}>
         <div className="overflow-x-auto">
           <table className="w-full whitespace-nowrap text-[12px] sm:text-[13px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
-                <th className="py-1 pr-2">Deporte</th><th className="py-1 pr-2 text-right">Partidos</th><th className="py-1 pr-2 text-right">Modelo</th><th className="py-1 pr-2">Mejor baseline</th><th className="py-1 text-right">Mercado</th>
+                <th className="py-1 pr-2">{t('st.th.deporte')}</th><th className="py-1 pr-2 text-right">{t('st.th.partidos')}</th><th className="py-1 pr-2 text-right">{t('st.th.modelo')}</th><th className="py-1 pr-2">{t('st.th.baseline')}</th><th className="py-1 text-right">{t('st.th.mercado')}</th>
               </tr>
             </thead>
             <tbody>
               {s.benchmark.map((b) => (
                 <tr key={b.deporte} className="border-t border-(--line)">
-                  <td className="py-1 pr-2 text-(--ink-body)">{NOMBRE[b.deporte]}</td>
+                  <td className="py-1 pr-2 text-(--ink-body)"><Nombre sport={b.deporte} /></td>
                   <td className="py-1 pr-2 text-right">{b.partidos || '—'}</td>
                   <td className="py-1 pr-2 text-right text-(--ink-strong)">{f3(b.modelo)}</td>
                   <td className="py-1 pr-2">{b.mejorBaseline ? `${b.mejorBaseline.nombre} ${f3(b.mejorBaseline.logLoss)}` : '—'}</td>
                   <td className="py-1 text-right" style={{ color: b.mercado != null && b.modelo != null && b.mercado < b.modelo ? LOSS_COLOR : undefined }}>
-                    {b.mercado == null ? 'sin cuotas' : `${f3(b.mercado)}${b.modelo != null && b.mercado < b.modelo ? ' (mejor)' : ''}`}
+                    {b.mercado == null ? t('st.sinCuotas') : `${f3(b.mercado)}${b.modelo != null && b.mercado < b.modelo ? t('st.mejor') : ''}`}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        <p className="mt-1 text-[12px] text-(--ink-faint)">Log loss, más bajo es mejor. Todos los periodos, sin elegir; el holdout final no entra. Detalle: npm run benchmark:report.</p>
+        <p className="mt-1 text-[12px] text-(--ink-faint)">{t('st.logLossNota')}</p>
       </Bloque>
       {/* El modelo en vivo (antes en Apuestas, Fase 5.6): es evaluación del modelo, no dinero. */}
       <div className="mb-4">
         <LiveEvaluation />
       </div>
       <Analitica />
-      <Bloque titulo="En vivo, por deporte">
+      <Bloque titulo={t('st.enVivo')}>
         {s.brier.map((b) => (
           <p key={b.deporte}>
-            {NOMBRE[b.deporte]}: {b.n} partidos · Brier {f3(b.brier)} · calibración ±{pct(b.ece)}
-            {b.n < 100 && <span style={{ color: AMBAR }}> · <StatusMark estado="aviso" color={AMBAR} size={13} />muestra pequeña</span>}
+            <Nombre sport={b.deporte} />: {t('st.brierLinea', { n: b.n, b: f3(b.brier), e: pct(b.ece) })}
+            {b.n < 100 && <span style={{ color: AMBAR }}> · <StatusMark estado="aviso" color={AMBAR} size={13} />{t('st.muestraPequena')}</span>}
           </p>
         ))}
       </Bloque>
       {riesgo && (
-        <Bloque titulo="Riesgo abierto">
-          <p>Total: {pct(riesgo.total.pct)} del banco (tope {pct(riesgo.total.limite)}){riesgo.porDeporte.length ? ` · ${riesgo.porDeporte.map((d) => `${NOMBRE_TXT[d.deporte] ?? d.deporte} ${pct(d.pct)}`).join(' · ')}` : ''}</p>
+        <Bloque titulo={t('st.riesgo')}>
+          <p>
+            {t('st.riesgoTotal', {
+              p: pct(riesgo.total.pct),
+              l: pct(riesgo.total.limite),
+              resto: riesgo.porDeporte.length ? ` · ${riesgo.porDeporte.map((d) => `${nombreTxt(t, d.deporte)} ${pct(d.pct)}`).join(' · ')}` : '',
+            })}
+          </p>
           {riesgo.grupos.map((g) => (
-            <p key={g.grupo} style={{ color: g.excede ? LOSS_COLOR : undefined }}>{g.grupo}: {g.apuestas} apuestas, {pct(g.pct)} (tope {pct(g.limite)})</p>
+            <p key={g.grupo} style={{ color: g.excede ? LOSS_COLOR : undefined }}>{t('st.grupo', { grupo: g.grupo, n: g.apuestas, p: pct(g.pct), l: pct(g.limite) })}</p>
           ))}
           <p className="text-[12px] text-(--ink-faint)">{riesgo.nota}</p>
         </Bloque>
       )}
-      <Bloque titulo="Alertas recientes">
-        {alertas.length === 0 ? <p>Ninguna todavía.</p> : alertas.map((a) => (
+      <Bloque titulo={t('st.alertas')}>
+        {alertas.length === 0 ? <p>{t('st.ninguna')}</p> : alertas.map((a) => (
           <p key={a.id}>
-            <span className="text-(--ink-faint)">{new Date(a.created_at).toLocaleString('es')}</span>{' '}
+            <span className="text-(--ink-faint)">{new Date(a.created_at).toLocaleString(localeDe(idioma))}</span>{' '}
             <span style={{ color: a.severity === 'importante' ? LOSS_COLOR : a.severity === 'aviso' ? AMBAR : undefined }}>{a.title}</span> — {a.body}
           </p>
         ))}
       </Bloque>
-      <Bloque titulo="Modelos en sombra y ensembles">
+      <Bloque titulo={t('st.sombras')}>
         <ModelosSombra />
       </Bloque>
-      <Bloque titulo="Evolución de los modelos (desde git)">
+      <Bloque titulo={t('st.evolucion')}>
         <HistoriaVersiones />
       </Bloque>
-      <Bloque titulo="Experimentos rechazados">
+      <Bloque titulo={t('st.rechazados')}>
         <Rechazados />
       </Bloque>
-      <Bloque titulo="Reproducir una predicción o apuesta">
+      <Bloque titulo={t('st.reproducirTitulo')}>
         <Reproducir />
       </Bloque>
     </div>

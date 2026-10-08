@@ -41,7 +41,7 @@ export default function NotificacionesPanel() {
     }
     const r = await activarPush();
     setPush(r.ok);
-    if (!r.ok) setResultado((x) => ({ ...x, webpush: r.motivo ?? t('notif.noActivar') }));
+    if (!r.ok) setResultado((x) => ({ ...x, webpush: r.motivo ? t(`notif.motivo.${r.motivo}`) : t('notif.noActivar') }));
   }
 
   return (

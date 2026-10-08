@@ -105,8 +105,9 @@ export function CardSkeleton() {
 }
 
 export function SkeletonList({ count = 3 }: { count?: number }) {
+  const { t } = useI18n();
   return (
-    <div className="space-y-4" aria-busy="true" aria-label="Cargando partidos">
+    <div className="space-y-4" aria-busy="true" aria-label={t('skeleton.cargando')}>
       {Array.from({ length: count }, (_, i) => (
         <CardSkeleton key={i} />
       ))}

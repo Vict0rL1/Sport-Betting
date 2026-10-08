@@ -145,7 +145,7 @@ export default function NflDashboard() {
         refreshing={refreshing}
         refreshTitle={tr('eq.refrescarTitulo')}
         chips={meta && (<>{tr('eq.chipsEquipos', { partidos: meta.counts.games.toLocaleString(localeDe(idioma)), equipos: meta.counts.teams })}</>)}
-        alert={staleLabel(stale)}
+        alert={staleLabel(stale, idioma)}
       >
           <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
             {tr('nfl.lema')}
@@ -163,7 +163,7 @@ export default function NflDashboard() {
           render, so the two can never disagree about a number. */}
       <PicksPanel
         {...picks}
-        caveat={CAVEATS.nfl}
+        caveat={tr(CAVEATS.nfl)}
         demoOdds={demoOdds}
         confidenceReason={tr('nfl.ordenConfianza')}
         stake={stake}

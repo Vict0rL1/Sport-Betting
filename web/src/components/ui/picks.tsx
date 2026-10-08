@@ -3,7 +3,27 @@ import { useState } from 'react';
 import { INK, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { relativeTime, shortTime } from '../../lib/format';
 import { StatusMark } from '../icons';
-import { conNodos, localeDe, useI18n } from '../../i18n';
+import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../../i18n';
+
+// Los nombres de mercado y selección son también claves de lib/picks (tasas base, orden): se
+// traducen al pintarlos, no en los datos.
+const MERCADO: Record<string, Clave> = {
+  'Doble oportunidad': 'pick.mercado.dobleOportunidad',
+  'Total de goles': 'pick.mercado.totalGoles',
+  'Ambos marcan': 'pick.mercado.ambosMarcan',
+  Ganador: 'pick.mercado.ganador',
+  Hándicap: 'pick.mercado.handicap',
+  'Línea de carreras': 'pick.mercado.lineaCarreras',
+  'Total de puntos': 'pick.mercado.totalPuntos',
+  'Total de carreras': 'pick.mercado.totalCarreras',
+};
+const mercadoPick = (t: Traducir, m: string) => (MERCADO[m] ? t(MERCADO[m]) : m);
+function seleccionPick(t: Traducir, s: string): string {
+  if (s === 'Empate') return t('fbc.empateBarra');
+  if (s === 'Sí') return t('pick.sel.si');
+  const doble = /^(.*) o empate$/.exec(s);
+  return doble ? t('pick.sel.oEmpate', { nombre: doble[1] }) : s;
+}
 /**
  * "Lo que el modelo destacaría" — the ranked markets panel.
  *
@@ -202,8 +222,8 @@ export function PicksPanel({
                       </span>
                     </td>
                     <td className="px-3 py-2.5">
-                      <span className="block font-semibold text-(--ink-strong)">{p.selection}</span>
-                      <span className="block text-[12px] text-(--ink-muted)">{p.market}</span>
+                      <span className="block font-semibold text-(--ink-strong)">{seleccionPick(t, p.selection)}</span>
+                      <span className="block text-[12px] text-(--ink-muted)">{mercadoPick(t, p.market)}</span>
                     </td>
                     <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-(--ink-strong)">
                       {pct(p.modelProb)}

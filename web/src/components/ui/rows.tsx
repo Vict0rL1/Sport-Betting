@@ -118,10 +118,11 @@ export function ProbabilityBar({
  * «+0,0 pp» ocupa sitio para decir que no hay ninguna.
  */
 export function MarketGap({ model, market }: { model: number; market: number | null | undefined }) {
+  const { t } = useI18n();
   if (market == null) return null;
   const pp = (model - market) * 100;
   if (Math.abs(pp) < 0.5) {
-    return <span className="text-[12px] text-(--ink-muted)">coincide con el mercado</span>;
+    return <span className="text-[12px] text-(--ink-muted)">{t('pb.coincide')}</span>;
   }
   return (
     <span className="text-[12px] tabular-nums text-(--ink-muted)">

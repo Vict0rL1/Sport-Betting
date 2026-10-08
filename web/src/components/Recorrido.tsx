@@ -36,7 +36,7 @@ export default function Recorrido({ vistoEnServidor, onVisto }: { vistoEnServido
         <p className="text-[16px] font-semibold text-(--ink-strong)">{t('recorrido.titulo')}</p>
         <p className="mt-2 min-h-[4.5rem] leading-relaxed">{pasos[paso]}</p>
         <div className="mt-3 flex items-center justify-between">
-          <span className="flex gap-1" role="img" aria-label={`Paso ${paso + 1} de ${pasos.length}`}>
+          <span className="flex gap-1" role="img" aria-label={t('recorrido.paso', { n: paso + 1, total: pasos.length })}>
             {pasos.map((_, i) => (
               <span key={i} className="h-1.5 w-5 rounded-full" style={{ backgroundColor: i === paso ? 'var(--ink-body)' : 'var(--raised-2)' }} />
             ))}

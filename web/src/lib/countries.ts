@@ -36,6 +36,7 @@
  */
 
 import countriesJson from '../../../config/countries.json';
+import { localeDe, tr, type Idioma } from '../i18n';
 
 /** Un país: su ISO-3166 alpha-2 (el que nombra el fichero de la bandera) y su nombre. */
 export interface Country {
@@ -78,12 +79,26 @@ export function iso2(code: string | null | undefined): string | null {
   return COUNTRIES[key]?.iso2 ?? null;
 }
 
-/** El nombre en español, o el propio código si no se conoce. Para el `title`. */
-export function countryName(code: string | null | undefined): string {
+/**
+ * El nombre del país, o el propio código si no se conoce. Para el `title`.
+ *
+ * En español, el de la tabla. En inglés lo da `Intl.DisplayNames` a partir del ISO-2 (no hace
+ * falta una segunda tabla de 200 nombres); si el navegador no lo sabe, el de la tabla.
+ */
+export function countryName(code: string | null | undefined, idioma: Idioma = 'es'): string {
   if (!code) return '';
   const key = code.trim().toUpperCase();
-  if (UNKNOWN_COUNTRY.has(key)) return 'país desconocido';
-  return COUNTRIES[key]?.name ?? key;
+  if (UNKNOWN_COUNTRY.has(key)) return tr(idioma, 'pais.desconocido');
+  const pais = COUNTRIES[key];
+  if (idioma !== 'es' && pais?.iso2 && /^[a-z]{2}$/i.test(pais.iso2)) {
+    try {
+      const nombre = new Intl.DisplayNames([localeDe(idioma)], { type: 'region' }).of(pais.iso2.toUpperCase());
+      if (nombre) return nombre;
+    } catch {
+      // Sin Intl.DisplayNames: el nombre en español.
+    }
+  }
+  return pais?.name ?? key;
 }
 
 /** La ruta de la bandera en `public/`, o null. `fetch-flags` deja los ficheros ahí. */
@@ -172,7 +187,7 @@ export function leagueFlagSrc(country: string | null | undefined): string | null
 }
 
 /** El nombre de la sede tal como se enseña: sin el emoji, que ahora lo pinta el SVG. */
-export function leagueCountryLabel(country: string | null | undefined): string {
+export function leagueCountryLabel(country: string | null | undefined, idioma: Idioma = 'es'): string {
   if (!country) return '';
   const trimmed = country.trim();
   const first = [...trimmed][0];
@@ -181,5 +196,5 @@ export function leagueCountryLabel(country: string | null | undefined): string {
     const space = trimmed.indexOf(' ');
     return space > 0 ? trimmed.slice(space + 1) : '';
   }
-  return countryName(trimmed) || trimmed;
+  return countryName(trimmed, idioma) || trimmed;
 }

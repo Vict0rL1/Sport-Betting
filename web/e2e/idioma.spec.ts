@@ -1,4 +1,8 @@
-import { test, expect } from '@playwright/test';
+import { test, expect as esperar } from '@playwright/test';
+
+// Margen para todo el fichero: con dos workers, estas páginas (cada una pide su trozo de JS) pueden
+// coincidir con el informe en PDF de producto.spec, que ocupa el servidor unos segundos.
+const expect = esperar.configure({ timeout: 15_000 });
 
 // La interfaz en inglés (seguimiento de la Fase 5.25): el texto sale del catálogo, no del
 // componente. Lo que genera el servidor (razones, notas) sigue en español y no se comprueba aquí.
@@ -97,9 +101,7 @@ test('béisbol y NFL en inglés: cabecera y aviso sin datos', async ({ page }) =
 test('destacados, página no encontrada y panel de preguntas en inglés', async ({ page }) => {
   test.slow();
   await page.goto('/destacados');
-  // Margen: con dos workers puede coincidir con el informe en PDF de producto.spec, que ocupa
-  // el servidor unos segundos mientras esta página pide su trozo de JS.
-  await expect(page.getByRole('heading', { name: 'Highlights', level: 2 })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole('heading', { name: 'Highlights', level: 2 })).toBeVisible();
   await expect(page.getByText('How to read the list')).toBeVisible();
   await expect(page.getByText('Cómo leer la lista')).toHaveCount(0);
   await page.goto('/no-existe-esta-ruta');

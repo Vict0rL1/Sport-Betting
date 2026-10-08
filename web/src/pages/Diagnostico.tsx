@@ -8,7 +8,7 @@ import LatencyPanel from '../components/LatencyPanel';
 import NhlSombra from '../components/NhlSombra';
 import { STATUS } from '../lib/theme';
 import { StatusMark } from '../components/icons';
-import { useI18n } from '../i18n';
+import { localeDe, useI18n } from '../i18n';
 import { SubNav } from '../components/nav/SubNav';
 import { useSubnavConfianza } from './subnav';
 
@@ -18,7 +18,6 @@ interface ErrorFila { id: number; created_at: string; request_id: string | null;
 interface DatosEstado { layout: string; history: { ruta: string; mb: number | null }; ledger: { ruta: string; mb: number | null } | null; backup: Record<string, unknown>; retencion: { ultima: string | null; borradas: number } }
 interface Cuota { remaining: number | null; used: number | null; hasKey: boolean; reserve: number; plan: number | null; lastError: string | null; autoRefreshMinutes: number; recommendedRefreshMinutes: number | null }
 
-const fecha = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
 const colorEstado = (s: string | null) => (s === 'ok' ? STATUS.good : s === 'error' ? STATUS.critical : STATUS.warning);
 
 function usarJson<T>(url: string): T | null | 'error' {
@@ -46,7 +45,9 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
 }
 
 export default function Diagnostico() {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
+  const fecha = (iso: string | null | undefined) =>
+    iso ? new Date(iso).toLocaleString(localeDe(idioma), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
   const subnav = useSubnavConfianza();
   const ingestas = usarJson<{ ultimas: Ejecucion[]; historial: Ejecucion[] }>('/api/ingestion-runs');
   const errores = usarJson<{ errores: ErrorFila[]; total24h: number }>('/api/errores?limite=30');
@@ -57,7 +58,7 @@ export default function Diagnostico() {
   return (
     <div>
       <p className="mb-1 text-[12px] text-(--ink-muted)">
-        <Link to="/confianza" className="underline-offset-2 hover:underline">Confianza</Link> › Diagnóstico
+        <Link to="/confianza" className="underline-offset-2 hover:underline">{t('nav.confianza')}</Link> › {t('nav.diagnostico')}
       </p>
       <SubNav etiqueta={t('nav.subConfianza')} enlaces={subnav} />
       <h2 className="mb-1 text-[20px] font-semibold text-(--ink-strong)">{t('nav.diagnostico')}</h2>
@@ -69,13 +70,13 @@ export default function Diagnostico() {
           <>
             <p className="mb-2">{trabajos.arrancado ? t('diag.registroEnMarcha') : t('diag.registroParado')}</p>
             <ul className="space-y-1">
-              {trabajos.trabajos.map((t) => (
-                <li key={t.nombre} className="flex flex-wrap items-baseline gap-x-2">
-                  <StatusMark estado={t.lastStatus === 'ok' ? 'ok' : t.lastStatus === 'error' ? 'error' : 'aviso'} color={colorEstado(t.lastStatus)} />
-                  <span className="text-(--ink-body)">{t.nombre}</span>
-                  <span>{t.enabled ? `cada ${t.cadenciaMin} min${t.cadenciaMin !== t.cadenciaPorDefecto ? ` (código: ${t.cadenciaPorDefecto})` : ''}` : 'apagado'}</span>
-                  <span>· última {fecha(t.lastRunAt)}{t.lastDurationMs != null ? ` (${(t.lastDurationMs / 1000).toFixed(1)} s)` : ''} · {t.runsOk} ok / {t.runsError} error</span>
-                  {t.lastError && <span style={{ color: STATUS.critical }}>{t.lastError}</span>}
+              {trabajos.trabajos.map((x) => (
+                <li key={x.nombre} className="flex flex-wrap items-baseline gap-x-2">
+                  <StatusMark estado={x.lastStatus === 'ok' ? 'ok' : x.lastStatus === 'error' ? 'error' : 'aviso'} color={colorEstado(x.lastStatus)} />
+                  <span className="text-(--ink-body)">{x.nombre}</span>
+                  <span>{x.enabled ? `${t('diag.cada', { n: x.cadenciaMin })}${x.cadenciaMin !== x.cadenciaPorDefecto ? t('diag.codigo', { d: x.cadenciaPorDefecto }) : ''}` : t('aj.apagado')}</span>
+                  <span>{t('diag.ultima', { fecha: fecha(x.lastRunAt) })}{x.lastDurationMs != null ? ` (${(x.lastDurationMs / 1000).toFixed(1)} s)` : ''} · {x.runsOk} ok / {x.runsError} error</span>
+                  {x.lastError && <span style={{ color: STATUS.critical }}>{x.lastError}</span>}
                 </li>
               ))}
             </ul>
@@ -134,8 +135,13 @@ export default function Diagnostico() {
         {datos === 'error' && <p>{t('comun.error')}</p>}
         {datos && datos !== 'error' && (
           <>
-            <p>Disposición: {datos.layout} · history.db {datos.history.mb != null ? `${datos.history.mb.toFixed(1)} MB` : ''}{datos.ledger ? ` · ledger.db ${datos.ledger.mb != null ? `${datos.ledger.mb.toFixed(1)} MB` : ''}` : ''}</p>
-            <p>Última copia: {fecha(String((datos.backup as { ultima?: string | null }).ultima ?? '') || null)} · retención de snapshots: {datos.retencion.ultima ? `${fecha(datos.retencion.ultima)}, ${datos.retencion.borradas} borradas` : 'sin pasada'}</p>
+            <p>{t('diag.disposicion', { layout: datos.layout })} · history.db {datos.history.mb != null ? `${datos.history.mb.toFixed(1)} MB` : ''}{datos.ledger ? ` · ledger.db ${datos.ledger.mb != null ? `${datos.ledger.mb.toFixed(1)} MB` : ''}` : ''}</p>
+            <p>
+              {t('diag.copia', {
+                fecha: fecha(String((datos.backup as { ultima?: string | null }).ultima ?? '') || null),
+                retencion: datos.retencion.ultima ? t('diag.borradas', { fecha: fecha(datos.retencion.ultima), n: datos.retencion.borradas }) : t('diag.sinPasada'),
+              })}
+            </p>
           </>
         )}
       </Bloque>
@@ -144,7 +150,10 @@ export default function Diagnostico() {
         {cuota === 'error' && <p>{t('comun.error')}</p>}
         {cuota && cuota !== 'error' && (!cuota.hasKey ? <p>{t('diag.sinClave')}</p> : (
           <p>
-            {cuota.remaining ?? '?'} peticiones restantes{cuota.plan ? ` de ${cuota.plan.toLocaleString('es')}` : ''}{cuota.used != null ? ` · ${cuota.used} usadas` : ''} · reserva {cuota.reserve} · refresco cada {cuota.recommendedRefreshMinutes ?? cuota.autoRefreshMinutes} min
+            {t('diag.restantes', { n: cuota.remaining ?? '?' })}
+            {cuota.plan ? t('diag.dePlan', { plan: cuota.plan.toLocaleString(localeDe(idioma)) }) : ''}
+            {cuota.used != null ? t('diag.usadas', { n: cuota.used }) : ''}
+            {t('diag.reserva', { r: cuota.reserve, m: cuota.recommendedRefreshMinutes ?? cuota.autoRefreshMinutes })}
             {cuota.lastError && <span style={{ color: STATUS.critical }}> · {cuota.lastError}</span>}
           </p>
         ))}

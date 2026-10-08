@@ -44,7 +44,7 @@ const Informes = lazy(() => import('./pages/Informes'));
 const InformeDetalle = lazy(() => import('./pages/Informe'));
 const Lineas = lazy(() => import('./pages/Lineas'));
 const Archivo = lazy(() => import('./pages/Archivo'));
-import { I18nProvider, idiomaGuardado, useI18n, type Clave } from './i18n';
+import { I18nProvider, idiomaGuardado, localeDe, useI18n, type Clave } from './i18n';
 import { aplicarTema, temaGuardado, type Tema } from './lib/tema';
 
 /**
@@ -246,10 +246,10 @@ function Armazon() {
 /** «Sin conexión: datos de HH:MM» (Fase 5.26). */
 function BannerSinConexion() {
   const enLinea = useEnLinea();
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   if (enLinea) return null;
   const u = ultimaRed();
-  const hora = u ? new Date(u).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+  const hora = u ? new Date(u).toLocaleString(localeDe(idioma), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
   return (
     <p role="status" aria-live="polite" data-testid="sin-conexion" className="mb-4 rounded-lg border border-[#c98500]/50 px-3 py-2 text-[13px] text-(--ink-body)">
       {t('sinConexion', { hora })}
