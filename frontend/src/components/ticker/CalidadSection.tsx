@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { CalidadBeneficios, EvidenciaCalidad, Linaje } from '../../api/types'
-import { fmtNumber, fmtPct } from '../../lib/format'
+import { fmtNum, fmtPct } from '../../lib/formato'
 
 const ESTADO: Record<string, string> = {
   bueno: 'bg-emerald-100 text-emerald-800',
@@ -34,7 +34,7 @@ function Entrada({ nombre, e }: { nombre: string; e: Linaje }) {
   return (
     <li className="text-[11px] text-slate-500">
       <span className="text-slate-700">{nombre.replace(/_/g, ' ')}:</span>{' '}
-      {e.valor === null ? 'desconocido' : Math.abs(e.valor) >= 1e5 ? `${fmtNumber(e.valor / 1e6, 1)} M` : fmtNumber(e.valor, 2)}
+      {e.valor === null ? 'desconocido' : Math.abs(e.valor) >= 1e5 ? `${fmtNum(e.valor / 1e6, 1)} M` : fmtNum(e.valor, 2)}
       {e.formulario && (
         <span className="ml-1 text-slate-400">
           · {e.formulario} {e.accn} · publicado {e.publicado} · {e.etiqueta}
@@ -53,7 +53,7 @@ function Fila({ e }: { e: EvidenciaCalidad }) {
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${ESTADO[e.estado]}`}>{e.estado.toUpperCase()}</span>
         <span className="font-medium text-slate-800">{CATEGORIA[e.categoria] ?? e.categoria}</span>
         <span className="tabular-nums text-slate-600">
-          {e.valor === null ? '—' : esFraccion ? fmtPct(e.valor, 1) : `${fmtNumber(e.valor, 2)}×`}
+          {e.valor === null ? '—' : esFraccion ? fmtPct(e.valor, 1) : `${fmtNum(e.valor, 2)}×`}
         </span>
         <span className="text-slate-400">{e.periodo ? `ejercicio ${e.periodo}` : ''}</span>
         {e.persistente && <span className="rounded bg-red-100 px-1 text-[10px] text-red-800">persistente</span>}
@@ -135,7 +135,7 @@ export function CalidadSection({ symbol }: { symbol: string }) {
                           const v = f[c] as number | null | undefined
                           return (
                             <td key={c} className="text-slate-600">
-                              {v == null ? '—' : c === 'dias_de_cobro' ? fmtNumber(v, 0) : c.includes('beneficio') ? `${fmtNumber(v, 2)}×` : fmtPct(v, 1)}
+                              {v == null ? '—' : c === 'dias_de_cobro' ? fmtNum(v, 0) : c.includes('beneficio') ? `${fmtNum(v, 2)}×` : fmtPct(v, 1)}
                             </td>
                           )
                         })}

@@ -5,7 +5,7 @@ import type {
   DeepDiveReport,
   MultipleStats,
 } from '../../api/types'
-import { fmtBig, fmtNumber, fmtPct } from '../../lib/format'
+import { fmtCompacto, fmtNum, fmtPct } from '../../lib/formato'
 import { useLlmStatus } from '../../lib/llm'
 import { BloqueIA, BotonIA } from '../ia/ContenidoIA'
 import { DeudaParcial } from './DeudaParcial'
@@ -52,12 +52,12 @@ function RangeBar({ stats }: { stats: MultipleStats }) {
       <div
         className="absolute top-1 h-4 w-px bg-slate-400"
         style={{ left: `${medianPos}%` }}
-        title={`Mediana ${fmtNumber(stats.median)}`}
+        title={`Mediana ${fmtNum(stats.median)}`}
       />
       <div
         className="absolute top-0.5 h-5 w-1 rounded bg-slate-900"
         style={{ left: `calc(${Math.min(Math.max(pos, 0), 100)}% - 2px)` }}
-        title={`Actual ${fmtNumber(stats.current)}`}
+        title={`Actual ${fmtNum(stats.current)}`}
       />
     </div>
   )
@@ -76,10 +76,10 @@ function ValuationBlock({ report }: { report: DeepDiveReport }) {
                 <span className="tabular-nums text-slate-600">
                   actual{' '}
                   <b>
-                    {key === 'fcf_yield' ? fmtPct(stats.current) : fmtNumber(stats.current)}
+                    {key === 'fcf_yield' ? fmtPct(stats.current) : fmtNum(stats.current)}
                   </b>{' '}
                   · mediana{' '}
-                  {key === 'fcf_yield' ? fmtPct(stats.median) : fmtNumber(stats.median)} ·
+                  {key === 'fcf_yield' ? fmtPct(stats.median) : fmtNum(stats.median)} ·
                   percentil {fmtPct(stats.percentile, 0)}
                 </span>
               ) : (
@@ -90,11 +90,11 @@ function ValuationBlock({ report }: { report: DeepDiveReport }) {
             {stats.available && (
               <div className="flex justify-between text-[10px] text-slate-400">
                 <span>
-                  mín {key === 'fcf_yield' ? fmtPct(stats.min) : fmtNumber(stats.min)}
+                  mín {key === 'fcf_yield' ? fmtPct(stats.min) : fmtNum(stats.min)}
                 </span>
                 <span>{stats.n} observaciones · {report.valuation.years_covered} años</span>
                 <span>
-                  máx {key === 'fcf_yield' ? fmtPct(stats.max) : fmtNumber(stats.max)}
+                  máx {key === 'fcf_yield' ? fmtPct(stats.max) : fmtNum(stats.max)}
                 </span>
               </div>
             )}
@@ -194,13 +194,13 @@ export function DeepDiveSection({ symbol }: { symbol: string }) {
           </div>
           <div>
             <dt className="text-xs text-slate-400">Capitalización</dt>
-            <dd className="tabular-nums">{fmtBig(business.market_cap)}</dd>
+            <dd className="tabular-nums">{fmtCompacto(business.market_cap)}</dd>
           </div>
           <div>
             <dt className="text-xs text-slate-400">
               Ingresos ({business.latest_fiscal_year})
             </dt>
-            <dd className="tabular-nums">{fmtBig(business.latest_revenue)}</dd>
+            <dd className="tabular-nums">{fmtCompacto(business.latest_revenue)}</dd>
           </div>
           <div>
             <dt className="text-xs text-slate-400">Años de histórico</dt>
@@ -258,23 +258,23 @@ export function DeepDiveSection({ symbol }: { symbol: string }) {
           <dl className="mt-2 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
             <div>
               <dt className="text-xs text-slate-400">Deuda neta</dt>
-              <dd className="tabular-nums">{fmtBig(debt.net_debt)}</dd>
+              <dd className="tabular-nums">{fmtCompacto(debt.net_debt)}</dd>
               <DeudaParcial falta={debt.deuda_parcial} />
             </div>
             <div>
               <dt className="text-xs text-slate-400">Deuda/Capital</dt>
-              <dd className="tabular-nums">{fmtNumber(debt.debt_to_equity)}</dd>
+              <dd className="tabular-nums">{fmtNum(debt.debt_to_equity)}</dd>
             </div>
             <div>
               <dt className="text-xs text-slate-400">Cobertura</dt>
               <dd className="tabular-nums">
-                {debt.interest_coverage !== null ? `${fmtNumber(debt.interest_coverage, 1)}×` : '—'}
+                {debt.interest_coverage !== null ? `${fmtNum(debt.interest_coverage, 1)}×` : '—'}
               </dd>
             </div>
             <div>
               <dt className="text-xs text-slate-400">Altman Z</dt>
               <dd className="tabular-nums">
-                {fmtNumber(debt.altman_z.score)}
+                {fmtNum(debt.altman_z.score)}
                 {debt.altman_z.zone && (
                   <span className="ml-1 text-[10px] text-slate-500">({debt.altman_z.zone})</span>
                 )}
@@ -287,7 +287,7 @@ export function DeepDiveSection({ symbol }: { symbol: string }) {
           <dl className="mt-2 grid grid-cols-3 gap-2 text-sm">
             <div>
               <dt className="text-xs text-slate-400">FCF</dt>
-              <dd className="tabular-nums">{fmtBig(cash.current.fcf as number | null)}</dd>
+              <dd className="tabular-nums">{fmtCompacto(cash.current.fcf as number | null)}</dd>
             </div>
             <div>
               <dt className="text-xs text-slate-400">Conversión</dt>
@@ -323,7 +323,7 @@ export function DeepDiveSection({ symbol }: { symbol: string }) {
                     {kind === 'bear' ? 'Bajista' : kind === 'base' ? 'Base' : 'Alcista'}
                   </div>
                   <div className="text-xl font-semibold tabular-nums">
-                    {fmtNumber(sc.value_per_share)}
+                    {fmtNum(sc.value_per_share)}
                   </div>
                   <div className="text-xs text-slate-500">
                     {vs !== null && `${fmtPct(vs)} vs. precio · `}terminal{' '}

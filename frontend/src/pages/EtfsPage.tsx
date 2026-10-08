@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { EtfComparison, EtfRecommendation } from '../api/types'
 import { SourceBadge } from '../components/SourceBadge'
-import { fmtBig, fmtPct } from '../lib/format'
+import { fmtCompacto, fmtPct } from '../lib/formato'
 
 const ETF_ACTION_STYLES: Record<string, string> = {
   comprar: 'bg-emerald-600 text-white',
@@ -160,7 +160,7 @@ export function EtfsPage() {
                   ['Nombre', (e: (typeof data.etfs)[0]) => e.name ?? '—'],
                   ['Categoría', (e: (typeof data.etfs)[0]) => e.category ?? '—'],
                   ['Expense ratio', (e: (typeof data.etfs)[0]) => fmtPct(e.expense_ratio, 2)],
-                  ['AUM', (e: (typeof data.etfs)[0]) => fmtBig(e.aum)],
+                  ['AUM', (e: (typeof data.etfs)[0]) => fmtCompacto(e.aum)],
                   ['Div. yield', (e: (typeof data.etfs)[0]) => fmtPct(e.dividend_yield)],
                 ].map(([label, get]) => (
                   <tr key={label as string} className="border-b border-slate-100">

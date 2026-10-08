@@ -12,7 +12,7 @@ import type {
   MatrizCorrelacion,
   RiesgoDeCartera,
 } from '../api/types'
-import { fmtBig, fmtNumber, fmtPct } from '../lib/format'
+import { fmtCompacto, fmtNum, fmtPct } from '../lib/formato'
 
 /** Color de una celda de correlación.
  *
@@ -84,7 +84,7 @@ function Correlacion({ c }: { c: MatrizCorrelacion }) {
                         i === j ? 'text-slate-300' : tonoCorrelacion(v)
                       }`}
                     >
-                      {i === j ? '—' : fmtNumber(v, 2)}
+                      {i === j ? '—' : fmtNum(v, 2)}
                     </div>
                   </td>
                 ))}
@@ -101,18 +101,18 @@ function Correlacion({ c }: { c: MatrizCorrelacion }) {
             <strong className="text-slate-800">
               {c.parejas[0].a}–{c.parejas[0].b}
             </strong>{' '}
-            ({fmtNumber(c.parejas[0].corr, 2)})
+            ({fmtNum(c.parejas[0].corr, 2)})
           </span>
           <span>
             Más sueltas:{' '}
             <strong className="text-slate-800">
               {c.parejas[c.parejas.length - 1].a}–{c.parejas[c.parejas.length - 1].b}
             </strong>{' '}
-            ({fmtNumber(c.parejas[c.parejas.length - 1].corr, 2)})
+            ({fmtNum(c.parejas[c.parejas.length - 1].corr, 2)})
           </span>
           {c.media !== null && c.media !== undefined && (
             <span>
-              Media: <strong className="text-slate-800">{fmtNumber(c.media, 2)}</strong>
+              Media: <strong className="text-slate-800">{fmtNum(c.media, 2)}</strong>
             </span>
           )}
         </div>
@@ -152,7 +152,7 @@ function Concentracion({ c }: { c: ConcentracionReal }) {
               alarma ? 'text-red-700' : 'text-emerald-700'
             }`}
           >
-            {fmtNumber(c.apuestas_efectivas, 1)}
+            {fmtNum(c.apuestas_efectivas, 1)}
           </div>
         </div>
         <div>
@@ -160,7 +160,7 @@ function Concentracion({ c }: { c: ConcentracionReal }) {
             Explica un solo movimiento
           </div>
           <div className="text-2xl font-semibold tabular-nums text-slate-800">
-            {fmtNumber(c.primera_componente_pct, 0)} %
+            {fmtNum(c.primera_componente_pct, 0)} %
           </div>
         </div>
       </div>
@@ -176,7 +176,7 @@ function Concentracion({ c }: { c: ConcentracionReal }) {
                 key={i}
                 className={i === 0 ? 'bg-slate-700' : 'bg-slate-300'}
                 style={{ width: `${p}%` }}
-                title={`Componente ${i + 1}: ${fmtNumber(p, 1)} %`}
+                title={`Componente ${i + 1}: ${fmtNum(p, 1)} %`}
               />
             ))}
           </div>
@@ -205,7 +205,7 @@ function Exposicion({ e, titulo }: { e: ExposicionAgregada; titulo: string }) {
               />
             </div>
             <span className="w-12 shrink-0 text-right text-xs tabular-nums text-slate-700">
-              {fmtNumber(f.peso_pct, 1)} %
+              {fmtNum(f.peso_pct, 1)} %
             </span>
           </li>
         ))}
@@ -251,13 +251,13 @@ function LookThrough({ lt }: { lt: LookThroughEtf }) {
                   )}
                 </td>
                 <td className="py-1.5 text-right tabular-nums text-slate-600">
-                  {e.directa_pct > 0 ? `${fmtNumber(e.directa_pct, 1)} %` : '—'}
+                  {e.directa_pct > 0 ? `${fmtNum(e.directa_pct, 1)} %` : '—'}
                 </td>
                 <td className="py-1.5 text-right tabular-nums text-slate-600">
-                  {fmtNumber(e.indirecta_pct, 2)} %
+                  {fmtNum(e.indirecta_pct, 2)} %
                 </td>
                 <td className="py-1.5 text-right font-medium tabular-nums text-slate-800">
-                  {fmtNumber(e.total_pct, 2)} %
+                  {fmtNum(e.total_pct, 2)} %
                 </td>
                 <td className="py-1.5 pl-3 text-slate-500">
                   {e.via.map((v) => v.etf).join(', ')}
@@ -272,7 +272,7 @@ function LookThrough({ lt }: { lt: LookThroughEtf }) {
         <p className="mt-3 text-[11px] text-slate-500">
           Composición leída:{' '}
           {Object.entries(lt.cobertura_por_etf_pct)
-            .map(([etf, pct]) => `${etf} (${fmtNumber(pct, 0)} % del fondo)`)
+            .map(([etf, pct]) => `${etf} (${fmtNum(pct, 0)} % del fondo)`)
             .join(', ')}
         </p>
       )}
@@ -294,10 +294,10 @@ function Caracteristicas({ c }: { c: CaracteristicasDeCartera }) {
   // ROE y crecimiento llegan como fracción (0,684) y nadie lee eso como un
   // 68 %. La volatilidad ya viene en puntos porcentuales y no se multiplica.
   const formatear = (campo: string, v: number) => {
-    if (campo === 'market_cap') return fmtBig(v)
+    if (campo === 'market_cap') return fmtCompacto(v)
     if (campo === 'roe' || campo === 'revenue_growth_5y') return fmtPct(v, 1)
-    if (campo === 'vol_anual_pct') return `${fmtNumber(v, 1)} %`
-    return fmtNumber(v, 1)
+    if (campo === 'vol_anual_pct') return `${fmtNum(v, 1)} %`
+    return fmtNum(v, 1)
   }
 
   return (
@@ -349,7 +349,7 @@ function Caracteristicas({ c }: { c: CaracteristicasDeCartera }) {
                 </>
               )}
               <td className="py-1.5 text-right tabular-nums text-slate-500">
-                {fmtNumber(x.cobertura_pct, 0)} %
+                {fmtNum(x.cobertura_pct, 0)} %
               </td>
             </tr>
           ))}
@@ -412,13 +412,13 @@ function Crisis({ c }: { c: CrisisEstresada }) {
             } ${retorno < 0 ? 'text-red-700' : 'text-emerald-700'}`}
           >
             {retorno > 0 ? '+' : ''}
-            {fmtNumber(retorno, 1)} %
+            {fmtNum(retorno, 1)} %
           </div>
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-wide text-slate-400">S&P 500</div>
           <div className="text-lg tabular-nums text-slate-500">
-            {fmtNumber(c.caida_sp500_pct, 1)} %
+            {fmtNum(c.caida_sp500_pct, 1)} %
           </div>
         </div>
         <div>
@@ -426,7 +426,7 @@ function Crisis({ c }: { c: CrisisEstresada }) {
             Caída máxima
           </div>
           <div className="text-lg tabular-nums text-slate-500">
-            {fmtNumber(c.max_drawdown_pct, 1)} %
+            {fmtNum(c.max_drawdown_pct, 1)} %
           </div>
         </div>
         <div>
@@ -436,7 +436,7 @@ function Crisis({ c }: { c: CrisisEstresada }) {
               fiable ? 'text-slate-500' : 'font-semibold text-amber-800'
             }`}
           >
-            {fmtNumber(c.cobertura_pct, 0)} %
+            {fmtNum(c.cobertura_pct, 0)} %
           </div>
         </div>
       </div>

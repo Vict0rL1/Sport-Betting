@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { Health, RiskResponse } from '../../api/types'
-import { fmtBig, fmtNumber, fmtPct } from '../../lib/format'
+import { fmtCompacto, fmtNum, fmtPct } from '../../lib/formato'
 import { SourceBadge } from '../SourceBadge'
 import { DeudaParcial } from './DeudaParcial'
 
@@ -47,7 +47,7 @@ export function HealthSection({ symbol }: { symbol: string }) {
           </div>
           <div className="flex items-baseline gap-3">
             <span className="text-3xl font-semibold tabular-nums text-slate-900">
-              {z.score !== null ? fmtNumber(z.score) : '—'}
+              {z.score !== null ? fmtNum(z.score) : '—'}
             </span>
             {z.zone && (
               <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${ZONE_STYLES[z.zone]}`}>
@@ -59,7 +59,7 @@ export function HealthSection({ symbol }: { symbol: string }) {
             {Object.entries(z.components).map(([key, value]) => (
               <div key={key} className="flex justify-between">
                 <dt>{key.replace(/_/g, ' ').replace(/^x\d /, '')}</dt>
-                <dd className="tabular-nums">{value !== null ? fmtNumber(value, 3) : 'sin dato'}</dd>
+                <dd className="tabular-nums">{value !== null ? fmtNum(value, 3) : 'sin dato'}</dd>
               </div>
             ))}
           </dl>
@@ -104,22 +104,22 @@ export function HealthSection({ symbol }: { symbol: string }) {
           <div>
             <dt className="text-xs text-slate-400">Cobertura de intereses</dt>
             <dd className="text-lg font-semibold tabular-nums">
-              {health.interest_coverage !== null ? `${fmtNumber(health.interest_coverage, 1)}×` : '—'}
+              {health.interest_coverage !== null ? `${fmtNum(health.interest_coverage, 1)}×` : '—'}
             </dd>
           </div>
           <div>
             <dt className="text-xs text-slate-400">Deuda neta</dt>
-            <dd className="text-lg font-semibold tabular-nums">{fmtBig(health.net_debt)}</dd>
+            <dd className="text-lg font-semibold tabular-nums">{fmtCompacto(health.net_debt)}</dd>
             <DeudaParcial falta={health.deuda_parcial} />
           </div>
           <div>
             <dt className="text-xs text-slate-400">FCF (último ejercicio)</dt>
-            <dd className="text-lg font-semibold tabular-nums">{fmtBig(health.fcf)}</dd>
+            <dd className="text-lg font-semibold tabular-nums">{fmtCompacto(health.fcf)}</dd>
           </div>
           <div>
             <dt className="text-xs text-slate-400">Beta vs. SPY (1A)</dt>
             <dd className="text-lg font-semibold tabular-nums">
-              {risk?.beta_vs_spy != null ? fmtNumber(risk.beta_vs_spy) : '—'}
+              {risk?.beta_vs_spy != null ? fmtNum(risk.beta_vs_spy) : '—'}
             </dd>
           </div>
           <div>

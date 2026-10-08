@@ -8,10 +8,9 @@ import type {
   SeñalesDeOpciones,
   SkewSignal,
 } from '../../api/types'
-import { fmtNumber } from '../../lib/format'
+import { fmtNum, fmtPct } from '../../lib/formato'
 
-const pct = (v: number | null | undefined, d = 1) =>
-  v === null || v === undefined ? '—' : `${(v * 100).toFixed(d)} %`
+const pct = (v: number | null | undefined, d = 1) => fmtPct(v, d)
 
 /** Una nota al pie. Lo que hace legible al número de arriba, no decoración. */
 function Nota({ children }: { children: React.ReactNode }) {
@@ -82,7 +81,7 @@ function Prima({ p }: { p: PrimaDeRiesgo }) {
               Percentil propio
             </div>
             <div className="text-2xl font-semibold tabular-nums text-slate-800">
-              {fmtNumber(p.percentil, 0)}
+              {fmtNum(p.percentil, 0)}
             </div>
           </div>
         )}
@@ -188,7 +187,7 @@ function Movimiento({ m }: { m: MovimientoEsperado }) {
             Implícito (straddle)
           </div>
           <div className="text-2xl font-semibold tabular-nums text-slate-800">
-            {imp.disponible ? `±${fmtNumber(imp.movimiento_pct, 1)} %` : '—'}
+            {imp.disponible ? `±${fmtNum(imp.movimiento_pct, 1)} %` : '—'}
           </div>
           {imp.vencimiento && (
             <div className="text-[10px] text-slate-400">
@@ -201,11 +200,11 @@ function Movimiento({ m }: { m: MovimientoEsperado }) {
             Mediana real de la empresa
           </div>
           <div className="text-2xl font-semibold tabular-nums text-slate-500">
-            {hist.disponible ? `${fmtNumber(hist.mediana_abs_pct, 1)} %` : '—'}
+            {hist.disponible ? `${fmtNum(hist.mediana_abs_pct, 1)} %` : '—'}
           </div>
           {hist.disponible && (
             <div className="text-[10px] text-slate-400">
-              {hist.n} resultados · mayor {fmtNumber(hist.maximo_abs_pct, 1)} %
+              {hist.n} resultados · mayor {fmtNum(hist.maximo_abs_pct, 1)} %
             </div>
           )}
         </div>
@@ -213,7 +212,7 @@ function Movimiento({ m }: { m: MovimientoEsperado }) {
           <div>
             <div className="text-[10px] uppercase tracking-wide text-slate-400">Razón</div>
             <div className="text-2xl font-semibold tabular-nums text-slate-800">
-              {fmtNumber(cmp.razon, 2)}×
+              {fmtNum(cmp.razon, 2)}×
             </div>
           </div>
         )}
@@ -232,7 +231,7 @@ function Movimiento({ m }: { m: MovimientoEsperado }) {
               }`}
             >
               {mv.movimiento_pct > 0 ? '+' : ''}
-              {fmtNumber(mv.movimiento_pct, 1)} %
+              {fmtNum(mv.movimiento_pct, 1)} %
             </span>
           ))}
         </div>
@@ -253,7 +252,7 @@ function Actividad({ a }: { a: ActividadOpciones }) {
             Volumen calls / puts
           </div>
           <div className="text-xl font-semibold tabular-nums text-slate-800">
-            {a.volumen_calls.toLocaleString('es')} / {a.volumen_puts.toLocaleString('es')}
+            {fmtNum(a.volumen_calls, 0)} / {fmtNum(a.volumen_puts, 0)}
           </div>
         </div>
         <div>
@@ -261,7 +260,7 @@ function Actividad({ a }: { a: ActividadOpciones }) {
             Put/Call (volumen)
           </div>
           <div className="text-xl font-semibold tabular-nums text-slate-800">
-            {fmtNumber(a.put_call_volumen, 2)}
+            {fmtNum(a.put_call_volumen, 2)}
           </div>
         </div>
         <div>
@@ -269,7 +268,7 @@ function Actividad({ a }: { a: ActividadOpciones }) {
             Volumen / OI
           </div>
           <div className="text-xl font-semibold tabular-nums text-slate-800">
-            {fmtNumber(a.volumen_sobre_oi, 2)}
+            {fmtNum(a.volumen_sobre_oi, 2)}
           </div>
         </div>
         {/* Volumen y open interest se juzgan por separado a propósito: pueden
@@ -288,7 +287,7 @@ function Actividad({ a }: { a: ActividadOpciones }) {
               }`}
             >
               {(a.volumen.detalle.z as number) > 0 ? '+' : ''}
-              {fmtNumber(a.volumen.detalle.z, 1)} σ
+              {fmtNum(a.volumen.detalle.z, 1)} σ
             </div>
           </div>
         )}
@@ -305,7 +304,7 @@ function Actividad({ a }: { a: ActividadOpciones }) {
               }`}
             >
               {(a.open_interest.detalle.z as number) > 0 ? '+' : ''}
-              {fmtNumber(a.open_interest.detalle.z, 1)} σ
+              {fmtNum(a.open_interest.detalle.z, 1)} σ
             </div>
           </div>
         )}
@@ -322,7 +321,7 @@ function Actividad({ a }: { a: ActividadOpciones }) {
               }`}
             >
               {(a.variacion_oi.cambio_pct ?? 0) > 0 ? '+' : ''}
-              {fmtNumber(a.variacion_oi.cambio_pct, 1)} %
+              {fmtNum(a.variacion_oi.cambio_pct, 1)} %
             </div>
           </div>
         )}
@@ -345,13 +344,13 @@ function Actividad({ a }: { a: ActividadOpciones }) {
                   {p.tipo === 'call' ? 'Call' : 'Put'} {p.strike}
                 </td>
                 <td className="py-1 text-right tabular-nums text-slate-700">
-                  {p.volumen.toLocaleString('es')}
+                  {fmtNum(p.volumen, 0)}
                 </td>
                 <td className="py-1 text-right tabular-nums text-slate-500">
-                  {p.oi.toLocaleString('es')}
+                  {fmtNum(p.oi, 0)}
                 </td>
                 <td className="py-1 text-right font-medium tabular-nums text-amber-800">
-                  {fmtNumber(p.ratio, 1)}
+                  {fmtNum(p.ratio, 1)}
                 </td>
               </tr>
             ))}

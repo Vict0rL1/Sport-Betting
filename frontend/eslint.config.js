@@ -33,4 +33,24 @@ export default tseslint.config(
       ],
     },
   },
+  // Una cifra para una persona solo se escribe con `lib/formato.ts` (ítem 1.7):
+  // cada `toFixed` suelto era un «21.3 %» con punto junto a un «0,56» con coma
+  // (V4), y `toLocaleString('es')` no agrupa los números de cuatro cifras (V5).
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/lib/formato.ts', 'src/**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression > MemberExpression.callee[property.name=/^(toFixed|toPrecision|toLocaleString|toLocaleDateString|toLocaleTimeString)$/]",
+          message: 'Las cifras y fechas para el usuario se escriben con lib/formato.ts (fmtNum, fmtPct, fmtDinero, fmtFecha…).',
+        },
+        {
+          selector: "NewExpression[callee.object.name='Intl'][callee.property.name=/^(NumberFormat|DateTimeFormat)$/]",
+          message: 'Intl solo dentro de lib/formato.ts: un formateador propio es otro sistema de formato.',
+        },
+      ],
+    },
+  },
 )

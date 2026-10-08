@@ -1,5 +1,5 @@
 import type { Sourced } from '../api/types'
-import { fmtDateTime, relativeTime } from '../lib/format'
+import { fmtFecha, fmtAntiguedad } from '../lib/formato'
 
 const FRESHNESS_LABEL: Record<string, string> = {
   live: 'en vivo',
@@ -35,12 +35,12 @@ export function SourceBadge({
 
   const parts: string[] = [data.source]
   if (freshness && FRESHNESS_LABEL[freshness]) parts.push(FRESHNESS_LABEL[freshness])
-  if (data.cached) parts.push(`caché · ${relativeTime(data.fetched_at)}`)
+  if (data.cached) parts.push(`caché · ${fmtAntiguedad(data.fetched_at)}`)
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500"
-      title={`Fuente: ${data.source} · dato del ${fmtDateTime(data.as_of)}${
-        data.cached ? ` · descargado ${fmtDateTime(data.fetched_at)}` : ''
+      title={`Fuente: ${data.source} · dato del ${fmtFecha(data.as_of, { hora: true })}${
+        data.cached ? ` · descargado ${fmtFecha(data.fetched_at, { hora: true })}` : ''
       }`}
     >
       <span

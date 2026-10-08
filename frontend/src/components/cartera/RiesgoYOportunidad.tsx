@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { AnalisisEmpresaResponse, ContribucionAlRiesgo, SaldosEfectivo } from '../../api/types'
-import { fmtDateTime, fmtNumber, fmtPct } from '../../lib/format'
+import { fmtFecha, fmtNum, fmtPct } from '../../lib/formato'
 import { CosteOportunidadResumen, RiesgoResumen } from '../ticker/QueCambioSection'
 
 function Caja({ titulo, subtitulo, children }: { titulo: string; subtitulo: string; children: React.ReactNode }) {
@@ -67,10 +67,10 @@ export function ContribucionAlRiesgoPanel() {
                           <td>{fmtPct(p.peso, 1)}</td>
                           <td>{fmtPct(p.volatilidad, 0)}</td>
                           <td className="font-semibold text-slate-900">{fmtPct(p.contribucion, 1)}</td>
-                          <td className={p.riesgo_por_peso && p.riesgo_por_peso > 1.2 ? 'text-red-700' : 'text-slate-600'}>{fmtNumber(p.riesgo_por_peso, 2)}×</td>
-                          <td className="text-slate-500">{fmtNumber(p.marginal, 3)}</td>
-                          <td className="text-slate-500">{fmtNumber(p.correlacion_con_cartera, 2)}</td>
-                          <td className="text-slate-500">{fmtNumber(p.beta_mercado, 2)}</td>
+                          <td className={p.riesgo_por_peso && p.riesgo_por_peso > 1.2 ? 'text-red-700' : 'text-slate-600'}>{fmtNum(p.riesgo_por_peso, 2)}×</td>
+                          <td className="text-slate-500">{fmtNum(p.marginal, 3)}</td>
+                          <td className="text-slate-500">{fmtNum(p.correlacion_con_cartera, 2)}</td>
+                          <td className="text-slate-500">{fmtNum(p.beta_mercado, 2)}</td>
                           <td className="text-left text-slate-500">{p.sector ?? '—'}</td>
                           <td className="text-left text-slate-500">{p.moneda ?? '—'}</td>
                         </tr>
@@ -157,7 +157,7 @@ export function CosteOportunidadPanel() {
         <div className="text-xs text-slate-600">
           Efectivo anotado:{' '}
           {efectivo?.saldos.length
-            ? efectivo.saldos.map((s) => `${fmtNumber(s.importe, 2)} ${s.moneda} (${fmtDateTime(s.as_of)})`).join(' · ')
+            ? efectivo.saldos.map((s) => `${fmtNum(s.importe, 2)} ${s.moneda} (${fmtFecha(s.as_of, { hora: true })})`).join(' · ')
             : <span className="text-amber-800">ninguno — el motor lo trata como DESCONOCIDO, no como cero</span>}
         </div>
         <form onSubmit={anotar} className="flex flex-wrap gap-2">

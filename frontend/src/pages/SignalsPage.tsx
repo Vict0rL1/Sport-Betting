@@ -11,7 +11,7 @@ import type {
   SignalResponse,
   UniverseInfo,
 } from '../api/types'
-import { fmtNumber, fmtPct } from '../lib/format'
+import { fmtNum, fmtPct } from '../lib/formato'
 import { useLlmStatus } from '../lib/llm'
 import { BloqueIA, BotonIA, EtiquetaIA } from '../components/ia/ContenidoIA'
 
@@ -101,7 +101,7 @@ function SignalCard({ signal }: { signal: QuantSignal }) {
 
         <div className="text-right">
           <div className="text-2xl font-semibold tabular-nums text-slate-900">
-            {signal.score !== null ? (signal.score > 0 ? '+' : '') + fmtNumber(signal.score) : '—'}
+            {signal.score !== null ? (signal.score > 0 ? '+' : '') + fmtNum(signal.score) : '—'}
           </div>
           <div className="text-[10px] text-slate-400">
             z-score vs. universo · cobertura {fmtPct(signal.coverage, 0)}
@@ -150,7 +150,7 @@ function SignalCard({ signal }: { signal: QuantSignal }) {
                 }`}
               >
                 {value > 0 ? '+' : ''}
-                {fmtNumber(value)}
+                {fmtNum(value)}
               </span>
             </div>
           ))}
@@ -409,7 +409,7 @@ function ScanMode() {
               {result.scored} de {result.requested} empresas puntuadas · momentum de{' '}
               {result.momentum_coverage} vía {result.momentum_source ?? 'n/d'} · pesos:{' '}
               {Object.entries(result.weights)
-                .map(([f, w]) => `${FAMILY_LABELS[f] ?? f} ${(w * 100).toFixed(0)} %`)
+                .map(([f, w]) => `${FAMILY_LABELS[f] ?? f} ${fmtPct(w, 0)}`)
                 .join(' · ')}
             </p>
             {result.unavailable.length > 0 && (
@@ -448,7 +448,7 @@ function ScanMode() {
                       {row.label}
                     </span>
                     <span className="w-12 text-right tabular-nums text-slate-600">
-                      {row.score !== null ? (row.score > 0 ? '+' : '') + fmtNumber(row.score) : '—'}
+                      {row.score !== null ? (row.score > 0 ? '+' : '') + fmtNum(row.score) : '—'}
                     </span>
                   </span>
                 </li>
@@ -496,8 +496,7 @@ function Stat({
  *  distintas y una puede salir bien con la otra mal. Confundirlas es cómo se
  *  acaba confiando en un sistema que nunca se probó. */
 function RuleBacktestPanel({ result }: { result: RuleBacktestResponse }) {
-  const pct = (v: number | null | undefined, d = 2) =>
-    v === null || v === undefined ? '—' : `${v > 0 ? '+' : ''}${v.toFixed(d)} %`
+  const pct = (v: number | null | undefined, d = 2) => fmtPct(v, d, { signo: true, enPuntos: true })
 
   if (result.n_operaciones === 0) {
     return (
@@ -558,12 +557,10 @@ function RuleBacktestPanel({ result }: { result: RuleBacktestResponse }) {
         />
         <Stat
           label="Aciertos"
-          value={`${((result.tasa_acierto ?? 0) * 100).toFixed(0)} %`}
+          value={fmtPct(result.tasa_acierto, 0)}
           hint={
             result.tasa_acierto_ic
-              ? `IC 95 %: ${(result.tasa_acierto_ic[0] * 100).toFixed(0)}–${(
-                  result.tasa_acierto_ic[1] * 100
-                ).toFixed(0)} %`
+              ? `IC 95 %: ${fmtNum(result.tasa_acierto_ic[0] * 100, 0)}–${fmtPct(result.tasa_acierto_ic[1], 0)}`
               : undefined
           }
         />

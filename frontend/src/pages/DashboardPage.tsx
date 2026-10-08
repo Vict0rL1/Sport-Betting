@@ -8,14 +8,14 @@ import type {
   SectorEntry,
   YieldCurve,
 } from '../api/types'
-import { fmtChangePct, fmtNumber } from '../lib/format'
+import { fmtPct, fmtNum } from '../lib/formato'
 
 function ChangeChip({ pct }: { pct: number | null | undefined }) {
   if (pct === null || pct === undefined) return <span className="text-slate-400">—</span>
   const up = pct >= 0
   return (
     <span className={`font-medium tabular-nums ${up ? 'text-emerald-600' : 'text-red-600'}`}>
-      {fmtChangePct(pct)}
+      {fmtPct(pct, 2, { signo: true, enPuntos: true })}
     </span>
   )
 }
@@ -44,7 +44,7 @@ export function DashboardPage() {
           <div key={ix.symbol} className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="text-xs text-slate-400">{ix.label}</div>
             <div className="text-lg font-semibold tabular-nums text-slate-900">
-              {ix.quote ? fmtNumber(ix.quote.price) : '—'}
+              {ix.quote ? fmtNum(ix.quote.price) : '—'}
             </div>
             <ChangeChip pct={ix.quote?.change_pct} />
           </div>
@@ -100,7 +100,7 @@ export function DashboardPage() {
                 {curve.curve.map((point) => (
                   <div key={point.series_id} className="flex flex-1 flex-col items-center gap-1">
                     <span className="text-xs tabular-nums text-slate-600">
-                      {point.value !== null ? fmtNumber(point.value, 2) : '—'}
+                      {point.value !== null ? fmtNum(point.value, 2) : '—'}
                     </span>
                     <div
                       className="w-full rounded-t bg-sky-300"
@@ -117,7 +117,7 @@ export function DashboardPage() {
                     (curve.spread_10y_2y ?? 0) < 0 ? 'text-red-600' : 'text-slate-700'
                   }`}
                 >
-                  {curve.spread_10y_2y !== null ? `${fmtNumber(curve.spread_10y_2y, 2)} pp` : '—'}
+                  {curve.spread_10y_2y !== null ? `${fmtNum(curve.spread_10y_2y, 2)} pp` : '—'}
                 </span>{' '}
                 · {curve.note}
               </p>
@@ -134,7 +134,7 @@ export function DashboardPage() {
               <div key={m.series_id}>
                 <dt className="text-xs text-slate-400">{m.label}</dt>
                 <dd className="text-lg font-semibold tabular-nums text-slate-800">
-                  {m.value !== null ? `${fmtNumber(m.value, 1)} %` : '—'}
+                  {m.value !== null ? `${fmtNum(m.value, 1)} %` : '—'}
                 </dd>
                 <dd className="text-[10px] text-slate-400">{m.ts ?? ''}</dd>
               </div>
@@ -166,7 +166,7 @@ export function DashboardPage() {
                 </Link>
                 <span className="text-xs text-slate-500">
                   {ev.date}
-                  {ev.eps_estimate !== null ? ` · EPS est. ${fmtNumber(ev.eps_estimate)}` : ''}
+                  {ev.eps_estimate !== null ? ` · EPS est. ${fmtNum(ev.eps_estimate)}` : ''}
                 </span>
               </li>
             ))}

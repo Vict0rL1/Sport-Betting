@@ -12,7 +12,7 @@ import type {
   SerieGuidance,
   WatchlistItem,
 } from '../api/types'
-import { fmtNumber } from '../lib/format'
+import { fmtDinero, fmtNum } from '../lib/formato'
 
 /** Enlace al documento en la SEC. Cada dato de esta pantalla sale de uno, y sin
  *  el enlace el análisis sería una opinión anónima sobre una empresa. */
@@ -59,8 +59,8 @@ function rango(bajo: number | null, alto: number | null, unidad: string | null) 
   if (bajo === null && alto === null) return 'sin cifra'
   const u = unidad ? ` ${unidad}` : ''
   if (bajo !== null && alto !== null && bajo !== alto)
-    return `${fmtNumber(bajo, 2)}–${fmtNumber(alto, 2)}${u}`
-  return `${fmtNumber(bajo ?? alto, 2)}${u}`
+    return `${fmtNum(bajo, 2)}–${fmtNum(alto, 2)}${u}`
+  return `${fmtNum(bajo ?? alto, 2)}${u}`
 }
 
 const FLECHA: Record<string, string> = {
@@ -581,7 +581,7 @@ export function EarningsPage() {
                 Tokens de entrada
               </dt>
               <dd className="tabular-nums text-sky-900">
-                {coste.coste.tokens_entrada?.toLocaleString('es') ?? '—'}
+                {fmtNum(coste.coste.tokens_entrada, 0)}
               </dd>
             </div>
             <div>
@@ -589,9 +589,7 @@ export function EarningsPage() {
                 Coste estimado
               </dt>
               <dd className="tabular-nums text-sky-900">
-                {coste.coste.usd_estimado !== null
-                  ? `${coste.coste.usd_estimado.toFixed(3)} $`
-                  : '—'}
+                {fmtDinero(coste.coste.usd_estimado, 'USD', 3)}
               </dd>
             </div>
             <div>

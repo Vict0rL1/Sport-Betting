@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Interpretation, NewsFeed, NewsItem } from '../api/types'
 import { SourceBadge } from '../components/SourceBadge'
-import { fmtDateTime } from '../lib/format'
+import { fmtFecha } from '../lib/formato'
 import { useLlmStatus } from '../lib/llm'
 import { primerSimbolo } from '../lib/simbolos'
 import { BloqueIA, BotonIA } from '../components/ia/ContenidoIA'
@@ -57,7 +57,7 @@ function NewsCard({ item, symbol }: { item: NewsItem; symbol: string | null }) {
             {item.headline}
           </a>
           <div className="mt-0.5 text-xs text-slate-400">
-            {item.source ?? '—'} · {fmtDateTime(item.published_at)}
+            {item.source ?? '—'} · {fmtFecha(item.published_at, { hora: true })}
             {item.related ? ` · ${item.related}` : ''}
           </div>
           {item.summary && (

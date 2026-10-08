@@ -1,5 +1,5 @@
 import type { Fundamentals } from '../api/types'
-import { fmtBig, fmtNumber, fmtPct } from '../lib/format'
+import { fmtCompacto, fmtNum, fmtPct } from '../lib/formato'
 import { SourceBadge } from './SourceBadge'
 
 type Kind = 'ratio' | 'pct' | 'big'
@@ -25,8 +25,8 @@ const ROWS: { key: string; label: string; kind: Kind }[] = [
 
 function fmt(value: number | null, kind: Kind): string {
   if (kind === 'pct') return fmtPct(value)
-  if (kind === 'big') return fmtBig(value)
-  return fmtNumber(value)
+  if (kind === 'big') return fmtCompacto(value)
+  return fmtNum(value)
 }
 
 export function FundamentalsGrid({ data }: { data: Fundamentals }) {

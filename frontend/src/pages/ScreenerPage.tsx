@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { FilterSpec, ScreenerPreset, ScreenResult } from '../api/types'
-import { fmtNumber, fmtPct } from '../lib/format'
+import { fmtNum, fmtPct } from '../lib/formato'
 
 const METRIC_LABELS: Record<string, string> = {
   pe_ttm: 'P/E (TTM)',
@@ -28,13 +28,13 @@ const PCT_METRICS = new Set([
 
 function fmtMetric(metric: string, value: number | null) {
   if (value === null || value === undefined) return '—'
-  return PCT_METRICS.has(metric) ? fmtPct(value) : fmtNumber(value)
+  return PCT_METRICS.has(metric) ? fmtPct(value) : fmtNum(value)
 }
 
 function describeFilter(metric: string, spec: FilterSpec) {
   const label = METRIC_LABELS[metric] ?? metric
   const op = spec.op === 'gte' ? '≥' : '≤'
-  const value = PCT_METRICS.has(metric) ? `${(spec.value * 100).toFixed(1)} %` : spec.value
+  const value = PCT_METRICS.has(metric) ? fmtPct(spec.value) : fmtNum(spec.value)
   return `${label} ${op} ${value}`
 }
 

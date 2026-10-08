@@ -7,6 +7,9 @@
  * apagar lo que no hace falta.
  */
 
+import { fmtNum } from '../lib/formato'
+import { coord } from '../lib/svg'
+
 /** Una serie en miniatura: la forma del año en una celda de tabla.
  *
  *  Sin ejes a propósito. No dice CUÁNTO, dice de dónde viene: un +4 % que llega
@@ -36,7 +39,7 @@ export function Sparkline({
   // 1px de margen arriba y abajo: sin él, el trazo se recorta justo en el
   // máximo y el mínimo, que son los dos puntos que importan.
   const y = (v: number) => height - 1 - ((v - min) / span) * (height - 2)
-  const d = valores.map((v, i) => `${i === 0 ? 'M' : 'L'}${(i * dx).toFixed(1)},${y(v).toFixed(1)}`).join(' ')
+  const d = valores.map((v, i) => `${i === 0 ? 'M' : 'L'}${coord(i * dx)},${coord(y(v))}`).join(' ')
 
   const sube = valores[valores.length - 1] >= valores[0]
   return (
@@ -82,7 +85,7 @@ export function CurvaDeCrisis({
   const dx = width / (puntos.length - 1)
   const y = (v: number) => height - 2 - ((v - min) / span) * (height - 4)
   const linea = puntos
-    .map((p, i) => `${i === 0 ? 'M' : 'L'}${(i * dx).toFixed(1)},${y(p.valor).toFixed(1)}`)
+    .map((p, i) => `${i === 0 ? 'M' : 'L'}${coord(i * dx)},${coord(y(p.valor))}`)
     .join(' ')
 
   const iSuelo = valores.indexOf(Math.min(...valores))
@@ -97,7 +100,7 @@ export function CurvaDeCrisis({
       preserveAspectRatio="none"
       className="mt-2 block"
       role="img"
-      aria-label={`Recorrido: suelo en ${suelo.valor.toFixed(0)} sobre 100`}
+      aria-label={`Recorrido: suelo en ${fmtNum(suelo.valor, 0)} sobre 100`}
     >
       {/* La línea del 100 es la referencia: por debajo, se pierde dinero. */}
       <line
@@ -229,7 +232,7 @@ export function CurvaDeCartera({
   const y = (v: number) => height - 8 - ((v - min) / span) * (height - 16)
   const trazo = (campo: 'valor' | 'invertido') =>
     puntos
-      .map((p, i) => `${i === 0 ? 'M' : 'L'}${(i * dx).toFixed(1)},${y(p[campo]).toFixed(1)}`)
+      .map((p, i) => `${i === 0 ? 'M' : 'L'}${coord(i * dx)},${coord(y(p[campo]))}`)
       .join(' ')
 
   const ultimo = puntos[puntos.length - 1]

@@ -12,7 +12,8 @@ import type {
   Sizing,
   TodayResponse,
 } from '../api/types'
-import { fmtChangePct, fmtNumber, relativeTime } from '../lib/format'
+import { fmtAntiguedad, fmtNum, fmtPct } from '../lib/formato'
+import { coord } from '../lib/svg'
 
 const FAMILY_LABELS: Record<string, string> = {
   value: 'Valor',
@@ -38,7 +39,7 @@ function Sparkline({ serie, subiendo }: { serie: number[]; subiendo: boolean }) 
     .map((v, i) => {
       const x = (i / (serie.length - 1)) * 78 + 1
       const y = 22 - ((v - min) / span) * 20
-      return `${x.toFixed(1)},${y.toFixed(1)}`
+      return `${coord(x)},${coord(y)}`
     })
     .join(' ')
   return (
@@ -126,7 +127,7 @@ function DecisionPlan({ decision, symbol }: { decision: Decision; symbol?: strin
                 Zona de compra
               </div>
               <div className="text-sm tabular-nums text-slate-800">
-                {fmtNumber(levels.entrada_desde, 2)}–{fmtNumber(levels.entrada_hasta, 2)}
+                {fmtNum(levels.entrada_desde, 2)}–{fmtNum(levels.entrada_hasta, 2)}
               </div>
             </div>
           )}
@@ -135,7 +136,7 @@ function DecisionPlan({ decision, symbol }: { decision: Decision; symbol?: strin
               Stop
             </div>
             <div className="text-sm tabular-nums text-red-600">
-              {fmtNumber(levels.stop, 2)}{' '}
+              {fmtNum(levels.stop, 2)}{' '}
               <span className="text-xs text-slate-400">
                 {levels.stop_pct >= 0 ? '+' : ''}
                 {levels.stop_pct} %
@@ -147,7 +148,7 @@ function DecisionPlan({ decision, symbol }: { decision: Decision; symbol?: strin
               Objetivo
             </div>
             <div className="text-sm tabular-nums text-emerald-700">
-              {fmtNumber(levels.objetivo, 2)}{' '}
+              {fmtNum(levels.objetivo, 2)}{' '}
               <span className="text-xs text-slate-400">
                 {levels.objetivo_pct >= 0 ? '+' : ''}
                 {levels.objetivo_pct} %
@@ -190,8 +191,7 @@ function DecisionPlan({ decision, symbol }: { decision: Decision; symbol?: strin
               <div key={label}>
                 <div className="text-[10px] text-slate-400">{label}</div>
                 <div className={`text-sm font-medium tabular-nums ${tono}`}>
-                  {valor >= 0 ? '+' : ''}
-                  {valor.toFixed(1)} %
+                  {fmtPct(valor, 1, { signo: true, enPuntos: true })}
                 </div>
               </div>
             ))}
@@ -372,14 +372,14 @@ function IdeaCard({
         {price && (
           <div className="text-right">
             <div className="text-base tabular-nums text-slate-900">
-              {fmtNumber(price.last, 2)}
+              {fmtNum(price.last, 2)}
             </div>
             <div
               className={`text-xs tabular-nums ${
                 (price.change_pct ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'
               }`}
             >
-              {fmtChangePct(price.change_pct)}
+              {fmtPct(price.change_pct, 2, { signo: true, enPuntos: true })}
             </div>
           </div>
         )}
@@ -396,7 +396,7 @@ function IdeaCard({
               Comprar entre
             </div>
             <div className="text-sm tabular-nums text-slate-900">
-              {fmtNumber(niveles.entrada_desde, 2)}–{fmtNumber(niveles.entrada_hasta, 2)}
+              {fmtNum(niveles.entrada_desde, 2)}–{fmtNum(niveles.entrada_hasta, 2)}
             </div>
           </div>
           <div>
@@ -404,7 +404,7 @@ function IdeaCard({
               Vender si baja a
             </div>
             <div className="text-sm tabular-nums text-red-600">
-              {fmtNumber(niveles.stop, 2)}
+              {fmtNum(niveles.stop, 2)}
             </div>
           </div>
           <div>
@@ -483,7 +483,7 @@ function AvoidList({
  */
 /** Un porcentaje en puntos (12.5 → «12,5 %»); lo que falta es «sin dato», no un 0 ni un «undefined». */
 function puntos(v: number | null | undefined): string {
-  return v === null || v === undefined ? 'sin dato' : `${fmtNumber(v, 1)} %`
+  return v === null || v === undefined ? 'sin dato' : `${fmtNum(v, 1)} %`
 }
 
 function SizingPanel({ sizing }: { sizing: Sizing }) {
@@ -611,7 +611,7 @@ function FactorBars({
             <div
               className="h-1 overflow-hidden rounded-full bg-slate-100"
               title={`${FAMILY_LABELS[key]}: ${
-                raw === null || raw === undefined ? 'sin dato' : fmtNumber(raw, 2)
+                raw === null || raw === undefined ? 'sin dato' : fmtNum(raw, 2)
               }`}
             >
               {raw !== null && raw !== undefined && (
@@ -700,7 +700,7 @@ function SignalRow({
           {signal.price ? (
             <>
               <span className="block text-sm tabular-nums text-slate-800">
-                {fmtNumber(signal.price.last, 2)}
+                {fmtNum(signal.price.last, 2)}
               </span>
               <span
                 className={`block text-xs tabular-nums ${
@@ -709,7 +709,7 @@ function SignalRow({
                     : 'text-red-500'
                 }`}
               >
-                {fmtChangePct(signal.price.change_pct)}
+                {fmtPct(signal.price.change_pct, 2, { signo: true, enPuntos: true })}
               </span>
             </>
           ) : (
@@ -728,7 +728,7 @@ function SignalRow({
             }`}
           >
             {signal.score > 0 ? '+' : ''}
-            {fmtNumber(signal.score, 2)}
+            {fmtNum(signal.score, 2)}
           </span>
           <span className="w-20 text-right">
             <ActionChip decision={signal.decision} />
@@ -754,8 +754,8 @@ function SignalRow({
               <div className="flex items-baseline justify-between text-xs text-slate-500">
                 <span>Rango de 52 semanas</span>
                 <span className="tabular-nums">
-                  {fmtNumber(signal.price.low_52w, 2)} –{' '}
-                  {fmtNumber(signal.price.high_52w, 2)}
+                  {fmtNum(signal.price.low_52w, 2)} –{' '}
+                  {fmtNum(signal.price.high_52w, 2)}
                 </span>
               </div>
               {signal.price.range_position !== null && (
@@ -767,7 +767,7 @@ function SignalRow({
                     anual · {signal.price.points} sesiones ·{' '}
                     {signal.price.source ?? 'fuente desconocida'}
                     {signal.price.as_of
-                      ? `, ${relativeTime(signal.price.as_of)}`
+                      ? `, ${fmtAntiguedad(signal.price.as_of)}`
                       : ''}
                   </p>
                 </div>
@@ -935,7 +935,7 @@ export function TodayPage() {
           {data && (
             <span>
               {data.cached ? 'Calculado ' : 'Recalculado '}
-              {relativeTime(data.fetched_at ?? data.as_of)}
+              {fmtAntiguedad(data.fetched_at ?? data.as_of)}
             </span>
           )}
           <button
@@ -1163,7 +1163,7 @@ export function TodayPage() {
                     </p>
                     <p className="mx-auto mt-2 max-w-md text-xs leading-relaxed">
                       Ninguna empresa cumple a la vez las dos condiciones:
-                      puntuar por encima de {data.thresholds.favorable.toFixed(2)}{' '}
+                      puntuar por encima de {fmtNum(data.thresholds.favorable, 2, { signo: true })}{' '}
                       frente a sus comparables <em>y</em> cotizar sobre su media
                       de 200 sesiones. No actuar también es una decisión.
                     </p>

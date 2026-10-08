@@ -16,7 +16,7 @@ import { QueCambioSection } from '../components/ticker/QueCambioSection'
 import { ExpectativasSection } from '../components/ticker/ExpectativasSection'
 import { CalidadSection } from '../components/ticker/CalidadSection'
 import { HistorialSection } from '../components/ticker/HistorialSection'
-import { fmtBig, fmtChangePct, fmtNumber } from '../lib/format'
+import { fmtCompacto, fmtPct, fmtNum } from '../lib/formato'
 
 const RANGES: HistoryRange[] = ['1M', '3M', '6M', 'YTD', '1Y', '5Y', '10Y']
 
@@ -169,7 +169,7 @@ export function TickerPage() {
                 </h1>
                 <div className="mt-1 flex items-baseline gap-3">
                   <span className="text-3xl font-semibold tabular-nums text-slate-900">
-                    {fmtNumber(quote.price)}
+                    {fmtNum(quote.price)}
                     <span className="ml-1 text-base font-normal text-slate-400">
                       {quote.currency ?? data?.profile?.currency ?? ''}
                     </span>
@@ -180,7 +180,7 @@ export function TickerPage() {
                     }`}
                   >
                     {quote.change !== null && quote.change > 0 ? '+' : ''}
-                    {fmtNumber(quote.change)} ({fmtChangePct(quote.change_pct)})
+                    {fmtNum(quote.change)} ({fmtPct(quote.change_pct, 2, { signo: true, enPuntos: true })})
                   </span>
                 </div>
                 </div>
@@ -188,10 +188,10 @@ export function TickerPage() {
               <div className="flex flex-col items-end gap-1 text-right">
                 <SourceBadge data={quote} freshness={quote.freshness} />
                 <div className="text-xs text-slate-400">
-                  Ant.: {fmtNumber(quote.prev_close)} · Rango día:{' '}
-                  {fmtNumber(quote.day_low)}–{fmtNumber(quote.day_high)}
+                  Ant.: {fmtNum(quote.prev_close)} · Rango día:{' '}
+                  {fmtNum(quote.day_low)}–{fmtNum(quote.day_high)}
                   {data?.profile?.market_cap
-                    ? ` · Cap.: ${fmtBig(data.profile.market_cap)}`
+                    ? ` · Cap.: ${fmtCompacto(data.profile.market_cap)}`
                     : ''}
                 </div>
               </div>
@@ -250,7 +250,7 @@ export function TickerPage() {
                     className="text-xs text-slate-500"
                     title="RSI 14 sobre el intervalo mostrado; calculado por la app a partir de los datos"
                   >
-                    RSI 14: <span className="font-medium tabular-nums">{fmtNumber(rsi, 1)}</span>
+                    RSI 14: <span className="font-medium tabular-nums">{fmtNum(rsi, 1)}</span>
                   </span>
                 )}
                 {history && <SourceBadge data={history} />}

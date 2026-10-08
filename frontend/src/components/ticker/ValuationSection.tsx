@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { DcfResponse, ScenarioAssumptions, ValuationDefaults } from '../../api/types'
-import { fmtBig, fmtNumber, fmtPct } from '../../lib/format'
+import { fmtCompacto, fmtNum, fmtPct, valorDeCampo } from '../../lib/formato'
 import { SourceBadge } from '../SourceBadge'
 import { Ventana } from '../Ventana'
 
@@ -21,7 +21,7 @@ interface Inputs {
 }
 
 function pctInput(value: number): string {
-  return (value * 100).toFixed(1)
+  return valorDeCampo(value * 100, 1)
 }
 
 /** Un campo vacío o ilegible es «no sé», no cero. */
@@ -243,13 +243,13 @@ export function ValuationSection({ symbol }: { symbol: string }) {
                   <div className="text-xs text-slate-500">{SCENARIO_LABELS[name]}</div>
                   <div className="text-2xl font-semibold tabular-nums text-slate-900">
                     {sc.value_per_share !== null
-                      ? fmtNumber(sc.value_per_share)
-                      : fmtBig(sc.equity_value)}
+                      ? fmtNum(sc.value_per_share)
+                      : fmtCompacto(sc.equity_value)}
                   </div>
                   <div className="text-xs text-slate-500">
                     {vs !== null && (
                       <>
-                        {fmtPct(vs)} vs. precio actual ({fmtNumber(result.current_price)}) ·{' '}
+                        {fmtPct(vs)} vs. precio actual ({fmtNum(result.current_price)}) ·{' '}
                       </>
                     )}
                     terminal pesa {fmtPct(sc.terminal_weight)}
@@ -282,7 +282,7 @@ export function ValuationSection({ symbol }: { symbol: string }) {
                         <td className="p-1 text-slate-400">{fmtPct(row.discount_rate, 0)}</td>
                         {row.values.map((v, i) => (
                           <td key={i} className="p-1 text-right text-slate-700">
-                            {v !== null ? fmtNumber(v, 0) : '·'}
+                            {v !== null ? fmtNum(v, 0) : '·'}
                           </td>
                         ))}
                       </tr>

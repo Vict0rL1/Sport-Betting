@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ScenarioRecord, ThesisRecord, TrackRecord } from '../api/types'
-import { fmtDateTime, fmtNumber, fmtPct } from '../lib/format'
+import { fmtFecha, fmtNum, fmtPct } from '../lib/formato'
 
 const KIND_LABELS: Record<string, string> = { bear: 'Bajista', base: 'Base', bull: 'Alcista' }
 
@@ -93,13 +93,13 @@ function TrackRecordPanel({ record }: { record: TrackRecord }) {
                     {s.created_at.slice(0, 10)} ({s.days_elapsed} d)
                   </td>
                   <td className="px-2 py-1.5 tabular-nums">
-                    {s.price_at_creation !== null ? fmtNumber(s.price_at_creation) : '—'}
+                    {s.price_at_creation !== null ? fmtNum(s.price_at_creation) : '—'}
                   </td>
                   <td className="px-2 py-1.5 tabular-nums">
-                    {s.value_mid !== null ? fmtNumber(s.value_mid) : '—'}
+                    {s.value_mid !== null ? fmtNum(s.value_mid) : '—'}
                   </td>
                   <td className="px-2 py-1.5 tabular-nums">
-                    {s.current_price !== null ? fmtNumber(s.current_price) : '—'}
+                    {s.current_price !== null ? fmtNum(s.current_price) : '—'}
                   </td>
                   <td
                     className={`px-2 py-1.5 tabular-nums ${
@@ -239,8 +239,8 @@ export function ThesesPage() {
                   <span className="ml-2 font-normal">{thesis.title}</span>
                 </h2>
                 <div className="text-xs text-slate-400">
-                  Escrita el {fmtDateTime(thesis.created_at)} · hace {thesis.days_elapsed} días
-                  {thesis.current_price !== null && ` · precio hoy ${fmtNumber(thesis.current_price)}`}
+                  Escrita el {fmtFecha(thesis.created_at, { hora: true })} · hace {thesis.days_elapsed} días
+                  {thesis.current_price !== null && ` · precio hoy ${fmtNum(thesis.current_price)}`}
                 </div>
               </div>
               <div className="flex shrink-0 gap-2">
@@ -284,9 +284,9 @@ export function ThesesPage() {
                   >
                     <span className="text-slate-700">
                       <b>{KIND_LABELS[s.kind] ?? s.kind}</b>
-                      {s.value_mid !== null && ` · valor estimado ${fmtNumber(s.value_mid)}`}
+                      {s.value_mid !== null && ` · valor estimado ${fmtNum(s.value_mid)}`}
                       {s.price_at_creation !== null &&
-                        ` · precio entonces ${fmtNumber(s.price_at_creation)}`}
+                        ` · precio entonces ${fmtNum(s.price_at_creation)}`}
                       <span className="ml-2 text-xs text-slate-400">hace {s.days_elapsed} d</span>
                     </span>
                     <OutcomeChip scenario={s} />

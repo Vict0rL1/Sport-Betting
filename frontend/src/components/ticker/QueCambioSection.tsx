@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { AnalisisEmpresaResponse, CambioMetrica, CosteOportunidad, RiesgoEnCartera } from '../../api/types'
-import { fmtDateTime, fmtNumber, fmtPct } from '../../lib/format'
+import { fmtFecha, fmtNum, fmtPct } from '../../lib/formato'
 import { DecisionExplicada } from '../DecisionExplicada'
 import { BloqueIA, BotonIA } from '../ia/ContenidoIA'
 
@@ -33,8 +33,8 @@ function fmtValor(v: number | string | null | undefined, unidad?: string): strin
   if (v === null || v === undefined) return 'desconocido'
   if (typeof v === 'string') return v
   if (unidad === 'fracción') return fmtPct(v, 1)
-  if (unidad === 'USD') return fmtNumber(v / 1e6, 1) + ' M'
-  return fmtNumber(v, 2)
+  if (unidad === 'USD') return fmtNum(v / 1e6, 1) + ' M'
+  return fmtNum(v, 2)
 }
 
 function Cambio({ c }: { c: CambioMetrica }) {
@@ -46,13 +46,13 @@ function Cambio({ c }: { c: CambioMetrica }) {
       <span className={`tabular-nums ${tono}`}>
         {fmtValor(c.antes, c.unidad)} → {fmtValor(c.ahora, c.unidad)}
         {c.tipo === 'material' && c.unidad === 'fracción' && c.absoluto !== undefined && (
-          <span className="ml-1 text-slate-400">({c.absoluto >= 0 ? '+' : ''}{fmtNumber(c.absoluto * 100, 1)} pp)</span>
+          <span className="ml-1 text-slate-400">({c.absoluto >= 0 ? '+' : ''}{fmtNum(c.absoluto * 100, 1)} pp)</span>
         )}
         {c.tipo === 'material' && c.unidad === 'puntos' && c.absoluto !== undefined && (
-          <span className="ml-1 text-slate-400">({c.absoluto >= 0 ? '+' : ''}{fmtNumber(c.absoluto, 2)} puntos)</span>
+          <span className="ml-1 text-slate-400">({c.absoluto >= 0 ? '+' : ''}{fmtNum(c.absoluto, 2)} puntos)</span>
         )}
         {c.tipo === 'material' && c.unidad !== 'fracción' && c.unidad !== 'puntos' && c.relativo != null && (
-          <span className="ml-1 text-slate-400">({c.relativo >= 0 ? '+' : ''}{fmtNumber(c.relativo * 100, 1)} %)</span>
+          <span className="ml-1 text-slate-400">({c.relativo >= 0 ? '+' : ''}{fmtNum(c.relativo * 100, 1)} %)</span>
         )}
         {c.tipo === 'dato_nuevo' && <span className="ml-1 rounded bg-sky-100 px-1 text-[10px] text-sky-800">dato nuevo</span>}
         {c.tipo === 'dato_perdido' && <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800">dato perdido</span>}
@@ -75,8 +75,8 @@ export function RiesgoResumen({ r }: { r: RiesgoEnCartera }) {
         )}
       </p>
       <p className="mt-1 text-slate-500">
-        Correlación con la cartera {fmtNumber(r.correlacion_con_cartera ?? null, 2)} · clúster {r.cluster_nivel ?? '—'} ·
-        riesgo por unidad de peso {fmtNumber(r.riesgo_por_peso ?? null, 2)}
+        Correlación con la cartera {fmtNum(r.correlacion_con_cartera ?? null, 2)} · clúster {r.cluster_nivel ?? '—'} ·
+        riesgo por unidad de peso {fmtNum(r.riesgo_por_peso ?? null, 2)}
       </p>
     </div>
   )
@@ -127,7 +127,7 @@ export function CosteOportunidadResumen({ oc }: { oc: CosteOportunidad }) {
                   {f.mejora} / {f.mejora_requerida}
                 </td>
                 <td className="tabular-nums text-slate-500">
-                  {fmtNumber(f.coste_del_cambio.total_conocido_pct, 2)} %
+                  {fmtNum(f.coste_del_cambio.total_conocido_pct, 2)} %
                   {f.coste_del_cambio.impuestos === 'desconocidos' && f.coste_del_cambio.nota && (
                     <span className="block text-[10px] text-amber-800">+ impuestos desconocidos</span>
                   )}
@@ -185,7 +185,7 @@ export function QueCambioSection({ symbol }: { symbol: string }) {
           </h2>
           <span className="text-[11px] text-slate-400">
             {datos.instantanea
-              ? `${datos.instantanea.nueva ? 'Instantánea nueva' : 'Sin cambios materiales: instantánea existente'} #${datos.instantanea.id} · ${fmtDateTime(datos.instantanea.creado_en)}`
+              ? `${datos.instantanea.nueva ? 'Instantánea nueva' : 'Sin cambios materiales: instantánea existente'} #${datos.instantanea.id} · ${fmtFecha(datos.instantanea.creado_en, { hora: true })}`
               : 'sin congelar'}
           </span>
         </div>
@@ -223,7 +223,7 @@ export function QueCambioSection({ symbol }: { symbol: string }) {
           <h2 className="text-sm font-semibold text-slate-800">¿Qué cambió desde el último análisis?</h2>
           {datos.anterior && (
             <span className="text-[11px] text-slate-400">
-              frente a la instantánea #{datos.anterior.id} del {fmtDateTime(datos.anterior.creado_en)}
+              frente a la instantánea #{datos.anterior.id} del {fmtFecha(datos.anterior.creado_en, { hora: true })}
             </span>
           )}
         </div>

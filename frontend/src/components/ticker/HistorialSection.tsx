@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { DecisionHistorica, ReplayDecision } from '../../api/types'
-import { fmtDateTime, fmtNumber, fmtPct } from '../../lib/format'
+import { fmtFecha, fmtNum, fmtPct } from '../../lib/formato'
 import { DecisionExplicada } from '../DecisionExplicada'
 import { CosteOportunidadResumen, RiesgoResumen } from './QueCambioSection'
 
@@ -23,7 +23,7 @@ function Replay({ r }: { r: ReplayDecision }) {
         <span className="font-semibold text-slate-800">
           {r.symbol} — {r.fecha} — {r.accion.toUpperCase()}
         </span>
-        <span className="text-slate-400">{r.momento ? fmtDateTime(r.momento) : ''} · origen {r.origen} · reglas v{r.reglas_version}</span>
+        <span className="text-slate-400">{r.momento ? fmtFecha(r.momento, { hora: true }) : ''} · origen {r.origen} · reglas v{r.reglas_version}</span>
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${r.completo ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
           {r.completo ? 'completo' : 'INCOMPLETO'}
         </span>
@@ -52,14 +52,14 @@ function Replay({ r }: { r: ReplayDecision }) {
         {precio && (
           <Bloque titulo="Precio utilizado">
             <p className="text-xs text-slate-700">
-              {fmtNumber(precio.valor, 2)} {precio.moneda ?? ''} · {precio.fuente ?? 'fuente desconocida'} · {precio.publicado ?? 'sin fecha'} · {precio.estado}
+              {fmtNum(precio.valor, 2)} {precio.moneda ?? ''} · {precio.fuente ?? 'fuente desconocida'} · {precio.publicado ?? 'sin fecha'} · {precio.estado}
             </p>
           </Bloque>
         )}
         {s.senal && (
           <Bloque titulo="Señal">
             <p className="text-xs text-slate-700">
-              Puntuación {fmtNumber((s.senal as { score: number | null }).score, 2)} · {(s.senal as { origen?: string }).origen ?? ''}
+              Puntuación {fmtNum((s.senal as { score: number | null }).score, 2)} · {(s.senal as { origen?: string }).origen ?? ''}
             </p>
           </Bloque>
         )}
@@ -69,7 +69,7 @@ function Replay({ r }: { r: ReplayDecision }) {
               {Object.entries((s.fundamentales as { metricas: Record<string, { valor: number | null; unidad?: string }> }).metricas).map(([k, m]) => (
                 <li key={k} className="flex justify-between">
                   <span>{k.replace(/_/g, ' ')}</span>
-                  <span className="tabular-nums">{m.valor == null ? 'desconocido' : m.unidad === 'fracción' ? fmtPct(m.valor, 1) : Math.abs(m.valor) > 1e5 ? `${fmtNumber(m.valor / 1e6, 1)} M` : fmtNumber(m.valor, 2)}</span>
+                  <span className="tabular-nums">{m.valor == null ? 'desconocido' : m.unidad === 'fracción' ? fmtPct(m.valor, 1) : Math.abs(m.valor) > 1e5 ? `${fmtNum(m.valor / 1e6, 1)} M` : fmtNum(m.valor, 2)}</span>
                 </li>
               ))}
             </ul>
@@ -78,7 +78,7 @@ function Replay({ r }: { r: ReplayDecision }) {
         {s.valoracion && (
           <Bloque titulo="Valoración">
             <p className="text-xs text-slate-700">
-              P/E {fmtNumber((s.valoracion as { pe?: { valor: number | null } }).pe?.valor ?? null, 1)} · crecimiento implícito (DCF inverso al 9 %){' '}
+              P/E {fmtNum((s.valoracion as { pe?: { valor: number | null } }).pe?.valor ?? null, 1)} · crecimiento implícito (DCF inverso al 9 %){' '}
               {fmtPct((s.valoracion as { dcf_inverso?: { crecimiento_implicito?: number | null } }).dcf_inverso?.crecimiento_implicito ?? null, 1)}
             </p>
           </Bloque>
@@ -105,7 +105,7 @@ function Replay({ r }: { r: ReplayDecision }) {
           <Bloque titulo="Noticias disponibles hasta ese momento">
             <ul className="text-[11px] text-slate-600">
               {((s.noticias as { items: { headline: string; published_at: string; source: string }[] }).items ?? []).map((n, i) => (
-                <li key={i}>{fmtDateTime(n.published_at)} · {n.source} · {n.headline}</li>
+                <li key={i}>{fmtFecha(n.published_at, { hora: true })} · {n.source} · {n.headline}</li>
               ))}
             </ul>
           </Bloque>
@@ -166,11 +166,11 @@ export function HistorialSection({ symbol }: { symbol: string }) {
             <tbody>
               {filas.map((f) => (
                 <tr key={f.id} className={`border-t border-slate-100 ${replay?.id === f.id ? 'bg-slate-50' : ''}`}>
-                  <td className="py-1 text-slate-700">{fmtDateTime(f.creado_en)}</td>
+                  <td className="py-1 text-slate-700">{fmtFecha(f.creado_en, { hora: true })}</td>
                   <td className="text-slate-500">{f.origen}</td>
                   <td className="font-medium text-slate-800">{f.accion}</td>
-                  <td className="text-right tabular-nums">{fmtNumber(f.precio, 2)}</td>
-                  <td className="text-right tabular-nums">{fmtNumber(f.score, 2)}</td>
+                  <td className="text-right tabular-nums">{fmtNum(f.precio, 2)}</td>
+                  <td className="text-right tabular-nums">{fmtNum(f.score, 2)}</td>
                   <td className="text-right">
                     <button type="button" onClick={() => abrir(f.id)} className="rounded border border-slate-300 px-2 py-0.5 text-[11px]">
                       Replay

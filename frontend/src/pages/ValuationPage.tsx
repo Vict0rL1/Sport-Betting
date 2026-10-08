@@ -9,7 +9,7 @@ import type {
   Valoracion,
   WatchlistItem,
 } from '../api/types'
-import { fmtNumber } from '../lib/format'
+import { fmtNum, fmtPct, valorDeCampo } from '../lib/formato'
 import { Ventana } from '../components/Ventana'
 
 const ESCENARIOS = ['bajista', 'base', 'alcista'] as const
@@ -21,8 +21,7 @@ const TONO: Record<NombreEscenario, string> = {
   alcista: 'text-emerald-700',
 }
 
-const pct = (v: number | null | undefined, d = 1) =>
-  v === null || v === undefined ? '—' : `${(v * 100).toFixed(d)} %`
+const pct = (v: number | null | undefined, d = 1) => fmtPct(v, d)
 
 /** La barra del rango, con el precio actual marcado encima.
  *
@@ -57,7 +56,7 @@ function BarraRango({
         <div
           className="absolute top-0.5 h-5 w-0.5 bg-slate-900"
           style={{ left: `calc(${marca}% - 1px)` }}
-          title={`Precio actual: ${fmtNumber(actual, 2)}`}
+          title={`Precio actual: ${fmtNum(actual, 2)}`}
         />
       )}
     </div>
@@ -72,13 +71,13 @@ function RangoGlobalPanel({ g }: { g: RangoGlobal }) {
       </h2>
       <div className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <span className="text-2xl font-semibold tabular-nums text-slate-900">
-          {fmtNumber(g.bajo, 0)} – {fmtNumber(g.alto, 0)}
+          {fmtNum(g.bajo, 0)} – {fmtNum(g.alto, 0)}
         </span>
         {g.precio_actual !== null && (
           <span className="text-sm text-slate-500">
             cotiza a{' '}
             <span className="font-medium tabular-nums text-slate-800">
-              {fmtNumber(g.precio_actual, 0)}
+              {fmtNum(g.precio_actual, 0)}
             </span>{' '}
             ({g.posicion})
           </span>
@@ -141,10 +140,10 @@ function Escenarios({
                 </span>
                 {e.rango.disponible ? (
                   <span className="tabular-nums text-slate-900">
-                    {fmtNumber(e.rango.bajo, 0)}{' '}
+                    {fmtNum(e.rango.bajo, 0)}{' '}
                     <span className="text-slate-400">–</span>{' '}
-                    <span className="font-medium">{fmtNumber(e.rango.centro, 0)}</span>{' '}
-                    <span className="text-slate-400">–</span> {fmtNumber(e.rango.alto, 0)}
+                    <span className="font-medium">{fmtNum(e.rango.centro, 0)}</span>{' '}
+                    <span className="text-slate-400">–</span> {fmtNum(e.rango.alto, 0)}
                   </span>
                 ) : (
                   <span className="text-xs text-amber-800">sin rango calculable</span>
@@ -184,7 +183,7 @@ function Escenarios({
                       <input
                         type="number"
                         step={0.1}
-                        value={(s[campo] * 100).toFixed(1)}
+                        value={valorDeCampo(s[campo] * 100, 1)}
                         onChange={(ev) =>
                           onCambiar(nombre, campo, Number(ev.target.value) / 100)
                         }
@@ -235,7 +234,7 @@ function SensibilidadPanel({ s }: { s: Sensibilidad }) {
             <div className="flex items-baseline justify-between gap-2 text-sm">
               <span className="text-slate-700">{f.etiqueta}</span>
               <span className="tabular-nums text-slate-900">
-                {f.recorrido_pct.toFixed(0)} %
+                {fmtPct(f.recorrido_pct, 0, { enPuntos: true })}
                 {f.asimetrico && (
                   <span
                     className="ml-1.5 text-[10px] text-amber-800"
@@ -253,7 +252,7 @@ function SensibilidadPanel({ s }: { s: Sensibilidad }) {
               />
             </div>
             <div className="mt-0.5 text-[11px] tabular-nums text-slate-400">
-              {fmtNumber(f.valor_abajo, 0)} → {fmtNumber(f.valor_arriba, 0)}
+              {fmtNum(f.valor_abajo, 0)} → {fmtNum(f.valor_arriba, 0)}
             </div>
           </li>
         ))}
@@ -554,17 +553,17 @@ export function ValuationPage() {
             </h3>
             <dl className="mt-2 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               {[
-                ['FCF de partida', fmtNumber(data.entradas.base_fcf / 1e6, 0) + ' M'],
+                ['FCF de partida', fmtNum(data.entradas.base_fcf / 1e6, 0) + ' M'],
                 [
                   'Deuda neta',
-                  fmtNumber(data.entradas.net_debt / 1e6, 0) +
+                  fmtNum(data.entradas.net_debt / 1e6, 0) +
                     ' M' +
                     (data.entradas.deuda_parcial ? ' (parcial)' : ''),
                 ],
                 [
                   'Acciones',
                   data.entradas.shares_outstanding
-                    ? fmtNumber(data.entradas.shares_outstanding / 1e6, 0) + ' M'
+                    ? fmtNum(data.entradas.shares_outstanding / 1e6, 0) + ' M'
                     : '—',
                 ],
                 ['Ejercicio', String(data.entradas.fiscal_year ?? '—')],

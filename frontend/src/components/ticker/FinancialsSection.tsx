@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { Financials, PeersResponse } from '../../api/types'
-import { fmtBig, fmtNumber, fmtPct } from '../../lib/format'
+import { fmtCompacto, fmtNum, fmtPct } from '../../lib/formato'
 import { SourceBadge } from '../SourceBadge'
 import { Ventana } from '../Ventana'
 
@@ -39,8 +39,8 @@ const PCT_KEYS = new Set([
 
 function fmtCell(value: number | null | undefined, kind: 'big' | 'ratio' | 'pct') {
   if (kind === 'pct') return fmtPct(value)
-  if (kind === 'big') return fmtBig(value)
-  return fmtNumber(value)
+  if (kind === 'big') return fmtCompacto(value)
+  return fmtNum(value)
 }
 
 export function FinancialsSection({ symbol }: { symbol: string }) {
@@ -153,7 +153,7 @@ export function FinancialsSection({ symbol }: { symbol: string }) {
                     <td className="py-1.5 pr-2">{row.symbol}</td>
                     {peers.comparison_keys.map((k) => (
                       <td key={k} className="px-2 py-1.5 text-right tabular-nums">
-                        {PCT_KEYS.has(k) ? fmtPct(row.metrics[k]) : fmtNumber(row.metrics[k])}
+                        {PCT_KEYS.has(k) ? fmtPct(row.metrics[k]) : fmtNum(row.metrics[k])}
                       </td>
                     ))}
                   </tr>

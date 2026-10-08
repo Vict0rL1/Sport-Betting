@@ -8,7 +8,7 @@ import type {
   MultifactorResult,
   PercentilHistorico,
 } from '../api/types'
-import { fmtNumber, fmtPct } from '../lib/format'
+import { fmtNum, fmtPct } from '../lib/formato'
 
 const FAMILIAS: Familia[] = [
   'value',
@@ -69,10 +69,9 @@ const PORCENTAJE = new Set([
 
 function fmtMetrica(clave: string, valor: number | null | undefined) {
   if (valor === null || valor === undefined) return '—'
-  // Ambas ramas por el mismo formateador local: mezclar `toFixed` con
-  // `toLocaleString('es')` ponía «21.3 %» y «0,56» en columnas contiguas de la
-  // misma tabla, con dos separadores decimales distintos.
-  return PORCENTAJE.has(clave) ? fmtPct(valor) : fmtNumber(valor, 2)
+  // Ambas ramas por el mismo formateador: mezclar dos ponía «21.3 %» y «0,56»
+  // en columnas contiguas de la misma tabla, con dos separadores decimales.
+  return PORCENTAJE.has(clave) ? fmtPct(valor) : fmtNum(valor, 2)
 }
 
 /** Una celda de z-score con color. El cero es el centro, no un extremo. */
@@ -85,8 +84,7 @@ function ZCell({ z }: { z: number | null }) {
     z <= -1 ? 'text-red-700' : z <= -0.3 ? 'text-red-600' : 'text-slate-400'
   return (
     <span className={`tabular-nums ${tono}`}>
-      {z > 0 ? '+' : ''}
-      {z.toFixed(2)}
+      {fmtNum(z, 2, { signo: true })}
     </span>
   )
 }
@@ -495,8 +493,7 @@ function FilaTabla({
         </td>
         <td className="px-3 py-2 text-xs text-slate-500">{fila.sector}</td>
         <td className="px-3 py-2 text-right font-medium tabular-nums text-slate-900">
-          {fila.score > 0 ? '+' : ''}
-          {fila.score.toFixed(2)}
+          {fmtNum(fila.score, 2, { signo: true })}
         </td>
         {FAMILIAS.map((f) => (
           <td key={f} className="px-2 py-2 text-right">

@@ -10,7 +10,7 @@ import type {
   VigilanciaResponse,
   VigilanciaTesis,
 } from '../api/types'
-import { fmtNumber, relativeTime } from '../lib/format'
+import { fmtNum, fmtAntiguedad } from '../lib/formato'
 
 const ACCIONES = ['comprar', 'reforzar', 'mantener', 'reducir', 'vender', 'descartar']
 
@@ -67,7 +67,7 @@ function Disparador({ d }: { d: DisparadorVigilado }) {
 
       {d.serie && d.serie.length > 1 && (
         <p className="mt-1 text-[11px] tabular-nums text-slate-500">
-          Últimos ejercicios: {d.serie.map((v) => fmtNumber(v, 3)).join(' → ')}
+          Últimos ejercicios: {d.serie.map((v) => fmtNum(v, 3)).join(' → ')}
           {d.tendencia && (
             <span
               className={
@@ -318,15 +318,15 @@ function Decision({ d }: { d: DecisionRegistrada }) {
         </span>
         <span className="font-medium text-slate-800">{d.symbol}</span>
         <span className="text-xs text-slate-400">
-          {relativeTime(d.created_at)} · hace {d.days_elapsed} días
+          {fmtAntiguedad(d.created_at)} · hace {d.days_elapsed} días
         </span>
         {d.price_at_decision !== null && (
           <span className="ml-auto text-xs tabular-nums text-slate-500">
-            {fmtNumber(d.price_at_decision, 2)}
+            {fmtNum(d.price_at_decision, 2)}
             {d.precio_actual !== null && (
               <>
                 {' → '}
-                {fmtNumber(d.precio_actual, 2)}{' '}
+                {fmtNum(d.precio_actual, 2)}{' '}
                 {d.cambio_pct !== null && (
                   <span
                     className={d.cambio_pct >= 0 ? 'text-emerald-700' : 'text-red-700'}

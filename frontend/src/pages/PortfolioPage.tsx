@@ -13,7 +13,7 @@ import type {
   Vigilancia,
   WatchlistItem,
 } from '../api/types'
-import { fmtChangePct, fmtNumber, fmtPct } from '../lib/format'
+import { fmtDinero, fmtNum, fmtPct } from '../lib/formato'
 
 type Tab = 'portafolio' | 'watchlist' | 'alertas'
 
@@ -113,10 +113,10 @@ function RiskBudgetPanel({ risk }: { risk: RiskBudget }) {
       </div>
       <div className="mt-2 flex items-baseline gap-2">
         <span className={`text-3xl font-semibold tabular-nums ${excedido ? 'text-red-600' : 'text-slate-900'}`}>
-          {risk.riesgo_total_pct.toFixed(1)} %
+          {fmtPct(risk.riesgo_total_pct, 1, { enPuntos: true })}
         </span>
         <span className="text-xs text-slate-400">
-          {excedido ? 'por encima del tope' : `quedan ${risk.margen_pct.toFixed(1)} % de margen`}
+          {excedido ? 'por encima del tope' : `quedan ${fmtPct(risk.margen_pct, 1, { enPuntos: true })} de margen`}
         </span>
       </div>
       <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-100">
@@ -136,7 +136,7 @@ function RiskBudgetPanel({ risk }: { risk: RiskBudget }) {
               <li key={grupo} className="flex justify-between gap-3">
                 <span className="text-slate-600">{grupo}</span>
                 <span className={`tabular-nums ${valor > risk.tope_grupo_pct ? 'text-red-600' : 'text-slate-700'}`}>
-                  {valor.toFixed(1)} %
+                  {fmtPct(valor, 1, { enPuntos: true })}
                 </span>
               </li>
             ))}
@@ -167,7 +167,7 @@ function DivisasPanel({ d }: { d: DivisasDeCartera }) {
         <span className="text-[11px] tabular-nums text-sky-800">
           en {d.base}, por divisa de origen:{' '}
           {Object.entries(d.monedas)
-            .map(([m, v]) => `${m} → ${fmtNumber(v, 0)}`)
+            .map(([m, v]) => `${m} → ${fmtNum(v, 0)}`)
             .join(' · ')}
         </span>
       </div>
@@ -176,7 +176,7 @@ function DivisasPanel({ d }: { d: DivisasDeCartera }) {
         <ul className="mt-2 space-y-0.5 text-[11px] text-sky-900">
           {Object.entries(d.tipos_usados).map(([m, t]) => (
             <li key={m} className="tabular-nums">
-              1 {d.base} = {fmtNumber(t.por_usd, 4)} {m}
+              1 {d.base} = {fmtNum(t.por_usd, 4)} {m}
               <span className="ml-2 text-sky-700">
                 ({t.serie}{t.fecha ? ` · ${t.fecha}` : ''})
               </span>
@@ -192,8 +192,7 @@ function DivisasPanel({ d }: { d: DivisasDeCartera }) {
         <p className="mt-2 text-[11px] tabular-nums text-sky-900">
           Efecto divisa desde la compra:{' '}
           <span className={d.efecto_divisa_base >= 0 ? 'text-emerald-700' : 'text-red-700'}>
-            {d.efecto_divisa_base >= 0 ? '+' : ''}
-            {fmtNumber(d.efecto_divisa_base, 0)} {d.base}
+            {fmtDinero(d.efecto_divisa_base, d.base, 0, { signo: true })}
           </span>{' '}
           <span className="text-sky-700">(incluido en el P&L)</span>
         </p>
@@ -261,15 +260,15 @@ function HistorialPanel() {
           <div>
             <div className="text-[10px] uppercase tracking-wide text-slate-400">Ahora</div>
             <div className="text-xl font-semibold tabular-nums text-slate-800">
-              {fmtNumber(r.actual)}
+              {fmtNum(r.actual)}
             </div>
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-wide text-slate-400">Máximo</div>
-            <div className="text-xl tabular-nums text-slate-500">{fmtNumber(r.maximo)}</div>
+            <div className="text-xl tabular-nums text-slate-500">{fmtNum(r.maximo)}</div>
             {r.bajo_maximo_pct !== null && r.bajo_maximo_pct !== undefined && (
               <div className="text-[10px] tabular-nums text-slate-400">
-                {fmtNumber(r.bajo_maximo_pct, 1)} % por debajo
+                {fmtPct(r.bajo_maximo_pct, 1, { enPuntos: true })} por debajo
               </div>
             )}
           </div>
@@ -284,8 +283,7 @@ function HistorialPanel() {
                 (r.rendimiento_pct ?? 0) >= 0 ? 'text-emerald-700' : 'text-red-700'
               }`}
             >
-              {(r.rendimiento_pct ?? 0) > 0 ? '+' : ''}
-              {fmtNumber(r.rendimiento_pct, 1)} %
+              {fmtPct(r.rendimiento_pct, 1, { signo: true, enPuntos: true })}
             </div>
             <div className="text-[10px] text-slate-400">sin contar aportes ni ventas</div>
           </div>
@@ -294,7 +292,7 @@ function HistorialPanel() {
               Peor caída vivida
             </div>
             <div className="text-xl font-semibold tabular-nums text-red-700">
-              {fmtNumber(r.max_drawdown_pct, 1)} %
+              {fmtPct(r.max_drawdown_pct, 1, { enPuntos: true })}
             </div>
             <div className="text-[10px] text-slate-400">
               {r.drawdown_desde} → {r.drawdown_hasta}
@@ -325,13 +323,12 @@ function HistorialPanel() {
   )
 }
 
-function Pnl({ value, pct }: { value: number | null; pct: number | null }) {
+function Pnl({ value, pct, moneda = null }: { value: number | null; pct: number | null; moneda?: string | null }) {
   if (value === null) return <span className="text-slate-400">—</span>
   const up = value >= 0
   return (
     <span className={`tabular-nums font-medium ${up ? 'text-emerald-600' : 'text-red-600'}`}>
-      {up ? '+' : ''}
-      {fmtNumber(value)}
+      {fmtDinero(value, moneda, 2, { signo: true })}
       {pct !== null && <span className="ml-1 text-xs">({fmtPct(pct)})</span>}
     </span>
   )
@@ -341,6 +338,9 @@ function PortfolioTab() {
   const [data, setData] = useState<Portfolio | null>(null)
   const [form, setForm] = useState({ symbol: '', quantity: '', cost: '' })
   const [error, setError] = useState<string | null>(null)
+  // Con varias divisas, cada importe dice la suya: «2.903,00» a secas no dice
+  // si son dólares o dólares canadienses (ítem 1.7). Con una sola, sería ruido.
+  const monedaDe = (m: string | null | undefined) => (data?.divisas?.mezcla_de_divisas ? (m ?? null) : null)
 
   const load = useCallback(() => {
     api.portfolio().then(setData, (e) => setError(e.message))
@@ -428,21 +428,19 @@ function PortfolioTab() {
             <div className="rounded-xl border border-slate-200 bg-white p-3">
               <div className="text-xs text-slate-400">Invertido</div>
               <div className="text-xl font-semibold tabular-nums">
-                {fmtNumber(data.summary.total_invested)}
+                {fmtDinero(data.summary.total_invested, monedaDe(data.divisas?.base))}
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3">
               <div className="text-xs text-slate-400">Valor de mercado</div>
               <div className="text-xl font-semibold tabular-nums">
-                {data.summary.total_market_value !== null
-                  ? fmtNumber(data.summary.total_market_value)
-                  : '—'}
+                {fmtDinero(data.summary.total_market_value, monedaDe(data.divisas?.base))}
               </div>
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3">
               <div className="text-xs text-slate-400">No realizado</div>
               <div className="text-xl">
-                <Pnl value={data.summary.unrealized_pnl} pct={data.summary.unrealized_pct} />
+                <Pnl value={data.summary.unrealized_pnl} pct={data.summary.unrealized_pct} moneda={monedaDe(data.divisas?.base)} />
               </div>
               {/* La rentabilidad no se enseña sola, nunca. Un «+12 %» y un
                   «+12 % con un −45 % por el camino» son propuestas distintas, y
@@ -561,10 +559,10 @@ function PortfolioTab() {
                           <Sparkline valores={p.spark} width={64} height={20} />
                         </td>
                         <td className="px-2 py-1.5 text-xs text-slate-500">{p.sector}</td>
-                        <td className="px-2 py-1.5 tabular-nums">{fmtNumber(p.quantity, 0)}</td>
-                        <td className="px-2 py-1.5 tabular-nums">{fmtNumber(p.cost_basis)}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{fmtNum(p.quantity, 0)}</td>
+                        <td className="px-2 py-1.5 tabular-nums">{fmtDinero(p.cost_basis, monedaDe(p.currency))}</td>
                         <td className="px-2 py-1.5 tabular-nums">
-                          {p.price !== null ? fmtNumber(p.price) : '—'}
+                          {fmtDinero(p.price, monedaDe(p.currency))}
                           {p.precio_estado === 'viejo' && (
                             <span
                               className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800"
@@ -575,10 +573,10 @@ function PortfolioTab() {
                           )}
                         </td>
                         <td className="px-2 py-1.5 tabular-nums">
-                          {p.market_value !== null ? fmtNumber(p.market_value) : '—'}
+                          {fmtDinero(p.market_value, monedaDe(p.currency))}
                         </td>
                         <td className="px-2 py-1.5">
-                          <Pnl value={p.unrealized_pnl} pct={p.unrealized_pct} />
+                          <Pnl value={p.unrealized_pnl} pct={p.unrealized_pct} moneda={monedaDe(p.currency)} />
                         </td>
                         <td className="px-2 py-1.5 tabular-nums text-slate-600">
                           {weight ? fmtPct(weight.weight) : '—'}
@@ -712,13 +710,13 @@ function WatchlistTab() {
               <div className="flex items-center gap-4">
                 {item.quote ? (
                   <span className="tabular-nums text-slate-700">
-                    {fmtNumber(item.quote.price)}
+                    {fmtNum(item.quote.price)}
                     <span
                       className={`ml-2 text-sm ${
                         (item.quote.change_pct ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-600'
                       }`}
                     >
-                      {fmtChangePct(item.quote.change_pct)}
+                      {fmtPct(item.quote.change_pct, 2, { signo: true, enPuntos: true })}
                     </span>
                   </span>
                 ) : (
@@ -790,7 +788,7 @@ function AvisoDeVigilancia({ v }: { v: Vigilancia | null }) {
 function textoDeCondicion(c: PriceAlert['condition']): string {
   const verbo = c.op === 'lt' ? 'baja de' : c.op === 'gt' ? 'sube de' : null
   if (verbo === null) return `condición no reconocida (${c.op ?? 'sin operador'})`
-  return `${verbo} ${fmtNumber(c.price)}`
+  return `${verbo} ${fmtNum(c.price)}`
 }
 
 /** Lo que no se puede comprobar no se pinta como tranquilo. */
@@ -905,7 +903,7 @@ function AlertsTab() {
               </div>
               <div className="flex items-center gap-4">
                 <span className="text-sm tabular-nums text-slate-600">
-                  {a.current_price !== null ? fmtNumber(a.current_price) : '—'}
+                  {a.current_price !== null ? fmtNum(a.current_price) : '—'}
                 </span>
                 <button
                   onClick={async () => {

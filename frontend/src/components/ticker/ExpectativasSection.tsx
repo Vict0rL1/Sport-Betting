@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { CalibracionExpectativas, EventoCatalizador, LecturaEvento } from '../../api/types'
-import { fmtNumber, fmtPct } from '../../lib/format'
+import { fmtNum, fmtPct } from '../../lib/formato'
 
 const FUENTE: Record<string, string> = {
   consenso: 'Consenso (Finnhub)',
@@ -29,8 +29,8 @@ const CLASIFICACION: Record<string, string> = {
 function cifra(v: number | null | undefined, unidad: string | null): string {
   if (v === null || v === undefined) return '—'
   if (unidad === 'fracción') return fmtPct(v, 1)
-  if (unidad === 'USD' && Math.abs(v) >= 1e5) return `${fmtNumber(v / 1e6, 1)} M`
-  return fmtNumber(v, 2)
+  if (unidad === 'USD' && Math.abs(v) >= 1e5) return `${fmtNum(v / 1e6, 1)} M`
+  return fmtNum(v, 2)
 }
 
 function Evento({ id, alCambiar }: { id: number; alCambiar: () => void }) {
@@ -92,7 +92,7 @@ function Evento({ id, alCambiar }: { id: number; alCambiar: () => void }) {
                   </td>
                   <td className="text-right text-slate-800">{cifra(c.real, c.unidad)}</td>
                   <td className="text-right text-slate-600">
-                    {c.sorpresa == null ? '—' : c.tipo_sorpresa === 'relativa' ? fmtPct(c.sorpresa, 1) : c.unidad === 'fracción' ? `${fmtNumber(c.sorpresa * 100, 1)} pp` : fmtNumber(c.sorpresa, 2)}
+                    {c.sorpresa == null ? '—' : c.tipo_sorpresa === 'relativa' ? fmtPct(c.sorpresa, 1) : c.unidad === 'fracción' ? `${fmtNum(c.sorpresa * 100, 1)} pp` : fmtNum(c.sorpresa, 2)}
                   </td>
                   <td className={`text-right font-medium ${LECTURA[c.lectura]}`}>{c.lectura.replace('_', ' ')}</td>
                 </tr>

@@ -1,5 +1,5 @@
 import type { AlternativaDecision, Decision, ReglaTraza } from '../api/types'
-import { fmtNumber } from '../lib/format'
+import { fmtNum } from '../lib/formato'
 
 // Todo lo que se pinta aquí sale de la traza del motor de reglas: qué regla se
 // evaluó, con qué valor, contra qué umbral y qué papel tuvo. No hay texto
@@ -33,7 +33,7 @@ const ACCION: Record<string, string> = {
 
 function valor(v: unknown): string {
   if (v === null || v === undefined) return '—'
-  if (typeof v === 'number') return Math.abs(v) < 10 ? fmtNumber(v, 2) : fmtNumber(v, 2)
+  if (typeof v === 'number') return Math.abs(v) < 10 ? fmtNum(v, 2) : fmtNum(v, 2)
   return String(v)
 }
 
@@ -85,7 +85,7 @@ export function QueLaCambiaria({ cambiaria }: { cambiaria: AlternativaDecision[]
                 {c.distancia !== null && c.distancia !== undefined && (
                   <span className="ml-1 tabular-nums text-slate-400">
                     (ahora {valor(c.actual)}; falta {c.distancia >= 0 ? '+' : ''}
-                    {fmtNumber(c.distancia, 2)} {c.unidad === '%' ? '%' : c.unidad})
+                    {fmtNum(c.distancia, 2)} {c.unidad === '%' ? '%' : c.unidad})
                   </span>
                 )}
                 {c.nota && <span className="ml-1 text-amber-800">{c.nota}</span>}
