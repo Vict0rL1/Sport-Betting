@@ -19,5 +19,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // Vitest vacía los .css al importarlos. `index.css` se deja pasar: el test de
+    // contraste de los tokens (src/lib/tokens.test.ts) lo lee tal cual (`?raw`).
+    css: { include: [/index\.css/] },
   },
 })

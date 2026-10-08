@@ -20,7 +20,7 @@ Material de partida: `docs/REVISION_GENERAL.md` (revisión del 8-oct-2026) y sus
 
 ## Fase 1 — Corrección y fallos visuales (P1)
 
-- [ ] **1.1** Tokens semánticos de color mínimos + `leerToken` + test de contraste — estado: pendiente · commit: — · nota: —
+- [x] **1.1** Tokens semánticos de color mínimos + `leerToken` + test de contraste — estado: hecho · commit: (este commit) · nota: 14 tokens en `index.css`; `--text-muted` = #808eab (el #7c8aa8 del plan daba 4,37:1 sobre la superficie hundida); el test lee `index.css`; los rótulos `slate-400` existentes tienen el mismo 4,37:1 → para 2.13/4.1.
 - [ ] **1.2** V1 · colores del gráfico de precios — estado: pendiente · commit: — · nota: —
 - [ ] **1.3** V9 · etiquetas de IA — estado: pendiente · commit: — · nota: —
 - [ ] **1.4** V3 · «undefined %» en el reparto del tamaño — estado: pendiente · commit: — · nota: —

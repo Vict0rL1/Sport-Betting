@@ -75,6 +75,43 @@
   color-scheme: dark;
 }
 
+/* Tokens semánticos (ítem 1.1 del plan de correcciones).
+ *
+ * La inversión de paleta de arriba tiene un precio que ya se pagó dos veces:
+ * lo que no pasa por las clases de Tailwind no se invierte. El gráfico de
+ * precios dibuja en un canvas con colores escritos a mano (V1, rejilla blanca y
+ * volumen verde menta sobre fondo oscuro) y `bg-violet-50` se quedó fuera de la
+ * inversión (V9, etiquetas de IA como manchas claras). Estos nombres dicen QUÉ es
+ * cada color, no qué tono tiene: el código nuevo los usa, y lo que dibuja en un
+ * canvas los lee con `leerToken()` (src/lib/tokens.ts). Las clases existentes
+ * siguen como están; la migración completa es el ítem 4.1.
+ *
+ * Contraste: todo color de texto, sobre toda superficie, ≥ 4,5:1 (WCAG AA). Lo
+ * comprueba `src/lib/tokens.test.ts` leyendo ESTE fichero. Por eso `--text-muted`
+ * es #808eab y no el #7c8aa8 de los rótulos: sobre la superficie hundida daba
+ * 4,37:1. */
+:root {
+  /* Superficies, de la más honda a la más elevada. */
+  --surface-page: #080c18;
+  --surface-card: #111a2e;
+  --surface-sunken: #1b2540;
+  --border: #26314f;
+
+  /* Texto, de lo más tenue a lo más destacado. */
+  --text-muted: #808eab;
+  --text: #b6c2da;
+  --text-strong: #f4f7fd;
+
+  /* Semánticos: comprar, vender, aviso, información y lo generado por IA. */
+  --buy: #4ade9c;
+  --sell: #f2555f;
+  --warn: #fcd34d;
+  --warn-bg: #2b1f06;
+  --info: #38bdf8;
+  --ai: #c4b5fd;
+  --ai-bg: #1e1533;
+}
+
 body {
   background-color: var(--color-slate-50);
 }
