@@ -47,6 +47,35 @@ export function leerPeleas(): PeleaUfc[] {
     .all() as unknown as PeleaUfc[];
 }
 
+/** La ficha de un luchador que no cambia con el tiempo (ufc_fighters): no trae información del futuro. */
+export interface FichaUfc {
+  nacimiento: string | null;
+  alcance_cm: number | null;
+}
+
+export function leerFichas(): Map<string, FichaUfc> {
+  const filas = getDb().prepare('SELECT id, nacimiento, alcance_cm FROM ufc_fighters').all() as unknown as ({ id: string } & FichaUfc)[];
+  return new Map(filas.map((f) => [f.id, { nacimiento: f.nacimiento, alcance_cm: f.alcance_cm }]));
+}
+
+/**
+ * Las diferencias entre los dos (el primero por id menos el otro), con lo sabido ANTES de la pelea.
+ * Lo que falta es 0, no un rasgo aparte: que falte una medida depende en parte de cuánto peleó
+ * después el luchador (docs/plans/ufc-combinado.md).
+ */
+export interface RasgosUfc {
+  /** Diferencia de Elo del modelo, en logit. */
+  elo: number;
+  /** logit(récord suavizado) de uno menos el del otro. */
+  record: number;
+  /** Diferencia de edad el día de la pelea, en décadas. */
+  edad: number;
+  /** Diferencia de alcance, por 10 cm. */
+  alcance: number;
+  /** ln(1 + peleas en la UFC) de uno menos el del otro. */
+  experiencia: number;
+}
+
 /** Una pelea puntuable o no: la probabilidad de que gane el PRIMERO por id, y si ganó. */
 export interface PasoUfc {
   anio: number;
@@ -55,6 +84,15 @@ export interface PasoUfc {
   puntuable: boolean;
   /** Las referencias, en el mismo orden (el primero por id). */
   ref: { experiencia: number; record: number; basico: number };
+  rasgos: RasgosUfc;
+}
+
+const logit = (q: number) => Math.log(q / (1 - q));
+const ANIO_MS = 365.25 * 86_400_000;
+function edadEn(nacimiento: string | null | undefined, fecha: string): number | null {
+  if (!nacimiento) return null;
+  const t = (Date.parse(fecha) - Date.parse(nacimiento)) / ANIO_MS;
+  return Number.isFinite(t) && t > 14 && t < 60 ? t : null;
 }
 
 export interface Recorrido {
@@ -66,8 +104,8 @@ export interface Recorrido {
 
 const llBin = (p: number, y: 0 | 1) => -Math.log(Math.min(1 - 1e-12, Math.max(1e-12, y === 1 ? p : 1 - p)));
 
-/** Recorre las peleas en orden con unos parámetros (y las referencias a la vez). */
-export function recorrer(peleas: PeleaUfc[], p: ParamsUfc = UFC): Recorrido {
+/** Recorre las peleas en orden con unos parámetros (y las referencias a la vez). Sin fichas, edad y alcance valen 0. */
+export function recorrer(peleas: PeleaUfc[], p: ParamsUfc = UFC, fichas: Map<string, FichaUfc> = new Map()): Recorrido {
   const elo = new Map<string, number>();
   const basico = new Map<string, number>();
   const peleasDe = new Map<string, number>();
@@ -107,6 +145,12 @@ export function recorrer(peleas: PeleaUfc[], p: ParamsUfc = UFC): Recorrido {
       const tRec = recN ? recGana / recN : 0.5;
       const enHoldout = isFinalHoldout('ufc', anio);
       if (enHoldout) holdoutExcluido++;
+      const fx = fichas.get(x);
+      const fz = fichas.get(z);
+      const edX = edadEn(fx?.nacimiento, f.fecha);
+      const edZ = edadEn(fz?.nacimiento, f.fecha);
+      const alX = fx?.alcance_cm ?? null;
+      const alZ = fz?.alcance_cm ?? null;
       pasos.push({
         anio,
         p: predecir(ex, ez).a,
@@ -116,6 +160,13 @@ export function recorrer(peleas: PeleaUfc[], p: ParamsUfc = UFC): Recorrido {
           experiencia: nx === nz ? 0.5 : nx > nz ? tExp : 1 - tExp,
           record: rx === rz ? 0.5 : rx > rz ? tRec : 1 - tRec,
           basico: esperado(bx - bz),
+        },
+        rasgos: {
+          elo: ((ex - ez) * Math.LN10) / 400,
+          record: logit(rx) - logit(rz),
+          edad: edX != null && edZ != null ? (edX - edZ) / 10 : 0,
+          alcance: alX != null && alZ != null ? (alX - alZ) / 10 : 0,
+          experiencia: Math.log1p(nx) - Math.log1p(nz),
         },
       });
       // Las tasas de las referencias aprenden DESPUÉS de predecir.

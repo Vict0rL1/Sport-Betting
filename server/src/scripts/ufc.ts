@@ -2,8 +2,10 @@
 //   npm run update-data:ufc                          baja el archivo de ufcstats (Greco1899/scrape_ufc_stats en GitHub)
 //   npm run backtest:ufc                             evalúa el Elo de luchador sin el holdout (2026 en adelante)
 //   npm run backtest:ufc -- --ajustar [--registrar]  rejilla en 1993→2024, validación en 2025, prueba contra referencias
+//   npm run backtest:ufc -- --combinado [--registrar] el segundo intento (docs/plans/ufc-combinado.md): Elo + récord (+ ficha)
 import { ingestarUfc } from '../ufc/ingest.ts';
-import { contraReferencias, evaluarUfc, leerPeleas, rejilla, validar, VALIDACION } from '../ufc/evaluacion.ts';
+import { contraReferencias, evaluarUfc, leerFichas, leerPeleas, rejilla, validar, VALIDACION } from '../ufc/evaluacion.ts';
+import { CANDIDATOS, LAMBDA, evaluarCombinado } from '../ufc/combinado.ts';
 import { UFC, type ParamsUfc } from '../ufc/model.ts';
 import { recordExperiment } from '../experiments/registry.ts';
 import { conRegistro } from '../ingest/runs.ts';
@@ -27,6 +29,66 @@ if (args[0] === 'ingestar') {
   } catch (e) {
     console.error(`✗ ${(e as Error).message}`);
     process.exit(1);
+  }
+} else if (args.includes('--combinado')) {
+  const peleas = leerPeleas();
+  if (peleas.length === 0) {
+    console.error('✗ sin peleas en ufc_fights: corre antes npm run update-data:ufc');
+    process.exit(1);
+  }
+  const r = evaluarCombinado(peleas, leerFichas());
+  console.log(`\nUFC · segundo intento (docs/plans/ufc-combinado.md): logística simétrica walk-forward por año, λ ${LAMBDA}`);
+  console.log(`Elección con el ENTRENAMIENTO (→ ${VALIDACION - 1}):`);
+  for (const x of r.eleccion) console.log(`  ${x.candidato.padEnd(20)} [${CANDIDATOS[x.candidato].join(', ')}] log loss ${f5(x.llEntrenamiento)}${x.candidato === r.elegido ? '  ← elegido' : ''}`);
+  console.log(`Pesos del ajuste que predice ${VALIDACION}: ${Object.entries(r.pesosValidacion).map(([k, v]) => `${k} ${v.toFixed(3)}`).join(' · ')}`);
+  for (const [nombre, t] of [
+    ['todo lo puntuable, sin holdout', r.todo],
+    [`solo la validación ${VALIDACION}`, r.validacion],
+  ] as const) {
+    console.log(`\n${r.elegido} contra las referencias, ${nombre} (${t.n} peleas): log loss ${f5(t.modelo)}`);
+    for (const x of t.referencias) console.log(`  ${x.nombre.padEnd(52)} ${f5(x.ll)} · Δ ${f5(x.mean)} [${f5(x.lo)}, ${f5(x.hi)}] · p ${f4(x.p)}`);
+    console.log(`  ${'Elo de luchador solo (el vigente)'.padEnd(52)} ${f5(t.contraElo.ll)} · Δ ${f5(t.contraElo.mean)} [${f5(t.contraElo.lo)}, ${f5(t.contraElo.hi)}] · p ${f4(t.contraElo.p)}`);
+  }
+  console.log(`\n${r.pasa ? '✓ PASA la prueba de publicación' : '✗ NO pasa la prueba de publicación'} · ${r.mejoraAlElo ? 'mejora al Elo solo en la validación' : 'no queda demostrado que mejore al Elo solo en la validación'}`);
+  if (args.includes('--registrar')) {
+    const v = r.validacion;
+    const e1 = recordExperiment({
+      hypothesis: `ufc: combinar el Elo de luchador con el récord${r.elegido === 'elo+record' ? '' : ', la edad, el alcance y la experiencia'} en una logística walk-forward mejora al Elo solo`,
+      dataset: { sport: 'ufc', split: 'validation', n: v.n },
+      features: [...CANDIDATOS[r.elegido]],
+      hyperparams: { candidato: r.elegido, lambda: LAMBDA, candidatos: Object.keys(CANDIDATOS).join(' | '), eleccion: 'log loss walk-forward en el entrenamiento' },
+      metric: 'logloss',
+      baseline: 'Elo de luchador solo (vigente en la sombra)',
+      result: { delta: v.contraElo.mean, ciLo: v.contraElo.lo, ciHi: v.contraElo.hi, p: v.contraElo.p, n: v.n },
+      verdict: r.mejoraAlElo ? 'shipped' : v.contraElo.lo > 0 ? 'rejected' : 'inconclusive',
+      featureChange: `Elo solo → logística ${r.elegido} [${CANDIDATOS[r.elegido].join(', ')}]`,
+      trainPeriod: `walk-forward por año, 1994 → ${VALIDACION - 1}; elección entre ${Object.keys(CANDIDATOS).length} candidatos fijados antes (docs/plans/ufc-combinado.md)`,
+      validationPeriod: `${VALIDACION}; el holdout (2026 en adelante) no entra ni en el ajuste ni en la puntuación`,
+      metricsBefore: { logLoss: v.contraElo.ll },
+      metricsAfter: { logLoss: v.modelo },
+      accepted: r.mejoraAlElo,
+      reason: r.mejoraAlElo ? 'mejora en validación con el intervalo por debajo de cero' : 'el intervalo no excluye el cero: el Elo solo sigue siendo el vigente',
+    });
+    console.log(`\nRegistrado: ${e1.id}`);
+    const peor = v.referencias.reduce((a, b) => (b.mean > a.mean ? b : a));
+    const e2 = recordExperiment({
+      hypothesis: 'ufc (segundo intento): la logística Elo + récord (+ ficha) gana a las cuatro referencias fuera de muestra, la condición para publicar el deporte',
+      dataset: { sport: 'ufc', split: 'validation', n: v.n },
+      features: [...CANDIDATOS[r.elegido]],
+      hyperparams: { candidato: r.elegido, lambda: LAMBDA },
+      metric: 'logloss',
+      baseline: `la referencia más dura en la validación: ${peor.nombre}`,
+      result: { delta: peor.mean, ciLo: peor.lo, ciHi: peor.hi, p: peor.p, n: v.n },
+      verdict: r.pasa ? 'shipped' : peor.lo > 0 ? 'rejected' : 'inconclusive',
+      featureChange: 'publicar la UFC (entrar en SPORT_IDS) si gana a todas, en todo lo puntuable y en la validación',
+      trainPeriod: `walk-forward por año 1994 → ${VALIDACION - 1} (${r.todo.n - v.n} peleas puntuables)`,
+      validationPeriod: `${VALIDACION}; el holdout (2026 en adelante) no se puntúa`,
+      metricsBefore: { logLoss: peor.ll },
+      metricsAfter: { logLoss: v.modelo },
+      accepted: r.pasa,
+      reason: r.pasa ? 'gana a todas con el intervalo por debajo de cero en los dos tramos' : 'alguna referencia no queda descartada con el intervalo: la UFC sigue en sombra (último intento con estos datos)',
+    });
+    console.log(`Registrado: ${e2.id}`);
   }
 } else if (args.includes('--ajustar')) {
   const peleas = leerPeleas();
