@@ -208,6 +208,30 @@ export const MIGRACIONES: Migracion[] = [
       d.exec(ledgerize(STRATEGIES_SCHEMA, ctx.ledger));
     },
   },
+  // NHL con una segunda fuente (sportsdataverse): `final_period` pasa a admitir NULL (la fuente no dice
+  // si hubo prórroga) y se añade `fuente`. SQLite no cambia un CHECK en sitio: se rehace la tabla
+  // copiando las filas. Es historia (se vuelve a bajar), pero aun así no se pierde nada.
+  {
+    version: 14,
+    nombre: 'nhl-segunda-fuente',
+    destino: 'history',
+    up: (d) => {
+      const t = d.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'nhl_games'").get() as { sql: string } | undefined;
+      if (!t) {
+        d.exec(NHL_SCHEMA);
+        return;
+      }
+      if (t.sql.includes('fuente')) return;
+      d.exec('ALTER TABLE nhl_games RENAME TO nhl_games_v13');
+      d.exec('DROP INDEX IF EXISTS idx_nhl_fecha');
+      d.exec(NHL_SCHEMA);
+      d.exec(
+        `INSERT INTO nhl_games (id, season, game_type, game_date, home_id, away_id, home_name, away_name, home_goals, away_goals, final_period, fuente, ingested_at)
+         SELECT id, season, game_type, game_date, home_id, away_id, home_name, away_name, home_goals, away_goals, final_period, 'nhl-api', ingested_at FROM nhl_games_v13`,
+      );
+      d.exec('DROP TABLE nhl_games_v13');
+    },
+  },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {
