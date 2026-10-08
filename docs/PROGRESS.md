@@ -11,7 +11,7 @@ Material de partida: `docs/REVISION_GENERAL.md` (revisión del 8-oct-2026) y sus
 - [x] **0.1** Tests de frontend (Vitest + Testing Library + jsdom, `npm test`) — estado: hecho · commit: `a3aa047` · nota: vitest 5 + jsdom 30; tests junto al código (`*.test.tsx`), también pasan por `tsc -b`.
 - [x] **0.2** Integración continua (`.github/workflows/ci.yml`) — estado: hecho · commit: `1fa46c5` · nota: ESLint nuevo (recomendado, pasa limpio); ruff laxo (E9/F63/F7/F82); `tsc -b` en vez de `tsc --noEmit` (el tsconfig raíz no comprueba nada); auditorías solo informan.
 - [ ] **0.3** Golden master del motor (`backend/tests/golden/`) — estado: pendiente · commit: — · nota: —
-- [ ] **0.4** Paquete de casos extremos (`backend/tests/fixtures/extremos/`) — estado: pendiente · commit: — · nota: —
+- [x] **0.4** Paquete de casos extremos (`backend/tests/fixtures/extremos/`) — estado: hecho · commit: `1c99295` · nota: 8 empresas, 5 carteras, 3 listas diarias; `tests/test_extremos.py` comprueba que cada caso provoca su rareza.
 - [ ] **0.5** Tests contra fugas de texto (backend y frontend) — estado: pendiente · commit: — · nota: —
 - [ ] **0.6** Capturas repetibles con un solo comando — estado: pendiente · commit: — · nota: —
 - [ ] **0.7** Grabar y reproducir respuestas reales de proveedores — estado: pendiente · commit: — · nota: —
@@ -82,6 +82,13 @@ Material de partida: `docs/REVISION_GENERAL.md` (revisión del 8-oct-2026) y sus
 El proxy de este entorno deja empujar la rama pero corta los push de etiquetas, así que
 las etiquetas viven en local. Cada sesión nueva las recrea desde la tabla de arriba:
 `git tag fase-0-inicio e917365` (y así con las demás).
+
+## Hallazgos fuera de la lista (para decidir en su fase)
+
+- **`thesis_watch.evaluar_noticia` usa la hora real** (`datetime.now`) para la ventana de noticias, no el
+  momento del análisis: un análisis a fecha pasada filtra las noticias de la tesis con la ventana de hoy.
+  Posible fuga de «punto en el tiempo». Encontrado al montar el golden (que congela el reloj por esto).
+  Tocarlo cambia decisiones del replay: requiere tu visto bueno.
 
 ## Dónde me quedé
 
