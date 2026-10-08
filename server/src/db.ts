@@ -25,6 +25,7 @@ import { STRATEGIES_SCHEMA } from './estrategias/schema.ts';
 import { INBOX_SCHEMA } from './bandeja/schema.ts';
 import { REPORTS_SCHEMA } from './informes/schema.ts';
 import { NHL_SCHEMA } from './nhl/schema.ts';
+import { UFC_SCHEMA } from './ufc/schema.ts';
 import { ERROR_LOG_SCHEMA } from './security/errors.ts';
 import { HISTORY_DB_PATH, LAYOUT, LEDGER_DB_PATH, LEDGER_SCHEMA, LEGACY_DB_PATH, rutaPrincipal } from './db/layout.ts';
 import { ledgerize, masterDe } from './db/ledgerize.ts';
@@ -232,6 +233,8 @@ export const MIGRACIONES: Migracion[] = [
       d.exec('DROP TABLE nhl_games_v13');
     },
   },
+  // La UFC en sombra (seguimiento: NHL y UFC): eventos, luchadores y peleas. Historia (se vuelve a bajar).
+  { version: 15, nombre: 'ufc-sombra', destino: 'history', up: (d) => d.exec(UFC_SCHEMA) },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {

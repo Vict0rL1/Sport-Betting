@@ -363,6 +363,14 @@ test('ampliaciones: apagadas son información; encendidas sin lo que necesitan a
   const bien = comprobarProducto({ ...base, ampliaciones: { nhl: { on: true, partidos: 13_120, ultimo: '2025-04-17' }, telegram: { on: true, token: true, chats: 2, offset: 501 }, enVivo: true, propsNba: false } }, new Date());
   assert.equal(bien.find((x) => x.texto.startsWith('NHL'))?.nivel, 'ok');
   assert.match(bien.find((x) => x.texto.startsWith('Asistente'))!.texto, /2 chat\(s\).*la 500/);
+
+  // La UFC en sombra: igual que la NHL; si el estado no la trae (doctor viejo), no dice nada.
+  assert.ok(!bien.some((x) => x.texto.startsWith('UFC')));
+  const ufc = (on: boolean, peleas: number) => comprobarProducto({ ...base, ampliaciones: { ...apagadas, ufc: { on, peleas, ultimo: peleas ? '2026-10-03' : null } } }, new Date()).find((x) => x.texto.startsWith('UFC'));
+  assert.equal(ufc(false, 8_923)?.nivel, 'info');
+  assert.equal(ufc(true, 0)?.nivel, 'aviso');
+  assert.match(ufc(true, 0)!.accion!.join(' '), /update-data:ufc/);
+  assert.equal(ufc(true, 8_923)?.nivel, 'ok');
 });
 
 // ---- OPERACIÓN (Fase 9) ----

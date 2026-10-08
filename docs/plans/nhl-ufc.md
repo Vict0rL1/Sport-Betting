@@ -64,3 +64,20 @@ Gana a las dos con el intervalo lejos del cero: **pasa la prueba de publicación
 mejora de forma demostrable a los valores de partida (validación 2024-25: −0,0025 [−0,0055,
 +0,0006], p 0,11; registrado como no concluyente) ni los goles de la liga móviles mejoran los
 totales: se quedan los de partida.
+
+## Resultados de la etapa A, UFC
+
+8.923 peleas (791 eventos, hasta la UFC 332 del 3 de octubre de 2026), 7.799 puntuables de 2005 a
+2025. Detalle en [UFC.md](../UFC.md).
+
+| | Log loss | Δ modelo − referencia |
+|---|---|---|
+| Modelo (Elo de luchador, valores de partida) | **0,6802** | |
+| Moneda al aire | 0,6931 | −0,0130 [−0,0166, −0,0092] |
+| Más peleas en la UFC | 0,6944 | −0,0142 [−0,0181, −0,0101] |
+| Mejor récord en la UFC | 0,6830 | −0,0028 [−0,0056, +0,0000] |
+| Elo básico | 0,6842 | −0,0040 [−0,0057, −0,0023] |
+
+En 2025 sola (501 peleas), «mejor récord» queda por delante (+0,0038 [−0,0088, +0,0171]). **No pasa
+la prueba**: la UFC se queda en sombra, con sus cifras en Diagnóstico. La rejilla tampoco mejora de
+forma demostrable a los valores de partida (validación: −0,0017 [−0,0045, +0,0013], p 0,25).

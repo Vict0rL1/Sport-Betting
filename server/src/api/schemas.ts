@@ -230,6 +230,27 @@ export const ESQUEMA_NHL_SOMBRA = o({
   parametros: o({ k: num, campo: num, golesLiga: num, fuerzaProrroga: num }),
 });
 
+const ESQUEMA_TRAMO_UFC = o({
+  n: int,
+  modelo: num,
+  referencias: { type: 'array', items: o({ clave: str, nombre: str, logLoss: num, delta: num, lo: num, hi: num, p: num }) },
+});
+export const ESQUEMA_UFC_SOMBRA = o({
+  peleas: int,
+  puntuadas: int,
+  holdoutExcluido: int,
+  sinAtribuir: int,
+  sinGanador: int,
+  ultimo: nullable('string'),
+  modelo: { ...o({ n: int, logLoss: nullable('number'), brier: nullable('number'), accuracy: nullable('number'), ece: nullable('number') }), nullable: true },
+  referencias: { type: 'array', items: o({ clave: str, nombre: str, logLoss: nullable('number') }) },
+  porAnio: { type: 'array', items: o({ anio: int, n: int, logLoss: nullable('number') }) },
+  prueba: { ...o({ validacion: int, todo: ESQUEMA_TRAMO_UFC, enValidacion: { ...ESQUEMA_TRAMO_UFC, nullable: true }, pasa: bool }), nullable: true },
+  aviso: ESQUEMA_AVISO_MUESTRA,
+  nota: str,
+  parametros: o({ k: num, provisionales: int, factorProvisional: num, bonoFinalizacion: num }),
+});
+
 export const ESQUEMA_RENDIMIENTO = o({
   cache: o({ entradas: int, aciertos: int, fallos: int, invalidadas: int, on: bool, ttlSegundos: num }),
   compresion: bool,

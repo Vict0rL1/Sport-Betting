@@ -161,6 +161,11 @@ Telegram con el bot de las notificaciones. Solo responde a los chats de `TELEGRA
 
 `deportes.nhl` · Confianza › Diagnóstico · `GET /api/nhl/sombra`. En [NHL.md](NHL.md).
 
+### UFC en sombra
+
+`deportes.ufc` · Confianza › Diagnóstico · `GET /api/ufc/sombra`. Elo de luchador con la historia de
+ufcstats; no pasa todavía la prueba para publicar (no gana a «el de mejor récord»). En [UFC.md](UFC.md).
+
 ### Props de jugador de la NBA
 
 `apuestas.propsNba`, reservado y **sin modelo**. La hoja de ruta pedía evaluar primero si había box

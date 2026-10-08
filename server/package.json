@@ -74,7 +74,9 @@
     "vapid:generar": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/vapid.ts",
     "study": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/study.ts",
     "update-data:nhl": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/nhl.ts ingestar",
-    "backtest:nhl": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/nhl.ts backtest"
+    "backtest:nhl": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/nhl.ts backtest",
+    "update-data:ufc": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/ufc.ts ingestar",
+    "backtest:ufc": "cross-env NODE_OPTIONS=\"--experimental-sqlite --disable-warning=ExperimentalWarning\" tsx src/scripts/ufc.ts backtest"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",

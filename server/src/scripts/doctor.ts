@@ -449,7 +449,8 @@ if (dbExistia) {
   if (FUENTES) {
     // Una petición ligera a cada fuente: ¿contesta desde aquí? (403 suele ser la red de la máquina.)
     const FUENTES_DATOS: [string, string][] = [
-      ['GitHub (TML, openfootball, nflverse, Retrosheet, FPL)', 'https://raw.githubusercontent.com/nflverse/nfldata/master/README.md'],
+      ['GitHub (TML, openfootball, nflverse, Retrosheet, FPL, UFC)', 'https://raw.githubusercontent.com/nflverse/nfldata/master/README.md'],
+      ['GitHub releases (NHL, sportsdataverse)', 'https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_schedules/nhl_schedule_2025.csv'],
       ['tennis-data.co.uk', 'http://www.tennis-data.co.uk/alldata.php'],
       ['football-data.co.uk', 'https://www.football-data.co.uk/data.php'],
       ['ESPN', 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard'],
@@ -457,7 +458,7 @@ if (dbExistia) {
       ['Open-Meteo', 'https://api.open-meteo.com/v1/forecast?latitude=40.4&longitude=-3.7&hourly=temperature_2m&forecast_days=1'],
       ['ClubElo', 'http://api.clubelo.com/Barcelona'],
       ['The Odds API', 'https://api.the-odds-api.com/v4/sports/?apiKey=sin-clave'],
-      ['NHL (en sombra)', 'https://api-web.nhle.com/v1/schedule/now'],
+      ['NHL API (segunda fuente)', 'https://api-web.nhle.com/v1/schedule/now'],
       ['Telegram', 'https://api.telegram.org/'],
     ];
     estadoO.fuentes = await Promise.all(
@@ -560,6 +561,13 @@ if (dbExistia) {
           const r = db.prepare('SELECT COUNT(*) AS n, MAX(game_date) AS u FROM nhl_games').get() as { n: number; u: string | null };
           return { partidos: r.n, ultimo: r.u };
         }, { partidos: 0, ultimo: null }),
+      },
+      ufc: {
+        on: featureEncendida('deportes.ufc'),
+        ...uno(() => {
+          const r = db.prepare('SELECT COUNT(*) AS n, MAX(fecha) AS u FROM ufc_fights').get() as { n: number; u: string | null };
+          return { peleas: r.n, ultimo: r.u };
+        }, { peleas: 0, ultimo: null }),
       },
       telegram: {
         on: featureEncendida('asistente.telegram'),

@@ -90,6 +90,7 @@ Brotli o gzip según `Accept-Encoding`.
 |---|---|
 | `POST /api/live/avanzar` | `{"state": {sets, games, points, server, bestOf, inTiebreak}, "winner": 1\|2}`: el marcador tras un punto, con la regla del motor en vivo; `{terminado, ganador, state}` (`tenis.enVivo`) |
 | `GET /api/nhl/sombra` | NHL en sombra: evaluación del backtest sin el holdout, referencias, aviso de muestra y parámetros; nada se publica (`deportes.nhl`) |
+| `GET /api/ufc/sombra` | UFC en sombra: evaluación del backtest sin el holdout, las cuatro referencias, la prueba para publicar (Δ e intervalo por referencia, en todo y en la validación) y parámetros; nada se publica (`deportes.ufc`) |
 
 Con el interruptor apagado, las dos responden 404 con el motivo.
 

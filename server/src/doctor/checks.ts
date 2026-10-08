@@ -887,6 +887,8 @@ export interface EstadoProducto {
   /** Las ampliaciones de la Fase 8, todas apagadas por defecto. */
   ampliaciones?: {
     nhl: { on: boolean; partidos: number; ultimo: string | null };
+    /** La UFC en sombra (seguimiento: NHL y UFC). */
+    ufc?: { on: boolean; peleas: number; ultimo: string | null };
     telegram: { on: boolean; token: boolean; chats: number; offset: number | null };
     enVivo: boolean;
     propsNba: boolean;
@@ -952,15 +954,22 @@ export function comprobarProducto(e: EstadoProducto, ahora: Date): Hallazgo[] {
   return out;
 }
 
-/** Fase 8: NHL en sombra, asistente por Telegram, tenis punto a punto y props de la NBA. */
+/** Fase 8: NHL y UFC en sombra, asistente por Telegram, tenis punto a punto y props de la NBA. */
 function comprobarAmpliaciones(a: NonNullable<EstadoProducto['ampliaciones']>): Hallazgo[] {
   const S: Seccion = 'PRODUCTO';
   const out: Hallazgo[] = [];
   const n = a.nhl.partidos.toLocaleString('es');
   if (!a.nhl.on) out.push(h(S, 'info', `NHL en sombra apagada (features.json: deportes.nhl); ${n} partido(s) en nhl_games`));
   else if (a.nhl.partidos === 0)
-    out.push(h(S, 'aviso', 'NHL en sombra encendida pero sin partidos: no hay nada que evaluar', { accion: ['npm run update-data:nhl (necesita alcanzar api-web.nhle.com) y después npm run backtest:nhl'] }));
+    out.push(h(S, 'aviso', 'NHL en sombra encendida pero sin partidos: no hay nada que evaluar', { accion: ['npm run update-data:nhl (baja de GitHub, sportsdataverse) y después npm run backtest:nhl'] }));
   else out.push(h(S, 'ok', `NHL en sombra: ${n} partido(s), el último del ${a.nhl.ultimo}; no se publica hasta tener su experimento en el registro`));
+  if (a.ufc) {
+    const p = a.ufc.peleas.toLocaleString('es');
+    if (!a.ufc.on) out.push(h(S, 'info', `UFC en sombra apagada (features.json: deportes.ufc); ${p} pelea(s) en ufc_fights`));
+    else if (a.ufc.peleas === 0)
+      out.push(h(S, 'aviso', 'UFC en sombra encendida pero sin peleas: no hay nada que evaluar', { accion: ['npm run update-data:ufc (baja de GitHub, Greco1899/scrape_ufc_stats) y después npm run backtest:ufc'] }));
+    else out.push(h(S, 'ok', `UFC en sombra: ${p} pelea(s), la última del ${a.ufc.ultimo}; no se publica hasta ganar a sus referencias (docs/UFC.md)`));
+  }
   const t = a.telegram;
   if (!t.on) out.push(h(S, 'info', 'Asistente por Telegram apagado (features.json: asistente.telegram)'));
   else if (!t.token || t.chats === 0)

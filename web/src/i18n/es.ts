@@ -1813,6 +1813,21 @@ export const es = {
   'exp.noDibujar': 'no se pudo dibujar la tarjeta',
   'exp.sinCanvas': 'sin canvas',
   'exp.sinPng': 'sin PNG',
+  'diag.ufc': 'UFC en sombra',
+  'diag.ufcIntro': 'En evaluación: no sale en pestañas, Destacados ni banco hasta que gane a todas sus referencias fuera de muestra, con el intervalo lejos del cero.',
+  'diag.ufcPeleas': '{peleas} peleas guardadas (la última del {ultimo}); {puntuadas} puntuadas, {holdout} del holdout sin tocar, {sinAtribuir} sin atribuir (nombre ambiguo) y {sinGanador} sin ganador (empate o sin resultado).',
+  'diag.ufcModelo': 'Elo de luchador: log loss {ll} · Brier {brier} · acierto {acierto}',
+  'diag.ufcPasa': 'Pasa la prueba para publicar: gana a todas las referencias en los dos tramos.',
+  'diag.ufcNoPasa': 'No pasa la prueba para publicar: alguna referencia no queda descartada. Sigue en sombra.',
+  'diag.ufcTodo': 'Todo lo puntuable, sin holdout ({n} peleas, log loss {ll}). Δ = modelo − referencia:',
+  'diag.ufcValidacion': 'Solo la validación {anio} ({n} peleas, log loss {ll}):',
+  'diag.ufcGana': 'gana',
+  'diag.ufcNoGana': 'no demostrado',
+  'diag.ufcParametros': 'Parámetros de partida: K {k}; las {provisionales} primeras peleas en la UFC mueven el Elo ×{factor}. El ajuste por el registro no mejoró de forma demostrable.',
+  'diag.ufcRef.moneda': 'Moneda al aire (50 %)',
+  'diag.ufcRef.experiencia': 'Más peleas en la UFC (tasa histórica)',
+  'diag.ufcRef.record': 'Mejor récord en la UFC (tasa histórica)',
+  'diag.ufcRef.basico': 'Elo básico (K 32, sin debutantes ni finalizaciones)',
 } as const;
 
 export type Clave = keyof typeof es;

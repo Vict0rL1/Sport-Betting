@@ -536,7 +536,7 @@ npm run doctor -- --fuentes # además, una petición ligera a cada fuente de dat
 | DATOS Y COPIAS | los dos ficheros, migraciones (`schema_version`) fallidas o al día, copia del libro mayor y su cadencia, copia fuera (S3), retención de snapshots, ingestas recientes y las que se quedaron a medias |
 | OPERACIÓN | trabajos programados (los que fallaron en su última pasada o se quedaron «en marcha»), canales de notificación configurados y envíos fallidos en 24 h, interruptores (encendidos, inactivos por falta de variable, anulaciones huérfanas), **frescura de los resultados por deporte** (aviso si en plena temporada llevan más de 21 días sin uno nuevo) y, con `--fuentes`, qué fuentes no contestan |
 | ANALÍTICA E INTERFAZ | deriva de los modelos, diagramas de fiabilidad, simulación de temporada, calendario pendiente, anulaciones y seguimiento |
-| PRODUCTO | laboratorio de estrategias, «¿qué habría pasado?», bandeja, informes, comparador de líneas, archivo y las ampliaciones de la Fase 8 (NHL en sombra, asistente por Telegram, tenis punto a punto, props de la NBA) |
+| PRODUCTO | laboratorio de estrategias, «¿qué habría pasado?», bandeja, informes, comparador de líneas, archivo y las ampliaciones de la Fase 8 (NHL y UFC en sombra, asistente por Telegram, tenis punto a punto, props de la NBA) |
 | SEGURIDAD | contraseña, cabeceras, CORS, errores de servidor, `.env` fuera de git, escáner de secretos y hook de pre-commit |
 | SERVIDOR Y PANTALLA | backend vivo, cuántos partidos ve la pantalla y cuántos con cuota real |
 

@@ -10,7 +10,7 @@ export const SPORT_IDS = ['tennis', 'football', 'basketball', 'baseball', 'nfl']
  * esté en el registro de experimentos con la misma evidencia que los cinco de arriba. Pasar uno a
  * `SPORT_IDS` es la decisión de publicarlo, y se toma con esa evidencia delante.
  */
-export const DEPORTES_SOMBRA = ['nhl'] as const;
+export const DEPORTES_SOMBRA = ['nhl', 'ufc'] as const;
 
 export type SportId = (typeof SPORT_IDS)[number];
 

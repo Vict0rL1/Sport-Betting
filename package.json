@@ -102,7 +102,9 @@
     "carga": "node scripts/carga.mjs",
     "carga:ci": "node scripts/carga.mjs --arrancar --presupuesto",
     "update-data:nhl": "npm run update-data:nhl --workspace server --",
-    "backtest:nhl": "npm run backtest:nhl --workspace server --"
+    "backtest:nhl": "npm run backtest:nhl --workspace server --",
+    "update-data:ufc": "npm run update-data:ufc --workspace server --",
+    "backtest:ufc": "npm run backtest:ufc --workspace server --"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

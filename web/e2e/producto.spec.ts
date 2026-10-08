@@ -115,3 +115,20 @@ test('NHL en sombra: solo con su interruptor, y sin partidos lo dice sin inventa
     await request.patch('/api/features/deportes.nhl', { data: { on: null } });
   }
 });
+
+test('UFC en sombra: solo con su interruptor, y sin peleas ni métricas ni veredicto inventados', async ({ page, request }) => {
+  await page.goto('/confianza/diagnostico');
+  await expect(page.getByRole('heading', { name: 'Diagnóstico' })).toBeVisible();
+  await expect(page.getByTestId('ufc-sombra')).toHaveCount(0);
+  expect((await request.patch('/api/features/deportes.ufc', { data: { on: true } })).ok()).toBeTruthy();
+  try {
+    await page.reload();
+    const b = page.getByTestId('ufc-sombra');
+    await expect(b).toContainText('UFC en sombra');
+    await expect(b).toContainText('sin peleas en ufc_fights');
+    await expect(b).not.toContainText('log loss');
+    await expect(page.getByTestId('ufc-veredicto')).toHaveCount(0);
+  } finally {
+    await request.patch('/api/features/deportes.ufc', { data: { on: null } });
+  }
+});
