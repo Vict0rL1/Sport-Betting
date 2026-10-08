@@ -12,7 +12,7 @@ interface Simulacion { season: number | null; motivo: string | null; etiqueta: s
 interface Historial { dias: { dia: string; equipos: { id: string; titulo: number; top: number; descenso: number }[] }[] }
 interface Power { teams: { id: string; name: string; elo: number }[] }
 
-const API: Record<string, string> = { football: '/api/football', basketball: '/api/basketball', baseball: '/api/baseball', nfl: '/api/nfl' };
+const API: Record<string, string> = { football: '/api/football', basketball: '/api/basketball', baseball: '/api/baseball', nfl: '/api/nfl', nhl: '/api/nhl' };
 
 export default function Liga() {
   const { sport = '', league = '' } = useParams();
@@ -38,7 +38,25 @@ export default function Liga() {
     <div>
       <p className="mb-1 text-[12px] text-(--ink-muted)">{t('liga.titulo')}</p>
       <h2 className="mb-1 text-[20px] font-semibold text-(--ink-strong)">{league.toUpperCase()}</h2>
-      {sim === 'error' && <p className="text-[14px] text-(--ink-soft)">{t('liga.sinDatos')}</p>}
+      {sim === 'error' && !(power?.teams.length) && <p className="text-[14px] text-(--ink-soft)">{t('liga.sinDatos')}</p>}
+      {/* Sin simulación (la NHL no la tiene), al menos la clasificación por Elo. */}
+      {sim === 'error' && !!power?.teams.length && (
+        <>
+          <p className="mb-3 text-[13px] text-(--ink-muted)">{t('liga.soloElo')}</p>
+          <ol className="divide-y divide-(--line) rounded-xl border border-(--line) text-[13px]">
+            {power.teams.map((e, i) => (
+              <li key={e.id} className="flex items-center gap-3 px-3 py-1.5">
+                <span className="w-6 tabular-nums text-(--ink-muted)">{i + 1}</span>
+                <Link to={rutaEquipo(sport, league, e.id)} className="flex min-w-0 flex-1 items-center gap-2 text-(--ink-body) underline-offset-2 hover:underline">
+                  <TeamCrest league={league} name={e.name} code={e.id} size={20} />
+                  <span className="break-words">{e.name}</span>
+                </Link>
+                <span className="tabular-nums text-(--ink-strong)">{Math.round(e.elo)}</span>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
       {sim === null && <p className="text-[13px] text-(--ink-muted)">{t('comun.cargando')}</p>}
       {sim && sim !== 'error' && (
         <>

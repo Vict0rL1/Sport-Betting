@@ -23,7 +23,7 @@ interface Aviso {
 }
 interface Respuesta { avisos: Aviso[]; noLeidas: number; tipos: { tipo: string; n: number }[]; hayMas: boolean }
 
-const DEPORTES = ['football', 'basketball', 'baseball', 'nfl', 'tennis'];
+const DEPORTES = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'tennis'];
 const COLOR: Record<Aviso['severidad'], string | undefined> = { importante: STATUS.critical, aviso: STATUS.warning, info: undefined };
 
 export default function Bandeja() {

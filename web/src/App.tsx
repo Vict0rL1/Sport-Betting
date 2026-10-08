@@ -27,6 +27,7 @@ const BasketballDashboard = lazy(() => import('./components/basketball/Basketbal
 const FootballDashboard = lazy(() => import('./components/football/FootballDashboard'));
 const BaseballDashboard = lazy(() => import('./components/baseball/BaseballDashboard'));
 const NflDashboard = lazy(() => import('./components/nfl/NflDashboard'));
+const NhlDashboard = lazy(() => import('./components/nhl/NhlDashboard'));
 const BetsDashboard = lazy(() => import('./components/bets/BetsDashboard'));
 const SystemTrust = lazy(() => import('./components/trust/SystemTrust'));
 const TopPicks = lazy(() => import('./components/picks/TopPicks'));
@@ -201,6 +202,7 @@ function Armazon() {
             <Route path="/baloncesto/:league?" element={<BasketballDashboard />} />
             <Route path="/beisbol/:league?" element={<BaseballDashboard />} />
             <Route path="/nfl/:league?" element={<NflDashboard />} />
+            <Route path="/nhl" element={<NhlDashboard />} />
             <Route path="/tenis/:league?" element={<TennisDashboard />} />
             <Route path="/apuestas" element={<BetsDashboard />} />
             <Route path="/apuestas/laboratorio" element={<Laboratorio />} />

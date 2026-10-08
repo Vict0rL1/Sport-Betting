@@ -200,7 +200,8 @@ export function buildPrediction(input: PredictInput): NhlPrediction | null {
       ],
     },
     reliability,
-    verdict: { label: close ? 'Partido abierto' : `${fav.name}, favorito`, close, marginPp: reliability.marginPp },
+    // El nombre del favorito; `close` dice si lo es solo por poco (dentro de la banda).
+    verdict: { label: fav.name, close, marginPp: reliability.marginPp },
     summary: { headline: `${nombreDe(fav.id)} gana con un ${pct(pFav)} (prórroga y tanda incluidas)`, bullets },
     context: { homeAdvantageElo: NHL.campo, k: NHL.k, leagueGoals: NHL.golesLiga },
     disclaimer: DISCLAIMER,

@@ -3,7 +3,7 @@
 
 import type { EvaluacionConfianza, PrePartidoRef } from './trust';
 
-export type DeporteId = 'football' | 'basketball' | 'baseball' | 'nfl' | 'tennis';
+export type DeporteId = 'football' | 'basketball' | 'baseball' | 'nfl' | 'nhl' | 'tennis';
 
 export interface PartidoComun {
   sport: DeporteId;
@@ -26,6 +26,7 @@ export const URL_PARTIDO: Record<DeporteId, (id: string) => string> = {
   basketball: (id) => `/api/basketball/games/${encodeURIComponent(id)}`,
   baseball: (id) => `/api/baseball/games/${encodeURIComponent(id)}`,
   nfl: (id) => `/api/nfl/games/${encodeURIComponent(id)}`,
+  nhl: (id) => `/api/nhl/games/${encodeURIComponent(id)}`,
   tennis: (id) => `/api/predictions/${encodeURIComponent(id)}`,
 };
 
@@ -35,6 +36,8 @@ export const URL_PROXIMOS: Record<DeporteId, (league: string) => string> = {
   basketball: (l) => `/api/basketball/games/upcoming?league=${encodeURIComponent(l)}`,
   baseball: (l) => `/api/baseball/games/upcoming?league=${encodeURIComponent(l)}`,
   nfl: (l) => `/api/nfl/games/upcoming?league=${encodeURIComponent(l)}`,
+  // Una sola liga: la liga no se pasa; 64, los mismos que predice el ciclo pre-partido.
+  nhl: () => '/api/nhl/games/upcoming?limit=64',
   tennis: (l) => `/api/predictions?tour=${encodeURIComponent(l)}`,
 };
 
@@ -56,6 +59,10 @@ export function aComun(sport: DeporteId, item: Fila): PartidoComun | null {
       probs = h == null ? null : [h, 1 - h];
     } else if (sport === 'baseball') {
       const m = pred.model as Fila;
+      const h = num(m?.home);
+      probs = h == null ? null : [h, 1 - h];
+    } else if (sport === 'nhl') {
+      const m = pred.final as Fila;
       const h = num(m?.home);
       probs = h == null ? null : [h, 1 - h];
     } else if (sport === 'nfl') {
@@ -85,4 +92,4 @@ export function aComun(sport: DeporteId, item: Fila): PartidoComun | null {
   };
 }
 
-export const nombrePartido = (p: Pick<PartidoComun, 'sport' | 'casa' | 'fuera'>) => (p.sport === 'nfl' ? `${p.fuera} @ ${p.casa}` : `${p.casa} vs ${p.fuera}`);
+export const nombrePartido = (p: Pick<PartidoComun, 'sport' | 'casa' | 'fuera'>) => (p.sport === 'nfl' || p.sport === 'nhl' ? `${p.fuera} @ ${p.casa}` : `${p.casa} vs ${p.fuera}`);

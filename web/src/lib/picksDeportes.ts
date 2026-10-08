@@ -269,3 +269,35 @@ export function tennisPicks(
   }
   return out;
 }
+
+/**
+ * NHL: el ganador (prórroga y tanda incluidas, el moneyline de la NHL). Sin post-proceso: lo publicado
+ * es el modelo. El total de goles NO entra: sale de una media de goles de la liga fija repartida por el
+ * Elo, así que dice casi lo mismo en todos los partidos («menos de 6,5» a un 55 % en cada uno) y no
+ * se ha medido que gane a esa media. Está en la tarjeta; aquí sería ruido con apariencia de selección.
+ */
+export function nhlPicks(
+  rows: {
+    game: {
+      id: string; commence_time: string; home_name: string; away_name: string;
+      odds_home: number | null; odds_away: number | null;
+      source?: string;
+    };
+    prediction: { final: { home: number; away: number } } | null;
+  }[],
+): Pick[] {
+  const out: Pick[] = [];
+  for (const r of rows) {
+    if (!r.prediction) continue;
+    const g = r.game;
+    const p = r.prediction;
+    const has = realMarket(g.source) && g.odds_home != null && g.odds_away != null;
+    const [mh, ma] = has ? devig2(g.odds_home!, g.odds_away!) : [null, null];
+    const c: Candidate[] = [
+      { market: 'Ganador', selection: g.home_name, modelProb: p.final.home, marketProb: mh, odds: g.odds_home },
+      { market: 'Ganador', selection: g.away_name, modelProb: p.final.away, marketProb: ma, odds: g.odds_away },
+    ];
+    out.push(...toPicks(g.id, g.commence_time, `${g.away_name} @ ${g.home_name}`, c));
+  }
+  return out;
+}

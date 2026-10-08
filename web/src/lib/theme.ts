@@ -134,7 +134,7 @@ export const RELIABILITY_STYLE: Record<'high' | 'medium' | 'low', string> = {
 // ---------------------------------------------------------------------------
 // 'bets' rides in this union because it is a TAB, and the tab bar is typed by it.
 // It is not a sport: nothing under it has a model, a league or a prediction.
-export type SportId = 'picks' | 'football' | 'basketball' | 'baseball' | 'nfl' | 'tennis' | 'bets' | 'trust';
+export type SportId = 'picks' | 'football' | 'basketball' | 'baseball' | 'nfl' | 'nhl' | 'tennis' | 'bets' | 'trust';
 
 export interface SportTheme {
   id: SportId;
@@ -160,6 +160,8 @@ export const SPORT_THEMES: Record<SportId, SportTheme> = {
   basketball: { id: 'basketball', label: 'Baloncesto', accent: '#fb923c', accentSoft: 'rgba(251,146,60,0.12)' },
   baseball: { id: 'baseball', label: 'Béisbol', accent: '#facc15', accentSoft: 'rgba(250,204,21,0.12)' },
   nfl: { id: 'nfl', label: 'NFL', accent: '#f472b6', accentSoft: 'rgba(244,114,182,0.12)' },
+  // Rojo: el único tono saturado que quedaba lejos de los otros seis (el cian del hielo es de Confianza).
+  nhl: { id: 'nhl', label: 'NHL', accent: '#f87171', accentSoft: 'rgba(248,113,113,0.12)' },
   tennis: { id: 'tennis', label: 'Tenis', accent: '#a78bfa', accentSoft: 'rgba(167,139,250,0.12)' },
   // Slate, deliberately the quietest accent of the six: this tab is about the
   // reader's own money, and the five saturated hues belong to the sports.

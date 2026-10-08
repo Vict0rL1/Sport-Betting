@@ -85,14 +85,15 @@ test('fútbol y baloncesto en inglés: cabecera y aviso sin datos', async ({ pag
   }
 });
 
-test('béisbol y NFL en inglés: cabecera y aviso sin datos', async ({ page }) => {
+test('béisbol, NFL y NHL en inglés: cabecera y aviso sin datos', async ({ page }) => {
   for (const [ruta, titulo, vacio] of [
     ['/beisbol', 'Fetches upcoming games, their odds and the announced starters again', 'No hay datos de béisbol todavía.'],
     ['/nfl', 'Fetches upcoming games and their odds again', 'No hay datos de fútbol americano todavía.'],
+    ['/nhl', 'Fetches upcoming games and their odds again', 'Todavía no hay datos de la NHL.'],
   ]) {
     await page.goto(ruta);
     await expect(page.getByTitle(titulo)).toBeVisible();
-    await expect(page.getByText(/No (baseball|American football) data yet\.|All teams · |Run npm run update-data/).first()).toBeVisible();
+    await expect(page.getByText(/No (baseball|American football|NHL) data yet\.|All teams · |Run npm run update-data/).first()).toBeVisible();
     await expect(page.getByText(vacio)).toHaveCount(0);
     await expect(page.getByText('Vuelve a consultar')).toHaveCount(0);
   }

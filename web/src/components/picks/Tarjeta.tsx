@@ -45,7 +45,7 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
     { nombre: p.casa, id: p.casaId, rol: 'local' },
     { nombre: p.fuera, id: p.fueraId, rol: 'visitante' },
   ];
-  if (p.sport === 'nfl') lados.reverse();
+  if (p.sport === 'nfl' || p.sport === 'nhl') lados.reverse();
   const fecha = new Date(p.cuando);
   const conValor = p.ventaja != null && p.ventaja > 0;
   return (
@@ -55,10 +55,12 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
       }`}
     >
       {/* Cabecera: puesto, deporte, liga, hora y nivel de confianza */}
-      <header className="flex items-center gap-2.5">
+      {/* Con dos insignias («Confianza media», «Sin mercado») en una tarjeta estrecha, el título se quedaba en
+          una columna de dos letras («N / HL»): ahora tiene un mínimo y la insignia baja de línea. */}
+      <header className="flex flex-wrap items-center gap-2.5">
         <span className="w-6 shrink-0 text-center text-[13px] font-semibold tabular-nums text-(--ink-muted)">#{puesto}</span>
         <DeporteIcono nombre={p.sport} size={28} tile />
-        <div className="min-w-0 flex-1 leading-tight">
+        <div className="min-w-[7.5rem] flex-1 leading-tight">
           <div className="break-words text-[13px] text-(--ink-body)">
             {deporteDe(t, p.sport)}
             {p.liga && p.liga.toLowerCase() !== SPORT_THEMES[p.sport].label.toLowerCase() && <span className="text-(--ink-muted)"> · {p.liga.toUpperCase()}</span>}
@@ -82,7 +84,7 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
               <div key={i} className="flex min-w-0 items-center gap-2">
                 <TeamCrest league={p.liga ?? ''} name={l.nombre} code={l.id} size={24} />
                 <span className={`min-w-0 break-words text-[15px] leading-snug ${fav ? 'font-semibold text-(--ink-strong)' : 'text-(--ink-soft)'}`}>{l.nombre}</span>
-                {p.sport === 'nfl' && i === 0 && <span className="-ml-1 text-[12px] text-(--ink-faint)">@</span>}
+                {(p.sport === 'nfl' || p.sport === 'nhl') && i === 0 && <span className="-ml-1 text-[12px] text-(--ink-faint)">@</span>}
               </div>
             );
           })}
@@ -95,7 +97,7 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
           </div>
         </div>
       </div>
-      <Barra opciones={p.opciones} invertir={p.sport === 'nfl'} />
+      <Barra opciones={p.opciones} invertir={p.sport === 'nfl' || p.sport === 'nhl'} />
 
       {/* Lo que hace falta para no engañarse */}
       <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-[12.5px] sm:grid-cols-2">

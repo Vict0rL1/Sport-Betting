@@ -11,13 +11,14 @@ export const RUTA_DE_PESTANA: Record<SportId, string> = {
   basketball: '/baloncesto',
   baseball: '/beisbol',
   nfl: '/nfl',
+  nhl: '/nhl',
   tennis: '/tenis',
   bets: '/apuestas',
   trust: '/confianza',
 };
 
-export const PESTANAS: SportId[] = ['picks', 'football', 'basketball', 'baseball', 'nfl', 'tennis', 'bets', 'trust'];
-export const DEPORTES: SportId[] = ['football', 'basketball', 'baseball', 'nfl', 'tennis'];
+export const PESTANAS: SportId[] = ['picks', 'football', 'basketball', 'baseball', 'nfl', 'nhl', 'tennis', 'bets', 'trust'];
+export const DEPORTES: SportId[] = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'tennis'];
 
 /** La pestaña a la que pertenece una ruta, o null si es una página fuera de pestañas. */
 export function pestanaDeRuta(pathname: string): SportId | null {

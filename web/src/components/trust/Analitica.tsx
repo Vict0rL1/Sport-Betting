@@ -9,14 +9,14 @@ import { conNodos, useI18n, type Clave } from '../../i18n';
 import { DeporteIcono } from '../icons';
 import { Termino } from '../ui';
 
-type Deporte = 'football' | 'basketball' | 'baseball' | 'nfl' | 'tennis';
+type Deporte = 'football' | 'basketball' | 'baseball' | 'nfl' | 'nhl' | 'tennis';
 interface Cubeta { desde: number; hasta: number; n: number; predicha: number | null; observada: number | null }
 interface Diagrama { partidos: number; cubetas: Cubeta[]; ece: number | null; aviso: { nivel: string; texto: string | null } }
 interface Fiabilidad { backtest: Diagrama | null; live: Diagrama }
 interface Monitorizacion { serie: { dia: string; n: number; logLoss: number | null; brier: number | null; psi: number | null }[]; actual: { n: number; logLoss: number | null; brier: number | null; psi: number | null } | null; referencia: { logLoss: number | null; brier: number | null } | null; deriva: { hay: boolean; motivos: string[]; aviso: { texto: string | null } } }
 interface Segmentos { predicciones: { n: number; dimensiones: Record<string, Record<string, { n: number; acierto: number | null; publicada: boolean }>> }; apuestas: { n: number; dimensiones: Record<string, Record<string, { n: number; conCierre: number; clvMedio: number | null; publicada: boolean }>> }; umbrales: { predicciones: number; apuestas: number } }
 
-const DEPORTES: Deporte[] = ['football', 'basketball', 'baseball', 'nfl', 'tennis'];
+const DEPORTES: Deporte[] = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'tennis'];
 const pct = (x: number, d = 1) => `${(x * 100).toFixed(d).replace('.', ',')} %`;
 
 function usar<T>(url: string): T | null | 'error' {

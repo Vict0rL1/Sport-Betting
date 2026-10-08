@@ -249,8 +249,8 @@ const RESUELTAS = (): FuenteResuelta[] => [
   { ...FUENTES[1], marcador: ['home_pts', 'away_pts'], enlace: { col: 'game_id', tabla: 'bb_games', fecha: 'game_date' }, archivo: { tabla: 'bb_games', fecha: 'game_date' }, comando: 'npm run update-data:bb' },
   { ...FUENTES[2], marcador: ['home_runs', 'away_runs'], enlace: { col: 'game_id', tabla: 'bsb_games', fecha: 'game_date' }, archivo: { tabla: 'bsb_games', fecha: 'game_date' }, comando: 'npm run update-data:bsb' },
   { ...FUENTES[3], marcador: ['home_points', 'away_points'], enlace: { col: 'game_id', tabla: 'naf_games', fecha: 'game_date' }, archivo: { tabla: 'naf_games', fecha: 'game_date' }, comando: 'npm run update-data:naf' },
-  { ...FUENTES[4], marcador: null, enlace: null, archivo: { tabla: 'matches', fecha: 'tourney_date' }, comando: 'npm run update-data' },
   { ...FUENTES[5], marcador: ['home_goals', 'away_goals'], enlace: { col: 'game_id', tabla: 'nhl_games', fecha: 'game_date' }, archivo: { tabla: 'nhl_games', fecha: 'game_date' }, comando: 'npm run update-data:nhl' },
+  { ...FUENTES[4], marcador: null, enlace: null, archivo: { tabla: 'matches', fecha: 'tourney_date' }, comando: 'npm run update-data' },
 ];
 
 const RECONSTRUYE = new Set<PartidoDeHoy['deporte']>(['Fútbol', 'Baloncesto', 'Béisbol', 'NFL', 'NHL']);

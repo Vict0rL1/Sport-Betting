@@ -23,7 +23,7 @@ test.beforeEach(async ({ page }) => {
 // la barra inferior enseña los cuatro destinos en el móvil; los enlaces profundos restauran
 // el estado; axe pasa en claro y en oscuro.
 
-const RUTAS = ['/destacados', '/futbol', '/baloncesto', '/beisbol', '/nfl', '/tenis', '/apuestas', '/apuestas/laboratorio', '/apuestas/lineas', '/bandeja', '/informes', '/confianza', '/confianza/archivo', '/confianza/diagnostico', '/ajustes', '/glosario', '/no-existe'];
+const RUTAS = ['/destacados', '/futbol', '/baloncesto', '/beisbol', '/nfl', '/nhl', '/tenis', '/apuestas', '/apuestas/laboratorio', '/apuestas/lineas', '/bandeja', '/informes', '/confianza', '/confianza/archivo', '/confianza/diagnostico', '/ajustes', '/glosario', '/no-existe'];
 
 async function sinErroresNiDesbordamiento(page: Page, ruta: string) {
   const errores: string[] = [];

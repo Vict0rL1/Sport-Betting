@@ -20,7 +20,7 @@
 
 import { localeDe, tr, type Idioma } from '../i18n';
 /** The sports whose history recency is worth checking. */
-export type StaleSport = 'football' | 'basketball' | 'baseball' | 'nfl' | 'tennis';
+export type StaleSport = 'football' | 'basketball' | 'baseball' | 'nfl' | 'nhl' | 'tennis';
 
 /**
  * Longest NORMAL gap with no matches, in days, per sport — the off-season.
@@ -36,6 +36,8 @@ const OFF_SEASON_DAYS: Record<StaleSport, number> = {
   basketball: 122,
   baseball: 167,
   nfl: 205,
+  // NHL: de los playoffs de junio al arranque de octubre.
+  nhl: 115,
   tennis: 45,
 };
 

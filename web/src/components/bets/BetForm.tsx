@@ -17,7 +17,7 @@ import { Payout, ModeTab, Field, inputClass, selectClass, todayLocal } from './B
 import { conNodos, useI18n } from '../../i18n';
 
 const MARKETS = ['moneyline', 'spread', 'total', 'btts', 'score', 'other'];
-const SPORTS = ['football', 'basketball', 'baseball', 'nfl', 'tennis', 'other'];
+const SPORTS = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'tennis', 'other'];
 
 /**
  * Log a bet, or edit one.

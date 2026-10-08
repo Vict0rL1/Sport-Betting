@@ -82,7 +82,7 @@ const COLOR_VEREDICTO: Record<Prueba['veredicto'], string> = {
   'muestra insuficiente': 'var(--ink-muted)',
 };
 
-const DEPORTES = new Set(['tennis', 'football', 'basketball', 'baseball', 'nfl']);
+const DEPORTES = new Set(['tennis', 'football', 'basketball', 'baseball', 'nfl', 'nhl']);
 const nombreDe = (t: Traducir, id: string) => (DEPORTES.has(id) ? t(`deporte.${id}` as Clave) : id);
 /** El deporte con su icono, para celdas y títulos (`nombreDe` se queda para el texto corrido). */
 function Dep({ id }: { id: string }) {

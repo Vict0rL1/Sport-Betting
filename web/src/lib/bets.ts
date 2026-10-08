@@ -176,6 +176,7 @@ export const SPORT_LABEL: Record<string, string> = {
   basketball: 'Baloncesto',
   baseball: 'Béisbol',
   nfl: 'NFL',
+  nhl: 'NHL',
   tennis: 'Tenis',
   other: 'Otro',
 };

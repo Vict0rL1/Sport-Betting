@@ -13,7 +13,7 @@ interface Linea { seleccion: string; linea: number | null; mejor: { cuota: numbe
 interface Mercado { eventId: string; sport: string; league: string; market: string; partido: string; cuando: string | null; eventoId: string | null; selecciones: Linea[]; margenMejor: number | null; margenConsenso: number | null; surebet: boolean; observado: string | null }
 interface Respuesta { generado: string; ventanaHoras: number; mercados: Mercado[]; eventos: number; nota: string }
 
-const DEPORTES = ['football', 'basketball', 'baseball', 'nfl', 'tennis'];
+const DEPORTES = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'tennis'];
 const MERCADOS = ['h2h', 'spreads', 'totals'];
 
 export default function Lineas() {

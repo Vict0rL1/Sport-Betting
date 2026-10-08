@@ -17,7 +17,7 @@ interface Estado {
   trabajosConError: number;
 }
 
-const DEPORTES = new Set(['tennis', 'football', 'basketball', 'baseball', 'nfl']);
+const DEPORTES = new Set(['tennis', 'football', 'basketball', 'baseball', 'nfl', 'nhl']);
 const nombreDe = (t: Traducir, sport: string) => (DEPORTES.has(sport) ? t(`deporte.${sport}` as Clave) : sport);
 
 function hace(t: Traducir, iso: string | null): string {

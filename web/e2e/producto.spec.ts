@@ -100,20 +100,17 @@ test('tenis punto a punto: cuatro puntos son un juego, con el saque y el break; 
   }
 });
 
-test('NHL en sombra: solo con su interruptor, y sin partidos lo dice sin inventar métricas', async ({ page, request }) => {
+test('NHL publicada: su pestaña y la prueba con la que se publicó, sin inventar métricas sin datos', async ({ page }) => {
+  await page.goto('/nhl');
+  await expect(page.getByRole('tab', { name: 'NHL' }).first()).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('button', { name: /Detalles/ }).click();
+  await expect(page.getByText('Un Elo por equipo con la diferencia de goles')).toBeVisible();
+  await expect(page.getByTestId('nhl-sin-datos')).toContainText('npm run update-data:nhl');
   await page.goto('/confianza/diagnostico');
-  await expect(page.getByRole('heading', { name: 'Diagnóstico' })).toBeVisible();
-  await expect(page.getByTestId('nhl-sombra')).toHaveCount(0);
-  expect((await request.patch('/api/features/deportes.nhl', { data: { on: true } })).ok()).toBeTruthy();
-  try {
-    await page.reload();
-    const b = page.getByTestId('nhl-sombra');
-    await expect(b).toContainText('NHL en sombra');
-    await expect(b).toContainText('sin partidos en nhl_games');
-    await expect(b).not.toContainText('log loss');
-  } finally {
-    await request.patch('/api/features/deportes.nhl', { data: { on: null } });
-  }
+  const b = page.getByTestId('nhl-backtest');
+  await expect(b).toContainText('NHL: la prueba con la que se publicó');
+  await expect(b).toContainText('sin partidos en nhl_games');
+  await expect(b).not.toContainText('log loss');
 });
 
 test('UFC en sombra: solo con su interruptor, y sin peleas ni métricas ni veredicto inventados', async ({ page, request }) => {

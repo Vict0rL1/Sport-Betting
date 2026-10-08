@@ -40,8 +40,8 @@ interface Riesgo {
   nota: string;
 }
 
-// Tenis y fútbol salen del catálogo; NBA, MLB y NFL se dicen igual en los dos idiomas.
-const NOMBRE_TXT: Record<string, string> = { tennis: 'deporte.tennis', football: 'deporte.football', basketball: 'NBA', baseball: 'MLB', nfl: 'NFL' };
+// Tenis y fútbol salen del catálogo; NBA, MLB, NFL y NHL se dicen igual en los dos idiomas.
+const NOMBRE_TXT: Record<string, string> = { tennis: 'deporte.tennis', football: 'deporte.football', basketball: 'NBA', baseball: 'MLB', nfl: 'NFL', nhl: 'NHL' };
 const nombreTxt = (t: Traducir, k: string) => {
   const v = NOMBRE_TXT[k];
   return v == null ? k : v.startsWith('deporte.') ? t(v as Clave) : v;
