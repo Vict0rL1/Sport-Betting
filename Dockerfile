@@ -18,7 +18,11 @@
 # despliegue significaría tocar los 160 ficheros del servidor y tener dos formas
 # distintas de arrancar la misma app, una de ellas probada solo en producción.
 #
-# `tsx` en la imagen final es una dependencia más y un poco de arranque. Barato.
+# `tsx` en la imagen final es una dependencia más y un poco de arranque. Barato. Por eso es
+# una dependencia normal del servidor, fijada a una versión exacta (lote A, A4): antes era de
+# desarrollo, `--omit=dev` la dejaba fuera y `npx tsx` la descargaba sin fijar en cada
+# arranque frío, como root. El arranque la ejecuta desde node_modules/.bin y suelta los
+# privilegios a `node` (ver scripts/docker-start.sh).
 
 # ---------------------------------------------------------------------------
 # Etapa 1: construir el frontend

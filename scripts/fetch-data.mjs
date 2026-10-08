@@ -40,10 +40,12 @@ import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
+import { hayHistoria } from './datos-estado.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
-const DATA = path.join(ROOT, 'data');
+// El mismo DATA_DIR que el servidor (un despliegue lo tiene fuera del proyecto).
+const DATA = process.env.DATA_DIR?.trim() || path.join(ROOT, 'data');
 // Desde la Fase 2 la base publicada es history.db: solo historia, reconstruible. Tus
 // apuestas, predicciones y precios viven en ledger.db y esta descarga no los toca.
 const DB_PATH = path.join(DATA, 'history.db');
@@ -150,11 +152,21 @@ async function main() {
     );
   }
 
+  // Una base SIN FILAS (solo esquema: lo que deja db:migrate antes de bajar datos) cuenta como
+  // ausente (A7). Se aparta con fecha, no se borra: nunca se destruye un fichero de data/.
+  if (fs.existsSync(DB_PATH) && !hayHistoria(DB_PATH)) {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    for (const sufijo of ['', '-wal', '-shm']) {
+      if (fs.existsSync(DB_PATH + sufijo)) fs.renameSync(DB_PATH + sufijo, `${DB_PATH}.sin-filas-${stamp}${sufijo}`);
+    }
+    console.log(`Hay un history.db sin filas (solo esquema): se aparta como history.db.sin-filas-${stamp} y se descarga la publicada.`);
+  }
+
   const exists = fs.existsSync(DB_PATH);
   if (exists && !force) {
     const mb = (fs.statSync(DB_PATH).size / 1048576).toFixed(0);
     console.log(
-      `Ya hay una base de historia en data/history.db (${mb} MB). No se toca.\n\n` +
+      `Ya hay una base de historia en ${path.relative(ROOT, DB_PATH)} (${mb} MB). No se toca.\n\n` +
         '  · Para reemplazarla por la publicada:  npm run fetch-data -- --force\n' +
         '    (guarda una copia de la actual; tus apuestas están en ledger.db y no se tocan)\n' +
         '  · Para actualizarla tú mismo:          npm run update-all',

@@ -33,6 +33,7 @@ import {
 } from '../paper/bankroll.ts';
 import { closingLine } from '../odds/snapshots.ts';
 import { cabeEnGrupos, gruposDe, limitesConTopePorPartido, type Abierta } from '../staking/risk.ts';
+import { anotarEnCubos, cabeEnCubos, cubosDe } from '../staking/cubos.ts';
 import { avisoMuestra, type AvisoMuestra } from '../evaluation/sample.ts';
 import { maxDrawdown } from '../evaluation/betting.ts';
 
@@ -222,6 +223,8 @@ export function colocarEstrategias(now = new Date(), candidatas?: Candidato[]): 
     // tope por partido y los de equipo y jugador de la política vigente. Solo recortan.
     const otro = { abiertas: abiertasDe(e.id), limiteDe: limitesConTopePorPartido(e.config.staking.maxPerEvent) };
     const enGrupos = new Map<string, number>();
+    // Los topes por día y por liga de SU configuración (A6), con lo que ya tiene abierto.
+    const cubos = cubosDe(db.prepare("SELECT commence_time, league, stake FROM strategy_bets WHERE strategy_id = ? AND status = 'pending'").all(e.id) as { commence_time: string | null; league: string | null; stake: number }[]);
     const pasada: PasadaEstrategia = { id: e.id, nombre: e.nombre, evaluadas: 0, colocadas: 0, rechazos: {} };
     const rechazo = (m: string) => (pasada.rechazos[m] = (pasada.rechazos[m] ?? 0) + 1);
     for (const c of todas) {
@@ -247,9 +250,14 @@ export function colocarEstrategias(now = new Date(), candidatas?: Candidato[]): 
         }
         factor = j.factor;
       }
+      const cubo = cabeEnCubos({ commence_time: c.commence, league: c.league }, banco, e.config.staking, cubos);
+      if (cubo.cabe < 0.01) {
+        rechazo(cubo.limitante!.split(' (')[0]);
+        continue;
+      }
       const grupos = gruposDe(c.sport, c.event_id, c.participantes);
       const { cabe } = cabeEnGrupos(grupos, banco, enGrupos, otro);
-      const stake = Math.floor(Math.min(d.stake * factor, cabe) * 100) / 100;
+      const stake = Math.floor(Math.min(d.stake * factor, cabe, cubo.cabe) * 100) / 100;
       const s = c.salidas.find((x) => x.label === d.label);
       if (stake <= 0 && cabe < d.stake * factor) {
         rechazo('tope de grupo de correlación alcanzado');
@@ -265,6 +273,7 @@ export function colocarEstrategias(now = new Date(), candidatas?: Candidato[]): 
       );
       if (Number(r.changes)) {
         for (const g of grupos) enGrupos.set(g, (enGrupos.get(g) ?? 0) + stake);
+        anotarEnCubos(cubos, { commence_time: c.commence, league: c.league }, stake);
         abierto += stake;
         pasada.colocadas++;
         ya.add(c.event_id);

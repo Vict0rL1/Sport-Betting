@@ -6,6 +6,7 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { hayHistoria } from './datos-estado.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const C = { bold: '\x1b[1m', dim: '\x1b[2m', green: '\x1b[32m', amber: '\x1b[33m', off: '\x1b[0m' };
@@ -62,11 +63,11 @@ if (fs.existsSync(env)) {
 console.log('\nBase de datos: history.db (historia) + ledger.db (lo tuyo). Un tennis.db antiguo se parte sin perder nada.');
 if (await pregunta('¿Aplico las migraciones ahora (npm run db:migrate)?')) corre(['run', 'db:migrate']);
 
-// 4. Datos
-const history = path.join(ROOT, 'data', 'history.db');
-const hayDatos = fs.existsSync(history) && fs.statSync(history).size > 5 * 1048576;
-if (hayDatos) {
-  console.log(`\n${C.green}✓${C.off} Ya hay historia en data/history.db.`);
+// 4. Datos. Por FILAS, no por si el fichero existe: db:migrate (paso 3) acaba de dejar un
+// history.db solo con esquema, y antes eso pasaba por «ya hay historia» (lote A, A7).
+const history = path.join(process.env.DATA_DIR?.trim() || path.join(ROOT, 'data'), 'history.db');
+if (hayHistoria(history)) {
+  console.log(`\n${C.green}✓${C.off} Ya hay historia en ${path.relative(ROOT, history)}.`);
 } else {
   console.log('\nDatos: hay tres caminos.');
   console.log('  1) Descargar la historia publicada (9 MB, recomendado)');
@@ -75,10 +76,11 @@ if (hayDatos) {
   const r = (await rl.question(`¿Cuál? ${C.dim}[1/2/3]${C.off} `)).trim();
   if (r === '2') corre(['run', 'update-all', '--', '--skip-odds']);
   else if (r === '3') corre(['run', 'seed']);
-  else if (!corre(['run', 'fetch-data'])) {
-    console.log(`${C.amber}⚠ La descarga no está disponible; se construye desde las fuentes.${C.off}`);
-    corre(['run', 'update-all', '--', '--skip-odds']);
+  else if (!corre(['run', 'fetch-data']) || !hayHistoria(history)) {
+    console.log(`${C.amber}⚠ La descarga no está disponible (la release «data-latest» aún no existe, o no hay red).${C.off}`);
+    if (await pregunta('¿Construyo la historia desde las fuentes (npm run update-all -- --skip-odds, unos minutos)?')) corre(['run', 'update-all', '--', '--skip-odds']);
   }
+  if (!hayHistoria(history)) console.log(`${C.amber}⚠ La base sigue sin filas: la app arrancará vacía. Cuando tengas red: npm run fetch-data  (o npm run update-all -- --skip-odds).${C.off}`);
 }
 
 // 5. Demostración

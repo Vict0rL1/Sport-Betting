@@ -52,6 +52,8 @@ export interface AppOptions {
   auth?: AuthRuntime;
   /** Servir web/dist si existe (producción). Los tests lo dejan apagado. */
   servirWeb?: boolean;
+  /** La carpeta de la web construida (por defecto, WEB_DIST). Los tests de la puerta pasan una de mentira. */
+  webDist?: string;
   /** Logger de Fastify (apagado en tests). */
   logger?: boolean;
   entorno?: NodeJS.ProcessEnv;
@@ -208,15 +210,16 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
 
   // La app construida, si la hay. En desarrollo no la hay y la sirve Vite, así que esto
   // no se registra y `/` sigue devolviendo el índice de la API de abajo.
-  const hayWeb = opts.servirWeb !== false && webBuildExists();
+  const webDist = opts.webDist ?? WEB_DIST;
+  const hayWeb = opts.servirWeb !== false && webBuildExists(webDist);
   if (hayWeb) {
-    await registerStatic(app);
-    app.log.info(`Sirviendo la app construida desde ${WEB_DIST}`);
+    await registerStatic(app, webDist);
+    app.log.info(`Sirviendo la app construida desde ${webDist}`);
   } else if (opts.servirWeb !== false && auth.config.produccion) {
     // En producción esto NO es un detalle: significa que el despliegue responde a la API
     // y devuelve 404 en la portada. Mejor no arrancar que quedar así.
     throw new Error(
-      `No hay app construida en ${WEB_DIST}, y NODE_ENV=production.\n\n` +
+      `No hay app construida en ${webDist}, y NODE_ENV=production.\n\n` +
         'El contenedor tiene que construir el frontend (npm run build) antes de arrancar\n' +
         'el servidor; si no, la URL contesta a /api pero no se puede abrir.',
     );

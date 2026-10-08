@@ -4,6 +4,52 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Revisión del 8 de octubre · lote A, bloqueantes (2026-10-08)
+
+Los siete hallazgos bloqueantes de la revisión, reproducidos con un test que fallaba antes de
+tocar nada y arreglados (`docs/plans/fixes-A.md`). Tests: 540 → 557 (464 del servidor + 20 + 73).
+Doctor, `verify:data`, `audit`, typecheck, lint, build y Playwright en verde (el doctor sigue
+avisando de lo que es del entorno: sin clave de cuotas, tenis y béisbol atrasados —lote F—, backend
+parado).
+
+- **A1 · La web detrás de la puerta.** En producción `GET /` y los assets devolvían 401 y no había
+  forma de llegar a la pantalla de entrada. La ruta comodín de `@fastify/static` (`/*`, solo GET y
+  HEAD, nunca `/api/`) queda exenta; la API sigue cerrada (un endpoint desconocido es 401 sin
+  credenciales y 404 JSON con ellas, nunca la página). Los e2e corren ahora también con la puerta
+  activa: `scripts/e2e-server.mjs` arranca un segundo servidor en el 7391 con `APP_AUTH=on` y
+  `web/e2e/auth.spec.ts` entra con la contraseña.
+- **A2 · El límite de intentos.** Contaba la primera `X-Forwarded-For` tal cual, que escribe quien
+  ataca: rotándola no se bloqueaba nunca. Ahora cuenta `Fly-Client-IP` en producción (la pone
+  Fly) y la dirección del socket en el resto; la sesión válida se mira ANTES del bloqueo (el dueño
+  entra aunque su dirección esté bloqueada); el Map del limitador poda lo caducado y no pasa de
+  10.000 direcciones.
+- **A3 · Basic Auth y el segundo factor.** Basic Auth abría con la contraseña sola aunque hubiera
+  TOTP; ahora exige el código en `X-TOTP-Code` (`curl -u victor -H 'X-TOTP-Code: 123456'`). Y la API
+  podía apagar `auth.totp` y `auth.sesiones`: los interruptores `auth.*` y `seguridad.*` son de
+  arranque (`PATCH /api/features/...` → 403, una anulación guardada se ignora, `/api/features` los
+  marca `soloArranque` y Ajustes no los enseña).
+- **A4 · La imagen.** `tsx` pasa a dependencia del servidor fijada a `4.23.1` (estaba en
+  devDependencies con `--omit=dev`, y `npx tsx` la descargaba sin fijar en cada arranque frío, como
+  root). El arranque ejecuta `node_modules/.bin/tsx`, cede `/data` a `node` y suelta los
+  privilegios con `setpriv` (o `runuser`); el volumen de Fly se monta de root, por eso no basta
+  con `USER node`.
+- **A5 · La ingesta de baloncesto.** Borraba `bb_games`, `bb_teams` y `bb_team_ratings` ANTES de
+  descargar (minutos), y el ciclo pre-partido registraba mientras tanto predicciones con Elo
+  inicial en tablas inmutables. `basketball/scripts/actualizar.ts`: todo a memoria primero y, por
+  liga, borrar + insertar + recalcular en UNA transacción; si la descarga falla, la base queda como
+  estaba. Las tres fuentes (ESPN, hoopR, FiveThirtyEight) se parten en cargar/guardar.
+- **A6 · Topes por día y por liga.** El banco de papel y las estrategias los ignoraban (solo
+  vivían en el libro manual): seis partidos de la misma liga y tarde se colocaban al 2 % cada uno.
+  `staking/cubos.ts`, compartido: cada candidata se recorta contra lo que queda en su día (UTC del
+  inicio) y en su liga, contando lo abierto y lo de la misma pasada; los rechazos se cuentan como
+  «tope por día» / «tope por liga». La nota de Ajustes dice qué aplica a quién.
+- **A7 · La instalación nueva acababa vacía.** `setup` migraba antes de bajar los datos, eso dejaba
+  un `history.db` solo con esquema, y `fetch-data` lo tomaba por una base. `scripts/datos-estado.mjs`
+  (`hayHistoria`, por filas); `fetch-data` respeta `DATA_DIR`, aparta una base sin filas como
+  `history.db.sin-filas-<fecha>` y descarga; `setup` decide por filas y, si la descarga falla, dice
+  por qué y pregunta antes de construir con `update-all --skip-odds`. La release `data-latest`
+  sigue sin existir (la crea el cron de `main`); queda por comprobar tras su primera ejecución.
+
 ## UFC publicada (2026-10-08)
 
 La UFC no pasó la prueba en la etapa A (el Elo de luchador no ganaba a «el de mejor récord»). Un

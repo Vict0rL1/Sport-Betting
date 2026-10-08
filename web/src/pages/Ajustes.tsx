@@ -9,7 +9,7 @@ import { DEPORTES } from '../rutas';
 import { localeDe, useI18n, type Clave, type Idioma, type Traducir } from '../i18n';
 
 interface Version { id: number; created_at: string; parent_id: number | null; hash: string; nota: string | null; origen: string; config: Record<string, Record<string, number>> }
-interface Feature { on: boolean; activa: boolean; descripcion: string; falta: string | null; anulada: boolean }
+interface Feature { on: boolean; activa: boolean; descripcion: string; falta: string | null; anulada: boolean; soloArranque?: boolean }
 interface Trabajo { nombre: string; descripcion: string; cadenciaMin: number; cadenciaPorDefecto: number; enabled: boolean }
 interface Ajustes { deportesOcultos: string[]; tema: Tema; idioma: Idioma; bancoPersonal: number | null; recorridoVisto: boolean }
 
@@ -133,9 +133,13 @@ function Interruptores() {
     await fetch(`/api/features/${encodeURIComponent(nombre)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ on }) });
     void cargar();
   };
+  // La puerta y las cabeceras de seguridad (auth.*, seguridad.*) solo cambian al arrancar: la API
+  // las rechaza y aquí no hay interruptor que pulsar, solo se dice dónde están.
+  const deArranque = Object.keys(f).filter((k) => f[k].soloArranque);
   return (
     <ul className="space-y-1.5">
-      {Object.entries(f).map(([k, x]) => (
+      {deArranque.length > 0 && <li className="text-[12px] text-(--ink-muted)">{t('aj.deArranque', { lista: deArranque.join(', ') })}</li>}
+      {Object.entries(f).filter(([, x]) => !x.soloArranque).map(([k, x]) => (
         <li key={k} className="flex flex-wrap items-start justify-between gap-2 rounded-lg bg-(--raised) px-3 py-2">
           <div className="min-w-0 flex-1">
             <p className="text-(--ink-body)">{k}{x.anulada && <span className="ml-1.5 text-[11px] text-(--ink-muted)">{t('aj.anulado')}</span>}{x.falta && <span className="ml-1.5 text-[11px]" style={{ color: '#c98500' }}>{t('notif.falta', { vars: x.falta })}</span>}</p>

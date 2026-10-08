@@ -23,7 +23,7 @@ const int: Esquema = { type: 'integer' };
 export const ESQUEMA_ERROR = o({ error: str });
 export const ESQUEMA_HEALTH = o({ ok: bool });
 export const ESQUEMA_READY = o({ ok: bool, migraciones: str, trabajos: str, detalle: { type: 'array', items: str } });
-export const ESQUEMA_FEATURE = o({ on: bool, activa: bool, descripcion: str, falta: nullable('string'), anulada: bool });
+export const ESQUEMA_FEATURE = o({ on: bool, activa: bool, descripcion: str, falta: nullable('string'), anulada: bool, soloArranque: bool });
 export const ESQUEMA_FEATURES = o({ features: { type: 'object', additionalProperties: ESQUEMA_FEATURE } });
 export const ESQUEMA_ESTADO = o({
   generado: str,

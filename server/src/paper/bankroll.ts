@@ -44,6 +44,7 @@ import { versionsFor, type SportId } from '../versions.ts';
 import { captureSignalClosing, recordSignal } from './signals.ts';
 import { devig } from '../market/devig.ts';
 import { gruposDe, cabeEnGrupos } from '../staking/risk.ts';
+import { anotarEnCubos, cabeEnCubos, cubosDe } from '../staking/cubos.ts';
 import { emitirAlerta } from '../alerts/engine.ts';
 
 /** El banco inicial del experimento. Se guarda para que cambiarlo sea deliberado. */
@@ -603,6 +604,9 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
   const ahora = AHORA();
   const banco = bancoActual();
   let abierto = expuesto();
+  // Los topes por día y por liga de la política (A6): lo abierto en la base más lo de esta pasada.
+  const cubos = cubosDe(db.prepare("SELECT commence_time, league, stake FROM paper_bets WHERE status = 'pending'").all() as { commence_time: string | null; league: string | null; stake: number }[]);
+  const topes = politica().staking;
   // Las pérdidas no cambian dentro de una pasada: apostar no realiza nada.
   const perdidas = perdidasPapel(new Date(ahora));
   /** Lo decidido en esta pasada por grupo de correlación (aún no está en la base). */
@@ -638,12 +642,21 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
       senalDe('rechazada', 0, null);
       continue;
     }
+    // Topes por día y por liga (A6): antes que la confianza y los grupos, y solo recortan.
+    const cubo = cabeEnCubos({ commence_time: c.commence, league: c.league }, banco, topes, cubos);
+    if (cubo.cabe < 0.01) {
+      const motivoRechazo = `${cubo.limitante} alcanzado`;
+      rechazos[cubo.limitante!.split(' (')[0]] = (rechazos[cubo.limitante!.split(' (')[0]] ?? 0) + 1;
+      detalle.push(`${c.label}: no se apuesta — ${motivoRechazo}`);
+      senalDe('rechazada', 0, null, motivoRechazo);
+      continue;
+    }
     // La capa de confianza (trust/): puede abstenerse o recortar, nunca subir el importe.
     const juicio = juicioDeConfianza(c, d.label, ahora);
     // Topes por grupo de correlación (mismo evento, equipo o jugador): solo recortan.
     const grupos = gruposDe(c.sport, c.event_id, c.participantes);
     const { cabe, limitante } = cabeEnGrupos(grupos, banco, enGrupos);
-    const stakeConfianza = Math.floor(Math.min(d.stake * juicio.factor, cabe) * 100) / 100;
+    const stakeConfianza = Math.floor(Math.min(d.stake * juicio.factor, cabe, cubo.cabe) * 100) / 100;
     if (juicio.apostar && stakeConfianza <= 0 && cabe < d.stake * juicio.factor) {
       const motivoRechazo = `tope de grupo de correlación alcanzado (${limitante})`;
       emitirAlerta({ type: 'limite_riesgo', severity: 'aviso', sport: c.sport, matchKey: c.match_key, title: `${c.label}: tope de riesgo`, body: motivoRechazo });
@@ -685,6 +698,7 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
       idPoliticaVigente(),
     );
     for (const g of grupos) enGrupos.set(g, (enGrupos.get(g) ?? 0) + stake);
+    anotarEnCubos(cubos, { commence_time: c.commence, league: c.league }, stake);
     senalDe('apostada', stake, Number(alta.changes) ? Number(alta.lastInsertRowid) : null);
     if (Number(alta.changes)) void notificar('papel_apostada', { titulo: `Banco de papel: ${c.label}`, cuerpo: `${e.label} a ${e.odds.toFixed(2)} · ${stake.toFixed(2)} (${(d.edge * 100).toFixed(1)} pp de ventaja)`, url: urlPartido(c.sport, c.match_key) ?? '/apuestas' }, { sport: c.sport, matchKey: c.match_key });
     // La exposición se acumula DENTRO del bucle: sin esto, veinte candidatas se

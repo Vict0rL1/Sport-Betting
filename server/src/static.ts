@@ -33,13 +33,13 @@ export const WEB_DIST = process.env.WEB_DIST?.trim() || path.join(ROOT, 'web', '
  * —una build interrumpida, un `rm` a medias— y entonces el servidor arrancaría anunciando
  * que sirve la app para devolver 404 en todo.
  */
-export function webBuildExists(): boolean {
-  return existsSync(path.join(WEB_DIST, 'index.html'));
+export function webBuildExists(dist: string = WEB_DIST): boolean {
+  return existsSync(path.join(dist, 'index.html'));
 }
 
-export async function registerStatic(app: FastifyInstance): Promise<void> {
+export async function registerStatic(app: FastifyInstance, dist: string = WEB_DIST): Promise<void> {
   await app.register(fastifyStatic, {
-    root: WEB_DIST,
+    root: dist,
     // Los assets con hash en el nombre (index-A1b2C3.js) no cambian nunca: si cambia el
     // contenido, cambia el nombre. Se pueden cachear para siempre sin riesgo de servir
     // una versión vieja, y eso convierte la segunda visita en instantánea.
