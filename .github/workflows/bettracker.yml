@@ -1,0 +1,62 @@
+# BetTracker vive en bettracker/ con su propio package.json y no es un workspace de la
+# raíz, así que la CI principal (ci.yml) no lo ve. Este workflow lo cubre, y solo se
+# ejecuta cuando cambia algo dentro de bettracker/ (o este mismo archivo).
+name: BetTracker
+
+on:
+  push:
+    paths:
+      - 'bettracker/**'
+      - '.github/workflows/bettracker.yml'
+  pull_request:
+    paths:
+      - 'bettracker/**'
+      - '.github/workflows/bettracker.yml'
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: bettracker
+
+jobs:
+  calidad:
+    name: BetTracker · tests y build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: bettracker/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  e2e:
+    name: BetTracker · e2e con Playwright
+    runs-on: ubuntu-24.04
+    needs: calidad
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: bettracker/package-lock.json
+      - run: npm ci
+      - name: Chromium
+        run: npx playwright install --with-deps chromium
+      # La suite compila la app con credenciales ficticias y sustituye el cliente de
+      # Supabase por un mock inyectado antes de arrancar: no hay backend real.
+      - run: npm run test:e2e
+        env:
+          CI: 'true'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: bettracker-playwright-report
+          path: bettracker/playwright-report
+          retention-days: 3
