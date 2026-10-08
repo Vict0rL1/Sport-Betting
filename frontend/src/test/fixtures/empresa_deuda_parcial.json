@@ -150,6 +150,9 @@
      ],
      "cash": 120.0,
      "debt_to_equity": null,
+     "deuda_parcial": [
+      "short_term_debt"
+     ],
      "interest_coverage": null,
      "leverage_trend": null,
      "net_debt": 180.0,
@@ -208,7 +211,7 @@
        }
       ]
      },
-     "reading": "Sin datos de endeudamiento.",
+     "reading": "Deuda neta disponible; faltan deuda/capital, cobertura de intereses y Altman Z. El filing no trae deuda a corto plazo: cuenta como cero. Si la empresa la tiene, la deuda neta está subestimada y el valor, sobreestimado.",
      "total_debt": 300.0
     },
     "generated_at": "2026-09-12T14:35:00+00:00",

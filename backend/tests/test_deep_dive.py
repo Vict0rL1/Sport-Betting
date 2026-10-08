@@ -168,6 +168,40 @@ def test_deuda_reporta_cobertura_y_zona():
     assert "cobertura de intereses" in debt["reading"]
 
 
+def test_deuda_neta_sin_ratios_no_dice_sin_datos():
+    """V11: la sección decía «Sin datos de endeudamiento» y, al lado, «Deuda neta
+    500 M». Con deuda y caja pero sin patrimonio ni intereses (no hay ratios), se
+    dice lo que hay y lo que falta."""
+    periodos = [{"fiscal_year": "2025", "end_date": "2025-12-31", "long_term_debt": 600.0,
+                 "short_term_debt": 0.0, "cash": 100.0}]
+    deuda = debt_section(periodos, derive_ratio_series(periodos), market_cap=None)
+    assert deuda["net_debt"] == 500.0
+    assert deuda["reading"] == ("Deuda neta disponible; faltan deuda/capital, cobertura de intereses y Altman Z.")
+
+
+def test_sin_ningun_dato_de_deuda_si_dice_sin_datos():
+    periodos = [{"fiscal_year": "2025", "end_date": "2025-12-31", "revenue": 1000.0}]
+    deuda = debt_section(periodos, derive_ratio_series(periodos), market_cap=None)
+    assert deuda["reading"] == "Sin datos de endeudamiento."
+
+
+def test_con_ratios_nombra_solo_lo_que_falta():
+    periods = _periods(6)
+    ratios = derive_ratio_series(periods)
+    deuda = debt_section(periods, ratios, market_cap=None)  # sin capitalización no hay Altman Z
+    assert deuda["altman_z"]["score"] is None
+    assert deuda["reading"].startswith("Deuda/capital") and deuda["reading"].endswith("; falta Altman Z.")
+
+
+def test_la_deuda_parcial_se_dice_como_en_el_analisis():
+    """Ronda 2: una pata de deuda ausente cuenta como cero y se dice cuál."""
+    periodos = [{"fiscal_year": "2025", "end_date": "2025-12-31", "long_term_debt": 600.0,
+                 "short_term_debt": None, "cash": 100.0}]
+    deuda = debt_section(periodos, derive_ratio_series(periodos), market_cap=None)
+    assert deuda["deuda_parcial"] == ["short_term_debt"]
+    assert "deuda a corto plazo" in deuda["reading"] and "subestimada" in deuda["reading"]
+
+
 def test_flujo_de_caja_calcula_conversion():
     periods = _periods(6)
     ratios = derive_ratio_series(periods)

@@ -16,6 +16,7 @@ from app.analysis.fundamentals import (
     derive_ratio_series,
     free_cash_flow,
     growth_summary,
+    nota_deuda_parcial,
     total_debt,
 )
 from app.analysis.health import health_snapshot
@@ -180,16 +181,35 @@ def debt_section(periods: list[dict], ratios: list[dict], market_cap: float | No
         "interest_coverage": health.get("interest_coverage"),
         "altman_z": health.get("altman_z"),
         "piotroski_f": health.get("piotroski_f"),
+        # Una pata de deuda ausente cuenta como cero (como en el análisis de la
+        # Ronda 2): se dice cuál, y la lectura lo repite.
+        "deuda_parcial": health.get("deuda_parcial"),
         "by_year": debt_series,
         "leverage_trend": leverage_trend,
         "reading": _debt_reading(
-            latest_ratio.get("debt_to_equity"), health.get("interest_coverage"), leverage_trend
+            latest_ratio.get("debt_to_equity"), health.get("interest_coverage"), leverage_trend,
+            net_debt=health.get("net_debt"), altman=(health.get("altman_z") or {}).get("score"),
+            deuda_parcial=health.get("deuda_parcial"),
         ),
     }
 
 
-def _debt_reading(d_e: float | None, coverage: float | None, trend: str | None) -> str:
-    if d_e is None and coverage is None:
+def _lista(nombres: list[str]) -> str:
+    return nombres[0] if len(nombres) == 1 else ", ".join(nombres[:-1]) + " y " + nombres[-1]
+
+
+def _debt_reading(d_e: float | None, coverage: float | None, trend: str | None, *,
+                  net_debt: float | None = None, altman: float | None = None,
+                  deuda_parcial: list[str] | None = None) -> str:
+    """La lectura de «Deuda y solidez».
+
+    Antes decía «Sin datos de endeudamiento» en cuanto faltaban deuda/capital y
+    cobertura, aunque la misma sección enseñara la deuda neta al lado (V11): una
+    contradicción en dos líneas. Ahora «sin datos» solo si faltan TODOS los datos
+    de la sección; si no, dice lo que hay y nombra lo que falta."""
+    campos = {"deuda neta": net_debt, "deuda/capital": d_e, "cobertura de intereses": coverage, "Altman Z": altman}
+    faltan = [nombre for nombre, v in campos.items() if v is None]
+    if len(faltan) == len(campos):
         return "Sin datos de endeudamiento."
     parts = []
     if d_e is not None:
@@ -213,7 +233,16 @@ def _debt_reading(d_e: float | None, coverage: float | None, trend: str | None) 
             else "el apalancamiento viene bajando" if trend == "deteriorándose"
             else "estable en el tiempo"
         )
-    return ". ".join(parts) + "."
+    if not parts:
+        hay = [nombre for nombre, v in campos.items() if v is not None]
+        parts.append(_lista(hay).capitalize() + (" disponible" if len(hay) == 1 else " disponibles"))
+    lectura = ". ".join(parts)
+    if faltan:
+        lectura += ("; falta " if len(faltan) == 1 else "; faltan ") + _lista(faltan)
+    lectura += "."
+    if deuda_parcial:
+        lectura += " " + nota_deuda_parcial(deuda_parcial)
+    return lectura
 
 
 def cash_flow_section(periods: list[dict], ratios: list[dict]) -> dict:

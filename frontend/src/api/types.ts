@@ -977,6 +977,8 @@ export interface DeepDiveReport {
   }
   debt: {
     net_debt: number | null
+    /** Partidas de deuda que el filing no trae y cuentan como cero (null: ninguna). */
+    deuda_parcial?: string[] | null
     total_debt: number | null
     cash: number | null
     debt_to_equity: number | null

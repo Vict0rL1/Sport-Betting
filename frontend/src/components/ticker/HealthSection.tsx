@@ -3,6 +3,7 @@ import { api } from '../../api/client'
 import type { Health, RiskResponse } from '../../api/types'
 import { fmtBig, fmtNumber, fmtPct } from '../../lib/format'
 import { SourceBadge } from '../SourceBadge'
+import { DeudaParcial } from './DeudaParcial'
 
 const ZONE_STYLES: Record<string, string> = {
   segura: 'bg-emerald-100 text-emerald-700',
@@ -109,17 +110,7 @@ export function HealthSection({ symbol }: { symbol: string }) {
           <div>
             <dt className="text-xs text-slate-400">Deuda neta</dt>
             <dd className="text-lg font-semibold tabular-nums">{fmtBig(health.net_debt)}</dd>
-            {health.deuda_parcial && (
-              <dd
-                className="text-[11px] text-amber-800"
-                title="El filing no trae una de las partidas de deuda: cuenta como cero. Si existe, la deuda neta real es mayor."
-              >
-                parcial: falta{' '}
-                {health.deuda_parcial
-                  .map((c) => (c === 'short_term_debt' ? 'deuda a corto' : 'deuda a largo'))
-                  .join(' y ')}
-              </dd>
-            )}
+            <DeudaParcial falta={health.deuda_parcial} />
           </div>
           <div>
             <dt className="text-xs text-slate-400">FCF (último ejercicio)</dt>

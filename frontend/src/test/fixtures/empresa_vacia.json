@@ -91,6 +91,7 @@
      ],
      "cash": null,
      "debt_to_equity": null,
+     "deuda_parcial": null,
      "interest_coverage": null,
      "leverage_trend": null,
      "net_debt": null,

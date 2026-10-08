@@ -150,6 +150,7 @@
      ],
      "cash": 120.0,
      "debt_to_equity": null,
+     "deuda_parcial": null,
      "interest_coverage": null,
      "leverage_trend": null,
      "net_debt": 180.0,
@@ -208,7 +209,7 @@
        }
       ]
      },
-     "reading": "Sin datos de endeudamiento.",
+     "reading": "Deuda neta disponible; faltan deuda/capital, cobertura de intereses y Altman Z.",
      "total_debt": 300.0
     },
     "generated_at": "2026-09-12T14:35:00+00:00",

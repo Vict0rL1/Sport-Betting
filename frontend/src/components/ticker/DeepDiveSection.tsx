@@ -8,6 +8,7 @@ import type {
 import { fmtBig, fmtNumber, fmtPct } from '../../lib/format'
 import { useLlmStatus } from '../../lib/llm'
 import { BloqueIA, BotonIA } from '../ia/ContenidoIA'
+import { DeudaParcial } from './DeudaParcial'
 
 const STANCE_STYLES: Record<string, string> = {
   constructiva: 'bg-emerald-50 border-emerald-300 text-emerald-900',
@@ -253,6 +254,7 @@ export function DeepDiveSection({ symbol }: { symbol: string }) {
             <div>
               <dt className="text-xs text-slate-400">Deuda neta</dt>
               <dd className="tabular-nums">{fmtBig(debt.net_debt)}</dd>
+              <DeudaParcial falta={debt.deuda_parcial} />
             </div>
             <div>
               <dt className="text-xs text-slate-400">Deuda/Capital</dt>
