@@ -1,0 +1,1580 @@
+{
+ "sport": "baseball",
+ "generado": "2026-10-05T05:09:57.314Z",
+ "model_version": "baseball-1e7d64aa4aa5",
+ "data_version": "20250928·15394",
+ "holdoutExcluido": 0,
+ "ventanas": "ventana creciente: cada periodo se evalúa con todo lo anterior; periodos de media temporada",
+ "periodos": [
+  {
+   "periodo": "2019 mar–jun",
+   "n": 349,
+   "desde": "20190603",
+   "hasta": "20190630",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 349,
+    "logLoss": 0.680029,
+    "brier": 0.243567,
+    "accuracy": 0.573066,
+    "ece": 0.015434,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 349,
+    "logLoss": 0.680029,
+    "brier": 0.243567,
+    "accuracy": 0.573066,
+    "ece": 0.015434,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "identidad (menos de 300 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 349,
+     "logLoss": 0.680614,
+     "brier": 0.243788,
+     "accuracy": 0.584527,
+     "ece": 0.038079,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 349,
+     "logLoss": 0.692404,
+     "brier": 0.249628,
+     "accuracy": 0.524355,
+     "ece": 0.002414,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2019 jul–oct",
+   "n": 1174,
+   "desde": "20190701",
+   "hasta": "20190929",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1174,
+    "logLoss": 0.661246,
+    "brier": 0.234448,
+    "accuracy": 0.592845,
+    "ece": 0.030076,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1174,
+    "logLoss": 0.660604,
+    "brier": 0.234137,
+    "accuracy": 0.597956,
+    "ece": 0.011924,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.044 b=1.050 (con 349 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1174,
+     "logLoss": 0.666144,
+     "brier": 0.236724,
+     "accuracy": 0.586031,
+     "ece": 0.024384,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1174,
+     "logLoss": 0.69165,
+     "brier": 0.249252,
+     "accuracy": 0.529813,
+     "ece": 0.000293,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2020 jul–oct",
+   "n": 898,
+   "desde": "20200723",
+   "hasta": "20200927",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 898,
+    "logLoss": 0.678593,
+    "brier": 0.242727,
+    "accuracy": 0.577951,
+    "ece": 0.01812,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 898,
+    "logLoss": 0.682856,
+    "brier": 0.244649,
+    "accuracy": 0.577951,
+    "ece": 0.032263,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.074 b=1.271 (con 1523 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 898,
+     "logLoss": 0.680602,
+     "brier": 0.243754,
+     "accuracy": 0.577951,
+     "ece": 0.014728,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 898,
+     "logLoss": 0.687957,
+     "brier": 0.247408,
+     "accuracy": 0.556793,
+     "ece": 0.026568,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2021 mar–jun",
+   "n": 1198,
+   "desde": "20210401",
+   "hasta": "20210630",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1198,
+    "logLoss": 0.676334,
+    "brier": 0.241707,
+    "accuracy": 0.579299,
+    "ece": 0.011144,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1198,
+    "logLoss": 0.676406,
+    "brier": 0.241741,
+    "accuracy": 0.577629,
+    "ece": 0.011694,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.006 b=1.068 (con 2421 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1198,
+     "logLoss": 0.677727,
+     "brier": 0.24238,
+     "accuracy": 0.568447,
+     "ece": 0.008383,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1198,
+     "logLoss": 0.687547,
+     "brier": 0.247204,
+     "accuracy": 0.555927,
+     "ece": 0.019539,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2021 jul–oct",
+   "n": 1231,
+   "desde": "20210701",
+   "hasta": "20211003",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1231,
+    "logLoss": 0.672064,
+    "brier": 0.239704,
+    "accuracy": 0.580016,
+    "ece": 0.006572,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1231,
+    "logLoss": 0.672404,
+    "brier": 0.239876,
+    "accuracy": 0.580829,
+    "ece": 0.011064,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=0.020 b=1.038 (con 3619 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1231,
+     "logLoss": 0.671907,
+     "brier": 0.23963,
+     "accuracy": 0.57108,
+     "ece": 0.020456,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1231,
+     "logLoss": 0.69285,
+     "brier": 0.24985,
+     "accuracy": 0.52234,
+     "ece": 0.0179,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2022 mar–jun",
+   "n": 1141,
+   "desde": "20220407",
+   "hasta": "20220630",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1141,
+    "logLoss": 0.679005,
+    "brier": 0.24292,
+    "accuracy": 0.579316,
+    "ece": 0.024796,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1141,
+    "logLoss": 0.679282,
+    "brier": 0.243035,
+    "accuracy": 0.579316,
+    "ece": 0.022325,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.000 b=1.045 (con 4850 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1141,
+     "logLoss": 0.680262,
+     "brier": 0.243547,
+     "accuracy": 0.579316,
+     "ece": 0.014712,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1141,
+     "logLoss": 0.693594,
+     "brier": 0.250222,
+     "accuracy": 0.515337,
+     "ece": 0.020568,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2022 jul–oct",
+   "n": 1289,
+   "desde": "20220701",
+   "hasta": "20221005",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1289,
+    "logLoss": 0.667029,
+    "brier": 0.237043,
+    "accuracy": 0.59969,
+    "ece": 0.011826,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1289,
+    "logLoss": 0.667184,
+    "brier": 0.237113,
+    "accuracy": 0.598914,
+    "ece": 0.008312,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.014 b=1.021 (con 5991 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1289,
+     "logLoss": 0.669047,
+     "brier": 0.238108,
+     "accuracy": 0.586501,
+     "ece": 0.016623,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1289,
+     "logLoss": 0.688747,
+     "brier": 0.247802,
+     "accuracy": 0.549263,
+     "ece": 0.014137,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2023 mar–jun",
+   "n": 1230,
+   "desde": "20230330",
+   "hasta": "20230630",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1230,
+    "logLoss": 0.681593,
+    "brier": 0.244319,
+    "accuracy": 0.545528,
+    "ece": 0.035143,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1230,
+    "logLoss": 0.681633,
+    "brier": 0.244337,
+    "accuracy": 0.545528,
+    "ece": 0.035107,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.003 b=1.013 (con 7280 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1230,
+     "logLoss": 0.686367,
+     "brier": 0.246539,
+     "accuracy": 0.555285,
+     "ece": 0.026541,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1230,
+     "logLoss": 0.692717,
+     "brier": 0.249784,
+     "accuracy": 0.521138,
+     "ece": 0.014296,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2023 jul–oct",
+   "n": 1200,
+   "desde": "20230701",
+   "hasta": "20231001",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1200,
+    "logLoss": 0.6795,
+    "brier": 0.24328,
+    "accuracy": 0.565833,
+    "ece": 0.016089,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1200,
+    "logLoss": 0.679313,
+    "brier": 0.243187,
+    "accuracy": 0.570833,
+    "ece": 0.00989,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.010 b=0.993 (con 8510 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1200,
+     "logLoss": 0.681446,
+     "brier": 0.244203,
+     "accuracy": 0.569167,
+     "ece": 0.015178,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1200,
+     "logLoss": 0.692657,
+     "brier": 0.249754,
+     "accuracy": 0.520833,
+     "ece": 0.012994,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2024 mar–jun",
+   "n": 1262,
+   "desde": "20240320",
+   "hasta": "20240630",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1262,
+    "logLoss": 0.675068,
+    "brier": 0.241123,
+    "accuracy": 0.5729,
+    "ece": 0.012656,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1262,
+    "logLoss": 0.675078,
+    "brier": 0.24112,
+    "accuracy": 0.5729,
+    "ece": 0.012134,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.014 b=0.975 (con 9710 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1262,
+     "logLoss": 0.677617,
+     "brier": 0.242285,
+     "accuracy": 0.582409,
+     "ece": 0.014495,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1262,
+     "logLoss": 0.690766,
+     "brier": 0.24881,
+     "accuracy": 0.534865,
+     "ece": 0.003093,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2024 jul–oct",
+   "n": 1167,
+   "desde": "20240701",
+   "hasta": "20240930",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1167,
+    "logLoss": 0.686632,
+    "brier": 0.246769,
+    "accuracy": 0.546701,
+    "ece": 0.027699,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1167,
+    "logLoss": 0.68602,
+    "brier": 0.246478,
+    "accuracy": 0.544987,
+    "ece": 0.026757,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.014 b=0.981 (con 10972 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1167,
+     "logLoss": 0.686753,
+     "brier": 0.246775,
+     "accuracy": 0.556984,
+     "ece": 0.016896,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1167,
+     "logLoss": 0.694297,
+     "brier": 0.250573,
+     "accuracy": 0.507284,
+     "ece": 0.024387,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2025 mar–jun",
+   "n": 1179,
+   "desde": "20250318",
+   "hasta": "20250630",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1179,
+    "logLoss": 0.673198,
+    "brier": 0.240268,
+    "accuracy": 0.575064,
+    "ece": 0.001601,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1179,
+    "logLoss": 0.673722,
+    "brier": 0.240515,
+    "accuracy": 0.578456,
+    "ece": 0.009706,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.022 b=0.963 (con 12139 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1179,
+     "logLoss": 0.675784,
+     "brier": 0.241553,
+     "accuracy": 0.558948,
+     "ece": 0.023758,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1179,
+     "logLoss": 0.68847,
+     "brier": 0.247664,
+     "accuracy": 0.553011,
+     "ece": 0.020329,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  },
+  {
+   "periodo": "2025 jul–oct",
+   "n": 1110,
+   "desde": "20250701",
+   "hasta": "20250928",
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1110,
+    "logLoss": 0.677569,
+    "brier": 0.24246,
+    "accuracy": 0.561261,
+    "ece": 0.017107,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "recalibrado": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 1110,
+    "logLoss": 0.677653,
+    "brier": 0.242483,
+    "accuracy": 0.559459,
+    "ece": 0.015224,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25,
+    "parametros": "Platt a=-0.015 b=0.967 (con 13318 partidos anteriores)"
+   },
+   "baselines": {
+    "Elo básico": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1110,
+     "logLoss": 0.681551,
+     "brier": 0.24439,
+     "accuracy": 0.557658,
+     "ece": 0.017065,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "Gana el local": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 1110,
+     "logLoss": 0.690126,
+     "brier": 0.248491,
+     "accuracy": 0.53964,
+     "ece": 0.006528,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    }
+   },
+   "mercado": null,
+   "roi": null,
+   "clv": null
+  }
+ ],
+ "resumen": {
+  "Recalibrado (solo pasado)": {
+   "periodos": 13,
+   "ganaModelo": 9,
+   "ganaRival": 4
+  },
+  "Elo básico": {
+   "periodos": 13,
+   "ganaModelo": 12,
+   "ganaRival": 1
+  },
+  "Gana el local": {
+   "periodos": 13,
+   "ganaModelo": 13,
+   "ganaRival": 0
+  }
+ },
+ "global": {
+  "modelo": {
+   "origen": "backtest",
+   "deporte": "baseball",
+   "n": 14428,
+   "logLoss": 0.675625,
+   "brier": 0.241385,
+   "accuracy": 0.573122,
+   "ece": 0.005758,
+   "mercado": null,
+   "logLossUniforme": 0.693147,
+   "brierUniforme": 0.25
+  },
+  "recalibrado": {
+   "origen": "backtest",
+   "deporte": "baseball",
+   "n": 14428,
+   "logLoss": 0.675897,
+   "brier": 0.241505,
+   "accuracy": 0.573815,
+   "ece": 0.006112,
+   "mercado": null,
+   "logLossUniforme": 0.693147,
+   "brierUniforme": 0.25
+  },
+  "baselines": {
+   "Elo básico": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 14428,
+    "logLoss": 0.677863,
+    "brier": 0.242456,
+    "accuracy": 0.571181,
+    "ece": 0.006003,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "Gana el local": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 14428,
+    "logLoss": 0.691029,
+    "brier": 0.248941,
+    "accuracy": 0.533269,
+    "ece": 0.000487,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   }
+  },
+  "mercado": null
+ },
+ "porRegimen": {
+  "resto de la temporada": {
+   "n": 12424,
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 12424,
+    "logLoss": 0.67549,
+    "brier": 0.241325,
+    "accuracy": 0.57236,
+    "ece": 0.008294,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "mercado": null
+  },
+  "inicio de temporada (marzo–abril)": {
+   "n": 2004,
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 2004,
+    "logLoss": 0.676458,
+    "brier": 0.241759,
+    "accuracy": 0.577844,
+    "ece": 0.017992,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "mercado": null
+  }
+ },
+ "porSegmento": {
+  "abridor local": {
+   "normal": {
+    "n": 11096,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 11096,
+     "logLoss": 0.67784,
+     "brier": 0.242465,
+     "accuracy": 0.567322,
+     "ece": 0.00878,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "sin datos": {
+    "n": 370,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 370,
+     "logLoss": 0.669871,
+     "brier": 0.238616,
+     "accuracy": 0.589189,
+     "ece": 0.018145,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "bueno": {
+    "n": 2303,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 2303,
+     "logLoss": 0.665691,
+     "brier": 0.236571,
+     "accuracy": 0.593574,
+     "ece": 0.010361,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "flojo": {
+    "n": 659,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 659,
+     "logLoss": 0.676261,
+     "brier": 0.241591,
+     "accuracy": 0.590288,
+     "ece": 0.029452,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   }
+  },
+  "abridor visitante": {
+   "normal": {
+    "n": 11128,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 11128,
+     "logLoss": 0.675673,
+     "brier": 0.241391,
+     "accuracy": 0.575395,
+     "ece": 0.00485,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "bueno": {
+    "n": 2307,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 2307,
+     "logLoss": 0.681058,
+     "brier": 0.244069,
+     "accuracy": 0.549632,
+     "ece": 0.019534,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "sin datos": {
+    "n": 376,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 376,
+     "logLoss": 0.680589,
+     "brier": 0.243708,
+     "accuracy": 0.571809,
+     "ece": 0.013318,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "flojo": {
+    "n": 617,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 617,
+     "logLoss": 0.651416,
+     "brier": 0.229827,
+     "accuracy": 0.620746,
+     "ece": 0.016149,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   }
+  },
+  "estadio": {
+   "PHO01": {
+    "n": 489,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 489,
+     "logLoss": 0.682699,
+     "brier": 0.244905,
+     "accuracy": 0.529652,
+     "ece": 0.035516,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "SEA03": {
+    "n": 475,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 475,
+     "logLoss": 0.672219,
+     "brier": 0.239881,
+     "accuracy": 0.56,
+     "ece": 0.032634,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "ANA01": {
+    "n": 486,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 486,
+     "logLoss": 0.685532,
+     "brier": 0.246218,
+     "accuracy": 0.55144,
+     "ece": 0.018162,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "SAN02": {
+    "n": 483,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 483,
+     "logLoss": 0.677482,
+     "brier": 0.242345,
+     "accuracy": 0.571429,
+     "ece": 0.013831,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "KAN06": {
+    "n": 483,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 483,
+     "logLoss": 0.681126,
+     "brier": 0.244129,
+     "accuracy": 0.565217,
+     "ece": 0.007309,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "WAS11": {
+    "n": 486,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 486,
+     "logLoss": 0.675629,
+     "brier": 0.241306,
+     "accuracy": 0.596708,
+     "ece": 0.033695,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "CHI11": {
+    "n": 486,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 486,
+     "logLoss": 0.671337,
+     "brier": 0.239406,
+     "accuracy": 0.578189,
+     "ece": 0.007486,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "CLE08": {
+    "n": 480,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 480,
+     "logLoss": 0.66764,
+     "brier": 0.237359,
+     "accuracy": 0.59375,
+     "ece": 0.02588,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "NYC20": {
+    "n": 487,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 487,
+     "logLoss": 0.676126,
+     "brier": 0.241614,
+     "accuracy": 0.560575,
+     "ece": 0.010625,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "PIT08": {
+    "n": 487,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 487,
+     "logLoss": 0.691573,
+     "brier": 0.249173,
+     "accuracy": 0.535934,
+     "ece": 0.023959,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "TOR02": {
+    "n": 407,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 407,
+     "logLoss": 0.680467,
+     "brier": 0.243777,
+     "accuracy": 0.550369,
+     "ece": 0.029491,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "BOS07": {
+    "n": 489,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 489,
+     "logLoss": 0.68331,
+     "brier": 0.24526,
+     "accuracy": 0.533742,
+     "ece": 0.03209,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "DET05": {
+    "n": 480,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 480,
+     "logLoss": 0.681086,
+     "brier": 0.243982,
+     "accuracy": 0.558333,
+     "ece": 0.009157,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "HOU03": {
+    "n": 478,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 478,
+     "logLoss": 0.667109,
+     "brier": 0.237139,
+     "accuracy": 0.608787,
+     "ece": 0.026911,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "MIA02": {
+    "n": 480,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 480,
+     "logLoss": 0.687578,
+     "brier": 0.247241,
+     "accuracy": 0.552083,
+     "ece": 0.018667,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "MIL06": {
+    "n": 480,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 480,
+     "logLoss": 0.676679,
+     "brier": 0.241861,
+     "accuracy": 0.583333,
+     "ece": 0.016048,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "PHI13": {
+    "n": 486,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 486,
+     "logLoss": 0.667845,
+     "brier": 0.237549,
+     "accuracy": 0.58642,
+     "ece": 0.022949,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "SFO03": {
+    "n": 488,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 488,
+     "logLoss": 0.674754,
+     "brier": 0.240941,
+     "accuracy": 0.581967,
+     "ece": 0.015156,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "ATL03": {
+    "n": 484,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 484,
+     "logLoss": 0.670036,
+     "brier": 0.238583,
+     "accuracy": 0.578512,
+     "ece": 0.042096,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "CHI12": {
+    "n": 480,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 480,
+     "logLoss": 0.671632,
+     "brier": 0.239383,
+     "accuracy": 0.591667,
+     "ece": 0.015923,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "DEN02": {
+    "n": 481,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 481,
+     "logLoss": 0.688316,
+     "brier": 0.247549,
+     "accuracy": 0.548857,
+     "ece": 0.036826,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "STP01": {
+    "n": 403,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 403,
+     "logLoss": 0.651878,
+     "brier": 0.229817,
+     "accuracy": 0.632754,
+     "ece": 0.030727,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "BAL12": {
+    "n": 487,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 487,
+     "logLoss": 0.677666,
+     "brier": 0.242332,
+     "accuracy": 0.581109,
+     "ece": 0.009638,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "MIN04": {
+    "n": 489,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 489,
+     "logLoss": 0.678752,
+     "brier": 0.243009,
+     "accuracy": 0.572597,
+     "ece": 0.013519,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "NYC21": {
+    "n": 481,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 481,
+     "logLoss": 0.655971,
+     "brier": 0.231967,
+     "accuracy": 0.60499,
+     "ece": 0.023144,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "LOS03": {
+    "n": 480,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 480,
+     "logLoss": 0.627333,
+     "brier": 0.217785,
+     "accuracy": 0.675,
+     "ece": 0.039124,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "CIN09": {
+    "n": 483,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 483,
+     "logLoss": 0.691339,
+     "brier": 0.249094,
+     "accuracy": 0.540373,
+     "ece": 0.019207,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "OAK01": {
+    "n": 403,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 403,
+     "logLoss": 0.674229,
+     "brier": 0.240567,
+     "accuracy": 0.590571,
+     "ece": 0.018292,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "STL10": {
+    "n": 477,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 477,
+     "logLoss": 0.693651,
+     "brier": 0.250093,
+     "accuracy": 0.532495,
+     "ece": 0.04072,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   },
+   "ARL03": {
+    "n": 428,
+    "modelo": {
+     "origen": "backtest",
+     "deporte": "baseball",
+     "n": 428,
+     "logLoss": 0.682159,
+     "brier": 0.244567,
+     "accuracy": 0.558411,
+     "ece": 0.007377,
+     "mercado": null,
+     "logLossUniforme": 0.693147,
+     "brierUniforme": 0.25
+    },
+    "mercado": null
+   }
+  }
+ },
+ "cobertura": [
+  {
+   "cobertura": 1,
+   "n": 14428,
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 14428,
+    "logLoss": 0.675625,
+    "brier": 0.241385,
+    "accuracy": 0.573122,
+    "ece": 0.005758,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "mercado": null
+  },
+  {
+   "cobertura": 0.75,
+   "n": 10821,
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 10821,
+    "logLoss": 0.676733,
+    "brier": 0.241922,
+    "accuracy": 0.57028,
+    "ece": 0.009015,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "mercado": null
+  },
+  {
+   "cobertura": 0.5,
+   "n": 7214,
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 7214,
+    "logLoss": 0.679038,
+    "brier": 0.243072,
+    "accuracy": 0.561547,
+    "ece": 0.015115,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "mercado": null
+  },
+  {
+   "cobertura": 0.25,
+   "n": 3607,
+   "modelo": {
+    "origen": "backtest",
+    "deporte": "baseball",
+    "n": 3607,
+    "logLoss": 0.679399,
+    "brier": 0.243289,
+    "accuracy": 0.560299,
+    "ece": 0.013712,
+    "mercado": null,
+    "logLossUniforme": 0.693147,
+    "brierUniforme": 0.25
+   },
+   "mercado": null
+  }
+ ]
+}

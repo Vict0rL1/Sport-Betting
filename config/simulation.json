@@ -1,0 +1,36 @@
+{
+  "$comment": "Reglas de la simulación de temporada por liga: cómo se puntúa, cuántos entran arriba (título, top, playoffs) y cuántos bajan. `formato` dice si el calendario pendiente se puede reconstruir como doble vuelta cuando la fuente no lo trae (solo ligas de todos contra todos). `corridas` y `semilla` son fijas: dos lecturas del mismo día dicen lo mismo.",
+  "corridas": 10000,
+  "semilla": 20260101,
+  "ligas": {
+    "football": {
+      "_defecto": { "puntos": [3, 1, 0], "top": 4, "descenso": 3, "formato": "doble vuelta", "etiquetaTop": "top 4 (Champions)" },
+      "epl": { "puntos": [3, 1, 0], "top": 4, "descenso": 3, "formato": "doble vuelta", "etiquetaTop": "top 4 (Champions)" },
+      "laliga": { "puntos": [3, 1, 0], "top": 4, "descenso": 3, "formato": "doble vuelta", "etiquetaTop": "top 4 (Champions)" },
+      "seriea": { "puntos": [3, 1, 0], "top": 4, "descenso": 3, "formato": "doble vuelta", "etiquetaTop": "top 4 (Champions)" },
+      "bundesliga": { "puntos": [3, 1, 0], "top": 4, "descenso": 2, "formato": "doble vuelta", "etiquetaTop": "top 4 (Champions)", "nota": "El 16.º juega promoción; aquí cuenta como salvado." },
+      "ligue1": { "puntos": [3, 1, 0], "top": 3, "descenso": 2, "formato": "doble vuelta", "etiquetaTop": "top 3 (Champions)", "nota": "El 16.º juega promoción; aquí cuenta como salvado." },
+      "eredivisie": { "puntos": [3, 1, 0], "top": 2, "descenso": 2, "formato": "doble vuelta", "etiquetaTop": "top 2 (Champions)" },
+      "primeira": { "puntos": [3, 1, 0], "top": 2, "descenso": 2, "formato": "doble vuelta", "etiquetaTop": "top 2 (Champions)" },
+      "championship": { "puntos": [3, 1, 0], "top": 2, "descenso": 3, "formato": "doble vuelta", "etiquetaTop": "ascenso directo (top 2)" },
+      "laliga2": { "puntos": [3, 1, 0], "top": 2, "descenso": 4, "formato": "doble vuelta", "etiquetaTop": "ascenso directo (top 2)" },
+      "bundesliga2": { "puntos": [3, 1, 0], "top": 2, "descenso": 2, "formato": "doble vuelta", "etiquetaTop": "ascenso directo (top 2)" },
+      "ligue2": { "puntos": [3, 1, 0], "top": 2, "descenso": 3, "formato": "doble vuelta", "etiquetaTop": "ascenso directo (top 2)" },
+      "serieb": { "puntos": [3, 1, 0], "top": 2, "descenso": 3, "formato": "doble vuelta", "etiquetaTop": "ascenso directo (top 2)" },
+      "ligamx": { "puntos": [3, 1, 0], "top": 6, "descenso": 0, "formato": "apertura/clausura", "etiquetaTop": "liguilla directa (top 6)", "nota": "Torneos cortos: sin reconstrucción del calendario." },
+      "argentina": { "puntos": [3, 1, 0], "top": 8, "descenso": 2, "formato": "grupos", "etiquetaTop": "top 8", "nota": "Formato con zonas: sin reconstrucción del calendario." }
+    },
+    "basketball": {
+      "_defecto": { "puntos": "victorias", "top": 6, "descenso": 0, "formato": "calendario", "etiquetaTop": "playoffs directos (top 6 de conferencia)", "nota": "Sin conferencias en la base, el top cuenta sobre toda la liga." },
+      "nba": { "puntos": "victorias", "top": 6, "descenso": 0, "formato": "calendario", "etiquetaTop": "playoffs directos (top 6 de conferencia)", "grupos": "conference" }
+    },
+    "baseball": {
+      "_defecto": { "puntos": "victorias", "top": 6, "descenso": 0, "formato": "calendario", "etiquetaTop": "playoffs (6 por liga)" },
+      "mlb": { "puntos": "victorias", "top": 6, "descenso": 0, "formato": "calendario", "etiquetaTop": "playoffs (6 por liga)", "grupos": "conference" }
+    },
+    "nfl": {
+      "_defecto": { "puntos": "victorias", "top": 7, "descenso": 0, "formato": "calendario", "etiquetaTop": "playoffs (7 por conferencia)" },
+      "nfl": { "puntos": "victorias", "top": 7, "descenso": 0, "formato": "calendario", "etiquetaTop": "playoffs (7 por conferencia)", "grupos": "conference" }
+    }
+  }
+}

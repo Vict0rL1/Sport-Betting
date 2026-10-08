@@ -1,0 +1,25 @@
+# Configuración de gitleaks (hook de pre-commit y CI). Hereda las reglas por defecto y
+# añade la de la clave de The Odds API, que no está en ellas.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "the-odds-api-key"
+description = "Clave de The Odds API (32 hex junto a su variable)"
+regex = '''(?i)(ODDS_API_KEY|THE_ODDS_API_KEY|apiKey)\s*[=:]\s*["']?([0-9a-f]{32})\b'''
+secretGroup = 2
+
+[allowlist]
+description = "Ejemplos y datos públicos"
+paths = [
+  '''\.env\.example$''',
+  '''^web/public/flags/''',
+  '''^data/seed/''',
+  '''package-lock\.json$''',
+  '''^scripts/secret-scan\.mjs$''',
+]
+regexes = [
+  '''clave-de-test-0{20,}''',
+  '''0123456789abcdef0123456789abcdef''',
+]
