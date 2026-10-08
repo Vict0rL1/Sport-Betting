@@ -30,7 +30,6 @@ from __future__ import annotations
 from app import datos
 from app.datos import numero as datos_numero
 
-import re
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -53,10 +52,11 @@ from app.db.engine import get_session
 from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
+from app.simbolos import SIMBOLO_RE, SimboloRuta
 
 router = APIRouter(prefix="/api/valuation", tags=["valuation"])
 
-_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 MAX_PARES = 6
 
 # Supuestos de partida de cada escenario. Son un PUNTO DE ARRANQUE editable, no
@@ -255,7 +255,7 @@ def _comparables(service: MarketDataService, symbol: str, precio: float | None, 
 
 @router.post("/{symbol}")
 def valorar(
-    symbol: str,
+    symbol: SimboloRuta,
     request: ValoracionRequest = Body(default_factory=ValoracionRequest),
     service: MarketDataService = Depends(get_service),
     session: Session = Depends(get_session),

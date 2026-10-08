@@ -7,9 +7,8 @@ después de la primera vez.
 
 from __future__ import annotations
 
-import re
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.analysis.etf import overlap_weight
 from app.analysis.etf_picks import recomendar
@@ -17,10 +16,11 @@ from app.cache.cache import MarketDataService
 from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
+from app.simbolos import ListaSimbolosQuery, SIMBOLO_RE, SimboloRuta
 
 router = APIRouter(prefix="/api/etfs", tags=["etfs"])
 
-_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
 
 def _validate(symbol: str) -> str:
@@ -38,20 +38,9 @@ def _fetch_etf(service: MarketDataService, symbol: str) -> dict:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
-@router.get("/{symbol}")
-def get_etf(symbol: str, service: MarketDataService = Depends(get_service)):
-    """Composición, expense ratio, AUM y desglose sectorial."""
-    payload = _fetch_etf(service, _validate(symbol))
-    payload["coverage_note"] = (
-        "La fuente gratuita publica solo los mayores holdings; el desglose no "
-        "suma 100 % y no es la cartera completa."
-    )
-    return payload
-
-
 @router.get("/compare/side-by-side")
 def compare_etfs(
-    symbols: str = Query(..., description="Lista separada por comas, máx. 4"),
+    symbols: ListaSimbolosQuery,
     service: MarketDataService = Depends(get_service),
 ):
     """Comparador lado a lado + matriz de solapamiento entre todos los pares."""
@@ -91,7 +80,7 @@ def compare_etfs(
 
 @router.get("/recomendar")
 def recomendar_etfs(
-    symbols: str = Query(..., description="Lista separada por comas, máx. 6"),
+    symbols: ListaSimbolosQuery,
     service: MarketDataService = Depends(get_service),
 ):
     """Cuál de estos ETFs está mejor construido, y cuáles se repiten entre sí.
@@ -145,3 +134,17 @@ def recomendar_etfs(
             "pueden compartir mucho más en la cola de la cartera."
         ),
     }
+
+
+# La ruta con parámetro va AL FINAL: Starlette prueba las rutas por orden de
+# declaración y «/{symbol}» se quedaba con «/recomendar» (tratada como el ticker
+# RECOMENDAR). El botón «Analizar y recomendar» nunca llegó a su manejador.
+@router.get("/{symbol}")
+def get_etf(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
+    """Composición, expense ratio, AUM y desglose sectorial."""
+    payload = _fetch_etf(service, _validate(symbol))
+    payload["coverage_note"] = (
+        "La fuente gratuita publica solo los mayores holdings; el desglose no "
+        "suma 100 % y no es la cartera completa."
+    )
+    return payload

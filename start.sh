@@ -107,7 +107,8 @@ fi
 # --- Arranque ---------------------------------------------------------------
 
 step "Arrancando backend…"
-(cd backend && exec .venv/bin/python -m uvicorn app.main:app --reload --port 8000) \
+# Solo en 127.0.0.1: son tus posiciones y tu cartera, no se sirven a la red local.
+(cd backend && exec .venv/bin/python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000) \
   > /tmp/bolsa-backend.log 2>&1 &
 BACKEND_PID=$!
 

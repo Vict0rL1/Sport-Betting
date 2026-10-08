@@ -75,9 +75,18 @@ async def _error_de_validacion(request: Request, exc: RequestValidationError) ->
     mensaje de error fallaba al serializarse y el cliente recibía un 500: el
     rechazo correcto se convertía en un fallo del servidor.
     """
+    errores = exc.errors()
+    # Un ticker que no cumple el patrón común (app/simbolos.py) se explica en
+    # español; el mensaje de Pydantic («String should match pattern …») no
+    # le dice nada a quien usa la app.
+    from app.simbolos import mensaje_invalido
+
+    for e in errores:
+        if e.get("type") == "string_pattern_mismatch" and any("symbol" in str(p) for p in e.get("loc", ())):
+            e["msg"] = mensaje_invalido(e.get("input"))
     return JSONResponse(
         status_code=422,
-        content={"detail": jsonable_encoder(_sin_no_finitos(exc.errors()))},
+        content={"detail": jsonable_encoder(_sin_no_finitos(errores))},
     )
 
 

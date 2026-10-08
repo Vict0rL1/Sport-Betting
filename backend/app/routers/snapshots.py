@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app import snapshots as sn
 from app.db.engine import get_session
 from app.db.models import DecisionOutcome, DecisionSnapshot
+from app.simbolos import SimboloQuery
 
 router = APIRouter(prefix="/api/snapshots", tags=["snapshots"])
 
@@ -31,7 +32,7 @@ def _resultados(session: Session, snap_id: int) -> list[DecisionOutcome]:
 
 @router.get("")
 def listar(
-    symbol: str | None = None,
+    symbol: SimboloQuery = None,
     origen: str | None = Query(None, description="prefijo: «hoy» o «analisis»"),
     desde: str | None = Query(None, description="AAAA-MM-DD"),
     hasta: str | None = Query(None, description="AAAA-MM-DD"),

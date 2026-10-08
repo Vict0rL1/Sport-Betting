@@ -8,7 +8,6 @@ cada instantánea vive en `/api/snapshots/{id}/replay`.
 
 from __future__ import annotations
 
-import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -24,10 +23,11 @@ from app.db.models import DecisionSnapshot
 from app.db.models import LlmOutput
 from app.deps import get_llm, get_service
 from app.llm.base import LLMProvider, LLMUnavailableError
+from app.simbolos import SIMBOLO_RE, SimboloRuta
 
 router = APIRouter(prefix="/api/empresa", tags=["empresa"])
 
-_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
 
 def _validar(symbol: str) -> str:
@@ -76,7 +76,7 @@ def analizar_y_congelar(
 
 @router.get("/{symbol}/analisis")
 def analisis(
-    symbol: str,
+    symbol: SimboloRuta,
     congelar: bool = Query(True, description="Guardar la instantánea si cambió algo material"),
     pares: bool = Query(True, description="Puntuar contra pares si no está en ninguna lista diaria"),
     tipo_impositivo: float | None = Query(None, ge=0, le=0.6, description="Tipo sobre plusvalías; sin él, impuestos DESCONOCIDOS"),
@@ -95,7 +95,7 @@ def materialidad():
 
 
 @router.get("/{symbol}/cambios/{snap_id}")
-def cambios_entre(symbol: str, snap_id: int, contra: int | None = None, session: Session = Depends(get_session)):
+def cambios_entre(symbol: SimboloRuta, snap_id: int, contra: int | None = None, session: Session = Depends(get_session)):
     """El diff entre una instantánea y la anterior comparable (u otra concreta)."""
     symbol = _validar(symbol)
     snap = session.get(DecisionSnapshot, snap_id)
@@ -112,7 +112,7 @@ def cambios_entre(symbol: str, snap_id: int, contra: int | None = None, session:
 
 @router.post("/{symbol}/cambios/resumen-ia")
 def resumen_ia(
-    symbol: str,
+    symbol: SimboloRuta,
     cambios: dict = Body(...),
     llm: LLMProvider | None = Depends(get_llm),
     session: Session = Depends(get_session),
@@ -155,7 +155,7 @@ RESUMEN_SYSTEM = (
 
 
 @router.get("/{symbol}/calidad")
-def calidad(symbol: str, service: MarketDataService = Depends(get_service)):
+def calidad(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     """Calidad de los beneficios: evidencias con regla, umbral, valor, periodo y fuente."""
     from app.analysis import calidad_beneficios
 
@@ -168,7 +168,7 @@ def calidad(symbol: str, service: MarketDataService = Depends(get_service)):
 
 
 @router.get("/{symbol}/historial")
-def historial(symbol: str, limite: int = Query(50, ge=1, le=500), session: Session = Depends(get_session)):
+def historial(symbol: SimboloRuta, limite: int = Query(50, ge=1, le=500), session: Session = Depends(get_session)):
     """Todo lo que el sistema dijo de esta empresa, de la lista diaria y de los
     análisis, de lo más reciente a lo más antiguo."""
     symbol = _validar(symbol)

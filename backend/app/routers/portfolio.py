@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -37,11 +36,12 @@ from app.db.models import (
 from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
+from app.simbolos import SIMBOLO_RE, Simbolo
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 watchlist_router = APIRouter(prefix="/api/watchlist", tags=["watchlist"])
 
-_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
 
 def _validate(symbol: str) -> str:
@@ -361,7 +361,7 @@ class TesisEnLinea(BaseModel):
 
 
 class WatchlistAdd(BaseModel):
-    symbol: str = Field(min_length=1, max_length=12)
+    symbol: Simbolo
     notes: str | None = None
     tesis: TesisEnLinea | None = None
 
@@ -501,7 +501,7 @@ def _fecha_de_apertura(valor: str | None) -> datetime | None:
 
 
 class PositionCreate(BaseModel):
-    symbol: str = Field(min_length=1, max_length=12)
+    symbol: Simbolo
     quantity: float = Field(gt=0, allow_inf_nan=False)
     cost_basis: float = Field(ge=0, allow_inf_nan=False, description="Coste por acción")
     opened_at: str | None = None
@@ -812,7 +812,7 @@ def get_portfolio(
 
 
 class AlertCreate(BaseModel):
-    symbol: str = Field(min_length=1, max_length=12)
+    symbol: Simbolo
     op: str = Field(pattern="^(lt|gt)$")
     price: float = Field(gt=0, allow_inf_nan=False)
 

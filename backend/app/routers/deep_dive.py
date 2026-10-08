@@ -10,7 +10,6 @@ from __future__ import annotations
 from app import datos
 from app.routers.valuation import CRECIMIENTO_SUPUESTO
 
-import re
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -28,10 +27,11 @@ from app.deps import get_llm, get_service
 from app.llm.base import LLMProvider, LLMUnavailableError
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
+from app.simbolos import SIMBOLO_RE, SimboloRuta
 
 router = APIRouter(prefix="/api/deep-dive", tags=["deep-dive"])
 
-_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
 NARRATIVE_SYSTEM = """Eres un analista de renta variable escribiendo para un \
 estudiante de finanzas. Recibes un informe YA CALCULADO con cifras reales.
@@ -100,7 +100,7 @@ def _peer_signal(service: MarketDataService, symbol: str, metrics: dict) -> dict
 
 @router.get("/{symbol}")
 def deep_dive(
-    symbol: str,
+    symbol: SimboloRuta,
     history_years: int = Query(10, ge=3, le=15),
     service: MarketDataService = Depends(get_service),
 ):
@@ -246,7 +246,7 @@ def _dcf_defaults(periods: list[dict], quote: dict | None) -> dict | None:
 
 @router.post("/{symbol}/narrative")
 def narrative(
-    symbol: str,
+    symbol: SimboloRuta,
     report: dict = Body(...),
     llm: LLMProvider | None = Depends(get_llm),
     session: Session = Depends(get_session),

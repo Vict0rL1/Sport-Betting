@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -32,10 +31,11 @@ from app.schemas.market import (
     ProfileResponse,
     QuoteResponse,
 )
+from app.simbolos import SIMBOLO_RE, SimboloRuta
 
 router = APIRouter(prefix="/api/stocks", tags=["stocks"])
 
-_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
 # range -> (intervalo, nº de barras). 5A/10A usan barras semanales para
 # mantener el payload razonable; los indicadores se calculan sobre el
@@ -70,17 +70,17 @@ def _nan_to_none(series: pd.Series) -> list[float | None]:
 
 
 @router.get("/{symbol}/quote", response_model=QuoteResponse)
-def get_quote(symbol: str, service: MarketDataService = Depends(get_service)):
+def get_quote(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     return _fetch(service, "quote", symbol=_validate_symbol(symbol))
 
 
 @router.get("/{symbol}/profile", response_model=ProfileResponse)
-def get_profile(symbol: str, service: MarketDataService = Depends(get_service)):
+def get_profile(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     return _fetch(service, "profile", symbol=_validate_symbol(symbol))
 
 
 @router.get("/{symbol}/fundamentals", response_model=FundamentalsResponse)
-def get_fundamentals(symbol: str, service: MarketDataService = Depends(get_service)):
+def get_fundamentals(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     return _fetch(service, "fundamentals", symbol=_validate_symbol(symbol))
 
 
@@ -94,7 +94,7 @@ def _directorio_de_logos() -> Path:
 
 
 @router.get("/{symbol}/logo")
-def get_logo(symbol: str, service: MarketDataService = Depends(get_service)):
+def get_logo(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     """El logo de la empresa, servido desde TU disco.
 
     El backend lo descarga una vez y lo guarda; el navegador nunca habla con un
@@ -146,7 +146,7 @@ def get_logo(symbol: str, service: MarketDataService = Depends(get_service)):
 
 @router.get("/{symbol}/history", response_model=HistoryResponse)
 def get_history(
-    symbol: str,
+    symbol: SimboloRuta,
     range: str = Query("1Y", pattern="^(1M|3M|6M|YTD|1Y|5Y|10Y)$"),
     service: MarketDataService = Depends(get_service),
 ):
@@ -186,7 +186,7 @@ def get_history(
 
 
 @router.get("/{symbol}/financials")
-def get_financials(symbol: str, service: MarketDataService = Depends(get_service)):
+def get_financials(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     """Estados financieros anuales (EDGAR) + ratios derivados + crecimiento.
 
     Una sola descarga cacheada 24 h alimenta todo el análisis fundamental:
@@ -199,7 +199,7 @@ def get_financials(symbol: str, service: MarketDataService = Depends(get_service
 
 
 @router.get("/{symbol}/health")
-def get_health(symbol: str, service: MarketDataService = Depends(get_service)):
+def get_health(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     """Altman Z, Piotroski F y cobertura de intereses, con desglose completo."""
     symbol = _validate_symbol(symbol)
     financials = _fetch(service, "financials", symbol=symbol)
@@ -222,7 +222,7 @@ def get_health(symbol: str, service: MarketDataService = Depends(get_service)):
 
 
 @router.get("/{symbol}/valuation/defaults")
-def get_valuation_defaults(symbol: str, service: MarketDataService = Depends(get_service)):
+def get_valuation_defaults(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     """Valores de partida para el DCF, derivados de datos reales (EDGAR +
     cotización cacheada). Son un punto de arranque editable, no una
     recomendación."""
@@ -273,7 +273,7 @@ def get_valuation_defaults(symbol: str, service: MarketDataService = Depends(get
 
 @router.post("/{symbol}/valuation/dcf")
 def post_dcf(
-    symbol: str,
+    symbol: SimboloRuta,
     request: DcfRequest = Body(...),
     service: MarketDataService = Depends(get_service),
 ):
@@ -335,7 +335,7 @@ def post_dcf(
 
 
 @router.get("/{symbol}/peers")
-def get_peers(symbol: str, service: MarketDataService = Depends(get_service)):
+def get_peers(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     """Comparativa contra pares del sector con percentiles.
 
     Coste acotado: máx. 6 pares, fundamentales cacheados 24 h y lista de
@@ -386,7 +386,7 @@ def get_peers(symbol: str, service: MarketDataService = Depends(get_service)):
 
 
 @router.get("/{symbol}/risk")
-def get_risk(symbol: str, service: MarketDataService = Depends(get_service)):
+def get_risk(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     """Beta vs. SPY, volatilidad anualizada y máximo drawdown (1 año).
 
     Reutiliza el histórico ya cacheado del gráfico: coste marginal cero.
@@ -424,7 +424,7 @@ def get_risk(symbol: str, service: MarketDataService = Depends(get_service)):
 
 
 @router.get("/{symbol}/filings")
-def get_filings(symbol: str, service: MarketDataService = Depends(get_service)):
+def get_filings(symbol: SimboloRuta, service: MarketDataService = Depends(get_service)):
     """Filings recientes (10-K/10-Q/8-K...) y filings de insiders (Forms 3/4/5)
     con enlace directo a EDGAR."""
     return _fetch(service, "filings", symbol=_validate_symbol(symbol))

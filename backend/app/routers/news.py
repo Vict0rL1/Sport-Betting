@@ -22,6 +22,7 @@ from app.deps import get_llm, get_service
 from app.llm.base import LLMProvider, LLMUnavailableError
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
+from app.simbolos import Simbolo, SimboloQuery
 
 router = APIRouter(prefix="/api/news", tags=["news"])
 
@@ -40,12 +41,12 @@ Reglas estrictas:
 class InterpretRequest(BaseModel):
     headline: str
     summary: str | None = None
-    symbol: str | None = None
+    symbol: Simbolo | None = None
 
 
 @router.get("")
 def get_news(
-    symbol: str | None = Query(None, max_length=12),
+    symbol: SimboloQuery = None,
     days: int = Query(7, ge=1, le=30),
     service: MarketDataService = Depends(get_service),
 ):

@@ -46,12 +46,13 @@ from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
 from app.routers.portfolio import get_or_create_instrument
+from app.simbolos import Simbolo, SimboloQuery
 
 router = APIRouter(prefix="/api/theses", tags=["theses"])
 
 
 class ThesisCreate(BaseModel):
-    symbol: str = Field(min_length=1, max_length=12)
+    symbol: Simbolo
     title: str = Field(min_length=1, max_length=256)
     body_md: str = Field(min_length=1)
     assumptions: dict | None = None
@@ -297,7 +298,7 @@ class TriggerCreate(BaseModel):
 
 
 class DecisionCreate(BaseModel):
-    symbol: str = Field(min_length=1, max_length=12)
+    symbol: Simbolo
     accion: str = Field(pattern="^(comprar|vender|reforzar|reducir|mantener|descartar)$")
     # Obligatorio y sin valor por defecto: una decisión sin porqué no es un
     # registro, es una fila. El campo entero existe para esa frase.
@@ -626,7 +627,7 @@ def _serializar_decision(d: Decision) -> dict:
 
 @router.get("/decisiones")
 def listar_decisiones(
-    symbol: str | None = None,
+    symbol: SimboloQuery = None,
     session: Session = Depends(get_session),
     service: MarketDataService = Depends(get_service),
 ):

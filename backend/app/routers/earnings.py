@@ -31,7 +31,6 @@ Lo que sí llega, gratis y completo, desde EDGAR:
 
 from __future__ import annotations
 
-import re
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -60,10 +59,11 @@ from app.llm.earnings_llm import (
 )
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
+from app.simbolos import SIMBOLO_RE, SimboloRuta
 
 router = APIRouter(prefix="/api/earnings", tags=["earnings"])
 
-_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
 # Formularios que traen lenguaje de la dirección. El 10-K entra porque el cuarto
 # trimestre no tiene 10-Q: la comparación se rompería justo una vez al año.
@@ -193,7 +193,7 @@ def _serializar(r: EarningsAnalysis) -> dict:
 
 @router.get("/{symbol}/disponibles")
 def listar_disponibles(
-    symbol: str,
+    symbol: SimboloRuta,
     session: Session = Depends(get_session),
     service: MarketDataService = Depends(get_service),
     limite: int = Query(8, ge=1, le=20),
@@ -228,7 +228,7 @@ def listar_disponibles(
 
 @router.get("/{symbol}/coste")
 def estimar_coste(
-    symbol: str,
+    symbol: SimboloRuta,
     accession_no: str | None = None,
     service: MarketDataService = Depends(get_service),
     llm: LLMProvider = Depends(get_llm),
@@ -277,7 +277,7 @@ def _elegir(filings: list[dict], accession_no: str | None) -> dict:
 
 @router.post("/{symbol}/analizar")
 def analizar(
-    symbol: str,
+    symbol: SimboloRuta,
     request: AnalizarRequest = Body(default_factory=AnalizarRequest),
     session: Session = Depends(get_session),
     service: MarketDataService = Depends(get_service),
@@ -429,7 +429,7 @@ def _comparar_con_anterior(
 
 
 @router.get("/{symbol}")
-def historial(symbol: str, session: Session = Depends(get_session)):
+def historial(symbol: SimboloRuta, session: Session = Depends(get_session)):
     """Todos los trimestres analizados, del más reciente al más antiguo.
 
     Misma forma cada trimestre: es lo que convierte una lista de análisis sueltos

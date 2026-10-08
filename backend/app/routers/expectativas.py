@@ -7,7 +7,6 @@ marcado como tal en su `detalle`.
 
 from __future__ import annotations
 
-import re
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -22,15 +21,16 @@ from app.db.models import TIPOS_DE_EVENTO, TIPOS_DE_FUENTE, CatalystEvent
 from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
+from app.simbolos import SIMBOLO_RE, Simbolo, SimboloQuery, SimboloRuta
 
 router = APIRouter(prefix="/api/expectativas", tags=["expectativas"])
 
-_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 _FECHA = r"^\d{4}-\d{2}-\d{2}$"
 
 
 class EventoCrear(BaseModel):
-    symbol: str = Field(min_length=1, max_length=12)
+    symbol: Simbolo
     tipo: str = Field("earnings", pattern="^(" + "|".join(TIPOS_DE_EVENTO) + ")$")
     periodo: str | None = Field(None, max_length=16, description="«2026-Q3»")
     periodo_fin: str | None = Field(None, pattern=_FECHA)
@@ -71,7 +71,7 @@ def crear_evento(body: EventoCrear, session: Session = Depends(get_session)):
 
 
 @router.get("/eventos")
-def listar(symbol: str | None = None, session: Session = Depends(get_session)):
+def listar(symbol: SimboloQuery = None, session: Session = Depends(get_session)):
     q = select(CatalystEvent).order_by(CatalystEvent.fecha_prevista.desc(), CatalystEvent.id.desc())
     if symbol:
         q = q.where(CatalystEvent.symbol == symbol.strip().upper())
@@ -129,12 +129,12 @@ def resultados(evento_id: int, session: Session = Depends(get_session),
 
 
 @router.get("/calibracion")
-def calibracion(symbol: str | None = None, session: Session = Depends(get_session)):
+def calibracion(symbol: SimboloQuery = None, session: Session = Depends(get_session)):
     return svc.calibracion(session, symbol)
 
 
 @router.post("/{symbol}/proximos-resultados")
-def proximos_resultados(symbol: str, dias: int = Query(90, ge=1, le=180),
+def proximos_resultados(symbol: SimboloRuta, dias: int = Query(90, ge=1, le=180),
                         session: Session = Depends(get_session),
                         service: MarketDataService = Depends(get_service)):
     """Crea el evento de los próximos resultados desde el calendario y captura."""

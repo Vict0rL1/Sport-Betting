@@ -23,7 +23,6 @@ informativo que hay en pantalla.
 
 from __future__ import annotations
 
-import re
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -37,10 +36,11 @@ from app.db.models import OptionsSnapshot
 from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
+from app.simbolos import SIMBOLO_RE, SimboloRuta
 
 router = APIRouter(prefix="/api/options", tags=["options"])
 
-_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 
 # Cuántos trimestres hacia atrás se miran para el movimiento real en resultados.
 # Ocho son dos años: suficiente para una mediana y poco para que la empresa de
@@ -178,7 +178,7 @@ def _guardar_instantanea(session: Session, symbol: str, panel: dict, hoy: date) 
 
 @router.get("/{symbol}")
 def señales_de_opciones(
-    symbol: str,
+    symbol: SimboloRuta,
     vencimientos: int = Query(6, ge=2, le=12),
     session: Session = Depends(get_session),
     service: MarketDataService = Depends(get_service),

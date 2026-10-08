@@ -9,7 +9,6 @@ explícita.
 from __future__ import annotations
 
 import logging
-import re
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -60,11 +59,12 @@ from app.llm.base import LLMProvider, LLMUnavailableError
 from app.llm.signal_llm import explain_signal, extract_events, sentiment_from_events
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
+from app.simbolos import SIMBOLO_RE, Simbolo, SimboloRuta
 
 router = APIRouter(prefix="/api/signals", tags=["signals"])
 logger = logging.getLogger(__name__)
 
-_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 MAX_UNIVERSE = 15  # tope de coste: cada símbolo cuesta llamadas de fundamentales
 
 # Fundamentales nuevos por petición de /today. Con Finnhub a 60/min, 120 deja
@@ -89,7 +89,7 @@ _PAYLOAD_KEYS = frozenset(
 
 
 class SignalRequest(BaseModel):
-    symbols: list[str] = Field(min_length=3, max_length=MAX_UNIVERSE)
+    symbols: list[Simbolo] = Field(min_length=3, max_length=MAX_UNIVERSE)
     use_news: bool = Field(
         False, description="Incluir el factor de sentimiento (gasta API de Claude)"
     )
@@ -103,13 +103,13 @@ class ScanRequest(BaseModel):
 
 
 class BacktestRequest(BaseModel):
-    symbols: list[str] = Field(min_length=3, max_length=MAX_UNIVERSE)
+    symbols: list[Simbolo] = Field(min_length=3, max_length=MAX_UNIVERSE)
     horizon_months: int = Field(12, ge=6, le=12)
     years: int = Field(6, ge=2, le=12)
 
 
 class RuleBacktestRequest(BaseModel):
-    symbols: list[str] = Field(min_length=3, max_length=MAX_UNIVERSE)
+    symbols: list[Simbolo] = Field(min_length=3, max_length=MAX_UNIVERSE)
     years: int = Field(6, ge=2, le=12)
     # Quien invierte desde Canadá paga conversión de divisa en cada operación,
     # y suele pesar más que cualquier ventaja del modelo. Por defecto se cobra.
@@ -1425,7 +1425,7 @@ def _backtest_verdict(n: int, reliable_buckets: int, hit_rate: float | None) -> 
 
 @router.post("/{symbol}/explain")
 def explain(
-    symbol: str,
+    symbol: SimboloRuta,
     payload: dict = Body(...),
     llm: LLMProvider | None = Depends(get_llm),
     session: Session = Depends(get_session),

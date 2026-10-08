@@ -9,7 +9,6 @@ total.
 
 from __future__ import annotations
 
-import re
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -33,10 +32,11 @@ from app.db.models import ScreenerPreset
 from app.deps import get_service
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
+from app.simbolos import SIMBOLO_RE, Simbolo
 
 router = APIRouter(prefix="/api/screener", tags=["screener"])
 
-_SYMBOL_RE = re.compile(r"^[A-Za-z0-9.\-]{1,12}$")
+_SYMBOL_RE = SIMBOLO_RE  # una sola definición para toda la app: app/simbolos.py
 MAX_UNIVERSE = 25  # tope de seguridad: 25 símbolos = máx. 25 llamadas nuevas
 SESIONES_ANO = 252
 
@@ -47,7 +47,7 @@ class FilterSpec(BaseModel):
 
 
 class ScreenRequest(BaseModel):
-    symbols: list[str] = Field(min_length=1, max_length=MAX_UNIVERSE)
+    symbols: list[Simbolo] = Field(min_length=1, max_length=MAX_UNIVERSE)
     filters: dict[str, FilterSpec] = Field(default_factory=dict)
 
 
