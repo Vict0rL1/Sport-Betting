@@ -10,6 +10,7 @@ import type {
   WatchlistItem,
 } from '../api/types'
 import { fmtNumber } from '../lib/format'
+import { Ventana } from '../components/Ventana'
 
 const ESCENARIOS = ['bajista', 'base', 'alcista'] as const
 type NombreEscenario = (typeof ESCENARIOS)[number]
@@ -583,7 +584,8 @@ export function ValuationPage() {
             )}
             <p className="mt-2 text-[11px] text-slate-400">
               Estados financieros de {data.entradas.source}, ejercicio{' '}
-              {String(data.entradas.fiscal_year)}. Crecimiento histórico:{' '}
+              {String(data.entradas.fiscal_year)}. Crecimiento histórico (
+              <Ventana anos={data.entradas.crecimiento_historico.years} />):{' '}
               ingresos {pct(data.entradas.crecimiento_historico.revenue_cagr)} ·
               FCF {pct(data.entradas.crecimiento_historico.fcf_cagr)} · BPA{' '}
               {pct(data.entradas.crecimiento_historico.eps_cagr)}.

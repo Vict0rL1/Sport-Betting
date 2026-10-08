@@ -161,6 +161,7 @@
      "reading": "Sin histórico suficiente para medir el crecimiento.",
      "revenue_cagr": null,
      "revenue_cagr_3y": null,
+     "ventana_nominal": 5,
      "years": 0,
      "yoy": []
     },

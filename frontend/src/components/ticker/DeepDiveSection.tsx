@@ -9,6 +9,7 @@ import { fmtBig, fmtNumber, fmtPct } from '../../lib/format'
 import { useLlmStatus } from '../../lib/llm'
 import { BloqueIA, BotonIA } from '../ia/ContenidoIA'
 import { DeudaParcial } from './DeudaParcial'
+import { Ventana } from '../Ventana'
 
 const STANCE_STYLES: Record<string, string> = {
   constructiva: 'bg-emerald-50 border-emerald-300 text-emerald-900',
@@ -212,14 +213,18 @@ export function DeepDiveSection({ symbol }: { symbol: string }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title="Crecimiento" reading={growth.reading}>
           <dl className="mt-2 grid grid-cols-3 gap-2 text-sm">
-            {[
-              ['Ingresos 5A', growth.revenue_cagr],
-              ['Ingresos 3A', growth.revenue_cagr_3y],
-              ['EPS 5A', growth.eps_cagr],
-            ].map(([label, value]) => (
-              <div key={label as string}>
-                <dt className="text-xs text-slate-400">{label as string}</dt>
-                <dd className="tabular-nums">{fmtPct(value as number | null)}</dd>
+            {(
+              [
+                ['ingresos', 'Ingresos, crec. anual', <Ventana anos={growth.years} />, growth.revenue_cagr],
+                ['ingresos3', 'Ingresos, crec. anual', '3A', growth.revenue_cagr_3y],
+                ['bpa', 'BPA, crec. anual', <Ventana anos={growth.years} />, growth.eps_cagr],
+              ] as const
+            ).map(([clave, rotulo, ventana, valor]) => (
+              <div key={clave}>
+                <dt className="text-xs text-slate-400">
+                  {rotulo} {ventana}
+                </dt>
+                <dd className="tabular-nums">{fmtPct(valor)}</dd>
               </div>
             ))}
           </dl>

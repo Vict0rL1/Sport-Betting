@@ -3,6 +3,7 @@ import { api } from '../../api/client'
 import type { Financials, PeersResponse } from '../../api/types'
 import { fmtBig, fmtNumber, fmtPct } from '../../lib/format'
 import { SourceBadge } from '../SourceBadge'
+import { Ventana } from '../Ventana'
 
 const METRIC_ROWS: { key: string; label: string; kind: 'big' | 'ratio' | 'pct' }[] = [
   { key: 'revenue', label: 'Ingresos', kind: 'big' },
@@ -77,7 +78,7 @@ export function FinancialsSection({ symbol }: { symbol: string }) {
         </div>
         <div className="mb-3 flex gap-4 text-xs text-slate-500">
           <span>
-            CAGR ingresos {data.growth.years}A:{' '}
+            CAGR ingresos <Ventana anos={data.growth.years} />:{' '}
             <b className="tabular-nums">{fmtPct(data.growth.revenue_cagr)}</b>
           </span>
           <span>

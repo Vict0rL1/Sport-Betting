@@ -3,6 +3,7 @@ import { api } from '../../api/client'
 import type { DcfResponse, ScenarioAssumptions, ValuationDefaults } from '../../api/types'
 import { fmtBig, fmtNumber, fmtPct } from '../../lib/format'
 import { SourceBadge } from '../SourceBadge'
+import { Ventana } from '../Ventana'
 
 type ScenarioName = 'bear' | 'base' | 'bull'
 const SCENARIO_LABELS: Record<ScenarioName, string> = {
@@ -121,7 +122,7 @@ export function ValuationSection({ symbol }: { symbol: string }) {
           <SourceBadge data={defaults} />
         </div>
         <p className="mb-3 text-xs text-slate-500">
-          {defaults.note} Crecimiento histórico ({defaults.historical_growth.years}A): ingresos{' '}
+          {defaults.note} Crecimiento histórico (<Ventana anos={defaults.historical_growth.years} />): ingresos{' '}
           {fmtPct(defaults.historical_growth.revenue_cagr)}, FCF{' '}
           {fmtPct(defaults.historical_growth.fcf_cagr)}.
         </p>

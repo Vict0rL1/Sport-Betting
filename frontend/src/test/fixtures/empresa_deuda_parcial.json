@@ -219,9 +219,10 @@
      "acceleration": null,
      "eps_cagr": 0.09999999999999987,
      "fcf_cagr": 0.11111111111111116,
-     "reading": "Ingresos con crecimiento moderado (10.0 % anual a 5 años).",
+     "reading": "Ingresos con crecimiento moderado (10.0 % anual a 1 año; ventana corta: la completa es de 5).",
      "revenue_cagr": 0.10000000000000009,
      "revenue_cagr_3y": null,
+     "ventana_nominal": 5,
      "years": 1,
      "yoy": [
       {

@@ -168,6 +168,21 @@ def test_deuda_reporta_cobertura_y_zona():
     assert "cobertura de intereses" in debt["reading"]
 
 
+def test_el_crecimiento_dice_su_ventana_real():
+    """V18: «Ingresos 5A: 10 %» con dos ejercicios. Con dos, el CAGR es de un año,
+    la lectura lo dice y marca que la ventana es corta; sin una ventana más larga
+    que 3 años no hay aceleración que medir."""
+    corto = growth_section(_periods(2))
+    assert corto["years"] == 1 and corto["ventana_nominal"] == 5
+    assert "anual a 1 año; ventana corta: la completa es de 5" in corto["reading"]
+    assert corto["acceleration"] is None
+    cuatro = growth_section(_periods(4))
+    assert cuatro["years"] == 3 and cuatro["acceleration"] is None  # 3A contra 3A: nada que comparar
+    completo = growth_section(_periods(8))
+    assert completo["years"] == 5 and "anual a 5 años)" in completo["reading"]
+    assert completo["acceleration"] is not None
+
+
 def test_deuda_neta_sin_ratios_no_dice_sin_datos():
     """V11: la sección decía «Sin datos de endeudamiento» y, al lado, «Deuda neta
     500 M». Con deuda y caja pero sin patrimonio ni intereses (no hay ratios), se
@@ -307,3 +322,12 @@ def test_veredicto_incluye_el_value_trap_si_parece_barata():
         {"interest_coverage": 10.0}, {"current": {"operating_margin": 0.2}, "trends": {}},
     )
     assert any("value trap" in c for c in verdict["what_would_change_it"])
+
+
+def test_el_prompt_del_informe_da_a_la_ia_la_ventana_real():
+    """El modelo recibía «CAGR ingresos 5A» con cualquier historia: redactaba
+    sobre una ventana que no existía."""
+    from app.routers.deep_dive import _narrative_prompt
+
+    texto = _narrative_prompt("ACME", {"growth": {"years": 2, "revenue_cagr": 0.1, "eps_cagr": 0.1, "fcf_cagr": None}})
+    assert "CAGR ingresos 2A" in texto and "CAGR BPA 2A" in texto and "5A" not in texto

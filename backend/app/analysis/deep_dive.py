@@ -71,8 +71,16 @@ def business_section(periods: list[dict], profile: dict) -> dict:
     }
 
 
+# La ventana completa del crecimiento: `growth_summary` mira hasta 5 ejercicios.
+VENTANA_NOMINAL = 5
+
+
 def growth_section(periods: list[dict]) -> dict:
-    """Crecimiento a 3 y 5 años, y si se está acelerando o frenando."""
+    """Crecimiento en la ventana disponible (hasta 5 años) y a 3, y si se acelera.
+
+    La ventana es la que hay, no la nominal: con dos ejercicios el CAGR es de un
+    año, y la etiqueta y la lectura lo dicen. Antes ponían «5 años» siempre
+    (V18): «Ingresos 5A: 10 %» con dos ejercicios de historia."""
     summary = growth_summary(periods)
     usable = [p for p in periods if p.get("revenue") is not None]
 
@@ -91,7 +99,9 @@ def growth_section(periods: list[dict]) -> dict:
         )
 
     acceleration = None
-    if three_year is not None and summary.get("revenue_cagr") is not None:
+    # Solo con una ventana MÁS larga que 3 años: con 3 o menos se compararía un
+    # tramo consigo mismo y saldría «estable» siempre.
+    if three_year is not None and summary.get("revenue_cagr") is not None and summary.get("years", 0) > 3:
         diff = three_year - summary["revenue_cagr"]
         acceleration = "acelerando" if diff > 0.02 else "frenando" if diff < -0.02 else "estable"
 
@@ -100,11 +110,16 @@ def growth_section(periods: list[dict]) -> dict:
         "revenue_cagr_3y": three_year,
         "yoy": yoy,
         "acceleration": acceleration,
-        "reading": _growth_reading(summary.get("revenue_cagr"), acceleration),
+        "ventana_nominal": VENTANA_NOMINAL,
+        "reading": _growth_reading(summary.get("revenue_cagr"), acceleration, summary.get("years", 0)),
     }
 
 
-def _growth_reading(cagr_5y: float | None, acceleration: str | None) -> str:
+def _anos(n: int) -> str:
+    return "1 año" if n == 1 else f"{n} años"
+
+
+def _growth_reading(cagr_5y: float | None, acceleration: str | None, years: int = VENTANA_NOMINAL) -> str:
     if cagr_5y is None:
         return "Sin histórico suficiente para medir el crecimiento."
     pace = (
@@ -114,7 +129,8 @@ def _growth_reading(cagr_5y: float | None, acceleration: str | None) -> str:
         else "ingresos en contracción"
     )
     tail = f", y a 3 años viene {acceleration}" if acceleration else ""
-    return f"Ingresos con {pace} ({_fmt_pct(cagr_5y)} anual a 5 años){tail}."
+    corta = f"; ventana corta: la completa es de {VENTANA_NOMINAL}" if years < VENTANA_NOMINAL else ""
+    return f"Ingresos con {pace} ({_fmt_pct(cagr_5y)} anual a {_anos(years)}{corta}){tail}."
 
 
 def margins_section(ratios: list[dict]) -> dict:

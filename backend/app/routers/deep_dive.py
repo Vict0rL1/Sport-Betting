@@ -283,6 +283,9 @@ def _narrative_prompt(symbol: str, report: dict) -> str:
     """Resume el informe en texto compacto para el modelo (acota tokens)."""
     business = report.get("business", {})
     growth = report.get("growth", {})
+    # La ventana real del CAGR (V18): con dos ejercicios es de un año, no de cinco.
+    anos = growth.get("years")
+    ventana = f"{anos}A" if anos else "sin ventana"
     margins = report.get("margins", {})
     debt = report.get("debt", {})
     cash = report.get("cash_flow", {})
@@ -318,8 +321,8 @@ Años de histórico disponibles: {business.get('years_of_history')}
 Precio actual: {report.get('price')}
 
 CRECIMIENTO
-CAGR ingresos 5A: {pct(growth.get('revenue_cagr'))} | 3A: {pct(growth.get('revenue_cagr_3y'))}
-CAGR EPS 5A: {pct(growth.get('eps_cagr'))} | CAGR FCF 5A: {pct(growth.get('fcf_cagr'))}
+CAGR ingresos {ventana}: {pct(growth.get('revenue_cagr'))} | 3A: {pct(growth.get('revenue_cagr_3y'))}
+CAGR BPA {ventana}: {pct(growth.get('eps_cagr'))} | CAGR FCF {ventana}: {pct(growth.get('fcf_cagr'))}
 Tendencia: {growth.get('acceleration') or 'sin determinar'}
 
 MÁRGENES
