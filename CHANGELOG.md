@@ -4,6 +4,31 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## UFC publicada (2026-10-08)
+
+La UFC no pasó la prueba en la etapa A (el Elo de luchador no ganaba a «el de mejor récord»). Un
+segundo intento, **escrito y subido antes de calcular** (`docs/plans/ufc-combinado.md`), sí la pasa,
+y la UFC es el séptimo deporte. Tests: 524 → 540 (449 del servidor + 20 + 71); migraciones: 17 → 19;
+`verify:data` 521 → 528 comprobaciones; auditoría 4.659 → 4.952; bundle principal 442 → 449 kB,
+inglés 109 → 115 kB.
+
+- **El modelo**: una logística simétrica, walk-forward por año, con el Elo, el récord, la edad, el
+  alcance y la experiencia en la UFC; elegida entre dos candidatos fijados de antemano solo con el
+  entrenamiento. Todo lo puntuable (7.799 peleas): 0,6802 → **0,6662**, gana a las cuatro
+  referencias con el intervalo bajo cero (a «mejor récord», −0,0168 [−0,0211, −0,0124]); 2025:
+  **0,6454**, −0,0271 [−0,0435, −0,0110]. Barajar las fichas entre luchadores devuelve 0,6804: la
+  ganancia es de la ficha. Dos experimentos en el registro.
+- **Publicada como los demás**: pestaña `/ufc`, tarjeta de pelea con lo que aporta cada rasgo, ficha
+  de luchador (`/luchador/:id`) con la historia de su Elo, registro de escritura única
+  (`ufc_prediction_log`), banco de papel y estrategias (el empate devuelve, el «sin resultado»
+  anula), Hoy, ¿Acertó? con reconstrucción, Destacados, archivo, búsqueda, confianza, doctor y
+  auditoría (que comprueba la simetría sobre peleas reales).
+- **Sin adivinar**: la cartelera llega con las cuotas (`mma_mixed_martial_arts`) y de ahí solo se
+  guardan las peleas de una cartelera de la UFC; los nombres se resuelven por coincidencia exacta;
+  el debutante se enseña sin número; A es siempre el de id menor aunque la casa dé la vuelta.
+- **Arreglos de paso**: en un deporte de dos resultados, un empate (NFL; UFC) ya no se cuenta como
+  acierto ni fallo en la ficha de partido; la tecla 0 lleva a la décima pestaña.
+
 ## Puesta en marcha: la clave y la otra copia (2026-10-08)
 
 Lo que falló al instalar la versión con la NHL en otro ordenador, arreglado en la app y no solo

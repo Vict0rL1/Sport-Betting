@@ -129,12 +129,12 @@ function Armazon() {
     if (pestana) recordarPestana(pestana);
   }, [pestana]);
 
-  // Atajos (Fase 5.17): 1–9 cambian de pestaña fuera de un campo de texto (tantas como pestañas).
+  // Atajos (Fase 5.17): 1–9 y 0 (la décima) cambian de pestaña fuera de un campo de texto (tantas como pestañas).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (e.metaKey || e.ctrlKey || e.altKey || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement | null)?.isContentEditable) return;
-      const n = Number(e.key);
+      const n = e.key === '0' ? 10 : Number(e.key);
       if (n >= 1 && n <= PESTANAS.length) navigate(RUTA_DE_PESTANA[PESTANAS[n - 1]]);
     };
     window.addEventListener('keydown', onKey);

@@ -81,7 +81,10 @@ mejora al Elo solo en la validación. Los dos experimentos están en el registro
 - **Barajar las fichas entre luchadores borra la ganancia**: con las fechas de nacimiento y los
   alcances repartidos al azar, el log loss vuelve a 0,6804 (el Elo solo, 0,6802). La mejora sale de
   la ficha de cada uno, no de un artificio de los datos.
-- **Monótono**: el más joven gana el 52,3 % con menos de 2 años de diferencia, 57,0 % con 2-4,
-  56,1 % con 4-6 y 63,3 % con más de 6.
+- **Crece con la diferencia** (casi monótono): el más joven gana el 52,3 % con menos de 2 años de
+  diferencia, 57,0 % con 2-4, 56,1 % con 4-6 y 63,3 % con más de 6.
 - **Lo que no se puede medir**: no hay cuotas históricas de la UFC alcanzables. Como en la NHL, la
   comparación con el mercado solo se podrá hacer hacia delante, con el registro en vivo.
+
+**Publicada** el mismo día: séptimo deporte, con pestaña, tarjeta de pelea, ficha de luchador,
+registro, banco y el resto de piezas comunes ([../UFC.md](../UFC.md)).

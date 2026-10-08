@@ -187,7 +187,8 @@ El coste de un ciclo también se mide en vez de suponerse: es la diferencia del 
 la propia API entre el principio y el final del ciclo. Con las ligas de hoy sale **34 créditos**
 (13 de fútbol + 7 de baloncesto + 4 de béisbol + 6 de NFL + ~4 de tenis, a una región). La NHL
 suma **2 por ciclo** en temporada (ganador y total, `icehockey_nhl`) y cero de junio a septiembre:
-el listado gratuito de `/sports` dice si está activa.
+el listado gratuito de `/sports` dice si está activa. La UFC suma **1** (ganador,
+`mma_mixed_martial_arts`, todo el MMA: de ahí solo se guardan las carteleras de la UFC).
 
 El 40 % que no se presupuesta no es timidez: absorbe lo que una recta no puede prever — trece ligas
 de fútbol configuradas de las que juegan cinco en una semana cualquiera, y los refrescos que pidas

@@ -1,6 +1,6 @@
 # Arquitectura y diseño
 
-Cómo está montada la app (dos procesos, dos ficheros de base, seis deportes en pestañas) y las decisiones de pantalla que se tomaron por un motivo. El árbol de abajo se genera del repo real con `node scripts/estructura.mjs`.
+Cómo está montada la app (dos procesos, dos ficheros de base, siete deportes en pestañas) y las decisiones de pantalla que se tomaron por un motivo. El árbol de abajo se genera del repo real con `node scripts/estructura.mjs`.
 
 ## Estructura del proyecto
 
@@ -20,7 +20,7 @@ web/
   src/components/nfl/        fútbol americano
 ```
 
-Los seis deportes están separados a propósito en todas las capas —tablas, modelo, endpoints y
+Los siete deportes están separados a propósito en todas las capas —tablas, modelo, endpoints y
 pestaña— porque discrepan justo en los campos que un modelo necesita: el tenis tiene superficie y no
 tiene campo propio; el baloncesto tiene cancha y margen de puntos; el fútbol tiene **empate** y
 mercados de goles; el béisbol tiene **abridor**; y el fútbol americano tiene un margen que se
@@ -95,7 +95,7 @@ anchura. Es la mejor forma para seis elementos en pantalla ancha: las etiquetas 
 de pelearse por una tira horizontal, y todo el ancho de la página queda para el contenido. En un móvil
 de 390 px un rail se comería un tercio de la pantalla, así que ahí vuelve a ser una fila.
 
-Es **una sola lista en dos orientaciones**, no dos listas (`SportNav`): los mismos seis deportes, el
+Es **una sola lista en dos orientaciones**, no dos listas (`SportNav`): los mismos siete deportes, el
 mismo orden, el mismo color de acento marcando el activo, la misma semántica `role="tab"`. Dos copias
 se desincronizarían la primera vez que se añada un deporte.
 

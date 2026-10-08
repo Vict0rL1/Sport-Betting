@@ -194,3 +194,12 @@ test('Ctrl+K abre la búsqueda y Escape la cierra', async ({ page }) => {
   await page.keyboard.press('Escape');
   await expect(d).toBeHidden();
 });
+
+test('las teclas numéricas cambian de pestaña: 7 es la UFC y 0 la décima (Confianza)', async ({ page }) => {
+  await page.goto('/destacados');
+  await page.waitForLoadState('networkidle');
+  await page.keyboard.press('7');
+  await expect(page).toHaveURL(/\/ufc$/);
+  await page.keyboard.press('0');
+  await expect(page).toHaveURL(/\/confianza$/);
+});

@@ -4,7 +4,7 @@ Desde la Fase 2 la app guarda sus datos en **dos ficheros SQLite** dentro de `da
 
 | Fichero | Qué contiene | Si se pierde |
 |---|---|---|
-| `history.db` | Historia de los seis deportes (y de la UFC en sombra): resultados, equipos, jugadores, ratings, próximos partidos, medidas derivadas. | Se vuelve a bajar (`npm run fetch-data`) o a reconstruir (`npm run update-all`). |
+| `history.db` | Historia de los siete deportes: resultados, equipos, jugadores, ratings, próximos partidos, medidas derivadas. | Se vuelve a bajar (`npm run fetch-data`) o a reconstruir (`npm run update-all`). |
 | `ledger.db` | **El libro mayor**: lo que el modelo dijo antes de cada partido (`*_prediction_log`), las apuestas de papel y las tuyas (`paper_bets`, `bets`), cada precio observado (`odds_snapshots`), las evaluaciones de confianza, las alertas, las sesiones, `settings`, `ingestion_runs`. | **No se puede volver a conseguir.** Por eso tiene copias y por eso nunca se publica. |
 
 El servidor abre `history.db` como base principal y adjunta `ledger.db` como esquema `ledger`.
@@ -45,6 +45,8 @@ Las últimas, del seguimiento «NHL y UFC»:
 | 15 `ufc-sombra` | historia | `ufc_events`, `ufc_fighters`, `ufc_fights` (la UFC en sombra) |
 | 16 `nhl-publicada` | historia | `nhl_teams`, `nhl_upcoming` y los índices por equipo de `nhl_games` |
 | 17 `nhl-registro` | libro mayor | `nhl_prediction_log` con los mismos triggers que los otros cinco registros (no se borra; lo que dijo no se reescribe; el resultado y la probabilidad enseñada se anotan una vez) |
+| 18 `ufc-publicada` | historia | `ufc_upcoming` (las peleas que vienen, de la casa; `home_*` = luchador A, sin local) y los índices por luchador de `ufc_fights` |
+| 19 `ufc-registro` | libro mayor | `ufc_prediction_log` con los mismos triggers (congelados también sus cinco rasgos); el resultado es 1-0 / 0-1 y 0-0 para el empate o el «sin resultado», con `outcome` y el método |
 
 ## PRAGMAs e índices
 

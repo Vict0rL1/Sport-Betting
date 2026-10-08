@@ -26,8 +26,12 @@ Seis deportes en **pestañas separadas** (nunca mezclados), más una pestaña pa
   con prórroga y tanda, el partido a 60 minutos y el total de goles, de la misma distribución.
   Publicada al ganar a «siempre el local» y a un Elo básico en 20.214 partidos fuera de muestra;
   sin cuotas históricas, no se sabe si le gana al mercado, y lo dice.
-  Ver [docs/NHL.md](docs/NHL.md). (La **UFC** está en sombra: no ganó a «el de mejor récord»;
-  ver [docs/UFC.md](docs/UFC.md).)
+  Ver [docs/NHL.md](docs/NHL.md).
+- **🥊 UFC** — Elo por luchador, récord, edad, alcance y peleas en la UFC en una regresión logística
+  que dice cuánto aporta cada cosa. Publicada al ganar a sus cuatro referencias (también a «el de
+  mejor récord») en 7.799 peleas fuera de muestra y en 2025 por separado; sin cuotas históricas, no
+  se sabe si le gana al mercado. Sin clave no hay cartelera: las peleas que vienen llegan con las
+  cuotas. Ver [docs/UFC.md](docs/UFC.md).
 - **🏀 Baloncesto** — NBA, WNBA, NCAA (M y F), EuroLeague y NBL: Elo por equipo con ventaja de
   campo, margen de puntos y descanso, más **diferencia esperada (spread)** y **total de puntos**.
   Ver [docs/BASKETBALL.md](docs/BASKETBALL.md).
@@ -79,8 +83,8 @@ de una vez.
 | `npm run help` | Todos los comandos, por grupo, con una línea cada uno |
 | `npm run dev` | Backend y frontend a la vez |
 | `npm run doctor` | Diagnóstico de punta a punta sin gastar cuota (`-- --probar` gasta 1 crédito por deporte) |
-| `npm run update-all` | Los seis deportes de una tirada (`-- --skip-odds` no gasta cuota) |
-| `npm run update-results` | Resultados de los cinco deportes de equipo, sin cuota (el servidor lo hace cada 6 h) |
+| `npm run update-all` | Los siete deportes de una tirada (`-- --skip-odds` no gasta cuota) |
+| `npm run update-results` | Resultados de fútbol, baloncesto, béisbol, NFL, NHL y UFC, sin cuota (el servidor lo hace cada 6 h) |
 | `npm run odds` | Refresca las cuotas reales ahora |
 | `npm run paper` | El banco de papel: liquida, evalúa y apuesta lo que apruebe la política |
 | `npm run backup` / `npm run restore` | Copia y restauración del libro mayor (`ledger.db`) |

@@ -1,4 +1,4 @@
-// Los seis deportes, en una sola tirada.
+// Los siete deportes, en una sola tirada.
 //
 // CLI:
 //   npm run update-all                  todo, con cuotas
@@ -53,6 +53,8 @@ const SPORTS = [
   { id: 'bsb', label: '⚾ Béisbol', script: 'update-data:bsb' },
   { id: 'naf', label: '🏈 NFL', script: 'update-data:naf' },
   { id: 'nhl', label: '🏒 NHL', script: 'update-data:nhl' },
+  // El archivo de la UFC (GitHub) y, con clave, las peleas que vienen con sus cuotas.
+  { id: 'ufc', label: '🥊 UFC', script: 'update-data:ufc' },
 ];
 
 const chosen = only ? SPORTS.filter((s) => only.has(s.id)) : SPORTS;

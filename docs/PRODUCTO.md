@@ -120,7 +120,7 @@ esa decisión; cambiarla sería una versión nueva de la política, no de esta p
 
 `archivo.predicciones` · Confianza › Archivo · `GET /api/archivo`
 
-Todo lo que el modelo dijo antes de cada partido, de los seis registros inmutables, en una lista:
+Todo lo que el modelo dijo antes de cada partido, de los siete registros inmutables, en una lista:
 la probabilidad tal como se enseñó (la enseñada en fútbol y NFL, donde existe), el favorito y su
 banda (50–60, 60–75, ≥ 75 %), el mercado de entonces, el resultado (en la NFL un empate devuelve el
 moneyline y cuenta como nulo, ni acierto ni fallo), la confianza de la última evaluación anterior
@@ -162,10 +162,12 @@ Telegram con el bot de las notificaciones. Solo responde a los chats de `TELEGRA
 Estuvo aquí en sombra; desde el seguimiento «NHL y UFC» es el sexto deporte publicado, con su
 pestaña. Ya no tiene interruptor. En [NHL.md](NHL.md).
 
-### UFC en sombra
+### UFC
 
-`deportes.ufc` · Confianza › Diagnóstico · `GET /api/ufc/sombra`. Elo de luchador con la historia de
-ufcstats; no pasa todavía la prueba para publicar (no gana a «el de mejor récord»). En [UFC.md](UFC.md).
+Estuvo aquí en sombra (el Elo de luchador no ganaba a «el de mejor récord»); desde octubre de 2026 es
+el séptimo deporte publicado, con su pestaña y la ficha de cada luchador, al pasar la prueba con una
+logística que suma al Elo el récord, la edad, el alcance y la experiencia. Ya no tiene interruptor.
+En [UFC.md](UFC.md).
 
 ### Props de jugador de la NBA
 

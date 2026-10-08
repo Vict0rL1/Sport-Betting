@@ -52,7 +52,7 @@ export const en: Partial<Record<Clave, string>> = {
   'buscar.titulo': 'Search',
   'buscar.placeholder': 'Team, player, match, league or page…',
   'buscar.nada': 'Nothing by that name.',
-  'buscar.atajo': 'Ctrl/Cmd+K opens search; 1–9 switch tabs.',
+  'buscar.atajo': 'Ctrl/Cmd+K opens search; 1–9 and 0 switch tabs.',
   'glosario.titulo': 'Glossary',
   'glosario.intro': 'The terms the app uses without explaining them every time.',
   'seguimiento.titulo': 'Watchlist',

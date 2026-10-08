@@ -52,7 +52,7 @@ export const es = {
   'buscar.titulo': 'Buscar',
   'buscar.placeholder': 'Equipo, jugador, partido, liga o página…',
   'buscar.nada': 'Nada con ese nombre.',
-  'buscar.atajo': 'Ctrl/Cmd+K abre la búsqueda; 1–9 cambian de pestaña.',
+  'buscar.atajo': 'Ctrl/Cmd+K abre la búsqueda; 1–9 y 0 cambian de pestaña.',
   'glosario.titulo': 'Glosario',
   'glosario.intro': 'Los términos que la app usa sin explicarlos cada vez.',
   'seguimiento.titulo': 'Seguimiento',

@@ -36,7 +36,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 // `npm run db:export-history`). El libro mayor (ledger.db) NUNCA se publica.
 const DB_PATH = process.argv[2] && !process.argv[2].startsWith('--') ? path.resolve(process.argv[2]) : path.join(HERE, '..', 'data', 'history.db');
 const TABLAS_LEDGER = [
-  'prediction_log', 'fb_prediction_log', 'bb_prediction_log', 'bsb_prediction_log', 'naf_prediction_log', 'nhl_prediction_log',
+  'prediction_log', 'fb_prediction_log', 'bb_prediction_log', 'bsb_prediction_log', 'naf_prediction_log', 'nhl_prediction_log', 'ufc_prediction_log',
   'paper_bets', 'edge_signals', 'bets', 'odds_snapshots', 'odds_event_observations', 'prediction_snapshots',
   'prematch_final', 'prediction_assessments', 'shadow_predictions', 'alerts', 'sessions', 'error_log',
   'ingestion_runs', 'settings', 'weather_observations', 'policy_versions',
@@ -63,7 +63,7 @@ const FORBIDDEN = [
       'es el registro de apuestas de una persona (importes y beneficios). Esta base NO ' +
       'puede publicarse en un repositorio público.',
   },
-  ...['prediction_log', 'fb_prediction_log', 'bb_prediction_log', 'bsb_prediction_log', 'naf_prediction_log', 'nhl_prediction_log'].map(
+  ...['prediction_log', 'fb_prediction_log', 'bb_prediction_log', 'bsb_prediction_log', 'naf_prediction_log', 'nhl_prediction_log', 'ufc_prediction_log'].map(
     (table) => ({
       table,
       why: 'integridad',

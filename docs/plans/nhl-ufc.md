@@ -102,4 +102,6 @@ walk-forward. Decisiones:
 - Escudos neutros: el conjunto abierto de colores pone a casi todos los equipos en negro y no tiene
   a Seattle ni a Utah.
 
-**La UFC**, que no pasó, se queda en sombra con sus cifras en Diagnóstico.
+**La UFC**, que no pasó, se quedó en sombra con sus cifras en Diagnóstico. Un segundo intento,
+registrado antes de calcular ([ufc-combinado.md](ufc-combinado.md)), sí pasó: la UFC se publicó como
+séptimo deporte ([../UFC.md](../UFC.md)).
