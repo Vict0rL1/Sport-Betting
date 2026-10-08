@@ -5,6 +5,8 @@ import { TeamCrest, EnlacePartido } from '../ui';
 import { ConfianzaBadge } from '../trust/ConfianzaBadge';
 import { EstrellaSeguir } from '../seguimiento';
 import { type Opcion, type Pick, AMBAR, pct, num } from './tipos';
+import { codigo, conNodos, localeDe, useI18n } from '../../i18n';
+import { deporteDe } from '../../lib/bets';
 
 export function Chip({ activo, onClick, children, title }: { activo: boolean; onClick: () => void; children: React.ReactNode; title?: string }) {
   return (
@@ -38,6 +40,7 @@ function Barra({ opciones, invertir = false }: { opciones: Opcion[]; invertir?: 
 }
 
 export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: number; elegido: boolean; onElegir: () => void }) {
+  const { t, idioma } = useI18n();
   const lados = [
     { nombre: p.casa, id: p.casaId, rol: 'local' },
     { nombre: p.fuera, id: p.fueraId, rol: 'visitante' },
@@ -57,12 +60,12 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
         <DeporteIcono nombre={p.sport} size={28} tile />
         <div className="min-w-0 flex-1 leading-tight">
           <div className="break-words text-[13px] text-(--ink-body)">
-            {SPORT_THEMES[p.sport].label}
+            {deporteDe(t, p.sport)}
             {p.liga && p.liga.toLowerCase() !== SPORT_THEMES[p.sport].label.toLowerCase() && <span className="text-(--ink-muted)"> · {p.liga.toUpperCase()}</span>}
           </div>
           <div className="text-[12px] capitalize text-(--ink-muted)">
-            {fecha.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' })} ·{' '}
-            {fecha.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}
+            {fecha.toLocaleDateString(localeDe(idioma), { weekday: 'short', day: 'numeric', month: 'short' })} ·{' '}
+            {fecha.toLocaleTimeString(localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
         <span className="shrink-0">
@@ -83,12 +86,12 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
               </div>
             );
           })}
-          {p.favorito === 'Empate' && <span className="text-[13px] font-semibold text-(--ink-strong)">Favorito: el empate</span>}
+          {p.favorito === 'Empate' && <span className="text-[13px] font-semibold text-(--ink-strong)">{t('tj.favoritoEmpate')}</span>}
         </div>
         <div className="shrink-0 text-right">
           <div className="text-[30px] font-semibold leading-none tabular-nums text-(--ink-strong)">{pct(p.probabilidad)}</div>
           <div className="mt-1 break-words text-[12px] text-(--ink-soft)" title={p.favorito}>
-            gana {p.favorito === 'Empate' ? 'nadie (empate)' : p.favorito}
+            {p.favorito === 'Empate' ? t('tj.ganaNadie') : t('tj.gana', { quien: p.favorito })}
           </div>
         </div>
       </div>
@@ -97,49 +100,58 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
       {/* Lo que hace falta para no engañarse */}
       <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-[12.5px] sm:grid-cols-2">
         <div>
-          <dt className="text-[11px] uppercase tracking-wide text-(--ink-muted)">Acierto histórico</dt>
+          <dt className="text-[11px] uppercase tracking-wide text-(--ink-muted)">{t('tp.aciertoHistorico')}</dt>
           <dd className="text-(--ink-body)">
             {p.historico ? (
               <>
-                <span className="font-semibold text-(--ink-strong)">{pct(p.historico.acierto)}</span> cuando dijo {p.historico.franja}{' '}
-                <span className="text-(--ink-muted)">({p.historico.n.toLocaleString('es')} partidos)</span>
+                {conNodos(t('tj.cuandoDijo', { franja: p.historico.franja }), {
+                  pct: <span className="font-semibold text-(--ink-strong)">{pct(p.historico.acierto)}</span>,
+                  n: <span className="text-(--ink-muted)">{t('bkd.nPartidos', { n: p.historico.n.toLocaleString(localeDe(idioma)) })}</span>,
+                })}
               </>
             ) : (
-              <span className="text-(--ink-muted)">sin franja medida para esta probabilidad</span>
+              <span className="text-(--ink-muted)">{t('tj.sinFranja')}</span>
             )}
           </dd>
         </div>
         <div>
-          <dt className="text-[11px] uppercase tracking-wide text-(--ink-muted)">Cuota</dt>
+          <dt className="text-[11px] uppercase tracking-wide text-(--ink-muted)">{t('tj.cuota')}</dt>
           <dd className="text-(--ink-body)">
             {p.cuota ? (
               <>
-                <span className="font-semibold text-(--ink-strong)">{num(p.cuota)}</span> · justa {num(p.cuotaJusta)} ·{' '}
-                <span style={{ color: conValor ? PROFIT_COLOR : LOSS_COLOR }}>
-                  {p.ventaja! >= 0 ? '+' : '−'}
-                  {pct(Math.abs(p.ventaja!), 1)} {conValor ? 'de valor' : 'sin valor'}
-                </span>
+                {conNodos(t('tj.lineaCuota', { justa: num(p.cuotaJusta) }), {
+                  cuota: <span className="font-semibold text-(--ink-strong)">{num(p.cuota)}</span>,
+                  valor: (
+                    <span style={{ color: conValor ? PROFIT_COLOR : LOSS_COLOR }}>
+                      {t(conValor ? 'tj.deValor' : 'tj.sinValor', { p: `${p.ventaja! >= 0 ? '+' : '−'}${pct(Math.abs(p.ventaja!), 1)}` })}
+                    </span>
+                  ),
+                })}
               </>
             ) : (
-              <span className="text-(--ink-muted)">sin cuota real · justa {num(p.cuotaJusta)}</span>
+              <span className="text-(--ink-muted)">{t('tj.sinCuota', { c: num(p.cuotaJusta) })}</span>
             )}
           </dd>
         </div>
         {p.confianza && (
           <div className="sm:col-span-2">
-            <dt className="text-[11px] uppercase tracking-wide text-(--ink-muted)">Por qué esa confianza</dt>
+            <dt className="text-[11px] uppercase tracking-wide text-(--ink-muted)">{t('tj.porQueConfianza')}</dt>
             <dd className="text-(--ink-soft)">
-              datos {p.confianza.calidadDatos}/100 · estabilidad {p.confianza.estabilidad.toLowerCase()} · incertidumbre ±{num(p.confianza.incertidumbrePp, 1)} pp
-              {p.confianza.desacuerdo !== 'SIN COMPONENTES' && ` · desacuerdo ${p.confianza.desacuerdo.toLowerCase()}`}
+              {t('tj.datos', {
+                c: p.confianza.calidadDatos,
+                e: codigo(t, p.confianza.estabilidad).toLowerCase(),
+                i: num(p.confianza.incertidumbrePp, 1),
+              })}
+              {p.confianza.desacuerdo !== 'SIN COMPONENTES' && t('tj.desacuerdo', { d: codigo(t, p.confianza.desacuerdo).toLowerCase() })}
               {p.confianza.decision === 'BET' ? (
                 <span className="block" style={{ color: PROFIT_COLOR }}>
                   <StatusMark estado="ok" color={PROFIT_COLOR} size={13} />
-                  la capa de confianza lo apostaría
+                  {t('tj.apostaria')}
                 </span>
               ) : p.confianza.motivo ? (
                 <span className="block text-(--ink-muted)">
                   <StatusMark estado="aviso" color={AMBAR} size={13} />
-                  no lo apostaría: {p.confianza.motivo}
+                  {t('tj.noApostaria', { motivo: p.confianza.motivo })}
                 </span>
               ) : null}
             </dd>
@@ -160,7 +172,7 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
         }`}
       >
         <StarIcon size={15} filled={elegido} />
-        {elegido ? 'En mi selección' : 'Añadir a mi selección'}
+        {elegido ? t('tj.enSeleccion') : t('tj.anadir')}
       </button>
     </article>
   );

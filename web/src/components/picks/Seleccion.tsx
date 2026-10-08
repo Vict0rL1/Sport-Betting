@@ -5,6 +5,7 @@ import { DeporteIcono, StarIcon, CrossIcon } from '../icons';
 import { type Pick, type Combinada, pct, num, clave } from './tipos';
 import { useNavigate } from 'react-router';
 import { borradorDe, comoIcs, comoTexto, descargar, imagenPng, patasDe, CLAVE_BORRADOR } from './acciones';
+import { conNodos, useI18n } from '../../i18n';
 
 function useCombinada(elegidos: Pick[]): Combinada | null {
   const [c, setC] = useState<Combinada | null>(null);
@@ -32,12 +33,12 @@ function useCombinada(elegidos: Pick[]): Combinada | null {
 }
 
 export function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quitar: (p: Pick) => void; vaciar: () => void }) {
+  const { t, idioma } = useI18n();
   const comb = useCombinada(elegidos);
   if (elegidos.length === 0) {
     return (
       <p className="text-[13px] leading-relaxed text-(--ink-muted)">
-        Marca partidos con <StarIcon size={13} className="inline align-[-2px]" /> para juntarlos aquí: verás la probabilidad de acertarlos todos y
-        la cuota combinada.
+        {conNodos(t('sel.vacia'), { estrella: <StarIcon size={13} className="inline align-[-2px]" /> })}
       </p>
     );
   }
@@ -52,29 +53,33 @@ export function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quit
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-lg bg-(--raised) p-2.5">
-          <div className="text-[11px] uppercase tracking-wide text-(--ink-muted)">Acertar todos</div>
+          <div className="text-[11px] uppercase tracking-wide text-(--ink-muted)">{t('sel.acertarTodos')}</div>
           <div className="text-[22px] font-semibold tabular-nums text-(--ink-strong)">{pct(todos, todos < 0.1 ? 1 : 0)}</div>
           {comb && comb.conjunta !== comb.independiente && comb.incompatibles.length === 0 && (
-            <div className="text-[11px] text-(--ink-muted)">independientes: {pct(comb.independiente, comb.independiente < 0.1 ? 1 : 0)}</div>
+            <div className="text-[11px] text-(--ink-muted)">{t('sel.independientes', { p: pct(comb.independiente, comb.independiente < 0.1 ? 1 : 0) })}</div>
           )}
         </div>
         <div className="rounded-lg bg-(--raised) p-2.5">
-          <div className="text-[11px] uppercase tracking-wide text-(--ink-muted)">Aciertos esperados</div>
+          <div className="text-[11px] uppercase tracking-wide text-(--ink-muted)">{t('sel.esperados')}</div>
           <div className="text-[22px] font-semibold tabular-nums text-(--ink-strong)">
-            {num(esperados, 1)} <span className="text-[13px] font-normal text-(--ink-muted)">de {elegidos.length}</span>
+            {num(esperados, 1)} <span className="text-[13px] font-normal text-(--ink-muted)">{t('sel.deN', { n: elegidos.length })}</span>
           </div>
         </div>
         <div className="col-span-2 rounded-lg bg-(--raised) p-2.5 text-[13px] text-(--ink-body)">
           {cuota ? (
             <>
-              Cuota combinada <span className="font-semibold text-(--ink-strong)">{num(cuota)}</span> · justa {todos > 0 ? num(1 / todos) : '—'} ·{' '}
-              <span style={{ color: (ventaja ?? 0) > 0 ? PROFIT_COLOR : LOSS_COLOR }}>
-                {(ventaja ?? 0) >= 0 ? '+' : '−'}
-                {pct(Math.abs(ventaja ?? 0), 1)}
-              </span>
+              {conNodos(t('sel.cuotaCombinada', { justa: todos > 0 ? num(1 / todos) : '—' }), {
+                cuota: <span className="font-semibold text-(--ink-strong)">{num(cuota)}</span>,
+                v: (
+                  <span style={{ color: (ventaja ?? 0) > 0 ? PROFIT_COLOR : LOSS_COLOR }}>
+                    {(ventaja ?? 0) >= 0 ? '+' : '−'}
+                    {pct(Math.abs(ventaja ?? 0), 1)}
+                  </span>
+                ),
+              })}
             </>
           ) : (
-            <>Cuota justa combinada {todos > 0 ? num(1 / todos) : '—'} · alguno no tiene cuota real</>
+            <>{t('sel.justaCombinada', { j: todos > 0 ? num(1 / todos) : '—' })}</>
           )}
         </div>
       </div>
@@ -86,7 +91,7 @@ export function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quit
               {p.favorito}
             </span>
             <span className="tabular-nums text-(--ink-strong)">{pct(p.probabilidad)}</span>
-            <button onClick={() => quitar(p)} aria-label={`Quitar ${p.favorito}`} className="grid h-6 w-6 place-items-center rounded text-(--ink-muted) hover:bg-(--raised) hover:text-(--ink-strong)">
+            <button onClick={() => quitar(p)} aria-label={t('sel.quitar', { nombre: p.favorito })} className="grid h-6 w-6 place-items-center rounded text-(--ink-muted) hover:bg-(--raised) hover:text-(--ink-strong)">
               <CrossIcon size={14} />
             </button>
           </li>
@@ -94,7 +99,7 @@ export function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quit
       </ul>
       <Acciones elegidos={elegidos} comb={comb} />
       <button onClick={vaciar} className="text-[12px] text-(--ink-muted) underline-offset-2 hover:text-(--ink-body) hover:underline">
-        Vaciar selección
+        {t('sel.vaciar')}
       </button>
       {comb && comb.incompatibles.length > 0 && (
         <p className="text-[12px] leading-relaxed" style={{ color: LOSS_COLOR }}>
@@ -103,15 +108,20 @@ export function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quit
       )}
       {comb && comb.vinculos.length > 0 && comb.incompatibles.length === 0 && (
         <p className="text-[11.5px] leading-relaxed text-(--ink-muted)">
-          Correlación descontada en {comb.vinculos.length} par(es): {comb.vinculos.slice(0, 2).map((v) => `${v.a} / ${v.b} (ρ ${v.rho.toFixed(3).replace('.', ',')})`).join('; ')}
-          {comb.vinculos.length > 2 ? '…' : ''}.
+          {t('sel.correlacion', {
+            n: comb.vinculos.length,
+            lista: `${comb.vinculos
+              .slice(0, 2)
+              .map((v) => `${v.a} / ${v.b} (ρ ${idioma === 'es' ? v.rho.toFixed(3).replace('.', ',') : v.rho.toFixed(3)})`)
+              .join('; ')}${comb.vinculos.length > 2 ? '…' : ''}`,
+          })}
         </p>
       )}
       <p className="text-[11.5px] leading-relaxed text-(--ink-muted)">
         {comb
           ? comb.etiqueta
-          : '«Acertar todos» multiplica las probabilidades, como si los partidos fueran independientes.'}{' '}
-        Son estimaciones del modelo: con cinco partidos al 75 %, acertarlos todos pasa menos de una de cada cuatro veces.
+          : t('sel.multiplica')}{' '}
+        {t('sel.estimaciones')}
       </p>
     </div>
   );
@@ -120,10 +130,11 @@ export function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quit
 
 /** Las acciones de «Mi selección» (Fase 5.15). */
 function Acciones({ elegidos, comb }: { elegidos: Pick[]; comb: Combinada | null }) {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [aviso, setAviso] = useState<string | null>(null);
-  const decir = (t: string) => {
-    setAviso(t);
+  const decir = (m: string) => {
+    setAviso(m);
     setTimeout(() => setAviso(null), 2500);
   };
   const boton = 'rounded-lg px-2.5 py-1.5 text-[12.5px] text-(--ink-body) ring-1 ring-(--line) hover:bg-(--raised)';
@@ -142,34 +153,34 @@ function Acciones({ elegidos, comb }: { elegidos: Pick[]; comb: Combinada | null
             navigate('/apuestas?borrador=1');
           }}
         >
-          Enviar a Apuestas
+          {t('sel.enviar')}
         </button>
         <button
           className={boton}
           onClick={() =>
             void navigator.clipboard
               .writeText(comoTexto(elegidos, comb))
-              .then(() => decir('Copiada como texto'))
-              .catch(() => decir('No se pudo copiar'))
+              .then(() => decir(t('sel.copiada')))
+              .catch(() => decir(t('sel.noCopiar')))
           }
         >
-          Copiar
+          {t('sel.copiar')}
         </button>
         <button className={boton} onClick={() => descargar(`seleccion-${fecha}.json`, JSON.stringify({ patas: patasDe(elegidos), combinada: comb }, null, 2), 'application/json')}>
           JSON
         </button>
         <button className={boton} onClick={() => descargar(`seleccion-${fecha}.ics`, comoIcs(elegidos), 'text/calendar;charset=utf-8')}>
-          Calendario (.ics)
+          {t('sel.calendario')}
         </button>
         <button
           className={boton}
           onClick={() =>
             void imagenPng(elegidos)
               .then((b) => descargar(`seleccion-${fecha}.png`, b))
-              .catch((e: Error) => decir(`No se pudo crear la imagen: ${e.message}`))
+              .catch((e: Error) => decir(t('sel.noImagen', { error: e.message })))
           }
         >
-          Imagen
+          {t('sel.imagen')}
         </button>
       </div>
       {aviso && <p role="status" aria-live="polite" className="mt-1 text-[12px] text-(--ink-soft)">{aviso}</p>}

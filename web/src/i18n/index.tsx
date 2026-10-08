@@ -2,9 +2,8 @@
 // {var}; una clave sin traducción cae al español, nunca a la clave. El idioma sale de Ajustes
 // (servidor), si no del navegador, y se recuerda localmente.
 
-import { createContext, createElement, Fragment, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, createElement, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { es, type Clave } from './es';
-import { en } from './en';
 
 export type Idioma = 'es' | 'en';
 const CLAVE = 'predictor.idioma';
@@ -32,8 +31,35 @@ export function tr(idioma: Idioma, clave: Clave, vars?: Record<string, string | 
 /** El locale de `Intl` / `toLocale*` para cada idioma. */
 export const localeDe = (idioma: Idioma) => (idioma === 'en' ? 'en-GB' : 'es');
 
+/**
+ * El inglés se carga aparte, en su propio fichero: con todo el texto de la interfaz en el
+ * catálogo, llevarlo en el paquete principal lo subía de ~350 a ~520 kB para todos, y quien
+ * usa la app en español no lo necesita. Hasta que llega, cada clave cae al español.
+ */
+let ingles: Partial<Record<Clave, string>> | null = null;
+let cargandoIngles: Promise<void> | null = null;
+
+export function cargarIngles(): Promise<void> {
+  cargandoIngles ??= import('./en').then(
+    (m) => {
+      ingles = m.en;
+    },
+    (e: unknown) => {
+      // Que un fallo de red no lo deje roto para siempre: el siguiente intento vuelve a pedirlo.
+      cargandoIngles = null;
+      throw e;
+    },
+  );
+  return cargandoIngles;
+}
+
+export const inglesListo = (): boolean => ingles !== null;
+
+// Si la visita va a ser en inglés, se pide ya, en paralelo con el arranque de React.
+if (typeof window !== 'undefined' && (idiomaGuardado() ?? idiomaDelNavegador()) === 'en') void cargarIngles().catch(() => undefined);
+
 function traducir(idioma: Idioma, clave: Clave, vars?: Record<string, string | number>): string {
-  let s: string = (idioma === 'en' ? en[clave] : undefined) ?? es[clave];
+  let s: string = (idioma === 'en' ? ingles?.[clave] : undefined) ?? es[clave];
   if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
   return s;
 }
@@ -42,9 +68,27 @@ const Ctx = createContext<{ idioma: Idioma; setIdioma: (i: Idioma) => void; t: T
 
 export function I18nProvider({ children, inicial }: { children: ReactNode; inicial?: Idioma }) {
   const [idioma, setIdiomaState] = useState<Idioma>(inicial ?? idiomaGuardado() ?? idiomaDelNavegador());
+  const [, setCargado] = useState(0);
+  const [fallo, setFallo] = useState(false);
   useEffect(() => {
     document.documentElement.lang = idioma;
   }, [idioma]);
+  useEffect(() => {
+    if (idioma !== 'en' || inglesListo()) return;
+    let vivo = true;
+    cargarIngles().then(
+      () => vivo && setCargado((n) => n + 1),
+      () => vivo && setFallo(true),
+    );
+    return () => {
+      vivo = false;
+    };
+  }, [idioma]);
+  const listo = idioma !== 'en' || inglesListo() || fallo;
+  // La primera pintada espera al catálogo (mejor un instante en blanco que la app en el idioma
+  // equivocado); un cambio de idioma con la app ya pintada no desmonta nada.
+  const pintado = useRef(false);
+  if (listo) pintado.current = true;
   const setIdioma = useCallback((i: Idioma) => {
     setIdiomaState(i);
     try {
@@ -53,9 +97,10 @@ export function I18nProvider({ children, inicial }: { children: ReactNode; inici
       // Vale para esta visita.
     }
   }, []);
-  const t = useCallback<Traducir>((c, v) => traducir(idioma, c, v), [idioma]);
+  // `listo` en las dependencias: cuando llega el inglés, `t` cambia y todo se vuelve a pintar.
+  const t = useCallback<Traducir>((c, v) => traducir(idioma, c, v), [idioma, listo]);
   const valor = useMemo(() => ({ idioma, setIdioma, t }), [idioma, setIdioma, t]);
-  return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={valor}>{listo || pintado.current ? children : null}</Ctx.Provider>;
 }
 
 export function useI18n() {

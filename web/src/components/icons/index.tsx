@@ -11,6 +11,7 @@
 
 import type { ReactNode, SVGProps } from 'react';
 import { SPORT_THEMES, type SportId } from '../../lib/theme';
+import { useI18n } from '../../i18n';
 
 type Props = Omit<SVGProps<SVGSVGElement>, 'children'> & { size?: number; title?: string };
 
@@ -308,14 +309,15 @@ export function AppMark({ size = 32, className = '' }: { size?: number; classNam
 }
 
 /** El veredicto de un partido como pastilla: icono + palabra, nunca solo color. */
-export function Verdict({ ok, okText = 'acertó', koText = 'falló' }: { ok: boolean; okText?: string; koText?: string }) {
+export function Verdict({ ok, okText, koText }: { ok: boolean; okText?: string; koText?: string }) {
+  const { t } = useI18n();
   return (
     <span
       className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[12px] font-semibold"
       style={{ color: ok ? '#199e70' : '#e66767', background: ok ? 'rgba(25,158,112,0.12)' : 'rgba(230,103,103,0.12)' }}
     >
       {ok ? <CheckIcon size={13} strokeWidth={2.4} /> : <CrossIcon size={13} strokeWidth={2.4} />}
-      {ok ? okText : koText}
+      {ok ? (okText ?? t('bkt.acerto')) : (koText ?? t('bkt.fallo'))}
     </span>
   );
 }

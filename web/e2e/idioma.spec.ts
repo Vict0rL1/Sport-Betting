@@ -93,3 +93,19 @@ test('béisbol y NFL en inglés: cabecera y aviso sin datos', async ({ page }) =
     await expect(page.getByText('Vuelve a consultar')).toHaveCount(0);
   }
 });
+
+test('destacados, página no encontrada y panel de preguntas en inglés', async ({ page }) => {
+  test.slow();
+  await page.goto('/destacados');
+  // Margen: con dos workers puede coincidir con el informe en PDF de producto.spec, que ocupa
+  // el servidor unos segundos mientras esta página pide su trozo de JS.
+  await expect(page.getByRole('heading', { name: 'Highlights', level: 2 })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText('How to read the list')).toBeVisible();
+  await expect(page.getByText('Cómo leer la lista')).toHaveCount(0);
+  await page.goto('/no-existe-esta-ruta');
+  await expect(page.getByText('This page does not exist.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Go to Highlights' })).toBeVisible();
+  await page.goto('/tenis');
+  await expect(page.getByRole('heading', { name: 'Ask the data' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeVisible();
+});

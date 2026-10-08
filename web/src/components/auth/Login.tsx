@@ -7,8 +7,10 @@
 import { useEffect, useState } from 'react';
 import { entrar } from '../../lib/auth';
 import { AppMark, LockIcon } from '../icons';
+import { useI18n } from '../../i18n';
 
 export default function Login({ totp, onEntrar }: { totp: boolean; onEntrar: () => void }) {
+  const { t } = useI18n();
   const [password, setPassword] = useState('');
   const [codigo, setCodigo] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -18,8 +20,8 @@ export default function Login({ totp, onEntrar }: { totp: boolean; onEntrar: () 
 
   useEffect(() => {
     if (espera <= 0) return;
-    const t = setTimeout(() => setEspera((s) => s - 1), 1000);
-    return () => clearTimeout(t);
+    const reloj = setTimeout(() => setEspera((s) => s - 1), 1000);
+    return () => clearTimeout(reloj);
   }, [espera]);
 
   async function enviar(e: React.FormEvent) {
@@ -46,11 +48,11 @@ export default function Login({ totp, onEntrar }: { totp: boolean; onEntrar: () 
           <AppMark size={36} />
           <div>
             <h1 className="text-[17px] font-semibold leading-tight text-(--ink-strong)">Sports Predictor</h1>
-            <p className="text-[12.5px] text-(--ink-muted)">Esta instalación pide contraseña.</p>
+            <p className="text-[12.5px] text-(--ink-muted)">{t('login.pide')}</p>
           </div>
         </div>
         <label className="block text-[12px] uppercase tracking-wide text-(--ink-muted)" htmlFor="login-password">
-          Contraseña
+          {t('login.contrasena')}
         </label>
         <input
           id="login-password"
@@ -65,7 +67,7 @@ export default function Login({ totp, onEntrar }: { totp: boolean; onEntrar: () 
         {pideCodigo && (
           <>
             <label className="mt-4 block text-[12px] uppercase tracking-wide text-(--ink-muted)" htmlFor="login-codigo">
-              Código de la app de autenticación
+              {t('login.codigo')}
             </label>
             <input
               id="login-codigo"
@@ -82,7 +84,7 @@ export default function Login({ totp, onEntrar }: { totp: boolean; onEntrar: () 
         {error && (
           <p className="mt-3 text-[13px] text-[#e66767]" role="alert">
             {error}
-            {espera > 0 && ` · puedes volver a intentarlo en ${espera} s`}
+            {espera > 0 && t('login.espera', { s: espera })}
           </p>
         )}
         <button
@@ -91,11 +93,10 @@ export default function Login({ totp, onEntrar }: { totp: boolean; onEntrar: () 
           className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[#3987e5] px-3 py-2.5 text-[14px] font-semibold text-white transition hover:bg-[#4a93ea] disabled:opacity-50"
         >
           <LockIcon size={16} />
-          {enviando ? 'Entrando…' : 'Entrar'}
+          {enviando ? t('login.entrando') : t('login.entrar')}
         </button>
         <p className="mt-4 text-[12px] leading-relaxed text-(--ink-muted)">
-          La sesión dura 30 días y puedes cerrarla desde cualquier dispositivo en «Cuenta». Cinco intentos fallidos bloquean la dirección
-          15 minutos.
+          {t('login.sesion')}
         </p>
       </form>
     </div>

@@ -19,8 +19,11 @@ import { Seleccion } from './Seleccion';
 import { Mercado } from './Mercado';
 import { useSeguimiento } from '../seguimiento';
 import FiltrosMovil from './FiltrosMovil';
+import { conNodos, useI18n, type Clave } from '../../i18n';
+import { deporteDe } from '../../lib/bets';
 
 export default function TopPicks() {
+  const { t } = useI18n();
   // Los filtros viven en la URL (Fase 5.2): el enlace copiado abre la misma lista.
   const [q, setQ] = useFiltrosQuery();
   const horas = Number(q.get('horas')) || leer(CLAVE_HORAS, 48);
@@ -102,23 +105,23 @@ export default function TopPicks() {
   const controles = (
       <div className="space-y-2.5 rounded-xl border border-(--line) bg-(--tint) p-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="mr-1 text-[12px] uppercase tracking-wide text-(--ink-muted)">Próximas</span>
+          <span className="mr-1 text-[12px] uppercase tracking-wide text-(--ink-muted)">{t('tp.proximas')}</span>
           {(datos?.horizontes ?? [24, 48, 168]).map((h) => (
             <Chip key={h} activo={horas === h} onClick={() => setHoras(h)}>
-              {h === 168 ? '7 días' : `${h} h`}
+              {h === 168 ? t('tp.dias7') : t('tp.horas', { h })}
             </Chip>
           ))}
-          <span className="ml-2 mr-1 text-[12px] uppercase tracking-wide text-(--ink-muted)">Ordenar</span>
+          <span className="ml-2 mr-1 text-[12px] uppercase tracking-wide text-(--ink-muted)">{t('tp.ordenar')}</span>
           {(
             [
-              ['confianza', 'Confianza + probabilidad'],
-              ['probabilidad', 'Probabilidad'],
-              ['ventaja', 'Valor (vs cuota)'],
-              ['hora', 'Hora'],
-            ] as [Orden, string][]
-          ).map(([o, t]) => (
+              ['confianza', 'tp.orden.confianza'],
+              ['probabilidad', 'tp.orden.probabilidad'],
+              ['ventaja', 'tp.orden.ventaja'],
+              ['hora', 'tp.orden.hora'],
+            ] as [Orden, Clave][]
+          ).map(([o, k]) => (
             <Chip key={o} activo={orden === o} onClick={() => setOrden(o)}>
-              {t}
+              {t(k)}
             </Chip>
           ))}
         </div>
@@ -126,20 +129,20 @@ export default function TopPicks() {
           {presentes.map((s) => (
             <Chip key={s} activo={deportes.includes(s)} onClick={() => setDeportes(deportes.includes(s) ? deportes.filter((x) => x !== s) : [...deportes, s])}>
               <DeporteIcono nombre={s} size={15} />
-              {SPORT_THEMES[s].label}
+              {SPORT_THEMES[s] ? deporteDe(t, s) : s}
             </Chip>
           ))}
           <span className="mx-1 h-4 w-px bg-(--raised-2)" aria-hidden />
           {[0, 0.6, 0.7, 0.8].map((m) => (
             <Chip key={m} activo={minP === m} onClick={() => setMinP(m)}>
-              {m === 0 ? 'Cualquier %' : `≥ ${m * 100} %`}
+              {m === 0 ? t('tp.cualquiera') : `≥ ${m * 100} %`}
             </Chip>
           ))}
           <Chip activo={soloAlta} onClick={() => setSoloAlta(!soloAlta)}>
-            Solo confianza alta
+            {t('tp.soloAlta')}
           </Chip>
           <Chip activo={soloCuota} onClick={() => setSoloCuota(!soloCuota)}>
-            Solo con cuota real
+            {t('tp.soloCuota')}
           </Chip>
         </div>
       </div>
@@ -152,9 +155,9 @@ export default function TopPicks() {
           <StarIcon size={22} />
         </span>
         <div>
-          <h2 className="text-[20px] font-semibold leading-tight text-(--ink-strong)">Destacados</h2>
+          <h2 className="text-[20px] font-semibold leading-tight text-(--ink-strong)">{t('nav.destacados')}</h2>
           <p className="text-[13.5px] leading-snug text-(--ink-soft)">
-            Los partidos que vienen, de todos los deportes, ordenados por confianza y probabilidad del favorito.
+            {t('tp.lema')}
           </p>
         </div>
       </header>
@@ -165,26 +168,26 @@ export default function TopPicks() {
 
       <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
         <div className={cargando ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
-          {error && !datos && <p className="text-[14px] text-(--ink-soft)">No se pudo cargar la lista.</p>}
-          {!datos && !error && <p className="text-[14px] text-(--ink-soft)">Cargando partidos…</p>}
+          {error && !datos && <p className="text-[14px] text-(--ink-soft)">{t('tp.errorLista')}</p>}
+          {!datos && !error && <p className="text-[14px] text-(--ink-soft)">{t('form.cargandoPartidos')}</p>}
           {datos && lista.length === 0 && (
             <div className="rounded-xl border border-(--line) bg-(--tint) p-5 text-[14px] leading-relaxed text-(--ink-soft)">
               {datos.partidos.length === 0 ? (
                 <>
-                  No hay partidos reales con predicción en las próximas {horas === 168 ? '7 días' : `${horas} h`}.
-                  {datos.sinPrediccion > 0 && ` Hay ${datos.sinPrediccion} sin predicción todavía: el servidor los predice cada 15 minutos.`}
-                  {datos.demo > 0 && ` Los ${datos.demo} partidos de demostración no entran: no son partidos reales.`}
+                  {t('tp.sinPartidos', { ventana: horas === 168 ? t('tp.dias7') : t('tp.horas', { h: horas }) })}
+                  {datos.sinPrediccion > 0 && t('tp.sinPrediccion', { n: datos.sinPrediccion })}
+                  {datos.demo > 0 && t('tp.demo', { n: datos.demo })}
                 </>
               ) : (
-                'Ningún partido cumple estos filtros.'
+                t('tp.ningunFiltro')
               )}
             </div>
           )}
           {seguidos.length > 0 && datos && (
-            <section className="mb-4" aria-label="Seguimiento">
-              <h3 className="mb-2 flex items-center gap-2 text-[15px] font-semibold text-(--ink-strong)">Seguimiento <span className="text-[13px] font-normal text-(--ink-muted)">· {listaSeguida.length}</span></h3>
+            <section className="mb-4" aria-label={t('tp.seguimiento')}>
+              <h3 className="mb-2 flex items-center gap-2 text-[15px] font-semibold text-(--ink-strong)">{t('tp.seguimiento')} <span className="text-[13px] font-normal text-(--ink-muted)">· {listaSeguida.length}</span></h3>
               {listaSeguida.length === 0 ? (
-                <p className="text-[13px] text-(--ink-muted)">Lo que sigues ({seguidos.map((x) => x.label).slice(0, 4).join(', ')}{seguidos.length > 4 ? '…' : ''}) no juega en esta ventana.</p>
+                <p className="text-[13px] text-(--ink-muted)">{t('tp.noJuega', { lista: `${seguidos.map((x) => x.label).slice(0, 4).join(', ')}${seguidos.length > 4 ? '…' : ''}` })}</p>
               ) : (
                 <div className="grid gap-3 xl:grid-cols-2">
                   {listaSeguida.map((p, i) => (
@@ -201,8 +204,8 @@ export default function TopPicks() {
           </div>
           {datos && (datos.sinPrediccion > 0 || datos.demo > 0) && lista.length > 0 && (
             <p className="mt-3 text-[12px] text-(--ink-muted)">
-              {datos.sinPrediccion > 0 && `${datos.sinPrediccion} partido(s) aún sin predicción registrada. `}
-              {datos.demo > 0 && `${datos.demo} de demostración no se incluyen.`}
+              {datos.sinPrediccion > 0 && t('tp.sinPrediccionPie', { n: datos.sinPrediccion })}
+              {datos.demo > 0 && t('tp.demoPie', { n: datos.demo })}
             </p>
           )}
         </div>
@@ -213,20 +216,20 @@ export default function TopPicks() {
               <span style={{ color: '#f5b544' }}>
                 <StarIcon size={17} filled />
               </span>
-              Mi selección
+              {t('tp.miSeleccion')}
               {elegidos.length > 0 && <span className="text-[13px] font-normal text-(--ink-muted)">· {elegidos.length}</span>}
             </h3>
             <Seleccion elegidos={elegidos} quitar={alternar} vaciar={vaciar} />
           </div>
           <div className="mt-3 rounded-xl border border-(--line) p-4 text-[12px] leading-relaxed text-(--ink-muted)">
-            <p className="mb-1.5 font-medium text-(--ink-soft)">Cómo leer la lista</p>
+            <p className="mb-1.5 font-medium text-(--ink-soft)">{t('tp.comoLeer')}</p>
             <p>
-              El orden pone primero la <strong className="font-medium text-(--ink-soft)">confianza</strong> (datos completos, predicción estable,
-              componentes de acuerdo) y después la <strong className="font-medium text-(--ink-soft)">probabilidad</strong>.{' '}
-              <strong className="font-medium text-(--ink-soft)">Acierto histórico</strong> es lo que acertó el modelo en el backtest cuando dio una
-              probabilidad de esa franja. Más probable no es mejor apuesta: si la cuota ofrecida está por debajo de la{' '}
-              <strong className="font-medium text-(--ink-soft)">justa</strong> (1/p), a la larga pierde aunque gane a menudo. Es una estimación
-              estadística, no una recomendación.
+              {conNodos(t('tp.explica'), {
+                confianza: <strong className="font-medium text-(--ink-soft)">{t('tp.confianza')}</strong>,
+                probabilidad: <strong className="font-medium text-(--ink-soft)">{t('tp.probabilidad')}</strong>,
+                acierto: <strong className="font-medium text-(--ink-soft)">{t('tp.aciertoHistorico')}</strong>,
+                justa: <strong className="font-medium text-(--ink-soft)">{t('tp.justa')}</strong>,
+              })}
             </p>
           </div>
           <Mercado />
@@ -242,10 +245,12 @@ export default function TopPicks() {
               <span style={{ color: '#f5b544' }}>
                 <StarIcon size={17} filled />
               </span>
-              {elegidos.length} en mi selección
+              {t('tp.enMiSeleccion', { n: elegidos.length })}
             </span>
             <span className="text-(--ink-soft)">
-              acertar todos <span className="font-semibold text-(--ink-strong)">{pct(elegidos.reduce((a, p) => a * p.probabilidad, 1))}</span> ›
+              {conNodos(t('tp.acertarTodos'), {
+                p: <span className="font-semibold text-(--ink-strong)">{pct(elegidos.reduce((a, p) => a * p.probabilidad, 1))}</span>,
+              })}
             </span>
           </a>
         </div>

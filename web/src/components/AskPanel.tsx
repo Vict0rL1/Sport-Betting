@@ -13,6 +13,7 @@
 // dice valga algo.
 
 import { useState } from 'react';
+import { conNodos, useI18n } from '../i18n';
 
 interface Respuesta {
   texto: string;
@@ -38,6 +39,7 @@ const EJEMPLOS = [
 ];
 
 export default function AskPanel() {
+  const { t, idioma } = useI18n();
   const [q, setQ] = useState('');
   const [hilo, setHilo] = useState<{ pregunta: string; r: Respuesta }[]>([]);
   const [cargando, setCargando] = useState(false);
@@ -56,7 +58,7 @@ export default function AskPanel() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ pregunta }),
       });
-      if (!res.ok) throw new Error(`el servidor respondió ${res.status}`);
+      if (!res.ok) throw new Error(t('ask.errorServidor', { status: res.status }));
       const r = (await res.json()) as Respuesta;
       // Lo más nuevo arriba: con el hilo creciendo hacia abajo hay que perseguirlo con
       // el scroll cada vez, y lo que se acaba de preguntar es lo que se quiere leer.
@@ -72,12 +74,11 @@ export default function AskPanel() {
   return (
     <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
       <div className="px-4 py-3">
-        <h2 className="text-[16px] font-semibold text-(--ink-strong)">Preguntar a los datos</h2>
+        <h2 className="text-[16px] font-semibold text-(--ink-strong)">{t('ask.titulo')}</h2>
         <p className="mt-0.5 text-[13px] leading-relaxed text-(--ink-muted)">
-          No hay ningún modelo de lenguaje detrás y por eso puedes fiarte: esto{' '}
-          <strong className="text-(--ink-soft)">no redacta números</strong>, solo decide qué consulta
-          hacer, y el resultado sale de la misma base que enseña la app. Cada respuesta dice de
-          dónde viene.
+          {conNodos(t('ask.intro'), { noRedacta: <strong className="text-(--ink-soft)">{t('ask.noRedacta')}</strong> })}
+          {/* El analizador entiende español: en inglés se avisa, y los ejemplos siguen en español. */}
+          {idioma !== 'es' && <> {t('ask.enEspanol')}</>}
         </p>
       </div>
 
@@ -92,7 +93,7 @@ export default function AskPanel() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="cara a cara Alcaraz contra Sinner"
-          aria-label="Pregunta"
+          aria-label={t('ask.pregunta')}
           className="min-w-0 flex-1 rounded-lg border border-(--line) bg-black/20 px-3 py-2 text-[15px] text-(--ink-strong) outline-none placeholder:text-(--ink-faint) focus:border-(--line-strong)"
         />
         <button
@@ -100,7 +101,7 @@ export default function AskPanel() {
           disabled={cargando || !q.trim()}
           className="shrink-0 rounded-lg border border-(--line-strong) px-3 py-2 text-[14px] font-medium text-(--ink-body) transition hover:bg-(--raised) disabled:opacity-40"
         >
-          {cargando ? '…' : 'Preguntar'}
+          {cargando ? '…' : t('ask.preguntar')}
         </button>
       </form>
 
@@ -120,7 +121,7 @@ export default function AskPanel() {
 
       {error && (
         <p className="border-t border-(--line) px-4 py-3 text-[14px] text-rose-300">
-          No he podido preguntar: {error}
+          {t('ask.noPude', { error })}
         </p>
       )}
 
@@ -148,7 +149,7 @@ export default function AskPanel() {
                       </tbody>
                     </table>
                   )}
-                  <p className="mt-1 text-[11px] text-(--ink-faint)">de: {p.respuesta.fuente}</p>
+                  <p className="mt-1 text-[11px] text-(--ink-faint)">{t('ask.de', { fuente: p.respuesta.fuente })}</p>
                 </div>
               ))}
             </div>
@@ -170,17 +171,17 @@ export default function AskPanel() {
           )}
           {/* La procedencia, siempre. Es lo que separa «te lo digo yo» de «míralo tú». */}
           {(!x.r.pasos || x.r.pasos.length <= 1) && (
-            <p className="mt-2 text-[12px] text-(--ink-faint)">de: {x.r.fuente}</p>
+            <p className="mt-2 text-[12px] text-(--ink-faint)">{t('ask.de', { fuente: x.r.fuente })}</p>
           )}
           {/* Quién decidió la consulta. Se dice porque cambia lo que se puede esperar de
               la siguiente pregunta, y esconderlo sería vender un determinismo que no se
               está usando. */}
           <p className="mt-1 text-[11px] text-(--ink-faint)">
             {x.r.via === 'agente'
-              ? `agente · ${x.r.plan ?? 'varias consultas'}`
+              ? t('ask.agente', { plan: x.r.plan ?? t('ask.variasConsultas') })
               : x.r.via === 'modelo'
-                ? 'la consulta la eligió un modelo de lenguaje; los datos, no'
-                : 'consulta elegida por reglas, sin modelo de lenguaje'}
+                ? t('ask.modelo')
+                : t('ask.reglas')}
             {x.r.nota ? ` · ${x.r.nota}` : ''}
           </p>
         </article>

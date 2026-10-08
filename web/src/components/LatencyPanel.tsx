@@ -34,6 +34,7 @@ import {
 } from '../lib/liveOdds';
 import { Panel, SectionTitle, Disclosure } from './ui';
 import { AlertIcon, CheckIcon } from './icons';
+import { localeDe, useI18n, type Clave } from '../i18n';
 
 function fmt(ms: number): string {
   if (ms >= 60_000) return `${(ms / 60_000).toFixed(1)} min`;
@@ -42,21 +43,22 @@ function fmt(ms: number): string {
 }
 
 /** Por qué una etapa no tiene muestras. Sin esto, un 0 se lee como «instantáneo». */
-const WHY_EMPTY: Record<string, string> = {
-  origen: 'hace falta una clave de The Odds API y un precio que cambie',
-  ingesta: 'todavía no ha corrido un ciclo de refresco',
-  servidor: 'aún no ha llegado ninguna petición de predicción',
-  cliente: 'la mide el navegador al pintar — quédate en la app un rato',
+const WHY_EMPTY: Record<string, Clave> = {
+  origen: 'lat.why.origen',
+  ingesta: 'lat.why.ingesta',
+  servidor: 'lat.why.servidor',
+  cliente: 'lat.why.cliente',
 };
 
 function StageRow({ s }: { s: StageReport }) {
+  const { t } = useI18n();
   const empty = s.n === 0;
   return (
     <div className="grid grid-cols-[7rem_3rem_1fr_1fr] items-baseline gap-2 py-1 text-[13px] tabular-nums">
       <span className="text-(--ink-soft)">{s.stage}</span>
       <span className="text-right text-(--ink-faint)">{s.n}</span>
       {empty ? (
-        <span className="col-span-2 text-(--ink-faint)">sin muestras — {WHY_EMPTY[s.stage] ?? ''}</span>
+        <span className="col-span-2 text-(--ink-faint)">{t('lat.sinMuestras', { why: WHY_EMPTY[s.stage] ? t(WHY_EMPTY[s.stage]) : '' })}</span>
       ) : (
         <>
           <span className={s.overBudget ? 'text-amber-300' : 'text-(--ink-strong)'}>
@@ -64,7 +66,7 @@ function StageRow({ s }: { s: StageReport }) {
             {s.overBudget && <span aria-hidden className="ml-1 inline-flex align-[-2px]"><AlertIcon size={13} /></span>}
           </span>
           <span className="text-(--ink-faint)">
-            de {fmt(s.budgetMs)} · {s.owner}
+            {t('lat.de', { b: fmt(s.budgetMs), owner: s.owner })}
           </span>
         </>
       )}
@@ -73,6 +75,7 @@ function StageRow({ s }: { s: StageReport }) {
 }
 
 export default function LatencyPanel() {
+  const { t, idioma } = useI18n();
   const [report, setReport] = useState<LatencyReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<LiveEvent[]>([]);
@@ -107,8 +110,8 @@ export default function LatencyPanel() {
   if (error) {
     return (
       <Panel className="mb-4">
-        <SectionTitle>Latencia del escáner</SectionTitle>
-        <p className="text-[13px] text-(--ink-muted)">No se pudo leer /api/latency: {error}</p>
+        <SectionTitle>{t('lat.titulo')}</SectionTitle>
+        <p className="text-[13px] text-(--ink-muted)">{t('lat.errorLeer', { error })}</p>
       </Panel>
     );
   }
@@ -131,13 +134,13 @@ export default function LatencyPanel() {
           <button
             onClick={load}
             className="text-[13px] text-(--ink-muted) transition hover:text-(--ink-strong)"
-            title="Volver a leer las mediciones"
+            title={t('lat.recargarTitulo')}
           >
-            recargar
+            {t('lat.recargar')}
           </button>
         }
       >
-        Latencia del escáner · últimas {report.windowHours} h
+        {t('lat.tituloVentana', { h: report.windowHours })}
       </SectionTitle>
 
       <p className={`text-[14px] leading-relaxed ${markTone}`}>
@@ -150,7 +153,7 @@ export default function LatencyPanel() {
           a optimizar parseo cuando lo que hay que cambiar es el plan. */}
       {!target.feasible.ok && (
         <p className="mt-2 rounded-lg border border-amber-500/25 bg-amber-500/[0.06] p-2.5 text-[13px] leading-relaxed text-amber-200/90">
-          <strong>El objetivo no es alcanzable con este plan.</strong> {target.feasible.reason}
+          <strong>{t('lat.noAlcanzable')}</strong> {target.feasible.reason}
         </p>
       )}
 
@@ -161,26 +164,21 @@ export default function LatencyPanel() {
       </div>
 
       <p className="mt-2 text-[13px] text-(--ink-faint)">
-        Total p95 {fmt(total.p95Ms)} contra un objetivo de {fmt(target.totalMs)}
-        {!total.complete && <> · incompleto: faltan {total.missing.join(', ')}</>}
+        {t('lat.total', { p: fmt(total.p95Ms), o: fmt(target.totalMs) })}
+        {!total.complete && <>{t('lat.incompleto', { lista: total.missing.join(', ') })}</>}
       </p>
 
       <div className="mt-3">
-        <Disclosure summary="Cómo se mide y por qué la suma sale pesimista">
+        <Disclosure summary={t('lat.comoMide')}>
           <div className="space-y-2 text-[13px] leading-relaxed text-(--ink-muted)">
+            <p>{t('lat.suma')}</p>
             <p>
-              Sumar los p95 de cuatro etapas no da el p95 del total —solo sería cierto si
-              se atascaran siempre a la vez— y sale pesimista. Se usa así a propósito:
-              para un objetivo de latencia, equivocarse por el lado pesimista es el lado
-              correcto.
-            </p>
-            <p>
-              <strong className="text-(--ink-soft)">Transporte: {transport.kind}.</strong>{' '}
+              <strong className="text-(--ink-soft)">{t('lat.transporte', { k: transport.kind })}</strong>{' '}
               {transport.note}
             </p>
             {schedule && (
               <p>
-                <strong className="text-(--ink-soft)">Sondeo adaptativo:</strong>{' '}
+                <strong className="text-(--ink-soft)">{t('lat.sondeo')}</strong>{' '}
                 {schedule.explanation}
               </p>
             )}
@@ -188,8 +186,7 @@ export default function LatencyPanel() {
               <ul className="space-y-1">
                 {alert.offenders.map((o) => (
                   <li key={o.stage} className="tabular-nums">
-                    {o.stage}: {fmt(o.p95)} contra {fmt(o.budget)} — se pasa {fmt(o.overBy)}{' '}
-                    ({o.owner})
+                    {t('lat.ofensor', { etapa: o.stage, p: fmt(o.p95), b: fmt(o.budget), o: fmt(o.overBy), owner: o.owner })}
                   </li>
                 ))}
               </ul>
@@ -202,37 +199,35 @@ export default function LatencyPanel() {
       <div className="mt-3 border-t border-(--line) pt-3">
         <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
           <span className="text-[13px] text-(--ink-muted)">
-            En vivo · {report.push.subscribers} conectado(s)
+            {t('lat.enVivo', { n: report.push.subscribers })}
           </span>
           {perm === 'sin-pedir' ? (
             <button
               onClick={() => void requestNotifications().then(() => setPerm(notificationState()))}
               className="rounded-full px-2.5 py-1 text-[13px] text-(--ink-soft) ring-1 ring-inset ring-(--line) transition hover:bg-(--raised) hover:text-(--ink-strong)"
             >
-              Avisarme cuando se mueva una línea
+              {t('lat.avisarme')}
             </button>
           ) : (
             <span className="text-[13px] text-(--ink-faint)">
               {perm === 'concedido'
-                ? 'avisos del sistema activados'
+                ? t('lat.activados')
                 : perm === 'denegado'
-                  ? 'avisos bloqueados en el navegador — se cambia en su configuración'
-                  : 'este navegador no tiene avisos del sistema'}
+                  ? t('lat.bloqueados')
+                  : t('lat.noAvisos')}
             </span>
           )}
         </div>
         {events.length === 0 ? (
           <p className="text-[13px] text-(--ink-faint)">
-            Escuchando. Los cambios de precio aparecen aquí solos, sin pulsar nada — que es
-            justo el motivo de que exista este canal: un refresco manual depende de que
-            alguien mire, y eso no cabe en ningún objetivo de latencia.
+            {t('lat.escuchando')}
           </p>
         ) : (
           <ul className="space-y-1">
             {events.map((e, i) => (
               <li key={`${e.at}-${i}`} className="text-[13px] leading-relaxed">
                 <span className="text-(--ink-faint) tabular-nums">
-                  {new Date(e.at).toLocaleTimeString('es')}
+                  {new Date(e.at).toLocaleTimeString(localeDe(idioma))}
                 </span>{' '}
                 <span className="text-(--ink-strong)">{e.title}</span>{' '}
                 <span className="text-(--ink-muted)">{e.body}</span>
