@@ -529,6 +529,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     beisbol: versionsFor('baseball'),
     nfl: versionsFor('nfl'),
     nhl: versionsFor('nhl'),
+    ufc: versionsFor('ufc'),
   }));
 
   // --- la evolución del mercado de un evento (snapshots de la fase 2) ---

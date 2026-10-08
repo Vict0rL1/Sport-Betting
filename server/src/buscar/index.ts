@@ -38,6 +38,7 @@ const PROXIMOS: { sport: SportId; tabla: string; id: string; casa: string; fuera
   { sport: 'baseball', tabla: 'bsb_upcoming', id: 'id', casa: 'home_name', fuera: 'away_name', liga: 'league' },
   { sport: 'nfl', tabla: 'naf_upcoming', id: 'id', casa: 'home_name', fuera: 'away_name', liga: 'league' },
   { sport: 'nhl', tabla: 'nhl_upcoming', id: 'id', casa: 'home_name', fuera: 'away_name', liga: 'league' },
+  { sport: 'ufc', tabla: 'ufc_upcoming', id: 'id', casa: 'home_name', fuera: 'away_name', liga: 'league' },
   { sport: 'tennis', tabla: 'upcoming_matches', id: 'id', casa: 'p1_name', fuera: 'p2_name', liga: 'tour' },
 ];
 
@@ -55,6 +56,7 @@ export function buscar(q: string, limite = 30, ahora = new Date()): Resultado[] 
     ...baseballConfig.leagues.map((l) => ({ sport: 'baseball' as const, id: l.id, name: l.name })),
     ...nflConfig.leagues.map((l) => ({ sport: 'nfl' as const, id: l.id, name: l.name })),
     { sport: 'nhl' as const, id: 'nhl', name: 'NHL' },
+    { sport: 'ufc' as const, id: 'ufc', name: 'UFC' },
   ];
   for (const l of ligas) if (coincide(l.name) || coincide(l.id)) out.push({ tipo: 'liga', sport: l.sport, league: l.id, id: l.id, etiqueta: l.name, detalle: null, ruta: `/liga/${l.sport}/${encodeURIComponent(l.id)}` });
   for (const e of EQUIPOS) {
@@ -70,6 +72,19 @@ export function buscar(q: string, limite = 30, ahora = new Date()): Resultado[] 
     for (const f of filas) if (coincide(f.name)) out.push({ tipo: 'jugador', sport: 'tennis', league: f.tour, id: String(f.id), etiqueta: f.name, detalle: [f.tour.toUpperCase(), f.country].filter(Boolean).join(' · '), ruta: `/jugador/${encodeURIComponent(f.tour)}/${f.id}` });
   } catch {
     // Sin jugadores.
+  }
+  // Luchadores de la UFC: los que han peleado (la ficha de los que no, no dice nada).
+  try {
+    const filas = db
+      .prepare(
+        `SELECT f.id, f.nombre, f.apodo FROM ufc_fighters f
+          WHERE lower(f.nombre) LIKE ? AND EXISTS (SELECT 1 FROM ufc_fights p WHERE p.luchador_a = f.id OR p.luchador_b = f.id)
+          ORDER BY f.nombre LIMIT 50`,
+      )
+      .all(like) as { id: string; nombre: string; apodo: string | null }[];
+    for (const f of filas) if (coincide(f.nombre)) out.push({ tipo: 'jugador', sport: 'ufc', league: 'ufc', id: f.id, etiqueta: f.nombre, detalle: f.apodo ? `UFC · «${f.apodo}»` : 'UFC', ruta: `/luchador/${encodeURIComponent(f.id)}` });
+  } catch {
+    // Sin archivo de la UFC.
   }
   for (const p of PROXIMOS) {
     try {

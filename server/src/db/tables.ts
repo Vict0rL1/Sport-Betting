@@ -15,6 +15,7 @@ export const TABLAS_LEDGER: readonly string[] = [
   'bsb_prediction_log',
   'naf_prediction_log',
   'nhl_prediction_log',
+  'ufc_prediction_log',
   // Dinero: el banco de papel, las señales y tus apuestas.
   'paper_bets',
   'edge_signals',

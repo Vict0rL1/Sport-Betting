@@ -87,6 +87,7 @@ export const ELO_BASICO: Record<SportId, { k: number; campo: number }> = {
   baseball: { k: 4, campo: 24 },
   nfl: { k: 20, campo: 65 },
   nhl: { k: 20, campo: 35 },
+  ufc: { k: 32, campo: 0 },
 };
 
 /** El periodo de un partido. Distinto por deporte, porque sus calendarios lo son. */
@@ -109,6 +110,9 @@ export function periodoDe(sport: SportId, j: Pick<Juego, 'fecha' | 'temporada'>)
     case 'nhl':
       // Medias temporadas: octubre–diciembre y enero–junio (con los playoffs).
       return mes >= 8 ? `${anio}/${String((anio + 1) % 100).padStart(2, '0')} oct–dic` : `${anio - 1}/${String(anio % 100).padStart(2, '0')} ene–jun`;
+    case 'ufc':
+      // Medio año: la UFC pelea todo el año, sin temporadas.
+      return mes <= 6 ? `${anio} ene–jun` : `${anio} jul–dic`;
   }
 }
 
@@ -215,7 +219,7 @@ export const MIN_SEGMENTO = 300;
  * periodo. Los de calentamiento (`modelo` null) alimentan los baselines y no se puntúan.
  */
 export function walkForward(sport: SportId, juegos: Juego[]): ResultadoWalkForward {
-  const conHoldout = sport === 'football' || sport === 'nfl' || sport === 'nhl';
+  const conHoldout = sport === 'football' || sport === 'nfl' || sport === 'nhl' || sport === 'ufc';
   const elo = new Map<string, number>();
   const cfg = ELO_BASICO[sport];
   let partidosCampo = 0;
@@ -438,7 +442,7 @@ export function walkForward(sport: SportId, juegos: Juego[]): ResultadoWalkForwa
     data_version: v.data_version,
     holdoutExcluido,
     ventanas: `ventana creciente: cada periodo se evalúa con todo lo anterior; periodos de ${
-      { tennis: 'un trimestre', football: 'media temporada', basketball: 'media temporada', baseball: 'media temporada', nfl: 'una temporada', nhl: 'media temporada' }[sport]
+      { tennis: 'un trimestre', football: 'media temporada', basketball: 'media temporada', baseball: 'media temporada', nfl: 'una temporada', nhl: 'media temporada', ufc: 'medio año' }[sport]
     }`,
     periodos: out,
     resumen,

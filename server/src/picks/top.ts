@@ -86,7 +86,7 @@ export interface MejoresPartidos {
 
 export const HORIZONTES = [24, 48, 168] as const;
 
-const SPORT: Record<PartidoDeHoy['deporte'], SportId> = { 'Fútbol': 'football', 'Baloncesto': 'basketball', 'Béisbol': 'baseball', NFL: 'nfl', NHL: 'nhl', 'Tenis': 'tennis' };
+const SPORT: Record<PartidoDeHoy['deporte'], SportId> = { 'Fútbol': 'football', 'Baloncesto': 'basketball', 'Béisbol': 'baseball', NFL: 'nfl', NHL: 'nhl', UFC: 'ufc', 'Tenis': 'tennis' };
 
 /** Las columnas de cuota de cada tabla de próximos: [local, (empate,) visitante]. */
 const CUOTAS: Record<PartidoDeHoy['deporte'], string[]> = {
@@ -95,11 +95,12 @@ const CUOTAS: Record<PartidoDeHoy['deporte'], string[]> = {
   'Béisbol': ['odds_home', 'odds_away'],
   NFL: ['odds_home', 'odds_away'],
   NHL: ['odds_home', 'odds_away'],
+  UFC: ['odds_home', 'odds_away'],
   'Tenis': ['p1_odds', 'p2_odds'],
 };
-const LIGA: Record<PartidoDeHoy['deporte'], string> = { 'Fútbol': 'league', 'Baloncesto': 'league', 'Béisbol': 'league', NFL: 'league', NHL: 'league', 'Tenis': 'tour' };
+const LIGA: Record<PartidoDeHoy['deporte'], string> = { 'Fútbol': 'league', 'Baloncesto': 'league', 'Béisbol': 'league', NFL: 'league', NHL: 'league', UFC: 'league', 'Tenis': 'tour' };
 const CASA_ID: Record<PartidoDeHoy['deporte'], [string, string]> = {
-  'Fútbol': ['home_id', 'away_id'], 'Baloncesto': ['home_id', 'away_id'], 'Béisbol': ['home_id', 'away_id'], NFL: ['home_id', 'away_id'], NHL: ['home_id', 'away_id'], 'Tenis': ['p1_id', 'p2_id'],
+  'Fútbol': ['home_id', 'away_id'], 'Baloncesto': ['home_id', 'away_id'], 'Béisbol': ['home_id', 'away_id'], NFL: ['home_id', 'away_id'], NHL: ['home_id', 'away_id'], UFC: ['home_id', 'away_id'], 'Tenis': ['p1_id', 'p2_id'],
 };
 
 const RANGO_CONFIANZA: Record<string, number> = { ALTA: 0, MEDIA: 1, BAJA: 2 };

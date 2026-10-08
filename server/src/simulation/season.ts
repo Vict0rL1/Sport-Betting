@@ -207,7 +207,7 @@ export function simularTemporada(entrada: EntradaSimulacion): EquipoSimulado[] {
  * próximas semanas (no la temporada entera) y la clasificación de la NHL reparte puntos por la
  * derrota en la prórroga, que el archivo no dice (la fuente no trae cómo acabó cada partido).
  */
-export type DeporteSimulable = Exclude<SportId, 'tennis' | 'nhl'>;
+export type DeporteSimulable = Exclude<SportId, 'tennis' | 'nhl' | 'ufc'>;
 
 const TABLAS: Record<DeporteSimulable, { partidos: string; equipos: string; fecha: string; marcador: [string, string]; filtro: string; neutral: string }> = {
   football: { partidos: 'fb_matches', equipos: 'fb_teams', fecha: 'match_date', marcador: ['home_goals', 'away_goals'], filtro: '1 = 1', neutral: '0' },
@@ -413,7 +413,7 @@ export async function cicloSimulacion(log: (m: string) => void = () => {}, ahora
   let ligas = 0;
   let simuladas = 0;
   for (const s of SPORT_IDS) {
-    if (s === 'tennis' || s === 'nhl') continue;
+    if (s === 'tennis' || s === 'nhl' || s === 'ufc') continue;
     for (const l of ligasConDatos(s)) {
       ligas++;
       try {

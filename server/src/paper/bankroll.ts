@@ -476,6 +476,12 @@ const NHL = {
   clave: 'match_key', resuelto: 'home_goals', oddsCasa: 'odds_home', oddsFuera: 'odds_away', mostrada: 'shown_home',
   mercadoRegistrado: false,
 };
+/** La UFC: A y B (home_* y away_*, sin local); ganador a dos vías, el empate y el «sin resultado» devuelven la apuesta. */
+const UFC = {
+  sport: 'ufc' as const, tablaLog: 'ufc_prediction_log', tablaUp: 'ufc_upcoming',
+  clave: 'match_key', resuelto: 'resolved_at', oddsCasa: 'odds_home', oddsFuera: 'odds_away', mostrada: 'shown_home',
+  mercadoRegistrado: false,
+};
 
 /**
  * Todas las candidatas con cuotas REALES y partido por delante, de los cinco deportes.
@@ -492,6 +498,7 @@ export function candidatasPapel(excluirApostadas = true): Candidato[] {
     ...candidatasDosSalidas(excluirApostadas, BALONCESTO),
     ...candidatasDosSalidas(excluirApostadas, BEISBOL),
     ...candidatasDosSalidas(excluirApostadas, NHL),
+    ...candidatasDosSalidas(excluirApostadas, UFC),
   ];
 }
 
@@ -805,11 +812,22 @@ export function liquidador(): (a: Pick<ApuestaPapel, 'sport' | 'match_key' | 'se
   const bsb = dosSalidas('bsb_prediction_log', 'match_key', 'home_runs', 'away_runs');
   const nfl = dosSalidas('naf_prediction_log', 'match_key', 'home_points', 'away_points');
   const nhl = dosSalidas('nhl_prediction_log', 'match_key', 'home_goals', 'away_goals');
-  return (a) => liquidar(a, { tenis, futbol, bb, bsb, nfl, nhl });
+  const ufc = db.prepare('SELECT home_name, away_name, outcome, metodo FROM ufc_prediction_log WHERE match_key = ? AND outcome IS NOT NULL');
+  return (a) => liquidar(a, { tenis, futbol, bb, bsb, nfl, nhl, ufc });
 }
 
 /** El resultado de una apuesta, o null si su partido aún no tiene resultado. */
-function liquidar(a: Pick<ApuestaPapel, 'sport' | 'match_key' | 'selection'>, q: { tenis: Stmt; futbol: Stmt; bb: Stmt; bsb: Stmt; nfl: Stmt; nhl: Stmt }): Liquidacion | null {
+function liquidar(a: Pick<ApuestaPapel, 'sport' | 'match_key' | 'selection'>, q: { tenis: Stmt; futbol: Stmt; bb: Stmt; bsb: Stmt; nfl: Stmt; nhl: Stmt; ufc: Stmt }): Liquidacion | null {
+  if (a.sport === 'ufc') {
+    const r = q.ufc.get(a.match_key) as { home_name: string; away_name: string; outcome: 'A' | 'B' | 'EMPATE' | 'NC'; metodo: string | null } | undefined;
+    if (!r) return null;
+    const como = r.metodo ? ` (${r.metodo})` : '';
+    // Ganador a dos vías: el empate devuelve la apuesta (push) y el «sin resultado» la anula, como las casas.
+    if (r.outcome === 'EMPATE') return { status: 'push', resultado: `empate${como}` };
+    if (r.outcome === 'NC') return { status: 'void', resultado: `sin resultado${como}` };
+    const ganador = r.outcome === 'A' ? r.home_name : r.away_name;
+    return { status: ganador === a.selection ? 'won' : 'lost', resultado: `ganó ${ganador}${como}` };
+  }
   if (a.sport === 'tennis') {
     const r = q.tenis.get(a.match_key) as { winner_id: number; p1_id: number; p1: string; p2: string } | undefined;
     if (!r) return null;

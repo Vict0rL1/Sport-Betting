@@ -8,6 +8,9 @@
 
 import { isFinalHoldout } from '../experiments/holdout.ts';
 import { pairedBootstrap } from '../experiments/registry.ts';
+import { evaluate, type Informe, type Prediccion } from '../evaluation/metrics.ts';
+import { avisoMuestra, type AvisoMuestra } from '../evaluation/sample.ts';
+import type { Juego } from '../evaluation/walkforward.ts';
 import { REFERENCIAS, esEntrenamiento, esValidacion, recorrer, type FichaUfc, type PasoUfc, type PeleaUfc, type RasgosUfc } from './evaluacion.ts';
 import { UFC } from './model.ts';
 
@@ -19,6 +22,13 @@ export type Candidato = keyof typeof CANDIDATOS;
 
 /** Penalización L2, fija (no se ajusta: un grado de libertad menos para elegir). */
 export const LAMBDA = 1;
+
+/**
+ * El candidato que se publicó. Lo eligió el entrenamiento y lo confirmó la prueba (registro de
+ * experimentos, 8 de octubre de 2026: «ufc-segundo-intento-la-logistica-elo-rec»). Cambiarlo es otro
+ * experimento.
+ */
+export const MODELO_PUBLICADO: Candidato = 'elo+record+ficha';
 
 const sigm = (t: number) => 1 / (1 + Math.exp(-t));
 const llBin = (p: number, y: 0 | 1) => -Math.log(Math.min(1 - 1e-12, Math.max(1e-12, y === 1 ? p : 1 - p)));
@@ -92,6 +102,30 @@ export function walkForward(pasos: PasoUfc[], c: Candidato, lambda = LAMBDA): { 
   return { p, pesos };
 }
 
+/**
+ * Los pesos de la UFC publicada: la misma logística, ajustada con TODAS las peleas decididas anteriores
+ * al holdout (el holdout no se toca ni para ajustar). Para predecir lo que viene.
+ */
+export function pesosVigentes(pasos: PasoUfc[], c: Candidato = MODELO_PUBLICADO, lambda = LAMBDA): { pesos: number[]; n: number } {
+  const ent = pasos.filter((x) => !isFinalHoldout('ufc', x.anio));
+  return {
+    pesos: ajustarLogistica(
+      ent.map((x) => fila(x, c)),
+      ent.map((x) => x.y),
+      lambda,
+    ),
+    n: ent.length,
+  };
+}
+
+/** Cuánto aporta cada rasgo al logit (peso × valor), y la probabilidad de que gane el primero. */
+export function predecirConPesos(r: RasgosUfc, pesos: number[], c: Candidato = MODELO_PUBLICADO): { p: number; aportes: Record<keyof RasgosUfc, number> } {
+  const aportes = { elo: 0, record: 0, edad: 0, alcance: 0, experiencia: 0 };
+  CANDIDATOS[c].forEach((k, i) => (aportes[k] = (pesos[i] ?? 0) * r[k]));
+  const t = Object.values(aportes).reduce((s, v) => s + v, 0);
+  return { p: sigm(t), aportes };
+}
+
 type Fuente = 'combinado' | 'elo' | (typeof REFERENCIAS)[number]['clave'];
 
 function perdidasDe(pasos: PasoUfc[], pc: (number | null)[], anios: (a: number) => boolean, f: Fuente): number[] {
@@ -161,4 +195,76 @@ export function evaluarCombinado(peleas: PeleaUfc[], fichas: Map<string, FichaUf
     pasa: [todo, validacion].every((t) => t.referencias.every((r) => r.hi < 0)),
     mejoraAlElo: validacion.contraElo.hi < 0,
   };
+}
+
+// --- La evaluación publicada (Diagnóstico y /api/ufc/backtest) ---
+
+export interface EvaluacionPublicada {
+  peleas: number;
+  puntuadas: number;
+  holdoutExcluido: number;
+  sinAtribuir: number;
+  sinGanador: number;
+  modelo: Informe | null;
+  /** El Elo solo (el modelo de la sombra), sobre las mismas peleas. */
+  eloSolo: number | null;
+  referencias: { clave: string; nombre: string; logLoss: number | null }[];
+  porAnio: { anio: number; n: number; logLoss: number | null }[];
+  prueba: ResultadoCombinado | null;
+  aviso: AvisoMuestra;
+  /** Las predicciones puntuadas (fuera de muestra), para la capa común de métricas y la calibración. */
+  predicciones: Prediccion[];
+}
+
+/** El modelo publicado, walk-forward, con su prueba de publicación. */
+export function evaluacionPublicada(peleas: PeleaUfc[], fichas: Map<string, FichaUfc>): EvaluacionPublicada {
+  const r = recorrer(peleas, UFC, fichas);
+  const wf = walkForward(r.pasos, MODELO_PUBLICADO);
+  const idx = r.pasos.map((_, i) => i).filter((i) => r.pasos[i].puntuable);
+  const preds: Prediccion[] = idx.map((i) => ({ p: [wf.p[i]!, 1 - wf.p[i]!], y: r.pasos[i].y === 1 ? 0 : 1 }));
+  const anios = [...new Set(idx.map((i) => r.pasos[i].anio))].sort((a, b) => a - b);
+  return {
+    peleas: peleas.length,
+    puntuadas: idx.length,
+    holdoutExcluido: r.holdoutExcluido,
+    sinAtribuir: r.sinAtribuir,
+    sinGanador: r.sinGanador,
+    modelo: preds.length ? evaluate('backtest', 'ufc', preds) : null,
+    eloSolo: idx.length ? media(perdidasDe(r.pasos, wf.p, () => true, 'elo')) : null,
+    referencias: REFERENCIAS.map((ref) => {
+      const v = perdidasDe(r.pasos, wf.p, () => true, ref.clave);
+      return { clave: ref.clave, nombre: ref.nombre, logLoss: v.length ? media(v) : null };
+    }),
+    porAnio: anios.map((anio) => {
+      const v = perdidasDe(r.pasos, wf.p, (a) => a === anio, 'combinado');
+      return { anio, n: v.length, logLoss: v.length ? media(v) : null };
+    }),
+    // La prueba necesita peleas en la validación; sin ellas no hay nada que aprobar.
+    prueba: idx.some((i) => esValidacion(r.pasos[i].anio)) ? evaluarCombinado(peleas, fichas) : null,
+    aviso: avisoMuestra(idx.length, 'predicciones'),
+    predicciones: preds,
+  };
+}
+
+/** Los partidos del walk-forward por periodos (experiments/walkforward/ufc.json), con el modelo publicado. */
+export function juegosWalkForward(peleas: PeleaUfc[], fichas: Map<string, FichaUfc>): Juego[] {
+  const r = recorrer(peleas, UFC, fichas);
+  const wf = walkForward(r.pasos, MODELO_PUBLICADO);
+  const jugadas = new Map<string, number>();
+  return r.pasos.map((x, i) => {
+    const prof = Math.min(jugadas.get(x.ids[0]) ?? 0, jugadas.get(x.ids[1]) ?? 0);
+    for (const id of x.ids) jugadas.set(id, (jugadas.get(id) ?? 0) + 1);
+    return {
+      fecha: x.fecha,
+      temporada: x.anio,
+      a: x.ids[0],
+      b: x.ids[1],
+      local: false,
+      y: x.y === 1 ? 0 : 1,
+      K: 2,
+      modelo: wf.p[i] != null ? [wf.p[i]!, 1 - wf.p[i]!] : null,
+      regimen: 'sin temporadas',
+      profundidad: prof,
+    };
+  });
 }

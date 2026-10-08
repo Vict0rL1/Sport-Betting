@@ -887,8 +887,6 @@ export interface EstadoProducto {
   archivo?: { on: boolean; predicciones: number };
   /** Las ampliaciones de la Fase 8, todas apagadas por defecto. */
   ampliaciones?: {
-    /** La UFC en sombra (seguimiento: NHL y UFC). La NHL ya no está aquí: se publicó y va con los demás deportes. */
-    ufc?: { on: boolean; peleas: number; ultimo: string | null };
     telegram: { on: boolean; token: boolean; chats: number; offset: number | null };
     enVivo: boolean;
     propsNba: boolean;
@@ -948,23 +946,16 @@ export function comprobarProducto(e: EstadoProducto, ahora: Date): Hallazgo[] {
   }
   if (e.archivo) {
     if (!e.archivo.on) out.push(h(S, 'info', 'Archivo de predicciones apagado (features.json: archivo.predicciones)'));
-    else out.push(h(S, 'info', `Archivo de predicciones: ${e.archivo.predicciones.toLocaleString('es')} predicción(es) registradas en los cinco registros`));
+    else out.push(h(S, 'info', `Archivo de predicciones: ${e.archivo.predicciones.toLocaleString('es')} predicción(es) registradas en los siete registros`));
   }
   if (e.ampliaciones) out.push(...comprobarAmpliaciones(e.ampliaciones));
   return out;
 }
 
-/** Fase 8 y seguimiento: UFC en sombra, asistente por Telegram, tenis punto a punto y props de la NBA. */
+/** Fase 8: asistente por Telegram, tenis punto a punto y props de la NBA. (La NHL y la UFC se publicaron: van con los demás deportes.) */
 function comprobarAmpliaciones(a: NonNullable<EstadoProducto['ampliaciones']>): Hallazgo[] {
   const S: Seccion = 'PRODUCTO';
   const out: Hallazgo[] = [];
-  if (a.ufc) {
-    const p = a.ufc.peleas.toLocaleString('es');
-    if (!a.ufc.on) out.push(h(S, 'info', `UFC en sombra apagada (features.json: deportes.ufc); ${p} pelea(s) en ufc_fights`));
-    else if (a.ufc.peleas === 0)
-      out.push(h(S, 'aviso', 'UFC en sombra encendida pero sin peleas: no hay nada que evaluar', { accion: ['npm run update-data:ufc (baja de GitHub, Greco1899/scrape_ufc_stats) y después npm run backtest:ufc'] }));
-    else out.push(h(S, 'ok', `UFC en sombra: ${p} pelea(s), la última del ${a.ufc.ultimo}; no se publica hasta ganar a sus referencias (docs/UFC.md)`));
-  }
   const t = a.telegram;
   if (!t.on) out.push(h(S, 'info', 'Asistente por Telegram apagado (features.json: asistente.telegram)'));
   else if (!t.token || t.chats === 0)
@@ -989,6 +980,8 @@ export const TEMPORADAS: Record<string, { desde: [number, number]; hasta: [numbe
   NFL: { desde: [9, 5], hasta: [2, 15], comando: 'npm run update-data:naf' },
   // Regular de octubre a mediados de abril, playoffs hasta junio.
   NHL: { desde: [10, 1], hasta: [6, 20], comando: 'npm run update-data:nhl' },
+  // Todo el año, una cartelera casi cada semana (la fuente del archivo se actualiza cada semana).
+  UFC: { desde: [1, 1], hasta: [12, 31], comando: 'npm run update-data:ufc' },
 };
 /** Días sin resultados nuevos, en plena temporada, a partir de los que los Elo van atrasados. */
 export const DIAS_SIN_RESULTADOS = 21;

@@ -230,12 +230,9 @@ export const ESQUEMA_NHL_BACKTEST = o({
   parametros: o({ k: num, campo: num, golesLiga: num, fuerzaProrroga: num }),
 });
 
-const ESQUEMA_TRAMO_UFC = o({
-  n: int,
-  modelo: num,
-  referencias: { type: 'array', items: o({ clave: str, nombre: str, logLoss: num, delta: num, lo: num, hi: num, p: num }) },
-});
-export const ESQUEMA_UFC_SOMBRA = o({
+const ESQUEMA_REF_UFC = o({ clave: str, nombre: str, logLoss: num, mean: num, lo: num, hi: num, p: num });
+const ESQUEMA_CONTRA_UFC = o({ ll: num, mean: num, lo: num, hi: num, p: num });
+export const ESQUEMA_UFC_BACKTEST = o({
   peleas: int,
   puntuadas: int,
   holdoutExcluido: int,
@@ -243,12 +240,26 @@ export const ESQUEMA_UFC_SOMBRA = o({
   sinGanador: int,
   ultimo: nullable('string'),
   modelo: { ...o({ n: int, logLoss: nullable('number'), brier: nullable('number'), accuracy: nullable('number'), ece: nullable('number') }), nullable: true },
+  eloSolo: nullable('number'),
   referencias: { type: 'array', items: o({ clave: str, nombre: str, logLoss: nullable('number') }) },
   porAnio: { type: 'array', items: o({ anio: int, n: int, logLoss: nullable('number') }) },
-  prueba: { ...o({ validacion: int, todo: ESQUEMA_TRAMO_UFC, enValidacion: { ...ESQUEMA_TRAMO_UFC, nullable: true }, pasa: bool }), nullable: true },
+  prueba: {
+    ...o({
+      validacion: int,
+      eleccion: { type: 'array', items: o({ candidato: str, rasgos: { type: 'array', items: str }, llEntrenamiento: num }) },
+      elegido: str,
+      todo: o({ n: int, modelo: num, referencias: { type: 'array', items: ESQUEMA_REF_UFC }, contraElo: ESQUEMA_CONTRA_UFC }),
+      enValidacion: o({ n: int, modelo: num, referencias: { type: 'array', items: ESQUEMA_REF_UFC }, contraElo: ESQUEMA_CONTRA_UFC }),
+      pasa: bool,
+      mejoraAlElo: bool,
+    }),
+    nullable: true,
+  },
+  pesos: { type: 'object', additionalProperties: num },
+  ajustadaCon: int,
+  holdoutDesde: int,
   aviso: ESQUEMA_AVISO_MUESTRA,
   nota: str,
-  parametros: o({ k: num, provisionales: int, factorProvisional: num, bonoFinalizacion: num }),
 });
 
 export const ESQUEMA_RENDIMIENTO = o({

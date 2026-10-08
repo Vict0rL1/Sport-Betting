@@ -79,6 +79,12 @@ export interface RasgosUfc {
 /** Una pelea puntuable o no: la probabilidad de que gane el PRIMERO por id, y si ganó. */
 export interface PasoUfc {
   anio: number;
+  /** YYYY-MM-DD del evento. */
+  fecha: string;
+  /** Los dos luchadores, el primero por id delante. */
+  ids: [string, string];
+  /** Su Elo ANTES de la pelea, en el mismo orden. */
+  elos: [number, number];
   p: number;
   y: 0 | 1;
   puntuable: boolean;
@@ -89,10 +95,41 @@ export interface PasoUfc {
 
 const logit = (q: number) => Math.log(q / (1 - q));
 const ANIO_MS = 365.25 * 86_400_000;
-function edadEn(nacimiento: string | null | undefined, fecha: string): number | null {
+/** Años cumplidos el día de la pelea (con decimales); null si no hay fecha o no es plausible. */
+export function edadEn(nacimiento: string | null | undefined, fecha: string): number | null {
   if (!nacimiento) return null;
   const t = (Date.parse(fecha) - Date.parse(nacimiento)) / ANIO_MS;
   return Number.isFinite(t) && t > 14 && t < 60 ? t : null;
+}
+
+/** Lo que se sabe de un luchador antes de una pelea. */
+export interface LadoUfc {
+  elo: number;
+  /** Peleas atribuidas en la UFC antes de esta (empates y «sin resultado» incluidos). */
+  peleas: number;
+  victorias: number;
+  ficha: FichaUfc | undefined;
+}
+
+/** El récord suavizado (Laplace) que usan la referencia «mejor récord» y el rasgo `record`. */
+export const recordSuavizado = (l: Pick<LadoUfc, 'peleas' | 'victorias'>) => (l.victorias + 1) / (l.peleas + 2);
+
+/**
+ * Los rasgos de una pelea, del primero (x) menos el segundo (z). La MISMA función para el backtest y
+ * para la UFC publicada: lo que se publica es lo que se midió.
+ */
+export function rasgosDe(x: LadoUfc, z: LadoUfc, fecha: string): RasgosUfc {
+  const edX = edadEn(x.ficha?.nacimiento, fecha);
+  const edZ = edadEn(z.ficha?.nacimiento, fecha);
+  const alX = x.ficha?.alcance_cm ?? null;
+  const alZ = z.ficha?.alcance_cm ?? null;
+  return {
+    elo: ((x.elo - z.elo) * Math.LN10) / 400,
+    record: logit(recordSuavizado(x)) - logit(recordSuavizado(z)),
+    edad: edX != null && edZ != null ? (edX - edZ) / 10 : 0,
+    alcance: alX != null && alZ != null ? (alX - alZ) / 10 : 0,
+    experiencia: Math.log1p(x.peleas) - Math.log1p(z.peleas),
+  };
 }
 
 export interface Recorrido {
@@ -100,6 +137,11 @@ export interface Recorrido {
   sinAtribuir: number;
   sinGanador: number;
   holdoutExcluido: number;
+  /**
+   * Cómo queda cada luchador tras la última pelea recorrida: lo que usa la UFC publicada para
+   * predecir la siguiente. Sale de ESTE recorrido para que lo publicado sea lo medido.
+   */
+  estado: { elo: Map<string, number>; peleas: Map<string, number>; victorias: Map<string, number> };
 }
 
 const llBin = (p: number, y: 0 | 1) => -Math.log(Math.min(1 - 1e-12, Math.max(1e-12, y === 1 ? p : 1 - p)));
@@ -145,14 +187,11 @@ export function recorrer(peleas: PeleaUfc[], p: ParamsUfc = UFC, fichas: Map<str
       const tRec = recN ? recGana / recN : 0.5;
       const enHoldout = isFinalHoldout('ufc', anio);
       if (enHoldout) holdoutExcluido++;
-      const fx = fichas.get(x);
-      const fz = fichas.get(z);
-      const edX = edadEn(fx?.nacimiento, f.fecha);
-      const edZ = edadEn(fz?.nacimiento, f.fecha);
-      const alX = fx?.alcance_cm ?? null;
-      const alZ = fz?.alcance_cm ?? null;
       pasos.push({
         anio,
+        fecha: f.fecha,
+        ids: [x, z],
+        elos: [ex, ez],
         p: predecir(ex, ez).a,
         y,
         puntuable: vistos >= CALENTAMIENTO && !enHoldout,
@@ -161,13 +200,11 @@ export function recorrer(peleas: PeleaUfc[], p: ParamsUfc = UFC, fichas: Map<str
           record: rx === rz ? 0.5 : rx > rz ? tRec : 1 - tRec,
           basico: esperado(bx - bz),
         },
-        rasgos: {
-          elo: ((ex - ez) * Math.LN10) / 400,
-          record: logit(rx) - logit(rz),
-          edad: edX != null && edZ != null ? (edX - edZ) / 10 : 0,
-          alcance: alX != null && alZ != null ? (alX - alZ) / 10 : 0,
-          experiencia: Math.log1p(nx) - Math.log1p(nz),
-        },
+        rasgos: rasgosDe(
+          { elo: ex, peleas: nx, victorias: victoriasDe.get(x) ?? 0, ficha: fichas.get(x) },
+          { elo: ez, peleas: nz, victorias: victoriasDe.get(z) ?? 0, ficha: fichas.get(z) },
+          f.fecha,
+        ),
       });
       // Las tasas de las referencias aprenden DESPUÉS de predecir.
       if (nx !== nz) {
@@ -196,7 +233,7 @@ export function recorrer(peleas: PeleaUfc[], p: ParamsUfc = UFC, fichas: Map<str
     peleasDe.set(z, nz + 1);
     vistos++;
   }
-  return { pasos, sinAtribuir, sinGanador, holdoutExcluido };
+  return { pasos, sinAtribuir, sinGanador, holdoutExcluido, estado: { elo, peleas: peleasDe, victorias: victoriasDe } };
 }
 
 type Fuente = 'modelo' | keyof PasoUfc['ref'] | 'moneda';

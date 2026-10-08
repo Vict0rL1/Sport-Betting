@@ -10,7 +10,7 @@ import { PREMATCH_SCHEMA } from './prematch/schema.ts';
 import { ASSESSMENT_SCHEMA } from './trust/schema.ts';
 import { SHADOW_SCHEMA } from './shadow/schema.ts';
 import { ALERTS_SCHEMA } from './alerts/schema.ts';
-import { EDGE_SIGNALS_SCHEMA, NHL_LOG_TRIGGERS, PAPER_BET_COLUMNS, PAPER_TRIGGERS, PREDICTION_LOG_TRIGGERS } from './paper/schema.ts';
+import { EDGE_SIGNALS_SCHEMA, NHL_LOG_TRIGGERS, PAPER_BET_COLUMNS, PAPER_TRIGGERS, PREDICTION_LOG_TRIGGERS, UFC_LOG_TRIGGERS } from './paper/schema.ts';
 import { SESSIONS_SCHEMA } from './auth/sessions.ts';
 import { EXTERNAL_ELO_SCHEMA } from './football/ingest/clubelo.ts';
 import { BULLPEN_SCHEMA } from './baseball/ingest/bullpen.ts';
@@ -25,7 +25,7 @@ import { STRATEGIES_SCHEMA } from './estrategias/schema.ts';
 import { INBOX_SCHEMA } from './bandeja/schema.ts';
 import { REPORTS_SCHEMA } from './informes/schema.ts';
 import { NHL_PUBLICADA_SCHEMA, NHL_REGISTRO_SCHEMA, NHL_SCHEMA } from './nhl/schema.ts';
-import { UFC_SCHEMA } from './ufc/schema.ts';
+import { UFC_PUBLICADA_SCHEMA, UFC_REGISTRO_SCHEMA, UFC_SCHEMA } from './ufc/schema.ts';
 import { ERROR_LOG_SCHEMA } from './security/errors.ts';
 import { HISTORY_DB_PATH, LAYOUT, LEDGER_DB_PATH, LEDGER_SCHEMA, LEGACY_DB_PATH, rutaPrincipal } from './db/layout.ts';
 import { ledgerize, masterDe } from './db/ledgerize.ts';
@@ -239,6 +239,9 @@ export const MIGRACIONES: Migracion[] = [
   // los mismos triggers que los otros cinco. Dos migraciones porque van a ficheros distintos.
   { version: 16, nombre: 'nhl-publicada', destino: 'history', up: (d) => d.exec(NHL_PUBLICADA_SCHEMA) },
   { version: 17, nombre: 'nhl-registro', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(NHL_REGISTRO_SCHEMA + NHL_LOG_TRIGGERS, ctx.ledger)) },
+  // La UFC publicada, igual que la NHL: próximas peleas (historia) y registro de predicciones (libro mayor).
+  { version: 18, nombre: 'ufc-publicada', destino: 'history', up: (d) => d.exec(UFC_PUBLICADA_SCHEMA) },
+  { version: 19, nombre: 'ufc-registro', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(UFC_REGISTRO_SCHEMA + UFC_LOG_TRIGGERS, ctx.ledger)) },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {

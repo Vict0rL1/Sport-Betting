@@ -177,6 +177,7 @@ export function estadoDatos(): Respuesta {
     { nombre: 'Béisbol', tabla: 'bsb_upcoming', prefijo: 'bsb_' },
     { nombre: 'NFL', tabla: 'naf_upcoming', prefijo: 'naf_' },
     { nombre: 'NHL', tabla: 'nhl_upcoming', prefijo: 'nhl_' },
+    { nombre: 'UFC', tabla: 'ufc_upcoming', prefijo: 'ufc_' },
     { nombre: 'Tenis', tabla: 'upcoming_matches', prefijo: '' },
   ];
   const db = getDb();

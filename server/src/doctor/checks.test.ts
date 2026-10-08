@@ -367,13 +367,8 @@ test('ampliaciones: apagadas son información; encendidas sin lo que necesitan a
   assert.ok(!bien.some((x) => x.texto.startsWith('NHL')), 'la NHL ya no es una ampliación');
   assert.match(bien.find((x) => x.texto.startsWith('Asistente'))!.texto, /2 chat\(s\).*la 500/);
 
-  // La UFC en sombra: igual que la NHL; si el estado no la trae (doctor viejo), no dice nada.
-  assert.ok(!bien.some((x) => x.texto.startsWith('UFC')));
-  const ufc = (on: boolean, peleas: number) => comprobarProducto({ ...base, ampliaciones: { ...apagadas, ufc: { on, peleas, ultimo: peleas ? '2026-10-03' : null } } }, new Date()).find((x) => x.texto.startsWith('UFC'));
-  assert.equal(ufc(false, 8_923)?.nivel, 'info');
-  assert.equal(ufc(true, 0)?.nivel, 'aviso');
-  assert.match(ufc(true, 0)!.accion!.join(' '), /update-data:ufc/);
-  assert.equal(ufc(true, 8_923)?.nivel, 'ok');
+  // La UFC tampoco: se publicó y va con los demás deportes.
+  assert.ok(!bien.some((x) => x.texto.startsWith('UFC')), 'la UFC ya no es una ampliación');
 });
 
 // ---- OPERACIÓN (Fase 9) ----
@@ -383,6 +378,7 @@ test('operación: temporada de cada deporte, también la que cruza el año', asy
   assert.equal(diasDeTemporada('NFL', new Date('2027-01-20T12:00:00Z')), 137, 'enero sigue siendo la temporada que empezó en septiembre');
   assert.equal(diasDeTemporada('NFL', new Date('2026-06-01T12:00:00Z')), null);
   assert.equal(diasDeTemporada('NHL', new Date('2026-10-08T12:00:00Z')), 7, 'la NHL juega en octubre');
+  assert.notEqual(diasDeTemporada('UFC', new Date('2026-07-15T12:00:00Z')), null, 'la UFC pelea todo el año');
   assert.equal(diasDeTemporada('NHL', new Date('2027-05-15T12:00:00Z')) != null, true, 'y los playoffs de mayo');
   assert.equal(diasDeTemporada('NHL', new Date('2026-08-01T12:00:00Z')), null);
   assert.equal(diasDeTemporada('Baloncesto', new Date('2026-10-07T12:00:00Z')), null, 'la NBA empieza el 20 de octubre');

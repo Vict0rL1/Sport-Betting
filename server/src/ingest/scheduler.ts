@@ -23,6 +23,7 @@ export const PASOS_RESULTADOS = [
   { nombre: 'béisbol', script: 'update-data:bsb' },
   { nombre: 'NFL', script: 'update-data:naf' },
   { nombre: 'NHL', script: 'update-data:nhl' },
+  { nombre: 'UFC', script: 'update-data:ufc' },
 ] as const;
 
 export const PRIMERA_PASADA_MIN = 5;

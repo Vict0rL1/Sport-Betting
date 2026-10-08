@@ -84,6 +84,13 @@ export function predicciones(deporte: SportId): PrediccionEnVivo[] {
                 model_version AS v, commence_time AS t, league AS l
            FROM nhl_prediction_log WHERE home_goals IS NOT NULL AND home_goals <> away_goals ORDER BY rowid`,
       ).map(dos);
+    case 'ufc':
+      // Solo las peleas con ganador: el empate y el «sin resultado» no se puntúan (A es home_*).
+      return leer(
+        `SELECT COALESCE(shown_home, prob_home) AS p, market_prob_home AS m, CASE WHEN outcome = 'A' THEN 0 ELSE 1 END AS y,
+                model_version AS v, commence_time AS t, league AS l
+           FROM ufc_prediction_log WHERE outcome IN ('A', 'B') ORDER BY rowid`,
+      ).map(dos);
   }
 }
 

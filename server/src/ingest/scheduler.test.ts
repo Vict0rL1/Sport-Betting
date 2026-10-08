@@ -1,4 +1,4 @@
-// El ciclo de resultados: cinco procesos hijo uno a uno, un fallo no para a los demás, todo
+// El ciclo de resultados: seis procesos hijo uno a uno, un fallo no para a los demás, todo
 // queda en ingestion_runs, y RESULTS_REFRESH_HOURS manda.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,23 +25,23 @@ test('cicloResultados: en orden, con --skip-odds implícito en el lanzador, un f
   };
   const mensajes: string[] = [];
   const r = await cicloResultados(lanzar, (m) => mensajes.push(m));
-  assert.deepEqual(lanzados, PASOS_RESULTADOS.map((p) => p.script), 'los cinco, en orden, aunque uno falle');
-  assert.equal(r.length, 5);
-  assert.deepEqual(r.map((x) => x.ok), [true, false, true, true, true]);
+  assert.deepEqual(lanzados, PASOS_RESULTADOS.map((p) => p.script), 'los seis, en orden, aunque uno falle');
+  assert.equal(r.length, PASOS_RESULTADOS.length);
+  assert.deepEqual(r.map((x) => x.ok), [true, false, true, true, true, true]);
   assert.match(r[1].cola, /hoopR no responde/);
   assert.ok(mensajes.some((m) => /baloncesto: falló/.test(m)));
   const ciclo = ultimasEjecuciones().find((e) => e.source === 'results:ciclo')!;
-  assert.equal(ciclo.status, 'ok', 'cuatro de cinco es un ciclo que terminó');
-  assert.equal(ciclo.rows_updated, 4);
+  assert.equal(ciclo.status, 'ok', 'cinco de seis es un ciclo que terminó');
+  assert.equal(ciclo.rows_updated, 5);
   assert.match(ciclo.detail ?? '', /fallaron: baloncesto/);
 });
 
-test('cicloResultados: si fallan los cinco, el ciclo queda como error y no lanza', async () => {
+test('cicloResultados: si fallan todos, el ciclo queda como error y no lanza', async () => {
   const r = await cicloResultados(async () => ({ codigo: null, salida: 'spawn npm ENOENT' }));
   assert.equal(r.filter((x) => x.ok).length, 0);
   const ciclo = ultimasEjecuciones().find((e) => e.source === 'results:ciclo')!;
   assert.equal(ciclo.status, 'error');
-  assert.match(ciclo.error ?? '', /fallaron los 5 deportes/);
+  assert.match(ciclo.error ?? '', new RegExp(`fallaron los ${PASOS_RESULTADOS.length} deportes`));
 });
 
 test('programarResultados: devuelve algo que se puede parar y no se solapa', async () => {

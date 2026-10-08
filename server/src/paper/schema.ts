@@ -164,6 +164,13 @@ export const NHL_LOG_TRIGGERS = triggersDeRegistro({
   unaVez: ['shown_home', ...VERSIONES],
 });
 
+/** El de la UFC, igual que el de la NHL: su tabla la crea una migración posterior (19). */
+export const UFC_LOG_TRIGGERS = triggersDeRegistro({
+  tabla: 'ufc_prediction_log',
+  congeladas: ['match_key', 'home_id', 'away_id', 'prob_home', 'market_prob_home', 'rasgos', 'predicted_at'],
+  unaVez: ['shown_home', ...VERSIONES],
+});
+
 // ===========================================================================
 // LAS SEÑALES: CADA VEZ QUE EL MODELO MIRÓ UN PARTIDO CON PRECIO REAL
 // ===========================================================================

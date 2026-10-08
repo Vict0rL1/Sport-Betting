@@ -72,6 +72,6 @@ export function grupoDeRuta(url: string): string {
   const sinQuery = url.split('?')[0];
   const m = sinQuery.match(/^\/api\/([a-z-]+)(?:\/([a-z-]+))?/);
   if (!m) return sinQuery.startsWith('/docs') ? '/docs' : sinQuery === '/' ? '/' : sinQuery.replace(/\/\d+.*/, '');
-  const deportes = new Set(['football', 'basketball', 'baseball', 'nfl', 'nhl', 'bets', 'auth', 'latency', 'staking', 'notifications', 'export', 'scheduler', 'policy', 'datos']);
+  const deportes = new Set(['football', 'basketball', 'baseball', 'nfl', 'nhl', 'ufc', 'bets', 'auth', 'latency', 'staking', 'notifications', 'export', 'scheduler', 'policy', 'datos']);
   return deportes.has(m[1]) ? `/api/${m[1]}` : `/api/${m[1]}${m[2] ? `/${m[2]}` : ''}`;
 }

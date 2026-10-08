@@ -23,6 +23,7 @@ export const RESULTADOS: Record<SportId, string> = {
          WHERE home_points IS NOT NULL AND home_points <> away_points`,
   nhl: `SELECT match_key AS k, CASE WHEN home_goals > away_goals THEN 0 ELSE 1 END AS y FROM nhl_prediction_log
          WHERE home_goals IS NOT NULL AND home_goals <> away_goals`,
+  ufc: `SELECT match_key AS k, CASE WHEN outcome = 'A' THEN 0 ELSE 1 END AS y FROM ufc_prediction_log WHERE outcome IN ('A', 'B')`,
 };
 
 export interface EvaluacionHorizontes {

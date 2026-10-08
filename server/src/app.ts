@@ -163,7 +163,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   await app.register(registerEstrategiasRoutes);
   await app.register(registerInformesRoutes);
   await app.register(registerLineasArchivoRoutes);
-  await app.register(registerUfcRoutes);
+  await app.register(registerUfcRoutes, { prefix: '/api/ufc' });
 
   await app.register(registerRoutes, { prefix: '/api' });
   // Basketball lives in its own namespace: no endpoint can return both sports.

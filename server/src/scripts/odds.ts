@@ -29,6 +29,7 @@ import { refreshBasketballOdds } from '../basketball/ingest/odds.ts';
 import { refreshBaseballOdds } from '../baseball/ingest/odds.ts';
 import { refreshOdds as refreshNfl } from '../nfl/ingest/odds.ts';
 import { refrescarCuotas as refreshNhl } from '../nhl/proximos.ts';
+import { refrescarCuotas as refreshUfc } from '../ufc/proximos.ts';
 import { readOddsReason, REASON_TEXT, type SportPrefix } from '../oddsReason.ts';
 import { getQuota } from '../oddsQuota.ts';
 
@@ -72,6 +73,15 @@ const DEPORTES: { nombre: string; prefijo: SportPrefix; run: () => Promise<{ sou
       return { source: n > 0 ? 'live' : 'schedule', count: n };
     },
   },
+  {
+    nombre: 'UFC',
+    prefijo: 'ufc_',
+    // Sin calendario propio: sin precio no hay cartelera. Cero no es «demostración» (la UFC no inventa nada).
+    run: async () => {
+      const n = await refreshUfc(true);
+      return { source: n > 0 ? 'live' : 'none', count: n };
+    },
+  },
   { nombre: 'Tenis', prefijo: '', run: () => refreshTennis(true) },
 ];
 
@@ -91,7 +101,7 @@ if (!env.oddsApiKey) {
   process.exit(1);
 }
 
-console.log(`${C.dim}Cuesta 5 peticiones de tu plan, una por deporte.${C.off}\n`);
+console.log(`${C.dim}Cuesta una petición de tu plan por deporte (dos la NHL: ganador y total), y nada el que está fuera de temporada.${C.off}\n`);
 
 const resultados: {
   nombre: string; ok: boolean; linea: string; causa: string | null; detalle: string; nada?: boolean;
@@ -108,7 +118,7 @@ for (const d of DEPORTES) {
     resultados.push({
       nombre: d.nombre,
       ok: vivo,
-      linea: vivo ? `${r.count} partidos con cuotas REALES` : `${r.count} de demostración`,
+      linea: vivo ? `${r.count} partidos con cuotas REALES` : r.source === 'none' ? 'sin peleas con cuotas' : `${r.count} de demostración`,
       causa: vivo ? null : (reason ?? null),
       detalle: detail,
       // La NFL sin línea publicada no entra en «qué hacer»: no hay nada que arreglar.
@@ -119,7 +129,7 @@ for (const d of DEPORTES) {
       // porque falta la clave o porque el proveedor no contestó, eso sí tiene arreglo y
       // es el mismo que el de los otros cuatro: excluirla ahí escondía la única avería
       // real detrás de una frase tranquilizadora.
-      nada: r.source === 'schedule' && (reason === 'sin_eventos' || reason === 'sin_ligas' || reason == null),
+      nada: (r.source === 'schedule' || r.source === 'none') && (reason === 'sin_eventos' || reason === 'sin_ligas' || reason == null),
     });
     const nombre = `  ${d.nombre.padEnd(11)}`;
     console.log(
@@ -127,7 +137,9 @@ for (const d of DEPORTES) {
         ? `${nombre} ${C.green}✓${C.off} ${r.count} partidos con cuotas reales`
         : r.source === 'schedule'
           ? `${nombre} ${C.amber}·${C.off} sin línea publicada (el calendario sigue siendo real)`
-          : `${nombre} ${C.amber}·${C.off} ${r.count} de demostración`,
+          : r.source === 'none'
+            ? `${nombre} ${C.amber}·${C.off} ninguna pelea de la UFC con cuotas ahora mismo`
+            : `${nombre} ${C.amber}·${C.off} ${r.count} de demostración`,
     );
     if (!vivo && reason) {
       console.log(`${' '.repeat(14)}${C.dim}↳ ${REASON_TEXT[reason]}${C.off}`);

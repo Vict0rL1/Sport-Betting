@@ -1,11 +1,18 @@
-// CLI de la UFC en sombra (seguimiento: NHL y UFC).
-//   npm run update-data:ufc                          baja el archivo de ufcstats (Greco1899/scrape_ufc_stats en GitHub)
-//   npm run backtest:ufc                             evalúa el Elo de luchador sin el holdout (2026 en adelante)
+// CLI de la UFC (publicada en octubre de 2026: docs/UFC.md).
+//   npm run update-data:ufc [-- --skip-odds]         baja el archivo de ufcstats (Greco1899/scrape_ufc_stats en GitHub) y, con clave, las peleas que vienen con sus cuotas
+//   npm run backtest:ufc                             evalúa el modelo publicado (walk-forward por año) sin el holdout (2026 en adelante)
 //   npm run backtest:ufc -- --ajustar [--registrar]  rejilla en 1993→2024, validación en 2025, prueba contra referencias
 //   npm run backtest:ufc -- --combinado [--registrar] el segundo intento (docs/plans/ufc-combinado.md): Elo + récord (+ ficha)
 import { ingestarUfc } from '../ufc/ingest.ts';
-import { contraReferencias, evaluarUfc, leerFichas, leerPeleas, rejilla, validar, VALIDACION } from '../ufc/evaluacion.ts';
-import { CANDIDATOS, LAMBDA, evaluarCombinado } from '../ufc/combinado.ts';
+import { contraReferencias, leerFichas, leerPeleas, rejilla, validar, VALIDACION } from '../ufc/evaluacion.ts';
+import { CANDIDATOS, LAMBDA, MODELO_PUBLICADO, evaluacionPublicada, evaluarCombinado, juegosWalkForward } from '../ufc/combinado.ts';
+import { refrescarCuotas } from '../ufc/proximos.ts';
+import { resolveUfcPredictions } from '../ufc/trackRecord.ts';
+import { env } from '../config.ts';
+import { getMeta, setMeta } from '../db.ts';
+import { informeComun } from '../evaluation/report.ts';
+import { bandasDeAcierto, writeCalibration } from '../staking/calibration.ts';
+import { guardarWalkForward, walkForward } from '../evaluation/walkforward.ts';
 import { UFC, type ParamsUfc } from '../ufc/model.ts';
 import { recordExperiment } from '../experiments/registry.ts';
 import { conRegistro } from '../ingest/runs.ts';
@@ -25,11 +32,26 @@ if (args[0] === 'ingestar') {
         detail: `${x.eventos.length} eventos (el último del ${ultimo}), ${x.luchadores.length} luchadores; ${amb} pelea(s) con un nombre ambiguo sin atribuir, ${x.descartadas.sinFecha} sin evento con fecha y ${x.descartadas.ilegibles} ilegible(s) descartadas`,
       };
     });
+    setMeta('ufc:updatedAt', new Date().toISOString());
     console.log(`UFC: ${r.rowsAdded} peleas guardadas, ${r.detail}.`);
   } catch (e) {
     console.error(`✗ ${(e as Error).message}`);
     process.exit(1);
   }
+  // Las peleas que vienen solo llegan con las cuotas (la fuente del archivo trae las ya disputadas).
+  if (!args.includes('--skip-odds')) {
+    if (!env.oddsApiKey) console.log('UFC: sin ODDS_API_KEY no hay cartelera (las peleas que vienen llegan con las cuotas): npm run clave');
+    else {
+      try {
+        const n = await refrescarCuotas(true);
+        console.log(`UFC: ${n} pelea(s) de la UFC con cuotas · ${getMeta('ufc:descartadas') ?? 0} de otras organizaciones descartadas · ${getMeta('ufc:sinIdentificar') ?? 0} sin identificar (debut o nombre ambiguo)`);
+      } catch (e) {
+        console.error(`UFC: no se pudieron pedir las cuotas: ${(e as Error).message}`);
+      }
+    }
+  }
+  const res = resolveUfcPredictions();
+  if (res.resolved) console.log(`UFC: ${res.resolved} predicción(es) en vivo con resultado.`);
 } else if (args.includes('--combinado')) {
   const peleas = leerPeleas();
   if (peleas.length === 0) {
@@ -158,15 +180,29 @@ if (args[0] === 'ingestar') {
     console.log(`Registrado: ${e2.id}`);
   }
 } else {
-  const r = evaluarUfc();
-  console.log(`\nUFC en sombra · ${r.peleas} peleas, ${r.puntuadas} puntuadas, ${r.holdoutExcluido} del holdout excluidas, ${r.sinAtribuir} sin atribuir, ${r.sinGanador} sin ganador.`);
+  // El modelo publicado (docs/plans/ufc-combinado.md): walk-forward por año, sin el holdout.
+  const peleas = leerPeleas();
+  const fichas = leerFichas();
+  const r = evaluacionPublicada(peleas, fichas);
+  console.log(`\nUFC · ${r.peleas} peleas, ${r.puntuadas} puntuadas, ${r.holdoutExcluido} del holdout excluidas, ${r.sinAtribuir} sin atribuir, ${r.sinGanador} sin ganador.`);
   if (r.modelo) {
     const m = r.modelo;
     const ece = m.ece == null ? '—' : `${(m.ece * 100).toFixed(2)} pp`;
-    console.log(`  modelo   log loss ${m.logLoss?.toFixed(4) ?? '—'} · Brier ${m.brier?.toFixed(4) ?? '—'} · acierto ${m.accuracy == null ? '—' : (m.accuracy * 100).toFixed(1) + ' %'} · ECE ${ece}`);
+    console.log(`  modelo publicado (${MODELO_PUBLICADO}) log loss ${m.logLoss?.toFixed(4) ?? '—'} · Brier ${m.brier?.toFixed(4) ?? '—'} · acierto ${m.accuracy == null ? '—' : (m.accuracy * 100).toFixed(1) + ' %'} · ECE ${ece}`);
+    console.log(`  ${'Elo de luchador solo'.padEnd(52)} log loss ${r.eloSolo?.toFixed(4) ?? '—'}`);
     for (const x of r.referencias) console.log(`  ${x.nombre.padEnd(52)} log loss ${x.logLoss?.toFixed(4) ?? '—'}`);
     for (const t of r.porAnio) console.log(`  ${t.anio}: ${t.n} peleas · log loss ${t.logLoss?.toFixed(4) ?? '—'}`);
+    // Lo mismo que los otros seis backtests de referencia: la capa común de métricas, la calibración
+    // que lee el módulo de riesgo (con sus bandas de acierto) y el walk-forward por periodos.
+    informeComun('ufc', r.predicciones);
+    const favs = r.predicciones.map((x) => ({ p: Math.max(x.p[0], x.p[1]), hit: (x.p[0] >= 0.5 ? 0 : 1) === x.y }));
+    writeCalibration({
+      ufc: { ece: m.ece ?? 1, n: m.n, beatsMarket: null, vsMarketLogLoss: null, bands: bandasDeAcierto(favs), measuredAt: new Date().toISOString() },
+    });
+    console.log('  calibración escrita en experiments/calibration.json (sin cuotas históricas: beatsMarket null)');
+    const wf = walkForward('ufc', juegosWalkForward(peleas, fichas));
+    console.log(`  walk-forward: ${wf.periodos.length} periodos, guardado en ${guardarWalkForward(wf)}`);
   }
   if (r.aviso.texto) console.log(`  ${r.aviso.texto}`);
-  console.log(`  ${r.nota}`);
+  if (peleas.length === 0) console.log('  sin peleas en ufc_fights: corre npm run update-data:ufc donde la red alcance raw.githubusercontent.com.');
 }

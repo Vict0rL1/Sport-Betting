@@ -100,6 +100,12 @@ const CONSULTAS: Record<string, string> = {
                CASE WHEN home_goals IS NULL THEN NULL WHEN home_goals > away_goals THEN 0 ELSE 2 END,
                CASE WHEN home_goals IS NULL THEN NULL ELSE home_goals || '-' || away_goals END, model_version
           FROM nhl_prediction_log`,
+  // UFC: A y B (sin local); el empate y el «sin resultado» devuelven la apuesta (y = −1). El «marcador» es el método.
+  ufc: `SELECT 'ufc', match_key, upcoming_id, league, commence_time, predicted_at, home_name, away_name, COALESCE(shown_home, prob_home), NULL, 1 - COALESCE(shown_home, prob_home),
+               market_prob_home, NULL, 1 - market_prob_home,
+               CASE WHEN outcome IS NULL THEN NULL WHEN outcome = 'A' THEN 0 WHEN outcome = 'B' THEN 2 ELSE -1 END,
+               CASE WHEN outcome IS NULL THEN NULL WHEN outcome = 'EMPATE' THEN 'empate' WHEN outcome = 'NC' THEN 'sin resultado' ELSE COALESCE(metodo, 'decidida') END, model_version
+          FROM ufc_prediction_log`,
 };
 
 const CABECERA =

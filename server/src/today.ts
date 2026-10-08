@@ -33,7 +33,7 @@ import { freshSince } from './freshness.ts';
 import { reconstruirDesde } from './recent/reconstruct.ts';
 
 export interface PartidoDeHoy {
-  deporte: 'Fútbol' | 'Baloncesto' | 'Béisbol' | 'NFL' | 'NHL' | 'Tenis';
+  deporte: 'Fútbol' | 'Baloncesto' | 'Béisbol' | 'NFL' | 'NHL' | 'UFC' | 'Tenis';
   /** ISO de inicio. */
   cuando: string;
   partido: string;
@@ -95,6 +95,8 @@ export const FUENTES: Fuente[] = [
   { deporte: 'Tenis', log: 'prediction_log', up: 'upcoming_matches', clave: 'match_key', casa: 'p1_name', fuera: 'p2_name', prob: 'prob1', precio: 'p1_odds', resuelto: 'resolved_at' },
   // Al final y no en su sitio alfabético: hay código que lee FUENTES por posición.
   { deporte: 'NHL', log: 'nhl_prediction_log', up: 'nhl_upcoming', clave: 'match_key', casa: 'home_name', fuera: 'away_name', prob: 'prob_home', precio: 'odds_home', resuelto: 'home_goals', mostrado: 'shown_home' },
+  // La UFC: home_* es el luchador A y away_* el B (sin local). Empate y «sin resultado» quedan 0-0 y no se puntúan.
+  { deporte: 'UFC', log: 'ufc_prediction_log', up: 'ufc_upcoming', clave: 'match_key', casa: 'home_name', fuera: 'away_name', prob: 'prob_home', precio: 'odds_home', resuelto: 'resolved_at', mostrado: 'shown_home' },
 ];
 
 /** Deportes que nombran el partido a la norteamericana: «visitante @ local». */
@@ -187,8 +189,12 @@ export interface HistorialReciente {
 interface FuenteResuelta extends Fuente {
   /** Columnas del marcador final, o null en el tenis, que guarda el id del ganador. */
   marcador: [string, string] | null;
-  /** El partido del archivo al que se resolvió: para no contarlo dos veces. */
-  enlace: { col: string; tabla: string; fecha: string } | null;
+  /**
+   * El partido del archivo al que se resolvió: para no contarlo dos veces. `casa`/`fuera` dicen de
+   * dónde salen los dos lados de la clave (por defecto, `g.home_id`/`g.away_id` del archivo; la UFC
+   * los toma del registro, que los guarda en el mismo orden que la reconstrucción).
+   */
+  enlace: { col: string; tabla: string; fecha: string; casa?: string; fuera?: string } | null;
   archivo: { tabla: string; fecha: string };
   comando: string;
 }
@@ -250,10 +256,11 @@ const RESUELTAS = (): FuenteResuelta[] => [
   { ...FUENTES[2], marcador: ['home_runs', 'away_runs'], enlace: { col: 'game_id', tabla: 'bsb_games', fecha: 'game_date' }, archivo: { tabla: 'bsb_games', fecha: 'game_date' }, comando: 'npm run update-data:bsb' },
   { ...FUENTES[3], marcador: ['home_points', 'away_points'], enlace: { col: 'game_id', tabla: 'naf_games', fecha: 'game_date' }, archivo: { tabla: 'naf_games', fecha: 'game_date' }, comando: 'npm run update-data:naf' },
   { ...FUENTES[5], marcador: ['home_goals', 'away_goals'], enlace: { col: 'game_id', tabla: 'nhl_games', fecha: 'game_date' }, archivo: { tabla: 'nhl_games', fecha: 'game_date' }, comando: 'npm run update-data:nhl' },
+  { ...FUENTES[6], marcador: ['home_score', 'away_score'], enlace: { col: 'fight_id', tabla: 'ufc_fights', fecha: 'fecha', casa: 'l.home_id', fuera: 'l.away_id' }, archivo: { tabla: 'ufc_fights', fecha: 'fecha' }, comando: 'npm run update-data:ufc' },
   { ...FUENTES[4], marcador: null, enlace: null, archivo: { tabla: 'matches', fecha: 'tourney_date' }, comando: 'npm run update-data' },
 ];
 
-const RECONSTRUYE = new Set<PartidoDeHoy['deporte']>(['Fútbol', 'Baloncesto', 'Béisbol', 'NFL', 'NHL']);
+const RECONSTRUYE = new Set<PartidoDeHoy['deporte']>(['Fútbol', 'Baloncesto', 'Béisbol', 'NFL', 'NHL', 'UFC']);
 
 export function historialReciente(now = new Date(), dias: number = VENTANAS[0]): HistorialReciente {
   rellenarMostrado();
@@ -295,7 +302,7 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
                       l.home_id AS casaId, l.away_id AS fueraId,
                       ${probSql(f, 'l.')} AS p ${f.empate ? `, ${empateSql(f, 'l.')} AS pEmpate` : ''},
                       l.${f.marcador[0]} AS gc, l.${f.marcador[1]} AS gf,
-                      g.${f.enlace!.fecha} AS gFecha, g.home_id AS gCasa, g.away_id AS gFuera
+                      g.${f.enlace!.fecha} AS gFecha, ${f.enlace!.casa ?? 'g.home_id'} AS gCasa, ${f.enlace!.fuera ?? 'g.away_id'} AS gFuera
                  FROM ${f.log} l
                  LEFT JOIN ${f.enlace!.tabla} g ON g.id = l.${f.enlace!.col}
                 WHERE l.${f.marcador[0]} IS NOT NULL AND l.commence_time >= ?
@@ -421,6 +428,11 @@ function nombresDeEquipos(): Map<string, string> {
     } catch {
       // Sin tabla: se enseña el id, que es mejor que esconder el partido.
     }
+  }
+  try {
+    for (const r of getDb().prepare('SELECT id, nombre FROM ufc_fighters').all() as { id: string; nombre: string }[]) m.set(`UFC|ufc|${r.id}`, r.nombre);
+  } catch {
+    // Sin archivo de la UFC: lo mismo.
   }
   return m;
 }

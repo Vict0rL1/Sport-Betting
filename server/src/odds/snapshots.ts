@@ -8,7 +8,7 @@
 import { getDb } from '../db.ts';
 import { median, type OddsEvent, type OddsResponse } from '../oddsApi.ts';
 
-export type Deporte = 'football' | 'basketball' | 'baseball' | 'nfl' | 'nhl' | 'tennis' | 'other';
+export type Deporte = 'football' | 'basketball' | 'baseball' | 'nfl' | 'nhl' | 'ufc' | 'tennis' | 'other';
 
 /** Qué deporte es una clave de competición del proveedor. */
 export function sportOfKey(key: string): Deporte {
@@ -17,6 +17,9 @@ export function sportOfKey(key: string): Deporte {
   if (key.startsWith('baseball_')) return 'baseball';
   if (key.startsWith('americanfootball_')) return 'nfl';
   if (key.startsWith('icehockey_nhl')) return 'nhl';
+  // La clave de todo el MMA: de ella solo se guardan peleas de la UFC (ufc/proximos.ts), pero la
+  // instantánea de cuotas la guarda entera, como el resto.
+  if (key.startsWith('mma_')) return 'ufc';
   if (key.startsWith('tennis_')) return 'tennis';
   return 'other';
 }

@@ -27,6 +27,7 @@ import { refreshFootballOdds } from './football/ingest/odds.ts';
 import { refreshBaseballOdds } from './baseball/ingest/odds.ts';
 import { refreshOdds as refreshNflOdds } from './nfl/ingest/odds.ts';
 import { refrescarCuotas as refreshNhlOdds } from './nhl/proximos.ts';
+import { refrescarCuotas as refreshUfcOdds } from './ufc/proximos.ts';
 import {
   getQuota,
   lastCycleCredits,
@@ -45,6 +46,7 @@ import { resolveFootballPredictions } from './football/trackRecord.ts';
 import { resolveBaseballPredictions } from './baseball/trackRecord.ts';
 import { resolveNflPredictions } from './nfl/trackRecord.ts';
 import { resolveNhlPredictions } from './nhl/trackRecord.ts';
+import { resolveUfcPredictions } from './ufc/trackRecord.ts';
 
 /**
  * Keep the schedule current on its own: refresh once at startup and then on an
@@ -299,6 +301,18 @@ function startAutoRefresh(log: (msg: string) => void): void {
         log(`NHL odds refresh failed: ${(e as Error).message}`);
       }
     }
+    // La UFC: solo con el archivo (sin él no se sabe quién es quién ni qué cartelera es de la UFC).
+    if (countRows('ufc_fights') > 0) {
+      try {
+        const { n } = await conRegistro('odds:ufc', async () => {
+          const x = await refreshUfcOdds();
+          return { n: x, rowsAdded: x };
+        });
+        log(`UFC odds refreshed: ${n} fights.`);
+      } catch (e) {
+        log(`UFC odds refresh failed: ${(e as Error).message}`);
+      }
+    }
     // Say where the quota stands after every cycle. The whole reason the free
     // plan ran out was that nothing ever mentioned it until it was gone.
     const q = getQuota();
@@ -451,6 +465,7 @@ function resolveAllPredictions(log?: (msg: string) => void): void {
     ['baseball', resolveBaseballPredictions],
     ['nfl', resolveNflPredictions],
     ['nhl', resolveNhlPredictions],
+    ['ufc', resolveUfcPredictions],
   ];
   const done: string[] = [];
   for (const [name, run] of jobs) {
@@ -523,10 +538,10 @@ async function main() {
           return { rowsAdded: 1, detail: c.fichero };
         }),
     });
-    // Resultados de los cinco deportes de equipo, en procesos hijo (ver ingest/scheduler.ts).
+    // Resultados de los deportes con archivo propio, en procesos hijo (ver ingest/scheduler.ts).
     registrar({
       nombre: 'resultados',
-      descripcion: 'update-results: resultados de fútbol, baloncesto, béisbol, NFL y NHL en procesos hijo, sin cuota',
+      descripcion: 'update-results: resultados de fútbol, baloncesto, béisbol, NFL, NHL y UFC en procesos hijo, sin cuota',
       cadenciaMin: horasResultados * 60,
       primeraEnMin: PRIMERA_PASADA_MIN,
       cuando: () => featureEncendida('datos.resultadosProgramados') && horasResultados > 0,

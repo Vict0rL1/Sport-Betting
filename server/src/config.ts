@@ -73,6 +73,11 @@ export interface NhlConfig {
   odds: { sportKey: string; markets: string };
 }
 export const nhlConfig = readJson<NhlConfig>(path.join(CONFIG_DIR, 'nhl.json'));
+export interface UfcConfig {
+  odds: { sportKey: string; markets: string };
+  cartelera: { ventanaHoras: number; minimoConocidas: number };
+}
+export const ufcConfig = readJson<UfcConfig>(path.join(CONFIG_DIR, 'ufc.json'));
 
 /**
  * Código del COI (o ISO-3166 alpha-3) → país y su ISO-2, que es lo que nombra el SVG de

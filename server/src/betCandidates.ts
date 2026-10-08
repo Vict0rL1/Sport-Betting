@@ -21,6 +21,7 @@ import { listUpcoming as listBaseball } from './baseball/repo.ts';
 import { listUpcoming as listNfl } from './nfl/repo.ts';
 import { listLeagues as listNflLeagues } from './nfl/repo.ts';
 import { listUpcoming as listNhl } from './nhl/repo.ts';
+import { listUpcoming as listUfc } from './ufc/repo.ts';
 import { getDb } from './db.ts';
 
 export interface BetCandidateSide {
@@ -79,6 +80,7 @@ function loggedModelProbs(): Map<string, number> {
     ['baseball', 'bsb_prediction_log', 'prob_home'],
     ['nfl', 'naf_prediction_log', 'prob_home'],
     ['nhl', 'nhl_prediction_log', 'prob_home'],
+    ['ufc', 'ufc_prediction_log', 'prob_home'],
   ];
   for (const [sport, table, col] of sources) {
     try {
@@ -214,6 +216,22 @@ export function listBetCandidates(limit = 120): BetCandidate[] {
       sides: [
         { label: g.home_name, modelProb: modelProb(`nhl|${g.id}`, 'home'), marketProb: h, odds: g.odds_home },
         { label: g.away_name, modelProb: modelProb(`nhl|${g.id}`, 'away'), marketProb: a, odds: g.odds_away },
+      ],
+    });
+  }
+
+  // --- UFC: una «liga»; A y B en orden canónico (sin local).
+  for (const g of listUfc(60)) {
+    const [h, a] = deVig(g.odds_home, g.odds_away);
+    out.push({
+      sport: 'ufc',
+      league: 'ufc',
+      event: `${g.home_name} vs ${g.away_name}`,
+      commenceTime: g.commence_time,
+      matchKey: `ufc|${g.id}`,
+      sides: [
+        { label: g.home_name, modelProb: modelProb(`ufc|${g.id}`, 'home'), marketProb: h, odds: g.odds_home },
+        { label: g.away_name, modelProb: modelProb(`ufc|${g.id}`, 'away'), marketProb: a, odds: g.odds_away },
       ],
     });
   }

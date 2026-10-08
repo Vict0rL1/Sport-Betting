@@ -90,6 +90,16 @@ async function reproducir(sport: Exclude<SportId, 'tennis'>, league: string): Pr
       });
       break;
     }
+    case 'ufc': {
+      // El mismo recorrido que el backtest y la predicción publicada (ufc/evaluacion.ts): el Elo de
+      // antes de cada pelea con ganador. Sin local.
+      const { leerPeleas, recorrer } = await import('../ufc/evaluacion.ts');
+      for (const x of recorrer(leerPeleas()).pasos) {
+        anota(x.ids[0], { fecha: x.fecha, elo: Math.round(x.elos[0]), rival: x.ids[1], local: false });
+        anota(x.ids[1], { fecha: x.fecha, elo: Math.round(x.elos[1]), rival: x.ids[0], local: false });
+      }
+      break;
+    }
   }
   return por;
 }

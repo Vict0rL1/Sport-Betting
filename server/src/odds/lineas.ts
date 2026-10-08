@@ -109,7 +109,7 @@ export function margen(cuotas: number[]): number | null {
   return cuotas.reduce((a, c) => a + 1 / c, 0) - 1;
 }
 
-const PROXIMOS: Record<string, string> = { tennis: 'upcoming_matches', football: 'fb_upcoming', basketball: 'bb_upcoming', baseball: 'bsb_upcoming', nfl: 'naf_upcoming', nhl: 'nhl_upcoming' };
+const PROXIMOS: Record<string, string> = { tennis: 'upcoming_matches', football: 'fb_upcoming', basketball: 'bb_upcoming', baseball: 'bsb_upcoming', nfl: 'naf_upcoming', nhl: 'nhl_upcoming', ufc: 'ufc_upcoming' };
 
 /** El id de la fila de próximos para un evento del proveedor (la NFL lo guarda con «odds-»). */
 export function idProximo(sport: string, eventId: string): string | null {

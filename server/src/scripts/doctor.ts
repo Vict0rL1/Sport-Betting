@@ -27,6 +27,7 @@ import {
   baseballConfig,
   nflConfig,
   nhlConfig,
+  ufcConfig,
   tournamentsConfig,
 } from '../config.ts';
 import { getDb, getMeta, MIGRACIONES } from '../db.ts';
@@ -109,6 +110,7 @@ const DEPORTES: Deporte[] = [
   { nombre: 'MLB', prefijo: 'bsb_', claves: baseballConfig.leagues.flatMap((l) => l.oddsSportKeys ?? []), tabla: 'bsb_upcoming', precio: 'odds_home', meta: 'bsb_odds_refreshed_at' },
   { nombre: 'NFL', prefijo: 'naf_', claves: nflConfig.leagues.flatMap((l) => l.oddsSportKeys ?? []), tabla: 'naf_upcoming', precio: 'odds_home', meta: 'naf_odds_refreshed_at' },
   { nombre: 'NHL', prefijo: 'nhl_', claves: [nhlConfig.odds.sportKey], tabla: 'nhl_upcoming', precio: 'odds_home', meta: 'nhl_odds_refreshed_at' },
+  { nombre: 'UFC', prefijo: 'ufc_', claves: [ufcConfig.odds.sportKey], tabla: 'ufc_upcoming', precio: 'odds_home', meta: 'ufc_odds_refreshed_at' },
   {
     nombre: 'Tenis',
     prefijo: '',
@@ -447,6 +449,7 @@ if (dbExistia) {
       ultimoDe('Béisbol', 'SELECT MAX(game_date) AS u, COUNT(*) AS n FROM bsb_games'),
       ultimoDe('NFL', 'SELECT MAX(game_date) AS u, COUNT(*) AS n FROM naf_games'),
       ultimoDe('NHL', 'SELECT MAX(game_date) AS u, COUNT(*) AS n FROM nhl_games'),
+      ultimoDe('UFC', 'SELECT MAX(fecha) AS u, COUNT(*) AS n FROM ufc_fights'),
     ],
   };
   if (FUENTES) {
@@ -555,16 +558,9 @@ if (dbExistia) {
     lineas: { on: featureEncendida('mercado.lineas'), mercados: uno(() => eventosRecientes(new Date()).length, 0) },
     archivo: {
       on: featureEncendida('archivo.predicciones'),
-      predicciones: uno(() => ['prediction_log', 'fb_prediction_log', 'bb_prediction_log', 'bsb_prediction_log', 'naf_prediction_log', 'nhl_prediction_log'].reduce((a, t) => a + (db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get() as { n: number }).n, 0), 0),
+      predicciones: uno(() => ['prediction_log', 'fb_prediction_log', 'bb_prediction_log', 'bsb_prediction_log', 'naf_prediction_log', 'nhl_prediction_log', 'ufc_prediction_log'].reduce((a, t) => a + (db.prepare(`SELECT COUNT(*) AS n FROM ${t}`).get() as { n: number }).n, 0), 0),
     },
     ampliaciones: {
-      ufc: {
-        on: featureEncendida('deportes.ufc'),
-        ...uno(() => {
-          const r = db.prepare('SELECT COUNT(*) AS n, MAX(fecha) AS u FROM ufc_fights').get() as { n: number; u: string | null };
-          return { peleas: r.n, ultimo: r.u };
-        }, { peleas: 0, ultimo: null }),
-      },
       telegram: {
         on: featureEncendida('asistente.telegram'),
         token: !!process.env.TELEGRAM_BOT_TOKEN?.trim(),
