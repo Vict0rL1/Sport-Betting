@@ -101,6 +101,16 @@ export function NhlIcon(p: Props) {
   );
 }
 
+/** UFC: el octógono visto desde arriba, con la lona por dentro. */
+export function UfcIcon(p: Props) {
+  return (
+    <Svg {...p}>
+      <path d="M20.87 15.67 L15.67 20.87 L8.33 20.87 L3.13 15.67 L3.13 8.33 L8.33 3.13 L15.67 3.13 L20.87 8.33Z" />
+      <path d="M16.99 14.07 L14.07 16.99 L9.93 16.99 L7.01 14.07 L7.01 9.93 L9.93 7.01 L14.07 7.01 L16.99 9.93Z" strokeOpacity={0.55} />
+    </Svg>
+  );
+}
+
 /** Pelota de tenis: las dos curvas de la costura, una en cada esquina. */
 export function TennisIcon(p: Props) {
   return (
@@ -151,6 +161,7 @@ const POR_DEPORTE: Record<SportId, (p: Props) => ReactNode> = {
   baseball: BaseballIcon,
   nfl: NflIcon,
   nhl: NhlIcon,
+  ufc: UfcIcon,
   tennis: TennisIcon,
   bets: TicketIcon,
   trust: ShieldCheckIcon,
@@ -168,6 +179,7 @@ const POR_NOMBRE: Record<string, SportId> = {
   'Béisbol': 'baseball',
   NFL: 'nfl',
   NHL: 'nhl',
+  UFC: 'ufc',
   'Tenis': 'tennis',
   tennis: 'tennis',
   football: 'football',
@@ -175,6 +187,7 @@ const POR_NOMBRE: Record<string, SportId> = {
   baseball: 'baseball',
   nfl: 'nfl',
   nhl: 'nhl',
+  ufc: 'ufc',
 };
 export const sportIdDe = (nombre: string): SportId | null => POR_NOMBRE[nombre] ?? null;
 

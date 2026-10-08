@@ -3,7 +3,7 @@
 // Es una URL: se puede compartir.
 
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, Navigate } from 'react-router';
 import { LineChart, Histogram } from '../components/charts';
 import { TeamCrest } from '../components/ui';
 import { EstrellaSeguir } from '../components/seguimiento';
@@ -24,6 +24,12 @@ const rec = (r?: Registro) => (r ? `${r.wins}-${r.losses}${r.draws ? `-${r.draws
 
 export default function Equipo() {
   const { sport = '', league = '', id = '' } = useParams();
+  // En la UFC no hay equipos: la ficha es la del luchador.
+  if (sport === 'ufc') return <Navigate to={`/luchador/${encodeURIComponent(id)}`} replace />;
+  return <FichaEquipo sport={sport} league={league} id={id} />;
+}
+
+function FichaEquipo({ sport, league, id }: { sport: string; league: string; id: string }) {
   const { t, idioma } = useI18n();
   const f = formato(idioma);
   const [info, setInfo] = useState<Info | null | 'error'>(null);

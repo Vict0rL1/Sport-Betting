@@ -41,7 +41,7 @@ interface Riesgo {
 }
 
 // Tenis y fútbol salen del catálogo; NBA, MLB, NFL y NHL se dicen igual en los dos idiomas.
-const NOMBRE_TXT: Record<string, string> = { tennis: 'deporte.tennis', football: 'deporte.football', basketball: 'NBA', baseball: 'MLB', nfl: 'NFL', nhl: 'NHL' };
+const NOMBRE_TXT: Record<string, string> = { tennis: 'deporte.tennis', football: 'deporte.football', basketball: 'NBA', baseball: 'MLB', nfl: 'NFL', nhl: 'NHL', ufc: 'UFC' };
 const nombreTxt = (t: Traducir, k: string) => {
   const v = NOMBRE_TXT[k];
   return v == null ? k : v.startsWith('deporte.') ? t(v as Clave) : v;

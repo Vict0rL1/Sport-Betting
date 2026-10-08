@@ -28,6 +28,7 @@ const FootballDashboard = lazy(() => import('./components/football/FootballDashb
 const BaseballDashboard = lazy(() => import('./components/baseball/BaseballDashboard'));
 const NflDashboard = lazy(() => import('./components/nfl/NflDashboard'));
 const NhlDashboard = lazy(() => import('./components/nhl/NhlDashboard'));
+const UfcDashboard = lazy(() => import('./components/ufc/UfcDashboard'));
 const BetsDashboard = lazy(() => import('./components/bets/BetsDashboard'));
 const SystemTrust = lazy(() => import('./components/trust/SystemTrust'));
 const TopPicks = lazy(() => import('./components/picks/TopPicks'));
@@ -37,6 +38,7 @@ const Glosario = lazy(() => import('./pages/Glosario'));
 const Partido = lazy(() => import('./pages/Partido'));
 const Equipo = lazy(() => import('./pages/Equipo'));
 const Jugador = lazy(() => import('./pages/Jugador'));
+const Luchador = lazy(() => import('./pages/Luchador'));
 const Liga = lazy(() => import('./pages/Liga'));
 const Muestras = lazy(() => import('./pages/Muestras'));
 const Laboratorio = lazy(() => import('./pages/Laboratorio'));
@@ -203,6 +205,7 @@ function Armazon() {
             <Route path="/beisbol/:league?" element={<BaseballDashboard />} />
             <Route path="/nfl/:league?" element={<NflDashboard />} />
             <Route path="/nhl" element={<NhlDashboard />} />
+            <Route path="/ufc" element={<UfcDashboard />} />
             <Route path="/tenis/:league?" element={<TennisDashboard />} />
             <Route path="/apuestas" element={<BetsDashboard />} />
             <Route path="/apuestas/laboratorio" element={<Laboratorio />} />
@@ -218,6 +221,7 @@ function Armazon() {
             <Route path="/partido/:sport/:id" element={<Partido />} />
             <Route path="/equipo/:sport/:league/:id" element={<Equipo />} />
             <Route path="/jugador/:tour/:id" element={<Jugador />} />
+            <Route path="/luchador/:id" element={<Luchador />} />
             <Route path="/liga/:sport/:league" element={<Liga />} />
             <Route path="/_muestras" element={<Muestras />} />
             <Route path="*" element={<NoEncontrada />} />

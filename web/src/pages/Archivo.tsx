@@ -15,7 +15,7 @@ interface Fila {
 }
 interface Respuesta { filas: Fila[]; total: number; pagina: number; porPagina: number; resumen: { resueltas: number; aciertos: number; pendientes: number; aviso: { nivel: string; texto: string | null } }; ligas: { sport: string; liga: string }[] }
 
-const DEPORTES = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'tennis'];
+const DEPORTES = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'ufc', 'tennis'];
 const FILTROS = ['q', 'sport', 'liga', 'confianza', 'banda', 'resultado', 'desde', 'hasta'] as const;
 const sel = 'min-w-0 rounded-lg bg-(--raised) px-2.5 py-1.5 text-[14px] text-(--ink-body) ring-1 ring-(--line)';
 

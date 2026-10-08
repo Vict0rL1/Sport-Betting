@@ -90,6 +90,9 @@ test('cuotas de un evento: mediana entre casas', () => {
   assert.equal(ev.price['Alex Pereira'], 1.55);
   assert.equal(ev.price['Jamahal Hill'], 2.5);
   assert.equal(ev.books, 3);
+  // Con dos casas la mediana es una media: redondeada, sin el 1,9049999… de la coma flotante.
+  const dos = agregarEvento({ id: 'y', commence_time: '2026-10-10T23:00:00Z', home_team: 'Alex Pereira', away_team: 'Jamahal Hill', bookmakers: [casa(1.91, 2.0), casa(1.9, 2.1)] });
+  assert.equal(dos.price['Alex Pereira'], 1.905);
 });
 
 test('cartelera: solo la UFC (por los luchadores conocidos alrededor), el debutante sin id, y A siempre el de id menor', () => {
@@ -239,6 +242,11 @@ test('rutas: próximas con predicción y confianza, el debut sin número y dicho
   assert.equal((await app.inject({ method: 'POST', url: '/api/ufc/predict', payload: { a: L.aldo.id, b: L.erceg.id } })).statusCode, 200);
   assert.ok(((await app.inject({ method: 'GET', url: '/api/ufc/power' })).json() as { fighters: unknown[] }).fighters.length > 0);
   assert.equal((await app.inject({ method: 'GET', url: '/api/simulation/season/ufc/ufc' })).statusCode, 404, 'sin temporada que simular');
+  // ¿Acertó?: el empate no es acierto ni fallo (antes caía en el índice del segundo), y la victoria enseña el método.
+  const empate = (await app.inject({ method: 'GET', url: `/api/resultado/ufc/${encodeURIComponent('ufc|empate')}` })).json() as { resultado: string; acerto: boolean | null; marcador: string | null };
+  assert.deepEqual([empate.resultado, empate.acerto, empate.marcador], ['empate', null, 'empate']);
+  const nc = (await app.inject({ method: 'GET', url: `/api/resultado/ufc/${encodeURIComponent('ufc|nc')}` })).json() as { acerto: boolean | null; marcador: string | null };
+  assert.deepEqual([nc.acerto, nc.marcador], [null, 'sin resultado']);
   const meta = (await app.inject({ method: 'GET', url: '/api/ufc/meta' })).json() as { counts: { fights: number }; model: { rasgos: string[] } };
   assert.ok(meta.counts.fights > 0);
   assert.equal(meta.model.rasgos.length, 5);

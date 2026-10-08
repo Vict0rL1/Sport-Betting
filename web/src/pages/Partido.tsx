@@ -11,11 +11,12 @@ import BasketballCard from '../components/basketball/GameCard';
 import BaseballCard from '../components/baseball/GameCard';
 import NflCard from '../components/nfl/GameCard';
 import NhlCard from '../components/nhl/GameCard';
+import UfcCard from '../components/ufc/FightCard';
 import TennisCard from '../components/MatchCard';
 import { LineChart } from '../components/charts';
 import { EstrellaSeguir } from '../components/seguimiento';
 import { aComun, nombrePartido, URL_PARTIDO, type DeporteId, type PartidoComun } from '../lib/partidos';
-import { rutaEquipo, rutaJugador, RUTA_DE_PESTANA } from '../rutas';
+import { rutaEquipo, rutaJugador, rutaLuchador, RUTA_DE_PESTANA } from '../rutas';
 import type { PrePartido } from '../lib/trust';
 import { useI18n, formato } from '../i18n';
 import { PROFIT_COLOR, LOSS_COLOR } from '../lib/theme';
@@ -23,7 +24,7 @@ import { PROFIT_COLOR, LOSS_COLOR } from '../lib/theme';
 interface Resultado { casa: string; fuera: string; cuando: string | null; probabilidades: number[]; resuelto: boolean; resultado: 'casa' | 'empate' | 'fuera' | null; marcador: string | null; probabilidadDada: number | null; acerto: boolean | null }
 interface PorCasa { casas: string[]; series: { casa: string; seleccion: string; puntos: { at: string; cuota: number }[] }[] }
 
-const DEPORTES: DeporteId[] = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'tennis'];
+const DEPORTES: DeporteId[] = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'ufc', 'tennis'];
 
 export default function Partido() {
   const { sport = '', id = '' } = useParams();
@@ -126,6 +127,7 @@ export default function Partido() {
           {deporte === 'baseball' && <BaseballCard item={item as never} onOpenTeam={abrirEquipo} />}
           {deporte === 'nfl' && <NflCard item={item as never} onOpenTeam={abrirEquipo} />}
           {deporte === 'nhl' && <NhlCard item={item as never} onOpenTeam={(id: string) => abrirEquipo('nhl', id)} />}
+          {deporte === 'ufc' && <UfcCard item={item as never} onOpenFighter={(fid: string) => navigate(rutaLuchador(fid))} />}
           {deporte === 'tennis' && <TennisCard item={item as never} onOpenPlayer={abrirJugador} />}
         </div>
       )}

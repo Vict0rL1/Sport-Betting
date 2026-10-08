@@ -113,19 +113,24 @@ test('NHL publicada: su pestaña y la prueba con la que se publicó, sin inventa
   await expect(b).not.toContainText('log loss');
 });
 
-test('UFC en sombra: solo con su interruptor, y sin peleas ni métricas ni veredicto inventados', async ({ page, request }) => {
+test('UFC publicada: su pestaña, la prueba con la que se publicó y la ficha de luchador, sin inventar nada sin datos', async ({ page }) => {
+  await page.goto('/ufc');
+  await expect(page.getByRole('tab', { name: 'UFC' }).first()).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('button', { name: /Detalles/ }).click();
+  await expect(page.getByText('Un Elo por luchador, su récord, su edad, su alcance')).toBeVisible();
+  // Sin archivo: lo dice y da el comando; sin clave, dice que la cartelera llega con las cuotas.
+  await expect(page.getByTestId('ufc-sin-datos')).toContainText('npm run update-data:ufc');
+  await expect(page.getByTestId('ufc-sin-clave')).toContainText('npm run clave');
   await page.goto('/confianza/diagnostico');
-  await expect(page.getByRole('heading', { name: 'Diagnóstico' })).toBeVisible();
-  await expect(page.getByTestId('ufc-sombra')).toHaveCount(0);
-  expect((await request.patch('/api/features/deportes.ufc', { data: { on: true } })).ok()).toBeTruthy();
-  try {
-    await page.reload();
-    const b = page.getByTestId('ufc-sombra');
-    await expect(b).toContainText('UFC en sombra');
-    await expect(b).toContainText('sin peleas en ufc_fights');
-    await expect(b).not.toContainText('log loss');
-    await expect(page.getByTestId('ufc-veredicto')).toHaveCount(0);
-  } finally {
-    await request.patch('/api/features/deportes.ufc', { data: { on: null } });
-  }
+  const b = page.getByTestId('ufc-backtest');
+  await expect(b).toContainText('UFC: la prueba con la que se publicó');
+  await expect(b).toContainText('sin peleas en ufc_fights');
+  await expect(b).not.toContainText('log loss');
+  await expect(page.getByTestId('ufc-veredicto')).toHaveCount(0);
+  // Un luchador que no existe: se dice, no se queda cargando.
+  await page.goto('/luchador/0000000000000000');
+  await expect(page.getByText('No hay ningún luchador con ese id en el archivo de la UFC.')).toBeVisible();
+  // Las páginas de liga y de equipo de la UFC llevan a la pestaña y a la ficha del luchador.
+  await page.goto('/liga/ufc/ufc');
+  await expect(page).toHaveURL(/\/ufc$/);
 });

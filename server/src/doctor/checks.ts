@@ -367,7 +367,7 @@ export function comprobarBaseDeDatos(ruta: string, existe: boolean, conteos: Con
   if (t.demo > 0) {
     out.push(
       h(S, hayClave ? 'aviso' : 'info', `${t.demo} de DEMOSTRACIÓN (cuotas inventadas por la app, marcadas como demo)`, {
-        accion: hayClave ? ['npm run odds   # pide las cuotas reales de los seis deportes'] : undefined,
+        accion: hayClave ? ['npm run odds   # pide las cuotas reales de los siete deportes'] : undefined,
       }),
     );
   }

@@ -19,7 +19,7 @@ import { TeamCrest } from './ui';
 import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../i18n';
 
 /** El servidor manda el nombre del deporte en español: se pasa al catálogo si se conoce. */
-const ID_DE_NOMBRE: Record<string, string> = { Fútbol: 'football', Baloncesto: 'basketball', Béisbol: 'baseball', NFL: 'nfl', NHL: 'nhl', Tenis: 'tennis' };
+const ID_DE_NOMBRE: Record<string, string> = { Fútbol: 'football', Baloncesto: 'basketball', Béisbol: 'baseball', NFL: 'nfl', NHL: 'nhl', UFC: 'ufc', Tenis: 'tennis' };
 const deporteMostrado = (t: Traducir, nombre: string) => (ID_DE_NOMBRE[nombre] ? t(`deporte.${ID_DE_NOMBRE[nombre]}` as Clave) : nombre);
 
 type Origen = 'en vivo' | 'reconstruida';

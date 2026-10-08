@@ -2,7 +2,7 @@
 // simulada de final de temporada, con cómo se movieron esas probabilidades en la temporada.
 
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, Navigate } from 'react-router';
 import { Sparkline } from '../components/charts';
 import { TeamCrest } from '../components/ui';
 import { rutaEquipo } from '../rutas';
@@ -16,6 +16,12 @@ const API: Record<string, string> = { football: '/api/football', basketball: '/a
 
 export default function Liga() {
   const { sport = '', league = '' } = useParams();
+  // La UFC no tiene ligas ni clasificación que simular: su «liga» es la pestaña.
+  if (sport === 'ufc') return <Navigate to="/ufc" replace />;
+  return <LigaDeEquipos sport={sport} league={league} />;
+}
+
+function LigaDeEquipos({ sport, league }: { sport: string; league: string }) {
   const { t, idioma } = useI18n();
   const f = formato(idioma);
   const [sim, setSim] = useState<Simulacion | null | 'error'>(null);

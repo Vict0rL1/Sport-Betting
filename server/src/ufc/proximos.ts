@@ -49,7 +49,8 @@ export function agregarEvento(ev: Record<string, unknown>): EventoMma {
     }
   }
   const price: Record<string, number> = {};
-  for (const [n, xs] of Object.entries(precios)) price[n] = median(xs);
+  // Redondeada: la mediana de dos precios (1,91 y 1,90) da 1,9049999… en coma flotante.
+  for (const [n, xs] of Object.entries(precios)) price[n] = Math.round(median(xs) * 1000) / 1000;
   return { id: String(ev.id ?? ''), commence_time: String(ev.commence_time ?? ''), uno: String(ev.home_team ?? ''), otro: String(ev.away_team ?? ''), price, books: casas.length };
 }
 

@@ -177,7 +177,8 @@ export function FormDots({
   results,
   colors,
 }: {
-  results: ('W' | 'D' | 'L')[];
+  /** 'NC': el «sin resultado» de la UFC; se pinta como el empate y se dice como lo que es. */
+  results: ('W' | 'D' | 'L' | 'NC')[];
   colors: { W: string; D: string; L: string };
 }) {
   const { t } = useI18n();
@@ -187,9 +188,9 @@ export function FormDots({
       {results.map((r, i) => (
         <span
           key={i}
-          title={r === 'W' ? t('forma.ganado') : r === 'D' ? t('forma.empatado') : t('forma.perdido')}
+          title={r === 'W' ? t('forma.ganado') : r === 'D' ? t('forma.empatado') : r === 'NC' ? t('forma.sinResultado') : t('forma.perdido')}
           className="inline-block h-2 w-2 rounded-full"
-          style={{ backgroundColor: colors[r] }}
+          style={{ backgroundColor: colors[r === 'NC' ? 'D' : r] }}
         />
       ))}
     </span>
