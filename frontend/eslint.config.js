@@ -19,4 +19,18 @@ export default tseslint.config(
   },
   // Los scripts corren en Node (antes se ignoraban enteros).
   { files: ['scripts/**/*.ts'], languageOptions: { globals: globals.node } },
+  // Un `${x}` con x posiblemente `undefined` o `null` pinta «undefined» en
+  // pantalla, y TypeScript no lo ve: un campo opcional dentro de una plantilla
+  // compila. Así salió «undefined %» en el reparto del tamaño (V3, ítem 1.4).
+  // Esta regla necesita los tipos, así que solo mira `src/`.
+  {
+    files: ['src/**/*.{ts,tsx}'],
+    languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname } },
+    rules: {
+      '@typescript-eslint/restrict-template-expressions': [
+        'error',
+        { allowNumber: true, allowBoolean: true, allowNullish: false, allowAny: false, allowNever: false, allowRegExp: false },
+      ],
+    },
+  },
 )

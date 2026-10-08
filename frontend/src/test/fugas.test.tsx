@@ -107,7 +107,6 @@ const PENDIENTES: Record<string, [number, string]> = {
   'ficha/Replay · upper_snake SIN_DATOS': [3, '1.8'],
   'Hoy · plural_parentesis (es)': [1, '1.9'],
   'Hoy · plural_parentesis (s)': [1, '1.9'],
-  'Hoy · vacio undefined': [4, '1.4'],
 }
 
 // El momento de las capturas (los datos del backend son de las 14:35 UTC).

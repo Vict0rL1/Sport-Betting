@@ -58,7 +58,7 @@ export function ApiUsageBar() {
         <span
           title={
             llm.configured
-              ? `Capa de IA activa (${llm.model}). Se factura por tokens: solo corre cuando pulsas un botón de interpretación.`
+              ? `Capa de IA activa (${llm.model ?? 'modelo sin nombre'}). Se factura por tokens: solo corre cuando pulsas un botón de interpretación.`
               : 'Sin ANTHROPIC_API_KEY en .env. La app funciona igual; solo faltan las interpretaciones escritas.'
           }
           className={`rounded-full px-2 py-0.5 ${

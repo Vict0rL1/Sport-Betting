@@ -481,6 +481,11 @@ function AvoidList({
  *  con la cartera abierta contando contra los topes un peso puede salir en 0 %.
  *  Un 0 % sin motivo se lee como un error de la app; con motivo es la respuesta.
  */
+/** Un porcentaje en puntos (12.5 → «12,5 %»); lo que falta es «sin dato», no un 0 ni un «undefined». */
+function puntos(v: number | null | undefined): string {
+  return v === null || v === undefined ? 'sin dato' : `${fmtNumber(v, 1)} %`
+}
+
 function SizingPanel({ sizing }: { sizing: Sizing }) {
   const enLibro = Object.entries(sizing.cartera_actual ?? {})
   const sinAplicar = (sizing.controles ?? []).filter((c) => !c.aplicado)
@@ -493,6 +498,11 @@ function SizingPanel({ sizing }: { sizing: Sizing }) {
     sizing.aviso_cartera ||
     sinAplicar.length > 0
   if (!hayAlgoQueContar) return null
+  // Sin candidatas el backend no manda reparto (ni lo que se añade, ni la
+  // liquidez, ni la volatilidad): no hay nada que repartir. Antes se pintaba
+  // igual y salía «undefined %» (V3); ahora se dice. El panel sigue saliendo si
+  // hay un aviso de la cartera o un límite sin comprobar.
+  const sinCandidatas = Object.keys(sizing.pesos).length === 0
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-4">
@@ -500,26 +510,30 @@ function SizingPanel({ sizing }: { sizing: Sizing }) {
         Cómo se repartió el tamaño
       </h3>
 
-      <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          ['Se añade', `${sizing.invertido_pct} %`],
-          ['Ya en cartera', `${sizing.ya_invertido_pct ?? 0} %`],
-          [
-            'Volatilidad estimada',
-            sizing.vol_estimada_pct === null
-              ? 'sin dato'
-              : `${sizing.vol_estimada_pct} % / ${sizing.objetivo_vol_pct} %`,
-          ],
-          ['Liquidez', `${sizing.liquidez_pct} %`],
-        ].map(([rotulo, valor]) => (
-          <div key={rotulo}>
-            <dt className="text-[10px] uppercase tracking-wide text-slate-400">
-              {rotulo}
-            </dt>
-            <dd className="text-sm tabular-nums text-slate-900">{valor}</dd>
-          </div>
-        ))}
-      </dl>
+      {sinCandidatas ? (
+        <p className="mt-2 text-sm text-slate-500">Hoy no hay candidatas que dimensionar.</p>
+      ) : (
+        <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            ['Se añade', puntos(sizing.invertido_pct)],
+            ['Ya en cartera', puntos(sizing.ya_invertido_pct)],
+            [
+              'Volatilidad estimada',
+              sizing.vol_estimada_pct === null || sizing.vol_estimada_pct === undefined
+                ? 'sin dato'
+                : `${puntos(sizing.vol_estimada_pct)} / ${puntos(sizing.objetivo_vol_pct)}`,
+            ],
+            ['Liquidez', puntos(sizing.liquidez_pct)],
+          ].map(([rotulo, valor]) => (
+            <div key={rotulo}>
+              <dt className="text-[10px] uppercase tracking-wide text-slate-400">
+                {rotulo}
+              </dt>
+              <dd className="text-sm tabular-nums text-slate-900">{valor}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
 
       {enLibro.length > 0 && (
         <p className="mt-3 text-xs text-slate-500">
@@ -565,7 +579,8 @@ function SizingPanel({ sizing }: { sizing: Sizing }) {
         </div>
       )}
 
-      <p className="mt-3 text-[11px] leading-relaxed text-slate-400">{sizing.nota}</p>
+      {/* Sin candidatas, la nota del backend repite el estado vacío de arriba. */}
+      {!sinCandidatas && <p className="mt-3 text-[11px] leading-relaxed text-slate-400">{sizing.nota}</p>}
     </section>
   )
 }

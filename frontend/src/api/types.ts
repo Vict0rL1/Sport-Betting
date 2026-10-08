@@ -778,16 +778,19 @@ export interface Conviction {
 export interface Sizing {
   /** Lo que se AÑADE a cada posición, no su peso final. */
   pesos: Record<string, number>
-  invertido_pct: number
+  // Sin candidatas, el dimensionador devuelve solo pesos, recortes, controles y
+  // la nota: no hay reparto que contar. Estos campos faltan entonces, y antes se
+  // declaraban obligatorios: la pantalla pintaba «undefined %» (V3).
+  invertido_pct?: number
   /** Lo que las posiciones abiertas ya ocupan: los topes lo cuentan. */
   ya_invertido_pct?: number
   invertido_total_pct?: number
-  liquidez_pct: number
-  vol_estimada_pct: number | null
+  liquidez_pct?: number
+  vol_estimada_pct?: number | null
   /** Volatilidad de la cartera actual sola, sin las ideas nuevas. */
   vol_cartera_actual_pct?: number | null
-  objetivo_vol_pct: number
-  escala_aplicada: number
+  objetivo_vol_pct?: number
+  escala_aplicada?: number
   clusters: string[][]
   cartera_actual?: Record<string, number>
   recortes: string[]

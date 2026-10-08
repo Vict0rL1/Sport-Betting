@@ -815,7 +815,7 @@ function EstadoDeAlerta({ a }: { a: PriceAlert }) {
       {etiqueta}
       {/* Cuántas revisiones seguidas lleva sin poder mirarse: una es un
           tropiezo, cinco es una alerta que no te está protegiendo. */}
-      {(a.consecutive_errors ?? 0) > 1 && ` · ${a.consecutive_errors} seguidas`}
+      {a.consecutive_errors != null && a.consecutive_errors > 1 && ` · ${a.consecutive_errors} seguidas`}
     </span>
   )
 }

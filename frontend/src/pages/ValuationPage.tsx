@@ -56,7 +56,7 @@ function BarraRango({
         <div
           className="absolute top-0.5 h-5 w-0.5 bg-slate-900"
           style={{ left: `calc(${marca}% - 1px)` }}
-          title={`Precio actual: ${actual}`}
+          title={`Precio actual: ${fmtNumber(actual, 2)}`}
         />
       )}
     </div>
