@@ -623,10 +623,11 @@ ETFs) usa lo que sí predice el resultado de un ETF:
 
 1. **El coste, con peso doble.** Es el único factor con evidencia robusta y, a
    diferencia de la rentabilidad, es un dato conocido y garantizado: lo pagas
-   gane o pierda el fondo. Se muestra en dinero —«75 € al año por cada
-   10.000»— porque «0,75 %» no significa nada a simple vista.
+   gane o pierda el fondo. Se muestra en dinero —«75 al año por cada 10.000
+   invertidos»— porque «0,75 %» no significa nada a simple vista. Sin símbolo
+   de moneda: es una proporción, y vale igual para un fondo en dólares.
 2. **La tendencia.** El mismo filtro de la media de 200 sesiones.
-3. **El tamaño.** Por debajo de 100 M$ hay riesgo real de liquidación, y si
+3. **El tamaño.** Por debajo de 100 M de patrimonio hay riesgo real de liquidación, y si
    cierran el fondo te devuelven el dinero cuando a ellos les conviene.
 
 Y avisa del error más caro al montar una cartera de ETFs: **dos fondos que se

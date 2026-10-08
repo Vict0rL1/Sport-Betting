@@ -607,7 +607,8 @@ function RuleBacktestPanel({ result }: { result: RuleBacktestResponse }) {
         <p className="mt-4 text-xs text-slate-600">
           <strong>Cómo terminaron:</strong> {result.salidas.objetivo} por objetivo,{' '}
           {result.salidas.stop} por stop, {result.salidas.plazo} por vencimiento del año.
-          Coste aplicado: {result.coste_total_por_operacion_pct} % por operación completa
+          Coste aplicado: {fmtPct(result.coste_total_por_operacion_pct, 2, { enPuntos: true, ceros: false })} por
+          operación completa
           {result.coste_por_lado_pct > 1 ? ' (incluye conversión de divisa)' : ''}.
         </p>
       )}

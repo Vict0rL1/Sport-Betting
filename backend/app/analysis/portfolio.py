@@ -6,6 +6,7 @@ para no inventar un valor de cartera que no se conoce.
 """
 
 from __future__ import annotations
+from app.formato import fmt_pct
 
 
 def position_metrics(position: dict, price: float | None) -> dict:
@@ -82,7 +83,7 @@ def concentration_warning(weights: list[dict], threshold: float = 0.25) -> list[
     """Avisos de concentración. No es una recomendación: es un hecho sobre
     la cartera que conviene ver explícitamente."""
     return [
-        f"{row['label']} representa el {row['weight'] * 100:.1f} % de la cartera"
+        f"{row['label']} representa el {fmt_pct(row['weight'])} de la cartera"
         for row in weights
         if row["weight"] > threshold
     ]

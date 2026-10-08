@@ -50,6 +50,7 @@ from app.analysis.valuation import rango_de_valor, redondear, sensibilidad_orden
 from app.cache.cache import MarketDataService
 from app.db.engine import get_session
 from app.deps import get_service
+from app.formato import fmt_num, fmt_pct
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
 from app.simbolos import SimboloRuta, validar_simbolo
@@ -162,7 +163,7 @@ def _escenarios_por_defecto(crecimiento: dict) -> dict[str, dict]:
     base = min(historico, CRECIMIENTO_MAXIMO)
     motivo = (
         f"No hay crecimiento histórico utilizable (ni FCF ni ingresos): se SUPONE "
-        f"un {CRECIMIENTO_SUPUESTO * 100:.0f} % anual. Es un supuesto, no un dato "
+        f"un {fmt_pct(CRECIMIENTO_SUPUESTO, 0)} anual. Es un supuesto, no un dato "
         "de la empresa, y mueve el valor más que casi ningún otro."
         if supuesto
         else None
@@ -352,14 +353,14 @@ def valorar(
         global_["factor"] = round(factor, 2) if factor else None
         global_["nota"] = (
             f"Del escenario más pesimista al más optimista hay un factor de "
-            f"{factor:.1f}×. Un rango así no sirve para decidir un precio de "
+            f"{fmt_num(factor, 1)}×. Un rango así no sirve para decidir un precio de "
             "entrada; sirve para ver qué supuestos lo abren tanto — mira abajo "
             "cuál manda. Estrecharlo exige defender supuestos más ceñidos, no "
             "quedarse con el del medio."
             if factor and factor >= 2
             else (
-                f"El rango va de {global_['bajo']} a {global_['alto']} (factor "
-                f"{factor:.1f}×). Ningún punto de dentro es más cierto que otro."
+                f"El rango va de {fmt_num(global_['bajo'])} a {fmt_num(global_['alto'])} (factor "
+                f"{fmt_num(factor, 1)}×). Ningún punto de dentro es más cierto que otro."
                 if factor
                 else ""
             )
@@ -457,7 +458,7 @@ def valorar(
         "comparables": _comparables(service, symbol, datos["precio"], datos["eps"]),
         "nota_supuestos": (
             "Los supuestos de partida salen del crecimiento histórico REAL de la "
-            f"empresa, acotado al {CRECIMIENTO_MAXIMO * 100:.0f} % — extrapolar a "
+            f"empresa, acotado al {fmt_pct(CRECIMIENTO_MAXIMO, 0)} — extrapolar a "
             "perpetuidad el mejor quinquenio es el error más común del DCF casero. "
             "Cámbialos: son un punto de arranque, no una opinión de la app."
         ),

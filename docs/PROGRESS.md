@@ -25,8 +25,8 @@ Material de partida: `docs/REVISION_GENERAL.md` (revisión del 8-oct-2026) y sus
 - [x] **1.3** V9 · etiquetas de IA — estado: hecho · commit: `9c68e0f` · nota: `components/ia/ContenidoIA.tsx` (etiqueta, bloque y botón con `--ai`/`--ai-bg`) sustituye 4 copias; también la píldora «IA activa». Hermanos: `text-amber-700` (3,45:1, 10 ficheros) → `amber-800`; `text-sky-950` dejaba invisible el coste antes de gastar en IA → `sky-900`. Guardas: fondos 50/100 y textos 700–950 solo si `index.css` los invierte; nada `violet-*` suelto. Test de render con IA presente.
 - [x] **1.4** V3 · «undefined %» en el reparto del tamaño — estado: hecho · commit: `fc7e0d6` · nota: estado vacío «Hoy no hay candidatas que dimensionar»; campos del reparto opcionales en `types.ts`; «Ya en cartera» ya no rellena con 0. Guarda: ESLint con tipos (`restrict-template-expressions`, sin nulos en plantillas), que destapó 3 hermanos (modelo de IA, errores seguidos de alertas, precio en la barra de valoración). Trinquete: fuera la fila de `undefined`.
 - [x] **1.5** V11 · contradicción en «Deuda y solidez» — estado: hecho · commit: `62f3b08` · nota: la lectura solo miraba deuda/capital y cobertura; ahora «sin datos» solo si faltan los cuatro datos de la sección, y si no dice lo que hay y nombra lo que falta. Deuda parcial dicha como en la Ronda 2 (nota y marcador compartido con Salud).
-- [x] **1.6** V18 · etiquetas de ventana fija (5A, 10A, TTM) — estado: hecho · commit: (este commit) · nota: el informe, Fundamentales y las dos valoraciones rotulaban «5A» una tasa calculada con los años que hubiera (uno en ACME); ahora `<Ventana>` dice la ventana real y la marca «parcial» si es corta, y la lectura del backend la nombra. Hermanos: el prompt del informe IA decía «CAGR 5A» con la ventana corta; la aceleración (5A frente a 3A) se calculaba con 3 años o menos, donde las dos tasas coinciden. Se quedan como están las cifras cuya ventana define el proveedor (`revenue_growth_5y`/`eps_growth_5y` de Finnhub, bono a 5 años de FRED). Guardas: tests de lectura y prompt en el backend; render del informe con la respuesta real de ACME.
-- [ ] **1.7** V4, V5, V8 · un solo sistema de formato (`formato.py` / `formato.ts`) — estado: pendiente · commit: — · nota: —
+- [x] **1.6** V18 · etiquetas de ventana fija (5A, 10A, TTM) — estado: hecho · commit: `e70f3a8` · nota: el informe, Fundamentales y las dos valoraciones rotulaban «5A» una tasa calculada con los años que hubiera (uno en ACME); ahora `<Ventana>` dice la ventana real y la marca «parcial» si es corta, y la lectura del backend la nombra. Hermanos: el prompt del informe IA decía «CAGR 5A» con la ventana corta; la aceleración (5A frente a 3A) se calculaba con 3 años o menos, donde las dos tasas coinciden. Se quedan como están las cifras cuya ventana define el proveedor (`revenue_growth_5y`/`eps_growth_5y` de Finnhub, bono a 5 años de FRED). Guardas: tests de lectura y prompt en el backend; render del informe con la respuesta real de ACME.
+- [x] **1.7** V4, V5, V8 · un solo sistema de formato (`formato.py` / `formato.ts`) — estado: hecho · commit: `00c5b77` + (este commit) · nota: módulos gemelos con una tabla de casos compartida (pytest y Vitest dan la misma cadena; el backend redondea como ICU). Frontend migrado en `00c5b77` (V5 y V8 en pantalla); backend aquí: 256 formatos sueltos y las cifras crudas («EPS estimado 0.52», «≥ 0.7», «90.0») pasan por `formato.py`. Hermanos: rótulos «media 200 ± X %» escritos a mano (ahora salen de la constante); `eps_estimate` 0,0 descartado por *falsy*; «de hace 0 min» y «nuevas 0» con el dato ausente; «€» y «B$» en ETFs sin moneda; cifras crudas en el prompt del informe IA (un `None` llegaba tal cual); con dos divisas, importes sin código en la cartera. Guardas: tabla compartida; test AST (especificadores, `round()` y constantes decimales crudas, 3 internos con motivo); ESLint contra `toFixed`/`toLocaleString`/`Intl`; patrón `decimal_punto` en los dos trinquetes de fugas. Fuera del trinquete las 6 filas del 1.7.
 - [ ] **1.8** V6 · identificadores internos, diccionario de etiquetas y `docs/GLOSARIO.md` — estado: pendiente · commit: — · nota: —
 - [ ] **1.9** V7 · gramática, plurales y concordancia — estado: pendiente · commit: — · nota: —
 - [ ] **1.10** V13 · mensajes obsoletos — estado: pendiente · commit: — · nota: —
@@ -121,11 +121,14 @@ que vengan).
   `TickerPage` trata la cotización como imprescindible: si falta, enseña «No se encontró el símbolo» y
   ninguna pestaña, aunque EDGAR tenga estados financieros, análisis, calidad e historial. Ausente ≠ «no
   existe». Para el ítem 2.1 (estados de dato); hasta entonces la captura `empresa_sin_datos` fotografía eso.
-- **37 `?? 0` en el frontend** (`grep -rn "?? 0" frontend/src`): la mayoría solo eligen un color por el
-  signo, pero alguno puede pintar un 0 donde falta el dato. Misma familia que el `or 0` de la demo. Para
-  1.7 (formato) y 2.1 (estados de dato).
-- **ETFs (captura `22b_etfs_recomendar`)**: «Patrimonio 400.0 B$» en la recomendación frente a «400 mM»
-  en la tabla, y «3 € al año por cada 10.000» en fondos en dólares. Para 1.7 (formato y moneda).
+- **`?? 0` en el frontend** (`grep -rn "?? 0" frontend/src`): la mayoría solo eligen un color por el
+  signo, pero alguno puede pintar un 0 donde falta el dato. En 1.7 se arreglaron los que pintaban una
+  cifra (tasa de acierto, minutos de un precio viejo, alertas nuevas); quedan los de color y orden.
+  Para 2.1 (estados de dato).
+- **Las posiciones cerradas no traen su moneda** (`ClosedPosition` en la API): con dos divisas, su P&L
+  realizado sale sin código. Arreglarlo cambia el contrato de `/api/portfolio`; para 2.1 o 3.x.
+- **«Estimación a la tarifa de Opus 5»** escrito a mano en `routers/earnings.py`: el modelo y su
+  tarifa deberían salir de la configuración. Para 1.11.
 - **El texto de la IA sale con el Markdown en crudo** («\*\*Lectura…\*\*»): `content_md` se pinta con
   `whitespace-pre-wrap`, sin interpretar. Visto en las capturas `con_ia` del ítem 1.3. Para 2.x (o
   pedir texto plano al modelo).

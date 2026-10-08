@@ -29,6 +29,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
+from app.formato import fmt_num
 
 # Menos de esto y una regresión de dos variables no tiene grados de libertad
 # suficientes para nada. Es un límite duro, no una recomendación.
@@ -158,8 +159,8 @@ def ajustar_por_crecimiento_y_calidad(
             "indice_condicion": round(min(condicion, 1e6), 1),
             "nota": (
                 f"Crecimiento y calidad se mueven casi juntos en estos pares "
-                f"(índice de condición {min(condicion, 1e6):.0f}, umbral "
-                f"{MAX_CONDICION:.0f}): la "
+                f"(índice de condición {fmt_num(min(condicion, 1e6), 0)}, umbral "
+                f"{fmt_num(MAX_CONDICION, 0)}): la "
                 "regresión no puede separar sus efectos y los coeficientes serían "
                 "ruido con signo aleatorio. Se enseña la comparación cruda, sin "
                 "ajustar. Que las empresas buenas crezcan más no es un fallo de los "
@@ -256,7 +257,7 @@ def _leer(
     if not fiable:
         return (
             f"El crecimiento y la calidad explican poco del múltiplo en esta "
-            f"muestra (R² = {r2:.2f} con {n} pares): el ajuste no sostiene una "
+            f"muestra (R² = {fmt_num(r2)} con {n} pares): el ajuste no sostiene una "
             "conclusión. Puede ser que estos pares no sean realmente comparables, "
             "o que en este sector el múltiplo lo mande otra cosa. Mira la "
             "comparación cruda y trátala como lo que es — cruda."
@@ -266,9 +267,9 @@ def _leer(
 
     base = (
         f"Con {n} pares y {gl} grados de libertad, la relación entre múltiplo, "
-        f"crecimiento y calidad (R² = {r2:.2f}) sugiere un {etiqueta} de "
-        f"{intervalo[0]:.1f}–{intervalo[1]:.1f} para el perfil del objetivo. "
-        f"Cotiza a {objetivo['multiplo']:.1f}. "
+        f"crecimiento y calidad (R² = {fmt_num(r2)}) sugiere un {etiqueta} de "
+        f"{fmt_num(intervalo[0], 1)}–{fmt_num(intervalo[1], 1)} para el perfil del objetivo. "
+        f"Cotiza a {fmt_num(objetivo['multiplo'], 1)}. "
     )
     if dentro:
         return base + (
@@ -319,8 +320,8 @@ def rango_de_precio_implicito(
             else "por debajo"
         )
         salida["nota"] = (
-            f"El intervalo de comparables da {bajo:.0f}–{alto:.0f}, y cotiza a "
-            f"{precio_actual:.0f} ({salida['posicion']}). Es un intervalo, no un "
+            f"El intervalo de comparables da {fmt_num(bajo, 0)}–{fmt_num(alto, 0)}, y cotiza a "
+            f"{fmt_num(precio_actual, 0)} ({salida['posicion']}). Es un intervalo, no un "
             "precio objetivo: los extremos valen tanto como cualquier punto de "
             "dentro."
         )

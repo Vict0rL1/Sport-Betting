@@ -47,7 +47,7 @@ def test_un_umbral_cruzado_salta_con_el_valor_y_el_umbral():
     assert r["salta"] is True
     assert r["valor"] == 0.16
     assert r["umbral"] == 0.18
-    assert "0.160" in r["detalle"]
+    assert "0,160" in r["detalle"]
     assert r["ejercicio"] == 2025
 
 

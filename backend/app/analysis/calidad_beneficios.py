@@ -36,6 +36,7 @@ import json
 
 from app import datos
 from app.analysis.fundamentals import free_cash_flow, partida
+from app.formato import fmt_num, fmt_pct
 
 BUENO, NORMAL, AVISO, DESCONOCIDO = "bueno", "normal", "aviso", "desconocido"
 
@@ -143,7 +144,8 @@ def analizar(periodos: list[dict], trimestres: list[dict] | None = None, obtenid
 
 
 def _conversion(ult, periodos, p, fy):
-    regla = f"CFO / beneficio neto ≥ {CFO_NI_BUENO} bueno; < {CFO_NI_AVISO} aviso (y FCF / beneficio < {FCF_NI_DEBIL} aviso)"
+    regla = (f"CFO / beneficio neto ≥ {fmt_num(CFO_NI_BUENO, 2, ceros=False)} bueno; "
+             f"< {fmt_num(CFO_NI_AVISO, 2, ceros=False)} aviso (y FCF / beneficio < {fmt_num(FCF_NI_DEBIL, 2, ceros=False)} aviso)")
     cfo, ni = p(ult, "cfo"), p(ult, "net_income")
     if ni["valor"] is None or cfo["valor"] is None:
         return _desconocido("conversion_caja", regla, "falta el flujo operativo o el beneficio", fy,
@@ -168,7 +170,8 @@ def _conversion(ult, periodos, p, fy):
 
 
 def _accruals(ult, ant, p, fy):
-    regla = f"(beneficio − CFO) / activos medios < {ACCRUALS_NORMAL} bueno; > {ACCRUALS_AVISO} aviso"
+    regla = (f"(beneficio − CFO) / activos medios < {fmt_num(ACCRUALS_NORMAL, 2, ceros=False)} bueno; "
+             f"> {fmt_num(ACCRUALS_AVISO, 2, ceros=False)} aviso")
     ni, cfo, act = p(ult, "net_income"), p(ult, "cfo"), p(ult, "total_assets")
     act_ant = p(ant, "total_assets")
     if None in (ni["valor"], cfo["valor"], act["valor"]):
@@ -186,8 +189,8 @@ def _accruals(ult, ant, p, fy):
 
 
 def _brecha(ult, ant, periodos, p, fy, campo, categoria, nombre):
-    regla = (f"crecimiento de {nombre} − crecimiento de ingresos > {BRECHA_CIRCULANTE_AVISO:.0%} aviso "
-             f"(> {BRECHA_CIRCULANTE_NORMAL:.0%} normal)")
+    regla = (f"crecimiento de {nombre} − crecimiento de ingresos > {fmt_pct(BRECHA_CIRCULANTE_AVISO, 0)} aviso "
+             f"(> {fmt_pct(BRECHA_CIRCULANTE_NORMAL, 0)} normal)")
     if ant is None:
         return _desconocido(categoria, regla, "hace falta el ejercicio anterior", fy)
     x, x_ant = p(ult, campo), p(ant, campo)
@@ -217,7 +220,7 @@ def _brecha(ult, ant, periodos, p, fy, campo, categoria, nombre):
 
 
 def _sbc(ult, periodos, p, fy):
-    regla = f"SBC / ingresos < {SBC_NORMAL:.0%} bueno; > {SBC_AVISO:.0%} aviso; creciente 3 años seguidos aviso"
+    regla = f"SBC / ingresos < {fmt_pct(SBC_NORMAL, 0)} bueno; > {fmt_pct(SBC_AVISO, 0)} aviso; creciente 3 años seguidos aviso"
     sbc, rev, ni = p(ult, "sbc"), p(ult, "revenue"), p(ult, "net_income")
     if sbc["valor"] is None or not rev["valor"]:
         return _desconocido("sbc", regla, "sin compensación en acciones reportada o sin ingresos", fy, {"sbc": sbc})
@@ -234,8 +237,8 @@ def _sbc(ult, periodos, p, fy):
 
 
 def _circulante(ult, p, fy):
-    regla = (f"parte del CFO que viene del circulante > {CIRCULANTE_EN_CFO_AVISO:.0%} aviso "
-             f"(> {CIRCULANTE_EN_CFO_NORMAL:.0%} normal)")
+    regla = (f"parte del CFO que viene del circulante > {fmt_pct(CIRCULANTE_EN_CFO_AVISO, 0)} aviso "
+             f"(> {fmt_pct(CIRCULANTE_EN_CFO_NORMAL, 0)} normal)")
     cfo = p(ult, "cfo")
     cambios = {c: p(ult, c) for c in ("change_receivables", "change_inventory", "change_payables")}
     if cfo["valor"] is None or all(v["valor"] is None for v in cambios.values()) or cfo["valor"] <= 0:
@@ -256,7 +259,7 @@ def _circulante(ult, p, fy):
 
 
 def _capitalizado(ult, p, fy):
-    regla = f"software capitalizado / ingresos > {CAPITALIZADO_AVISO:.0%} aviso"
+    regla = f"software capitalizado / ingresos > {fmt_pct(CAPITALIZADO_AVISO, 0)} aviso"
     cap, rev = p(ult, "capitalized_software"), p(ult, "revenue")
     if cap["valor"] is None or not rev["valor"]:
         return _desconocido("costes_capitalizados", regla,
@@ -268,8 +271,8 @@ def _capitalizado(ult, p, fy):
 
 
 def _extraordinarios(ult, p, fy):
-    regla = (f"|partidas no recurrentes| / |beneficio neto| > {EXTRAORDINARIOS_AVISO:.0%} aviso; "
-             f"tipo fiscal efectivo < {TIPO_FISCAL_BAJO:.0%} con beneficio antes de impuestos positivo aviso")
+    regla = (f"|partidas no recurrentes| / |beneficio neto| > {fmt_pct(EXTRAORDINARIOS_AVISO, 0)} aviso; "
+             f"tipo fiscal efectivo < {fmt_pct(TIPO_FISCAL_BAJO, 0)} con beneficio antes de impuestos positivo aviso")
     ni = p(ult, "net_income")
     partidas = {
         "reestructuracion": p(ult, "restructuring"),
@@ -297,7 +300,7 @@ def _extraordinarios(ult, p, fy):
 
 
 def _calidad_fcf(periodos, p, fy):
-    regla = f"beneficio +{DIVERGENCIA_FCF:.0%} y FCF −{DIVERGENCIA_FCF:.0%} en los dos últimos ejercicios aviso"
+    regla = f"beneficio +{fmt_pct(DIVERGENCIA_FCF, 0)} y FCF −{fmt_pct(DIVERGENCIA_FCF, 0)} en los dos últimos ejercicios aviso"
     if len(periodos) < 3:
         return _desconocido("calidad_fcf", regla, "hacen falta tres ejercicios", fy)
     a, b = periodos[-3], periodos[-1]

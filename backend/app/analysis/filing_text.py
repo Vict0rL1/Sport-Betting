@@ -27,6 +27,7 @@ from __future__ import annotations
 import html
 import re
 import unicodedata
+from app.formato import fmt_num
 
 # Secciones que interesan, por formulario. Los rótulos son los de la SEC.
 #
@@ -229,8 +230,8 @@ def cabe_en_presupuesto(caracteres: int, limite: int = LIMITE_CARACTERES) -> dic
             None
             if caracteres <= limite
             else (
-                f"El texto ocupa {caracteres:,} caracteres (~{tokens:,} tokens) y el "
-                f"tope es {limite:,}. No se recorta automáticamente: un análisis "
+                f"El texto ocupa {fmt_num(caracteres, 0)} caracteres (~{fmt_num(tokens, 0)} tokens) y el "
+                f"tope es {fmt_num(limite, 0)}. No se recorta automáticamente: un análisis "
                 "sobre media sección parece completo y no lo es."
             )
         ),

@@ -55,6 +55,7 @@ from app.cache.cache import MarketDataService
 from app.db.engine import get_session
 from app.db.models import Instrument, LlmOutput, Position, WatchlistItem
 from app.deps import get_llm, get_service
+from app.formato import fmt_num, fmt_pct
 from app.llm.base import LLMProvider, LLMUnavailableError
 from app.llm.signal_llm import explain_signal, extract_events, sentiment_from_events
 from app.providers.base import DataNotFoundError
@@ -1351,8 +1352,8 @@ def _rule_verdict(resultado: dict, sin_filtro: dict) -> str:
     esperanza = resultado["esperanza_pct"]
     ventaja = resultado.get("ventaja_pct")
     partes = [
-        f"{n} operaciones, {resultado['tasa_acierto'] * 100:.0f} % de aciertos, "
-        f"esperanza de {esperanza:+.2f} % por operación neta de costes."
+        f"{n} operaciones, {fmt_pct(resultado['tasa_acierto'], 0)} de aciertos, "
+        f"esperanza de {fmt_pct(esperanza, 2, signo=True, en_puntos=True)} por operación neta de costes."
     ]
 
     if esperanza <= 0:
@@ -1362,12 +1363,12 @@ def _rule_verdict(resultado: dict, sin_filtro: dict) -> str:
         )
     elif ventaja is not None and ventaja <= 0:
         partes.append(
-            f"Pero comprar el universo entero a ciegas daba {resultado['referencia_pct']:+.2f} %: "
+            f"Pero comprar el universo entero a ciegas daba {fmt_pct(resultado['referencia_pct'], 2, signo=True, en_puntos=True)}: "
             "las reglas ganan menos que no hacer nada. El trabajo extra no se paga."
         )
     else:
         partes.append(
-            f"Supera en {ventaja:+.2f} puntos a comprar a ciegas. Es una ventaja "
+            f"Supera en {fmt_num(ventaja, signo=True)} puntos a comprar a ciegas. Es una ventaja "
             "real en el periodo probado, no una garantía futura."
         )
 
@@ -1377,12 +1378,12 @@ def _rule_verdict(resultado: dict, sin_filtro: dict) -> str:
         if propia > otra:
             partes.append(
                 f"El filtro de la media de 200 sesiones aporta: sin él la "
-                f"esperanza baja a {otra:+.2f} %."
+                f"esperanza baja a {fmt_pct(otra, 2, signo=True, en_puntos=True)}."
             )
         else:
             partes.append(
                 f"El filtro de la media de 200 sesiones NO aporta: sin él la "
-                f"esperanza sube a {otra:+.2f} %. Conviene revisarlo."
+                f"esperanza sube a {fmt_pct(otra, 2, signo=True, en_puntos=True)}. Conviene revisarlo."
             )
 
     partes.append(
@@ -1407,12 +1408,12 @@ def _backtest_verdict(n: int, reliable_buckets: int, hit_rate: float | None) -> 
         )
     if hit_rate is not None and 0.45 <= hit_rate <= 0.55:
         return (
-            f"Tasa de acierto global {hit_rate:.0%} sobre {n} observaciones: "
+            f"Tasa de acierto global {fmt_pct(hit_rate, 0)} sobre {n} observaciones: "
             "indistinguible de lanzar una moneda. El modelo NO demuestra tener "
             "capacidad de ordenar el universo."
         )
     return (
-        f"Tasa de acierto global {hit_rate:.0%} sobre {n} observaciones "
+        f"Tasa de acierto global {fmt_pct(hit_rate, 0)} sobre {n} observaciones "
         f"({reliable_buckets} categorías con muestra suficiente). Ojo: con "
         "universos pequeños y pocos rebalanceos, este resultado tiene mucha "
         "varianza — repítelo con otro universo antes de darlo por bueno."

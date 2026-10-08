@@ -31,6 +31,7 @@ from __future__ import annotations
 import math
 from datetime import date, timedelta
 from statistics import NormalDist
+from app.formato import fmt_num
 
 # Fracción final del periodo que queda reservada e intocable.
 FRACCION_HOLDOUT = 0.30
@@ -272,8 +273,8 @@ def sharpe_deflactado(
         "es_hallazgo": dsr >= 0.95,
         "nota": (
             f"Con {n_pruebas} pruebas registradas, el mejor de ellas tendría un "
-            f"Sharpe de {sr0:.3f} por periodo solo por haber mirado tantas veces. "
-            f"El observado es {sr:.3f}. "
+            f"Sharpe de {fmt_num(sr0, 3)} por periodo solo por haber mirado tantas veces. "
+            f"El observado es {fmt_num(sr, 3)}. "
             + (
                 "Supera el umbral con holgura: es un hallazgo."
                 if dsr >= 0.95
@@ -328,7 +329,7 @@ def corregir_multiples(pvalores: dict[str, float], alfa: float = 0.05) -> dict:
         "sobreviven_bh": [k for k, v in bh.items() if v],
         "nota": (
             f"Con {m} comparaciones y alfa {alfa}, Bonferroni exige un p-valor "
-            f"por debajo de {alfa / m:.5f} para cada una. Benjamini-Hochberg es "
+            f"por debajo de {fmt_num(alfa / m, 5)} para cada una. Benjamini-Hochberg es "
             "menos estricto porque controla la proporción de falsos entre los "
             "declarados, no la probabilidad de que haya uno solo — es lo "
             "adecuado cuando lo que buscas son candidatos a verificar después."

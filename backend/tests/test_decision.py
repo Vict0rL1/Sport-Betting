@@ -128,7 +128,7 @@ def test_mantener_lo_que_va_bien_y_reportar_la_plusvalia():
     d = decide(señal(0.7), precio(last=120, sma200=100), {"cost_basis": 100})
     assert d["action"] == "mantener"
     assert d["pnl_pct"] == 20.0
-    assert any("+20.00 %" in r for r in d["reasons"])
+    assert any("+20,00\u00a0%" in r for r in d["reasons"])
 
 
 def test_una_posicion_siempre_lleva_sus_disparadores_de_salida():

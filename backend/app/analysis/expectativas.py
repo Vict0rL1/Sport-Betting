@@ -29,6 +29,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from app import datos
 from app import punto_en_el_tiempo as pit
+from app.formato import fmt_num
 
 # --- Métricas y tolerancias ----------------------------------------------------
 #
@@ -423,8 +424,9 @@ def comprobar_escala(x: dict, trimestres: list[dict]) -> dict:
     r = {"estado": estado, "cifra": cifra, "referencia": v, "periodo_referencia": q.get("end_date"),
          "ratio": round(ratio, 4), "banda": list(banda)}
     if estado == "dudosa":
-        r["motivo"] = (f"{cifra:g} frente a {v:g} del trimestre cerrado el {q.get('end_date')} "
-                       f"(×{ratio:.3g}, fuera de {banda[0]:g}–{banda[1]:g}): parece otra escala")
+        r["motivo"] = (f"{fmt_num(cifra, 4, ceros=False)} frente a {fmt_num(v, 4, ceros=False)} del trimestre "
+                       f"cerrado el {q.get('end_date')} ({fmt_num(ratio, 0 if abs(ratio) >= 100 else 2, ceros=False)} veces, fuera de "
+                       f"{fmt_num(banda[0], 2, ceros=False)}–{fmt_num(banda[1], 2, ceros=False)}): parece otra escala")
     return r
 
 

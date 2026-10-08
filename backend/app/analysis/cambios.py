@@ -22,6 +22,7 @@ import hashlib
 import json
 
 from app import datos
+from app.formato import fmt_num
 
 # --- Umbrales de materialidad --------------------------------------------------
 #
@@ -244,11 +245,11 @@ def comparar_tesis(antes: dict, ahora: dict, impacto_evento: list[dict] | None =
                 if dist_antes - dist_ahora >= 0.01:
                     salida["deteriorados"].append(
                         {"punto": texto, "antes": va, "ahora": vb, "umbral": u,
-                         "detalle": f"se acerca a su umbral ({va:.3f} → {vb:.3f}, umbral {u:.3f})"})
+                         "detalle": f"se acerca a su umbral ({fmt_num(va, 3)} → {fmt_num(vb, 3)}, umbral {fmt_num(u, 3)})"})
                 elif dist_ahora - dist_antes >= 0.01:
                     salida["confirmados"].append(
                         {"punto": texto, "antes": va, "ahora": vb, "umbral": u,
-                         "detalle": f"se aleja de su umbral ({va:.3f} → {vb:.3f})"})
+                         "detalle": f"se aleja de su umbral ({fmt_num(va, 3)} → {fmt_num(vb, 3)})"})
     destino = {"invalidado": "invalidaciones", "debilitado": "deteriorados", "confirmado": "confirmados"}
     for i in impacto_evento or []:
         if i.get("estado") in destino:
@@ -321,5 +322,5 @@ def comparar_decisiones(antes: dict, ahora: dict, pos_antes=None, pos_ahora=None
 
 def _fmt(x) -> str:
     if isinstance(x, float):
-        return f"{x:+.2f}" if abs(x) < 10 else f"{x:.2f}"
+        return fmt_num(x, signo=True) if abs(x) < 10 else fmt_num(x)
     return str(x)

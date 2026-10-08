@@ -12,7 +12,7 @@ type Caso = [unknown[], Record<string, unknown>, string]
 const FUNCIONES: Record<string, (args: unknown[], op: Record<string, unknown>) => string> = {
   fmt_num: ([v, d], op) => formato.fmtNum(cifra(v), d as number | undefined, op),
   fmt_pct: ([v, d], op) =>
-    formato.fmtPct(cifra(v), d as number | undefined, { signo: op.signo as boolean, enPuntos: op.en_puntos as boolean }),
+    formato.fmtPct(cifra(v), d as number | undefined, { signo: op.signo as boolean, enPuntos: op.en_puntos as boolean, ceros: op.ceros as boolean | undefined }),
   fmt_dinero: ([v, m, d], op) => formato.fmtDinero(cifra(v), m as string | null, d as number | undefined, op),
   fmt_compacto: ([v, m]) => formato.fmtCompacto(cifra(v), m as string | undefined),
   fmt_fecha: ([v], op) => formato.fmtFecha(v as string | null, op),

@@ -31,6 +31,7 @@ from typing import Callable
 
 from app import datos
 from app.analysis import alertas
+from app.formato import fmt_num
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
 from app.registro import log
@@ -82,16 +83,19 @@ def obtener_precio(
             return None, ERROR, f"{type(exc).__name__}: {exc}"[:300]
         # El buscador puede devolver el precio suelto o la respuesta entera del
         # servicio de datos; en el segundo caso trae su `estado`.
-        viejo_seg = None
+        viejo, viejo_seg = False, None
         if isinstance(crudo, dict):
             if crudo.get("estado") == "viejo":
-                viejo_seg = datos.numero(crudo.get("antiguedad_segundos")) or 0
+                # Sin antigüedad no es «de hace 0 min» (ausente ≠ cero).
+                viejo, viejo_seg = True, datos.numero(crudo.get("antiguedad_segundos"))
             crudo = crudo.get("price")
         precio = datos.precio(crudo)
         if precio is None:
             return None, SIN_DATOS, f"precio inutilizable ({crudo!r})"
-        if viejo_seg is not None:
-            return precio, VIEJO, f"de hace {round(viejo_seg / 60)} min"
+        if viejo:
+            if viejo_seg is None:
+                return precio, VIEJO, "de antigüedad desconocida"
+            return precio, VIEJO, f"de hace {fmt_num(viejo_seg / 60, 0)} min"
         return precio, None, None
     return None, ERROR, "sin respuesta tras reintentar"  # inalcanzable, por completitud
 

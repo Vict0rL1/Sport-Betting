@@ -223,7 +223,7 @@
           "condiciones": [
            {
             "actual": -0.947,
-            "condicion": "puntuación ≥ +0.35",
+            "condicion": "puntuación ≥ +0,35",
             "distancia": 1.297,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -237,7 +237,7 @@
           "condiciones": [
            {
             "actual": -0.947,
-            "condicion": "puntuación > -0.35",
+            "condicion": "puntuación > -0,35",
             "distancia": 0.597,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -254,7 +254,7 @@
         "levels": null,
         "owned": false,
         "reasons": [
-         "Puntuación -0.95: queda por detrás de sus comparables de sector en valor, calidad y momentum."
+         "Puntuación -0,95: queda por detrás de sus comparables de sector en valor, calidad y momentum."
         ],
         "reglas": [
          {
@@ -265,7 +265,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "decide",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "cumple"
          },
          {
@@ -276,7 +276,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "no_cumple"
          },
          {
@@ -287,7 +287,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "evaluada",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -415,7 +415,7 @@
           "condiciones": [
            {
             "actual": -0.917,
-            "condicion": "puntuación ≥ +0.35",
+            "condicion": "puntuación ≥ +0,35",
             "distancia": 1.267,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -429,7 +429,7 @@
           "condiciones": [
            {
             "actual": -0.917,
-            "condicion": "puntuación > -0.35",
+            "condicion": "puntuación > -0,35",
             "distancia": 0.567,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -446,7 +446,7 @@
         "levels": null,
         "owned": false,
         "reasons": [
-         "Puntuación -0.92: queda por detrás de sus comparables de sector en valor, calidad y momentum."
+         "Puntuación -0,92: queda por detrás de sus comparables de sector en valor, calidad y momentum."
         ],
         "reglas": [
          {
@@ -457,7 +457,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "decide",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "cumple"
          },
          {
@@ -468,7 +468,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "no_cumple"
          },
          {
@@ -479,7 +479,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "evaluada",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -607,7 +607,7 @@
           "condiciones": [
            {
             "actual": -0.892,
-            "condicion": "puntuación ≥ +0.35",
+            "condicion": "puntuación ≥ +0,35",
             "distancia": 1.242,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -621,7 +621,7 @@
           "condiciones": [
            {
             "actual": -0.892,
-            "condicion": "puntuación > -0.35",
+            "condicion": "puntuación > -0,35",
             "distancia": 0.542,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -638,7 +638,7 @@
         "levels": null,
         "owned": false,
         "reasons": [
-         "Puntuación -0.89: queda por detrás de sus comparables de sector en valor, calidad y momentum."
+         "Puntuación -0,89: queda por detrás de sus comparables de sector en valor, calidad y momentum."
         ],
         "reglas": [
          {
@@ -649,7 +649,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "decide",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "cumple"
          },
          {
@@ -660,7 +660,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "no_cumple"
          },
          {
@@ -671,7 +671,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "evaluada",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -799,7 +799,7 @@
           "condiciones": [
            {
             "actual": -0.853,
-            "condicion": "puntuación ≥ +0.35",
+            "condicion": "puntuación ≥ +0,35",
             "distancia": 1.203,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -813,7 +813,7 @@
           "condiciones": [
            {
             "actual": -0.853,
-            "condicion": "puntuación > -0.35",
+            "condicion": "puntuación > -0,35",
             "distancia": 0.503,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -830,7 +830,7 @@
         "levels": null,
         "owned": false,
         "reasons": [
-         "Puntuación -0.85: queda por detrás de sus comparables de sector en valor, calidad y momentum."
+         "Puntuación -0,85: queda por detrás de sus comparables de sector en valor, calidad y momentum."
         ],
         "reglas": [
          {
@@ -841,7 +841,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "decide",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "cumple"
          },
          {
@@ -852,7 +852,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "no_cumple"
          },
          {
@@ -863,7 +863,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "evaluada",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -991,7 +991,7 @@
           "condiciones": [
            {
             "actual": -0.776,
-            "condicion": "puntuación ≥ +0.35",
+            "condicion": "puntuación ≥ +0,35",
             "distancia": 1.126,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -1005,7 +1005,7 @@
           "condiciones": [
            {
             "actual": -0.776,
-            "condicion": "puntuación > -0.35",
+            "condicion": "puntuación > -0,35",
             "distancia": 0.426,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -1022,7 +1022,7 @@
         "levels": null,
         "owned": false,
         "reasons": [
-         "Puntuación -0.78: queda por detrás de sus comparables de sector en valor, calidad y momentum."
+         "Puntuación -0,78: queda por detrás de sus comparables de sector en valor, calidad y momentum."
         ],
         "reglas": [
          {
@@ -1033,7 +1033,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "decide",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "cumple"
          },
          {
@@ -1044,7 +1044,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "no_cumple"
          },
          {
@@ -1055,7 +1055,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "evaluada",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -1186,7 +1186,7 @@
           "condiciones": [
            {
             "actual": 144.0,
-            "condicion": "precio < 132.19 (media 200 + 2 %)",
+            "condicion": "precio < 132,19 (media 200 + 2 %)",
             "distancia": -8.2,
             "regla": "tendencia_a_favor",
             "umbral": 132.19,
@@ -1208,7 +1208,7 @@
           "condiciones": [
            {
             "actual": 1.551,
-            "condicion": "puntuación < +0.35",
+            "condicion": "puntuación < +0,35",
             "distancia": -1.201,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -1222,7 +1222,7 @@
           "condiciones": [
            {
             "actual": 1.551,
-            "condicion": "puntuación ≤ -0.35",
+            "condicion": "puntuación ≤ -0,35",
             "distancia": -1.901,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -1248,8 +1248,8 @@
         },
         "owned": false,
         "reasons": [
-         "Puntuación +1.55 — mejor que sus comparables de sector.",
-         "Cotiza sobre su media de 200 sesiones (129.6): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+         "Puntuación +1,55 — mejor que sus comparables de sector.",
+         "Cotiza sobre su media de 200 sesiones (129,60): la tendencia acompaña, no estás comprando algo que sigue cayendo."
         ],
         "reglas": [
          {
@@ -1260,7 +1260,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "no_cumple"
          },
          {
@@ -1271,7 +1271,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "decide",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "cumple"
          },
          {
@@ -1282,7 +1282,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "decide",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -1307,9 +1307,9 @@
          }
         ],
         "triggers": [
-         "Comprar entre 141.12 y 146.88",
-         "Salir si cierra bajo 125.57 (−12.8 %)",
-         "Tomar beneficios en 180.86 (+25.6 %)"
+         "Comprar entre 141,12 y 146,88",
+         "Salir si cierra bajo 125,57 (-12,8 %)",
+         "Tomar beneficios en 180,86 (+25,6 %)"
         ]
        },
        "events": [],
@@ -1416,7 +1416,7 @@
           "condiciones": [
            {
             "actual": 100.0,
-            "condicion": "precio < 91.8 (media 200 + 2 %)",
+            "condicion": "precio < 91,80 (media 200 + 2 %)",
             "distancia": -8.2,
             "regla": "tendencia_a_favor",
             "umbral": 91.8,
@@ -1438,7 +1438,7 @@
           "condiciones": [
            {
             "actual": 1.326,
-            "condicion": "puntuación < +0.35",
+            "condicion": "puntuación < +0,35",
             "distancia": -0.976,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -1452,7 +1452,7 @@
           "condiciones": [
            {
             "actual": 1.326,
-            "condicion": "puntuación ≤ -0.35",
+            "condicion": "puntuación ≤ -0,35",
             "distancia": -1.676,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -1478,8 +1478,8 @@
         },
         "owned": false,
         "reasons": [
-         "Puntuación +1.33 — mejor que sus comparables de sector.",
-         "Cotiza sobre su media de 200 sesiones (90.0): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+         "Puntuación +1,33 — mejor que sus comparables de sector.",
+         "Cotiza sobre su media de 200 sesiones (90,00): la tendencia acompaña, no estás comprando algo que sigue cayendo."
         ],
         "reglas": [
          {
@@ -1490,7 +1490,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "no_cumple"
          },
          {
@@ -1501,7 +1501,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "decide",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "cumple"
          },
          {
@@ -1512,7 +1512,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "decide",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -1537,9 +1537,9 @@
          }
         ],
         "triggers": [
-         "Comprar entre 98.0 y 102.0",
-         "Salir si cierra bajo 83.5 (−16.5 %)",
-         "Tomar beneficios en 133.0 (+33.0 %)"
+         "Comprar entre 98,00 y 102,00",
+         "Salir si cierra bajo 83,50 (-16,5 %)",
+         "Tomar beneficios en 133,00 (+33,0 %)"
         ]
        },
        "events": [],
@@ -1646,7 +1646,7 @@
           "condiciones": [
            {
             "actual": 102.0,
-            "condicion": "precio < 93.64 (media 200 + 2 %)",
+            "condicion": "precio < 93,64 (media 200 + 2 %)",
             "distancia": -8.2,
             "regla": "tendencia_a_favor",
             "umbral": 93.64,
@@ -1668,7 +1668,7 @@
           "condiciones": [
            {
             "actual": 1.206,
-            "condicion": "puntuación < +0.35",
+            "condicion": "puntuación < +0,35",
             "distancia": -0.856,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -1682,7 +1682,7 @@
           "condiciones": [
            {
             "actual": 1.206,
-            "condicion": "puntuación ≤ -0.35",
+            "condicion": "puntuación ≤ -0,35",
             "distancia": -1.556,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -1708,8 +1708,8 @@
         },
         "owned": false,
         "reasons": [
-         "Puntuación +1.21 — mejor que sus comparables de sector.",
-         "Cotiza sobre su media de 200 sesiones (91.8): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+         "Puntuación +1,21 — mejor que sus comparables de sector.",
+         "Cotiza sobre su media de 200 sesiones (91,80): la tendencia acompaña, no estás comprando algo que sigue cayendo."
         ],
         "reglas": [
          {
@@ -1720,7 +1720,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "no_cumple"
          },
          {
@@ -1731,7 +1731,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "decide",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "cumple"
          },
          {
@@ -1742,7 +1742,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "decide",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -1767,9 +1767,9 @@
          }
         ],
         "triggers": [
-         "Comprar entre 99.96 y 104.04",
-         "Salir si cierra bajo 88.94 (−12.8 %)",
-         "Tomar beneficios en 128.11 (+25.6 %)"
+         "Comprar entre 99,96 y 104,04",
+         "Salir si cierra bajo 88,94 (-12,8 %)",
+         "Tomar beneficios en 128,11 (+25,6 %)"
         ]
        },
        "events": [],
@@ -1876,7 +1876,7 @@
           "condiciones": [
            {
             "actual": 142.0,
-            "condicion": "precio < 130.36 (media 200 + 2 %)",
+            "condicion": "precio < 130,36 (media 200 + 2 %)",
             "distancia": -8.2,
             "regla": "tendencia_a_favor",
             "umbral": 130.36,
@@ -1898,7 +1898,7 @@
           "condiciones": [
            {
             "actual": 1.081,
-            "condicion": "puntuación < +0.35",
+            "condicion": "puntuación < +0,35",
             "distancia": -0.731,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -1912,7 +1912,7 @@
           "condiciones": [
            {
             "actual": 1.081,
-            "condicion": "puntuación ≤ -0.35",
+            "condicion": "puntuación ≤ -0,35",
             "distancia": -1.431,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -1938,8 +1938,8 @@
         },
         "owned": false,
         "reasons": [
-         "Puntuación +1.08 — mejor que sus comparables de sector.",
-         "Cotiza sobre su media de 200 sesiones (127.8): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+         "Puntuación +1,08 — mejor que sus comparables de sector.",
+         "Cotiza sobre su media de 200 sesiones (127,80): la tendencia acompaña, no estás comprando algo que sigue cayendo."
         ],
         "reglas": [
          {
@@ -1950,7 +1950,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "no_cumple"
          },
          {
@@ -1961,7 +1961,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "decide",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "cumple"
          },
          {
@@ -1972,7 +1972,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "decide",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -1997,9 +1997,9 @@
          }
         ],
         "triggers": [
-         "Comprar entre 139.16 y 144.84",
-         "Salir si cierra bajo 128.94 (−9.2 %)",
-         "Tomar beneficios en 168.13 (+18.4 %)"
+         "Comprar entre 139,16 y 144,84",
+         "Salir si cierra bajo 128,94 (-9,2 %)",
+         "Tomar beneficios en 168,13 (+18,4 %)"
         ]
        },
        "events": [],
@@ -2106,7 +2106,7 @@
           "condiciones": [
            {
             "actual": 141.0,
-            "condicion": "precio < 129.44 (media 200 + 2 %)",
+            "condicion": "precio < 129,44 (media 200 + 2 %)",
             "distancia": -8.2,
             "regla": "tendencia_a_favor",
             "umbral": 129.44,
@@ -2128,7 +2128,7 @@
           "condiciones": [
            {
             "actual": 1.168,
-            "condicion": "puntuación < +0.35",
+            "condicion": "puntuación < +0,35",
             "distancia": -0.818,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -2142,7 +2142,7 @@
           "condiciones": [
            {
             "actual": 1.168,
-            "condicion": "puntuación ≤ -0.35",
+            "condicion": "puntuación ≤ -0,35",
             "distancia": -1.518,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -2168,8 +2168,8 @@
         },
         "owned": false,
         "reasons": [
-         "Puntuación +1.17 — mejor que sus comparables de sector.",
-         "Cotiza sobre su media de 200 sesiones (126.9): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+         "Puntuación +1,17 — mejor que sus comparables de sector.",
+         "Cotiza sobre su media de 200 sesiones (126,90): la tendencia acompaña, no estás comprando algo que sigue cayendo."
         ],
         "reglas": [
          {
@@ -2180,7 +2180,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "no_cumple"
          },
          {
@@ -2191,7 +2191,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "decide",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "cumple"
          },
          {
@@ -2202,7 +2202,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "decide",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -2227,9 +2227,9 @@
          }
         ],
         "triggers": [
-         "Comprar entre 138.18 y 143.82",
-         "Salir si cierra bajo 112.52 (−20.2 %)",
-         "Tomar beneficios en 197.96 (+40.4 %)"
+         "Comprar entre 138,18 y 143,82",
+         "Salir si cierra bajo 112,52 (-20,2 %)",
+         "Tomar beneficios en 197,96 (+40,4 %)"
         ]
        },
        "events": [],
@@ -2357,7 +2357,7 @@
        "LOW": 10.0
       },
       "recortes": [
-       "LOW: 10.9 % → 10.0 % (tope por posición). Un stop ceñido puede justificar aritméticamente mucho más, pero el modelo puede estar equivocado sobre esa empresa y entonces el tamaño no te salva el stop."
+       "LOW: 10,9 % → 10,0 % (tope por posición). Un stop ceñido puede justificar aritméticamente mucho más, pero el modelo puede estar equivocado sobre esa empresa y entonces el tamaño no te salva el stop."
       ],
       "todos_los_limites_aplicados": true,
       "vol_cartera_actual_pct": null,
@@ -2387,7 +2387,7 @@
          "condiciones": [
           {
            "actual": 144.0,
-           "condicion": "precio < 132.19 (media 200 + 2 %)",
+           "condicion": "precio < 132,19 (media 200 + 2 %)",
            "distancia": -8.2,
            "regla": "tendencia_a_favor",
            "umbral": 132.19,
@@ -2409,7 +2409,7 @@
          "condiciones": [
           {
            "actual": 1.551,
-           "condicion": "puntuación < +0.35",
+           "condicion": "puntuación < +0,35",
            "distancia": -1.201,
            "regla": "puntuacion_favorable",
            "umbral": 0.35,
@@ -2423,7 +2423,7 @@
          "condiciones": [
           {
            "actual": 1.551,
-           "condicion": "puntuación ≤ -0.35",
+           "condicion": "puntuación ≤ -0,35",
            "distancia": -1.901,
            "regla": "puntuacion_desfavorable",
            "umbral": -0.35,
@@ -2449,8 +2449,8 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.55 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (129.6): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,55 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (129,60): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "reglas": [
         {
@@ -2461,7 +2461,7 @@
          "efecto": "evitar",
          "id": "puntuacion_desfavorable",
          "papel": "evaluada",
-         "regla": "Puntuación ≤ -0.35",
+         "regla": "Puntuación ≤ -0,35",
          "resultado": "no_cumple"
         },
         {
@@ -2472,7 +2472,7 @@
          "efecto": "comprar",
          "id": "puntuacion_favorable",
          "papel": "decide",
-         "regla": "Puntuación ≥ +0.35",
+         "regla": "Puntuación ≥ +0,35",
          "resultado": "cumple"
         },
         {
@@ -2483,7 +2483,7 @@
          "efecto": "comprar",
          "id": "tendencia_a_favor",
          "papel": "decide",
-         "regla": "Precio ≥ media de 200 sesiones + 2 %",
+         "regla": "Precio ≥ media de 200 sesiones + 2 %",
          "resultado": "cumple"
         },
         {
@@ -2508,9 +2508,9 @@
         }
        ],
        "triggers": [
-        "Comprar entre 141.12 y 146.88",
-        "Salir si cierra bajo 125.57 (−12.8 %)",
-        "Tomar beneficios en 180.86 (+25.6 %)"
+        "Comprar entre 141,12 y 146,88",
+        "Salir si cierra bajo 125,57 (-12,8 %)",
+        "Tomar beneficios en 180,86 (+25,6 %)"
        ]
       },
       "events": [],
@@ -2603,7 +2603,7 @@
          "condiciones": [
           {
            "actual": 100.0,
-           "condicion": "precio < 91.8 (media 200 + 2 %)",
+           "condicion": "precio < 91,80 (media 200 + 2 %)",
            "distancia": -8.2,
            "regla": "tendencia_a_favor",
            "umbral": 91.8,
@@ -2625,7 +2625,7 @@
          "condiciones": [
           {
            "actual": 1.326,
-           "condicion": "puntuación < +0.35",
+           "condicion": "puntuación < +0,35",
            "distancia": -0.976,
            "regla": "puntuacion_favorable",
            "umbral": 0.35,
@@ -2639,7 +2639,7 @@
          "condiciones": [
           {
            "actual": 1.326,
-           "condicion": "puntuación ≤ -0.35",
+           "condicion": "puntuación ≤ -0,35",
            "distancia": -1.676,
            "regla": "puntuacion_desfavorable",
            "umbral": -0.35,
@@ -2665,8 +2665,8 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.33 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (90.0): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,33 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (90,00): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "reglas": [
         {
@@ -2677,7 +2677,7 @@
          "efecto": "evitar",
          "id": "puntuacion_desfavorable",
          "papel": "evaluada",
-         "regla": "Puntuación ≤ -0.35",
+         "regla": "Puntuación ≤ -0,35",
          "resultado": "no_cumple"
         },
         {
@@ -2688,7 +2688,7 @@
          "efecto": "comprar",
          "id": "puntuacion_favorable",
          "papel": "decide",
-         "regla": "Puntuación ≥ +0.35",
+         "regla": "Puntuación ≥ +0,35",
          "resultado": "cumple"
         },
         {
@@ -2699,7 +2699,7 @@
          "efecto": "comprar",
          "id": "tendencia_a_favor",
          "papel": "decide",
-         "regla": "Precio ≥ media de 200 sesiones + 2 %",
+         "regla": "Precio ≥ media de 200 sesiones + 2 %",
          "resultado": "cumple"
         },
         {
@@ -2724,9 +2724,9 @@
         }
        ],
        "triggers": [
-        "Comprar entre 98.0 y 102.0",
-        "Salir si cierra bajo 83.5 (−16.5 %)",
-        "Tomar beneficios en 133.0 (+33.0 %)"
+        "Comprar entre 98,00 y 102,00",
+        "Salir si cierra bajo 83,50 (-16,5 %)",
+        "Tomar beneficios en 133,00 (+33,0 %)"
        ]
       },
       "events": [],
@@ -2819,7 +2819,7 @@
          "condiciones": [
           {
            "actual": 102.0,
-           "condicion": "precio < 93.64 (media 200 + 2 %)",
+           "condicion": "precio < 93,64 (media 200 + 2 %)",
            "distancia": -8.2,
            "regla": "tendencia_a_favor",
            "umbral": 93.64,
@@ -2841,7 +2841,7 @@
          "condiciones": [
           {
            "actual": 1.206,
-           "condicion": "puntuación < +0.35",
+           "condicion": "puntuación < +0,35",
            "distancia": -0.856,
            "regla": "puntuacion_favorable",
            "umbral": 0.35,
@@ -2855,7 +2855,7 @@
          "condiciones": [
           {
            "actual": 1.206,
-           "condicion": "puntuación ≤ -0.35",
+           "condicion": "puntuación ≤ -0,35",
            "distancia": -1.556,
            "regla": "puntuacion_desfavorable",
            "umbral": -0.35,
@@ -2881,8 +2881,8 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.21 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (91.8): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,21 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (91,80): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "reglas": [
         {
@@ -2893,7 +2893,7 @@
          "efecto": "evitar",
          "id": "puntuacion_desfavorable",
          "papel": "evaluada",
-         "regla": "Puntuación ≤ -0.35",
+         "regla": "Puntuación ≤ -0,35",
          "resultado": "no_cumple"
         },
         {
@@ -2904,7 +2904,7 @@
          "efecto": "comprar",
          "id": "puntuacion_favorable",
          "papel": "decide",
-         "regla": "Puntuación ≥ +0.35",
+         "regla": "Puntuación ≥ +0,35",
          "resultado": "cumple"
         },
         {
@@ -2915,7 +2915,7 @@
          "efecto": "comprar",
          "id": "tendencia_a_favor",
          "papel": "decide",
-         "regla": "Precio ≥ media de 200 sesiones + 2 %",
+         "regla": "Precio ≥ media de 200 sesiones + 2 %",
          "resultado": "cumple"
         },
         {
@@ -2940,9 +2940,9 @@
         }
        ],
        "triggers": [
-        "Comprar entre 99.96 y 104.04",
-        "Salir si cierra bajo 88.94 (−12.8 %)",
-        "Tomar beneficios en 128.11 (+25.6 %)"
+        "Comprar entre 99,96 y 104,04",
+        "Salir si cierra bajo 88,94 (-12,8 %)",
+        "Tomar beneficios en 128,11 (+25,6 %)"
        ]
       },
       "events": [],
@@ -3035,7 +3035,7 @@
          "condiciones": [
           {
            "actual": 141.0,
-           "condicion": "precio < 129.44 (media 200 + 2 %)",
+           "condicion": "precio < 129,44 (media 200 + 2 %)",
            "distancia": -8.2,
            "regla": "tendencia_a_favor",
            "umbral": 129.44,
@@ -3057,7 +3057,7 @@
          "condiciones": [
           {
            "actual": 1.168,
-           "condicion": "puntuación < +0.35",
+           "condicion": "puntuación < +0,35",
            "distancia": -0.818,
            "regla": "puntuacion_favorable",
            "umbral": 0.35,
@@ -3071,7 +3071,7 @@
          "condiciones": [
           {
            "actual": 1.168,
-           "condicion": "puntuación ≤ -0.35",
+           "condicion": "puntuación ≤ -0,35",
            "distancia": -1.518,
            "regla": "puntuacion_desfavorable",
            "umbral": -0.35,
@@ -3097,8 +3097,8 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.17 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (126.9): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,17 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (126,90): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "reglas": [
         {
@@ -3109,7 +3109,7 @@
          "efecto": "evitar",
          "id": "puntuacion_desfavorable",
          "papel": "evaluada",
-         "regla": "Puntuación ≤ -0.35",
+         "regla": "Puntuación ≤ -0,35",
          "resultado": "no_cumple"
         },
         {
@@ -3120,7 +3120,7 @@
          "efecto": "comprar",
          "id": "puntuacion_favorable",
          "papel": "decide",
-         "regla": "Puntuación ≥ +0.35",
+         "regla": "Puntuación ≥ +0,35",
          "resultado": "cumple"
         },
         {
@@ -3131,7 +3131,7 @@
          "efecto": "comprar",
          "id": "tendencia_a_favor",
          "papel": "decide",
-         "regla": "Precio ≥ media de 200 sesiones + 2 %",
+         "regla": "Precio ≥ media de 200 sesiones + 2 %",
          "resultado": "cumple"
         },
         {
@@ -3156,9 +3156,9 @@
         }
        ],
        "triggers": [
-        "Comprar entre 138.18 y 143.82",
-        "Salir si cierra bajo 112.52 (−20.2 %)",
-        "Tomar beneficios en 197.96 (+40.4 %)"
+        "Comprar entre 138,18 y 143,82",
+        "Salir si cierra bajo 112,52 (-20,2 %)",
+        "Tomar beneficios en 197,96 (+40,4 %)"
        ]
       },
       "events": [],
@@ -3251,7 +3251,7 @@
          "condiciones": [
           {
            "actual": 142.0,
-           "condicion": "precio < 130.36 (media 200 + 2 %)",
+           "condicion": "precio < 130,36 (media 200 + 2 %)",
            "distancia": -8.2,
            "regla": "tendencia_a_favor",
            "umbral": 130.36,
@@ -3273,7 +3273,7 @@
          "condiciones": [
           {
            "actual": 1.081,
-           "condicion": "puntuación < +0.35",
+           "condicion": "puntuación < +0,35",
            "distancia": -0.731,
            "regla": "puntuacion_favorable",
            "umbral": 0.35,
@@ -3287,7 +3287,7 @@
          "condiciones": [
           {
            "actual": 1.081,
-           "condicion": "puntuación ≤ -0.35",
+           "condicion": "puntuación ≤ -0,35",
            "distancia": -1.431,
            "regla": "puntuacion_desfavorable",
            "umbral": -0.35,
@@ -3313,8 +3313,8 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.08 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (127.8): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,08 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (127,80): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "reglas": [
         {
@@ -3325,7 +3325,7 @@
          "efecto": "evitar",
          "id": "puntuacion_desfavorable",
          "papel": "evaluada",
-         "regla": "Puntuación ≤ -0.35",
+         "regla": "Puntuación ≤ -0,35",
          "resultado": "no_cumple"
         },
         {
@@ -3336,7 +3336,7 @@
          "efecto": "comprar",
          "id": "puntuacion_favorable",
          "papel": "decide",
-         "regla": "Puntuación ≥ +0.35",
+         "regla": "Puntuación ≥ +0,35",
          "resultado": "cumple"
         },
         {
@@ -3347,7 +3347,7 @@
          "efecto": "comprar",
          "id": "tendencia_a_favor",
          "papel": "decide",
-         "regla": "Precio ≥ media de 200 sesiones + 2 %",
+         "regla": "Precio ≥ media de 200 sesiones + 2 %",
          "resultado": "cumple"
         },
         {
@@ -3372,9 +3372,9 @@
         }
        ],
        "triggers": [
-        "Comprar entre 139.16 y 144.84",
-        "Salir si cierra bajo 128.94 (−9.2 %)",
-        "Tomar beneficios en 168.13 (+18.4 %)"
+        "Comprar entre 139,16 y 144,84",
+        "Salir si cierra bajo 128,94 (-9,2 %)",
+        "Tomar beneficios en 168,13 (+18,4 %)"
        ]
       },
       "events": [],
@@ -3477,14 +3477,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.13 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (126.0): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,13 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (126,00): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 137.2 y 142.8",
-        "Salir si cierra bajo 127.12 (−9.2 %)",
-        "Tomar beneficios en 165.76 (+18.4 %)"
+        "Comprar entre 137,20 y 142,80",
+        "Salir si cierra bajo 127,12 (-9,2 %)",
+        "Tomar beneficios en 165,76 (+18,4 %)"
        ]
       },
       "events": [],
@@ -3587,14 +3587,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.90 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (130.5): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,90 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (130,50): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 142.1 y 147.9",
-        "Salir si cierra bajo 121.07 (−16.5 %)",
-        "Tomar beneficios en 192.85 (+33.0 %)"
+        "Comprar entre 142,10 y 147,90",
+        "Salir si cierra bajo 121,07 (-16,5 %)",
+        "Tomar beneficios en 192,85 (+33,0 %)"
        ]
       },
       "events": [],
@@ -3697,14 +3697,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.86 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (131.4): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,86 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (131,40): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 143.08 y 148.92",
-        "Salir si cierra bajo 132.57 (−9.2 %)",
-        "Tomar beneficios en 172.86 (+18.4 %)"
+        "Comprar entre 143,08 y 148,92",
+        "Salir si cierra bajo 132,57 (-9,2 %)",
+        "Tomar beneficios en 172,86 (+18,4 %)"
        ]
       },
       "events": [],
@@ -3807,14 +3807,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.83 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (99.9): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,83 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (99,90): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 108.78 y 113.22",
-        "Salir si cierra bajo 100.79 (−9.2 %)",
-        "Tomar beneficios en 131.42 (+18.4 %)"
+        "Comprar entre 108,78 y 113,22",
+        "Salir si cierra bajo 100,79 (-9,2 %)",
+        "Tomar beneficios en 131,42 (+18,4 %)"
        ]
       },
       "events": [],
@@ -3917,14 +3917,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.79 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (97.2): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,79 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (97,20): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 105.84 y 110.16",
-        "Salir si cierra bajo 86.18 (−20.2 %)",
-        "Tomar beneficios en 151.63 (+40.4 %)"
+        "Comprar entre 105,84 y 110,16",
+        "Salir si cierra bajo 86,18 (-20,2 %)",
+        "Tomar beneficios en 151,63 (+40,4 %)"
        ]
       },
       "events": [],
@@ -4027,14 +4027,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.78 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (130.5): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,78 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (130,50): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 142.1 y 147.9",
-        "Salir si cierra bajo 131.66 (−9.2 %)",
-        "Tomar beneficios en 171.68 (+18.4 %)"
+        "Comprar entre 142,10 y 147,90",
+        "Salir si cierra bajo 131,66 (-9,2 %)",
+        "Tomar beneficios en 171,68 (+18,4 %)"
        ]
       },
       "events": [],
@@ -4137,14 +4137,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.77 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (99.0): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,77 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (99,00): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 107.8 y 112.2",
-        "Salir si cierra bajo 91.85 (−16.5 %)",
-        "Tomar beneficios en 146.3 (+33.0 %)"
+        "Comprar entre 107,80 y 112,20",
+        "Salir si cierra bajo 91,85 (-16,5 %)",
+        "Tomar beneficios en 146,30 (+33,0 %)"
        ]
       },
       "events": [],
@@ -4247,14 +4247,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.77 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (133.2): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,77 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (133,20): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 145.04 y 150.96",
-        "Salir si cierra bajo 129.06 (−12.8 %)",
-        "Tomar beneficios en 185.89 (+25.6 %)"
+        "Comprar entre 145,04 y 150,96",
+        "Salir si cierra bajo 129,06 (-12,8 %)",
+        "Tomar beneficios en 185,89 (+25,6 %)"
        ]
       },
       "events": [],
@@ -4357,14 +4357,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.77 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (101.7): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,77 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (101,70): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 110.74 y 115.26",
-        "Salir si cierra bajo 98.54 (−12.8 %)",
-        "Tomar beneficios en 141.93 (+25.6 %)"
+        "Comprar entre 110,74 y 115,26",
+        "Salir si cierra bajo 98,54 (-12,8 %)",
+        "Tomar beneficios en 141,93 (+25,6 %)"
        ]
       },
       "events": [],
@@ -4467,14 +4467,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.70 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (93.6): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,70 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (93,60): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 101.92 y 106.08",
-        "Salir si cierra bajo 82.99 (−20.2 %)",
-        "Tomar beneficios en 146.02 (+40.4 %)"
+        "Comprar entre 101,92 y 106,08",
+        "Salir si cierra bajo 82,99 (-20,2 %)",
+        "Tomar beneficios en 146,02 (+40,4 %)"
        ]
       },
       "events": [],
@@ -4577,14 +4577,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.70 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (131.4): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,70 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (131,40): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 143.08 y 148.92",
-        "Salir si cierra bajo 132.57 (−9.2 %)",
-        "Tomar beneficios en 172.86 (+18.4 %)"
+        "Comprar entre 143,08 y 148,92",
+        "Salir si cierra bajo 132,57 (-9,2 %)",
+        "Tomar beneficios en 172,86 (+18,4 %)"
        ]
       },
       "events": [],
@@ -4687,14 +4687,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.70 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (131.4): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,70 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (131,40): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 143.08 y 148.92",
-        "Salir si cierra bajo 116.51 (−20.2 %)",
-        "Tomar beneficios en 204.98 (+40.4 %)"
+        "Comprar entre 143,08 y 148,92",
+        "Salir si cierra bajo 116,51 (-20,2 %)",
+        "Tomar beneficios en 204,98 (+40,4 %)"
        ]
       },
       "events": [],
@@ -4947,7 +4947,7 @@
           "condiciones": [
            {
             "actual": -0.947,
-            "condicion": "puntuación ≥ +0.35",
+            "condicion": "puntuación ≥ +0,35",
             "distancia": 1.297,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -4961,7 +4961,7 @@
           "condiciones": [
            {
             "actual": -0.947,
-            "condicion": "puntuación > -0.35",
+            "condicion": "puntuación > -0,35",
             "distancia": 0.597,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -4978,7 +4978,7 @@
         "levels": null,
         "owned": false,
         "reasons": [
-         "Puntuación -0.95: queda por detrás de sus comparables de sector en valor, calidad y momentum."
+         "Puntuación -0,95: queda por detrás de sus comparables de sector en valor, calidad y momentum."
         ],
         "reglas": [
          {
@@ -4989,7 +4989,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "decide",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "cumple"
          },
          {
@@ -5000,7 +5000,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "no_cumple"
          },
          {
@@ -5011,7 +5011,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "evaluada",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -5139,7 +5139,7 @@
           "condiciones": [
            {
             "actual": -0.917,
-            "condicion": "puntuación ≥ +0.35",
+            "condicion": "puntuación ≥ +0,35",
             "distancia": 1.267,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -5153,7 +5153,7 @@
           "condiciones": [
            {
             "actual": -0.917,
-            "condicion": "puntuación > -0.35",
+            "condicion": "puntuación > -0,35",
             "distancia": 0.567,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -5170,7 +5170,7 @@
         "levels": null,
         "owned": false,
         "reasons": [
-         "Puntuación -0.92: queda por detrás de sus comparables de sector en valor, calidad y momentum."
+         "Puntuación -0,92: queda por detrás de sus comparables de sector en valor, calidad y momentum."
         ],
         "reglas": [
          {
@@ -5181,7 +5181,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "decide",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "cumple"
          },
          {
@@ -5192,7 +5192,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "no_cumple"
          },
          {
@@ -5203,7 +5203,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "evaluada",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -5331,7 +5331,7 @@
           "condiciones": [
            {
             "actual": -0.903,
-            "condicion": "puntuación ≥ +0.35",
+            "condicion": "puntuación ≥ +0,35",
             "distancia": 1.253,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -5345,7 +5345,7 @@
           "condiciones": [
            {
             "actual": -0.903,
-            "condicion": "puntuación > -0.35",
+            "condicion": "puntuación > -0,35",
             "distancia": 0.553,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -5362,7 +5362,7 @@
         "levels": null,
         "owned": false,
         "reasons": [
-         "Puntuación -0.90: queda por detrás de sus comparables de sector en valor, calidad y momentum."
+         "Puntuación -0,90: queda por detrás de sus comparables de sector en valor, calidad y momentum."
         ],
         "reglas": [
          {
@@ -5373,7 +5373,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "decide",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "cumple"
          },
          {
@@ -5384,7 +5384,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "no_cumple"
          },
          {
@@ -5395,7 +5395,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "evaluada",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -5523,7 +5523,7 @@
           "condiciones": [
            {
             "actual": -0.892,
-            "condicion": "puntuación ≥ +0.35",
+            "condicion": "puntuación ≥ +0,35",
             "distancia": 1.242,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -5537,7 +5537,7 @@
           "condiciones": [
            {
             "actual": -0.892,
-            "condicion": "puntuación > -0.35",
+            "condicion": "puntuación > -0,35",
             "distancia": 0.542,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -5554,7 +5554,7 @@
         "levels": null,
         "owned": false,
         "reasons": [
-         "Puntuación -0.89: queda por detrás de sus comparables de sector en valor, calidad y momentum."
+         "Puntuación -0,89: queda por detrás de sus comparables de sector en valor, calidad y momentum."
         ],
         "reglas": [
          {
@@ -5565,7 +5565,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "decide",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "cumple"
          },
          {
@@ -5576,7 +5576,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "no_cumple"
          },
          {
@@ -5587,7 +5587,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "evaluada",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -5715,7 +5715,7 @@
           "condiciones": [
            {
             "actual": -0.853,
-            "condicion": "puntuación ≥ +0.35",
+            "condicion": "puntuación ≥ +0,35",
             "distancia": 1.203,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -5729,7 +5729,7 @@
           "condiciones": [
            {
             "actual": -0.853,
-            "condicion": "puntuación > -0.35",
+            "condicion": "puntuación > -0,35",
             "distancia": 0.503,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -5746,7 +5746,7 @@
         "levels": null,
         "owned": false,
         "reasons": [
-         "Puntuación -0.85: queda por detrás de sus comparables de sector en valor, calidad y momentum."
+         "Puntuación -0,85: queda por detrás de sus comparables de sector en valor, calidad y momentum."
         ],
         "reglas": [
          {
@@ -5757,7 +5757,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "decide",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "cumple"
          },
          {
@@ -5768,7 +5768,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "no_cumple"
          },
          {
@@ -5779,7 +5779,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "evaluada",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -5910,7 +5910,7 @@
           "condiciones": [
            {
             "actual": 141.0,
-            "condicion": "precio < 129.44 (media 200 + 2 %)",
+            "condicion": "precio < 129,44 (media 200 + 2 %)",
             "distancia": -8.2,
             "regla": "tendencia_a_favor",
             "umbral": 129.44,
@@ -5932,7 +5932,7 @@
           "condiciones": [
            {
             "actual": 1.797,
-            "condicion": "puntuación < +0.35",
+            "condicion": "puntuación < +0,35",
             "distancia": -1.447,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -5946,7 +5946,7 @@
           "condiciones": [
            {
             "actual": 1.797,
-            "condicion": "puntuación ≤ -0.35",
+            "condicion": "puntuación ≤ -0,35",
             "distancia": -2.147,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -5972,8 +5972,8 @@
         },
         "owned": false,
         "reasons": [
-         "Puntuación +1.80 — mejor que sus comparables de sector.",
-         "Cotiza sobre su media de 200 sesiones (126.9): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+         "Puntuación +1,80 — mejor que sus comparables de sector.",
+         "Cotiza sobre su media de 200 sesiones (126,90): la tendencia acompaña, no estás comprando algo que sigue cayendo."
         ],
         "reglas": [
          {
@@ -5984,7 +5984,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "no_cumple"
          },
          {
@@ -5995,7 +5995,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "decide",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "cumple"
          },
          {
@@ -6006,7 +6006,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "decide",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -6031,9 +6031,9 @@
          }
         ],
         "triggers": [
-         "Comprar entre 138.18 y 143.82",
-         "Salir si cierra bajo 117.73 (−16.5 %)",
-         "Tomar beneficios en 187.53 (+33.0 %)"
+         "Comprar entre 138,18 y 143,82",
+         "Salir si cierra bajo 117,73 (-16,5 %)",
+         "Tomar beneficios en 187,53 (+33,0 %)"
         ]
        },
        "events": [],
@@ -6140,7 +6140,7 @@
           "condiciones": [
            {
             "actual": 144.0,
-            "condicion": "precio < 132.19 (media 200 + 2 %)",
+            "condicion": "precio < 132,19 (media 200 + 2 %)",
             "distancia": -8.2,
             "regla": "tendencia_a_favor",
             "umbral": 132.19,
@@ -6162,7 +6162,7 @@
           "condiciones": [
            {
             "actual": 1.551,
-            "condicion": "puntuación < +0.35",
+            "condicion": "puntuación < +0,35",
             "distancia": -1.201,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -6176,7 +6176,7 @@
           "condiciones": [
            {
             "actual": 1.551,
-            "condicion": "puntuación ≤ -0.35",
+            "condicion": "puntuación ≤ -0,35",
             "distancia": -1.901,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -6202,8 +6202,8 @@
         },
         "owned": false,
         "reasons": [
-         "Puntuación +1.55 — mejor que sus comparables de sector.",
-         "Cotiza sobre su media de 200 sesiones (129.6): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+         "Puntuación +1,55 — mejor que sus comparables de sector.",
+         "Cotiza sobre su media de 200 sesiones (129,60): la tendencia acompaña, no estás comprando algo que sigue cayendo."
         ],
         "reglas": [
          {
@@ -6214,7 +6214,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "no_cumple"
          },
          {
@@ -6225,7 +6225,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "decide",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "cumple"
          },
          {
@@ -6236,7 +6236,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "decide",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -6261,9 +6261,9 @@
          }
         ],
         "triggers": [
-         "Comprar entre 141.12 y 146.88",
-         "Salir si cierra bajo 125.57 (−12.8 %)",
-         "Tomar beneficios en 180.86 (+25.6 %)"
+         "Comprar entre 141,12 y 146,88",
+         "Salir si cierra bajo 125,57 (-12,8 %)",
+         "Tomar beneficios en 180,86 (+25,6 %)"
         ]
        },
        "events": [],
@@ -6370,7 +6370,7 @@
           "condiciones": [
            {
             "actual": 100.0,
-            "condicion": "precio < 91.8 (media 200 + 2 %)",
+            "condicion": "precio < 91,80 (media 200 + 2 %)",
             "distancia": -8.2,
             "regla": "tendencia_a_favor",
             "umbral": 91.8,
@@ -6392,7 +6392,7 @@
           "condiciones": [
            {
             "actual": 1.409,
-            "condicion": "puntuación < +0.35",
+            "condicion": "puntuación < +0,35",
             "distancia": -1.059,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -6406,7 +6406,7 @@
           "condiciones": [
            {
             "actual": 1.409,
-            "condicion": "puntuación ≤ -0.35",
+            "condicion": "puntuación ≤ -0,35",
             "distancia": -1.759,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -6432,8 +6432,8 @@
         },
         "owned": false,
         "reasons": [
-         "Puntuación +1.41 — mejor que sus comparables de sector.",
-         "Cotiza sobre su media de 200 sesiones (90.0): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+         "Puntuación +1,41 — mejor que sus comparables de sector.",
+         "Cotiza sobre su media de 200 sesiones (90,00): la tendencia acompaña, no estás comprando algo que sigue cayendo."
         ],
         "reglas": [
          {
@@ -6444,7 +6444,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "no_cumple"
          },
          {
@@ -6455,7 +6455,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "decide",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "cumple"
          },
          {
@@ -6466,7 +6466,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "decide",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -6491,9 +6491,9 @@
          }
         ],
         "triggers": [
-         "Comprar entre 98.0 y 102.0",
-         "Salir si cierra bajo 90.8 (−9.2 %)",
-         "Tomar beneficios en 118.4 (+18.4 %)"
+         "Comprar entre 98,00 y 102,00",
+         "Salir si cierra bajo 90,80 (-9,2 %)",
+         "Tomar beneficios en 118,40 (+18,4 %)"
         ]
        },
        "events": [],
@@ -6600,7 +6600,7 @@
           "condiciones": [
            {
             "actual": 100.0,
-            "condicion": "precio < 91.8 (media 200 + 2 %)",
+            "condicion": "precio < 91,80 (media 200 + 2 %)",
             "distancia": -8.2,
             "regla": "tendencia_a_favor",
             "umbral": 91.8,
@@ -6622,7 +6622,7 @@
           "condiciones": [
            {
             "actual": 1.326,
-            "condicion": "puntuación < +0.35",
+            "condicion": "puntuación < +0,35",
             "distancia": -0.976,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -6636,7 +6636,7 @@
           "condiciones": [
            {
             "actual": 1.326,
-            "condicion": "puntuación ≤ -0.35",
+            "condicion": "puntuación ≤ -0,35",
             "distancia": -1.676,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -6662,8 +6662,8 @@
         },
         "owned": false,
         "reasons": [
-         "Puntuación +1.33 — mejor que sus comparables de sector.",
-         "Cotiza sobre su media de 200 sesiones (90.0): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+         "Puntuación +1,33 — mejor que sus comparables de sector.",
+         "Cotiza sobre su media de 200 sesiones (90,00): la tendencia acompaña, no estás comprando algo que sigue cayendo."
         ],
         "reglas": [
          {
@@ -6674,7 +6674,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "no_cumple"
          },
          {
@@ -6685,7 +6685,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "decide",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "cumple"
          },
          {
@@ -6696,7 +6696,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "decide",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -6721,9 +6721,9 @@
          }
         ],
         "triggers": [
-         "Comprar entre 98.0 y 102.0",
-         "Salir si cierra bajo 83.5 (−16.5 %)",
-         "Tomar beneficios en 133.0 (+33.0 %)"
+         "Comprar entre 98,00 y 102,00",
+         "Salir si cierra bajo 83,50 (-16,5 %)",
+         "Tomar beneficios en 133,00 (+33,0 %)"
         ]
        },
        "events": [],
@@ -6830,7 +6830,7 @@
           "condiciones": [
            {
             "actual": 144.0,
-            "condicion": "precio < 132.19 (media 200 + 2 %)",
+            "condicion": "precio < 132,19 (media 200 + 2 %)",
             "distancia": -8.2,
             "regla": "tendencia_a_favor",
             "umbral": 132.19,
@@ -6852,7 +6852,7 @@
           "condiciones": [
            {
             "actual": 1.228,
-            "condicion": "puntuación < +0.35",
+            "condicion": "puntuación < +0,35",
             "distancia": -0.878,
             "regla": "puntuacion_favorable",
             "umbral": 0.35,
@@ -6866,7 +6866,7 @@
           "condiciones": [
            {
             "actual": 1.228,
-            "condicion": "puntuación ≤ -0.35",
+            "condicion": "puntuación ≤ -0,35",
             "distancia": -1.578,
             "regla": "puntuacion_desfavorable",
             "umbral": -0.35,
@@ -6892,8 +6892,8 @@
         },
         "owned": false,
         "reasons": [
-         "Puntuación +1.23 — mejor que sus comparables de sector.",
-         "Cotiza sobre su media de 200 sesiones (129.6): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+         "Puntuación +1,23 — mejor que sus comparables de sector.",
+         "Cotiza sobre su media de 200 sesiones (129,60): la tendencia acompaña, no estás comprando algo que sigue cayendo."
         ],
         "reglas": [
          {
@@ -6904,7 +6904,7 @@
           "efecto": "evitar",
           "id": "puntuacion_desfavorable",
           "papel": "evaluada",
-          "regla": "Puntuación ≤ -0.35",
+          "regla": "Puntuación ≤ -0,35",
           "resultado": "no_cumple"
          },
          {
@@ -6915,7 +6915,7 @@
           "efecto": "comprar",
           "id": "puntuacion_favorable",
           "papel": "decide",
-          "regla": "Puntuación ≥ +0.35",
+          "regla": "Puntuación ≥ +0,35",
           "resultado": "cumple"
          },
          {
@@ -6926,7 +6926,7 @@
           "efecto": "comprar",
           "id": "tendencia_a_favor",
           "papel": "decide",
-          "regla": "Precio ≥ media de 200 sesiones + 2 %",
+          "regla": "Precio ≥ media de 200 sesiones + 2 %",
           "resultado": "cumple"
          },
          {
@@ -6951,9 +6951,9 @@
          }
         ],
         "triggers": [
-         "Comprar entre 141.12 y 146.88",
-         "Salir si cierra bajo 130.75 (−9.2 %)",
-         "Tomar beneficios en 170.5 (+18.4 %)"
+         "Comprar entre 141,12 y 146,88",
+         "Salir si cierra bajo 130,75 (-9,2 %)",
+         "Tomar beneficios en 170,50 (+18,4 %)"
         ]
        },
        "events": [],
@@ -7081,8 +7081,8 @@
        "XOM": 10.0
       },
       "recortes": [
-       "DXCM: 10.9 % → 10.0 % (tope por posición). Un stop ceñido puede justificar aritméticamente mucho más, pero el modelo puede estar equivocado sobre esa empresa y entonces el tamaño no te salva el stop.",
-       "XOM: 10.9 % → 10.0 % (tope por posición). Un stop ceñido puede justificar aritméticamente mucho más, pero el modelo puede estar equivocado sobre esa empresa y entonces el tamaño no te salva el stop."
+       "DXCM: 10,9 % → 10,0 % (tope por posición). Un stop ceñido puede justificar aritméticamente mucho más, pero el modelo puede estar equivocado sobre esa empresa y entonces el tamaño no te salva el stop.",
+       "XOM: 10,9 % → 10,0 % (tope por posición). Un stop ceñido puede justificar aritméticamente mucho más, pero el modelo puede estar equivocado sobre esa empresa y entonces el tamaño no te salva el stop."
       ],
       "todos_los_limites_aplicados": true,
       "vol_cartera_actual_pct": null,
@@ -7112,7 +7112,7 @@
          "condiciones": [
           {
            "actual": 141.0,
-           "condicion": "precio < 129.44 (media 200 + 2 %)",
+           "condicion": "precio < 129,44 (media 200 + 2 %)",
            "distancia": -8.2,
            "regla": "tendencia_a_favor",
            "umbral": 129.44,
@@ -7134,7 +7134,7 @@
          "condiciones": [
           {
            "actual": 1.797,
-           "condicion": "puntuación < +0.35",
+           "condicion": "puntuación < +0,35",
            "distancia": -1.447,
            "regla": "puntuacion_favorable",
            "umbral": 0.35,
@@ -7148,7 +7148,7 @@
          "condiciones": [
           {
            "actual": 1.797,
-           "condicion": "puntuación ≤ -0.35",
+           "condicion": "puntuación ≤ -0,35",
            "distancia": -2.147,
            "regla": "puntuacion_desfavorable",
            "umbral": -0.35,
@@ -7174,8 +7174,8 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.80 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (126.9): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,80 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (126,90): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "reglas": [
         {
@@ -7186,7 +7186,7 @@
          "efecto": "evitar",
          "id": "puntuacion_desfavorable",
          "papel": "evaluada",
-         "regla": "Puntuación ≤ -0.35",
+         "regla": "Puntuación ≤ -0,35",
          "resultado": "no_cumple"
         },
         {
@@ -7197,7 +7197,7 @@
          "efecto": "comprar",
          "id": "puntuacion_favorable",
          "papel": "decide",
-         "regla": "Puntuación ≥ +0.35",
+         "regla": "Puntuación ≥ +0,35",
          "resultado": "cumple"
         },
         {
@@ -7208,7 +7208,7 @@
          "efecto": "comprar",
          "id": "tendencia_a_favor",
          "papel": "decide",
-         "regla": "Precio ≥ media de 200 sesiones + 2 %",
+         "regla": "Precio ≥ media de 200 sesiones + 2 %",
          "resultado": "cumple"
         },
         {
@@ -7233,9 +7233,9 @@
         }
        ],
        "triggers": [
-        "Comprar entre 138.18 y 143.82",
-        "Salir si cierra bajo 117.73 (−16.5 %)",
-        "Tomar beneficios en 187.53 (+33.0 %)"
+        "Comprar entre 138,18 y 143,82",
+        "Salir si cierra bajo 117,73 (-16,5 %)",
+        "Tomar beneficios en 187,53 (+33,0 %)"
        ]
       },
       "events": [],
@@ -7328,7 +7328,7 @@
          "condiciones": [
           {
            "actual": 144.0,
-           "condicion": "precio < 132.19 (media 200 + 2 %)",
+           "condicion": "precio < 132,19 (media 200 + 2 %)",
            "distancia": -8.2,
            "regla": "tendencia_a_favor",
            "umbral": 132.19,
@@ -7350,7 +7350,7 @@
          "condiciones": [
           {
            "actual": 1.551,
-           "condicion": "puntuación < +0.35",
+           "condicion": "puntuación < +0,35",
            "distancia": -1.201,
            "regla": "puntuacion_favorable",
            "umbral": 0.35,
@@ -7364,7 +7364,7 @@
          "condiciones": [
           {
            "actual": 1.551,
-           "condicion": "puntuación ≤ -0.35",
+           "condicion": "puntuación ≤ -0,35",
            "distancia": -1.901,
            "regla": "puntuacion_desfavorable",
            "umbral": -0.35,
@@ -7390,8 +7390,8 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.55 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (129.6): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,55 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (129,60): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "reglas": [
         {
@@ -7402,7 +7402,7 @@
          "efecto": "evitar",
          "id": "puntuacion_desfavorable",
          "papel": "evaluada",
-         "regla": "Puntuación ≤ -0.35",
+         "regla": "Puntuación ≤ -0,35",
          "resultado": "no_cumple"
         },
         {
@@ -7413,7 +7413,7 @@
          "efecto": "comprar",
          "id": "puntuacion_favorable",
          "papel": "decide",
-         "regla": "Puntuación ≥ +0.35",
+         "regla": "Puntuación ≥ +0,35",
          "resultado": "cumple"
         },
         {
@@ -7424,7 +7424,7 @@
          "efecto": "comprar",
          "id": "tendencia_a_favor",
          "papel": "decide",
-         "regla": "Precio ≥ media de 200 sesiones + 2 %",
+         "regla": "Precio ≥ media de 200 sesiones + 2 %",
          "resultado": "cumple"
         },
         {
@@ -7449,9 +7449,9 @@
         }
        ],
        "triggers": [
-        "Comprar entre 141.12 y 146.88",
-        "Salir si cierra bajo 125.57 (−12.8 %)",
-        "Tomar beneficios en 180.86 (+25.6 %)"
+        "Comprar entre 141,12 y 146,88",
+        "Salir si cierra bajo 125,57 (-12,8 %)",
+        "Tomar beneficios en 180,86 (+25,6 %)"
        ]
       },
       "events": [],
@@ -7544,7 +7544,7 @@
          "condiciones": [
           {
            "actual": 100.0,
-           "condicion": "precio < 91.8 (media 200 + 2 %)",
+           "condicion": "precio < 91,80 (media 200 + 2 %)",
            "distancia": -8.2,
            "regla": "tendencia_a_favor",
            "umbral": 91.8,
@@ -7566,7 +7566,7 @@
          "condiciones": [
           {
            "actual": 1.409,
-           "condicion": "puntuación < +0.35",
+           "condicion": "puntuación < +0,35",
            "distancia": -1.059,
            "regla": "puntuacion_favorable",
            "umbral": 0.35,
@@ -7580,7 +7580,7 @@
          "condiciones": [
           {
            "actual": 1.409,
-           "condicion": "puntuación ≤ -0.35",
+           "condicion": "puntuación ≤ -0,35",
            "distancia": -1.759,
            "regla": "puntuacion_desfavorable",
            "umbral": -0.35,
@@ -7606,8 +7606,8 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.41 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (90.0): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,41 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (90,00): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "reglas": [
         {
@@ -7618,7 +7618,7 @@
          "efecto": "evitar",
          "id": "puntuacion_desfavorable",
          "papel": "evaluada",
-         "regla": "Puntuación ≤ -0.35",
+         "regla": "Puntuación ≤ -0,35",
          "resultado": "no_cumple"
         },
         {
@@ -7629,7 +7629,7 @@
          "efecto": "comprar",
          "id": "puntuacion_favorable",
          "papel": "decide",
-         "regla": "Puntuación ≥ +0.35",
+         "regla": "Puntuación ≥ +0,35",
          "resultado": "cumple"
         },
         {
@@ -7640,7 +7640,7 @@
          "efecto": "comprar",
          "id": "tendencia_a_favor",
          "papel": "decide",
-         "regla": "Precio ≥ media de 200 sesiones + 2 %",
+         "regla": "Precio ≥ media de 200 sesiones + 2 %",
          "resultado": "cumple"
         },
         {
@@ -7665,9 +7665,9 @@
         }
        ],
        "triggers": [
-        "Comprar entre 98.0 y 102.0",
-        "Salir si cierra bajo 90.8 (−9.2 %)",
-        "Tomar beneficios en 118.4 (+18.4 %)"
+        "Comprar entre 98,00 y 102,00",
+        "Salir si cierra bajo 90,80 (-9,2 %)",
+        "Tomar beneficios en 118,40 (+18,4 %)"
        ]
       },
       "events": [],
@@ -7760,7 +7760,7 @@
          "condiciones": [
           {
            "actual": 100.0,
-           "condicion": "precio < 91.8 (media 200 + 2 %)",
+           "condicion": "precio < 91,80 (media 200 + 2 %)",
            "distancia": -8.2,
            "regla": "tendencia_a_favor",
            "umbral": 91.8,
@@ -7782,7 +7782,7 @@
          "condiciones": [
           {
            "actual": 1.326,
-           "condicion": "puntuación < +0.35",
+           "condicion": "puntuación < +0,35",
            "distancia": -0.976,
            "regla": "puntuacion_favorable",
            "umbral": 0.35,
@@ -7796,7 +7796,7 @@
          "condiciones": [
           {
            "actual": 1.326,
-           "condicion": "puntuación ≤ -0.35",
+           "condicion": "puntuación ≤ -0,35",
            "distancia": -1.676,
            "regla": "puntuacion_desfavorable",
            "umbral": -0.35,
@@ -7822,8 +7822,8 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.33 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (90.0): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,33 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (90,00): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "reglas": [
         {
@@ -7834,7 +7834,7 @@
          "efecto": "evitar",
          "id": "puntuacion_desfavorable",
          "papel": "evaluada",
-         "regla": "Puntuación ≤ -0.35",
+         "regla": "Puntuación ≤ -0,35",
          "resultado": "no_cumple"
         },
         {
@@ -7845,7 +7845,7 @@
          "efecto": "comprar",
          "id": "puntuacion_favorable",
          "papel": "decide",
-         "regla": "Puntuación ≥ +0.35",
+         "regla": "Puntuación ≥ +0,35",
          "resultado": "cumple"
         },
         {
@@ -7856,7 +7856,7 @@
          "efecto": "comprar",
          "id": "tendencia_a_favor",
          "papel": "decide",
-         "regla": "Precio ≥ media de 200 sesiones + 2 %",
+         "regla": "Precio ≥ media de 200 sesiones + 2 %",
          "resultado": "cumple"
         },
         {
@@ -7881,9 +7881,9 @@
         }
        ],
        "triggers": [
-        "Comprar entre 98.0 y 102.0",
-        "Salir si cierra bajo 83.5 (−16.5 %)",
-        "Tomar beneficios en 133.0 (+33.0 %)"
+        "Comprar entre 98,00 y 102,00",
+        "Salir si cierra bajo 83,50 (-16,5 %)",
+        "Tomar beneficios en 133,00 (+33,0 %)"
        ]
       },
       "events": [],
@@ -7976,7 +7976,7 @@
          "condiciones": [
           {
            "actual": 144.0,
-           "condicion": "precio < 132.19 (media 200 + 2 %)",
+           "condicion": "precio < 132,19 (media 200 + 2 %)",
            "distancia": -8.2,
            "regla": "tendencia_a_favor",
            "umbral": 132.19,
@@ -7998,7 +7998,7 @@
          "condiciones": [
           {
            "actual": 1.228,
-           "condicion": "puntuación < +0.35",
+           "condicion": "puntuación < +0,35",
            "distancia": -0.878,
            "regla": "puntuacion_favorable",
            "umbral": 0.35,
@@ -8012,7 +8012,7 @@
          "condiciones": [
           {
            "actual": 1.228,
-           "condicion": "puntuación ≤ -0.35",
+           "condicion": "puntuación ≤ -0,35",
            "distancia": -1.578,
            "regla": "puntuacion_desfavorable",
            "umbral": -0.35,
@@ -8038,8 +8038,8 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.23 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (129.6): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,23 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (129,60): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "reglas": [
         {
@@ -8050,7 +8050,7 @@
          "efecto": "evitar",
          "id": "puntuacion_desfavorable",
          "papel": "evaluada",
-         "regla": "Puntuación ≤ -0.35",
+         "regla": "Puntuación ≤ -0,35",
          "resultado": "no_cumple"
         },
         {
@@ -8061,7 +8061,7 @@
          "efecto": "comprar",
          "id": "puntuacion_favorable",
          "papel": "decide",
-         "regla": "Puntuación ≥ +0.35",
+         "regla": "Puntuación ≥ +0,35",
          "resultado": "cumple"
         },
         {
@@ -8072,7 +8072,7 @@
          "efecto": "comprar",
          "id": "tendencia_a_favor",
          "papel": "decide",
-         "regla": "Precio ≥ media de 200 sesiones + 2 %",
+         "regla": "Precio ≥ media de 200 sesiones + 2 %",
          "resultado": "cumple"
         },
         {
@@ -8097,9 +8097,9 @@
         }
        ],
        "triggers": [
-        "Comprar entre 141.12 y 146.88",
-        "Salir si cierra bajo 130.75 (−9.2 %)",
-        "Tomar beneficios en 170.5 (+18.4 %)"
+        "Comprar entre 141,12 y 146,88",
+        "Salir si cierra bajo 130,75 (-9,2 %)",
+        "Tomar beneficios en 170,50 (+18,4 %)"
        ]
       },
       "events": [],
@@ -8202,14 +8202,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.24 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (90.9): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,24 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (90,90): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 98.98 y 103.02",
-        "Salir si cierra bajo 84.33 (−16.5 %)",
-        "Tomar beneficios en 134.33 (+33.0 %)"
+        "Comprar entre 98,98 y 103,02",
+        "Salir si cierra bajo 84,33 (-16,5 %)",
+        "Tomar beneficios en 134,33 (+33,0 %)"
        ]
       },
       "events": [],
@@ -8312,14 +8312,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.21 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (91.8): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,21 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (91,80): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 99.96 y 104.04",
-        "Salir si cierra bajo 88.94 (−12.8 %)",
-        "Tomar beneficios en 128.11 (+25.6 %)"
+        "Comprar entre 99,96 y 104,04",
+        "Salir si cierra bajo 88,94 (-12,8 %)",
+        "Tomar beneficios en 128,11 (+25,6 %)"
        ]
       },
       "events": [],
@@ -8422,14 +8422,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.18 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (127.8): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,18 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (127,80): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 139.16 y 144.84",
-        "Salir si cierra bajo 118.57 (−16.5 %)",
-        "Tomar beneficios en 188.86 (+33.0 %)"
+        "Comprar entre 139,16 y 144,84",
+        "Salir si cierra bajo 118,57 (-16,5 %)",
+        "Tomar beneficios en 188,86 (+33,0 %)"
        ]
       },
       "events": [],
@@ -8532,14 +8532,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.17 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (126.9): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,17 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (126,90): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 138.18 y 143.82",
-        "Salir si cierra bajo 117.73 (−16.5 %)",
-        "Tomar beneficios en 187.53 (+33.0 %)"
+        "Comprar entre 138,18 y 143,82",
+        "Salir si cierra bajo 117,73 (-16,5 %)",
+        "Tomar beneficios en 187,53 (+33,0 %)"
        ]
       },
       "events": [],
@@ -8642,14 +8642,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.10 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (126.0): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,10 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (126,00): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 137.2 y 142.8",
-        "Salir si cierra bajo 116.9 (−16.5 %)",
-        "Tomar beneficios en 186.2 (+33.0 %)"
+        "Comprar entre 137,20 y 142,80",
+        "Salir si cierra bajo 116,90 (-16,5 %)",
+        "Tomar beneficios en 186,20 (+33,0 %)"
        ]
       },
       "events": [],
@@ -8752,14 +8752,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.08 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (127.8): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,08 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (127,80): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 139.16 y 144.84",
-        "Salir si cierra bajo 128.94 (−9.2 %)",
-        "Tomar beneficios en 168.13 (+18.4 %)"
+        "Comprar entre 139,16 y 144,84",
+        "Salir si cierra bajo 128,94 (-9,2 %)",
+        "Tomar beneficios en 168,13 (+18,4 %)"
        ]
       },
       "events": [],
@@ -8862,14 +8862,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.05 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (105.3): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,05 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (105,30): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 114.66 y 119.34",
-        "Salir si cierra bajo 97.69 (−16.5 %)",
-        "Tomar beneficios en 155.61 (+33.0 %)"
+        "Comprar entre 114,66 y 119,34",
+        "Salir si cierra bajo 97,69 (-16,5 %)",
+        "Tomar beneficios en 155,61 (+33,0 %)"
        ]
       },
       "events": [],
@@ -8972,14 +8972,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.01 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (126.9): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,01 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (126,90): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 138.18 y 143.82",
-        "Salir si cierra bajo 112.52 (−20.2 %)",
-        "Tomar beneficios en 197.96 (+40.4 %)"
+        "Comprar entre 138,18 y 143,82",
+        "Salir si cierra bajo 112,52 (-20,2 %)",
+        "Tomar beneficios en 197,96 (+40,4 %)"
        ]
       },
       "events": [],
@@ -9082,14 +9082,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +1.00 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (134.1): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +1,00 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (134,10): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 146.02 y 151.98",
-        "Salir si cierra bajo 129.93 (−12.8 %)",
-        "Tomar beneficios en 187.14 (+25.6 %)"
+        "Comprar entre 146,02 y 151,98",
+        "Salir si cierra bajo 129,93 (-12,8 %)",
+        "Tomar beneficios en 187,14 (+25,6 %)"
        ]
       },
       "events": [],
@@ -9192,14 +9192,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.91 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (126.0): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,91 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (126,00): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 137.2 y 142.8",
-        "Salir si cierra bajo 127.12 (−9.2 %)",
-        "Tomar beneficios en 165.76 (+18.4 %)"
+        "Comprar entre 137,20 y 142,80",
+        "Salir si cierra bajo 127,12 (-9,2 %)",
+        "Tomar beneficios en 165,76 (+18,4 %)"
        ]
       },
       "events": [],
@@ -9302,14 +9302,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.90 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (90.0): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,90 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (90,00): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 98.0 y 102.0",
-        "Salir si cierra bajo 90.8 (−9.2 %)",
-        "Tomar beneficios en 118.4 (+18.4 %)"
+        "Comprar entre 98,00 y 102,00",
+        "Salir si cierra bajo 90,80 (-9,2 %)",
+        "Tomar beneficios en 118,40 (+18,4 %)"
        ]
       },
       "events": [],
@@ -9412,14 +9412,14 @@
        },
        "owned": false,
        "reasons": [
-        "Puntuación +0.90 — mejor que sus comparables de sector.",
-        "Cotiza sobre su media de 200 sesiones (130.5): la tendencia acompaña, no estás comprando algo que sigue cayendo."
+        "Puntuación +0,90 — mejor que sus comparables de sector.",
+        "Cotiza sobre su media de 200 sesiones (130,50): la tendencia acompaña, no estás comprando algo que sigue cayendo."
        ],
        "traza_en_ficha": true,
        "triggers": [
-        "Comprar entre 142.1 y 147.9",
-        "Salir si cierra bajo 121.07 (−16.5 %)",
-        "Tomar beneficios en 192.85 (+33.0 %)"
+        "Comprar entre 142,10 y 147,90",
+        "Salir si cierra bajo 121,07 (-16,5 %)",
+        "Tomar beneficios en 192,85 (+33,0 %)"
        ]
       },
       "events": [],

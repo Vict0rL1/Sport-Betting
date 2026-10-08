@@ -101,7 +101,7 @@ function Skew({ s }: { s: SkewSignal }) {
       <div className="flex flex-wrap items-baseline gap-x-8 gap-y-3">
         <div>
           <div className="text-[10px] uppercase tracking-wide text-slate-400">
-            Put 25Δ ({s.strike_put})
+            Put 25Δ ({fmtNum(s.strike_put, 2, { ceros: false })})
           </div>
           <div className="text-xl font-semibold tabular-nums text-slate-800">
             {pct(s.iv_put_25d)}
@@ -109,7 +109,7 @@ function Skew({ s }: { s: SkewSignal }) {
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-wide text-slate-400">
-            Call 25Δ ({s.strike_call})
+            Call 25Δ ({fmtNum(s.strike_call, 2, { ceros: false })})
           </div>
           <div className="text-xl font-semibold tabular-nums text-slate-800">
             {pct(s.iv_call_25d)}
@@ -341,7 +341,7 @@ function Actividad({ a }: { a: ActividadOpciones }) {
             {a.posiciones_nuevas.map((p) => (
               <tr key={`${p.tipo}-${p.strike}`}>
                 <td className="py-1 text-slate-700">
-                  {p.tipo === 'call' ? 'Call' : 'Put'} {p.strike}
+                  {p.tipo === 'call' ? 'Call' : 'Put'} {fmtNum(p.strike, 2, { ceros: false })}
                 </td>
                 <td className="py-1 text-right tabular-nums text-slate-700">
                   {fmtNum(p.volumen, 0)}

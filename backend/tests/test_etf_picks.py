@@ -26,9 +26,11 @@ def test_el_coste_manda_porque_es_lo_unico_garantizado():
 
 
 def test_el_coste_se_explica_en_dinero_no_en_porcentaje_abstracto():
-    """«0,75 %» no significa nada; «75 € al año por cada 10.000» sí."""
+    """«0,75 %» no significa nada; «75 al año por cada 10.000 invertidos» sí.
+    Sin «€»: el fondo puede estar en dólares y la proporción vale en cualquier moneda."""
     r = evaluar_etf(etf(expense_ratio=0.0075), precio())
-    assert any("€ al año por cada 10.000" in x for x in r["reasons"])
+    assert any("75 al año por cada 10.000 invertidos" in x for x in r["reasons"])
+    assert not any("€" in x or "$" in x for x in r["reasons"])
 
 
 def test_un_etf_diminuto_se_evita_aunque_sea_barato():

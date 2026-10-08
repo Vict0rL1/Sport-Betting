@@ -122,9 +122,9 @@ export function CosteOportunidadResumen({ oc }: { oc: CosteOportunidad }) {
             {oc.candidatos_a_revisar.map((f) => (
               <tr key={f.symbol} className="border-t border-slate-100 align-top">
                 <td className="py-1 font-medium text-slate-800">{f.symbol}</td>
-                <td className="tabular-nums">{f.prioridad.puntos}</td>
+                <td className="tabular-nums">{fmtNum(f.prioridad.puntos, 2, { ceros: false })}</td>
                 <td className={`tabular-nums ${f.supera_umbral ? 'text-sky-800' : 'text-slate-500'}`}>
-                  {f.mejora} / {f.mejora_requerida}
+                  {fmtNum(f.mejora, 2, { ceros: false })} / {fmtNum(f.mejora_requerida, 2, { ceros: false })}
                 </td>
                 <td className="tabular-nums text-slate-500">
                   {fmtNum(f.coste_del_cambio.total_conocido_pct, 2)} %

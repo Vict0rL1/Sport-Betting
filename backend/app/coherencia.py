@@ -22,6 +22,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 
 from app import datos
+from app.formato import fmt_num, fmt_pct
 
 PASS, FAIL, UNKNOWN = "PASS", "FAIL", "UNKNOWN"
 
@@ -83,7 +84,7 @@ def trimestres_frente_al_ano(simbolo: str, financials: dict, ejercicios: int = 2
             q4_derivado = bool(((qs["Q4"].get("fuentes") or {}).get(campo) or {}).get("derivado"))
             if campo == "revenue" and valores[3] <= 0:
                 filas.append(_fila(nombre, simbolo, FAIL,
-                                   f"FY{ano}: cuarto trimestre de ingresos {valores[3]:,.0f} (≤ 0): "
+                                   f"FY{ano}: cuarto trimestre de ingresos {fmt_num(valores[3], 0)} (≤ 0): "
                                    "trimestre asignado al ejercicio equivocado", ejercicio=ano))
                 continue
             suma = sum(valores)
@@ -95,8 +96,8 @@ def trimestres_frente_al_ano(simbolo: str, financials: dict, ejercicios: int = 2
                 estado = PASS if abs(desvio) <= TOLERANCIA_SUMA_TRIMESTRES else FAIL
             filas.append(_fila(
                 nombre, simbolo, estado,
-                f"FY{ano}: suma {suma:,.0f} frente a {total:,.0f} anual"
-                + (f" ({desvio:+.2%}; tolerancia {TOLERANCIA_SUMA_TRIMESTRES:.0%})" if desvio is not None else "")
+                f"FY{ano}: suma {fmt_num(suma, 0)} frente a {fmt_num(total, 0)} anual"
+                + (f" ({fmt_pct(desvio, 2, signo=True)}; tolerancia {fmt_pct(TOLERANCIA_SUMA_TRIMESTRES, 0)})" if desvio is not None else "")
                 + ("; Q4 derivado (año − nueve meses)" if q4_derivado else "; Q4 publicado")
                 + ("" if estado == PASS else ": ¿reexpresión del año o trimestre mal asignado?"),
                 ejercicio=ano, desvio=desvio,
@@ -162,8 +163,9 @@ def escala_del_consenso(simbolo: str, evento: dict | None, trimestres: list[dict
         r = ev.comprobar_escala({"metrica": metrica, "valor": valor}, trimestres)
         estado = {"ok": PASS, "dudosa": FAIL}.get(r["estado"], UNKNOWN)
         detalle = r.get("motivo") or (
-            f"{valor:g} frente a {r['referencia']:g} del trimestre cerrado el {r['periodo_referencia']} "
-            f"(×{r['ratio']:.3g}, banda {r['banda'][0]:g}–{r['banda'][1]:g})"
+            f"{fmt_num(valor, 4, ceros=False)} frente a {fmt_num(r['referencia'], 4, ceros=False)} del trimestre "
+            f"cerrado el {r['periodo_referencia']} ({fmt_num(r['ratio'], 0 if abs(r['ratio']) >= 100 else 2, ceros=False)} veces, banda "
+            f"{fmt_num(r['banda'][0], 2, ceros=False)}–{fmt_num(r['banda'][1], 2, ceros=False)})"
         )
         filas.append(_fila(nombre, simbolo, estado, detalle))
     return filas
@@ -185,11 +187,12 @@ def tipo_de_cambio(moneda: str, tipo: dict | None) -> list[dict]:
     por_usd = tipo["por_usd"]
     banda = fx.BANDAS_POR_USD.get(moneda)
     if banda and not banda[0] <= por_usd <= banda[1]:
-        return [_fila(nombre, None, FAIL, f"{por_usd:g} {moneda}/USD fuera de {banda[0]:g}–{banda[1]:g}: ¿serie invertida?")]
+        return [_fila(nombre, None, FAIL, f"{fmt_num(por_usd, 4, ceros=False)} {moneda}/USD fuera de "
+                                         f"{fmt_num(banda[0], 2, ceros=False)}–{fmt_num(banda[1], 2, ceros=False)}: ¿serie invertida?")]
     if not tipo.get("fresco"):
-        return [_fila(nombre, None, FAIL, f"{por_usd:g} {moneda}/USD del {tipo.get('fecha')}: "
+        return [_fila(nombre, None, FAIL, f"{fmt_num(por_usd, 4, ceros=False)} {moneda}/USD del {tipo.get('fecha')}: "
                                          f"más de {fx.DIAS_FRESCO} días")]
-    return [_fila(nombre, None, PASS, f"{por_usd:g} {moneda}/USD del {tipo.get('fecha')} ({tipo.get('serie')})"
+    return [_fila(nombre, None, PASS, f"{fmt_num(por_usd, 4, ceros=False)} {moneda}/USD del {tipo.get('fecha')} ({tipo.get('serie')})"
                   + ("" if banda else "; sin banda de cordura para esta moneda"))]
 
 
@@ -212,8 +215,8 @@ def cotizacion_frente_a_cierre(simbolo: str, quote: dict | None, barras: list[di
     desvio = precio / cierre - 1
     viejo = (hoy - fecha).days > DIAS_MAXIMOS_ULTIMO_CIERRE
     estado = FAIL if abs(desvio) > DESVIO_MAXIMO_COTIZACION or viejo else PASS
-    detalle = (f"{precio:g} frente al cierre de {cierre:g} del {fecha} ({desvio:+.2%}; máx. "
-               f"{DESVIO_MAXIMO_COTIZACION:.0%})")
+    detalle = (f"{fmt_num(precio, 4, ceros=False)} frente al cierre de {fmt_num(cierre, 4, ceros=False)} del {fecha} ({fmt_pct(desvio, 2, signo=True)}; máx. "
+               f"{fmt_pct(DESVIO_MAXIMO_COTIZACION, 0)})")
     if viejo:
         detalle += f"; el último cierre tiene {(hoy - fecha).days} días"
     return [_fila("cotizacion_frente_a_cierre", simbolo, estado, detalle)]

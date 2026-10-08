@@ -30,7 +30,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from zoneinfo import ZoneInfo
 
 GUION = "—"
-ESPACIO_DURO = " "
+ESPACIO_DURO = "\u00a0"
 
 MESES = ("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", "nov", "dic")
 
@@ -60,19 +60,27 @@ def _con_signo(d: Decimal, texto: str, signo: bool) -> str:
     return ("+" if signo else "") + texto
 
 
-def fmt_num(valor, decimales: int = 2, *, signo: bool = False) -> str:
-    """6000 → «6.000,00». `signo`: «+» delante de los positivos (variaciones)."""
+def fmt_num(valor, decimales: int = 2, *, signo: bool = False, ceros: bool = True) -> str:
+    """6000 → «6.000,00». `signo`: «+» delante de los positivos (variaciones).
+    `ceros=False`: hasta `decimales`, sin ceros a la derecha (1,50 → «1,5»; 2,00
+    → «2»), para un umbral o un parámetro que se escribe tal cual es."""
     if not _finito(valor):
         return GUION
     d = _redondear(valor, decimales)
-    return _con_signo(d, _es_es(d, decimales), signo)
+    texto = _es_es(d, decimales)
+    if not ceros and decimales:
+        texto = texto.rstrip("0").rstrip(",")
+    return _con_signo(d, texto, signo)
 
 
-def fmt_pct(valor, decimales: int = 1, *, signo: bool = False, en_puntos: bool = False) -> str:
+def fmt_pct(
+    valor, decimales: int = 1, *, signo: bool = False, en_puntos: bool = False, ceros: bool = True
+) -> str:
     """0,123 → «12,3 %». Con `en_puntos`, el valor ya viene en puntos (12,3)."""
     if not _finito(valor):
         return GUION
-    return f"{fmt_num(valor if en_puntos else valor * 100, decimales, signo=signo)}{ESPACIO_DURO}%"
+    v = valor if en_puntos else valor * 100
+    return f"{fmt_num(v, decimales, signo=signo, ceros=ceros)}{ESPACIO_DURO}%"
 
 
 def fmt_dinero(valor, moneda: str | None, decimales: int = 2, *, signo: bool = False) -> str:
@@ -85,11 +93,7 @@ def fmt_dinero(valor, moneda: str | None, decimales: int = 2, *, signo: bool = F
 
 def _corto(valor: float, max_decimales: int) -> str:
     """Hasta `max_decimales`, sin ceros a la derecha: 400,0 → «400»; 1,25 → «1,25»."""
-    d = _redondear(valor, max_decimales)
-    texto = _es_es(d, max_decimales)
-    if max_decimales:
-        texto = texto.rstrip("0").rstrip(",")
-    return _con_signo(d, texto, False)
+    return fmt_num(valor, max_decimales, ceros=False)
 
 
 def fmt_compacto(valor, moneda: str | None = None) -> str:

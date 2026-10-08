@@ -39,6 +39,7 @@ from __future__ import annotations
 import math
 
 from app import datos
+from app.formato import fmt_num, fmt_pct
 from app.registro import log
 
 # --- Límites. Todos aquí, con nombre, para poder discutirlos. ---
@@ -273,8 +274,8 @@ def dimensionar(
         if c["confianza"] == "baja" and pesos.get(c["symbol"]):
             nuevo = pesos[c["symbol"]] * FACTOR_EVIDENCIA_BAJA
             recortes.append(
-                f"{c['symbol']}: {pesos[c['symbol']]:.1f} % → {nuevo:.1f} % (evidencia BAJA: "
-                f"× {FACTOR_EVIDENCIA_BAJA}). Menos base para la decisión, menos tamaño."
+                f"{c['symbol']}: {fmt_pct(pesos[c['symbol']], en_puntos=True)} → {fmt_pct(nuevo, en_puntos=True)} (evidencia BAJA: "
+                f"× {fmt_num(FACTOR_EVIDENCIA_BAJA, ceros=False)}). Menos base para la decisión, menos tamaño."
             )
             pesos[c["symbol"]] = nuevo
     if con_confianza:
@@ -289,13 +290,13 @@ def dimensionar(
         if w > tope:
             if en_libro.get(s):
                 recortes.append(
-                    f"{s}: {w:.1f} % → {tope:.1f} % (tope por posición). Ya tienes "
-                    f"un {en_libro[s]:.1f} % en {s}, y el tope de "
-                    f"{max_posicion_pct:.0f} % cuenta lo que tienes más lo que añades."
+                    f"{s}: {fmt_pct(w, en_puntos=True)} → {fmt_pct(tope, en_puntos=True)} (tope por posición). Ya tienes "
+                    f"un {fmt_pct(en_libro[s], en_puntos=True)} en {s}, y el tope de "
+                    f"{fmt_pct(max_posicion_pct, 0, en_puntos=True)} cuenta lo que tienes más lo que añades."
                 )
             else:
                 recortes.append(
-                    f"{s}: {w:.1f} % → {tope:.1f} % (tope por posición). "
+                    f"{s}: {fmt_pct(w, en_puntos=True)} → {fmt_pct(tope, en_puntos=True)} (tope por posición). "
                     "Un stop ceñido puede justificar aritméticamente mucho más, pero "
                     "el modelo puede estar equivocado sobre esa empresa y entonces el "
                     "tamaño no te salva el stop."
@@ -423,8 +424,8 @@ def dimensionar(
             escala = 0.0
             recortes.append(
                 f"Ideas nuevas al 0 %: la cartera que YA tienes estima un "
-                f"{vol_solo_libro * 100:.1f} % de volatilidad, por encima del "
-                f"objetivo ({objetivo_vol_pct} %). No es que las ideas sean malas "
+                f"{fmt_pct(vol_solo_libro)} de volatilidad, por encima del "
+                f"objetivo ({fmt_pct(objetivo_vol_pct, en_puntos=True, ceros=False)}). No es que las ideas sean malas "
                 "— es que no cabe más riesgo. Bajar del objetivo pasa por soltar "
                 "algo de lo que ya tienes, y eso no lo decide el dimensionador."
             )
@@ -443,9 +444,9 @@ def dimensionar(
                     bajo = medio
             escala = bajo
             recortes.append(
-                f"Ideas nuevas escaladas al {escala * 100:.0f} %: la volatilidad "
-                f"estimada de la cartera combinada ({vol_llena * 100:.1f} %) "
-                f"superaba el objetivo ({objetivo_vol_pct} %)."
+                f"Ideas nuevas escaladas al {fmt_pct(escala, 0)}: la volatilidad "
+                f"estimada de la cartera combinada ({fmt_pct(vol_llena)}) "
+                f"superaba el objetivo ({fmt_pct(objetivo_vol_pct, en_puntos=True, ceros=False)})."
             )
         pesos = {s: w * escala for s, w in pesos.items()}
 
@@ -466,12 +467,12 @@ def dimensionar(
                 else (
                     "Ninguna posición tiene volatilidad medida: el objetivo de "
                     f"volatilidad NO se ha comprobado. Se escala igual suponiendo un "
-                    f"{VOL_SUPUESTA_PCT:.0f} % para todas, que es prudente, pero es un "
+                    f"{fmt_pct(VOL_SUPUESTA_PCT, 0, en_puntos=True)} para todas, que es prudente, pero es un "
                     "supuesto entero."
                     if not vols_frac
                     else (
                         f"{len(supuestas)} sin volatilidad medida ({', '.join(supuestas[:5])}): "
-                        f"se les supone un {VOL_SUPUESTA_PCT:.0f} % anual. El supuesto es "
+                        f"se les supone un {fmt_pct(VOL_SUPUESTA_PCT, 0, en_puntos=True)} anual. El supuesto es "
                         "alto a propósito — un dato que falta no puede abaratar el riesgo."
                     )
                 )
@@ -557,19 +558,19 @@ def _recortar_por_grupo(
         if ya and disponible <= 0:
             avisos.append(
                 f"«{nombre}»: sin margen para ideas nuevas (tope por {etiqueta}). "
-                f"Lo que ya tienes ({ya:.1f} %) agota el tope del {tope:.0f} %: "
+                f"Lo que ya tienes ({fmt_pct(ya, en_puntos=True)}) agota el tope del {fmt_pct(tope, 0, en_puntos=True)}: "
                 f"añadir aquí exige soltar antes. Afecta a {', '.join(presentes)}."
             )
         elif ya:
             avisos.append(
-                f"«{nombre}»: {nuevo:.1f} % → {disponible:.1f} % (tope por "
-                f"{etiqueta}). Ya tienes un {ya:.1f} % en el libro y el tope de "
-                f"{tope:.0f} % cuenta lo que tienes más lo que añades. Afecta a "
+                f"«{nombre}»: {fmt_pct(nuevo, en_puntos=True)} → {fmt_pct(disponible, en_puntos=True)} (tope por "
+                f"{etiqueta}). Ya tienes un {fmt_pct(ya, en_puntos=True)} en el libro y el tope de "
+                f"{fmt_pct(tope, 0, en_puntos=True)} cuenta lo que tienes más lo que añades. Afecta a "
                 f"{', '.join(presentes)}."
             )
         else:
             avisos.append(
-                f"«{nombre}»: {nuevo:.1f} % → {tope:.1f} % (tope por {etiqueta}). "
+                f"«{nombre}»: {fmt_pct(nuevo, en_puntos=True)} → {fmt_pct(tope, en_puntos=True)} (tope por {etiqueta}). "
                 f"Afecta a {', '.join(presentes)}, que se mueven juntas y por "
                 "tanto cuentan como una sola apuesta."
             )
@@ -704,11 +705,11 @@ def _aviso_cobertura(primer_año: int, años: float) -> str:
     fuera = [texto for año, texto in sorted(_CRISIS.items()) if año < primer_año]
     if not fuera:
         return (
-            f"El histórico cubre {años:.1f} años e incluye las grandes caídas "
+            f"El histórico cubre {fmt_num(años, 1)} años e incluye las grandes caídas "
             "recientes conocidas."
         )
     return (
-        f"ATENCIÓN: el histórico solo cubre {años:.1f} años, desde {primer_año}. "
+        f"ATENCIÓN: el histórico solo cubre {fmt_num(años, 1)} años, desde {primer_año}. "
         f"Esta cartera NO ha vivido {', ni '.join(fuera)}. Su peor caída "
         "histórica es el peor de los escenarios que dio tiempo a ocurrir, que no "
         "es lo mismo que el peor escenario posible."

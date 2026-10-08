@@ -354,11 +354,11 @@ function ComparablesPanel({ c }: { c: Comparables }) {
         <>
           <div className="mt-3 flex flex-wrap items-baseline gap-x-3">
             <span className="text-lg font-semibold tabular-nums text-slate-900">
-              {c.etiqueta_multiplo} {c.intervalo.bajo} – {c.intervalo.alto}
+              {c.etiqueta_multiplo} {fmtNum(c.intervalo.bajo, 1)} – {fmtNum(c.intervalo.alto, 1)}
             </span>
             <span className="text-sm text-slate-500">
               cotiza a{' '}
-              <span className="font-medium text-slate-800">{c.multiplo_objetivo}</span>{' '}
+              <span className="font-medium text-slate-800">{fmtNum(c.multiplo_objetivo, 1)}</span>{' '}
               ({c.dentro_del_intervalo ? 'dentro' : 'fuera'})
             </span>
           </div>
@@ -372,7 +372,7 @@ function ComparablesPanel({ c }: { c: Comparables }) {
           </div>
           <p className="mt-1 text-[11px] tabular-nums text-slate-400">
             {c.pares_usables} pares · {c.grados_libertad} grados de libertad · R²{' '}
-            {c.r2}
+            {fmtNum(c.r2)}
           </p>
         </>
       ) : (
@@ -409,7 +409,7 @@ function ComparablesPanel({ c }: { c: Comparables }) {
                 <tr key={p.symbol} className="border-b border-slate-100 last:border-0">
                   <td className="py-1.5 text-slate-700">{p.symbol}</td>
                   <td className="py-1.5 text-right tabular-nums text-slate-900">
-                    {p.multiplo}
+                    {fmtNum(p.multiplo, 1)}
                   </td>
                   <td className="py-1.5 text-right tabular-nums text-slate-500">
                     {pct(p.crecimiento)}
@@ -422,8 +422,7 @@ function ComparablesPanel({ c }: { c: Comparables }) {
                       p.residuo > 0 ? 'text-emerald-700' : 'text-red-700'
                     }`}
                   >
-                    {p.residuo > 0 ? '+' : ''}
-                    {p.residuo}
+                    {fmtNum(p.residuo, 1, { signo: true })}
                   </td>
                 </tr>
               ))}

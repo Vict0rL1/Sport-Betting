@@ -95,7 +95,7 @@ export function CalidadSection({ symbol }: { symbol: string }) {
           </h2>
           {datos.puntuacion && (
             <span className="text-[11px] text-slate-400">
-              Secundaria: {datos.puntuacion.valor >= 0 ? '+' : ''}{datos.puntuacion.valor} sobre {datos.puntuacion.evaluables} evaluables ({datos.puntuacion.regla})
+              Secundaria: {fmtNum(datos.puntuacion.valor, 2, { signo: true, ceros: false })} sobre {datos.puntuacion.evaluables} evaluables ({datos.puntuacion.regla})
             </span>
           )}
         </div>

@@ -325,7 +325,7 @@ export function MultifactorPage() {
                     {ETIQUETA[f]}
                   </label>
                   <span className="text-xs tabular-nums text-slate-500">
-                    {Math.round((pesos[f] / total) * 100)} %
+                    {fmtPct(pesos[f] / total, 0)}
                   </span>
                 </div>
                 <input
@@ -501,7 +501,7 @@ function FilaTabla({
           </td>
         ))}
         <td className="px-3 py-2 text-right text-xs tabular-nums text-slate-400">
-          {Math.round(fila.cobertura * 100)} %
+          {fmtPct(fila.cobertura, 0)}
         </td>
       </tr>
       {abierta && (

@@ -11,6 +11,7 @@ precios, y dejarle emitir la señal convertiría el motor en teatro.
 
 from __future__ import annotations
 
+from app.formato import fmt_num, fmt_pct
 from app.registro import log
 
 import json
@@ -138,18 +139,18 @@ def sentiment_from_events(events: list[dict]) -> float | None:
 def explain_signal(llm: LLMProvider, signal: dict, context: dict) -> dict:
     """Explicación en lenguaje natural de una señal ya calculada."""
     contributions = "\n".join(
-        f"- {family}: contribución {value:+.2f}"
+        f"- {family}: contribución {fmt_num(value, signo=True)}"
         for family, value in (signal.get("contributions") or {}).items()
     )
     prompt = f"""Empresa: {signal['symbol']} ({context.get('name') or 'sin nombre'})
 Sector: {context.get('sector') or 'desconocido'}
 Horizonte del modelo: {signal.get('horizon')}
 
-Puntuación compuesta (z-score frente al universo): {signal.get('score'):+.2f}
+Puntuación compuesta (z-score frente al universo): {fmt_num(signal.get('score'), signo=True)}
 Etiqueta del modelo: {signal.get('label')}
-Cobertura de datos: {signal.get('coverage', 0) * 100:.0f} % de los factores
+Cobertura de datos: {fmt_pct(signal.get('coverage'), 0)} de los factores
 Probabilidad calibrada: {
-    f"{signal['probability'] * 100:.0f} % (IC {signal['probability_ci'][0] * 100:.0f}–{signal['probability_ci'][1] * 100:.0f} %, n={signal['sample_size']})"
+    f"{fmt_pct(signal['probability'], 0)} (IC {fmt_num(signal['probability_ci'][0] * 100, 0)}–{fmt_pct(signal['probability_ci'][1], 0)}, n={signal['sample_size']})"
     if signal.get("probability") is not None
     else "NO DISPONIBLE — el modelo no está calibrado para este rango"
 }

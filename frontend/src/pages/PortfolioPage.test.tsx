@@ -76,10 +76,10 @@ describe('cifras de la cartera', () => {
     render(<MemoryRouter><PortfolioPage /></MemoryRouter>)
     expect(await screen.findByText('Invertido')).toBeInTheDocument()
     const ry = fila('RY.TO')!
-    expect(ry.textContent).toContain('120,00 CAD')
-    expect(ry.textContent).toContain('6.500,00 CAD') // V5: cuatro cifras, con punto
-    expect(ry.textContent).toContain('+500,00 CAD')
-    expect(fila('KO')!.textContent).toContain('58,00 USD')
-    expect(screen.getByText('Invertido').parentElement?.textContent).toBe('Invertido17.400,00 USD')
+    expect(ry.textContent).toContain('120,00\u00a0CAD')
+    expect(ry.textContent).toContain('6.500,00\u00a0CAD') // V5: cuatro cifras, con punto
+    expect(ry.textContent).toContain('+500,00\u00a0CAD')
+    expect(fila('KO')!.textContent).toContain('58,00\u00a0USD')
+    expect(screen.getByText('Invertido').parentElement?.textContent).toBe('Invertido17.400,00\u00a0USD')
   })
 })

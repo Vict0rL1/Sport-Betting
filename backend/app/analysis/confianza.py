@@ -27,6 +27,7 @@ import json
 from datetime import date, datetime
 
 from app import datos
+from app.formato import fmt_num, fmt_pct
 
 OK, DEBIL, CRITICO, DESCONOCIDO = "ok", "debil", "critico", "desconocido"
 ALTA, MEDIA, BAJA = "alta", "media", "baja"
@@ -109,7 +110,7 @@ def evaluar(analisis: dict, ahora: datetime) -> dict:
         factores.append(_f(
             "contraste_proveedores", "Acuerdo entre proveedores",
             OK if dif <= DESACUERDO_PRECIO else DEBIL,
-            f"{precio['fuente']} y {hist['fuente']} difieren un {dif * 100:.1f} %",
+            f"{precio['fuente']} y {hist['fuente']} difieren un {fmt_pct(dif)}",
         ))
     else:
         factores.append(_f(
@@ -134,7 +135,7 @@ def evaluar(analisis: dict, ahora: datetime) -> dict:
         factores.append(_f(
             "sensibilidad_valoracion", "Sensibilidad de la valoración al WACC",
             OK if amplitud <= AMPLITUD_DCF_INVERSO else DEBIL,
-            f"el crecimiento implícito va de {rango['bajo'] * 100:.1f} % a {rango['alto'] * 100:.1f} % "
+            f"el crecimiento implícito va de {fmt_pct(rango['bajo'])} a {fmt_pct(rango['alto'])} "
             "entre un WACC del 7 % y del 12 %",
         ))
     else:
@@ -151,7 +152,7 @@ def evaluar(analisis: dict, ahora: datetime) -> dict:
                 continue
             limite = CERCA_UMBRAL_PUNTOS if c.get("unidad") == "puntos" else CERCA_UMBRAL_PRECIO_PCT
             if abs(dist) < limite:
-                cerca.append(f"{c['condicion']} (a {abs(dist):g} {c.get('unidad')}) → {alt['hacia']}")
+                cerca.append(f"{c['condicion']} (a {fmt_num(abs(dist), 3, ceros=False)} {c.get('unidad')}) → {alt['hacia']}")
     factores.append(_f(
         "estabilidad", "Distancia de la decisión a sus umbrales",
         DEBIL if cerca else OK,

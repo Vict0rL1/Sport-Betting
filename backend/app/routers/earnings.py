@@ -46,6 +46,7 @@ from app.cache.cache import MarketDataService
 from app.db.engine import get_session
 from app.db.models import EarningsAnalysis
 from app.deps import get_llm, get_service
+from app.formato import fmt_num
 from app.llm.base import LLMProvider, LLMUnavailableError
 from app.llm.earnings_llm import (
     SYSTEM,
@@ -132,9 +133,10 @@ def _coste_estimado(entrada: int | None, salida: int = 4000) -> dict:
         "tokens_entrada": entrada,
         "usd_estimado": round(usd, 4),
         "nota": (
-            f"~{entrada:,} tokens de entrada. Estimación a la tarifa de Opus 5 "
-            f"({USD_POR_MTOK_ENTRADA} $/M entrada, {USD_POR_MTOK_SALIDA} $/M salida), "
-            f"asumiendo ~{salida:,} tokens de salida."
+            f"~{fmt_num(entrada, 0)} tokens de entrada. Estimación a la tarifa de Opus 5 "
+            f"({fmt_num(USD_POR_MTOK_ENTRADA, 2, ceros=False)} USD/M entrada, "
+            f"{fmt_num(USD_POR_MTOK_SALIDA, 2, ceros=False)} USD/M salida), "
+            f"asumiendo ~{fmt_num(salida, 0)} tokens de salida."
         ),
     }
 

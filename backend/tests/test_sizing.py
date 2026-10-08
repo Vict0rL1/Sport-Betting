@@ -104,7 +104,7 @@ def test_el_sector_que_ya_tienes_gasta_su_parte_del_tope():
     # 25 % de tope − 20 % ya en libro = 5 % de margen, no 9 %.
     assert r["pesos"]["NUEVA"] == 5.0, r["pesos"]
     assert any("tope por sector" in x for x in r["recortes"])
-    assert any("Ya tienes un 20.0 %" in x for x in r["recortes"])
+    assert any("Ya tienes un 20,0\u00a0%" in x for x in r["recortes"])
 
 
 def test_un_sector_agotado_no_deja_margen_y_lo_dice():

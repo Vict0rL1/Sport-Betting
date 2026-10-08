@@ -26,6 +26,7 @@ búsqueda. Se aprovecha.
 from __future__ import annotations
 
 from app.analysis.valuation import dcf, redondear
+from app.formato import fmt_num, fmt_pct
 
 # Rango de búsqueda del crecimiento implícito. Se acota por arriba: si hace
 # falta más de un 60 % anual sostenido para justificar el precio, el resultado
@@ -92,7 +93,7 @@ def crecimiento_implicito(
             "disponible": False,
             "fuera_de_rango": "abajo",
             "motivo": (
-                f"Ni con una caída del FCF del {abs(CRECIMIENTO_MIN) * 100:.0f} % "
+                f"Ni con una caída del FCF del {fmt_pct(abs(CRECIMIENTO_MIN), 0)} "
                 "anual sale un valor tan bajo como el precio. El mercado descuenta "
                 "un deterioro mayor que el que este modelo puede representar, o el "
                 "FCF de partida no es representativo del negocio."
@@ -103,7 +104,7 @@ def crecimiento_implicito(
             "disponible": False,
             "fuera_de_rango": "arriba",
             "motivo": (
-                f"Ni creciendo al {CRECIMIENTO_MAX * 100:.0f} % anual durante "
+                f"Ni creciendo al {fmt_pct(CRECIMIENTO_MAX, 0)} anual durante "
                 f"{years} años se justifica el precio con estos supuestos. Que el "
                 "número exacto sea 70 % u 80 % da igual: lo que dice el resultado "
                 "es que el precio no se explica por el flujo de caja actual."
@@ -179,9 +180,9 @@ def curva_de_crecimiento_implicito(
         "puntos": puntos,
         "rango": {"bajo": round(bajo, 4), "alto": round(alto, 4)},
         "nota": (
-            f"Según la tasa de descuento que uses ({descuentos[0] * 100:.0f} %–"
-            f"{descuentos[-1] * 100:.0f} %), el precio de hoy descuenta un "
-            f"crecimiento del FCF de entre {bajo * 100:.1f} % y {alto * 100:.1f} % "
+            f"Según la tasa de descuento que uses ({fmt_pct(descuentos[0], 0)}–"
+            f"{fmt_pct(descuentos[-1], 0)}), el precio de hoy descuenta un "
+            f"crecimiento del FCF de entre {fmt_pct(bajo)} y {fmt_pct(alto)} "
             f"anual durante {years} años. No es un dato de la empresa: es lo que "
             "implica el precio DADA tu tasa de descuento, y por eso viaja como "
             "rango y no como cifra."
@@ -232,8 +233,8 @@ def juzgar_contra_el_pasado(curva: dict, historico: dict) -> dict:
         # Afirmación fuerte y segura: vale para TODA la curva, no para un punto.
         lectura = (
             f"En todo el rango de descuentos considerado, el precio exige crecer "
-            f"más ({bajo * 100:.0f} %–{alto * 100:.0f} %) de lo que la empresa ha "
-            f"logrado nunca ({mejor * 100:.0f} %). No depende de qué WACC elijas: "
+            f"más ({fmt_pct(bajo, 0)}–{fmt_pct(alto, 0)}) de lo que la empresa ha "
+            f"logrado nunca ({fmt_pct(mejor, 0)}). No depende de qué WACC elijas: "
             "para que el precio sea correcto tiene que pasar algo que no ha pasado "
             "antes. Ese algo es la tesis, y conviene poder nombrarlo."
         )
@@ -241,8 +242,8 @@ def juzgar_contra_el_pasado(curva: dict, historico: dict) -> dict:
     elif alto < mejor:
         lectura = (
             f"En todo el rango de descuentos, el precio descuenta un crecimiento "
-            f"({bajo * 100:.0f} %–{alto * 100:.0f} %) por debajo del histórico "
-            f"({mejor * 100:.0f} %). O el mercado espera un deterioro, o el flujo "
+            f"({fmt_pct(bajo, 0)}–{fmt_pct(alto, 0)}) por debajo del histórico "
+            f"({fmt_pct(mejor, 0)}). O el mercado espera un deterioro, o el flujo "
             "de caja del último ejercicio no representa al negocio."
         )
         cruce = None
@@ -254,11 +255,11 @@ def juzgar_contra_el_pasado(curva: dict, historico: dict) -> dict:
             None,
         )
         lectura = (
-            f"El crecimiento histórico ({mejor * 100:.0f} %) cae DENTRO de lo que "
-            f"descuenta el precio ({bajo * 100:.0f} %–{alto * 100:.0f} %), así que "
+            f"El crecimiento histórico ({fmt_pct(mejor, 0)}) cae DENTRO de lo que "
+            f"descuenta el precio ({fmt_pct(bajo, 0)}–{fmt_pct(alto, 0)}), así que "
             "aquí no decide la empresa: decide tu tasa de descuento."
             + (
-                f" Por debajo de un WACC del {cruce * 100:.0f} % el precio pide "
+                f" Por debajo de un WACC del {fmt_pct(cruce, 0)} el precio pide "
                 "menos de lo que la empresa ya hace; por encima, más."
                 if cruce is not None
                 else ""
@@ -326,11 +327,11 @@ def margen_implicito(
         "expansion_necesaria_pp": round((implicito - margen_actual) * 100, 2),
         "revenue_growth_supuesto": revenue_growth,
         "nota": (
-            f"Manteniendo el crecimiento de ingresos en {revenue_growth * 100:.1f} %, "
-            f"el precio de hoy exige un margen de FCF del {implicito * 100:.1f} % "
-            f"frente al {margen_actual * 100:.1f} % actual"
+            f"Manteniendo el crecimiento de ingresos en {fmt_pct(revenue_growth)}, "
+            f"el precio de hoy exige un margen de FCF del {fmt_pct(implicito)} "
+            f"frente al {fmt_pct(margen_actual)} actual"
             + (
-                f" — una expansión de {(implicito - margen_actual) * 100:.1f} puntos. "
+                f" — una expansión de {fmt_num((implicito - margen_actual) * 100, 1)} puntos. "
                 "Pregúntate de dónde saldría."
                 if implicito > margen_actual
                 else " — el precio no exige mejorar el margen con ese crecimiento."
@@ -346,7 +347,7 @@ def resumen(curva: dict, margen: dict, contraste: dict) -> str:
         r = curva["rango"]
         partes.append(
             f"Al precio de hoy, el mercado descuenta un crecimiento del FCF de "
-            f"{r['bajo'] * 100:.0f} %–{r['alto'] * 100:.0f} % anual según la tasa "
+            f"{fmt_pct(r['bajo'], 0)}–{fmt_pct(r['alto'], 0)} anual según la tasa "
             "de descuento que uses."
         )
     if contraste.get("disponible"):
@@ -354,8 +355,8 @@ def resumen(curva: dict, margen: dict, contraste: dict) -> str:
     if margen.get("disponible") and margen["expansion_necesaria_pp"] > 1:
         partes.append(
             f"Por la otra vía, exigiría llevar el margen de FCF del "
-            f"{margen['margen_actual'] * 100:.0f} % al "
-            f"{margen['margen_implicito'] * 100:.0f} %."
+            f"{fmt_pct(margen['margen_actual'], 0)} al "
+            f"{fmt_pct(margen['margen_implicito'], 0)}."
         )
     if not partes:
         return (

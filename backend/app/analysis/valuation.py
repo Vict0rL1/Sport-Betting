@@ -9,6 +9,7 @@ el resultado al tocar cada supuesto. La falsa precisión es el enemigo.
 from __future__ import annotations
 
 from app import datos
+from app.formato import fmt_pct
 
 
 def dcf(
@@ -269,8 +270,8 @@ def rango_de_valor(
         return {
             "disponible": False,
             "nota": (
-                f"La tasa de descuento ({discount_rate * 100:.1f} %) no supera al "
-                f"crecimiento a perpetuidad ({terminal_growth * 100:.1f} %), así que "
+                f"La tasa de descuento ({fmt_pct(discount_rate)}) no supera al "
+                f"crecimiento a perpetuidad ({fmt_pct(terminal_growth)}), así que "
                 "el valor terminal sería infinito. No es un fallo de cálculo: es un "
                 "supuesto que dice que la empresa crece más rápido que el coste del "
                 "dinero para siempre."
@@ -307,25 +308,25 @@ def _leer_amplitud(amplitud: float | None, peso_terminal: float | None) -> str:
     if amplitud is not None:
         if amplitud > 0.6:
             partes.append(
-                f"El rango abarca un {amplitud * 100:.0f} % del valor central: con "
+                f"El rango abarca un {fmt_pct(amplitud, 0)} del valor central: con "
                 "esta sensibilidad el DCF no discrimina entre «cara» y «barata». "
                 "Sirve para entender el negocio, no para decidir el precio."
             )
         elif amplitud > 0.3:
             partes.append(
-                f"El rango abarca un {amplitud * 100:.0f} % del valor central. Es "
+                f"El rango abarca un {fmt_pct(amplitud, 0)} del valor central. Es "
                 "lo normal en un DCF; el número del medio no es más cierto que "
                 "los extremos."
             )
         else:
             partes.append(
-                f"Rango estrecho ({amplitud * 100:.0f} % del centro), lo que suele "
+                f"Rango estrecho ({fmt_pct(amplitud, 0)} del centro), lo que suele "
                 "significar que el peso del valor terminal es bajo o que la banda "
                 "de supuestos es corta."
             )
     if peso_terminal and peso_terminal > 0.7:
         partes.append(
-            f"El {peso_terminal * 100:.0f} % del valor está en el valor terminal, "
+            f"El {fmt_pct(peso_terminal, 0)} del valor está en el valor terminal, "
             "o sea en lo que pasa después del horizonte proyectado. Esto no es "
             "una valoración de los próximos años: es una apuesta sobre la "
             "perpetuidad con unos años de detalle delante."
@@ -432,7 +433,7 @@ def sensibilidad_ordenada(
         "dominante": dominante["supuesto"] if dominante else None,
         "nota": (
             f"El supuesto que más mueve el resultado es «{dominante['etiqueta']}»: "
-            f"su banda cambia el valor un {dominante['recorrido_pct']:.0f} %. "
+            f"su banda cambia el valor un {fmt_pct(dominante['recorrido_pct'], 0, en_puntos=True)}. "
             "Es donde merece la pena discutir, y donde una tesis se sostiene o se "
             "cae — no en el segundo decimal del resultado."
             if dominante

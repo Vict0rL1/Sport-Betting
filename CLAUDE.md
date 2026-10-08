@@ -35,6 +35,11 @@ código nuevo, comentarios, mensajes de error, textos de UI, docs y commits.
 
 - **Fechas con zona, siempre.** UTC en el backend; SQLite pierde la zona al
   guardar, así que se sirve con `snapshots.iso_utc`.
+- **Cifras para una persona:** solo con `app/formato.py` / `src/lib/formato.ts`
+  (`fmt_num`, `fmt_pct`, `fmt_dinero`, `fmt_compacto`, `fmt_fecha`, `fmt_antiguedad`),
+  gemelos probados contra la misma tabla (`formato.casos.json`). Nada de `{x:.1f}`
+  ni `toFixed`: un test y ESLint lo impiden. Con varias monedas, cada importe lleva
+  su código.
 - **Punto en el tiempo:** toda reconstrucción del pasado pregunta a
   `app/punto_en_el_tiempo.py` (`disponible_en`, `barra_disponible`, `filtrar`).
   No comparar fechas a mano. Un dato fechado por día el mismo día de una

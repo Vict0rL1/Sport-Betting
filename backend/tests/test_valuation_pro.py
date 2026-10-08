@@ -31,6 +31,7 @@ from app.analysis.valuation import (
     redondear,
     sensibilidad_ordenada,
 )
+from app.formato import fmt_pct
 
 
 # --- Rangos, no puntos --------------------------------------------------------
@@ -145,7 +146,7 @@ def test_un_precio_absurdo_lo_dice_en_vez_de_devolver_un_numero_absurdo():
     )
     assert r["disponible"] is False
     assert r["fuera_de_rango"] == "arriba"
-    assert f"{CRECIMIENTO_MAX * 100:.0f} %" in r["motivo"]
+    assert fmt_pct(CRECIMIENTO_MAX, 0) in r["motivo"]
 
 
 def test_sin_flujo_de_caja_positivo_el_inverso_no_aplica():

@@ -230,7 +230,7 @@ def test_lo_desconocido_va_a_su_cubo_y_se_cuenta():
     assert r["desconocido_pct"] == 35.0
     assert r["filas"][0] == {"etiqueta": "Tech", "peso_pct": 65.0}
     assert sum(f["peso_pct"] for f in r["filas"]) == pytest.approx(100.0)
-    assert "35 %" in r["nota"]
+    assert "35\u00a0%" in r["nota"]
 
 
 def test_las_caracteristicas_no_se_disfrazan_de_exposicion_a_factores():

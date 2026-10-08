@@ -54,7 +54,7 @@
       "year": "2025"
      },
      "fcf_trend": null,
-     "reading": "Convierte el 121 % del beneficio en caja: el beneficio contable subestima la generación real."
+     "reading": "Convierte el 121 % del beneficio en caja: el beneficio contable subestima la generación real."
     },
     "catalysts": [],
     "computed_by": "app",
@@ -217,7 +217,7 @@
      "acceleration": null,
      "eps_cagr": 0.09999999999999987,
      "fcf_cagr": 0.11111111111111116,
-     "reading": "Ingresos con crecimiento moderado (10.0 % anual a 1 año; ventana corta: la completa es de 5).",
+     "reading": "Ingresos con crecimiento moderado (10,0 % anual a 1 año; ventana corta: la completa es de 5).",
      "revenue_cagr": 0.10000000000000009,
      "revenue_cagr_3y": null,
      "ventana_nominal": 5,
@@ -249,7 +249,7 @@
       "net_margin": 0.15,
       "operating_margin": 0.21
      },
-     "reading": "Margen operativo del 21.0 %: márgenes sólidos.",
+     "reading": "Margen operativo del 21,0 %: márgenes sólidos.",
      "trends": {
       "gross_margin": null,
       "net_margin": null,
@@ -298,13 +298,13 @@
      "disclaimer": "Lectura conjunta de los datos, no una recomendación de compra o venta. Qué hacer depende de tu cartera, horizonte y tolerancia al riesgo, que el modelo no conoce. Un informe favorable sobre una empresa excelente sigue pudiendo ser una mala compra al precio equivocado.",
      "negatives": [],
      "positives": [
-      "ingresos creciendo al 10.0 % anual",
-      "margen operativo del 21.0 %"
+      "ingresos creciendo al 10,0 % anual",
+      "margen operativo del 21,0 %"
      ],
      "quant_label": null,
      "quant_score": null,
      "stance": "constructiva",
-     "summary": "Los datos apuntan en dirección favorable. A favor: ingresos creciendo al 10.0 % anual; margen operativo del 21.0 %. En contra: sin señales de alarma en los datos.",
+     "summary": "Los datos apuntan en dirección favorable. A favor: ingresos creciendo al 10,0 % anual; margen operativo del 21,0 %. En contra: sin señales de alarma en los datos.",
      "what_would_change_it": [
       "Dos trimestres seguidos de caída del margen operativo.",
       "Que el crecimiento de ingresos se vuelva negativo de forma sostenida.",
@@ -365,7 +365,7 @@
         "metodo": "flujo operativo / beneficio neto del ejercicio",
         "periodo": "2025",
         "persistente": false,
-        "regla": "CFO / beneficio neto ≥ 1.0 bueno; < 0.8 aviso (y FCF / beneficio < 0.6 aviso)",
+        "regla": "CFO / beneficio neto ≥ 1 bueno; < 0,8 aviso (y FCF / beneficio < 0,6 aviso)",
         "umbral": {
          "aviso": 0.8,
          "bueno": 1.0,
@@ -411,7 +411,7 @@
         "fuente": "edgar",
         "motivo": "falta beneficio, CFO o activos",
         "periodo": "2025",
-        "regla": "(beneficio − CFO) / activos medios < 0.05 bueno; > 0.1 aviso",
+        "regla": "(beneficio − CFO) / activos medios < 0,05 bueno; > 0,1 aviso",
         "umbral": null,
         "valor": null
        },
@@ -433,7 +433,7 @@
         "fuente": "edgar",
         "motivo": "la empresa no reporta cuentas por cobrar con las etiquetas conocidas (puede no tenerlo)",
         "periodo": "2025",
-        "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10% aviso (> 5% normal)",
+        "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -455,7 +455,7 @@
         "fuente": "edgar",
         "motivo": "la empresa no reporta inventario con las etiquetas conocidas (puede no tenerlo)",
         "periodo": "2025",
-        "regla": "crecimiento de inventario − crecimiento de ingresos > 10% aviso (> 5% normal)",
+        "regla": "crecimiento de inventario − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -477,7 +477,7 @@
         "fuente": "edgar",
         "motivo": "sin compensación en acciones reportada o sin ingresos",
         "periodo": "2025",
-        "regla": "SBC / ingresos < 5% bueno; > 10% aviso; creciente 3 años seguidos aviso",
+        "regla": "SBC / ingresos < 5 % bueno; > 10 % aviso; creciente 3 años seguidos aviso",
         "umbral": null,
         "valor": null
        },
@@ -529,7 +529,7 @@
         "fuente": "edgar",
         "motivo": "sin variaciones de circulante en el estado de flujos, o CFO no positivo",
         "periodo": "2025",
-        "regla": "parte del CFO que viene del circulante > 25% aviso (> 10% normal)",
+        "regla": "parte del CFO que viene del circulante > 25 % aviso (> 10 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -551,7 +551,7 @@
         "fuente": "edgar",
         "motivo": "no se identifican costes capitalizados con las etiquetas conocidas",
         "periodo": "2025",
-        "regla": "software capitalizado / ingresos > 5% aviso",
+        "regla": "software capitalizado / ingresos > 5 % aviso",
         "umbral": null,
         "valor": null
        },
@@ -573,7 +573,7 @@
         "fuente": "edgar",
         "motivo": "no se identifican partidas no recurrentes ni el tipo fiscal",
         "periodo": "2025",
-        "regla": "|partidas no recurrentes| / |beneficio neto| > 10% aviso; tipo fiscal efectivo < 10% con beneficio antes de impuestos positivo aviso",
+        "regla": "|partidas no recurrentes| / |beneficio neto| > 10 % aviso; tipo fiscal efectivo < 10 % con beneficio antes de impuestos positivo aviso",
         "umbral": null,
         "valor": null
        },
@@ -584,7 +584,7 @@
         "fuente": "edgar",
         "motivo": "hacen falta tres ejercicios",
         "periodo": "2025",
-        "regla": "beneficio +5% y FCF −5% en los dos últimos ejercicios aviso",
+        "regla": "beneficio +5 % y FCF −5 % en los dos últimos ejercicios aviso",
         "umbral": null,
         "valor": null
        }
@@ -720,7 +720,7 @@
         "id": "frescura_fundamentales"
        },
        {
-        "detalle": "finnhub y yfinance difieren un 11.5 %",
+        "detalle": "finnhub y yfinance difieren un 11,5 %",
         "estado": "debil",
         "factor": "Acuerdo entre proveedores",
         "id": "contraste_proveedores"
@@ -732,7 +732,7 @@
         "id": "historico"
        },
        {
-        "detalle": "el crecimiento implícito va de 19.7 % a 42.5 % entre un WACC del 7 % y del 12 %",
+        "detalle": "el crecimiento implícito va de 19,7 % a 42,5 % entre un WACC del 7 % y del 12 %",
         "estado": "debil",
         "factor": "Sensibilidad de la valoración al WACC",
         "id": "sensibilidad_valoracion"
@@ -768,9 +768,9 @@
       "nota": "Mide la calidad de la evidencia que respalda la decisión, no la probabilidad de acertar.",
       "razones": [
        "1 dato(s) desconocido(s): puntuación",
-       "finnhub y yfinance difieren un 11.5 %",
+       "finnhub y yfinance difieren un 11,5 %",
        "2 ejercicio(s) y 260 sesiones de precio",
-       "el crecimiento implícito va de 19.7 % a 42.5 % entre un WACC del 7 % y del 12 %",
+       "el crecimiento implícito va de 19,7 % a 42,5 % entre un WACC del 7 % y del 12 %",
        "sin dato (ninguna)"
       ],
       "regla": "crítico → BAJA; ≥3 débiles o desconocidos → BAJA; 1–2 → MEDIA; ninguno → ALTA. Un factor desconocido cuenta como débil."
@@ -1485,7 +1485,7 @@
       "en_cartera": false,
       "estado": "valido",
       "huella": "0.0:bajo",
-      "nota": "Si la añadieras al 10.0 % (lo que propone el motor, con el tope por posición).",
+      "nota": "Si la añadieras al 10,0 % (lo que propone el motor, con el tope por posición).",
       "peso_supuesto": 0.1,
       "riesgo_por_peso": 0.0,
       "volatilidad_cartera_antes": 0.040028,
@@ -1512,7 +1512,7 @@
          "umbral": 0.18
         },
         "descripcion": "margen operativo < 18%",
-        "detalle": "Margen operativo = 0.210 y el umbral era cae por debajo de 0.180. Todavía no lo cruza.",
+        "detalle": "Margen operativo = 0,210 y el umbral era cae por debajo de 0,180. Todavía no lo cruza.",
         "id": 1,
         "kind": "metrica",
         "medible": true,
@@ -1970,7 +1970,7 @@
       "metodo": "flujo operativo / beneficio neto del ejercicio",
       "periodo": "2025",
       "persistente": false,
-      "regla": "CFO / beneficio neto ≥ 1.0 bueno; < 0.8 aviso (y FCF / beneficio < 0.6 aviso)",
+      "regla": "CFO / beneficio neto ≥ 1 bueno; < 0,8 aviso (y FCF / beneficio < 0,6 aviso)",
       "umbral": {
        "aviso": 0.8,
        "bueno": 1.0,
@@ -2016,7 +2016,7 @@
       "fuente": "edgar",
       "motivo": "falta beneficio, CFO o activos",
       "periodo": "2025",
-      "regla": "(beneficio − CFO) / activos medios < 0.05 bueno; > 0.1 aviso",
+      "regla": "(beneficio − CFO) / activos medios < 0,05 bueno; > 0,1 aviso",
       "umbral": null,
       "valor": null
      },
@@ -2038,7 +2038,7 @@
       "fuente": "edgar",
       "motivo": "la empresa no reporta cuentas por cobrar con las etiquetas conocidas (puede no tenerlo)",
       "periodo": "2025",
-      "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10% aviso (> 5% normal)",
+      "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
       "umbral": null,
       "valor": null
      },
@@ -2060,7 +2060,7 @@
       "fuente": "edgar",
       "motivo": "la empresa no reporta inventario con las etiquetas conocidas (puede no tenerlo)",
       "periodo": "2025",
-      "regla": "crecimiento de inventario − crecimiento de ingresos > 10% aviso (> 5% normal)",
+      "regla": "crecimiento de inventario − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
       "umbral": null,
       "valor": null
      },
@@ -2082,7 +2082,7 @@
       "fuente": "edgar",
       "motivo": "sin compensación en acciones reportada o sin ingresos",
       "periodo": "2025",
-      "regla": "SBC / ingresos < 5% bueno; > 10% aviso; creciente 3 años seguidos aviso",
+      "regla": "SBC / ingresos < 5 % bueno; > 10 % aviso; creciente 3 años seguidos aviso",
       "umbral": null,
       "valor": null
      },
@@ -2134,7 +2134,7 @@
       "fuente": "edgar",
       "motivo": "sin variaciones de circulante en el estado de flujos, o CFO no positivo",
       "periodo": "2025",
-      "regla": "parte del CFO que viene del circulante > 25% aviso (> 10% normal)",
+      "regla": "parte del CFO que viene del circulante > 25 % aviso (> 10 % normal)",
       "umbral": null,
       "valor": null
      },
@@ -2156,7 +2156,7 @@
       "fuente": "edgar",
       "motivo": "no se identifican costes capitalizados con las etiquetas conocidas",
       "periodo": "2025",
-      "regla": "software capitalizado / ingresos > 5% aviso",
+      "regla": "software capitalizado / ingresos > 5 % aviso",
       "umbral": null,
       "valor": null
      },
@@ -2178,7 +2178,7 @@
       "fuente": "edgar",
       "motivo": "no se identifican partidas no recurrentes ni el tipo fiscal",
       "periodo": "2025",
-      "regla": "|partidas no recurrentes| / |beneficio neto| > 10% aviso; tipo fiscal efectivo < 10% con beneficio antes de impuestos positivo aviso",
+      "regla": "|partidas no recurrentes| / |beneficio neto| > 10 % aviso; tipo fiscal efectivo < 10 % con beneficio antes de impuestos positivo aviso",
       "umbral": null,
       "valor": null
      },
@@ -2189,7 +2189,7 @@
       "fuente": "edgar",
       "motivo": "hacen falta tres ejercicios",
       "periodo": "2025",
-      "regla": "beneficio +5% y FCF −5% en los dos últimos ejercicios aviso",
+      "regla": "beneficio +5 % y FCF −5 % en los dos últimos ejercicios aviso",
       "umbral": null,
       "valor": null
      }
@@ -3160,7 +3160,7 @@
     ],
     "closed_positions": [],
     "concentration_warnings": [
-     "KO representa el 100.0 % de la cartera"
+     "KO representa el 100,0 % de la cartera"
     ],
     "divisas": {
      "base": "USD",
@@ -3246,8 +3246,8 @@
     ],
     "risk_budget": {
      "avisos": [
-      "Tienes un 16.7 % de la cartera en riesgo a la vez, por encima del 6 % que se suele considerar el tope. Si todo se gira en tu contra, eso es lo que pierdes.",
-      "«Consumer Staples» concentra un 16.7 % de riesgo. Las posiciones de un mismo grupo caen juntas, así que cuentan como una sola apuesta grande, no como varias pequeñas (tope sugerido: 3 %)."
+      "Tienes un 16,7 % de la cartera en riesgo a la vez, por encima del 6 % que se suele considerar el tope. Si todo se gira en tu contra, eso es lo que pierdes.",
+      "«Consumer Staples» concentra un 16,7 % de riesgo. Las posiciones de un mismo grupo caen juntas, así que cuentan como una sola apuesta grande, no como varias pequeñas (tope sugerido: 3 %)."
      ],
      "margen_pct": 0.0,
      "nota": "El riesgo abierto es lo que perderías si TODAS tus posiciones tocaran su stop. Se agrupa por sector —y cripto en bloque, porque las grandes se correlacionan casi por completo— ya que lo que se mueve junto no diversifica. Los topes son convención de gestión de riesgo, no un resultado medido en esta app; la aritmética sí es exacta.",
@@ -3308,7 +3308,7 @@
     "hasta": "2026-09-11",
     "indice_beta": "SPY",
     "metodo": "descomposición de Euler de la volatilidad: σ_p = √(wᵀΣw), componente_i = w_i·(Σw)_i/σ_p",
-    "nota": "Riesgo medido sobre el 100 % de la cartera (504 sesiones comunes, 2025-04-25 → 2026-09-11). Todas las posiciones medidas.",
+    "nota": "Riesgo medido sobre el 100 % de la cartera (504 sesiones comunes, 2025-04-25 → 2026-09-11). Todas las posiciones medidas.",
     "observaciones": 504,
     "posiciones": [
      {
@@ -4875,7 +4875,7 @@
         "metodo": "flujo operativo / beneficio neto del ejercicio",
         "periodo": "2025",
         "persistente": false,
-        "regla": "CFO / beneficio neto ≥ 1.0 bueno; < 0.8 aviso (y FCF / beneficio < 0.6 aviso)",
+        "regla": "CFO / beneficio neto ≥ 1 bueno; < 0,8 aviso (y FCF / beneficio < 0,6 aviso)",
         "umbral": {
          "aviso": 0.8,
          "bueno": 1.0,
@@ -4921,7 +4921,7 @@
         "fuente": "edgar",
         "motivo": "falta beneficio, CFO o activos",
         "periodo": "2025",
-        "regla": "(beneficio − CFO) / activos medios < 0.05 bueno; > 0.1 aviso",
+        "regla": "(beneficio − CFO) / activos medios < 0,05 bueno; > 0,1 aviso",
         "umbral": null,
         "valor": null
        },
@@ -4943,7 +4943,7 @@
         "fuente": "edgar",
         "motivo": "la empresa no reporta cuentas por cobrar con las etiquetas conocidas (puede no tenerlo)",
         "periodo": "2025",
-        "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10% aviso (> 5% normal)",
+        "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -4965,7 +4965,7 @@
         "fuente": "edgar",
         "motivo": "la empresa no reporta inventario con las etiquetas conocidas (puede no tenerlo)",
         "periodo": "2025",
-        "regla": "crecimiento de inventario − crecimiento de ingresos > 10% aviso (> 5% normal)",
+        "regla": "crecimiento de inventario − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -4987,7 +4987,7 @@
         "fuente": "edgar",
         "motivo": "sin compensación en acciones reportada o sin ingresos",
         "periodo": "2025",
-        "regla": "SBC / ingresos < 5% bueno; > 10% aviso; creciente 3 años seguidos aviso",
+        "regla": "SBC / ingresos < 5 % bueno; > 10 % aviso; creciente 3 años seguidos aviso",
         "umbral": null,
         "valor": null
        },
@@ -5039,7 +5039,7 @@
         "fuente": "edgar",
         "motivo": "sin variaciones de circulante en el estado de flujos, o CFO no positivo",
         "periodo": "2025",
-        "regla": "parte del CFO que viene del circulante > 25% aviso (> 10% normal)",
+        "regla": "parte del CFO que viene del circulante > 25 % aviso (> 10 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -5061,7 +5061,7 @@
         "fuente": "edgar",
         "motivo": "no se identifican costes capitalizados con las etiquetas conocidas",
         "periodo": "2025",
-        "regla": "software capitalizado / ingresos > 5% aviso",
+        "regla": "software capitalizado / ingresos > 5 % aviso",
         "umbral": null,
         "valor": null
        },
@@ -5083,7 +5083,7 @@
         "fuente": "edgar",
         "motivo": "no se identifican partidas no recurrentes ni el tipo fiscal",
         "periodo": "2025",
-        "regla": "|partidas no recurrentes| / |beneficio neto| > 10% aviso; tipo fiscal efectivo < 10% con beneficio antes de impuestos positivo aviso",
+        "regla": "|partidas no recurrentes| / |beneficio neto| > 10 % aviso; tipo fiscal efectivo < 10 % con beneficio antes de impuestos positivo aviso",
         "umbral": null,
         "valor": null
        },
@@ -5094,7 +5094,7 @@
         "fuente": "edgar",
         "motivo": "hacen falta tres ejercicios",
         "periodo": "2025",
-        "regla": "beneficio +5% y FCF −5% en los dos últimos ejercicios aviso",
+        "regla": "beneficio +5 % y FCF −5 % en los dos últimos ejercicios aviso",
         "umbral": null,
         "valor": null
        }
@@ -5230,7 +5230,7 @@
         "id": "frescura_fundamentales"
        },
        {
-        "detalle": "finnhub y yfinance difieren un 5.6 %",
+        "detalle": "finnhub y yfinance difieren un 5,6 %",
         "estado": "ok",
         "factor": "Acuerdo entre proveedores",
         "id": "contraste_proveedores"
@@ -5242,7 +5242,7 @@
         "id": "historico"
        },
        {
-        "detalle": "el crecimiento implícito va de 22.7 % a 46.2 % entre un WACC del 7 % y del 12 %",
+        "detalle": "el crecimiento implícito va de 22,7 % a 46,3 % entre un WACC del 7 % y del 12 %",
         "estado": "debil",
         "factor": "Sensibilidad de la valoración al WACC",
         "id": "sensibilidad_valoracion"
@@ -5280,7 +5280,7 @@
        "1 dato(s) desconocido(s): puntuación",
        "último trimestre (2025-Q4) publicado hace 154 días",
        "2 ejercicio(s) y 201 sesiones de precio",
-       "el crecimiento implícito va de 22.7 % a 46.2 % entre un WACC del 7 % y del 12 %",
+       "el crecimiento implícito va de 22,7 % a 46,3 % entre un WACC del 7 % y del 12 %",
        "sin dato (ninguna)"
       ],
       "regla": "crítico → BAJA; ≥3 débiles o desconocidos → BAJA; 1–2 → MEDIA; ninguno → ALTA. Un factor desconocido cuenta como débil."
@@ -5825,7 +5825,7 @@
       "en_cartera": false,
       "estado": "valido",
       "huella": "-0.0:bajo",
-      "nota": "Si la añadieras al 10.0 % (lo que propone el motor, con el tope por posición).",
+      "nota": "Si la añadieras al 10,0 % (lo que propone el motor, con el tope por posición).",
       "peso_supuesto": 0.1,
       "riesgo_por_peso": -0.0,
       "volatilidad_cartera_antes": 0.040477,
@@ -5850,7 +5850,7 @@
          "umbral": 0.18
         },
         "descripcion": "margen operativo < 18%",
-        "detalle": "Margen operativo = 0.210 y el umbral era cae por debajo de 0.180. Todavía no lo cruza.",
+        "detalle": "Margen operativo = 0,210 y el umbral era cae por debajo de 0,180. Todavía no lo cruza.",
         "id": 1,
         "kind": "metrica",
         "medible": true,
@@ -6075,7 +6075,7 @@
         "metodo": "flujo operativo / beneficio neto del ejercicio",
         "periodo": "2025",
         "persistente": false,
-        "regla": "CFO / beneficio neto ≥ 1.0 bueno; < 0.8 aviso (y FCF / beneficio < 0.6 aviso)",
+        "regla": "CFO / beneficio neto ≥ 1 bueno; < 0,8 aviso (y FCF / beneficio < 0,6 aviso)",
         "umbral": {
          "aviso": 0.8,
          "bueno": 1.0,
@@ -6121,7 +6121,7 @@
         "fuente": "edgar",
         "motivo": "falta beneficio, CFO o activos",
         "periodo": "2025",
-        "regla": "(beneficio − CFO) / activos medios < 0.05 bueno; > 0.1 aviso",
+        "regla": "(beneficio − CFO) / activos medios < 0,05 bueno; > 0,1 aviso",
         "umbral": null,
         "valor": null
        },
@@ -6143,7 +6143,7 @@
         "fuente": "edgar",
         "motivo": "la empresa no reporta cuentas por cobrar con las etiquetas conocidas (puede no tenerlo)",
         "periodo": "2025",
-        "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10% aviso (> 5% normal)",
+        "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -6165,7 +6165,7 @@
         "fuente": "edgar",
         "motivo": "la empresa no reporta inventario con las etiquetas conocidas (puede no tenerlo)",
         "periodo": "2025",
-        "regla": "crecimiento de inventario − crecimiento de ingresos > 10% aviso (> 5% normal)",
+        "regla": "crecimiento de inventario − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -6187,7 +6187,7 @@
         "fuente": "edgar",
         "motivo": "sin compensación en acciones reportada o sin ingresos",
         "periodo": "2025",
-        "regla": "SBC / ingresos < 5% bueno; > 10% aviso; creciente 3 años seguidos aviso",
+        "regla": "SBC / ingresos < 5 % bueno; > 10 % aviso; creciente 3 años seguidos aviso",
         "umbral": null,
         "valor": null
        },
@@ -6239,7 +6239,7 @@
         "fuente": "edgar",
         "motivo": "sin variaciones de circulante en el estado de flujos, o CFO no positivo",
         "periodo": "2025",
-        "regla": "parte del CFO que viene del circulante > 25% aviso (> 10% normal)",
+        "regla": "parte del CFO que viene del circulante > 25 % aviso (> 10 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -6261,7 +6261,7 @@
         "fuente": "edgar",
         "motivo": "no se identifican costes capitalizados con las etiquetas conocidas",
         "periodo": "2025",
-        "regla": "software capitalizado / ingresos > 5% aviso",
+        "regla": "software capitalizado / ingresos > 5 % aviso",
         "umbral": null,
         "valor": null
        },
@@ -6283,7 +6283,7 @@
         "fuente": "edgar",
         "motivo": "no se identifican partidas no recurrentes ni el tipo fiscal",
         "periodo": "2025",
-        "regla": "|partidas no recurrentes| / |beneficio neto| > 10% aviso; tipo fiscal efectivo < 10% con beneficio antes de impuestos positivo aviso",
+        "regla": "|partidas no recurrentes| / |beneficio neto| > 10 % aviso; tipo fiscal efectivo < 10 % con beneficio antes de impuestos positivo aviso",
         "umbral": null,
         "valor": null
        },
@@ -6294,7 +6294,7 @@
         "fuente": "edgar",
         "motivo": "hacen falta tres ejercicios",
         "periodo": "2025",
-        "regla": "beneficio +5% y FCF −5% en los dos últimos ejercicios aviso",
+        "regla": "beneficio +5 % y FCF −5 % en los dos últimos ejercicios aviso",
         "umbral": null,
         "valor": null
        }
@@ -6430,7 +6430,7 @@
         "id": "frescura_fundamentales"
        },
        {
-        "detalle": "finnhub y yfinance difieren un 11.5 %",
+        "detalle": "finnhub y yfinance difieren un 11,5 %",
         "estado": "debil",
         "factor": "Acuerdo entre proveedores",
         "id": "contraste_proveedores"
@@ -6442,7 +6442,7 @@
         "id": "historico"
        },
        {
-        "detalle": "el crecimiento implícito va de 19.7 % a 42.5 % entre un WACC del 7 % y del 12 %",
+        "detalle": "el crecimiento implícito va de 19,7 % a 42,5 % entre un WACC del 7 % y del 12 %",
         "estado": "debil",
         "factor": "Sensibilidad de la valoración al WACC",
         "id": "sensibilidad_valoracion"
@@ -6478,9 +6478,9 @@
       "nota": "Mide la calidad de la evidencia que respalda la decisión, no la probabilidad de acertar.",
       "razones": [
        "1 dato(s) desconocido(s): puntuación",
-       "finnhub y yfinance difieren un 11.5 %",
+       "finnhub y yfinance difieren un 11,5 %",
        "2 ejercicio(s) y 260 sesiones de precio",
-       "el crecimiento implícito va de 19.7 % a 42.5 % entre un WACC del 7 % y del 12 %",
+       "el crecimiento implícito va de 19,7 % a 42,5 % entre un WACC del 7 % y del 12 %",
        "sin dato (ninguna)"
       ],
       "regla": "crítico → BAJA; ≥3 débiles o desconocidos → BAJA; 1–2 → MEDIA; ninguno → ALTA. Un factor desconocido cuenta como débil."
@@ -7072,7 +7072,7 @@
       "en_cartera": false,
       "estado": "valido",
       "huella": "0.0:bajo",
-      "nota": "Si la añadieras al 10.0 % (lo que propone el motor, con el tope por posición).",
+      "nota": "Si la añadieras al 10,0 % (lo que propone el motor, con el tope por posición).",
       "peso_supuesto": 0.1,
       "riesgo_por_peso": 0.0,
       "volatilidad_cartera_antes": 0.040028,
@@ -7097,7 +7097,7 @@
          "umbral": 0.18
         },
         "descripcion": "margen operativo < 18%",
-        "detalle": "Margen operativo = 0.210 y el umbral era cae por debajo de 0.180. Todavía no lo cruza.",
+        "detalle": "Margen operativo = 0,210 y el umbral era cae por debajo de 0,180. Todavía no lo cruza.",
         "id": 1,
         "kind": "metrica",
         "medible": true,

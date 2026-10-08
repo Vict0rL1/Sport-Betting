@@ -28,6 +28,7 @@ from __future__ import annotations
 import math
 
 from app import datos
+from app.formato import fmt_pct
 
 NO_ACCION = "NO_ACCION"
 COMPRAR_CON_EFECTIVO = "COMPRAR_CON_EFECTIVO"
@@ -217,7 +218,7 @@ def evaluar(
     if necesidad == 0:
         return {**base, "tamano": tamano, "veredicto": {
             "accion": COMPRAR_CON_EFECTIVO,
-            "motivo": f"Hay efectivo ({efectivo * 100:.1f} %) para el tamaño permitido ({tamano_maximo * 100:.1f} %): no hace falta vender nada.",
+            "motivo": f"Hay efectivo ({fmt_pct(efectivo)}) para el tamaño permitido ({fmt_pct(tamano_maximo)}): no hace falta vender nada.",
         }}
 
     a_cand = base["candidata"]["atractivo"]["puntos"]
@@ -259,7 +260,7 @@ def evaluar(
         # Con lo que hay se puede comprar una parte sin vender nada; el resto es
         # lo que exige la comparación.
         veredicto["parcial_con_efectivo"] = round(efectivo, 4)
-        veredicto["motivo"] += (f" Con el efectivo disponible ({efectivo * 100:.1f} %) puedes comprar esa "
+        veredicto["motivo"] += (f" Con el efectivo disponible ({fmt_pct(efectivo)}) puedes comprar esa "
                                 "parte sin tocar nada.")
     return {**base, "tamano": tamano, "candidatos_a_revisar": revisables, "veredicto": veredicto}
 

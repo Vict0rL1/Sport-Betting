@@ -27,6 +27,7 @@ from __future__ import annotations
 from datetime import date
 
 import numpy as np
+from app.formato import fmt_num, fmt_pct
 
 # Ventanas de crisis, pico a valle del S&P 500. Fechas fijas y públicas: no se
 # eligen para que el resultado quede bonito, y por eso van escritas aquí y no
@@ -255,8 +256,8 @@ def numero_efectivo_de_apuestas(corr: list[list[float]]) -> dict:
         "autovalores_pct": [round(float(p) * 100, 1) for p in pesos[: min(n, 5)]],
         "nota": (
             f"Tienes {n} posiciones pero se comportan como "
-            f"{efectivo:.1f} apuestas independientes: el "
-            f"{primera * 100:.0f} % de la variación de la cartera la explica un "
+            f"{fmt_num(efectivo, 1)} apuestas independientes: el "
+            f"{fmt_pct(primera, 0)} de la variación de la cartera la explica un "
             "solo movimiento común. "
             + (
                 "Diversificar más dentro de ese movimiento no reduce el riesgo, "
@@ -380,13 +381,13 @@ def exposicion(posiciones: list[dict], clave: str, etiqueta_vacia: str) -> dict:
         "concentracion_mayor_pct": mayor["peso_pct"] if mayor else None,
         "nota": (
             (
-                f"«{mayor['etiqueta']}» concentra el {mayor['peso_pct']:.0f} % de la "
+                f"«{mayor['etiqueta']}» concentra el {fmt_pct(mayor['peso_pct'], 0, en_puntos=True)} de la "
                 "cartera."
                 if mayor and mayor["etiqueta"] != etiqueta_vacia
                 else ""
             )
             + (
-                f" Un {desconocido:.0f} % no tiene este dato y se cuenta aparte: "
+                f" Un {fmt_pct(desconocido, 0, en_puntos=True)} no tiene este dato y se cuenta aparte: "
                 "repartirlo entre los demás daría una foto más limpia y menos cierta."
                 if desconocido > 0
                 else ""
@@ -649,7 +650,7 @@ def _meta(c: dict) -> dict:
 def _leer_cobertura(cobertura: float, sin_datos: list[str], c: dict, retorno: float) -> str:
     if cobertura < COBERTURA_MINIMA:
         return (
-            f"Solo el {cobertura * 100:.0f} % de la cartera tiene histórico de "
+            f"Solo el {fmt_pct(cobertura, 0)} de la cartera tiene histórico de "
             f"{c['clave']} (faltan {', '.join(sin_datos[:5])}). El número de arriba "
             "describe esa parte reponderada, NO tu cartera: con menos de la mitad "
             "cubierta no se puede llamar de otra forma."
@@ -657,28 +658,28 @@ def _leer_cobertura(cobertura: float, sin_datos: list[str], c: dict, retorno: fl
     parte = (
         "Cubre la cartera entera."
         if not sin_datos
-        else f"Cubre el {cobertura * 100:.0f} % de la cartera; faltan "
+        else f"Cubre el {fmt_pct(cobertura, 0)} de la cartera; faltan "
         f"{', '.join(sin_datos[:4])}."
     )
     pct = retorno * 100
     caida_indice = abs(c["caida_sp500_pct"])
     if abs(pct) < 1:
         comparacion = (
-            f"Se habría quedado plana mientras el S&P 500 caía un {caida_indice:.0f} %."
+            f"Se habría quedado plana mientras el S&P 500 caía un {fmt_pct(caida_indice, 0, en_puntos=True)}."
         )
     elif pct > 0:
         comparacion = (
-            f"Habría SUBIDO un {pct:.0f} % mientras el S&P 500 caía un "
-            f"{caida_indice:.0f} %."
+            f"Habría SUBIDO un {fmt_pct(pct, 0, en_puntos=True)} mientras el S&P 500 caía un "
+            f"{fmt_pct(caida_indice, 0, en_puntos=True)}."
         )
     elif pct < c["caida_sp500_pct"]:
         comparacion = (
-            f"Habría caído un {abs(pct):.0f} %, MÁS que el {caida_indice:.0f} % del "
+            f"Habría caído un {fmt_pct(abs(pct), 0, en_puntos=True)}, MÁS que el {fmt_pct(caida_indice, 0, en_puntos=True)} del "
             "S&P 500."
         )
     else:
         comparacion = (
-            f"Habría caído un {abs(pct):.0f} %, menos que el {caida_indice:.0f} % del "
+            f"Habría caído un {fmt_pct(abs(pct), 0, en_puntos=True)}, menos que el {fmt_pct(caida_indice, 0, en_puntos=True)} del "
             "S&P 500."
         )
     return f"{parte} {comparacion}"
@@ -840,7 +841,7 @@ def contribucion_al_riesgo(
         },
         "clusters": clusters_de_riesgo(resultado, desconocidas, parejas, posiciones),
         "nota": (
-            f"Riesgo medido sobre el {peso_medido / (peso_total or 1) * 100:.0f} % de la cartera "
+            f"Riesgo medido sobre el {fmt_pct(peso_medido / (peso_total or 1), 0)} de la cartera "
             f"({len(fechas) - 1} sesiones comunes, {fechas[0].isoformat()} → {fechas[-1].isoformat()}). "
             + (f"{len(desconocidas)} posición(es) con riesgo DESCONOCIDO quedan fuera: el riesgo "
                "real es mayor que el medido, no igual." if desconocidas else "Todas las posiciones medidas.")
@@ -885,9 +886,9 @@ def clusters_de_riesgo(
 
     for i, miembros in enumerate(agrupar_por_correlacion(list(por_symbol), parejas, UMBRAL_CLUSTER_CORRELACION)):
         grupo("correlacion", f"Se mueven juntas #{i + 1}", miembros,
-              f"correlación ≥ {UMBRAL_CLUSTER_CORRELACION} con al menos otra del grupo")
+              f"correlación ≥ {fmt_num(UMBRAL_CLUSTER_CORRELACION, 2, ceros=False)} con al menos otra del grupo")
     altas = [x["symbol"] for x in medidas if (x.get("beta_mercado") or 0) >= UMBRAL_BETA_ALTA]
-    grupo("beta", "Muy sensibles al mercado", altas, f"beta frente al índice ≥ {UMBRAL_BETA_ALTA}")
+    grupo("beta", "Muy sensibles al mercado", altas, f"beta frente al índice ≥ {fmt_num(UMBRAL_BETA_ALTA, 2, ceros=False)}")
     salida.sort(key=lambda g: -g["contribucion"])
     return salida
 

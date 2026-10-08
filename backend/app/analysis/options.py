@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import math
 from datetime import date, datetime, timezone
+from app.formato import fmt_num, fmt_pct
 
 # Un contrato cuyo último cruce es de hace días no cotiza: su IV describe otro
 # mundo. Dos sesiones es generoso y aun así tira mucha morralla.
@@ -46,16 +47,6 @@ MIN_BASE_HISTORICA = 10
 
 
 # --- Black-Scholes: solo lo que hace falta ------------------------------------
-
-
-def _miles(n: float) -> str:
-    """Separador de miles a la española, sobre el número y NO sobre la frase.
-
-    Estaba escrito como `.replace(",", ".")` aplicado al texto entero, que
-    convertía en punto cualquier coma de la prosa: «Es un salto grande, y
-    merece» salía «Es un salto grande. y merece».
-    """
-    return f"{n:,.0f}".replace(",", ".")
 
 
 def _norm_cdf(x: float) -> float:
@@ -130,8 +121,8 @@ def limpiar(contratos: list[dict], hoy: date | None = None) -> tuple[list[dict],
         "nota": (
             f"De {total} contratos se usan {len(limpios)}. Se descartan los que no "
             f"cruzan desde hace más de {MAX_DIAS_SIN_CRUZAR} días, los de horquilla "
-            f"mayor del {MAX_HORQUILLA:.0%} y los de IV fuera de "
-            f"[{IV_MIN:.0%}, {IV_MAX:.0%}]: un strike ilíquido con IV de 300 % "
+            f"mayor del {fmt_pct(MAX_HORQUILLA, 0)} y los de IV fuera de "
+            f"[{fmt_pct(IV_MIN, 0)}, {fmt_pct(IV_MAX, 0)}]: un strike ilíquido con IV de 300 % "
             "arrastra cualquier media y parece señal."
         ),
     }
@@ -219,7 +210,7 @@ def estructura_temporal(cadenas: dict[date, list[dict]], spot: float, hoy: date 
                 "plana": "Estructura plana: el mercado no distingue entre plazos.",
             }[forma]
             + f" De {corto['dias']} a {largo['dias']} días la IV ATM va del "
-            f"{corto['iv']:.1%} al {largo['iv']:.1%}."
+            f"{fmt_pct(corto['iv'])} al {fmt_pct(largo['iv'])}."
         ),
     }
 
@@ -354,7 +345,7 @@ def prima_de_riesgo(iv: float | None, rv: float | None, base: list[float] | None
     salida["percentil"] = round(pct, 1)
     salida["base_n"] = len(base)
     salida["nota"] = (
-        f"Esta prima está en el percentil {pct:.0f} de las {len(base)} lecturas "
+        f"Esta prima está en el percentil {fmt_num(pct, 0)} de las {len(base)} lecturas "
         "guardadas de esta empresa. "
         + (
             "Prima alta para su propia historia: el mercado está pagando caro por "
@@ -419,7 +410,7 @@ def skew_25_delta(
             "delta_put_hallado": round(put["delta"] - 1, 3),
             "nota": (
                 "La cadena no llega al 25 delta a este plazo: lo más cercano está a "
-                f"delta {call['delta']:.2f} (call) y {put['delta'] - 1:.2f} (put). "
+                f"delta {fmt_num(call['delta'])} (call) y {fmt_num(put['delta'] - 1)} (put). "
                 "Dar eso por «skew de 25 delta» sería ponerle nombre técnico al "
                 "strike que hubiera."
             ),
@@ -435,7 +426,7 @@ def skew_25_delta(
         "strike_call": call["strike"],
         "dias": dias,
         "nota": (
-            f"La put de 25 delta paga {abs(valor):.1%} "
+            f"La put de 25 delta paga {fmt_pct(abs(valor))} "
             f"{'más' if valor > 0 else 'menos'} de volatilidad que la call. "
             + (
                 "Es lo normal en acciones: las caídas asustan más que las subidas, "
@@ -494,7 +485,7 @@ def movimiento_implicito(contratos: list[dict], spot: float) -> dict:
         "straddle": round(straddle, 4),
         "distancia_atm_pct": round(abs(strike - spot) / spot * 100, 2),
         "nota": (
-            f"El mercado paga por un movimiento de ±{pct:.1f} % hasta el "
+            f"El mercado paga por un movimiento de ±{fmt_pct(pct, en_puntos=True)} hasta el "
             "vencimiento. Sale del straddle en el dinero, que cubre TODO el periodo "
             "y no solo el día de resultados: sobreestima algo el salto de ese día."
         ),
@@ -562,7 +553,7 @@ def movimientos_historicos(
         "maximo_abs_pct": round(absolutos[-1], 2),
         "nota": (
             f"{n} resultados con precio alrededor. La mediana del movimiento absoluto "
-            f"es {mediana:.1f} % y el mayor fue {absolutos[-1]:.1f} %. Se mide del "
+            f"es {fmt_pct(mediana, en_puntos=True)} y el mayor fue {fmt_pct(absolutos[-1], en_puntos=True)}. Se mide del "
             "cierre anterior al anuncio al cierre siguiente."
         ),
     }
@@ -594,9 +585,9 @@ def comparar_movimiento(implicito: dict, historico: dict) -> dict:
         "veces_superado": mayores,
         "de": n,
         "nota": (
-            f"El mercado paga ±{imp:.1f} % y esta empresa se ha movido más que eso en "
+            f"El mercado paga ±{fmt_pct(imp, en_puntos=True)} y esta empresa se ha movido más que eso en "
             f"{mayores} de sus últimos {n} resultados (mediana histórica: "
-            f"{med:.1f} %). "
+            f"{fmt_pct(med, en_puntos=True)}). "
             "Esto NO es una recomendación de vender ni comprar volatilidad: que el "
             "implícito supere a la mediana es lo habitual, y el trimestre en que el "
             "mercado acierta se lleva por delante a quien vendió los otros cuatro."
@@ -725,8 +716,8 @@ def _contra_su_media(hoy: float, historico: list[float], etiqueta: str) -> dict:
                 "base_n": len(historico),
             },
             "nota": (
-                f"El {etiqueta} de hoy ({_miles(hoy)}) contra una media de "
-                f"{_miles(media)} sobre {len(historico)} lecturas, pero esas lecturas "
+                f"El {etiqueta} de hoy ({fmt_num(hoy, 0)}) contra una media de "
+                f"{fmt_num(media, 0)} sobre {len(historico)} lecturas, pero esas lecturas "
                 "no varían entre sí: sin dispersión no hay forma de decir si esto es "
                 "mucho. Con más instantáneas distintas el juicio aparece solo."
             ),
@@ -743,8 +734,8 @@ def _contra_su_media(hoy: float, historico: list[float], etiqueta: str) -> dict:
             "base_n": len(historico),
         },
         "nota": (
-            f"El {etiqueta} de hoy ({_miles(hoy)}) está a {z:+.1f} desviaciones de su "
-            f"media de {_miles(media)} sobre {len(historico)} lecturas. "
+            f"El {etiqueta} de hoy ({fmt_num(hoy, 0)}) está a {fmt_num(z, 1, signo=True)} desviaciones de su "
+            f"media de {fmt_num(media, 0)} sobre {len(historico)} lecturas. "
             + (
                 "Es un salto grande, y merece mirar qué strikes."
                 if abs(z) >= 2
@@ -786,8 +777,8 @@ def _variacion_de_oi(hoy: int, historico: list[float]) -> dict:
         "cambio_pct": round(pct, 1),
         "nota": (
             f"El open interest {'sube' if cambio > 0 else 'baja' if cambio < 0 else 'queda igual'} "
-            f"un {abs(pct):.1f} % desde la lectura anterior "
-            f"({_miles(anterior)} → {_miles(hoy)}). "
+            f"un {fmt_pct(abs(pct), en_puntos=True)} desde la lectura anterior "
+            f"({fmt_num(anterior, 0)} → {fmt_num(hoy, 0)}). "
             + (
                 "Subir es que quedan más posiciones abiertas que antes: se está "
                 "montando algo, no deshaciendo."

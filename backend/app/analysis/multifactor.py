@@ -44,6 +44,7 @@ import math
 
 from app.analysis.factors import zscores
 from app.analysis.valuation_history import percentile_rank
+from app.formato import fmt_num
 
 # --- Las seis familias -------------------------------------------------------
 
@@ -285,7 +286,7 @@ def correlacion_entre_familias(
                 pares[f"{a}|{b}"] = round(c, 3)
 
     fuertes = [
-        f"{k.replace('|', ' y ')}: {v:+.2f}"
+        f"{k.replace('|', ' y ')}: {fmt_num(v, signo=True)}"
         for k, v in sorted(pares.items(), key=lambda kv: -abs(kv[1]))
         if abs(v) >= 0.5
     ]
@@ -377,7 +378,7 @@ def _lectura(pct: float | None, alto_mejor: bool, metrica: str) -> str:
         return ""
     favorable = pct if alto_mejor else 1 - pct
     donde = "en su máximo histórico" if pct >= 0.9 else (
-        "en su mínimo histórico" if pct <= 0.1 else f"en el percentil {pct * 100:.0f} de su historia"
+        "en su mínimo histórico" if pct <= 0.1 else f"en el percentil {fmt_num(pct * 100, 0)} de su historia"
     )
     if favorable >= 0.8:
         return (

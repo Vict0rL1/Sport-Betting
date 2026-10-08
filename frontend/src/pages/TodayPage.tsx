@@ -138,8 +138,7 @@ function DecisionPlan({ decision, symbol }: { decision: Decision; symbol?: strin
             <div className="text-sm tabular-nums text-red-600">
               {fmtNum(levels.stop, 2)}{' '}
               <span className="text-xs text-slate-400">
-                {levels.stop_pct >= 0 ? '+' : ''}
-                {levels.stop_pct} %
+                {fmtPct(levels.stop_pct, 1, { signo: true, enPuntos: true })}
               </span>
             </div>
           </div>
@@ -150,8 +149,7 @@ function DecisionPlan({ decision, symbol }: { decision: Decision; symbol?: strin
             <div className="text-sm tabular-nums text-emerald-700">
               {fmtNum(levels.objetivo, 2)}{' '}
               <span className="text-xs text-slate-400">
-                {levels.objetivo_pct >= 0 ? '+' : ''}
-                {levels.objetivo_pct} %
+                {fmtPct(levels.objetivo_pct, 1, { signo: true, enPuntos: true })}
               </span>
             </div>
           </div>
@@ -161,7 +159,7 @@ function DecisionPlan({ decision, symbol }: { decision: Decision; symbol?: strin
                 Peso bruto
               </div>
               <div className="text-sm tabular-nums text-slate-800">
-                {levels.peso_bruto_pct} %
+                {fmtPct(levels.peso_bruto_pct, 1, { enPuntos: true })}
                 <span className="block text-[10px] text-slate-400">
                   antes de límites de cartera
                 </span>
@@ -412,13 +410,13 @@ function IdeaCard({
               Cuánto de tu cartera
             </div>
             <div className="text-sm tabular-nums text-slate-900">
-              {signal.peso_final_pct ?? niveles.peso_bruto_pct} %
+              {fmtPct(signal.peso_final_pct ?? niveles.peso_bruto_pct, 1, { enPuntos: true })}
               {signal.peso_final_pct !== null &&
                 signal.peso_final_pct !== undefined &&
                 niveles.peso_bruto_pct !== null &&
                 signal.peso_final_pct < niveles.peso_bruto_pct && (
                   <span className="block text-[10px] text-amber-800">
-                    recortado desde {niveles.peso_bruto_pct} %
+                    recortado desde {fmtPct(niveles.peso_bruto_pct, 1, { enPuntos: true })}
                   </span>
                 )}
             </div>
@@ -434,7 +432,7 @@ function IdeaCard({
           Ver el análisis completo →
         </button>
         <span className="text-[11px] text-slate-400">
-          Acuerdo entre factores: {Math.round(c.acuerdo * 100)} %
+          Acuerdo entre factores: {fmtPct(c.acuerdo, 0)}
         </span>
       </div>
     </li>
@@ -539,7 +537,7 @@ function SizingPanel({ sizing }: { sizing: Sizing }) {
         <p className="mt-3 text-xs text-slate-500">
           <span className="font-medium text-slate-700">Lo que ya tienes</span> cuenta
           contra los mismos topes:{' '}
-          {enLibro.map(([s, w]) => `${s} ${w} %`).join(' · ')}
+          {enLibro.map(([s, w]) => `${s} ${fmtPct(w, 1, { enPuntos: true })}`).join(' · ')}
         </p>
       )}
 
@@ -788,7 +786,7 @@ function SignalRow({
             <div>
               <dt className="inline text-slate-400">Cobertura de datos: </dt>
               <dd className="inline text-slate-700">
-                {Math.round(signal.coverage * 100)} %
+                {fmtPct(signal.coverage, 0)}
               </dd>
             </div>
             <div>

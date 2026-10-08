@@ -49,6 +49,7 @@ from app.analysis.fundamentals import (
 from app.analysis.reverse_dcf import curva_de_crecimiento_implicito
 from app.analysis.signal import FAVORABLE_MIN, UNFAVORABLE_MAX
 from app.db.models import Instrument, Position, Thesis, ThesisTrigger
+from app.formato import fmt_pct
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
 from app.registro import log
@@ -612,7 +613,7 @@ def seccion_riesgo(session: Session, service, symbol: str, mercado: dict, decisi
         "cluster_nivel": hipotesis["cluster_nivel"], "riesgo_por_peso": hipotesis["riesgo_por_peso"],
         "volatilidad_cartera_antes": hipotesis["volatilidad_antes"],
         "volatilidad_cartera_despues": hipotesis["volatilidad_despues"],
-        "nota": f"Si la añadieras al {peso * 100:.1f} % (lo que propone el motor, con el tope por posición).",
+        "nota": f"Si la añadieras al {fmt_pct(peso)} (lo que propone el motor, con el tope por posición).",
         "huella": f"{round(hipotesis['contribucion_del_candidato'], 2)}:{hipotesis['cluster_nivel']}",
     }
 

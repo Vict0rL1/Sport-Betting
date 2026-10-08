@@ -27,6 +27,7 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from app.formato import fmt_num
 
 OPERADORES = {
     "lt": ("por debajo de", lambda precio, umbral: precio < umbral),
@@ -113,9 +114,9 @@ def evaluar(
         "precio": precio,
         "umbral": umbral,
         "motivo": (
-            f"{alerta.get('symbol')} a {precio:.2f}, {etiqueta} {umbral:.2f}"
+            f"{alerta.get('symbol')} a {fmt_num(precio)}, {etiqueta} {fmt_num(umbral)}"
             if cumple
-            else f"{alerta.get('symbol')} a {precio:.2f}; el umbral es {umbral:.2f}"
+            else f"{alerta.get('symbol')} a {fmt_num(precio)}; el umbral es {fmt_num(umbral)}"
         ),
         "comprobado_en": ahora.isoformat(),
     }

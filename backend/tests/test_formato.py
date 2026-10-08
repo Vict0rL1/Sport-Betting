@@ -7,8 +7,10 @@ backend escribía «31.2 %» y el frontend «45,5 %» en la misma pantalla.
 
 from __future__ import annotations
 
+import ast
 import json
 import math
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -51,9 +53,101 @@ def test_el_cero_negativo_de_json_llega_como_cero_negativo():
 
 def test_un_instante_y_un_datetime_con_zona_dan_lo_mismo():
     instante = datetime(2026, 9, 12, 14, 35, tzinfo=timezone.utc)
-    assert formato.fmt_fecha(instante, hora=True, zona="America/New_York") == "12 sept 2026, 10:35 ET"
+    assert formato.fmt_fecha(instante, hora=True, zona="America/New_York") == "12 sept 2026, 10:35\u00a0ET"
     assert formato.fmt_antiguedad(instante, datetime(2026, 9, 12, 15, 35, tzinfo=timezone.utc)) == "hace 1 h"
 
 
 def test_un_booleano_no_es_una_cifra():
     assert formato.fmt_num(True) == "—"
+
+
+# --- Guarda: nadie más formatea cifras -------------------------------------------
+#
+# Había 249 sitios con `{x:.1f} %`, `{x:+.2f}`, `{x:.0%}` o `{x:g}` repartidos por
+# el backend, cada uno con su punto decimal inglés (V4). Toda cifra para una
+# persona pasa por `app/formato.py`; un f-string que formatea un número por su
+# cuenta, o que interpola en crudo una constante decimal («≥ 0.7»), rompe esto.
+
+APP = Path(__file__).resolve().parents[1] / "app"
+
+# Lo que no es texto para leer, con su motivo. (fichero, expresión) → motivo.
+INTERNOS = {
+    ("analisis_empresa.py", "round(propia['contribucion'], 2)"):
+        "huella para comparar dos contribuciones al riesgo; no se enseña",
+    ("analisis_empresa.py", "round(hipotesis['contribucion_del_candidato'], 2)"):
+        "huella para comparar dos contribuciones al riesgo; no se enseña",
+    ("snapshots.py", "ahora.astimezone(timezone.utc)"):
+        "identificador del origen de una instantánea; cómo se enseña es el ítem 1.8",
+}
+
+
+def _constantes_decimales() -> dict[str, set[str]]:
+    """Módulo → nombres de constantes de módulo que valen un float (0.7, 1.0…)."""
+    salida: dict[str, set[str]] = {}
+    for f in APP.rglob("*.py"):
+        nombres = set()
+        for n in ast.parse(f.read_text()).body:
+            if isinstance(n, ast.Assign) and isinstance(n.value, ast.Constant) and isinstance(n.value.value, float):
+                nombres |= {t.id for t in n.targets if isinstance(t, ast.Name)}
+        salida[".".join(f.relative_to(APP.parent).with_suffix("").parts)] = nombres
+    return salida
+
+
+def _formatos_sueltos() -> list[str]:
+    decimales = _constantes_decimales()
+    malos = []
+    for f in sorted(APP.rglob("*.py")):
+        if f.name == "formato.py":
+            continue
+        arbol = ast.parse(f.read_text())
+        modulo = ".".join(f.relative_to(APP.parent).with_suffix("").parts)
+        flotantes = set(decimales.get(modulo, set()))
+        for n in arbol.body:
+            if isinstance(n, ast.ImportFrom) and n.module in decimales:
+                flotantes |= {a.asname or a.name for a in n.names if a.name in decimales[n.module]}
+        for n in ast.walk(arbol):
+            if not isinstance(n, ast.FormattedValue):
+                continue
+            expr = ast.unparse(n.value)
+            es_round = isinstance(n.value, ast.Call) and getattr(n.value.func, "id", None) == "round"
+            crudo = n.format_spec is None and isinstance(n.value, ast.Name) and n.value.id in flotantes
+            if (n.format_spec is not None or es_round or crudo) and (f.name, expr) not in INTERNOS:
+                spec = ast.unparse(n.format_spec)[2:-1] if n.format_spec is not None else ""
+                malos.append(f"{f.relative_to(APP.parent)}:{n.lineno} {{{expr}{':' + spec if spec else ''}}}")
+    return malos
+
+
+def test_ningun_modulo_formatea_cifras_por_su_cuenta():
+    malos = _formatos_sueltos()
+    assert not malos, (
+        "Cifras formateadas fuera de app/formato.py (usa fmt_num, fmt_pct, fmt_dinero, "
+        "fmt_compacto o fmt_fecha):\n  " + "\n  ".join(malos)
+    )
+
+
+def test_los_internos_siguen_existiendo():
+    """Si un interno desaparece, su excepción sobra: la lista solo encoge."""
+    vistos = set()
+    for f in APP.rglob("*.py"):
+        for n in ast.walk(ast.parse(f.read_text())):
+            if isinstance(n, ast.FormattedValue):
+                vistos.add((f.name, ast.unparse(n.value)))
+    assert set(INTERNOS) <= vistos
+
+
+def test_la_guarda_ve_cada_forma_de_formatear(tmp_path, monkeypatch):
+    """Comprueba la guarda: cada forma conocida de formatear a mano salta."""
+    paquete = tmp_path / "app"
+    paquete.mkdir()
+    (paquete / "malo.py").write_text(
+        "UMBRAL = 0.7\n"
+        "ENTERO = 20\n"
+        "def f(x):\n"
+        "    return [f'{x:.1f} %', f'{x:+.2f}', f'{x:.0%}', f'{x:g}', f'{x:,}',\n"
+        "            f'{round(x, 1)}', f'≥ {UMBRAL}', f'{ENTERO} días', f'{x}']\n"
+    )
+    monkeypatch.setattr(sys.modules[__name__], "APP", paquete)
+    malos = _formatos_sueltos()
+    assert [m.split(" ", 1)[1] for m in malos] == [
+        "{x:.1f}", "{x:+.2f}", "{x:.0%}", "{x:g}", "{x:,}", "{round(x, 1)}", "{UMBRAL}",
+    ]

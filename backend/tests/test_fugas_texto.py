@@ -38,6 +38,9 @@ PATRONES = {
     "upper_snake": re.compile(r"\b[A-Z]+_[A-Z_]+\b"),
     "clave_interna": re.compile(r"\b[a-z_]+:\d{2}:\d{2}"),
     "plural_parentesis": re.compile(r"\((?:es|s)\)"),
+    # Un decimal con punto inglés («31.2 %», «EPS estimado 0.52», V4). No toca
+    # el punto de miles es-ES («6.000», «1.234.567»): ahí siempre siguen tres cifras.
+    "decimal_punto": re.compile(r"(?<![\w.,])(?:0\.\d+|\d+\.\d{1,2}|\d+\.\d{4,})(?![\w.,]?\d)"),
 }
 
 # Legítimos para siempre: notación matemática y nombres de variables de
@@ -68,7 +71,6 @@ PENDIENTES: dict[tuple[str, str, str], tuple[int, str]] = {
     ("confianza/factores/detalle", "plural_parentesis", "(s)"): (88, "1.9"),
     ("confianza/razones", "plural_parentesis", "(s)"): (10, "1.9"),
     ("dcf_modulo/json/detail", "snake", "net_debt"): (2, "1.8"),
-    ("decide/reasons", "vacio", "None"): (8, "1.7"),
     ("hoy/sizing/aviso_cartera", "plural_parentesis", "(es)"): (2, "1.9"),
     ("hoy/sizing/aviso_cartera", "plural_parentesis", "(s)"): (2, "1.9"),
     ("que_cambio/nota", "plural_parentesis", "(es)"): (1, "1.9"),
@@ -80,7 +82,6 @@ PENDIENTES: dict[tuple[str, str, str], tuple[int, str]] = {
     ("replay/secciones/coste_oportunidad/veredicto/motivo", "snake", "sin_datos"): (2, "1.8"),
     ("riesgo_cartera/nota", "plural_parentesis", "(es)"): (2, "1.9"),
     ("tesis/disparadores/detalle", "plural_parentesis", "(es)"): (2, "1.9"),
-    ("tesis/disparadores/detalle", "vacio", "nan"): (1, "1.7"),
 }
 
 
@@ -134,15 +135,20 @@ def test_las_fugas_pendientes_siguen_existiendo(fugas):
     ("la acción es sin_datos", "snake"), ("veredicto NO_TRADE", "upper_snake"),
     ("Análisis analisis:03:09:37", "clave_interna"), ("3 dato(s)", "plural_parentesis"),
     ("2 posición(es)", "plural_parentesis"),
+    ("un 31.2 % de la cartera", "decimal_punto"), ("EPS estimado 0.52", "decimal_punto"),
+    ("margen = 0.210", "decimal_punto"), ("Vender si cierra por debajo de 90.0", "decimal_punto"),
+    ("el tipo sale 0.7299", "decimal_punto"), ("1.3701 CAD", "decimal_punto"),
 ])
 def test_los_patrones_detectan_cada_familia(texto, tipo):
     assert PATRONES[tipo].search(texto)
 
 
-@pytest.mark.parametrize("texto", ["-0,5 %", "−0,03", "2026-09-03", "10-0", "S&P 500", "Euler: σ_p"])
+@pytest.mark.parametrize("texto", ["-0,5 %", "−0,03", "2026-09-03", "10-0", "S&P 500", "Euler: σ_p",
+                                   "6.000,00", "1.234.567,89", "20.000", "RY.TO", "BRK.B", "v1.2", "3.400 mil M"])
 def test_los_patrones_no_confunden_texto_legitimo(texto):
     assert not PATRONES["menos_cero"].search(texto)
     assert not PATRONES["vacio"].search(texto)
+    assert not PATRONES["decimal_punto"].search(texto)
 
 
 if __name__ == "__main__":

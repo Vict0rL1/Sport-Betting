@@ -278,7 +278,7 @@
         "fuente": "edgar",
         "motivo": "falta el flujo operativo o el beneficio",
         "periodo": "2025",
-        "regla": "CFO / beneficio neto ≥ 1.0 bueno; < 0.8 aviso (y FCF / beneficio < 0.6 aviso)",
+        "regla": "CFO / beneficio neto ≥ 1 bueno; < 0,8 aviso (y FCF / beneficio < 0,6 aviso)",
         "umbral": null,
         "valor": null
        },
@@ -320,7 +320,7 @@
         "fuente": "edgar",
         "motivo": "falta beneficio, CFO o activos",
         "periodo": "2025",
-        "regla": "(beneficio − CFO) / activos medios < 0.05 bueno; > 0.1 aviso",
+        "regla": "(beneficio − CFO) / activos medios < 0,05 bueno; > 0,1 aviso",
         "umbral": null,
         "valor": null
        },
@@ -342,7 +342,7 @@
         "fuente": "edgar",
         "motivo": "la empresa no reporta cuentas por cobrar con las etiquetas conocidas (puede no tenerlo)",
         "periodo": "2025",
-        "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10% aviso (> 5% normal)",
+        "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -364,7 +364,7 @@
         "fuente": "edgar",
         "motivo": "la empresa no reporta inventario con las etiquetas conocidas (puede no tenerlo)",
         "periodo": "2025",
-        "regla": "crecimiento de inventario − crecimiento de ingresos > 10% aviso (> 5% normal)",
+        "regla": "crecimiento de inventario − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -386,7 +386,7 @@
         "fuente": "edgar",
         "motivo": "sin compensación en acciones reportada o sin ingresos",
         "periodo": "2025",
-        "regla": "SBC / ingresos < 5% bueno; > 10% aviso; creciente 3 años seguidos aviso",
+        "regla": "SBC / ingresos < 5 % bueno; > 10 % aviso; creciente 3 años seguidos aviso",
         "umbral": null,
         "valor": null
        },
@@ -438,7 +438,7 @@
         "fuente": "edgar",
         "motivo": "sin variaciones de circulante en el estado de flujos, o CFO no positivo",
         "periodo": "2025",
-        "regla": "parte del CFO que viene del circulante > 25% aviso (> 10% normal)",
+        "regla": "parte del CFO que viene del circulante > 25 % aviso (> 10 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -460,7 +460,7 @@
         "fuente": "edgar",
         "motivo": "no se identifican costes capitalizados con las etiquetas conocidas",
         "periodo": "2025",
-        "regla": "software capitalizado / ingresos > 5% aviso",
+        "regla": "software capitalizado / ingresos > 5 % aviso",
         "umbral": null,
         "valor": null
        },
@@ -482,7 +482,7 @@
         "fuente": "edgar",
         "motivo": "no se identifican partidas no recurrentes ni el tipo fiscal",
         "periodo": "2025",
-        "regla": "|partidas no recurrentes| / |beneficio neto| > 10% aviso; tipo fiscal efectivo < 10% con beneficio antes de impuestos positivo aviso",
+        "regla": "|partidas no recurrentes| / |beneficio neto| > 10 % aviso; tipo fiscal efectivo < 10 % con beneficio antes de impuestos positivo aviso",
         "umbral": null,
         "valor": null
        },
@@ -493,7 +493,7 @@
         "fuente": "edgar",
         "motivo": "hacen falta tres ejercicios",
         "periodo": "2025",
-        "regla": "beneficio +5% y FCF −5% en los dos últimos ejercicios aviso",
+        "regla": "beneficio +5 % y FCF −5 % en los dos últimos ejercicios aviso",
         "umbral": null,
         "valor": null
        }
@@ -1303,7 +1303,7 @@
       "fuente": "edgar",
       "motivo": "falta el flujo operativo o el beneficio",
       "periodo": "2025",
-      "regla": "CFO / beneficio neto ≥ 1.0 bueno; < 0.8 aviso (y FCF / beneficio < 0.6 aviso)",
+      "regla": "CFO / beneficio neto ≥ 1 bueno; < 0,8 aviso (y FCF / beneficio < 0,6 aviso)",
       "umbral": null,
       "valor": null
      },
@@ -1345,7 +1345,7 @@
       "fuente": "edgar",
       "motivo": "falta beneficio, CFO o activos",
       "periodo": "2025",
-      "regla": "(beneficio − CFO) / activos medios < 0.05 bueno; > 0.1 aviso",
+      "regla": "(beneficio − CFO) / activos medios < 0,05 bueno; > 0,1 aviso",
       "umbral": null,
       "valor": null
      },
@@ -1367,7 +1367,7 @@
       "fuente": "edgar",
       "motivo": "la empresa no reporta cuentas por cobrar con las etiquetas conocidas (puede no tenerlo)",
       "periodo": "2025",
-      "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10% aviso (> 5% normal)",
+      "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
       "umbral": null,
       "valor": null
      },
@@ -1389,7 +1389,7 @@
       "fuente": "edgar",
       "motivo": "la empresa no reporta inventario con las etiquetas conocidas (puede no tenerlo)",
       "periodo": "2025",
-      "regla": "crecimiento de inventario − crecimiento de ingresos > 10% aviso (> 5% normal)",
+      "regla": "crecimiento de inventario − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
       "umbral": null,
       "valor": null
      },
@@ -1411,7 +1411,7 @@
       "fuente": "edgar",
       "motivo": "sin compensación en acciones reportada o sin ingresos",
       "periodo": "2025",
-      "regla": "SBC / ingresos < 5% bueno; > 10% aviso; creciente 3 años seguidos aviso",
+      "regla": "SBC / ingresos < 5 % bueno; > 10 % aviso; creciente 3 años seguidos aviso",
       "umbral": null,
       "valor": null
      },
@@ -1463,7 +1463,7 @@
       "fuente": "edgar",
       "motivo": "sin variaciones de circulante en el estado de flujos, o CFO no positivo",
       "periodo": "2025",
-      "regla": "parte del CFO que viene del circulante > 25% aviso (> 10% normal)",
+      "regla": "parte del CFO que viene del circulante > 25 % aviso (> 10 % normal)",
       "umbral": null,
       "valor": null
      },
@@ -1485,7 +1485,7 @@
       "fuente": "edgar",
       "motivo": "no se identifican costes capitalizados con las etiquetas conocidas",
       "periodo": "2025",
-      "regla": "software capitalizado / ingresos > 5% aviso",
+      "regla": "software capitalizado / ingresos > 5 % aviso",
       "umbral": null,
       "valor": null
      },
@@ -1507,7 +1507,7 @@
       "fuente": "edgar",
       "motivo": "no se identifican partidas no recurrentes ni el tipo fiscal",
       "periodo": "2025",
-      "regla": "|partidas no recurrentes| / |beneficio neto| > 10% aviso; tipo fiscal efectivo < 10% con beneficio antes de impuestos positivo aviso",
+      "regla": "|partidas no recurrentes| / |beneficio neto| > 10 % aviso; tipo fiscal efectivo < 10 % con beneficio antes de impuestos positivo aviso",
       "umbral": null,
       "valor": null
      },
@@ -1518,7 +1518,7 @@
       "fuente": "edgar",
       "motivo": "hacen falta tres ejercicios",
       "periodo": "2025",
-      "regla": "beneficio +5% y FCF −5% en los dos últimos ejercicios aviso",
+      "regla": "beneficio +5 % y FCF −5 % en los dos últimos ejercicios aviso",
       "umbral": null,
       "valor": null
      }
@@ -1829,7 +1829,7 @@
         "fuente": "edgar",
         "motivo": "falta el flujo operativo o el beneficio",
         "periodo": "2025",
-        "regla": "CFO / beneficio neto ≥ 1.0 bueno; < 0.8 aviso (y FCF / beneficio < 0.6 aviso)",
+        "regla": "CFO / beneficio neto ≥ 1 bueno; < 0,8 aviso (y FCF / beneficio < 0,6 aviso)",
         "umbral": null,
         "valor": null
        },
@@ -1871,7 +1871,7 @@
         "fuente": "edgar",
         "motivo": "falta beneficio, CFO o activos",
         "periodo": "2025",
-        "regla": "(beneficio − CFO) / activos medios < 0.05 bueno; > 0.1 aviso",
+        "regla": "(beneficio − CFO) / activos medios < 0,05 bueno; > 0,1 aviso",
         "umbral": null,
         "valor": null
        },
@@ -1893,7 +1893,7 @@
         "fuente": "edgar",
         "motivo": "la empresa no reporta cuentas por cobrar con las etiquetas conocidas (puede no tenerlo)",
         "periodo": "2025",
-        "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10% aviso (> 5% normal)",
+        "regla": "crecimiento de cuentas por cobrar − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -1915,7 +1915,7 @@
         "fuente": "edgar",
         "motivo": "la empresa no reporta inventario con las etiquetas conocidas (puede no tenerlo)",
         "periodo": "2025",
-        "regla": "crecimiento de inventario − crecimiento de ingresos > 10% aviso (> 5% normal)",
+        "regla": "crecimiento de inventario − crecimiento de ingresos > 10 % aviso (> 5 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -1937,7 +1937,7 @@
         "fuente": "edgar",
         "motivo": "sin compensación en acciones reportada o sin ingresos",
         "periodo": "2025",
-        "regla": "SBC / ingresos < 5% bueno; > 10% aviso; creciente 3 años seguidos aviso",
+        "regla": "SBC / ingresos < 5 % bueno; > 10 % aviso; creciente 3 años seguidos aviso",
         "umbral": null,
         "valor": null
        },
@@ -1989,7 +1989,7 @@
         "fuente": "edgar",
         "motivo": "sin variaciones de circulante en el estado de flujos, o CFO no positivo",
         "periodo": "2025",
-        "regla": "parte del CFO que viene del circulante > 25% aviso (> 10% normal)",
+        "regla": "parte del CFO que viene del circulante > 25 % aviso (> 10 % normal)",
         "umbral": null,
         "valor": null
        },
@@ -2011,7 +2011,7 @@
         "fuente": "edgar",
         "motivo": "no se identifican costes capitalizados con las etiquetas conocidas",
         "periodo": "2025",
-        "regla": "software capitalizado / ingresos > 5% aviso",
+        "regla": "software capitalizado / ingresos > 5 % aviso",
         "umbral": null,
         "valor": null
        },
@@ -2033,7 +2033,7 @@
         "fuente": "edgar",
         "motivo": "no se identifican partidas no recurrentes ni el tipo fiscal",
         "periodo": "2025",
-        "regla": "|partidas no recurrentes| / |beneficio neto| > 10% aviso; tipo fiscal efectivo < 10% con beneficio antes de impuestos positivo aviso",
+        "regla": "|partidas no recurrentes| / |beneficio neto| > 10 % aviso; tipo fiscal efectivo < 10 % con beneficio antes de impuestos positivo aviso",
         "umbral": null,
         "valor": null
        },
@@ -2044,7 +2044,7 @@
         "fuente": "edgar",
         "motivo": "hacen falta tres ejercicios",
         "periodo": "2025",
-        "regla": "beneficio +5% y FCF −5% en los dos últimos ejercicios aviso",
+        "regla": "beneficio +5 % y FCF −5 % en los dos últimos ejercicios aviso",
         "umbral": null,
         "valor": null
        }

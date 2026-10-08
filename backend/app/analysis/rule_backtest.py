@@ -54,6 +54,7 @@ from app.analysis.factors import (
     zscores,
 )
 from app.analysis.signal import FAVORABLE_MIN, wilson_interval
+from app.formato import fmt_num, fmt_pct
 
 # --- Costes. Los valores por defecto describen a un inversor particular
 # canadiense comprando acciones estadounidenses, que es el caso de esta app. ---
@@ -507,7 +508,7 @@ def histograma(netos: list[float], objetivo_barras: int = 14) -> dict:
     if bajo == alto:
         return {
             "disponible": False,
-            "nota": f"Las {len(netos)} operaciones dan el mismo resultado ({bajo:.1f} %).",
+            "nota": f"Las {len(netos)} operaciones dan el mismo resultado ({fmt_pct(bajo, en_puntos=True)}).",
         }
 
     crudo = (alto - bajo) / objetivo_barras
@@ -535,7 +536,7 @@ def histograma(netos: list[float], objetivo_barras: int = 14) -> dict:
         "perdedoras": perdedoras,
         "suficiente": len(netos) >= MIN_PARA_FORMA,
         "nota": (
-            f"{len(netos)} operaciones en barras de {ancho:g} puntos. "
+            f"{len(netos)} operaciones en barras de {fmt_num(ancho, 2, ceros=False)} puntos. "
             + (
                 "La forma es lo que los percentiles no cuentan: dónde está la masa "
                 "y de qué tamaño son las colas."

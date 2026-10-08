@@ -375,7 +375,7 @@ def test_un_consenso_en_otra_escala_no_se_registra_y_se_dice(session_factory, se
         cap = svc.capturar(s, servicio, e, AHORA)
         consenso = {x.metrica: x for x in s.query(Expectation).filter_by(fuente_tipo="consenso")}
     assert "revenue" not in consenso
-    assert any("revenue con escala dudosa" in m and "×1.03e+03" in m for m in cap["sin_fuente"])
+    assert any("revenue con escala dudosa" in m and "(1.027 veces, fuera de 0,2–5)" in m for m in cap["sin_fuente"])
     # El BPA, en su escala, entra con la comprobación a la vista.
     assert consenso["eps_diluted"].detalle["escala"]["estado"] == "ok"
     assert consenso["eps_diluted"].detalle["escala"]["periodo_referencia"] == "2026-06-30"

@@ -30,6 +30,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from datetime import datetime, timedelta, timezone
+from app.formato import fmt_num
 
 OPERADORES = {
     "lt": ("cae por debajo de", lambda v, u: v < u),
@@ -98,7 +99,7 @@ def _comprobar_umbral(valor: float | None, config: dict, etiqueta: str) -> dict 
         "valor": round(valor, 4),
         "umbral": umbral,
         "detalle": (
-            f"{etiqueta} = {valor:.3f} y el umbral era {texto_op} {umbral:.3f}."
+            f"{etiqueta} = {fmt_num(valor, 3)} y el umbral era {texto_op} {fmt_num(umbral, 3)}."
             + ("" if salta else " Todavía no lo cruza.")
         ),
     }

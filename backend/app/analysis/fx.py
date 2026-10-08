@@ -31,6 +31,7 @@ Un total parcial que se sabe parcial sirve; uno que se cree completo, no.
 from __future__ import annotations
 
 from datetime import date, timedelta
+from app.formato import fmt_num
 
 # Serie de FRED por divisa, con su dirección explícita.
 #
@@ -136,7 +137,7 @@ def a_por_usd(moneda: str, valor: float) -> float:
     if info is None:
         raise SinTipo(f"No hay serie de FRED configurada para {moneda}.")
     if valor <= 0:
-        raise SinTipo(f"Tipo no positivo para {moneda}: {valor}.")
+        raise SinTipo(f"Tipo no positivo para {moneda}: {fmt_num(valor, 4, ceros=False)}.")
     return valor if info["por_usd"] else 1.0 / valor
 
 
@@ -148,8 +149,8 @@ def comprobar_banda(moneda: str, por_usd: float) -> None:
     bajo, alto = banda
     if not (bajo <= por_usd <= alto):
         raise SinTipo(
-            f"El tipo de {moneda} sale {por_usd:.4f} por dólar y lo esperable está "
-            f"entre {bajo} y {alto}. Eso no es un movimiento de mercado: casi seguro "
+            f"El tipo de {moneda} sale {fmt_num(por_usd, 4)} por dólar y lo esperable está "
+            f"entre {fmt_num(bajo, 2, ceros=False)} y {fmt_num(alto, 2, ceros=False)}. Eso no es un movimiento de mercado: casi seguro "
             f"que la serie {SERIES[moneda]['serie']} está leída del revés. No se "
             "convierte nada antes que convertir mal."
         )

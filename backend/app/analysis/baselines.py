@@ -28,6 +28,7 @@ import random
 from datetime import date
 
 from app.analysis.backtest import _closest_bar, _to_date, momentum_12_1
+from app.formato import fmt_num, fmt_pct
 
 MESES_ANO = 12
 BLOQUE_BOOTSTRAP = 6      # meses por bloque: conserva la agrupación de volatilidad
@@ -370,9 +371,9 @@ def _veredicto(resultados: dict, comparaciones: dict) -> str:
         return "Sin periodos suficientes para comparar nada."
 
     partes = [
-        f"La estrategia rindió {est['cagr_pct']:+.2f} % anual con una "
-        f"volatilidad del {est['vol_pct']:.1f} %, Sharpe {est['sharpe']}, y una "
-        f"caída máxima del {est['max_drawdown_pct']:.1f} %."
+        f"La estrategia rindió {fmt_pct(est['cagr_pct'], 2, signo=True, en_puntos=True)} anual con una "
+        f"volatilidad del {fmt_pct(est['vol_pct'], en_puntos=True)}, Sharpe {fmt_num(est['sharpe'])}, y una "
+        f"caída máxima del {fmt_pct(est['max_drawdown_pct'], en_puntos=True)}."
     ]
 
     # Más retorno asumiendo el doble de volatilidad no es ganar: es apalancar.
@@ -412,7 +413,7 @@ def _veredicto(resultados: dict, comparaciones: dict) -> str:
         if minimo < MARGEN_CLARO_PCT:
             partes.append(
                 f"Supera a los {len(mejores)} baselines, pero al más cercano solo por "
-                f"{minimo:.2f} puntos anuales. Un margen así se lo come cualquier "
+                f"{fmt_num(minimo)} puntos anuales. Un margen así se lo come cualquier "
                 "diferencia de comisiones o de fechas: trátalo como un empate."
             )
         elif not claros:
@@ -434,8 +435,8 @@ def _veredicto(resultados: dict, comparaciones: dict) -> str:
         nombre, cagr = peor_que[0]
         partes.append(
             f"NO SUPERA AL BASELINE. {_ETIQUETAS[nombre].capitalize()} rindió "
-            f"{cagr:+.2f} % anual frente al {est['cagr_pct']:+.2f} % de la "
-            f"estrategia: {cagr - est['cagr_pct']:+.2f} puntos a favor de no "
+            f"{fmt_pct(cagr, 2, signo=True, en_puntos=True)} anual frente al {fmt_pct(est['cagr_pct'], 2, signo=True, en_puntos=True)} de la "
+            f"estrategia: {fmt_num(cagr - est['cagr_pct'], signo=True)} puntos a favor de no "
             "hacer nada."
         )
         if len(peor_que) > 1:

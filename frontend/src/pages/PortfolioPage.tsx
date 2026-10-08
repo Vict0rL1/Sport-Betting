@@ -49,7 +49,7 @@ function EstresPanel({ estres }: { estres: Estres }) {
             Peor caída pico a valle
           </dt>
           <dd className="text-lg font-semibold tabular-nums text-red-700">
-            {estres.max_drawdown_pct} %
+            {fmtPct(estres.max_drawdown_pct, 1, { enPuntos: true })}
           </dd>
           <dd className="text-[11px] text-slate-400">
             {estres.drawdown_desde} → {estres.drawdown_hasta}
@@ -63,7 +63,7 @@ function EstresPanel({ estres }: { estres: Estres }) {
           estres.peor_ventana_pct !== undefined ? (
             <>
               <dd className="text-lg font-semibold tabular-nums text-red-700">
-                {estres.peor_ventana_pct} %
+                {fmtPct(estres.peor_ventana_pct, 1, { enPuntos: true })}
               </dd>
               <dd className="text-[11px] text-slate-400">
                 {estres.peor_ventana_desde} → {estres.peor_ventana_hasta}
@@ -80,7 +80,7 @@ function EstresPanel({ estres }: { estres: Estres }) {
             Histórico usado
           </dt>
           <dd className="text-lg font-semibold tabular-nums text-slate-800">
-            {estres.años_cubiertos} años
+            {fmtNum(estres.años_cubiertos, 1, { ceros: false })} años
           </dd>
           <dd className="text-[11px] text-slate-400">{estres.cobertura}</dd>
         </div>
@@ -108,7 +108,8 @@ function RiskBudgetPanel({ risk }: { risk: RiskBudget }) {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-800">Riesgo abierto</h2>
         <span className="text-[11px] text-slate-400">
-          tope sugerido {risk.tope_pct} % · por grupo {risk.tope_grupo_pct} %
+          tope sugerido {fmtPct(risk.tope_pct, 1, { enPuntos: true, ceros: false })} · por grupo{' '}
+          {fmtPct(risk.tope_grupo_pct, 1, { enPuntos: true, ceros: false })}
         </span>
       </div>
       <div className="mt-2 flex items-baseline gap-2">
@@ -450,7 +451,7 @@ function PortfolioTab() {
                   <>
                     Peor caída histórica de esta cartera:{' '}
                     <span className="font-medium text-red-700 tabular-nums">
-                      {data.summary.max_drawdown_esperado_pct} %
+                      {fmtPct(data.summary.max_drawdown_esperado_pct, 1, { enPuntos: true })}
                     </span>
                   </>
                 ) : (
@@ -568,7 +569,10 @@ function PortfolioTab() {
                               className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800"
                               title="Todas las fuentes fallaron: es la última copia guardada."
                             >
-                              viejo · {Math.round((p.precio_antiguedad_segundos ?? 0) / 60)} min
+                              viejo ·{' '}
+                              {p.precio_antiguedad_segundos != null
+                                ? `${fmtNum(p.precio_antiguedad_segundos / 60, 0)} min`
+                                : 'antigüedad desconocida'}
                             </span>
                           )}
                         </td>
@@ -765,7 +769,7 @@ function AvisoDeVigilancia({ v }: { v: Vigilancia | null }) {
       <p>{v.nota}</p>
       {v.activa && v.revisadas != null && (
         <p className="mt-1 opacity-80">
-          {v.revisadas} alerta(s) revisadas, {v.nuevas ?? 0} nueva(s)
+          {v.revisadas} alerta(s) revisadas, {fmtNum(v.nuevas, 0)} nueva(s)
           {v.no_evaluables ? `, ${v.no_evaluables} sin poder comprobar` : ''}.
         </p>
       )}

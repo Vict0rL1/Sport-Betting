@@ -34,6 +34,7 @@ from app.db.models import (
     WatchlistItem,
 )
 from app.deps import get_service
+from app.formato import fmt_fecha, fmt_num
 from app.providers.base import DataNotFoundError
 from app.providers.router import AllProvidersFailedError
 from app.simbolos import Simbolo, validar_simbolo
@@ -520,7 +521,7 @@ class PositionCreate(BaseModel):
         coste = info.data.get("cost_basis")
         if v is not None and coste is not None and v >= coste:
             raise ValueError(
-                f"El stop ({v:g}) tiene que estar por debajo del coste ({coste:g}): "
+                f"El stop ({fmt_num(v, 4, ceros=False)}) tiene que estar por debajo del coste ({fmt_num(coste, 4, ceros=False)}): "
                 "un stop por encima no protege de ninguna caída."
             )
         return v
@@ -557,8 +558,8 @@ def create_position(
                     status_code=409,
                     detail=(
                         f"Posición duplicada: ya hay una de {instrument.symbol} con "
-                        f"{body.quantity:g} acciones a {body.cost_basis:g}, abierta "
-                        f"el {abierta:%Y-%m-%d %H:%M} UTC (#{gemela.id}). Si de verdad "
+                        f"{fmt_num(body.quantity, 4, ceros=False)} acciones a {fmt_num(body.cost_basis, 4, ceros=False)}, "
+                        f"abierta el {fmt_fecha(abierta, hora=True, zona='UTC')} (#{gemela.id}). Si de verdad "
                         "es un segundo lote, repite con `confirmar_duplicado: true`."
                     ),
                 )
@@ -607,7 +608,7 @@ def fijar_stop(position_id: int, body: StopUpdate, session: Session = Depends(ge
         raise HTTPException(
             status_code=409,
             detail=(
-                f"No se puede bajar el stop de {actual:g} a {body.stop:g}. Bajar un stop "
+                f"No se puede bajar el stop de {fmt_num(actual, 4, ceros=False)} a {fmt_num(body.stop, 4, ceros=False)}. Bajar un stop "
                 "es alejarlo justo cuando el precio se acerca: el control que protege "
                 "la posición deja de hacerlo. Si la tesis cambió, cierra la posición."
             ),

@@ -7,7 +7,7 @@
  * apagar lo que no hace falta.
  */
 
-import { fmtNum } from '../lib/formato'
+import { fmtNum, fmtPct } from '../lib/formato'
 import { coord } from '../lib/svg'
 
 /** Una serie en miniatura: la forma del año en una celda de tabla.
@@ -141,6 +141,9 @@ export function CurvaDeCrisis({
   )
 }
 
+/** El borde de un tramo del histograma, en puntos porcentuales: «-40 %», «2,5 %». */
+const tramo = (v: number) => fmtPct(v, 1, { enPuntos: true, ceros: false })
+
 /** La distribución de resultados: dónde está la masa y de qué tamaño son las colas.
  *
  *  Los percentiles describen tres puntos y esconden el resto. Si la media sale
@@ -162,7 +165,7 @@ export function Histograma({
           <div
             key={b.desde}
             className="group relative flex-1"
-            title={`${b.desde} % a ${b.hasta} %: ${b.n} operación(es)`}
+            title={`${tramo(b.desde)} a ${tramo(b.hasta)}: ${b.n} operación(es)`}
           >
             <div
               // Las que pierden en rojo: el eje del 0 % está en la frontera de
@@ -180,7 +183,7 @@ export function Histograma({
           mal colocada desmiente al propio dibujo: el corte de color marca el
           cero exacto y la etiqueta decía otra cosa. */}
       <div className="relative mt-1 h-4 text-[10px] tabular-nums text-slate-400">
-        <span className="absolute left-0">{barras[0].desde} %</span>
+        <span className="absolute left-0">{tramo(barras[0].desde)}</span>
         {(() => {
           const min = barras[0].desde
           const max = barras[barras.length - 1].hasta
@@ -195,7 +198,7 @@ export function Histograma({
             </span>
           )
         })()}
-        <span className="absolute right-0">{barras[barras.length - 1].hasta} %</span>
+        <span className="absolute right-0">{tramo(barras[barras.length - 1].hasta)}</span>
       </div>
     </div>
   )

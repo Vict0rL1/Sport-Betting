@@ -27,29 +27,33 @@ ETF de salud y uno de energía es una apuesta sectorial, y esa decisión es tuya
 """
 
 from __future__ import annotations
+from app.formato import fmt_compacto, fmt_num, fmt_pct
 
 # Umbrales. Están aquí, con nombre, para poder discutirlos.
 COSTE_BARATO = 0.0020    # 0,20 % anual: por debajo, indexación estándar
 COSTE_CARO = 0.0060      # 0,60 %: por encima hay que justificarlo muy bien
-AUM_MINIMO = 100e6       # 100 M$: por debajo, riesgo real de cierre
-AUM_COMODO = 1e9         # 1.000 M$: horquillas estrechas, sin dudas
+AUM_MINIMO = 100e6       # 100 M: por debajo, riesgo real de cierre
+AUM_COMODO = 1e9         # 1.000 M: horquillas estrechas, sin dudas
 SOLAPAMIENTO_ALTO = 0.60  # 60 % de cartera común: no son dos ideas, es una
 
 
 def _nota_coste(expense_ratio: float | None) -> tuple[float, str]:
-    """Puntúa el coste y lo explica en euros por cada 10.000 invertidos."""
+    """Puntúa el coste y lo explica por cada 10.000 invertidos.
+
+    Sin moneda: es una proporción y vale igual en dólares que en euros. Antes
+    decía «€» también para los fondos en dólares."""
     if expense_ratio is None:
         return 0.0, "Sin dato de coste, que ya es una señal: no lo esconden los baratos."
-    anual = expense_ratio * 10_000
+    anual = f"{fmt_num(expense_ratio * 10_000, 2, ceros=False)} al año por cada 10.000 invertidos"
     if expense_ratio <= COSTE_BARATO:
-        return 1.0, f"Coste {expense_ratio * 100:.2f} % — {anual:.0f} € al año por cada 10.000."
+        return 1.0, f"Coste {fmt_pct(expense_ratio, 2)} — {anual}."
     if expense_ratio <= COSTE_CARO:
         return 0.4, (
-            f"Coste {expense_ratio * 100:.2f} % — {anual:.0f} € al año por cada 10.000. "
+            f"Coste {fmt_pct(expense_ratio, 2)} — {anual}. "
             "Aceptable si cubre algo que no puedes obtener más barato."
         )
     return 0.0, (
-        f"Coste {expense_ratio * 100:.2f} % — {anual:.0f} € al año por cada 10.000, "
+        f"Coste {fmt_pct(expense_ratio, 2)} — {anual}, "
         "los pagues gane o pierda. En 20 años eso se come una parte grande del interés compuesto."
     )
 
@@ -58,11 +62,11 @@ def _nota_tamano(aum: float | None) -> tuple[float, str]:
     if aum is None:
         return 0.3, "Sin dato de patrimonio."
     if aum >= AUM_COMODO:
-        return 1.0, f"Patrimonio {aum / 1e9:.1f} B$ — líquido, sin riesgo de cierre."
+        return 1.0, f"Patrimonio {fmt_compacto(aum)} — líquido, sin riesgo de cierre."
     if aum >= AUM_MINIMO:
-        return 0.5, f"Patrimonio {aum / 1e6:.0f} M$ — suficiente, pero no grande."
+        return 0.5, f"Patrimonio {fmt_compacto(aum)} — suficiente, pero no grande."
     return 0.0, (
-        f"Patrimonio {aum / 1e6:.0f} M$ — por debajo de 100 M$ hay riesgo real de "
+        f"Patrimonio {fmt_compacto(aum)} — por debajo de {fmt_compacto(AUM_MINIMO)} hay riesgo real de "
         "liquidación, y si cierran te devuelven el dinero cuando a ellos les conviene."
     )
 
@@ -132,7 +136,7 @@ def avisos_de_solapamiento(evaluados: list[dict], solapamientos: list[dict]) -> 
             continue
         if ambos:
             avisos.append(
-                f"{s['a']} y {s['b']} comparten un {s['overlap_weight'] * 100:.0f} % "
+                f"{s['a']} y {s['b']} comparten un {fmt_pct(s['overlap_weight'], 0)} "
                 "de su cartera: comprar los dos no diversifica, concentra. Elige uno."
             )
     return avisos

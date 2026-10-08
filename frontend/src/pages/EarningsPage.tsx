@@ -12,7 +12,7 @@ import type {
   SerieGuidance,
   WatchlistItem,
 } from '../api/types'
-import { fmtDinero, fmtNum } from '../lib/formato'
+import { fmtDinero, fmtNum, fmtPct } from '../lib/formato'
 
 /** Enlace al documento en la SEC. Cada dato de esta pantalla sale de uno, y sin
  *  el enlace el análisis sería una opinión anónima sobre una empresa. */
@@ -227,8 +227,7 @@ function FichaComparacion({ c }: { c: Comparacion }) {
                       ) : (
                         <>
                           {FLECHA[v.direccion ?? 'se_mantiene']}{' '}
-                          {v.variacion_pct > 0 ? '+' : ''}
-                          {v.variacion_pct} %
+                          {fmtPct(v.variacion_pct, 1, { signo: true, enPuntos: true })}
                         </>
                       )}
                     </td>

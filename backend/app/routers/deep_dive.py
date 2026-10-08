@@ -8,6 +8,7 @@ puedas leer el informe entero sin gastar nada en Claude.
 from __future__ import annotations
 
 from app import datos
+from app.formato import fmt_compacto, fmt_num, fmt_pct
 from app.routers.valuation import CRECIMIENTO_SUPUESTO
 
 from datetime import datetime, timedelta, timezone
@@ -293,7 +294,7 @@ def _narrative_prompt(symbol: str, report: dict) -> str:
     verdict = report.get("verdict", {})
 
     def pct(v):
-        return f"{v * 100:.1f} %" if isinstance(v, (int, float)) else "sin dato"
+        return fmt_pct(v) if isinstance(v, (int, float)) else "sin dato"
 
     multiples = valuation.get("multiples", {})
     val_lines = []
@@ -301,8 +302,8 @@ def _narrative_prompt(symbol: str, report: dict) -> str:
         entry = multiples.get(key, {})
         if entry.get("available"):
             val_lines.append(
-                f"- {label}: actual {entry.get('current'):.2f}, mediana histórica "
-                f"{entry.get('median'):.2f}, rango {entry.get('min'):.2f}–{entry.get('max'):.2f} "
+                f"- {label}: actual {fmt_num(entry.get('current'))}, mediana histórica "
+                f"{fmt_num(entry.get('median'))}, rango {fmt_num(entry.get('min'))}–{fmt_num(entry.get('max'))} "
                 f"(percentil {pct(entry.get('percentile'))}, {entry.get('n')} observaciones)"
             )
 
@@ -316,9 +317,9 @@ def _narrative_prompt(symbol: str, report: dict) -> str:
 
     return f"""EMPRESA: {symbol} — {business.get('name') or 'sin nombre'}
 Sector: {business.get('sector') or 'desconocido'}
-Ingresos último ejercicio ({business.get('latest_fiscal_year')}): {business.get('latest_revenue')}
+Ingresos último ejercicio ({business.get('latest_fiscal_year')}): {fmt_compacto(business.get('latest_revenue'))}
 Años de histórico disponibles: {business.get('years_of_history')}
-Precio actual: {report.get('price')}
+Precio actual: {fmt_num(report.get('price'))}
 
 CRECIMIENTO
 CAGR ingresos {ventana}: {pct(growth.get('revenue_cagr'))} | 3A: {pct(growth.get('revenue_cagr_3y'))}
@@ -330,13 +331,13 @@ Bruto {pct(margins.get('current', {}).get('gross_margin'))} | Operativo {pct(mar
 Tendencia del margen operativo: {margins.get('trends', {}).get('operating_margin') or 'sin determinar'}
 
 DEUDA
-Deuda neta: {debt.get('net_debt')} | Deuda/capital: {debt.get('debt_to_equity')}
-Cobertura de intereses: {debt.get('interest_coverage')}
-Altman Z: {(debt.get('altman_z') or {}).get('score')} (zona {(debt.get('altman_z') or {}).get('zone')})
+Deuda neta: {fmt_compacto(debt.get('net_debt'))} | Deuda/capital: {fmt_num(debt.get('debt_to_equity'))}
+Cobertura de intereses: {fmt_num(debt.get('interest_coverage'), 1)}
+Altman Z: {fmt_num((debt.get('altman_z') or {}).get('score'))} (zona {(debt.get('altman_z') or {}).get('zone')})
 Piotroski F: {(debt.get('piotroski_f') or {}).get('score')}/{(debt.get('piotroski_f') or {}).get('max_possible')}
 
 CAJA
-FCF último ejercicio: {cash.get('current', {}).get('fcf')}
+FCF último ejercicio: {fmt_compacto(cash.get('current', {}).get('fcf'))}
 Conversión beneficio→caja: {pct(cash.get('current', {}).get('fcf_conversion'))}
 Intensidad de capex: {pct(cash.get('current', {}).get('capex_intensity'))}
 Tendencia del FCF: {cash.get('fcf_trend') or 'sin determinar'}
@@ -346,7 +347,7 @@ VALORACIÓN FRENTE A SU PROPIA HISTORIA ({valuation.get('years_covered')} años)
 Lectura: {valuation.get('reading')}
 
 SEÑAL CUANTITATIVA (frente a sus pares)
-{(report.get('quant_signal') or {}).get('label', 'no disponible')} · z-score {(report.get('quant_signal') or {}).get('score')}
+{(report.get('quant_signal') or {}).get('label', 'no disponible')} · z-score {fmt_num((report.get('quant_signal') or {}).get('score'), signo=True)}
 
 RIESGOS DETECTADOS EN LOS DATOS
 {risks or '- Ninguno relevante detectado'}

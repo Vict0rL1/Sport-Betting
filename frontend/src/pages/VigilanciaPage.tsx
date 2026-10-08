@@ -10,7 +10,7 @@ import type {
   VigilanciaResponse,
   VigilanciaTesis,
 } from '../api/types'
-import { fmtNum, fmtAntiguedad } from '../lib/formato'
+import { fmtAntiguedad, fmtNum, fmtPct } from '../lib/formato'
 
 const ACCIONES = ['comprar', 'reforzar', 'mantener', 'reducir', 'vender', 'descartar']
 
@@ -331,8 +331,7 @@ function Decision({ d }: { d: DecisionRegistrada }) {
                   <span
                     className={d.cambio_pct >= 0 ? 'text-emerald-700' : 'text-red-700'}
                   >
-                    ({d.cambio_pct > 0 ? '+' : ''}
-                    {d.cambio_pct} %)
+                    ({fmtPct(d.cambio_pct, 1, { signo: true, enPuntos: true })})
                   </span>
                 )}
               </>

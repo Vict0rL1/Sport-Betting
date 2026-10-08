@@ -51,6 +51,9 @@ export const PATRONES: Record<string, RegExp> = {
   upper_snake: /\b[A-Z]+_[A-Z_]+\b/g,
   clave_interna: /\b[a-z_]+:\d{2}:\d{2}/g,
   plural_parentesis: /\((?:es|s)\)/g,
+  // Un decimal con punto inglés («31.2 %», «EPS estimado 0.52», V4); no toca el
+  // punto de miles es-ES («6.000», «1.234.567»), al que siempre siguen tres cifras.
+  decimal_punto: /(?<![\w.,])(?:0\.\d+|\d+\.\d{1,2}|\d+\.\d{4,})(?![\w.,]?\d)/g,
 }
 
 // Legítimos para siempre (los mismos que en el backend).

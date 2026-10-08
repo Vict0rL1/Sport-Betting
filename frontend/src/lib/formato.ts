@@ -12,7 +12,7 @@
  */
 
 export const GUION = '—'
-const ESPACIO_DURO = ' '
+const ESPACIO_DURO = '\u00a0'
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic']
 
 // Una hora de mercado lleva la zona de su bolsa: «16:00 ET» no es lo mismo que
@@ -61,20 +61,28 @@ function conSigno(valor: number, texto: string, signo: boolean): string {
   return (signo ? '+' : '') + texto
 }
 
-/** 6000 → «6.000,00». `signo`: «+» delante de los positivos (variaciones). */
-export function fmtNum(valor: Num, decimales = 2, { signo = false }: { signo?: boolean } = {}): string {
+/**
+ * 6000 → «6.000,00». `signo`: «+» delante de los positivos (variaciones).
+ * `ceros: false`: hasta `decimales`, sin ceros a la derecha (1,50 → «1,5»),
+ * para un umbral o un parámetro que se escribe tal cual es.
+ */
+export function fmtNum(
+  valor: Num,
+  decimales = 2,
+  { signo = false, ceros = true }: { signo?: boolean; ceros?: boolean } = {},
+): string {
   if (!finito(valor)) return GUION
-  return conSigno(valor, esEs(valor, decimales, decimales), signo)
+  return conSigno(valor, esEs(valor, ceros ? decimales : 0, decimales), signo)
 }
 
 /** 0,123 → «12,3 %». Con `enPuntos`, el valor ya viene en puntos (12,3). */
 export function fmtPct(
   valor: Num,
   decimales = 1,
-  { signo = false, enPuntos = false }: { signo?: boolean; enPuntos?: boolean } = {},
+  { signo = false, enPuntos = false, ceros = true }: { signo?: boolean; enPuntos?: boolean; ceros?: boolean } = {},
 ): string {
   if (!finito(valor)) return GUION
-  return `${fmtNum(enPuntos ? valor : valor * 100, decimales, { signo })}${ESPACIO_DURO}%`
+  return `${fmtNum(enPuntos ? valor : valor * 100, decimales, { signo, ceros })}${ESPACIO_DURO}%`
 }
 
 /** 6000 USD → «6.000,00 USD». Sin moneda conocida, solo la cifra. */
@@ -99,7 +107,7 @@ export function valorDeCampo(valor: number, decimales: number): string {
 }
 
 /** Hasta `max` decimales, sin ceros a la derecha: 400,0 → «400». */
-const corto = (valor: number, max: number) => conSigno(valor, esEs(valor, 0, max), false)
+const corto = (valor: number, max: number) => fmtNum(valor, max, { ceros: false })
 
 /**
  * Cifras grandes en M (millones) y mil M (miles de millones). Nunca «B»: en
