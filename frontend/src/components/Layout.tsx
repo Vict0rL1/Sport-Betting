@@ -51,12 +51,12 @@ export function Layout() {
             <polyline
               points="5,22 10,17 14,19 19,11 23,14 27,7"
               fill="none"
-              stroke="#38bdf8"
+              style={{ stroke: 'var(--info)' }}
               strokeWidth="2.4"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            <circle cx="27" cy="7" r="2.6" fill="#38bdf8" />
+            <circle cx="27" cy="7" r="2.6" style={{ fill: 'var(--info)' }} />
           </svg>
           <div>
           <div className="text-sm font-semibold tracking-tight text-slate-900">

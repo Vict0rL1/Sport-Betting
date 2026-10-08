@@ -7,6 +7,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts'
 import type { History } from '../api/types'
+import { conOpacidad, leerToken, type Token } from '../lib/tokens'
 
 function toTime(ts: string): UTCTimestamp {
   return Math.floor(new Date(ts.replace(' ', 'T') + 'Z').getTime() / 1000) as UTCTimestamp
@@ -32,11 +33,27 @@ const ALTO_SUBGRAFICO = 90
 const RSI_SOBRECOMPRA = 70
 const RSI_SOBREVENTA = 30
 
+// Los colores salen de los tokens (src/index.css), no escritos aquí: el canvas
+// no hereda la inversión de paleta del resto de la app, y con colores del tema
+// claro el gráfico salía con rejilla blanca y un bloque de volumen verde menta
+// sobre fondo oscuro (V1). Las medias y los indicadores usan los tokens de
+// acento; la leyenda de abajo, los mismos.
 const SMA_STYLES = [
-  { key: 'sma20', color: '#0ea5e9', label: 'SMA 20' },
-  { key: 'sma50', color: '#f59e0b', label: 'SMA 50' },
-  { key: 'sma200', color: '#8b5cf6', label: 'SMA 200' },
-] as const
+  { key: 'sma20', token: 'info', label: 'SMA 20' },
+  { key: 'sma50', token: 'warn', label: 'SMA 50' },
+  { key: 'sma200', token: 'ai', label: 'SMA 200' },
+] as const satisfies readonly { key: string; token: Token; label: string }[]
+
+const LEYENDA_INDICADORES: { token: Token; label: string }[] = [
+  { token: 'ai', label: 'RSI 14 (70/30)' },
+  { token: 'info', label: 'MACD' },
+  { token: 'warn', label: 'señal' },
+]
+
+// El volumen es contexto, no protagonista: semitransparente y en la quinta parte
+// de abajo del panel del precio.
+const OPACIDAD_VOLUMEN = 0.35
+const OPACIDAD_REJILLA = 0.6
 
 export function PriceChart({ history }: { history: History }) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -44,22 +61,32 @@ export function PriceChart({ history }: { history: History }) {
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
+    const c = (t: Token) => leerToken(t, el)
+    const borde = c('border')
     const chart = createChart(el, {
       autoSize: true,
-      layout: { background: { color: 'transparent' }, textColor: '#64748b' },
-      grid: {
-        vertLines: { color: '#f1f5f9' },
-        horzLines: { color: '#f1f5f9' },
+      layout: {
+        background: { color: 'transparent' },
+        textColor: c('text-muted'),
+        panes: { separatorColor: borde, separatorHoverColor: conOpacidad(c('text-muted'), 0.3) },
       },
-      rightPriceScale: { borderColor: '#e2e8f0' },
-      timeScale: { borderColor: '#e2e8f0' },
+      grid: {
+        vertLines: { color: conOpacidad(borde, OPACIDAD_REJILLA) },
+        horzLines: { color: conOpacidad(borde, OPACIDAD_REJILLA) },
+      },
+      crosshair: {
+        vertLine: { color: c('text-muted'), labelBackgroundColor: c('surface-sunken') },
+        horzLine: { color: c('text-muted'), labelBackgroundColor: c('surface-sunken') },
+      },
+      rightPriceScale: { borderColor: borde },
+      timeScale: { borderColor: borde },
     })
 
     const candles = chart.addSeries(CandlestickSeries, {
-      upColor: '#059669',
-      downColor: '#dc2626',
-      wickUpColor: '#059669',
-      wickDownColor: '#dc2626',
+      upColor: c('buy'),
+      downColor: c('sell'),
+      wickUpColor: c('buy'),
+      wickDownColor: c('sell'),
       borderVisible: false,
     })
     candles.setData(
@@ -75,26 +102,29 @@ export function PriceChart({ history }: { history: History }) {
     const volume = chart.addSeries(HistogramSeries, {
       priceScaleId: 'volume',
       priceFormat: { type: 'volume' },
-      color: '#cbd5e1',
+      priceLineVisible: false,
+      lastValueVisible: false,
     })
     chart.priceScale('volume').applyOptions({
-      scaleMargins: { top: 0.82, bottom: 0 },
+      scaleMargins: { top: 0.8, bottom: 0 },
     })
+    const volumenSube = conOpacidad(c('buy'), OPACIDAD_VOLUMEN)
+    const volumenBaja = conOpacidad(c('sell'), OPACIDAD_VOLUMEN)
     volume.setData(
       history.bars
         .filter((b) => b.volume !== null)
         .map((b) => ({
           time: toTime(b.ts),
           value: b.volume as number,
-          color: b.close >= b.open ? '#a7f3d0' : '#fecaca',
+          color: b.close >= b.open ? volumenSube : volumenBaja,
         })),
     )
 
-    for (const { key, color } of SMA_STYLES) {
+    for (const { key, token } of SMA_STYLES) {
       const data = overlay(history.bars, history.indicators[key])
       if (data.length === 0) continue
       const line = chart.addSeries(LineSeries, {
-        color,
+        color: c(token),
         lineWidth: 1,
         priceLineVisible: false,
         lastValueVisible: false,
@@ -116,7 +146,7 @@ export function PriceChart({ history }: { history: History }) {
     if (rsi.length > 0) {
       const serie = chart.addSeries(
         LineSeries,
-        { color: '#8b5cf6', lineWidth: 1, priceLineVisible: false, lastValueVisible: false },
+        { color: c('ai'), lineWidth: 1, priceLineVisible: false, lastValueVisible: false },
         panel,
       )
       serie.setData(rsi)
@@ -124,7 +154,7 @@ export function PriceChart({ history }: { history: History }) {
       for (const nivel of [RSI_SOBRECOMPRA, RSI_SOBREVENTA]) {
         serie.createPriceLine({
           price: nivel,
-          color: '#94a3b8',
+          color: c('text-muted'),
           lineWidth: 1,
           lineStyle: 2,
           axisLabelVisible: true,
@@ -156,16 +186,16 @@ export function PriceChart({ history }: { history: History }) {
           ...d,
           // Verde cuando el impulso crece y rojo cuando se agota: el signo del
           // histograma ES la señal, y un solo color la escondería.
-          color: d.value >= 0 ? '#34d399' : '#f87171',
+          color: d.value >= 0 ? volumenSube : volumenBaja,
         })),
       )
-      for (const [valores, color] of [
-        [macd.macd, '#0ea5e9'],
-        [macd.signal, '#f59e0b'],
+      for (const [valores, token] of [
+        [macd.macd, 'info'],
+        [macd.signal, 'warn'],
       ] as const) {
         const linea = chart.addSeries(
           LineSeries,
-          { color, lineWidth: 1, priceLineVisible: false, lastValueVisible: false },
+          { color: c(token), lineWidth: 1, priceLineVisible: false, lastValueVisible: false },
           panel,
         )
         linea.setData(overlay(history.bars, valores))
@@ -212,20 +242,16 @@ export function PriceChart({ history }: { history: History }) {
     <div>
       <div ref={containerRef} className="h-[560px] w-full" />
       <div className="mt-2 flex gap-4 text-xs text-slate-500">
-        {[
-          { color: '#8b5cf6', label: 'RSI 14 (70/30)' },
-          { color: '#0ea5e9', label: 'MACD' },
-          { color: '#f59e0b', label: 'señal' },
-        ].map(({ color, label }) => (
+        {LEYENDA_INDICADORES.map(({ token, label }) => (
           <span key={label} className="flex items-center gap-1">
-            <span className="h-0.5 w-4" style={{ backgroundColor: color }} />
+            <span className="h-0.5 w-4" style={{ backgroundColor: `var(--${token})` }} />
             {label}
           </span>
         ))}
-        {SMA_STYLES.map(({ key, color, label }) =>
+        {SMA_STYLES.map(({ key, token, label }) =>
           history.indicators[key].some((v) => v !== null) ? (
             <span key={key} className="flex items-center gap-1">
-              <span className="h-0.5 w-4" style={{ backgroundColor: color }} />
+              <span className="h-0.5 w-4" style={{ backgroundColor: `var(--${token})` }} />
               {label}
             </span>
           ) : null,
