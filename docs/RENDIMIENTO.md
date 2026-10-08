@@ -30,7 +30,9 @@ Base completa de este entorno, p50 / p95 en ms con 6 peticiones a la vez:
 | SSE, 50 conexiones: primer byte p95 | 50 | 40 |
 
 Tamaño de la lista de próximos de fútbol: 1,4 MB sin comprimir → 147 KB con Brotli (197 KB con
-gzip). El bundle principal de la web: 354 KB → 98 KB con Brotli; los 133 ficheros de texto de
+gzip). El bundle principal de la web: 354 KB → 98 KB con Brotli (435 KB tras pasar todo el texto al
+catálogo de idiomas en el seguimiento; el inglés va aparte, en un trozo de 103 KB que solo se pide
+en inglés); los 133 ficheros de texto de
 `web/dist`, de 2,2 MB a 613 KB.
 
 ## Qué se hizo

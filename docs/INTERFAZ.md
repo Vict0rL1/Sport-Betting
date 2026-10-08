@@ -99,10 +99,21 @@ la evolución de la simulación (liga) y la curva de capital (banco de papel y r
 ## Idiomas
 
 El texto vive en `web/src/i18n/es.ts`, la fuente de verdad, y `en.ts` lo traduce; una clave
-sin traducción cae al español. El armazón y las páginas nuevas pasan por el catálogo; las
-tarjetas de cada deporte se van extrayendo al tocarlas. El idioma sale de Ajustes, si no del
-navegador. Números, fechas y moneda se formatean con `Intl` según el idioma. Un test comprueba
-que el inglés no inventa claves, que las tiene todas y que las variables coinciden.
+sin traducción cae al español. Toda la interfaz pasa por el catálogo (~1.800 claves): armazón,
+páginas, las cinco pestañas de deporte, sus tarjetas y paneles. El idioma sale de Ajustes, si no
+del navegador. Números, fechas y moneda se formatean con `Intl` según el idioma; las cifras con
+decimales llevan coma en español y punto en inglés. Un test comprueba que el inglés no inventa
+claves, que las tiene todas y que las variables coinciden, y `web/e2e/idioma.spec.ts` recorre la
+app en inglés.
+
+- `t(clave, vars)` para texto; `conNodos(texto, nodos)` para una frase con negritas o enlaces
+  dentro, en el orden de cada lengua; `codigo(t, c)` para los códigos del servidor (ALTA, NO BET…).
+- `en.ts` va en su propio trozo de JS: se pide al arrancar solo si la visita es en inglés, la
+  primera pintada lo espera y, si no llega, la app sale en español. El paquete principal no lo
+  lleva.
+- Queda en español a propósito lo que escribe el servidor (razones, notas, veredictos): traducirlo
+  exigiría que la API hablara dos idiomas. Y los ejemplos de «Preguntar a los datos», porque el
+  analizador entiende español.
 
 ## Accesibilidad, sin conexión y primer uso
 

@@ -52,6 +52,14 @@ Playwright en inglés que crece con cada lote (`web/e2e/idioma.spec.ts`).
 - **No se traduce** lo que escribe el servidor (razones, notas, descripciones del motor): llega en
   español. Traducirlo exigiría que la API hablara dos idiomas; queda anotado.
 
+Hecho en ocho lotes. Al final, una auditoría por AST (texto JSX y literales con palabras fuera de
+`t()`) encontró lo que el grep no veía —sobre todo en `lib/`: los avisos del modelo por deporte,
+la etiqueta de historial viejo, los nombres de mercado— y lo que queda en español es a propósito:
+claves de tablas, códigos que se traducen al pintar y los ejemplos de «Preguntar a los datos».
+
+Con todo el texto en el catálogo el paquete principal pasaba de 500 kB, así que `en.ts` se carga
+aparte (solo en inglés) y el principal queda en 435 kB.
+
 ## Fuera
 
 - Apostar a la mejor línea en vez de al consenso: es política, no un fallo.

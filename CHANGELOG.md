@@ -7,7 +7,7 @@ cambian.
 ## Seguimiento tras la hoja de ruta (2026-10-07)
 
 Lo que las fases dejaron anotado y se arregla sin decisiones nuevas de política. Plan en
-`docs/plans/seguimiento.md`. Tests: 467 → 477 (403 del servidor + 17 + 57); migraciones: 12 → 13.
+`docs/plans/seguimiento.md`. Tests: 467 → 488 (403 del servidor + 20 + 65); migraciones: 12 → 13.
 
 - **El banco de papel mira sus propias pérdidas.** Su corte por pérdida diaria (5 %) y semanal
   (10 %) leía el registro personal (`bets`), vacío en la práctica: el banco de papel no tenía
@@ -23,6 +23,11 @@ Lo que las fases dejaron anotado y se arregla sin decisiones nuevas de política
   un falso positivo desde la línea base: comparaba con la ventana de ahora un refresco hecho con la
   de su hora. La regla exacta (`sobrevivioARefresco` en `freshness.ts`, con test) sigue cazando un
   pruning roto.
+- **Toda la interfaz en el catálogo de idiomas.** La Fase 5 había pasado el armazón y las páginas
+  nuevas; el resto (las cinco pestañas de deporte, apuestas, confianza, Destacados, ajustes,
+  gráficos, avisos del modelo) llega ahora en ocho lotes, con el español idéntico y un recorrido en
+  inglés en Playwright. El inglés se carga aparte para no engordar el paquete principal
+  (435 kB; 520 kB si fuera dentro). Lo que escribe el servidor sigue en español.
 - **CI fijada a `ubuntu-24.04`** en los tres workflows: `ubuntu-latest` pasa a Ubuntu 26 el 19 de
   octubre de 2026. Las acciones siguen en su versión (GitHub ya las corre con Node 24).
 
