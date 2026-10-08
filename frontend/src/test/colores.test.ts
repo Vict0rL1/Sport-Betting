@@ -11,6 +11,7 @@
  * documenta en sus comentarios) quedan fuera.
  */
 import { describe, expect, it } from 'vitest'
+import css from '../index.css?raw'
 
 const fuentes = import.meta.glob(['../**/*.{ts,tsx}', '!../**/*.test.{ts,tsx}', '!../lib/tokens.ts'], {
   query: '?raw',
@@ -19,6 +20,9 @@ const fuentes = import.meta.glob(['../**/*.{ts,tsx}', '!../**/*.test.{ts,tsx}', 
 }) as Record<string, string>
 
 const HEX = /#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?(?:[0-9a-fA-F]{2})?\b/g
+
+// Los tonos que `index.css` redefine para el tema oscuro («emerald-100», …).
+const INVERTIDOS = new Set([...css.matchAll(/--color-([a-z]+-\d+):/g)].map((m) => m[1]))
 
 describe('colores', () => {
   it('se recorre el código de verdad', () => {
@@ -34,6 +38,35 @@ describe('colores', () => {
         for (const m of linea.matchAll(HEX)) if (linea[(m.index ?? 0) - 1] !== '&') malos.push(`${ruta}:${i + 1} ${m[0]}`)
       })
     }
+    expect(malos).toEqual([])
+  })
+
+  // V9: `bg-violet-50` estaba fuera de la inversión y las etiquetas de IA salían
+  // como manchas blancas con el texto casi invisible. Un fondo claro (50/100)
+  // solo vale si `index.css` lo invierte.
+  it('ningún fondo claro queda fuera de la inversión de paleta', () => {
+    expect(INVERTIDOS.has('emerald-100') && INVERTIDOS.has('slate-50')).toBe(true)
+    const malos: string[] = []
+    for (const [ruta, texto] of Object.entries(fuentes))
+      for (const m of texto.matchAll(/\b(?:bg|from|via|to)-([a-z]+)-(50|100)\b/g))
+        if (!INVERTIDOS.has(`${m[1]}-${m[2]}`)) malos.push(`${ruta}: ${m[0]}`)
+    expect(malos).toEqual([])
+  })
+
+  // El reflejo de V9: un texto oscuro (700–950) que la inversión no aclara queda
+  // ilegible sobre fondo oscuro. `text-sky-950` dejaba invisible el coste
+  // estimado antes de gastar en IA (Resultados); `text-amber-700`, 3,45:1.
+  it('ningún texto oscuro queda fuera de la inversión de paleta', () => {
+    const malos: string[] = []
+    for (const [ruta, texto] of Object.entries(fuentes))
+      for (const m of texto.matchAll(/\btext-([a-z]+)-(700|800|900|950)\b/g))
+        if (!INVERTIDOS.has(`${m[1]}-${m[2]}`)) malos.push(`${ruta}: ${m[0]}`)
+    expect(malos).toEqual([])
+  })
+
+  it('lo generado por IA solo se pinta con ContenidoIA (tokens --ai), nunca con clases violeta sueltas', () => {
+    const malos = Object.entries(fuentes)
+      .flatMap(([ruta, texto]) => [...texto.matchAll(/\b[a-z:]*-violet-\d+\b/g)].map((m) => `${ruta}: ${m[0]}`))
     expect(malos).toEqual([])
   })
 })

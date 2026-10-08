@@ -13,12 +13,13 @@ import type {
 } from '../api/types'
 import { fmtNumber, fmtPct } from '../lib/format'
 import { useLlmStatus } from '../lib/llm'
+import { BloqueIA, BotonIA, EtiquetaIA } from '../components/ia/ContenidoIA'
 
 const LABEL_STYLES: Record<string, string> = {
   'muy favorable': 'bg-emerald-100 text-emerald-800',
   favorable: 'bg-emerald-50 text-emerald-700',
   neutral: 'bg-slate-100 text-slate-600',
-  desfavorable: 'bg-amber-50 text-amber-700',
+  desfavorable: 'bg-amber-50 text-amber-800',
   'muy desfavorable': 'bg-red-100 text-red-800',
   'sin datos': 'bg-slate-100 text-slate-400',
 }
@@ -160,9 +161,7 @@ function SignalCard({ signal }: { signal: QuantSignal }) {
         <div className="mt-3">
           <div className="mb-1 flex items-center gap-2">
             <span className="text-xs font-medium text-slate-500">Eventos detectados</span>
-            <span className="rounded bg-violet-600 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-white">
-              clasificado por IA
-            </span>
+            <EtiquetaIA>Clasificado por IA</EtiquetaIA>
           </div>
           <ul className="space-y-0.5 text-xs text-slate-600">
             {signal.events.slice(0, 4).map((ev, i) => (
@@ -182,29 +181,21 @@ function SignalCard({ signal }: { signal: QuantSignal }) {
 
       <div className="mt-3 flex items-center gap-3">
         {!explanation && signal.score !== null && llm?.configured && (
-          <button
+          <BotonIA
             onClick={explain}
             disabled={busy}
             title="Claude explica los factores ya calculados; no genera la puntuación"
-            className="rounded-lg border border-violet-300 px-2.5 py-1 text-xs font-medium text-violet-700 hover:bg-violet-50 disabled:opacity-50"
           >
             {busy ? 'Explicando…' : 'Explicar esta lectura (IA)'}
-          </button>
+          </BotonIA>
         )}
         {error && <span className="text-xs text-red-600">{error}</span>}
       </div>
 
       {explanation && (
-        <div className="mt-2 rounded-lg border border-violet-200 bg-violet-50 p-3">
-          <div className="mb-1 flex items-center gap-2">
-            <span className="rounded bg-violet-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">
-              Generado por IA
-            </span>
-            <span className="text-[10px] text-violet-500">{explanation.model}</span>
-          </div>
-          <p className="whitespace-pre-wrap text-sm text-slate-700">{explanation.content_md}</p>
-          <p className="mt-2 text-[10px] text-violet-500">{explanation.disclaimer}</p>
-        </div>
+        <BloqueIA className="mt-2" modelo={explanation.model} aviso={explanation.disclaimer}>
+          {explanation.content_md}
+        </BloqueIA>
       )}
     </li>
   )
@@ -289,7 +280,7 @@ function BacktestPanel({ result }: { result: BacktestResponse }) {
 
       <p className="mt-3 text-xs text-slate-500">{result.methodology}</p>
       {result.missing.length > 0 && (
-        <p className="mt-1 text-xs text-amber-700">
+        <p className="mt-1 text-xs text-amber-800">
           Sin histórico suficiente: {result.missing.join(', ')}
         </p>
       )}
@@ -422,7 +413,7 @@ function ScanMode() {
                 .join(' · ')}
             </p>
             {result.unavailable.length > 0 && (
-              <p className="mt-1 text-xs text-amber-700">
+              <p className="mt-1 text-xs text-amber-800">
                 Sin datos: {result.unavailable.map((u) => u.symbol).join(', ')}
               </p>
             )}

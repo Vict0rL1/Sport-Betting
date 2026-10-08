@@ -63,7 +63,7 @@ export function ApiUsageBar() {
           }
           className={`rounded-full px-2 py-0.5 ${
             llm.configured
-              ? 'bg-violet-50 text-violet-700'
+              ? 'bg-(--ai-bg) text-(--ai)'
               : 'bg-slate-100 text-slate-400 line-through'
           }`}
         >

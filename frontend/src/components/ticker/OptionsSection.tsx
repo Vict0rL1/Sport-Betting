@@ -69,7 +69,7 @@ function Prima({ p }: { p: PrimaDeRiesgo }) {
           <div className="text-[10px] uppercase tracking-wide text-slate-400">Prima</div>
           <div
             className={`text-2xl font-semibold tabular-nums ${
-              prima > 0 ? 'text-amber-700' : 'text-sky-700'
+              prima > 0 ? 'text-amber-800' : 'text-sky-700'
             }`}
           >
             {prima > 0 ? '+' : ''}
@@ -90,7 +90,7 @@ function Prima({ p }: { p: PrimaDeRiesgo }) {
       <Nota>{p.nota}</Nota>
       {/* El sesgo va SIEMPRE, tenga o no percentil: es la letra pequeña de la
           resta misma, no un aviso de cobertura. */}
-      <p className="mt-1 text-[11px] leading-relaxed text-amber-700">{p.aviso_sesgo}</p>
+      <p className="mt-1 text-[11px] leading-relaxed text-amber-800">{p.aviso_sesgo}</p>
     </>
   )
 }
@@ -120,7 +120,7 @@ function Skew({ s }: { s: SkewSignal }) {
           <div className="text-[10px] uppercase tracking-wide text-slate-400">Skew</div>
           <div
             className={`text-2xl font-semibold tabular-nums ${
-              (s.skew ?? 0) < 0 ? 'text-amber-700' : 'text-slate-800'
+              (s.skew ?? 0) < 0 ? 'text-amber-800' : 'text-slate-800'
             }`}
           >
             {(s.skew ?? 0) > 0 ? '+' : ''}
@@ -283,7 +283,7 @@ function Actividad({ a }: { a: ActividadOpciones }) {
             <div
               className={`text-xl font-semibold tabular-nums ${
                 Math.abs(a.volumen.detalle.z as number) >= 2
-                  ? 'text-amber-700'
+                  ? 'text-amber-800'
                   : 'text-slate-800'
               }`}
             >
@@ -300,7 +300,7 @@ function Actividad({ a }: { a: ActividadOpciones }) {
             <div
               className={`text-xl font-semibold tabular-nums ${
                 Math.abs(a.open_interest.detalle.z as number) >= 2
-                  ? 'text-amber-700'
+                  ? 'text-amber-800'
                   : 'text-slate-800'
               }`}
             >
@@ -317,7 +317,7 @@ function Actividad({ a }: { a: ActividadOpciones }) {
             <div
               className={`text-xl font-semibold tabular-nums ${
                 Math.abs(a.variacion_oi.cambio_pct ?? 0) >= 5
-                  ? 'text-amber-700'
+                  ? 'text-amber-800'
                   : 'text-slate-800'
               }`}
             >
@@ -350,7 +350,7 @@ function Actividad({ a }: { a: ActividadOpciones }) {
                 <td className="py-1 text-right tabular-nums text-slate-500">
                   {p.oi.toLocaleString('es')}
                 </td>
-                <td className="py-1 text-right font-medium tabular-nums text-amber-700">
+                <td className="py-1 text-right font-medium tabular-nums text-amber-800">
                   {fmtNumber(p.ratio, 1)}
                 </td>
               </tr>

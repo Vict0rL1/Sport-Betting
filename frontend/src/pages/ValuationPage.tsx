@@ -146,7 +146,7 @@ function Escenarios({
                     <span className="text-slate-400">–</span> {fmtNumber(e.rango.alto, 0)}
                   </span>
                 ) : (
-                  <span className="text-xs text-amber-700">sin rango calculable</span>
+                  <span className="text-xs text-amber-800">sin rango calculable</span>
                 )}
               </div>
 
@@ -237,7 +237,7 @@ function SensibilidadPanel({ s }: { s: Sensibilidad }) {
                 {f.recorrido_pct.toFixed(0)} %
                 {f.asimetrico && (
                   <span
-                    className="ml-1.5 text-[10px] text-amber-700"
+                    className="ml-1.5 text-[10px] text-amber-800"
                     title="Mueve más hacia un lado que hacia el otro"
                   >
                     asimétrico
@@ -294,7 +294,7 @@ function InversoPanel({ inv }: { inv: DcfInverso }) {
                 {pct(p.discount_rate, 0)}
               </span>
               {p.crecimiento_implicito === null ? (
-                <span className="text-xs text-amber-700">fuera de rango</span>
+                <span className="text-xs text-amber-800">fuera de rango</span>
               ) : (
                 <>
                   <div className="relative h-2 flex-1 rounded-full bg-slate-100">

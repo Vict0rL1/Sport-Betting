@@ -76,7 +76,7 @@ const TONO: Record<string, string> = {
   baja: 'text-red-700',
   se_mantiene: 'text-slate-500',
   nueva: 'text-sky-700',
-  retirada: 'text-amber-700',
+  retirada: 'text-amber-800',
 }
 
 function FichaTrimestre({ e }: { e: Extraccion }) {
@@ -270,7 +270,7 @@ function FichaComparacion({ c }: { c: Comparacion }) {
         <ListaTemas
           titulo="Temas que DESAPARECEN"
           items={d.cambios_de_tema.filter((t) => t.estado === 'desaparece')}
-          tono="text-amber-700"
+          tono="text-amber-800"
           vacio="No dejó de hablarse de nada que estuviera antes."
         />
       </div>
@@ -580,7 +580,7 @@ export function EarningsPage() {
               <dt className="text-[10px] uppercase tracking-wide text-sky-700">
                 Tokens de entrada
               </dt>
-              <dd className="tabular-nums text-sky-950">
+              <dd className="tabular-nums text-sky-900">
                 {coste.coste.tokens_entrada?.toLocaleString('es') ?? '—'}
               </dd>
             </div>
@@ -588,7 +588,7 @@ export function EarningsPage() {
               <dt className="text-[10px] uppercase tracking-wide text-sky-700">
                 Coste estimado
               </dt>
-              <dd className="tabular-nums text-sky-950">
+              <dd className="tabular-nums text-sky-900">
                 {coste.coste.usd_estimado !== null
                   ? `${coste.coste.usd_estimado.toFixed(3)} $`
                   : '—'}
@@ -598,7 +598,7 @@ export function EarningsPage() {
               <dt className="text-[10px] uppercase tracking-wide text-sky-700">
                 Secciones
               </dt>
-              <dd className="text-xs text-sky-950">
+              <dd className="text-xs text-sky-900">
                 {Object.values(coste.secciones)
                   .map((s) => s.etiqueta)
                   .join(', ') || 'ninguna'}

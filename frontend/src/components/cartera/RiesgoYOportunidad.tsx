@@ -103,7 +103,7 @@ export function ContribucionAlRiesgoPanel() {
               <li key={g.dimension + g.etiqueta} className="flex flex-wrap justify-between gap-2 border-b border-slate-100 py-1 last:border-0">
                 <span className="text-slate-700">
                   <span className="rounded bg-slate-100 px-1 text-[10px] text-slate-800">{g.dimension}</span> {g.etiqueta}: {g.miembros.join(', ')}
-                  {g.desconocidos.length > 0 && <span className="text-amber-700"> (riesgo desconocido: {g.desconocidos.join(', ')})</span>}
+                  {g.desconocidos.length > 0 && <span className="text-amber-800"> (riesgo desconocido: {g.desconocidos.join(', ')})</span>}
                 </span>
                 <span className="tabular-nums text-slate-600">
                   {fmtPct(g.peso, 0)} del capital · {fmtPct(g.contribucion, 0)} del riesgo
@@ -158,7 +158,7 @@ export function CosteOportunidadPanel() {
           Efectivo anotado:{' '}
           {efectivo?.saldos.length
             ? efectivo.saldos.map((s) => `${fmtNumber(s.importe, 2)} ${s.moneda} (${fmtDateTime(s.as_of)})`).join(' · ')
-            : <span className="text-amber-700">ninguno — el motor lo trata como DESCONOCIDO, no como cero</span>}
+            : <span className="text-amber-800">ninguno — el motor lo trata como DESCONOCIDO, no como cero</span>}
         </div>
         <form onSubmit={anotar} className="flex flex-wrap gap-2">
           <input value={importe} onChange={(e) => setImporte(e.target.value)} placeholder="Efectivo disponible"

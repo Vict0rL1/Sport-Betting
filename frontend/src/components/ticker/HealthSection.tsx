@@ -6,7 +6,7 @@ import { SourceBadge } from '../SourceBadge'
 
 const ZONE_STYLES: Record<string, string> = {
   segura: 'bg-emerald-100 text-emerald-700',
-  gris: 'bg-amber-100 text-amber-700',
+  gris: 'bg-amber-100 text-amber-800',
   riesgo: 'bg-red-100 text-red-700',
 }
 
@@ -111,7 +111,7 @@ export function HealthSection({ symbol }: { symbol: string }) {
             <dd className="text-lg font-semibold tabular-nums">{fmtBig(health.net_debt)}</dd>
             {health.deuda_parcial && (
               <dd
-                className="text-[11px] text-amber-700"
+                className="text-[11px] text-amber-800"
                 title="El filing no trae una de las partidas de deuda: cuenta como cero. Si existe, la deuda neta real es mayor."
               >
                 parcial: falta{' '}

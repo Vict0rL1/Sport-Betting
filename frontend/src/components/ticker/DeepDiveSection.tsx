@@ -7,6 +7,7 @@ import type {
 } from '../../api/types'
 import { fmtBig, fmtNumber, fmtPct } from '../../lib/format'
 import { useLlmStatus } from '../../lib/llm'
+import { BloqueIA, BotonIA } from '../ia/ContenidoIA'
 
 const STANCE_STYLES: Record<string, string> = {
   constructiva: 'bg-emerald-50 border-emerald-300 text-emerald-900',
@@ -109,7 +110,7 @@ function ValuationBlock({ report }: { report: DeepDiveReport }) {
 
       <ul className="mt-2 space-y-1">
         {report.valuation.caveats.map((c, i) => (
-          <li key={i} className="text-[11px] leading-snug text-amber-700">
+          <li key={i} className="text-[11px] leading-snug text-amber-800">
             ⚠ {c}
           </li>
         ))}
@@ -394,27 +395,14 @@ export function DeepDiveSection({ symbol }: { symbol: string }) {
               Claude puede escribir el informe en prosa a partir de las cifras de arriba.
               No genera ningún número: solo los interpreta.
             </p>
-            <button
-              onClick={writeNarrative}
-              disabled={busy}
-              className="mt-2 rounded-lg border border-violet-300 px-3 py-1.5 text-sm font-medium text-violet-700 hover:bg-violet-50 disabled:opacity-50"
-            >
+            <BotonIA onClick={writeNarrative} disabled={busy} className="mt-2 px-3 text-sm">
               {busy ? 'Redactando…' : 'Redactar informe (IA)'}
-            </button>
+            </BotonIA>
           </>
         ) : (
-          <>
-            <div className="mb-2 flex items-center gap-2">
-              <span className="rounded bg-violet-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-white">
-                Generado por IA
-              </span>
-              <span className="text-[10px] text-violet-500">{narrative.model}</span>
-            </div>
-            <div className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-              {narrative.content_md}
-            </div>
-            <p className="mt-3 text-[10px] text-violet-500">{narrative.disclaimer}</p>
-          </>
+          <BloqueIA modelo={narrative.model} aviso={narrative.disclaimer}>
+            {narrative.content_md}
+          </BloqueIA>
         )}
       </section>
       )}

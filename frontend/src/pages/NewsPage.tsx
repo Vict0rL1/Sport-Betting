@@ -5,22 +5,18 @@ import { SourceBadge } from '../components/SourceBadge'
 import { fmtDateTime } from '../lib/format'
 import { useLlmStatus } from '../lib/llm'
 import { primerSimbolo } from '../lib/simbolos'
+import { BloqueIA, BotonIA } from '../components/ia/ContenidoIA'
 
 function AiInterpretation({ data }: { data: Interpretation }) {
   return (
-    <div className="mt-2 rounded-lg border border-violet-200 bg-violet-50 p-3">
-      <div className="mb-1 flex items-center gap-2">
-        <span className="rounded bg-violet-600 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
-          Generado por IA
-        </span>
-        <span className="text-[10px] text-violet-500">
-          {data.model}
-          {data.cached ? ' · desde caché (sin coste nuevo)' : ''}
-        </span>
-      </div>
-      <p className="whitespace-pre-wrap text-sm text-slate-700">{data.content_md}</p>
-      <p className="mt-2 text-[10px] text-violet-500">{data.disclaimer}</p>
-    </div>
+    <BloqueIA
+      className="mt-2"
+      modelo={data.model}
+      nota={data.cached ? 'desde caché (sin coste nuevo)' : undefined}
+      aviso={data.disclaimer}
+    >
+      {data.content_md}
+    </BloqueIA>
   )
 }
 
@@ -69,14 +65,14 @@ function NewsCard({ item, symbol }: { item: NewsItem; symbol: string | null }) {
           )}
         </div>
         {!interp && llm?.configured && (
-          <button
+          <BotonIA
             onClick={interpret}
             disabled={busy}
             title="Llama al API de Claude (una vez por noticia; luego queda en caché)"
-            className="shrink-0 rounded-lg border border-violet-300 px-2.5 py-1.5 text-xs font-medium text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+            className="shrink-0"
           >
             {busy ? 'Interpretando…' : '¿Por qué importa? (IA)'}
-          </button>
+          </BotonIA>
         )}
       </div>
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}

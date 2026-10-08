@@ -21,8 +21,8 @@ Material de partida: `docs/REVISION_GENERAL.md` (revisión del 8-oct-2026) y sus
 ## Fase 1 — Corrección y fallos visuales (P1)
 
 - [x] **1.1** Tokens semánticos de color mínimos + `leerToken` + test de contraste — estado: hecho · commit: `90924e9` · nota: 14 tokens en `index.css`; `--text-muted` = #808eab (el #7c8aa8 del plan daba 4,37:1 sobre la superficie hundida); el test lee `index.css`; los rótulos `slate-400` existentes tienen el mismo 4,37:1 → para 2.13/4.1.
-- [x] **1.2** V1 · colores del gráfico de precios — estado: hecho · commit: (este commit) · nota: velas, rejilla, ejes, separadores de panel, RSI, MACD, medias y leyenda desde tokens (`leerToken`); volumen al 35 % en la quinta parte de abajo; logo con `var(--info)`; minigráficos, curva y matriz ya iban por clases invertidas (verificado en capturas). Guarda: ningún hexadecimal en `src/`. Pendiente fuera de V1: etiquetas de eje que se pisan entre paneles.
-- [ ] **1.3** V9 · etiquetas de IA — estado: pendiente · commit: — · nota: —
+- [x] **1.2** V1 · colores del gráfico de precios — estado: hecho · commit: `bfba8f9` · nota: velas, rejilla, ejes, separadores de panel, RSI, MACD, medias y leyenda desde tokens (`leerToken`); volumen al 35 % en la quinta parte de abajo; logo con `var(--info)`; minigráficos, curva y matriz ya iban por clases invertidas (verificado en capturas). Guarda: ningún hexadecimal en `src/`. Pendiente fuera de V1: etiquetas de eje que se pisan entre paneles.
+- [x] **1.3** V9 · etiquetas de IA — estado: hecho · commit: (este commit) · nota: `components/ia/ContenidoIA.tsx` (etiqueta, bloque y botón con `--ai`/`--ai-bg`) sustituye 4 copias; también la píldora «IA activa». Hermanos: `text-amber-700` (3,45:1, 10 ficheros) → `amber-800`; `text-sky-950` dejaba invisible el coste antes de gastar en IA → `sky-900`. Guardas: fondos 50/100 y textos 700–950 solo si `index.css` los invierte; nada `violet-*` suelto. Test de render con IA presente.
 - [ ] **1.4** V3 · «undefined %» en el reparto del tamaño — estado: pendiente · commit: — · nota: —
 - [ ] **1.5** V11 · contradicción en «Deuda y solidez» — estado: pendiente · commit: — · nota: —
 - [ ] **1.6** V18 · etiquetas de ventana fija (5A, 10A, TTM) — estado: pendiente · commit: — · nota: —
@@ -126,6 +126,9 @@ que vengan).
   1.7 (formato) y 2.1 (estados de dato).
 - **ETFs (captura `22b_etfs_recomendar`)**: «Patrimonio 400.0 B$» en la recomendación frente a «400 mM»
   en la tabla, y «3 € al año por cada 10.000» en fondos en dólares. Para 1.7 (formato y moneda).
+- **El texto de la IA sale con el Markdown en crudo** («\*\*Lectura…\*\*»): `content_md` se pinta con
+  `whitespace-pre-wrap`, sin interpretar. Visto en las capturas `con_ia` del ítem 1.3. Para 2.x (o
+  pedir texto plano al modelo).
 - **El golden congela `levels.objetivo` / `objetivo_pct`** y la pantalla Hoy lo muestra. Choca con
   «sin precios objetivo» (§3). No lo causa esta fase; si una fase lo retira, el golden cambiará y habrá
   que explicarlo.

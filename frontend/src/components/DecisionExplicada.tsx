@@ -17,7 +17,7 @@ const PAPEL: Record<string, { texto: string; tono: string }> = {
 const RESULTADO: Record<string, { texto: string; tono: string }> = {
   cumple: { texto: '✓ cumple', tono: 'text-emerald-700' },
   no_cumple: { texto: '✗ no cumple', tono: 'text-slate-500' },
-  desconocido: { texto: '? desconocido', tono: 'text-amber-700' },
+  desconocido: { texto: '? desconocido', tono: 'text-amber-800' },
 }
 
 const ACCION: Record<string, string> = {
@@ -88,7 +88,7 @@ export function QueLaCambiaria({ cambiaria }: { cambiaria: AlternativaDecision[]
                     {fmtNumber(c.distancia, 2)} {c.unidad === '%' ? '%' : c.unidad})
                   </span>
                 )}
-                {c.nota && <span className="ml-1 text-amber-700">{c.nota}</span>}
+                {c.nota && <span className="ml-1 text-amber-800">{c.nota}</span>}
               </li>
             ))}
           </ul>

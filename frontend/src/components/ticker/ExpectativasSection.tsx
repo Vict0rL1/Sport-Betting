@@ -15,7 +15,7 @@ const LECTURA: Record<string, string> = {
   supera: 'text-emerald-700',
   en_linea: 'text-slate-700',
   por_debajo: 'text-red-700',
-  desconocido: 'text-amber-700',
+  desconocido: 'text-amber-800',
 }
 
 const CLASIFICACION: Record<string, string> = {
@@ -188,7 +188,7 @@ export function ExpectativasSection({ symbol }: { symbol: string }) {
             <tbody>
               {Object.entries(cal.por_fuente).map(([f, c]) => (
                 <tr key={f} className="border-t border-slate-100">
-                  <td className="text-left text-slate-700">{FUENTE[f] ?? f}{!c.total.suficiente && <span className="ml-1 text-amber-700">(muestra insuficiente)</span>}</td>
+                  <td className="text-left text-slate-700">{FUENTE[f] ?? f}{!c.total.suficiente && <span className="ml-1 text-amber-800">(muestra insuficiente)</span>}</td>
                   <td className="text-right">{c.total.n}</td>
                   <td className="text-right">{fmtPct(c.total.error_medio_abs ?? null, 1)}</td>
                   <td className="text-right">{fmtPct(c.total.sesgo ?? null, 1)}</td>

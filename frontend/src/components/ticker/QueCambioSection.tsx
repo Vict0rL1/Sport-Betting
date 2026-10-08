@@ -3,6 +3,7 @@ import { api } from '../../api/client'
 import type { AnalisisEmpresaResponse, CambioMetrica, CosteOportunidad, RiesgoEnCartera } from '../../api/types'
 import { fmtDateTime, fmtNumber, fmtPct } from '../../lib/format'
 import { DecisionExplicada } from '../DecisionExplicada'
+import { BloqueIA, BotonIA } from '../ia/ContenidoIA'
 
 const CATEGORIAS: Record<string, string> = {
   decision: 'Decisión',
@@ -23,9 +24,9 @@ const NIVEL: Record<string, string> = {
 
 const FACTOR: Record<string, string> = {
   ok: 'text-emerald-700',
-  debil: 'text-amber-700',
+  debil: 'text-amber-800',
   critico: 'text-red-700',
-  desconocido: 'text-amber-700',
+  desconocido: 'text-amber-800',
 }
 
 function fmtValor(v: number | string | null | undefined, unidad?: string): string {
@@ -128,13 +129,13 @@ export function CosteOportunidadResumen({ oc }: { oc: CosteOportunidad }) {
                 <td className="tabular-nums text-slate-500">
                   {fmtNumber(f.coste_del_cambio.total_conocido_pct, 2)} %
                   {f.coste_del_cambio.impuestos === 'desconocidos' && f.coste_del_cambio.nota && (
-                    <span className="block text-[10px] text-amber-700">+ impuestos desconocidos</span>
+                    <span className="block text-[10px] text-amber-800">+ impuestos desconocidos</span>
                   )}
                 </td>
                 <td className="text-slate-500">
                   {f.elegible
                     ? f.prioridad.desglose.map((d) => `${d.nota} (${d.puntos >= 0 ? '+' : '−'}${Math.abs(d.puntos)})`).join(' · ') || '—'
-                    : <span className="text-amber-700">{f.motivo}</span>}
+                    : <span className="text-amber-800">{f.motivo}</span>}
                 </td>
               </tr>
             ))}
@@ -283,20 +284,13 @@ export function QueCambioSection({ symbol }: { symbol: string }) {
               (umbrales v{cambios.umbrales?.version}).
             </p>
             <div>
-              <button
-                type="button"
-                onClick={pedirResumen}
-                disabled={pidiendoIa}
-                className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700 disabled:opacity-50"
-              >
+              <BotonIA onClick={pedirResumen} disabled={pidiendoIa}>
                 {pidiendoIa ? 'Resumiendo…' : 'Resumir este diff con IA (opcional, gasta API)'}
-              </button>
+              </BotonIA>
               {resumenIa && (
-                <div className="mt-2 rounded-lg border border-violet-200 bg-violet-50 p-3 text-xs text-violet-900">
-                  <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide">Generado por IA · {resumenIa.model}</div>
-                  <p className="whitespace-pre-wrap">{resumenIa.content_md}</p>
-                  <p className="mt-1 text-[10px]">{resumenIa.aviso}</p>
-                </div>
+                <BloqueIA className="mt-2" modelo={resumenIa.model} aviso={resumenIa.aviso}>
+                  {resumenIa.content_md}
+                </BloqueIA>
               )}
             </div>
           </div>
