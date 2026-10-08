@@ -68,6 +68,11 @@ export const basketballConfig = readJson<BasketballConfig>(
 export const footballConfig = readJson<FootballConfig>(path.join(CONFIG_DIR, 'football.json'));
 export const baseballConfig = readJson<BaseballConfig>(path.join(CONFIG_DIR, 'baseball.json'));
 export const nflConfig = readJson<NafConfig>(path.join(CONFIG_DIR, 'americanfootball.json'));
+export interface NhlConfig {
+  history: { schedulesUrl: string; teamBoxUrl: string; fromSeason: number };
+  odds: { sportKey: string; markets: string };
+}
+export const nhlConfig = readJson<NhlConfig>(path.join(CONFIG_DIR, 'nhl.json'));
 
 /**
  * Código del COI (o ISO-3166 alpha-3) → país y su ISO-2, que es lo que nombra el SVG de

@@ -33,7 +33,7 @@ import { freshSince } from './freshness.ts';
 import { reconstruirDesde } from './recent/reconstruct.ts';
 
 export interface PartidoDeHoy {
-  deporte: 'Fútbol' | 'Baloncesto' | 'Béisbol' | 'NFL' | 'Tenis';
+  deporte: 'Fútbol' | 'Baloncesto' | 'Béisbol' | 'NFL' | 'NHL' | 'Tenis';
   /** ISO de inicio. */
   cuando: string;
   partido: string;
@@ -93,7 +93,12 @@ export const FUENTES: Fuente[] = [
   { deporte: 'Béisbol', log: 'bsb_prediction_log', up: 'bsb_upcoming', clave: 'match_key', casa: 'home_name', fuera: 'away_name', prob: 'prob_home', precio: 'odds_home', resuelto: 'resolved_at' },
   { deporte: 'NFL', log: 'naf_prediction_log', up: 'naf_upcoming', clave: 'match_key', casa: 'home_name', fuera: 'away_name', prob: 'prob_home', precio: 'odds_home', resuelto: 'home_points', mostrado: 'shown_home' },
   { deporte: 'Tenis', log: 'prediction_log', up: 'upcoming_matches', clave: 'match_key', casa: 'p1_name', fuera: 'p2_name', prob: 'prob1', precio: 'p1_odds', resuelto: 'resolved_at' },
+  // Al final y no en su sitio alfabético: hay código que lee FUENTES por posición.
+  { deporte: 'NHL', log: 'nhl_prediction_log', up: 'nhl_upcoming', clave: 'match_key', casa: 'home_name', fuera: 'away_name', prob: 'prob_home', precio: 'odds_home', resuelto: 'home_goals', mostrado: 'shown_home' },
 ];
+
+/** Deportes que nombran el partido a la norteamericana: «visitante @ local». */
+export const CON_ARROBA = new Set<PartidoDeHoy['deporte']>(['NFL', 'NHL']);
 
 // ===========================================================================
 // Y EL CIERRE DEL CÍRCULO: ¿ACERTÓ?
@@ -206,8 +211,11 @@ const p2 = (n: number) => String(n).padStart(2, '0');
 export function diaLocal(d: Date): string {
   return `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
 }
-/** YYYYMMDD del archivo → YYYY-MM-DD. */
-const diaDeArchivo = (ymd: string) => `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`;
+/** YYYYMMDD (o YYYY-MM-DD, el de la NHL) del archivo → YYYY-MM-DD. */
+const diaDeArchivo = (ymd: string) => {
+  const d = ymd.replace(/-/g, '');
+  return `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}`;
+};
 
 export function resumir(xs: { probabilidad: number; acerto: boolean }[]): ResumenAciertos {
   const n = xs.length;
@@ -242,9 +250,10 @@ const RESUELTAS = (): FuenteResuelta[] => [
   { ...FUENTES[2], marcador: ['home_runs', 'away_runs'], enlace: { col: 'game_id', tabla: 'bsb_games', fecha: 'game_date' }, archivo: { tabla: 'bsb_games', fecha: 'game_date' }, comando: 'npm run update-data:bsb' },
   { ...FUENTES[3], marcador: ['home_points', 'away_points'], enlace: { col: 'game_id', tabla: 'naf_games', fecha: 'game_date' }, archivo: { tabla: 'naf_games', fecha: 'game_date' }, comando: 'npm run update-data:naf' },
   { ...FUENTES[4], marcador: null, enlace: null, archivo: { tabla: 'matches', fecha: 'tourney_date' }, comando: 'npm run update-data' },
+  { ...FUENTES[5], marcador: ['home_goals', 'away_goals'], enlace: { col: 'game_id', tabla: 'nhl_games', fecha: 'game_date' }, archivo: { tabla: 'nhl_games', fecha: 'game_date' }, comando: 'npm run update-data:nhl' },
 ];
 
-const RECONSTRUYE = new Set<PartidoDeHoy['deporte']>(['Fútbol', 'Baloncesto', 'Béisbol', 'NFL']);
+const RECONSTRUYE = new Set<PartidoDeHoy['deporte']>(['Fútbol', 'Baloncesto', 'Béisbol', 'NFL', 'NHL']);
 
 export function historialReciente(now = new Date(), dias: number = VENTANAS[0]): HistorialReciente {
   rellenarMostrado();
@@ -321,7 +330,7 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
           // marcador igualado sería dato corrupto, y llamarlo «Empate» inventaría un
           // resultado que ese deporte no tiene.
           ganador = g.gc > g.gf ? r.casa : g.gf > g.gc ? r.fuera : f.empate ? 'Empate' : '';
-          if (g.gFecha && g.gCasa && g.gFuera) vistos.add(`${f.deporte}|${g.gFecha}|${g.gCasa}|${g.gFuera}`);
+          if (g.gFecha && g.gCasa && g.gFuera) vistos.add(`${f.deporte}|${String(g.gFecha).replace(/-/g, '')}|${g.gCasa}|${g.gFuera}`);
         } else {
           const w = r as { winner_id: number; p1_id: number };
           ganador = w.winner_id === w.p1_id ? r.casa : r.fuera;
@@ -332,7 +341,7 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
           liga: r.liga,
           dia: diaLocal(new Date(r.cuando)),
           cuando: r.cuando,
-          partido: f.deporte === 'NFL' ? `${r.fuera} @ ${r.casa}` : `${r.casa} vs ${r.fuera}`,
+          partido: CON_ARROBA.has(f.deporte) ? `${r.fuera} @ ${r.casa}` : `${r.casa} vs ${r.fuera}`,
           casa: r.casa,
           fuera: r.fuera,
           casaId: r.casaId,
@@ -364,7 +373,7 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
       liga: p.liga,
       dia: diaDeArchivo(p.fecha),
       cuando: null,
-      partido: p.deporte === 'NFL' ? `${fuera} @ ${casa}` : `${casa} vs ${fuera}`,
+      partido: CON_ARROBA.has(p.deporte) ? `${fuera} @ ${casa}` : `${casa} vs ${fuera}`,
       casa,
       fuera,
       casaId: p.casaId,
@@ -404,7 +413,7 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
 /** deporte|liga|id → nombre, de las tablas de equipos de los cuatro deportes. */
 function nombresDeEquipos(): Map<string, string> {
   const m = new Map<string, string>();
-  for (const [deporte, tabla] of [['Fútbol', 'fb_teams'], ['Baloncesto', 'bb_teams'], ['Béisbol', 'bsb_teams'], ['NFL', 'naf_teams']] as const) {
+  for (const [deporte, tabla] of [['Fútbol', 'fb_teams'], ['Baloncesto', 'bb_teams'], ['Béisbol', 'bsb_teams'], ['NFL', 'naf_teams'], ['NHL', 'nhl_teams']] as const) {
     try {
       for (const r of getDb().prepare(`SELECT id, league, name FROM ${tabla}`).all() as { id: string; league: string; name: string }[]) {
         m.set(`${deporte}|${r.league}|${r.id}`, r.name);
@@ -472,7 +481,7 @@ export function partidosDeHoy(now = new Date()): { partidos: PartidoDeHoy[]; not
         out.push({
           deporte: f.deporte,
           cuando: r.cuando,
-          partido: f.deporte === 'NFL' ? `${r.fuera} @ ${r.casa}` : `${r.casa} vs ${r.fuera}`,
+          partido: CON_ARROBA.has(f.deporte) ? `${r.fuera} @ ${r.casa}` : `${r.casa} vs ${r.fuera}`,
           favorito,
           probabilidad,
           precioReal: r.fuente != null && r.fuente !== 'fixture' && r.precio != null,

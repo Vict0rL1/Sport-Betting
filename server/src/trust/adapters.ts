@@ -16,11 +16,13 @@ import type { BsbUpcomingRow } from '../baseball/types.ts';
 import type { NafPrediction } from '../nfl/predict.ts';
 import type { NafUpcomingRow } from '../nfl/types.ts';
 import { SPREAD_WIN_LOGIT } from '../nfl/predict.ts';
+import type { NhlPrediction } from '../nhl/predict.ts';
+import type { NhlUpcomingRow } from '../nhl/repo.ts';
 import { OFFSEASON_GAP_DAYS } from '../basketball/predict.ts';
 import { getPlayerInfo } from '../repo.ts';
 import { versionsFor } from '../versions.ts';
 import { fechaDeDatos } from '../prematch/snapshots.ts';
-import { deTenis, deFutbol, deBaloncesto, deBeisbol, deNfl } from '../prematch/adapters.ts';
+import { deTenis, deFutbol, deBaloncesto, deBeisbol, deNfl, deNhl } from '../prematch/adapters.ts';
 import { ok, aviso, desconocido, graduado, cuotasRecientes, archivoAlDia } from './dataQuality.ts';
 import type { EventoConfianza, Factor, ItemDato, Ood } from './types.ts';
 
@@ -321,5 +323,46 @@ export function confianzaNfl(row: NafUpcomingRow, p: NafPrediction, now = new Da
     regimen: semana >= 19 ? { etiqueta: 'playoffs', nota: null } : semana > 0 && semana <= 4 ? { etiqueta: 'primeras 4 semanas', nota: null } : { etiqueta: 'temporada regular', nota: null },
     odds: snap.odds, oddsAt: row.updated_at ?? null, books: row.books,
     providerEventId: sinOdds(row.id), providerSelections: [row.home_name, row.away_name], demo: row.source === 'fixture',
+  };
+}
+
+// ---------------------------------------------------------------------------
+// NHL
+// ---------------------------------------------------------------------------
+export function confianzaNhl(row: NhlUpcomingRow, p: NhlPrediction, now = new Date()): EventoConfianza | null {
+  const snap = deNhl(row, p);
+  if (!snap) return null;
+  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForHome })));
+  // El moneyline ES la logística del Elo (predict busca los goles para reproducirla): pendiente exacta.
+  const pend = pendienteExacta(p.model.home, fs, ELO);
+  const sinCampo = 1 / (1 + 10 ** (-(p.teams.home.elo - p.teams.away.elo) / 400));
+  const datos: ItemDato[] = [
+    desconocido('Portero titular: el calendario no lo trae y es lo que más mueve un partido'),
+    desconocido('Lesiones y bajas: no hay fuente'),
+    desconocido('Partidos seguidos (back-to-back): no se miran'),
+    graduado(Math.min(p.teams.home.gamesInDb, p.teams.away.gamesInDb), 40, 164, 25, (v) => `${v} partidos del equipo con menos historia`),
+    ok(`Campo: ${row.home_name} en casa`, 5),
+    cuotasRecientes(row.updated_at, false, now),
+    archivoAlDia(fechaDatos('nhl'), now),
+  ];
+  const ood: Ood[] = [];
+  for (const t of [p.teams.home, p.teams.away]) {
+    if (t.gamesInDb < 40) ood.push({ grave: t.gamesInDb < 10, texto: `${t.name}: solo ${t.gamesInDb} partidos en el archivo` });
+    if (t.lastDate && (now.getTime() - Date.parse(t.lastDate)) / 86_400_000 > 100) ood.push({ grave: false, texto: `${t.name}: primer partido tras el verano (Elo de la temporada pasada)` });
+  }
+  const mes = Number(row.commence_time.slice(5, 7));
+  return {
+    sport: 'nhl', matchKey: snap.matchKey, eventId: row.id, commence: row.commence_time,
+    outcomes: snap.outcomes, probs: snap.probs, factores: fs, pendiente: pend, pendienteExacta: true,
+    sigmaHueco: sigmaDesdeMargen(p.reliability.marginPp, snap.probs, pend),
+    fiabilidad: { nivel: p.reliability.level, margenPp: p.reliability.marginPp, motivos: p.reliability.reasons },
+    componentes: [
+      { nombre: 'Elo sin ventaja de campo', probs: [sinCampo, 1 - sinCampo] },
+      { nombre: 'Modelo (Elo + campo)', probs: [p.model.home, p.model.away] },
+    ],
+    datos, ood,
+    regimen: mes >= 4 && mes <= 6 ? { etiqueta: 'final de temporada o playoffs (por fecha)', nota: null } : mes === 10 ? { etiqueta: 'inicio de temporada', nota: 'octubre: Elo del curso anterior' } : { etiqueta: 'temporada regular', nota: null },
+    odds: snap.odds, oddsAt: row.updated_at ?? null, books: row.books,
+    providerEventId: sinOdds(row.id), providerSelections: [row.home_name, row.away_name], demo: false,
   };
 }

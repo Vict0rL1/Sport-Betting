@@ -21,6 +21,8 @@ export const RESULTADOS: Record<SportId, string> = {
               WHERE home_runs IS NOT NULL AND home_runs <> away_runs`,
   nfl: `SELECT match_key AS k, CASE WHEN home_points > away_points THEN 0 ELSE 1 END AS y FROM naf_prediction_log
          WHERE home_points IS NOT NULL AND home_points <> away_points`,
+  nhl: `SELECT match_key AS k, CASE WHEN home_goals > away_goals THEN 0 ELSE 1 END AS y FROM nhl_prediction_log
+         WHERE home_goals IS NOT NULL AND home_goals <> away_goals`,
 };
 
 export interface EvaluacionHorizontes {

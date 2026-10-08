@@ -17,7 +17,7 @@ import { listarSeguidos, seguir, dejarDeSeguir, validarSeguido } from '../watchl
 import { SPORT_IDS, type SportId } from '../sports.ts';
 import { ESQUEMA_ERROR, ESQUEMA_ESTADO, ESQUEMA_ERRORES, ESQUEMA_FEATURE, ESQUEMA_AJUSTES, ESQUEMA_WATCHLIST, ESQUEMA_SEGUIDO } from '../api/schemas.ts';
 
-const TABLA_PROXIMOS: Record<SportId, string> = { tennis: 'upcoming_matches', football: 'fb_upcoming', basketball: 'bb_upcoming', baseball: 'bsb_upcoming', nfl: 'naf_upcoming' };
+const TABLA_PROXIMOS: Record<SportId, string> = { tennis: 'upcoming_matches', football: 'fb_upcoming', basketball: 'bb_upcoming', baseball: 'bsb_upcoming', nfl: 'naf_upcoming', nhl: 'nhl_upcoming' };
 
 /** El estado que resume la píldora: una sola petición, nada que se repita por pestaña. */
 export function estadoGlobal(ahora = new Date()) {

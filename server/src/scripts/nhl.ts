@@ -1,16 +1,26 @@
-// CLI de la NHL en sombra (Fase 8.1).
-//   npm run update-data:nhl                                   temporadas 2009-10 → la actual, de sportsdataverse
-//   npm run update-data:nhl -- --desde 2016 --hasta 2025      solo esas (por el año en que acaban)
+// CLI de la NHL (Fase 8.1; publicada en el seguimiento: NHL y UFC).
+//   npm run update-data:nhl                                   resultados (las dos últimas temporadas si ya hay archivo; si no,
+//                                                             2009-10 → la actual), equipos, calendario y, con clave, cuotas
+//   npm run update-data:nhl -- --desde 2016 --hasta 2025      solo esas temporadas (por el año en que acaban)
+//   npm run update-data:nhl -- --skip-odds                    sin pedir cuotas (lo usa update-results)
 //   npm run update-data:nhl -- --fuente nhl --desde 2015-10-01 --hasta 2025-06-30
 //                                                             de la API de la NHL, semana a semana (dice si hubo prórroga)
-//   npm run backtest:nhl                                      evalúa el Elo + Poisson sin el holdout
+//   npm run backtest:nhl                                      backtest de referencia: métricas comunes, calibración y walk-forward
 //   npm run backtest:nhl -- --ajustar [--registrar]           rejilla en 2009-10→2023-24, validación en 2024-25
 import { ingestarRango, ingestarTemporadas } from '../nhl/ingest.ts';
-import { evaluarNhl, leerPartidos } from '../nhl/evaluacion.ts';
-import { contraReferencias, rejilla, validar, validarTotales, VALIDACION } from '../nhl/ajuste.ts';
+import { evaluarNhl, juegosWalkForward, leerPartidos } from '../nhl/evaluacion.ts';
+import { contraReferencias, recorrer, rejilla, validar, validarTotales, VALIDACION } from '../nhl/ajuste.ts';
 import { NHL } from '../nhl/model.ts';
+import { guardarEquipos } from '../nhl/repo.ts';
+import { refrescarCalendario, refrescarCuotas } from '../nhl/proximos.ts';
+import { resolveNhlPredictions } from '../nhl/trackRecord.ts';
 import { recordExperiment } from '../experiments/registry.ts';
 import { conRegistro } from '../ingest/runs.ts';
+import { env } from '../config.ts';
+import { getDb, setMeta } from '../db.ts';
+import { informeComun } from '../evaluation/report.ts';
+import { bandasDeAcierto, writeCalibration } from '../staking/calibration.ts';
+import { guardarWalkForward, walkForward } from '../evaluation/walkforward.ts';
 
 const args = process.argv.slice(2);
 const opt = (n: string) => {
@@ -30,10 +40,12 @@ if (args[0] === 'ingestar') {
       });
       console.log(`NHL: ${r.rowsAdded} partidos terminados guardados (${r.detail}).`);
     } else if (fuente === 'sportsdataverse') {
-      // La temporada en curso acaba el año que viene si ya empezó (octubre en adelante).
+      // La temporada en curso acaba el año que viene si ya empezó (septiembre en adelante).
       const hoy = new Date();
       const actual = hoy.getUTCMonth() >= 8 ? hoy.getUTCFullYear() + 1 : hoy.getUTCFullYear();
-      const desde = Number(opt('desde') ?? 2010);
+      // Con archivo, basta con las dos últimas temporadas (la que acaba y la en curso); sin él, todo.
+      const hay = (getDb().prepare('SELECT COUNT(*) AS n FROM nhl_games').get() as { n: number }).n > 0;
+      const desde = Number(opt('desde') ?? (hay ? actual - 1 : 2010));
       const hasta = Number(opt('hasta') ?? actual);
       const r = await conRegistro('nhl-sportsdataverse', async () => {
         const x = await ingestarTemporadas(desde, hasta, fetch, (m) => console.log(m));
@@ -43,6 +55,18 @@ if (args[0] === 'ingestar') {
         return { rowsAdded: x.partidos, detail: `${x.temporadas} temporadas (${desde - 1}-${String(desde).slice(2)} → ${hasta - 1}-${String(hasta).slice(2)})${sin}${cor}${rec}` };
       });
       console.log(`NHL: ${r.rowsAdded} partidos terminados guardados, ${r.detail}.`);
+      console.log(`  ${guardarEquipos()} franquicias en nhl_teams`);
+      try {
+        console.log(`  ${await refrescarCalendario(actual)} partidos por jugar desde el calendario de la temporada`);
+      } catch (e) {
+        console.log(`  calendario: ${(e as Error).message} (los próximos se quedan como estaban)`);
+      }
+      if (args.includes('--skip-odds')) console.log('  cuotas: saltadas por --skip-odds (no se gasta cuota)');
+      else if (!env.oddsApiKey) console.log('  cuotas: sin ODDS_API_KEY; la pestaña usa el calendario y el modelo');
+      else console.log(`  cuotas: ${await refrescarCuotas()} partidos con precio de casas`);
+      const res = resolveNhlPredictions();
+      if (res.resolved) console.log(`  ${res.resolved} predicción(es) en vivo puntuadas con los resultados nuevos`);
+      setMeta('nhl:updatedAt', new Date().toISOString());
     } else {
       throw new Error(`fuente desconocida «${fuente}»: usa sportsdataverse o nhl`);
     }
@@ -115,14 +139,26 @@ if (args[0] === 'ingestar') {
     console.log(`Registrado: ${e2.id}`);
   }
 } else {
-  const r = evaluarNhl();
-  console.log(`\nNHL en sombra · ${r.partidos} partidos, ${r.puntuados} puntuados, ${r.holdoutExcluido} del holdout excluidos.`);
+  const partidos = leerPartidos();
+  const r = evaluarNhl(partidos);
+  console.log(`\nNHL · ${r.partidos} partidos, ${r.puntuados} puntuados, ${r.holdoutExcluido} del holdout excluidos.`);
   if (r.modelo) {
     const m = r.modelo;
     const ece = m.ece == null ? '—' : `${(m.ece * 100).toFixed(2)} pp`;
     console.log(`  modelo   log loss ${m.logLoss?.toFixed(4) ?? '—'} · Brier ${m.brier?.toFixed(4) ?? '—'} · ECE ${ece}`);
     for (const x of r.referencias) console.log(`  ${x.nombre.padEnd(36)} log loss ${x.logLoss?.toFixed(4) ?? '—'}`);
     for (const t of r.porTemporada) console.log(`  ${t.temporada}: ${t.n} partidos · log loss ${t.logLoss?.toFixed(4) ?? '—'}`);
+    // El backtest de referencia deja lo mismo que los otros cinco: la capa común de métricas, la
+    // calibración que lee el módulo de riesgo (con sus bandas de acierto) y el walk-forward por periodos.
+    const pasos = recorrer(partidos).filter((x) => x.puntuable);
+    informeComun('nhl', pasos.map((x) => ({ p: [x.pLocal, 1 - x.pLocal], y: x.y === 1 ? 0 : 1 })));
+    const favs = pasos.map((x) => ({ p: Math.max(x.pLocal, 1 - x.pLocal), hit: (x.pLocal >= 0.5 ? 1 : 0) === x.y }));
+    writeCalibration({
+      nhl: { ece: m.ece ?? 1, n: m.n, beatsMarket: null, vsMarketLogLoss: null, bands: bandasDeAcierto(favs), measuredAt: new Date().toISOString() },
+    });
+    console.log('  calibración escrita en experiments/calibration.json (sin cuotas históricas: beatsMarket null)');
+    const wf = walkForward('nhl', juegosWalkForward(partidos));
+    console.log(`  walk-forward: ${wf.periodos.length} periodos, guardado en ${guardarWalkForward(wf)}`);
   }
   if (r.aviso.texto) console.log(`  ${r.aviso.texto}`);
   console.log(`  ${r.nota}`);

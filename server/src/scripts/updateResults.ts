@@ -18,6 +18,7 @@ import { resolveFootballPredictions } from '../football/trackRecord.ts';
 import { resolveGamePredictions } from '../basketball/trackRecord.ts';
 import { resolveBaseballPredictions } from '../baseball/trackRecord.ts';
 import { resolveNflPredictions } from '../nfl/trackRecord.ts';
+import { resolveNhlPredictions } from '../nhl/trackRecord.ts';
 import { empezarEjecucion, terminarEjecucion } from '../ingest/runs.ts';
 
 const SERVIDOR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -28,6 +29,7 @@ const PASOS = [
   { nombre: 'Baloncesto', script: 'update-data:bb' },
   { nombre: 'Béisbol', script: 'update-data:bsb' },
   { nombre: 'NFL', script: 'update-data:naf' },
+  { nombre: 'NHL', script: 'update-data:nhl' },
 ];
 
 // Queda en ingestion_runs como `update-results`; cada deporte deja además la suya
@@ -46,7 +48,7 @@ for (const p of PASOS) {
 // cada 30 minutos; sin esto, justo después de actualizar, «¿Acertó?» seguiría contando
 // como «sin resultado» partidos que el archivo ya tiene.
 const puntuadas: string[] = [];
-for (const [nombre, f] of [['fútbol', resolveFootballPredictions], ['baloncesto', resolveGamePredictions], ['béisbol', resolveBaseballPredictions], ['NFL', resolveNflPredictions]] as const) {
+for (const [nombre, f] of [['fútbol', resolveFootballPredictions], ['baloncesto', resolveGamePredictions], ['béisbol', resolveBaseballPredictions], ['NFL', resolveNflPredictions], ['NHL', resolveNhlPredictions]] as const) {
   try {
     const n = f().resolved;
     if (n > 0) puntuadas.push(`${nombre} ${n}`);

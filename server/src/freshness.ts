@@ -160,6 +160,7 @@ export type UpcomingTable =
   | 'bb_upcoming'
   | 'bsb_upcoming'
   | 'naf_upcoming'
+  | 'nhl_upcoming'
   | 'upcoming_matches';
 
 /**

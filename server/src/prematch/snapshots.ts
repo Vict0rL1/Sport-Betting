@@ -249,6 +249,11 @@ const LOGS: { sport: SportId; tabla: string; clave: string; outcomes: string; pr
     probs: 'json_array(COALESCE(shown_home, prob_home), 1 - COALESCE(shown_home, prob_home))',
     mercado: 'CASE WHEN market_prob_home IS NULL THEN NULL ELSE json_array(market_prob_home, 1 - market_prob_home) END',
   },
+  {
+    sport: 'nhl', tabla: 'nhl_prediction_log', clave: 'match_key', outcomes: 'json_array(home_name, away_name)',
+    probs: 'json_array(COALESCE(shown_home, prob_home), 1 - COALESCE(shown_home, prob_home))',
+    mercado: 'CASE WHEN market_prob_home IS NULL THEN NULL ELSE json_array(market_prob_home, 1 - market_prob_home) END',
+  },
 ];
 
 /**

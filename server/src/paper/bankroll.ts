@@ -361,6 +361,12 @@ function candidatasDosSalidas(excluir: boolean, cfg: {
   oddsCasa: string;
   oddsFuera: string;
   mostrada?: string;
+  /**
+   * false: no exigir el mercado del momento de la predicción. La NHL registra muchas predicciones desde
+   * el calendario, antes de que haya precio; el banco reprecia con la cuota de ahora (conMercadoActual)
+   * igual en todos los deportes, así que ese dato solo hacía de filtro.
+   */
+  mercadoRegistrado?: boolean;
 }): Candidato[] {
   const cal = cfg.mostrada ? `COALESCE(l.${cfg.mostrada}, l.prob_home)` : 'l.prob_home';
   const rows = getDb()
@@ -372,7 +378,7 @@ function candidatasDosSalidas(excluir: boolean, cfg: {
          FROM ${cfg.tablaLog} l
          JOIN ${cfg.tablaUp} u ON u.id = l.upcoming_id
         WHERE l.${cfg.resuelto} IS NULL
-          AND l.market_prob_home IS NOT NULL
+          ${cfg.mercadoRegistrado === false ? '' : 'AND l.market_prob_home IS NOT NULL'}
           AND u.source <> 'fixture'
           AND u.${cfg.oddsCasa} IS NOT NULL AND u.${cfg.oddsFuera} IS NOT NULL
           AND u.commence_time > ?
@@ -380,24 +386,26 @@ function candidatasDosSalidas(excluir: boolean, cfg: {
     )
     .all(AHORA()) as unknown as {
     match_key: string; upcoming_id: string; home_id: string; away_id: string; home_name: string; away_name: string; league: string | null;
-    raw: number; cal: number; market_prob_home: number; predicted_at: string;
+    raw: number; cal: number; market_prob_home: number | null; predicted_at: string;
     odds_home: number; odds_away: number; commence_time: string; updated_at: string | null; books: number | null;
   }[];
 
+  // Sin mercado registrado, el de las cuotas de la fila (el banco lo recalcula igual al apostar).
+  const mercado = (r: (typeof rows)[number]) => r.market_prob_home ?? (1 / r.odds_home) / (1 / r.odds_home + 1 / r.odds_away);
   return rows.map((r) => ({
     sport: cfg.sport,
     league: r.league,
     match_key: r.match_key,
     event_id: r.upcoming_id,
-    label: cfg.sport === 'nfl' ? `${r.away_name} @ ${r.home_name}` : `${r.home_name} vs ${r.away_name}`,
+    label: cfg.sport === 'nfl' || cfg.sport === 'nhl' ? `${r.away_name} @ ${r.home_name}` : `${r.home_name} vs ${r.away_name}`,
     commence: r.commence_time,
     predictedAt: r.predicted_at,
     oddsAt: r.updated_at,
     books: r.books,
     participantes: [r.home_id, r.away_id],
     salidas: [
-      { label: r.home_name, proveedor: r.home_name, p: r.cal, pRaw: r.raw, odds: r.odds_home, pMarket: r.market_prob_home },
-      { label: r.away_name, proveedor: r.away_name, p: 1 - r.cal, pRaw: 1 - r.raw, odds: r.odds_away, pMarket: 1 - r.market_prob_home },
+      { label: r.home_name, proveedor: r.home_name, p: r.cal, pRaw: r.raw, odds: r.odds_home, pMarket: mercado(r) },
+      { label: r.away_name, proveedor: r.away_name, p: 1 - r.cal, pRaw: 1 - r.raw, odds: r.odds_away, pMarket: 1 - mercado(r) },
     ],
   }));
 }
@@ -463,6 +471,11 @@ const BEISBOL = {
   sport: 'baseball' as const, tablaLog: 'bsb_prediction_log', tablaUp: 'bsb_upcoming',
   clave: 'match_key', resuelto: 'home_runs', oddsCasa: 'odds_home', oddsFuera: 'odds_away',
 };
+const NHL = {
+  sport: 'nhl' as const, tablaLog: 'nhl_prediction_log', tablaUp: 'nhl_upcoming',
+  clave: 'match_key', resuelto: 'home_goals', oddsCasa: 'odds_home', oddsFuera: 'odds_away', mostrada: 'shown_home',
+  mercadoRegistrado: false,
+};
 
 /**
  * Todas las candidatas con cuotas REALES y partido por delante, de los cinco deportes.
@@ -478,6 +491,7 @@ export function candidatasPapel(excluirApostadas = true): Candidato[] {
     ...candidatasFutbol(excluirApostadas),
     ...candidatasDosSalidas(excluirApostadas, BALONCESTO),
     ...candidatasDosSalidas(excluirApostadas, BEISBOL),
+    ...candidatasDosSalidas(excluirApostadas, NHL),
   ];
 }
 
@@ -790,11 +804,12 @@ export function liquidador(): (a: Pick<ApuestaPapel, 'sport' | 'match_key' | 'se
   const bb = dosSalidas('bb_prediction_log', 'game_key', 'home_pts', 'away_pts');
   const bsb = dosSalidas('bsb_prediction_log', 'match_key', 'home_runs', 'away_runs');
   const nfl = dosSalidas('naf_prediction_log', 'match_key', 'home_points', 'away_points');
-  return (a) => liquidar(a, { tenis, futbol, bb, bsb, nfl });
+  const nhl = dosSalidas('nhl_prediction_log', 'match_key', 'home_goals', 'away_goals');
+  return (a) => liquidar(a, { tenis, futbol, bb, bsb, nfl, nhl });
 }
 
 /** El resultado de una apuesta, o null si su partido aún no tiene resultado. */
-function liquidar(a: Pick<ApuestaPapel, 'sport' | 'match_key' | 'selection'>, q: { tenis: Stmt; futbol: Stmt; bb: Stmt; bsb: Stmt; nfl: Stmt }): Liquidacion | null {
+function liquidar(a: Pick<ApuestaPapel, 'sport' | 'match_key' | 'selection'>, q: { tenis: Stmt; futbol: Stmt; bb: Stmt; bsb: Stmt; nfl: Stmt; nhl: Stmt }): Liquidacion | null {
   if (a.sport === 'tennis') {
     const r = q.tenis.get(a.match_key) as { winner_id: number; p1_id: number; p1: string; p2: string } | undefined;
     if (!r) return null;
@@ -803,7 +818,7 @@ function liquidar(a: Pick<ApuestaPapel, 'sport' | 'match_key' | 'selection'>, q:
     const ganador = r.winner_id === r.p1_id ? r.p1 : r.p2;
     return { status: ganador === a.selection ? 'won' : 'lost', resultado: `ganó ${ganador}` };
   }
-  const st = a.sport === 'football' ? q.futbol : a.sport === 'basketball' ? q.bb : a.sport === 'baseball' ? q.bsb : a.sport === 'nfl' ? q.nfl : null;
+  const st = a.sport === 'football' ? q.futbol : a.sport === 'basketball' ? q.bb : a.sport === 'baseball' ? q.bsb : a.sport === 'nfl' ? q.nfl : a.sport === 'nhl' ? q.nhl : null;
   if (!st) return null;
   const r = st.get(a.match_key) as { home_name: string; away_name: string; pc: number; pf: number } | undefined;
   if (!r) return null;
@@ -811,7 +826,8 @@ function liquidar(a: Pick<ApuestaPapel, 'sport' | 'match_key' | 'selection'>, q:
   if (r.pc === r.pf) {
     // Fútbol: el empate es un resultado más, no una anulación (regalarle al modelo el 25 %
     // de los partidos sin riesgo sería falsear el banco). NFL: el moneyline se devuelve
-    // (push). Baloncesto y béisbol no admiten empate: es un dato corrupto y se anula.
+    // (push). Baloncesto, béisbol y la NHL (prórroga y tanda) no admiten empate: es un dato
+    // corrupto y se anula.
     if (a.sport === 'football') return { status: a.selection === 'Empate' ? 'won' : 'lost', resultado: marcador };
     return { status: a.sport === 'nfl' ? 'push' : 'void', resultado: marcador };
   }

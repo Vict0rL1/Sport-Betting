@@ -12,6 +12,7 @@
 
 import { parse } from 'csv-parse/sync';
 import { getDb } from '../db.ts';
+import { nhlConfig } from '../config.ts';
 
 export const NHL_API = 'https://api-web.nhle.com/v1';
 
@@ -143,7 +144,7 @@ export async function ingestarRango(desde: string, hasta: string, f: typeof fetc
 // ---------------------------------------------------------------------------
 
 /** El fichero de una temporada se nombra por el año en que ACABA: `nhl_schedule_2024.csv` es la 2023-24. */
-export const SPORTSDATAVERSE = 'https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_schedules';
+export const SPORTSDATAVERSE = nhlConfig.history.schedulesUrl;
 export const urlTemporada = (anioFin: number) => `${SPORTSDATAVERSE}/nhl_schedule_${anioFin}.csv`;
 
 /** Los partidos terminados de un CSV de calendario de sportsdataverse (solo temporada regular y playoffs). */
@@ -190,7 +191,7 @@ export function partidosDeCsv(texto: string): PartidoNhl[] {
 // en orden de fecha. Se cruzan por posición SOLO si los dos equipos coinciden en TODOS los partidos de
 // la temporada; si falla uno, la temporada no se guarda.
 
-const CAJAS = 'https://github.com/sportsdataverse/sportsdataverse-data/releases/download/nhl_team_boxscores';
+const CAJAS = nhlConfig.history.teamBoxUrl;
 export const urlCajas = (anioFin: number) => `${CAJAS}/team_box_${anioFin}.csv`;
 
 /** ¿Marcadores de relleno? Un mismo resultado en más de la mitad de los partidos, o el local gana siempre o nunca. */

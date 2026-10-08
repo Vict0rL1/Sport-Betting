@@ -15,11 +15,14 @@ import type { BsbPrediction } from '../baseball/predict.ts';
 import type { BsbUpcomingRow } from '../baseball/types.ts';
 import type { NafPrediction } from '../nfl/predict.ts';
 import type { NafUpcomingRow } from '../nfl/types.ts';
+import type { NhlPrediction } from '../nhl/predict.ts';
+import type { NhlUpcomingRow } from '../nhl/repo.ts';
 import { matchKey as tennisKey } from '../trackRecord.ts';
 import { footballMatchKey } from '../football/trackRecord.ts';
 import { gameKey } from '../basketball/trackRecord.ts';
 import { matchKey as baseballKey } from '../baseball/trackRecord.ts';
 import { matchKey as nflKey } from '../nfl/trackRecord.ts';
+import { matchKey as nhlKey } from '../nhl/trackRecord.ts';
 import type { Instantanea } from './snapshots.ts';
 
 const r1 = (x: number) => Math.round(x * 10) / 10;
@@ -141,6 +144,28 @@ export function deNfl(row: NafUpcomingRow, p: NafPrediction): Instantanea | null
       qbLocal: { etiqueta: `QB de ${row.home_name}`, valor: p.quarterbacks.home?.name ?? null },
       qbVisit: { etiqueta: `QB de ${row.away_name}`, valor: p.quarterbacks.away?.name ?? null },
       techo: { etiqueta: 'techo del estadio', valor: p.conditions?.roof ?? null },
+    },
+  };
+}
+
+export function deNhl(row: NhlUpcomingRow, p: NhlPrediction): Instantanea | null {
+  if (!row.home_id || !row.away_id) return null;
+  return {
+    sport: 'nhl',
+    matchKey: nhlKey(row),
+    eventId: row.id,
+    commence: row.commence_time,
+    outcomes: [row.home_name, row.away_name],
+    probs: [p.final.home, p.final.away],
+    probsRaw: [p.model.home, p.model.away],
+    odds: cuotas(row.odds_home, row.odds_away),
+    oddsAt: row.updated_at ?? null,
+    // Sin mezcla con el mercado: no hay cuotas históricas de la NHL para ajustarla.
+    usaMercado: false,
+    entradas: {
+      eloLocal: { etiqueta: `Elo de ${row.home_name}`, valor: r1(p.teams.home.elo) },
+      eloVisit: { etiqueta: `Elo de ${row.away_name}`, valor: r1(p.teams.away.elo) },
+      lineaTotal: { etiqueta: 'línea de total de goles', valor: p.total.line },
     },
   };
 }

@@ -163,7 +163,6 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   await app.register(registerEstrategiasRoutes);
   await app.register(registerInformesRoutes);
   await app.register(registerLineasArchivoRoutes);
-  await app.register(registerNhlRoutes);
   await app.register(registerUfcRoutes);
 
   await app.register(registerRoutes, { prefix: '/api' });
@@ -174,6 +173,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   await app.register(registerStakingRoutes, { prefix: '/api/staking' });
   await app.register(registerBaseballRoutes, { prefix: '/api/baseball' });
   await app.register(registerNflRoutes, { prefix: '/api/nfl' });
+  await app.register(registerNhlRoutes, { prefix: '/api/nhl' });
   // The bet log is not a sixth sport: it records what the person staked, not what
   // any model claimed, so it gets its own namespace rather than living under one.
   await app.register(registerBetRoutes, { prefix: '/api/bets' });

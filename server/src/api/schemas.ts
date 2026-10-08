@@ -217,7 +217,7 @@ export const ESQUEMA_ARCHIVO = o({
 });
 
 // --- Fase 7: rendimiento ---
-export const ESQUEMA_NHL_SOMBRA = o({
+export const ESQUEMA_NHL_BACKTEST = o({
   partidos: int,
   puntuados: int,
   holdoutExcluido: int,

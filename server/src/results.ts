@@ -80,6 +80,7 @@ const TABLES: Record<string, { table: string; dateCol: string; home: string; awa
 };
 
 export function findGameResult(sport: string, q: ResultQuery): GameResult | null {
+  if (sport === 'nhl') return findNhlResult(q);
   const t = TABLES[sport];
   if (!t || !q.homeId || !q.awayId) return null;
   const target = ymdOf(q.commenceTime);
@@ -105,6 +106,25 @@ export function findGameResult(sport: string, q: ResultQuery): GameResult | null
     ) as unknown as { h: number; a: number; d: string } | undefined;
 
   return row ? { homeScore: row.h, awayScore: row.a, playedOn: row.d } : null;
+}
+
+/**
+ * La NHL: una sola liga (sin columna `league`) y fechas con guiones (YYYY-MM-DD). Mismo margen de un
+ * día a cada lado; los mismos dos equipos no repiten partido en tres días.
+ */
+function findNhlResult(q: ResultQuery): GameResult | null {
+  if (!q.homeId || !q.awayId) return null;
+  const target = ymdOf(q.commenceTime);
+  if (!target) return null;
+  const guion = (ymd: string) => `${ymd.slice(0, 4)}-${ymd.slice(4, 6)}-${ymd.slice(6, 8)}`;
+  const row = getDb()
+    .prepare(
+      `SELECT home_goals AS h, away_goals AS a, game_date AS d FROM nhl_games
+        WHERE home_id = ? AND away_id = ? AND game_date >= ? AND game_date <= ?
+        ORDER BY ABS(julianday(game_date) - julianday(?)) ASC LIMIT 1`,
+    )
+    .get(q.homeId, q.awayId, guion(shiftYmd(target, -WINDOW_DAYS)), guion(shiftYmd(target, WINDOW_DAYS)), guion(target)) as { h: number; a: number; d: string } | undefined;
+  return row ? { homeScore: row.h, awayScore: row.a, playedOn: row.d.replace(/-/g, '') } : null;
 }
 
 /**

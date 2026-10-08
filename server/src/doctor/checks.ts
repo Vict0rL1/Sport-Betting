@@ -886,8 +886,7 @@ export interface EstadoProducto {
   archivo?: { on: boolean; predicciones: number };
   /** Las ampliaciones de la Fase 8, todas apagadas por defecto. */
   ampliaciones?: {
-    nhl: { on: boolean; partidos: number; ultimo: string | null };
-    /** La UFC en sombra (seguimiento: NHL y UFC). */
+    /** La UFC en sombra (seguimiento: NHL y UFC). La NHL ya no está aquí: se publicó y va con los demás deportes. */
     ufc?: { on: boolean; peleas: number; ultimo: string | null };
     telegram: { on: boolean; token: boolean; chats: number; offset: number | null };
     enVivo: boolean;
@@ -954,15 +953,10 @@ export function comprobarProducto(e: EstadoProducto, ahora: Date): Hallazgo[] {
   return out;
 }
 
-/** Fase 8: NHL y UFC en sombra, asistente por Telegram, tenis punto a punto y props de la NBA. */
+/** Fase 8 y seguimiento: UFC en sombra, asistente por Telegram, tenis punto a punto y props de la NBA. */
 function comprobarAmpliaciones(a: NonNullable<EstadoProducto['ampliaciones']>): Hallazgo[] {
   const S: Seccion = 'PRODUCTO';
   const out: Hallazgo[] = [];
-  const n = a.nhl.partidos.toLocaleString('es');
-  if (!a.nhl.on) out.push(h(S, 'info', `NHL en sombra apagada (features.json: deportes.nhl); ${n} partido(s) en nhl_games`));
-  else if (a.nhl.partidos === 0)
-    out.push(h(S, 'aviso', 'NHL en sombra encendida pero sin partidos: no hay nada que evaluar', { accion: ['npm run update-data:nhl (baja de GitHub, sportsdataverse) y después npm run backtest:nhl'] }));
-  else out.push(h(S, 'ok', `NHL en sombra: ${n} partido(s), el último del ${a.nhl.ultimo}; no se publica hasta tener su experimento en el registro`));
   if (a.ufc) {
     const p = a.ufc.peleas.toLocaleString('es');
     if (!a.ufc.on) out.push(h(S, 'info', `UFC en sombra apagada (features.json: deportes.ufc); ${p} pelea(s) en ufc_fights`));
@@ -992,6 +986,8 @@ export const TEMPORADAS: Record<string, { desde: [number, number]; hasta: [numbe
   Baloncesto: { desde: [10, 20], hasta: [6, 20], comando: 'npm run update-data:bb' },
   Béisbol: { desde: [3, 25], hasta: [10, 31], comando: 'npm run update-data:bsb' },
   NFL: { desde: [9, 5], hasta: [2, 15], comando: 'npm run update-data:naf' },
+  // Regular de octubre a mediados de abril, playoffs hasta junio.
+  NHL: { desde: [10, 1], hasta: [6, 20], comando: 'npm run update-data:nhl' },
 };
 /** Días sin resultados nuevos, en plena temporada, a partir de los que los Elo van atrasados. */
 export const DIAS_SIN_RESULTADOS = 21;

@@ -28,6 +28,7 @@ import { refreshFootballOdds } from '../football/ingest/odds.ts';
 import { refreshBasketballOdds } from '../basketball/ingest/odds.ts';
 import { refreshBaseballOdds } from '../baseball/ingest/odds.ts';
 import { refreshOdds as refreshNfl } from '../nfl/ingest/odds.ts';
+import { refrescarCuotas as refreshNhl } from '../nhl/proximos.ts';
 import { readOddsReason, REASON_TEXT, type SportPrefix } from '../oddsReason.ts';
 import { getQuota } from '../oddsQuota.ts';
 
@@ -59,6 +60,15 @@ const DEPORTES: { nombre: string; prefijo: SportPrefix; run: () => Promise<{ sou
     // vez de cambiar su firma: el resto del proyecto depende de que devuelva un número.
     run: async () => {
       const n = await refreshNfl(true);
+      return { source: n > 0 ? 'live' : 'schedule', count: n };
+    },
+  },
+  {
+    nombre: 'NHL',
+    prefijo: 'nhl_',
+    // Como la NFL: su calendario es real aunque no haya precio, y devuelve cuántos partidos lo tienen.
+    run: async () => {
+      const n = await refreshNhl(true);
       return { source: n > 0 ? 'live' : 'schedule', count: n };
     },
   },

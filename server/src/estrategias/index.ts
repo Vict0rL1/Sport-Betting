@@ -38,7 +38,7 @@ import { maxDrawdown } from '../evaluation/betting.ts';
 
 export { STRATEGIES_SCHEMA } from './schema.ts';
 
-export const DEPORTES_ESTRATEGIA = ['football', 'basketball', 'baseball', 'nfl', 'tennis'] as const;
+export const DEPORTES_ESTRATEGIA = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'tennis'] as const;
 /** El banco de papel solo apuesta ganador; el campo existe para cuando haya más. */
 export const MERCADOS_ESTRATEGIA = ['h2h'] as const;
 /** Estrategias activas a la vez: cada una es una pasada más por todas las candidatas. */

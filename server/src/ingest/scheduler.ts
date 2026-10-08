@@ -22,6 +22,7 @@ export const PASOS_RESULTADOS = [
   { nombre: 'baloncesto', script: 'update-data:bb' },
   { nombre: 'béisbol', script: 'update-data:bsb' },
   { nombre: 'NFL', script: 'update-data:naf' },
+  { nombre: 'NHL', script: 'update-data:nhl' },
 ] as const;
 
 export const PRIMERA_PASADA_MIN = 5;
@@ -71,7 +72,7 @@ export const lanzarNpm: Lanzador = (script) =>
     });
   });
 
-/** Un ciclo: los cuatro deportes en orden, uno a uno. Nunca lanza: devuelve qué pasó. */
+/** Un ciclo: los cinco deportes de equipo en orden, uno a uno. Nunca lanza: devuelve qué pasó. */
 export async function cicloResultados(lanzar: Lanzador = lanzarNpm, log: (m: string) => void = () => {}): Promise<ResultadoPaso[]> {
   const out: ResultadoPaso[] = [];
   await conRegistro('results:ciclo', async () => {
@@ -85,7 +86,7 @@ export async function cicloResultados(lanzar: Lanzador = lanzarNpm, log: (m: str
     }
     const fallidos = out.filter((x) => !x.ok);
     if (fallidos.length === out.length) throw new Error(`fallaron los ${out.length} deportes: ${fallidos.map((f) => f.cola).join(' / ')}`);
-    return { rowsUpdated: out.length - fallidos.length, detail: fallidos.length ? `fallaron: ${fallidos.map((f) => f.nombre).join(', ')}` : 'los cuatro deportes al día' };
+    return { rowsUpdated: out.length - fallidos.length, detail: fallidos.length ? `fallaron: ${fallidos.map((f) => f.nombre).join(', ')}` : 'los cinco deportes al día' };
   }).catch(() => {
     // Ya quedó en ingestion_runs como error; el ciclo no puede tumbar el servidor.
   });

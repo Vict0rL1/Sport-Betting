@@ -26,6 +26,7 @@ import { refreshBasketballOdds } from './basketball/ingest/odds.ts';
 import { refreshFootballOdds } from './football/ingest/odds.ts';
 import { refreshBaseballOdds } from './baseball/ingest/odds.ts';
 import { refreshOdds as refreshNflOdds } from './nfl/ingest/odds.ts';
+import { refrescarCuotas as refreshNhlOdds } from './nhl/proximos.ts';
 import {
   getQuota,
   lastCycleCredits,
@@ -43,6 +44,7 @@ import { resolveGamePredictions } from './basketball/trackRecord.ts';
 import { resolveFootballPredictions } from './football/trackRecord.ts';
 import { resolveBaseballPredictions } from './baseball/trackRecord.ts';
 import { resolveNflPredictions } from './nfl/trackRecord.ts';
+import { resolveNhlPredictions } from './nhl/trackRecord.ts';
 
 /**
  * Keep the schedule current on its own: refresh once at startup and then on an
@@ -286,6 +288,18 @@ function startAutoRefresh(log: (msg: string) => void): void {
         log(`NFL odds refresh failed: ${(e as Error).message}`);
       }
     }
+    // La NHL: fuera de temporada no gasta (el listado de /sports, gratis, lo decide).
+    if (countRows('nhl_games') > 0) {
+      try {
+        const { n } = await conRegistro('odds:nhl', async () => {
+          const x = await refreshNhlOdds();
+          return { n: x, rowsAdded: x };
+        });
+        log(`NHL odds refreshed: ${n} games.`);
+      } catch (e) {
+        log(`NHL odds refresh failed: ${(e as Error).message}`);
+      }
+    }
     // Say where the quota stands after every cycle. The whole reason the free
     // plan ran out was that nothing ever mentioned it until it was gone.
     const q = getQuota();
@@ -437,6 +451,7 @@ function resolveAllPredictions(log?: (msg: string) => void): void {
     ['football', resolveFootballPredictions],
     ['baseball', resolveBaseballPredictions],
     ['nfl', resolveNflPredictions],
+    ['nhl', resolveNhlPredictions],
   ];
   const done: string[] = [];
   for (const [name, run] of jobs) {
@@ -512,7 +527,7 @@ async function main() {
     // Resultados de los cuatro deportes de equipo, en procesos hijo (ver ingest/scheduler.ts).
     registrar({
       nombre: 'resultados',
-      descripcion: 'update-results: resultados de fútbol, baloncesto, béisbol y NFL en procesos hijo, sin cuota',
+      descripcion: 'update-results: resultados de fútbol, baloncesto, béisbol, NFL y NHL en procesos hijo, sin cuota',
       cadenciaMin: horasResultados * 60,
       primeraEnMin: PRIMERA_PASADA_MIN,
       cuando: () => featureEncendida('datos.resultadosProgramados') && horasResultados > 0,

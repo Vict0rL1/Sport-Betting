@@ -34,6 +34,11 @@ function predicciones(f: Filtros): Exportacion {
     { sport: 'basketball', tabla: 'bb_prediction_log', sql: "SELECT 'basketball' AS sport, match_key, predicted_at, commence_time, prob_home AS prob_a, 1 - prob_home AS prob_b, NULL AS prob_draw, outcome, model_version FROM bb_prediction_log" },
     { sport: 'baseball', tabla: 'bsb_prediction_log', sql: "SELECT 'baseball' AS sport, match_key, predicted_at, commence_time, prob_home AS prob_a, 1 - prob_home AS prob_b, NULL AS prob_draw, outcome, model_version FROM bsb_prediction_log" },
     { sport: 'nfl', tabla: 'naf_prediction_log', sql: "SELECT 'nfl' AS sport, match_key, predicted_at, commence_time, prob_home AS prob_a, prob_away AS prob_b, NULL AS prob_draw, outcome, model_version FROM naf_prediction_log" },
+    {
+      sport: 'nhl',
+      tabla: 'nhl_prediction_log',
+      sql: "SELECT 'nhl' AS sport, match_key, predicted_at, commence_time, COALESCE(shown_home, prob_home) AS prob_a, 1 - COALESCE(shown_home, prob_home) AS prob_b, NULL AS prob_draw, CASE WHEN home_goals IS NULL THEN NULL WHEN home_goals > away_goals THEN 'home' ELSE 'away' END AS outcome, model_version FROM nhl_prediction_log",
+    },
   ];
   const datos: Record<string, unknown>[] = [];
   for (const x of fuentes) {

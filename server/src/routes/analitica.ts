@@ -55,6 +55,8 @@ export async function registerAnaliticaRoutes(app: FastifyInstance): Promise<voi
       if (!featureEncendida('simulacion.temporada')) return reply.code(404).send({ error: 'apagado (features.json: simulacion.temporada)' });
       const s = req.params.sport;
       if (!isSportId(s) || s === 'tennis') return reply.code(404).send({ error: 'deporte sin temporada de liga' });
+      // La NHL no tiene simulación: ver DeporteSimulable en simulation/season.ts.
+      if (s === 'nhl') return reply.code(404).send({ error: 'la NHL no tiene simulación de temporada (sin calendario completo ni derrotas en la prórroga en el archivo)' });
       if (!/^[a-z0-9_-]{1,32}$/.test(req.params.league)) return reply.code(404).send({ error: 'liga desconocida' });
       return simulacionDelDia(s, req.params.league);
     },
@@ -111,10 +113,10 @@ export async function registerAnaliticaRoutes(app: FastifyInstance): Promise<voi
     async (req, reply) => {
       const s = req.params.sport;
       if (!isSportId(s)) return reply.code(404).send({ error: 'deporte desconocido' });
-      const DEPORTE: Record<SportId, string> = { football: 'Fútbol', basketball: 'Baloncesto', baseball: 'Béisbol', nfl: 'NFL', tennis: 'Tenis' };
+      const DEPORTE: Record<SportId, string> = { football: 'Fútbol', basketball: 'Baloncesto', baseball: 'Béisbol', nfl: 'NFL', nhl: 'NHL', tennis: 'Tenis' };
       const f = FUENTES.find((x) => x.deporte === DEPORTE[s]);
       if (!f) return reply.code(404).send({ error: 'deporte desconocido' });
-      const marcador: Record<SportId, [string, string] | null> = { football: ['home_goals', 'away_goals'], basketball: ['home_pts', 'away_pts'], baseball: ['home_runs', 'away_runs'], nfl: ['home_points', 'away_points'], tennis: null };
+      const marcador: Record<SportId, [string, string] | null> = { football: ['home_goals', 'away_goals'], basketball: ['home_pts', 'away_pts'], baseball: ['home_runs', 'away_runs'], nfl: ['home_points', 'away_points'], nhl: ['home_goals', 'away_goals'], tennis: null };
       const m = marcador[s];
       const extra = m ? `, ${m[0]} AS g1, ${m[1]} AS g2` : ', winner_id AS ganador, p1_id AS p1';
       let fila: Record<string, unknown> | undefined;

@@ -8,7 +8,7 @@
 import { getDb } from '../db.ts';
 import { median, type OddsEvent, type OddsResponse } from '../oddsApi.ts';
 
-export type Deporte = 'football' | 'basketball' | 'baseball' | 'nfl' | 'tennis' | 'other';
+export type Deporte = 'football' | 'basketball' | 'baseball' | 'nfl' | 'nhl' | 'tennis' | 'other';
 
 /** Qué deporte es una clave de competición del proveedor. */
 export function sportOfKey(key: string): Deporte {
@@ -16,6 +16,7 @@ export function sportOfKey(key: string): Deporte {
   if (key.startsWith('basketball_')) return 'basketball';
   if (key.startsWith('baseball_')) return 'baseball';
   if (key.startsWith('americanfootball_')) return 'nfl';
+  if (key.startsWith('icehockey_nhl')) return 'nhl';
   if (key.startsWith('tennis_')) return 'tennis';
   return 'other';
 }

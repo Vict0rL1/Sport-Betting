@@ -20,6 +20,7 @@ import { listUpcoming as listBasketball } from './basketball/repo.ts';
 import { listUpcoming as listBaseball } from './baseball/repo.ts';
 import { listUpcoming as listNfl } from './nfl/repo.ts';
 import { listLeagues as listNflLeagues } from './nfl/repo.ts';
+import { listUpcoming as listNhl } from './nhl/repo.ts';
 import { getDb } from './db.ts';
 
 export interface BetCandidateSide {
@@ -77,6 +78,7 @@ function loggedModelProbs(): Map<string, number> {
     ['basketball', 'bb_prediction_log', 'prob_home'],
     ['baseball', 'bsb_prediction_log', 'prob_home'],
     ['nfl', 'naf_prediction_log', 'prob_home'],
+    ['nhl', 'nhl_prediction_log', 'prob_home'],
   ];
   for (const [sport, table, col] of sources) {
     try {
@@ -198,6 +200,22 @@ export function listBetCandidates(limit = 120): BetCandidate[] {
         ],
       });
     }
+  }
+
+  // --- NHL: una liga.
+  for (const g of listNhl(40)) {
+    const [h, a] = deVig(g.odds_home, g.odds_away);
+    out.push({
+      sport: 'nhl',
+      league: 'nhl',
+      event: `${g.away_name} @ ${g.home_name}`,
+      commenceTime: g.commence_time,
+      matchKey: `nhl|${g.id}`,
+      sides: [
+        { label: g.home_name, modelProb: modelProb(`nhl|${g.id}`, 'home'), marketProb: h, odds: g.odds_home },
+        { label: g.away_name, modelProb: modelProb(`nhl|${g.id}`, 'away'), marketProb: a, odds: g.odds_away },
+      ],
+    });
   }
 
   return out

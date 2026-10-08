@@ -88,10 +88,11 @@ interface ApuestaFila {
 
 /** Las dimensiones de una apuesta de papel. Local/visitante sale de la etiqueta del partido. */
 export function dimensionesApuesta(deporte: SportId, a: ApuestaFila): Record<string, string | undefined> {
-  const sep = deporte === 'nfl' ? ' @ ' : ' vs ';
+  const arroba = deporte === 'nfl' || deporte === 'nhl';
+  const sep = arroba ? ' @ ' : ' vs ';
   const partes = a.label.split(sep);
-  const local = partes.length === 2 ? (deporte === 'nfl' ? partes[1] : partes[0]) : null;
-  const visitante = partes.length === 2 ? (deporte === 'nfl' ? partes[0] : partes[1]) : null;
+  const local = partes.length === 2 ? (arroba ? partes[1] : partes[0]) : null;
+  const visitante = partes.length === 2 ? (arroba ? partes[0] : partes[1]) : null;
   const lado =
     deporte === 'tennis'
       ? a.selection === partes[0] ? 'al primero' : a.selection === partes[1] ? 'al segundo' : undefined

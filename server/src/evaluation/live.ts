@@ -77,6 +77,13 @@ export function predicciones(deporte: SportId): PrediccionEnVivo[] {
                 model_version AS v, commence_time AS t, league AS l
            FROM naf_prediction_log WHERE home_points IS NOT NULL AND home_points <> away_points ORDER BY rowid`,
       ).map(dos);
+    case 'nhl':
+      // El moneyline incluye prórroga y tanda: siempre hay ganador.
+      return leer(
+        `SELECT COALESCE(shown_home, prob_home) AS p, market_prob_home AS m, CASE WHEN home_goals > away_goals THEN 0 ELSE 1 END AS y,
+                model_version AS v, commence_time AS t, league AS l
+           FROM nhl_prediction_log WHERE home_goals IS NOT NULL AND home_goals <> away_goals ORDER BY rowid`,
+      ).map(dos);
   }
 }
 
