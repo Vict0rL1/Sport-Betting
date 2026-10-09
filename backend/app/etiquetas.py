@@ -130,6 +130,59 @@ _BASE: dict[str, str] = {
     "extraordinarios": "partidas no recurrentes",
     "calidad_fcf": "calidad del FCF",
     "impuestos": "impuestos",
+    # Las partidas de cada evidencia (sus claves salían tal cual: «cfo inicio»,
+    # «change receivables»; revisión de la Fase 1).
+    "activos": "activos totales",
+    "activos_anterior": "activos totales del año anterior",
+    "beneficio_antes_impuestos": "beneficio antes de impuestos",
+    "impuesto": "impuesto sobre beneficios",
+    "beneficio_inicio": "beneficio neto al inicio del periodo",
+    "beneficio_fin": "beneficio neto al final del periodo",
+    "cfo_inicio": "flujo de caja operativo al inicio del periodo",
+    "cfo_fin": "flujo de caja operativo al final del periodo",
+    "capex_inicio": "capex al inicio del periodo",
+    "capex_fin": "capex al final del periodo",
+    "capitalizado": "software capitalizado",
+    "change_receivables": "variación de cuentas por cobrar",
+    "change_inventory": "variación de inventario",
+    "change_payables": "variación de proveedores",
+    # La clave se arma con el nombre de la partida («cuentas por cobrar») y está
+    # congelada en el golden: se etiqueta tal cual.
+    "cuentas por cobrar_anterior": "cuentas por cobrar del año anterior",
+    "inventario_anterior": "inventario del año anterior",
+    "deterioros": "deterioros",
+    "litigios": "litigios",
+    "reestructuracion": "reestructuración",
+    "venta_de_activos": "venta de activos",
+    # --- Componentes de la Z de Altman ---
+    "x1_working_capital_over_assets": "capital circulante / activos",
+    "x2_retained_earnings_over_assets": "beneficios retenidos / activos",
+    "x3_ebit_over_assets": "EBIT / activos",
+    "x4_market_cap_over_liabilities": "capitalización / pasivos",
+    "x5_sales_over_assets": "ventas / activos",
+    # --- Eventos de noticias (los clasifica la IA) ---
+    "guidance_al_alza": "guidance al alza",
+    "guidance_a_la_baja": "guidance a la baja",
+    "resultados_mejor_de_lo_esperado": "resultados mejores de lo esperado",
+    "resultados_peor_de_lo_esperado": "resultados peores de lo esperado",
+    "riesgo_regulatorio_o_legal": "riesgo regulatorio o legal",
+    "cambio_en_la_direccion": "cambio en la dirección",
+    "operacion_corporativa": "operación corporativa",
+    "recompra_o_dividendo_al_alza": "recompra o dividendo al alza",
+    "dilucion_o_ampliacion_de_capital": "dilución o ampliación de capital",
+    "irrelevante_para_la_tesis": "irrelevante para la tesis",
+    # --- Sectores de un ETF (claves de yfinance) ---
+    "realestate": "inmobiliario",
+    "consumer_cyclical": "consumo cíclico",
+    "basic_materials": "materiales básicos",
+    "consumer_defensive": "consumo defensivo",
+    "technology": "tecnología",
+    "communication_services": "servicios de comunicación",
+    "financial_services": "servicios financieros",
+    "utilities": "servicios públicos",
+    "industrials": "industria",
+    "energy": "energía",
+    "healthcare": "salud",
     # --- Secciones y categorías ---
     "decision": "decisión",
     "mercado": "mercado",
@@ -250,10 +303,10 @@ def etiqueta(codigo: str | None, mayuscula: bool = False) -> str:
     y se avisa una vez en el registro."""
     if codigo is None or codigo == "":
         return "—"
-    if not _CODIGO.match(codigo):
-        texto = codigo  # ya es texto («media de 200 sesiones»): se deja como está
-    elif codigo in ETIQUETAS:
+    if codigo in ETIQUETAS:
         texto = ETIQUETAS[codigo]
+    elif not _CODIGO.match(codigo):
+        texto = codigo  # ya es texto («media de 200 sesiones»): se deja como está
     elif _ORIGEN.match(codigo):
         texto = etiqueta_origen(codigo)
     elif ":" in codigo:
@@ -286,7 +339,7 @@ DESTINO = Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "et
 # las calcula IGUAL (compuestos, orígenes, desconocidos, mayúsculas).
 CASOS = [
     ("gross_margin", False), ("gross_margin", True), ("NO_TRADE", True), ("us_sp500", False),
-    ("sin_datos", True), ("gross_margin:ingresos", False), ("fcf_growth:capex_anterior", False),
+    ("sin_datos", True), ("gross_margin:ingresos", False), ("fcf_growth:capex_anterior", False), ("cuentas por cobrar_anterior", False),
     ("analisis:03:09:37", False), ("analisis:14:35:00", True), ("algo_nuevo", False),
     ("OTRO_CODIGO", True), ("eps_diluted", True), ("correlacion", False),
     ("media de 200 sesiones", True), ("deuda neta (parcial)", False),

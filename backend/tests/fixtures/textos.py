@@ -29,6 +29,12 @@ AJENAS = frozenset({
 })
 
 
+# Diccionarios cuyas CLAVES se enseñan como nombre de fila: «x1_working_capital_over_assets»
+# salía en la ficha como «working capital over assets» y «cfo_inicio» como «cfo inicio»
+# (revisión de la Fase 1). Por la ruta que acaba así; sus claves se anotan como
+# códigos bajo «<ruta>{}». (Las `entradas` de la valoración no: se leen campo a campo.)
+CLAVES_COMO_NOMBRE = ("evidencias/entradas", "components")
+
 # Si no es None, `_recorrer` anota también cada código, por la clave que lo trae
 # (lo usa la guarda de etiquetas, `recoger_codigos`).
 _CODIGOS: dict[str, set[str]] | None = None
@@ -44,6 +50,10 @@ def _recorrer(x, origen: str, salida: list[tuple[str, str]], clave: str = "") ->
             return
         salida.append((origen, x))
     elif isinstance(x, dict):
+        ruta = next((r for r in CLAVES_COMO_NOMBRE if origen.endswith("/" + r)), None)
+        if ruta and _CODIGOS is not None:
+            _CODIGOS.setdefault(f"{ruta}{{}}", set()).update(
+                str(k) for k in x if "_" in str(k) or es_codigo(str(k)))
         for k, v in x.items():
             ks = str(k)
             # Las huellas son material interno de comparación, no texto.

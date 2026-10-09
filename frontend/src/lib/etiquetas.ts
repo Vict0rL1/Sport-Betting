@@ -26,13 +26,14 @@ const mayusculaInicial = (texto: string) => texto.slice(0, 1).toUpperCase() + te
 export function etiqueta(codigo: string | null | undefined, { mayuscula = false }: { mayuscula?: boolean } = {}): string {
   if (codigo === null || codigo === undefined || codigo === '') return '—'
   let texto: string
-  if (!CODIGO.test(codigo)) texto = codigo
-  else if (codigo in ETIQUETAS) texto = ETIQUETAS[codigo]
+  if (codigo in ETIQUETAS) texto = ETIQUETAS[codigo]
+  else if (!CODIGO.test(codigo)) texto = codigo
   else if (ORIGEN.test(codigo)) texto = etiquetaOrigen(codigo)
   else if (codigo.includes(':')) {
     const [cabeza, ...resto] = codigo.split(':')
     texto = `${etiqueta(cabeza)} (${resto.map((p) => etiqueta(p)).join(', ')})`
   } else {
+    // eslint-disable-next-line no-restricted-syntax -- la reserva legible vive aquí
     texto = codigo.replace(/_/g, ' ').toLowerCase()
     if (!avisados.has(codigo)) {
       avisados.add(codigo)
@@ -47,5 +48,6 @@ export function etiquetaOrigen(origen: string | null | undefined): string {
   const m = ORIGEN.exec(origen ?? '')
   if (!m?.groups) return origen ? etiqueta(origen) : '—'
   const { tipo, h, m: min } = m.groups
+  // eslint-disable-next-line no-restricted-syntax -- la reserva legible vive aquí
   return `${ORIGENES[tipo] ?? tipo.replace(/_/g, ' ')} de las ${h}:${min} UTC`
 }

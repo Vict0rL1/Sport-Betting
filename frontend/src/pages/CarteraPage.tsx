@@ -12,6 +12,7 @@ import type {
   MatrizCorrelacion,
   RiesgoDeCartera,
 } from '../api/types'
+import { etiqueta } from '../lib/etiquetas'
 import { fmtCompacto, fmtNum, fmtPct, plural } from '../lib/formato'
 
 /** Color de una celda de correlación.
@@ -322,7 +323,7 @@ function Caracteristicas({ c }: { c: CaracteristicasDeCartera }) {
               <td className="py-1.5 text-slate-700">
                 {x.etiqueta}
                 <span className="ml-2 text-[10px] uppercase tracking-wide text-slate-400">
-                  {x.familia.replace(/_/g, ' ')}
+                  {etiqueta(x.familia)}
                 </span>
               </td>
               <td className="py-1.5 text-right font-medium tabular-nums text-slate-800">

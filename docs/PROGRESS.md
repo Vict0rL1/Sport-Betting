@@ -102,7 +102,8 @@ la red de seguridad tenía agujeros. Cada hallazgo, su arreglo y su commit:
 
 | # | Hallazgo | Estado | Commit |
 |---|---|---|---|
-| S1 | 23 porcentajes del frontend escritos `${fmtNum(x, 1)} %`, con espacio normal (el «%» puede caer solo en la línea siguiente); visto al preparar la revisión | hecho: `fmtPct(…, { enPuntos })`, con `signo` donde se pintaba el «+» a mano (adiós a un `?? 0` de signo). Hermano: la distancia de «qué la cambiaría» (`falta +3,00 )` sin unidad, espacio normal con ella). Guarda: regla de ESLint (plantillas, JSX y literales que empiezan por « %») y test de render. Hermano en el backend: `experiments.py` («Último 30 % …» con `int()`); la guarda AST ahora ve un «%» con espacio normal tras una interpolación | `cc5ed78`, (este commit) |
+| S1 | 23 porcentajes del frontend escritos `${fmtNum(x, 1)} %`, con espacio normal (el «%» puede caer solo en la línea siguiente); visto al preparar la revisión | hecho: `fmtPct(…, { enPuntos })`, con `signo` donde se pintaba el «+» a mano (adiós a un `?? 0` de signo). Hermano: la distancia de «qué la cambiaría» (`falta +3,00 )` sin unidad, espacio normal con ella). Guarda: regla de ESLint (plantillas, JSX y literales que empiezan por « %») y test de render. Hermano en el backend: `experiments.py` («Último 30 % …» con `int()`); la guarda AST ahora ve un «%» con espacio normal tras una interpolación | `cc5ed78`, `492571a` |
+| S2 | Códigos en crudo con `replace(/_/g, ' ')` en cinco pantallas: «LOW VOLATILITY» (Cartera), «working capital over assets» (Altman Z), «cfo inicio» / «change receivables» / «cuentas por cobrar_anterior» (Calidad), «Realestate» (sectores de un ETF), «guidance al alza» (Señales); visto al comparar las capturas | hecho: los cinco con `etiqueta()`; 47 etiquetas nuevas; el diccionario se consulta antes de decidir si algo es código (la clave «cuentas por cobrar_anterior» está congelada en el golden y no se toca). Guardas: regla de ESLint contra `replace(/_/g…)` fuera de `etiquetas.ts` (ve los 5); el test exhaustivo cubre las claves de las entradas de calidad, los componentes de Altman, los eventos de noticias y los sectores de yfinance (falla sin las etiquetas) | (este commit) |
 
 ## Etiquetas
 
@@ -142,6 +143,10 @@ que vengan).
 - **El golden congela `levels.objetivo` / `objetivo_pct`** y la pantalla Hoy lo muestra. Choca con
   «sin precios objetivo» (§3). No lo causa esta fase; si una fase lo retira, el golden cambiará y habrá
   que explicarlo.
+
+- **Los sectores de las acciones salen en inglés** («Health Care», «Information Technology»): son los
+  nombres GICS del universo, un dato y no un código, así que 1.8 no los tocó; los de un ETF (claves de
+  yfinance) ya salen en español. Decidir en 2.x (glosario) si se traducen y con qué nombres.
 
 ## Informe del repaso de seguridad (0.9)
 

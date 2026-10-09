@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { Health, RiskResponse } from '../../api/types'
+import { etiqueta } from '../../lib/etiquetas'
 import { fmtCompacto, fmtNum, fmtPct } from '../../lib/formato'
 import { SourceBadge } from '../SourceBadge'
 import { DeudaParcial } from './DeudaParcial'
@@ -58,7 +59,7 @@ export function HealthSection({ symbol }: { symbol: string }) {
           <dl className="mt-3 space-y-1 text-xs text-slate-500">
             {Object.entries(z.components).map(([key, value]) => (
               <div key={key} className="flex justify-between">
-                <dt>{key.replace(/_/g, ' ').replace(/^x\d /, '')}</dt>
+                <dt>{etiqueta(key, { mayuscula: true })}</dt>
                 <dd className="tabular-nums">{value !== null ? fmtNum(value, 3) : 'sin dato'}</dd>
               </div>
             ))}

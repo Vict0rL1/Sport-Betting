@@ -22,7 +22,7 @@ function Entrada({ nombre, e }: { nombre: string; e: Linaje }) {
   if (!e || typeof e !== 'object') return null
   return (
     <li className="text-[11px] text-slate-500">
-      <span className="text-slate-700">{nombre.replace(/_/g, ' ')}:</span>{' '}
+      <span className="text-slate-700">{etiqueta(nombre, { mayuscula: true })}:</span>{' '}
       {e.valor === null ? 'desconocido' : Math.abs(e.valor) >= 1e5 ? `${fmtNum(e.valor / 1e6, 1)} M` : fmtNum(e.valor, 2)}
       {e.formulario && (
         <span className="ml-1 text-slate-400">

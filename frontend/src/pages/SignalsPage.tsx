@@ -156,7 +156,7 @@ function SignalCard({ signal }: { signal: QuantSignal }) {
                   {ev.weight > 0 ? '▲' : ev.weight < 0 ? '▼' : '•'}
                 </span>
                 <span>
-                  {ev.category.replace(/_/g, ' ')}{' '}
+                  {etiqueta(ev.category, { mayuscula: true })}{' '}
                   <span className="text-slate-400">(confianza {ev.confidence})</span>
                 </span>
               </li>

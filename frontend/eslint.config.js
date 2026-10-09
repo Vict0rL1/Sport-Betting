@@ -50,6 +50,13 @@ export default tseslint.config(
           selector: "NewExpression[callee.object.name='Intl'][callee.property.name=/^(NumberFormat|DateTimeFormat)$/]",
           message: 'Intl solo dentro de lib/formato.ts: un formateador propio es otro sistema de formato.',
         },
+        // `codigo.replace(/_/g, ' ')` enseña un código en crudo con espacios:
+        // «LOW VOLATILITY», «working capital over assets», «Realestate» (revisión
+        // de la Fase 1). Un código se enseña con etiqueta().
+        {
+          selector: "CallExpression[callee.property.name=/^replace(All)?$/][arguments.0.regex.pattern='_']",
+          message: 'Un código se enseña con etiqueta() (lib/etiquetas.ts); si no tiene etiqueta, añádela en backend/app/etiquetas.py.',
+        },
         // `${fmtNum(x, 1)} %` escribe un espacio normal: el «%» puede caer solo
         // en la línea siguiente (revisión de la Fase 1, 23 sitios).
         {

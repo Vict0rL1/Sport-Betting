@@ -25,7 +25,9 @@ from app import etiquetas as et
 from app.analysis import calidad_beneficios as cb
 from app.analysis import cambios, confianza, coste_de_oportunidad as co, decision, signal
 from app.analysis import expectativas as ex
+from app.analysis import health
 from app.analysis.markets import MARKETS
+from app.llm.signal_llm import EVENT_WEIGHTS
 
 # Lo que se enseña tal cual porque ya es un nombre o una fecha: tickers,
 # monedas, índices, días y periodos («2026-09-16», «2025-Q4»).
@@ -62,6 +64,15 @@ MOSTRADAS = {
     "mejor_prevista", "metrica", "registrados", "sin_resultado", "nivel", "papel", "resultado",
     "requiere", "seccion", "tendencia", "tesis", "tipo", "tipo_sorpresa", "valoracion", "posicion",
     "precio_estado", "campo", "unidad", "origen",
+    # Diccionarios cuyas CLAVES son el nombre de cada fila (ver `CLAVES_COMO_NOMBRE`).
+    "evidencias/entradas{}",
+}
+
+# Las claves de `funds_data.sector_weightings` de yfinance: el desglose sectorial
+# de un ETF salía como «Realestate» o «Consumer cyclical» (revisión de la Fase 1).
+SECTORES_ETF_YFINANCE = {
+    "realestate", "consumer_cyclical", "basic_materials", "consumer_defensive", "technology",
+    "communication_services", "financial_services", "utilities", "industrials", "energy", "healthcare",
 }
 
 
@@ -95,6 +106,9 @@ def test_cada_enum_del_backend_tiene_etiqueta():
         "listas diarias": set(MARKETS),
         "fuentes de expectativas": set(ex.PRIORIDAD_FUENTES),
         "etiquetas de la señal": {e for _, e in signal.LABEL_THRESHOLDS if " " not in e},
+        "componentes de la Z de Altman": set(health.altman_z({}, None)["components"]),
+        "eventos de noticias que clasifica la IA": set(EVENT_WEIGHTS),
+        "sectores de un ETF": SECTORES_ETF_YFINANCE,
     }
     sin = {nombre: sorted(c for c in codigos if not _etiquetado(c)) for nombre, codigos in enums.items()}
     assert not {k: v for k, v in sin.items() if v}, sin

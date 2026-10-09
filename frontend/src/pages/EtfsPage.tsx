@@ -255,7 +255,7 @@ export function EtfsPage() {
                         .sort((a, b) => b[1] - a[1])
                         .map(([sector, weight]) => (
                           <li key={sector} className="flex justify-between text-slate-600">
-                            <span className="capitalize">{sector.replace(/_/g, ' ')}</span>
+                            <span>{etiqueta(sector, { mayuscula: true })}</span>
                             <span className="tabular-nums">{fmtPct(weight)}</span>
                           </li>
                         ))}
