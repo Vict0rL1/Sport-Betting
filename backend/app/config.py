@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -28,7 +29,12 @@ class Settings(BaseSettings):
     alphavantage_api_key: str = ""
     fred_api_key: str = ""
     anthropic_api_key: str = ""
-    anthropic_model: str = "claude-opus-5"
+    # El modelo de Claude (ítem 1.11). Sonnet 5.5 basta para extraer con forma
+    # fija y cuesta la mitad que Opus 5.5, que es la alternativa
+    # (CLAUDE_MODEL=claude-opus-5-5). Antes estaba escrito «claude-opus-5» en
+    # dos sitios del código. ANTHROPIC_MODEL, el nombre anterior, se sigue
+    # leyendo para no ignorar en silencio un .env que ya lo tenga.
+    claude_model: str = Field("claude-sonnet-5-5", validation_alias=AliasChoices("CLAUDE_MODEL", "ANTHROPIC_MODEL"))
     edgar_user_agent: str = ""
 
     database_path: str = str(BACKEND_DIR / "data" / "app.db")

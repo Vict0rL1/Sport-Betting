@@ -131,6 +131,6 @@ def test_estado_de_ia_con_key_declara_el_modelo(client):
         assert resp.status_code == 200
         body = resp.json()
         assert body["configured"] is True
-        assert body["model"] == settings.anthropic_model
+        assert body["model"] == settings.claude_model
     finally:
         app.dependency_overrides.pop(get_llm, None)

@@ -1,6 +1,8 @@
 """Proveedor LLM sobre el API de Claude (SDK oficial de Anthropic).
 
-- Modelo configurable vía ANTHROPIC_MODEL (por defecto claude-opus-5).
+- Modelo configurable vía CLAUDE_MODEL (por defecto claude-sonnet-5-5, en
+  `app/config.py`; aquí no se escribe ninguno). Un id que el API no conoce da
+  «Modelo de Claude no válido: <id>», no un «Error del API: 404».
 - max_tokens acotado: las interpretaciones son deliberadamente cortas.
 - Fallback del lado del servidor activado por defecto: si los clasificadores
   de seguridad del modelo declinan una petición benigna (p. ej. noticias de
@@ -20,9 +22,14 @@ from app.llm.base import LLMProvider, LLMUnavailableError
 class AnthropicProvider(LLMProvider):
     name = "anthropic"
 
-    def __init__(self, api_key: str, model: str = "claude-opus-5"):
+    def __init__(self, api_key: str, model: str):
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
+
+    def _modelo_no_valido(self) -> LLMUnavailableError:
+        # El API responde 404 tanto si el modelo no existe como si la cuenta no
+        # puede usarlo; en los dos casos el arreglo es el mismo.
+        return LLMUnavailableError(f"Modelo de Claude no válido: {self.model}. Revisa CLAUDE_MODEL en .env.")
 
     def interpret(self, system: str, prompt: str) -> dict:
         try:
@@ -40,6 +47,8 @@ class AnthropicProvider(LLMProvider):
             raise LLMUnavailableError(
                 "Límite de uso del API de Claude alcanzado; reintenta en unos minutos"
             ) from exc
+        except anthropic.NotFoundError as exc:
+            raise self._modelo_no_valido() from exc
         except anthropic.APIStatusError as exc:
             raise LLMUnavailableError(f"Error del API de Claude: {exc.status_code}") from exc
         except anthropic.APIConnectionError as exc:
@@ -96,6 +105,8 @@ class AnthropicProvider(LLMProvider):
             raise LLMUnavailableError(
                 "Límite de uso del API de Claude alcanzado; reintenta en unos minutos"
             ) from exc
+        except anthropic.NotFoundError as exc:
+            raise self._modelo_no_valido() from exc
         except anthropic.APIStatusError as exc:
             raise LLMUnavailableError(f"Error del API de Claude: {exc.status_code}") from exc
         except anthropic.APIConnectionError as exc:

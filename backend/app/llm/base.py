@@ -19,6 +19,10 @@ class LLMUnavailableError(Exception):
 
 
 class LLMProvider(ABC):
+    # El modelo con el que se llama (p. ej. «claude-sonnet-5-5»): con él se
+    # estima el coste antes de gastarlo. None = no se sabe, y entonces no se estima.
+    model: str | None = None
+
     name: str = "base"
 
     @abstractmethod

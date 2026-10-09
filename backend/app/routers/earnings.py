@@ -69,10 +69,15 @@ router = APIRouter(prefix="/api/earnings", tags=["earnings"])
 # trimestre no tiene 10-Q: la comparación se rompería justo una vez al año.
 FORMULARIOS = ("10-Q", "10-K", "8-K")
 
-# Precio del API de Claude por millón de tokens (Opus 5), para poder enseñar el
-# coste ANTES de gastarlo. Si cambia la tarifa, se cambia aquí.
-USD_POR_MTOK_ENTRADA = 5.0
-USD_POR_MTOK_SALIDA = 25.0
+# Tarifa del API de Claude en USD por millón de tokens (entrada, salida), para
+# enseñar el coste ANTES de gastarlo. Antes era una sola, la de Opus 5, escrita
+# a mano aunque el modelo fuera otro. Un modelo que no está aquí no tiene
+# estimación: inventarle un precio sería peor que decir que no se sabe.
+TARIFAS_USD_POR_MTOK = {
+    "claude-sonnet-5-5": (2.0, 10.0),
+    "claude-opus-5-5": (4.0, 20.0),
+    "claude-opus-5": (5.0, 25.0),
+}
 
 
 class AnalizarRequest(BaseModel):
@@ -121,21 +126,31 @@ def _preparar(service: MarketDataService, symbol: str, filing: dict) -> dict:
     return {"documento": doc, "secciones": secciones, "filing": filing}
 
 
-def _coste_estimado(entrada: int | None, salida: int = 4000) -> dict:
+def _coste_estimado(entrada: int | None, modelo: str | None, salida: int = 4000) -> dict:
     if entrada is None:
         return {
             "tokens_entrada": None,
             "usd_estimado": None,
             "nota": "No se pudo contar los tokens; el coste no se puede estimar de antemano.",
         }
-    usd = entrada / 1e6 * USD_POR_MTOK_ENTRADA + salida / 1e6 * USD_POR_MTOK_SALIDA
+    tarifa = TARIFAS_USD_POR_MTOK.get(modelo or "")
+    if tarifa is None:
+        return {
+            "tokens_entrada": entrada,
+            "usd_estimado": None,
+            "nota": (
+                f"~{fmt_num(entrada, 0)} tokens de entrada. No hay tarifa conocida para el modelo "
+                f"{modelo or 'configurado'}: el coste no se puede estimar de antemano."
+            ),
+        }
+    usd = entrada / 1e6 * tarifa[0] + salida / 1e6 * tarifa[1]
     return {
         "tokens_entrada": entrada,
         "usd_estimado": round(usd, 4),
         "nota": (
-            f"~{fmt_num(entrada, 0)} tokens de entrada. Estimación a la tarifa de Opus 5 "
-            f"({fmt_num(USD_POR_MTOK_ENTRADA, 2, ceros=False)} USD/M entrada, "
-            f"{fmt_num(USD_POR_MTOK_SALIDA, 2, ceros=False)} USD/M salida), "
+            f"~{fmt_num(entrada, 0)} tokens de entrada. Estimación a la tarifa de {modelo} "
+            f"({fmt_num(tarifa[0], 2, ceros=False)} USD/M entrada, "
+            f"{fmt_num(tarifa[1], 2, ceros=False)} USD/M salida), "
             f"asumiendo ~{fmt_num(salida, 0)} tokens de salida."
         ),
     }
@@ -254,7 +269,7 @@ def estimar_coste(
         },
         "secciones_ausentes": secciones["faltan"],
         "presupuesto": presupuesto,
-        "coste": _coste_estimado(llm.contar_tokens(SYSTEM, prompt)),
+        "coste": _coste_estimado(llm.contar_tokens(SYSTEM, prompt), llm.model),
     }
 
 

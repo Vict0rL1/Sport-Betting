@@ -1748,6 +1748,14 @@ https://console.anthropic.com/settings/keys) y reinicia con `./start.sh`. La
 barra superior muestra **IA activa** con el modelo en uso, o **IA off**
 tachado si la key falta.
 
+El modelo se elige con `CLAUDE_MODEL` en `.env`: por defecto
+`claude-sonnet-5-5` (basta para la extracción con forma fija y cuesta la mitad),
+o `claude-opus-5-5` si prefieres el más capaz. Un id que el API no reconoce se
+dice tal cual («Modelo de Claude no válido: <id>. Revisa CLAUDE_MODEL en
+.env.»). El nombre anterior, `ANTHROPIC_MODEL`, se sigue leyendo. La
+estimación de coste antes de analizar un filing usa la tarifa del modelo
+configurado; para un modelo sin tarifa conocida dice que no se puede estimar.
+
 **Sin key la app funciona entera**: precios, fundamentales, valoración, salud,
 señales, backtest e informe cuantitativo no tocan el LLM — solo desaparecen
 los tres botones de interpretación escrita. Es la única API de pago del

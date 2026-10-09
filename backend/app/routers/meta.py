@@ -42,7 +42,7 @@ def llm_status(llm=Depends(get_llm)):
     """
     return LlmStatus(
         configured=llm is not None,
-        model=settings.anthropic_model if llm is not None else None,
+        model=settings.claude_model if llm is not None else None,
     )
 
 

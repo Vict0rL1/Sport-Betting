@@ -54,7 +54,7 @@ def _build_llm():
         return None
     from app.llm.anthropic_provider import AnthropicProvider  # import perezoso
 
-    return AnthropicProvider(settings.anthropic_api_key, settings.anthropic_model)
+    return AnthropicProvider(settings.anthropic_api_key, settings.claude_model)
 
 
 def get_llm():

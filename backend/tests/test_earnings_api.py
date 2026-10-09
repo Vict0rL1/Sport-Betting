@@ -86,6 +86,7 @@ class FakeLLM(LLMProvider):
     """Devuelve extracciones deterministas. Cuenta las llamadas."""
 
     name = "fake"
+    model = "claude-sonnet-5-5"
 
     def __init__(self):
         self.extracciones = 0
