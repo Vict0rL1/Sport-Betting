@@ -10,6 +10,7 @@ from __future__ import annotations
 import ast
 import json
 import math
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -114,6 +115,15 @@ def _formatos_sueltos() -> list[str]:
             if (n.format_spec is not None or es_round or crudo) and (f.name, expr) not in INTERNOS:
                 spec = ast.unparse(n.format_spec)[2:-1] if n.format_spec is not None else ""
                 malos.append(f"{f.relative_to(APP.parent)}:{n.lineno} {{{expr}{':' + spec if spec else ''}}}")
+        # `f"{int(x * 100)} %"` pasa por delante de todo lo anterior: la cifra no
+        # lleva formato, pero el «%» va con espacio normal y el número sin coma.
+        for n in ast.walk(arbol):
+            if not isinstance(n, ast.JoinedStr):
+                continue
+            for antes, pieza in zip(n.values, n.values[1:]):
+                if (isinstance(antes, ast.FormattedValue) and isinstance(pieza, ast.Constant)
+                        and re.match(r"\s+%", pieza.value)):
+                    malos.append(f"{f.relative_to(APP.parent)}:{n.lineno} {{{ast.unparse(antes.value)}}} %")
     return malos
 
 
@@ -144,10 +154,11 @@ def test_la_guarda_ve_cada_forma_de_formatear(tmp_path, monkeypatch):
         "ENTERO = 20\n"
         "def f(x):\n"
         "    return [f'{x:.1f} %', f'{x:+.2f}', f'{x:.0%}', f'{x:g}', f'{x:,}',\n"
-        "            f'{round(x, 1)}', f'≥ {UMBRAL}', f'{ENTERO} días', f'{x}']\n"
+        "            f'{round(x, 1)}', f'≥ {UMBRAL}', f'{ENTERO} días', f'{x}', f'{int(x * 100)} %']\n"
     )
     monkeypatch.setattr(sys.modules[__name__], "APP", paquete)
     malos = _formatos_sueltos()
     assert [m.split(" ", 1)[1] for m in malos] == [
         "{x:.1f}", "{x:+.2f}", "{x:.0%}", "{x:g}", "{x:,}", "{round(x, 1)}", "{UMBRAL}",
+        "{x} %", "{int(x * 100)} %",
     ]

@@ -102,7 +102,7 @@ la red de seguridad tenía agujeros. Cada hallazgo, su arreglo y su commit:
 
 | # | Hallazgo | Estado | Commit |
 |---|---|---|---|
-| S1 | 23 porcentajes del frontend escritos `${fmtNum(x, 1)} %`, con espacio normal (el «%» puede caer solo en la línea siguiente); visto al preparar la revisión | hecho: `fmtPct(…, { enPuntos })`, con `signo` donde se pintaba el «+» a mano (adiós a un `?? 0` de signo). Hermano: la distancia de «qué la cambiaría» (`falta +3,00 )` sin unidad, espacio normal con ella). Guarda: regla de ESLint (plantillas, JSX y literales que empiezan por «  %») y test de render | (este commit) |
+| S1 | 23 porcentajes del frontend escritos `${fmtNum(x, 1)} %`, con espacio normal (el «%» puede caer solo en la línea siguiente); visto al preparar la revisión | hecho: `fmtPct(…, { enPuntos })`, con `signo` donde se pintaba el «+» a mano (adiós a un `?? 0` de signo). Hermano: la distancia de «qué la cambiaría» (`falta +3,00 )` sin unidad, espacio normal con ella). Guarda: regla de ESLint (plantillas, JSX y literales que empiezan por « %») y test de render. Hermano en el backend: `experiments.py` («Último 30 % …» con `int()`); la guarda AST ahora ve un «%» con espacio normal tras una interpolación | `cc5ed78`, (este commit) |
 
 ## Etiquetas
 

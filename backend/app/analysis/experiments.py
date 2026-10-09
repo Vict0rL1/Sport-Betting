@@ -31,7 +31,7 @@ from __future__ import annotations
 import math
 from datetime import date, timedelta
 from statistics import NormalDist
-from app.formato import fmt_num
+from app.formato import fmt_num, fmt_pct
 
 # Fracción final del periodo que queda reservada e intocable.
 FRACCION_HOLDOUT = 0.30
@@ -98,7 +98,7 @@ def corte_fijo(session, fechas: list[date]) -> date | None:
     if not particion["suficiente"]:
         return None
     corte = date.fromisoformat(particion["corte"])
-    motivo = f"Último {int(FRACCION_HOLDOUT * 100)} % de la primera ventana partida."
+    motivo = f"Último {fmt_pct(FRACCION_HOLDOUT, 0)} de la primera ventana partida."
 
     usados = [
         date.fromisoformat(h)
