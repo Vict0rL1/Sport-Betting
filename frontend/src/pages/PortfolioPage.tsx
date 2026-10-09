@@ -154,15 +154,17 @@ function RiskBudgetPanel({ risk }: { risk: RiskBudget }) {
 
 /** Qué divisas hay y a qué tipo se convirtieron.
  *
- *  Solo aparece cuando hay más de una: en una cartera de una sola moneda esto
- *  sería ruido, y el caso normal no debe pagar por el caso raro. */
+ *  Solo aparece cuando alguna no es la base: en una cartera toda en la base
+ *  esto sería ruido, y el caso normal no debe pagar por el caso raro. */
 function DivisasPanel({ d }: { d: DivisasDeCartera }) {
   if (!d.mezcla_de_divisas && d.sin_convertir.length === 0) return null
+  // También las que no se pudieron convertir: «USD + una fila CAD sin tipo» son dos.
+  const divisas = new Set([...Object.keys(d.monedas), ...d.sin_convertir.flatMap((s) => (s.moneda ? [s.moneda] : []))])
   return (
     <section className="rounded-xl border border-sky-200 bg-sky-50 p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold text-sky-900">
-          {Object.keys(d.monedas).length} divisas · todo convertido a {d.base}
+          {divisas.size} {plural(divisas.size, 'divisa', 'divisas')} · todo convertido a {d.base}
         </h3>
         {/* Estos importes están YA en la base: son «cuánto de tu cartera, medido
             en USD, viene de activos en cada divisa». Ponerlos como «CAD 2903» a

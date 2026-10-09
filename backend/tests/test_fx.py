@@ -173,6 +173,23 @@ def test_una_cartera_mezclada_se_convierte_antes_de_sumar():
     assert "creíble y equivocado" in r["nota"]
 
 
+def test_una_sola_divisa_distinta_de_la_base_tambien_es_mezcla():
+    """Revisión de la Fase 1: una cartera toda en CAD tiene filas en CAD y
+    totales en USD; sin «mezcla», la pantalla los pintaba sin código («1.000,00»
+    junto a «730,00») y la nota decía «no hay nada que convertir»."""
+    r = fx.convertir_cartera([_pos("SHOP", 137.0, "CAD")], TIPOS)
+    assert r["mezcla_de_divisas"] is True
+    assert "La cartera tiene 1 divisa (CAD) y todo se convierte a USD" in r["nota"]
+    assert "no hay nada que convertir" not in r["nota"]
+
+
+def test_una_fila_que_no_se_pudo_convertir_cuenta_para_la_mezcla():
+    """USD más una posición CAD sin tipo: la fila CAD sale entre filas USD."""
+    r = fx.convertir_cartera([_pos("AAPL", 100.0, "USD"), _pos("SHOP", 137.0, "CAD")], {})
+    assert r["sin_convertir"][0]["moneda"] == "CAD"
+    assert r["mezcla_de_divisas"] is True
+
+
 def test_lo_que_no_se_puede_convertir_queda_fuera_y_se_nombra():
     """Un total parcial que se sabe parcial sirve; uno que se cree completo, no."""
     posiciones = [_pos("AAPL", 100.0, "USD"), _pos("TOYOTA", 15000.0, "JPY")]

@@ -2152,11 +2152,11 @@
      "base": "USD",
      "coste_al_tipo_de_hoy": [],
      "efecto_divisa_base": null,
-     "mezcla_de_divisas": false,
+     "mezcla_de_divisas": true,
      "monedas": {
       "USD": 18000.0
      },
-     "nota": "Toda la cartera está en USD: no hay nada que convertir. 1 posición queda FUERA del total por no poder convertirse (SHOP.TO). Un total parcial que se sabe parcial sirve; uno que se cree completo, no.",
+     "nota": "La cartera tiene 2 divisas (CAD, USD) y todo se convierte a USD antes de sumar. Antes se sumaban sin convertir, que es un total creíble y equivocado. 1 posición queda FUERA del total por no poder convertirse (SHOP.TO). Un total parcial que se sabe parcial sirve; uno que se cree completo, no.",
      "sin_convertir": [
       {
        "moneda": "CAD",
@@ -2170,7 +2170,7 @@
      "nota": "Sin cartera o sin histórico.",
      "suficiente": false
     },
-    "note": "Las posiciones sin precio disponible se excluyen de los totales y de los pesos; el resumen indica sobre cuántas se calculó. Toda la cartera está en USD: no hay nada que convertir. 1 posición queda FUERA del total por no poder convertirse (SHOP.TO). Un total parcial que se sabe parcial sirve; uno que se cree completo, no.",
+    "note": "Las posiciones sin precio disponible se excluyen de los totales y de los pesos; el resumen indica sobre cuántas se calculó. La cartera tiene 2 divisas (CAD, USD) y todo se convierte a USD antes de sumar. Antes se sumaban sin convertir, que es un total creíble y equivocado. 1 posición queda FUERA del total por no poder convertirse (SHOP.TO). Un total parcial que se sabe parcial sirve; uno que se cree completo, no.",
     "positions": [
      {
       "asset_class": "accion",

@@ -47,6 +47,16 @@ function conDosDivisas(): Rutas {
   return rutas
 }
 
+// Revisión de la Fase 1 (A3): toda la cartera en CAD. Las filas van en CAD y los
+// totales en USD; el backend ya lo marca como mezcla.
+function soloCad(): Rutas {
+  const rutas = conDosDivisas()
+  const cartera = rutas['/api/portfolio'].json as Cartera
+  cartera.positions = cartera.positions.filter((p) => p.currency === 'CAD')
+  cartera.divisas = { ...cartera.divisas, mezcla_de_divisas: true, monedas: { CAD: 4745 } }
+  return rutas
+}
+
 function servir(rutas: Rutas) {
   vi.stubGlobal('fetch', vi.fn(async (e: RequestInfo | URL) => {
     const url = typeof e === 'string' ? e : e instanceof URL ? e.pathname + e.search : e.url
@@ -81,5 +91,14 @@ describe('cifras de la cartera', () => {
     expect(ry.textContent).toContain('+500,00\u00a0CAD')
     expect(fila('KO')!.textContent).toContain('58,00\u00a0USD')
     expect(screen.getByText('Invertido').parentElement?.textContent).toBe('Invertido17.400,00\u00a0USD')
+  })
+
+  it('con una sola divisa que no es la base, filas y totales dicen la suya', async () => {
+    servir(soloCad())
+    render(<MemoryRouter><PortfolioPage /></MemoryRouter>)
+    expect(await screen.findByText('Invertido')).toBeInTheDocument()
+    expect(fila('RY.TO')!.textContent).toContain('6.500,00\u00a0CAD')
+    expect(screen.getByText('Invertido').parentElement?.textContent).toMatch(/\u00a0USD$/)
+    expect(screen.getByText(/· todo convertido a USD/).textContent).toBe('1 divisa · todo convertido a USD')
   })
 })

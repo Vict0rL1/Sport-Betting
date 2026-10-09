@@ -355,7 +355,14 @@ def convertir_cartera(
             monedas[moneda] = monedas.get(moneda, 0.0) + fila["market_value_base"]
         convertidas.append(fila)
 
-    mezcla = len(monedas) > 1
+    # «Mezcla» es lo que ve la persona: cada fila en su moneda y los totales en
+    # la base. Antes contaba solo las posiciones convertidas y con valor, así
+    # que una cartera toda en CAD (filas en CAD, totales en USD) o una fila CAD
+    # sin tipo entre filas USD salían sin código de moneda (revisión de la
+    # Fase 1). Cualquier divisa distinta de la base en pantalla es mezcla.
+    divisas = set(monedas) | {f["currency"] for f in convertidas} | {
+        s["moneda"] for s in sin_convertir if s.get("moneda")}
+    mezcla = bool(divisas - {base})
     return {
         "base": base,
         "posiciones": convertidas,
@@ -367,23 +374,22 @@ def convertir_cartera(
             for m, t in tipos.items()
             if m in monedas
         },
-        "nota": _nota(base, monedas, sin_convertir, mezcla, tipos),
+        "nota": _nota(base, sorted(divisas), sin_convertir, mezcla, tipos),
     }
 
 
 def _nota(
-    base: str, monedas: dict[str, float], sin_convertir: list[dict], mezcla: bool, tipos: dict
+    base: str, monedas: list[str], sin_convertir: list[dict], mezcla: bool, tipos: dict
 ) -> str:
     partes = []
     if mezcla:
         partes.append(
-            f"La cartera tiene {len(monedas)} divisas ({', '.join(monedas)}) y todo "
-            f"se convierte a {base} antes de sumar. Antes se sumaban sin convertir, "
-            "que es un total creíble y equivocado."
+            f"La cartera tiene {len(monedas)} {plural(len(monedas), 'divisa', 'divisas')} "
+            f"({', '.join(monedas)}) y todo se convierte a {base} antes de sumar. Antes se "
+            "sumaban sin convertir, que es un total creíble y equivocado."
         )
     else:
-        unica = next(iter(monedas), base)
-        partes.append(f"Toda la cartera está en {unica}: no hay nada que convertir.")
+        partes.append(f"Toda la cartera está en {base}: no hay nada que convertir.")
 
     viejos = [
         f"{m} ({t['fecha']})"
