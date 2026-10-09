@@ -91,7 +91,7 @@ export default function Archivo() {
           <input type="date" aria-label={t('archivo.hasta')} value={q.get('hasta') ?? ''} onChange={(e) => cambiar('hasta', e.target.value)} className={`${sel} flex-1`} />
         </span>
       </div>
-      {error && <p className="text-[14px] text-(--ink-soft)">{error}</p>}
+      {error && <p role="alert" className="text-[14px] text-(--ink-soft)">{error}</p>}
       {datos && (
         <p className="mb-3 text-[13px] text-(--ink-body)" data-testid="resumen-archivo">
           {t('archivo.resumen', { total: f.numero(datos.total), aciertos: datos.resumen.aciertos, resueltas: datos.resumen.resueltas, pendientes: datos.resumen.pendientes })}

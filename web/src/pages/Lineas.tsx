@@ -51,7 +51,7 @@ export default function Lineas() {
         </select>
         <button className={pillClass(soloSurebets)} aria-pressed={soloSurebets} onClick={() => setSoloSurebets((x) => !x)}>{t('lineas.soloSurebets')}</button>
       </div>
-      {error && <p className="text-[14px] text-(--ink-soft)">{error}</p>}
+      {error && <p role="alert" className="text-[14px] text-(--ink-soft)">{error}</p>}
       {datos && mercados.length === 0 && <p className="text-[14px] text-(--ink-muted)">{t('lineas.vacio', { horas: datos.ventanaHoras })}</p>}
       <div className="grid gap-3 lg:grid-cols-2" data-testid="lista-lineas">
         {mercados.map((m) => (

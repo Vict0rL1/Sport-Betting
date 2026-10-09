@@ -73,9 +73,17 @@ export async function registerStatic(app: FastifyInstance, dist: string = WEB_DI
   // contestar 404, no el HTML de la app. Devolver la página ante `/api/typo` convierte un
   // error de programación en un `JSON.parse` fallando en otro sitio, con un mensaje que
   // no menciona la URL equivocada.
+  //
+  // Y otra, igual de importante (D7): `/assets/` y `/flags/`. Tras un despliegue, una pestaña
+  // abierta pide `index-<hash viejo>.js`, que ya no existe; si se le devuelve el index, el
+  // navegador recibe HTML como módulo, la carga diferida falla con un error confuso y el
+  // service worker podría guardarlo. Un 404 limpio lo recoge el ErrorBoundary, que recarga.
   app.setNotFoundHandler((req, reply) => {
     if (req.url.startsWith('/api/')) {
       return reply.code(404).send({ error: `Ruta no encontrada: ${req.url}` });
+    }
+    if (req.url.startsWith('/assets/') || req.url.startsWith('/flags/')) {
+      return reply.code(404).type('text/plain; charset=utf-8').send('No encontrado');
     }
     return reply.type('text/html').sendFile('index.html');
   });

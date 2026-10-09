@@ -88,7 +88,7 @@ test('tenis punto a punto: cuatro puntos son un juego, con el saque y el break; 
     const resto = pap.getByRole('button', { name: /^Punto para/ }).nth(1);
     for (let i = 0; i < 4; i++) {
       await resto.click();
-      await expect(pap).toContainText(`${i + 1} punto(s) apuntados`);
+      await expect(pap).toContainText(`${i + 1} ${i === 0 ? 'punto apuntado' : 'puntos apuntados'}`);
     }
     await expect(pap).toContainText('(break)');
     await expect(page.getByLabel('Juegos 2')).toHaveValue('1');

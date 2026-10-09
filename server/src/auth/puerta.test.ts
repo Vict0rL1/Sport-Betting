@@ -190,3 +190,18 @@ test('B6: una cookie sp_session indescifrable no es un 500: se ignora y la puert
   assert.equal(me.json().dentro, false);
   await app.close();
 });
+
+// ---------------------------------------------------------------------------
+// D7 (lote D): un asset que ya no existe no es la página
+// ---------------------------------------------------------------------------
+test('D7: /assets/* y /flags/* que no existen son 404, no el index (la carga diferida falla en voz alta)', async () => {
+  const app = await appConAuth({}, new LimiteDeIntentos(), { webDist: webDeMentira() });
+  const viejo = await app.inject({ method: 'GET', url: '/assets/index-abc123.js' });
+  assert.equal(viejo.statusCode, 404, `→ ${viejo.statusCode} ${viejo.headers['content-type']}`);
+  assert.doesNotMatch(viejo.body, /Sports Predictor/);
+  assert.equal((await app.inject({ method: 'GET', url: '/flags/zz.svg' })).statusCode, 404);
+  // Lo demás sigue igual: el asset que existe y la ruta de la SPA.
+  assert.equal((await app.inject({ method: 'GET', url: '/assets/x.js' })).statusCode, 200);
+  assert.equal((await app.inject({ method: 'GET', url: '/futbol/epl', headers: { accept: 'text/html' } })).statusCode, 200);
+  await app.close();
+});

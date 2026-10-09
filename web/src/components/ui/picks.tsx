@@ -4,6 +4,7 @@ import { INK, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { relativeTime, shortTime } from '../../lib/format';
 import { StatusMark } from '../icons';
 import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../../i18n';
+import { pct as pctF, num as numF } from '../../lib/formato';
 
 // Los nombres de mercado y selección son también claves de lib/picks (tasas base, orden): se
 // traducen al pintarlos, no en los datos.
@@ -162,7 +163,7 @@ export function PicksPanel({
     );
   }
 
-  const pct = (p: number) => `${(p * 100).toFixed(1)}%`;
+  const pct = (p: number) => `${pctF(p, 1)}`;
 
   return (
     <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
@@ -253,10 +254,10 @@ export function PicksPanel({
                         ? '—'
                         : Math.abs(p.edge) < 0.005
                           ? '0,0 pp'
-                          : `${p.edge > 0 ? '+' : ''}${(p.edge * 100).toFixed(1)} pp`}
+                          : `${p.edge > 0 ? '+' : ''}${numF(p.edge * 100, 1)} pp`}
                     </td>
                     <td className="px-3 py-2.5 text-right tabular-nums text-(--ink-body)">
-                      {p.fairOdds.toFixed(2)}
+                      {numF(p.fairOdds, 2)}
                       {p.odds != null && (
                         <span
                           className="ml-1.5 text-[12px]"
@@ -267,9 +268,9 @@ export function PicksPanel({
                           style={{
                             color: !demoOdds && p.odds > p.fairOdds ? PROFIT_COLOR : INK.muted,
                           }}
-                          title={t('discrepancias.cuotaOfrecida', { c: p.odds.toFixed(2) })}
+                          title={t('discrepancias.cuotaOfrecida', { c: numF(p.odds, 2) })}
                         >
-                          ({p.odds.toFixed(2)})
+                          ({numF(p.odds, 2)})
                         </span>
                       )}
                     </td>
@@ -281,7 +282,7 @@ export function PicksPanel({
                     <td className="px-4 py-2.5 text-right tabular-nums text-(--ink-body)">
                       {p.odds == null ? (
                         <span className="text-[13px] text-(--ink-muted)">
-                          {t('discrepancias.busca', { c: p.fairOdds.toFixed(2) })}
+                          {t('discrepancias.busca', { c: numF(p.fairOdds, 2) })}
                         </span>
                       ) : (
                         (stake * p.odds).toLocaleString(localeDe(idioma), { maximumFractionDigits: 0 })

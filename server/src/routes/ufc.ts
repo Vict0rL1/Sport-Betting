@@ -7,6 +7,7 @@
 // `/backtest` enseña esa evaluación (sin el holdout).
 
 import type { FastifyInstance } from 'fastify';
+import { aplicarPublicada } from '../prediction/publicada.ts';
 import { cacheado, firmaDe, registrarCalentador } from '../cache/respuestas.ts';
 import { versionsFor } from '../versions.ts';
 import { env } from '../config.ts';
@@ -45,6 +46,8 @@ export function describeRow(row: UfcUpcomingRow, withPrediction = true) {
   if (prediction) {
     logUfcPrediction(row, prediction);
     if (snap) recordSnapshot(snap);
+    // La cabecera es lo publicado (lo mismo que lee Destacados); el cálculo de ahora, aparte.
+    aplicarPublicada('ufc', snap?.matchKey, prediction);
     Object.assign(prediction, { versiones: versionsFor('ufc') });
   }
   return {

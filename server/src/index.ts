@@ -49,6 +49,7 @@ import { resolveBaseballPredictions } from './baseball/trackRecord.ts';
 import { resolveNflPredictions } from './nfl/trackRecord.ts';
 import { resolveNhlPredictions } from './nhl/trackRecord.ts';
 import { resolveUfcPredictions } from './ufc/trackRecord.ts';
+import { hostDeEscucha } from './auth/mode.ts';
 
 /**
  * Keep the schedule current on its own: refresh once at startup and then on an
@@ -493,7 +494,8 @@ async function main() {
   const app = await buildApp({ auth, servirWeb: true });
 
   try {
-    await app.listen({ port: env.port, host: '0.0.0.0' });
+    // 127.0.0.1 en el portátil sin contraseña; toda la red solo con ella o en producción (D15).
+    await app.listen({ port: env.port, host: hostDeEscucha() });
     app.log.info(`Tennis Predictor API listening on http://localhost:${env.port}`);
     startAutoRefresh((msg) => app.log.info(msg));
 

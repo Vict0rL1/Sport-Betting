@@ -6,6 +6,7 @@ import { type Pick, type Combinada, pct, num, clave } from './tipos';
 import { useNavigate } from 'react-router';
 import { borradorDe, comoIcs, comoTexto, descargar, imagenPng, patasDe, CLAVE_BORRADOR } from './acciones';
 import { conNodos, useI18n } from '../../i18n';
+import { num as numF } from '../../lib/formato';
 
 function useCombinada(elegidos: Pick[]): Combinada | null {
   const [c, setC] = useState<Combinada | null>(null);
@@ -112,7 +113,7 @@ export function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quit
             n: comb.vinculos.length,
             lista: `${comb.vinculos
               .slice(0, 2)
-              .map((v) => `${v.a} / ${v.b} (ρ ${idioma === 'es' ? v.rho.toFixed(3).replace('.', ',') : v.rho.toFixed(3)})`)
+              .map((v) => `${v.a} / ${v.b} (ρ ${idioma === 'es' ? numF(v.rho, 3) : numF(v.rho, 3)})`)
               .join('; ')}${comb.vinculos.length > 2 ? '…' : ''}`,
           })}
         </p>

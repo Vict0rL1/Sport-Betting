@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { AlertIcon, DeporteIcono } from '../icons';
 import { codigo, conNodos, useI18n, type Clave, type Traducir } from '../../i18n';
+import { pct as pctF, num as numF } from '../../lib/formato';
 
 interface Informe {
   origen: 'live';
@@ -94,9 +95,9 @@ function Dep({ id }: { id: string }) {
     </span>
   );
 }
-const f3 = (x: number | null | undefined) => (x == null ? '—' : x.toFixed(3).replace('.', ','));
-const pct = (x: number | null | undefined) => (x == null ? '—' : `${(x * 100).toFixed(1).replace('.', ',')} %`);
-const signo = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '+' : '−'}${Math.abs(x * 100).toFixed(1).replace('.', ',')} %`);
+const f3 = (x: number | null | undefined) => (x == null ? '—' : numF(x, 3));
+const pct = (x: number | null | undefined) => (x == null ? '—' : `${pctF(x, 1)}`);
+const signo = (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '+' : '−'}${pctF(Math.abs(x), 1)}`);
 
 export default function LiveEvaluation() {
   const [d, setD] = useState<Informe[] | null>(null);
@@ -224,7 +225,7 @@ export default function LiveEvaluation() {
                 {conNodos(t('eval.dineroResumen', { n: rend.total.n, prometido: signo(rend.total.roiPrometido) }), {
                   roi: <strong style={{ color: (rend.total.roi ?? 0) >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>{signo(rend.total.roi)}</strong>,
                 })}
-                {rend.aciertosEsperados != null && t('eval.aciertosEsperados', { a: rend.aciertos, e: rend.aciertosEsperados.toFixed(1).replace('.', ',') })}
+                {rend.aciertosEsperados != null && t('eval.aciertosEsperados', { a: rend.aciertos, e: numF(rend.aciertosEsperados, 1) })}
                 {rend.drawdown && rend.drawdown.importe > 0 && t('eval.peorCaida', { p: pct(rend.drawdown.pct) })}
                 {rend.peorRacha > 0 && t('eval.racha', { n: rend.peorRacha })}
               </p>

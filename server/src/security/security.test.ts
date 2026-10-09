@@ -85,3 +85,10 @@ test('B6: error_log no crece sin tope: por encima del límite se podan las más 
   assert.ok(contarErrores('1970-01-01') <= LIMITE_ERROR_LOG, `${contarErrores('1970-01-01')} filas con tope ${LIMITE_ERROR_LOG}`);
   assert.equal(leerErrores(1)[0].message, `fallo ${LIMITE_ERROR_LOG + 119}`, 'se quedan las más recientes');
 });
+
+test('D9: la CSP deja cargar imágenes blob: (Mi selección → PNG) y solo en img-src', async () => {
+  const { CSP } = await import('./headers.ts');
+  const directivas = Object.fromEntries(CSP.split(';').map((d) => d.trim().split(/\s+/)).map(([k, ...v]) => [k, v]));
+  assert.ok(directivas['img-src'].includes('blob:'), `img-src: ${directivas['img-src'].join(' ')}`);
+  for (const [k, v] of Object.entries(directivas)) if (k !== 'img-src') assert.ok(!v.includes('blob:'), `${k} no lleva blob:`);
+});

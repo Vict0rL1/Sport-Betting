@@ -69,7 +69,7 @@ export function aComun(sport: DeporteId, item: Fila): PartidoComun | null {
       const h = num(m?.home);
       probs = h == null ? null : [h, 1 - h];
     } else if (sport === 'nfl') {
-      const m = pred.model as Fila;
+      const m = (pred.final ?? pred.model) as Fila;
       const h = num(m?.home);
       const a = num(m?.away);
       probs = h == null || a == null ? null : [h / (h + a), a / (h + a)];

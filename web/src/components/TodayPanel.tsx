@@ -15,7 +15,9 @@
 
 import { useEffect, useState } from 'react';
 import RecentResults, { DeporteIcono, lineaResumen, useHistorial } from './RecentResults';
+import { deporteInicial, panelAbierto } from '../lib/hoy';
 import { localeDe, useI18n } from '../i18n';
+import { pct as pctF } from '../lib/formato';
 
 interface Partido {
   deporte: string;
@@ -64,7 +66,7 @@ function medir(el: HTMLElement | null): (() => void) | void {
   return () => ro.disconnect();
 }
 
-export default function TodayPanel() {
+export default function TodayPanel({ pestana = null }: { pestana?: string | null }) {
   const [datos, setDatos] = useState<{ partidos: Partido[]; nota: string | null } | null>(null);
   // Los resultados recientes (registro en vivo + reconstruidos), con su ventana.
   const historial = useHistorial();
@@ -76,13 +78,14 @@ export default function TodayPanel() {
       return 'hoy';
     }
   });
-  const [abierto, setAbierto] = useState(() => {
-    // localStorage puede fallar (ventana privada, datos bloqueados) y un panel que no
-    // abre por eso sería un fallo tonto. Ante la duda, abierto.
+  // La preferencia guardada ('1' / '0'), o null si nunca se tocó: entonces decide la vista
+  // (panelAbierto). localStorage puede fallar (ventana privada, datos bloqueados): sin él,
+  // como si no hubiera preferencia.
+  const [guardado, setGuardado] = useState<string | null>(() => {
     try {
-      return localStorage.getItem(CLAVE) !== '0';
+      return localStorage.getItem(CLAVE);
     } catch {
-      return true;
+      return null;
     }
   });
 
@@ -108,9 +111,9 @@ export default function TodayPanel() {
     }
   }
 
-  function alternar() {
-    const v = !abierto;
-    setAbierto(v);
+  function alternar(abiertoAhora: boolean) {
+    const v = !abiertoAhora;
+    setGuardado(v ? '1' : '0');
     try {
       localStorage.setItem(CLAVE, v ? '1' : '0');
     } catch {
@@ -126,9 +129,10 @@ export default function TodayPanel() {
   const hayRes = historial.h != null;
   // Mientras carga, el hueco que ocupó la última vez (Fase 7.8): aparecer de la nada empujaba
   // la página entera hacia abajo, que es el desplazamiento que más mide Lighthouse.
-  if (datos == null) return <div aria-hidden className="mb-5" style={{ height: altoRecordado(abierto) }} />;
+  if (datos == null) return <div aria-hidden className="mb-5" style={{ height: altoRecordado(panelAbierto(guardado, vista)) }} />;
   if (!hayHoy && !hayRes) return null;
   const activa: 'hoy' | 'resultados' = vista === 'resultados' && hayRes ? 'resultados' : hayHoy ? 'hoy' : 'resultados';
+  const abierto = panelAbierto(guardado, activa);
 
   const porJugar = datos?.partidos.filter((p) => !p.empezado) ?? [];
   const conPrecio = datos?.partidos.filter((p) => p.precioReal).length ?? 0;
@@ -136,7 +140,7 @@ export default function TodayPanel() {
   return (
     <section ref={medir} className="mb-5 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
       <button
-        onClick={alternar}
+        onClick={() => alternar(abierto)}
         aria-expanded={abierto}
         className="flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left transition hover:bg-(--tint)"
       >
@@ -183,7 +187,7 @@ export default function TodayPanel() {
           )}
 
           {activa === 'resultados' ? (
-            <RecentResults estado={historial} />
+            <RecentResults estado={historial} deporteInicial={deporteInicial(pestana)} />
           ) : (
             <>
               <div className="max-h-[22rem] overflow-y-auto">
@@ -207,7 +211,7 @@ export default function TodayPanel() {
                             <>
                               <span className="text-(--ink-strong)">{p.favorito}</span>{' '}
                               <span className="font-semibold text-(--ink-strong)">
-                                {(p.probabilidad * 100).toFixed(0)}%
+                                {pctF(p.probabilidad, 0)}
                               </span>
                             </>
                           ) : (

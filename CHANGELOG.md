@@ -4,6 +4,42 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Revisión del 8 de octubre · lote D, interfaz (2026-10-09)
+
+Los diecisiete hallazgos de la interfaz, reproducidos con un test que fallaba antes y arreglados
+(`docs/plans/fixes-D.md`); ningún parámetro de modelo cambia y no hay migraciones. Tests: 585 →
+632 (502 del servidor + 51 de la web + 79 de punta a punta). Doctor, `verify:data`, `audit`,
+typecheck, lint, build y Playwright en verde.
+
+- **D1 · Un partido, un número.** La ficha y las pestañas enseñan lo publicado (lo que leen
+  Destacados, «¿Acertó?» y el banco de papel) y, aparte, lo que diría el modelo hoy si difiere
+  (`prediction/publicada.ts`). La tarjeta de la NFL enseña la final, no la cruda.
+- **D2 · Horizontes pendientes.** T-6h o T-1h que aún no han llegado dicen «pendiente».
+- **D3 · «Cómo le fue al modelo»** nace plegado y filtrado al deporte de la pestaña.
+- **D4 · Política con etiquetas.** Las 19 claves numéricas, en español e inglés.
+- **D5 · Números con Intl** (`lib/formato.ts`): coma decimal y espacio duro en español, el banco de
+  papel sin una moneda inventada, rangos que no se parten.
+- **D6 · Service worker.** El canal en vivo no pasa por él; solo una página HTML buena es el
+  armazón; apuestas y búsqueda no se guardan; al salir se vacía la caché de la API; con el
+  interruptor apagado se desregistra; lo servido de la caché enciende el banner; sin red en
+  frío, la app arranca con lo guardado.
+- **D7 · Un asset viejo es un 404**, y un `ErrorBoundary` recarga una vez ante un trozo que falta.
+- **D8 · Enlaces profundos.** `?dia=` sobrevive a la carga; una liga que contesta tarde no pisa a
+  la elegida; la ficha de partido empieza de cero al cambiar de partido.
+- **D9 · CSP con `blob:` en `img-src`** (Mi selección → PNG).
+- **D10 · Diálogos accesibles** (`useDialogo`): Escape, foco atrapado y devuelto, fondo quieto;
+  los atajos 1–9/0 no actúan con un diálogo abierto.
+- **D11 · Ajustes.** El campo de cadencia no se vacía al aplicar, los errores del servidor se
+  ven, la cadencia se valida (1 min – 7 días) y el banco personal se puede vaciar.
+- **D12 · Una sola píldora, campana y buscador** (la de la disposición que se ve).
+- **D13 · Tarjetas de Destacados** con el porqué plegado y «Seguir» como campana.
+- **D14 · Pequeños.** Sin estado de cuotas no se culpa a la clave; la tabla de Elo solo con
+  equipos activos; errores con `role="alert"`; el anillo de foco sigue la forma; plurales de
+  verdad (`{n|uno|varios}`).
+- **D15 · Desarrollo en 127.0.0.1** salvo `APP_AUTH=on`, producción o `DEV_LAN=on`.
+- **D16 · `secret-scan --staged` lee el índice**, no el disco.
+- **D17 · SMTP exige TLS** fuera del 465 (`SMTP_TLS=off` solo para un relé local).
+
 ## Revisión del 8 de octubre · lote C, dinero y modelo (2026-10-08)
 
 Los diez hallazgos de dinero y medición, reproducidos con un test que fallaba antes y arreglados

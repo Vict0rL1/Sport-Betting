@@ -23,6 +23,7 @@ import { evaluarParaServir } from '../trust/assess.ts';
 import { findGameResult, hasStarted } from '../results.ts';
 import { readCalibration } from '../staking/calibration.ts';
 import { ESQUEMA_ERROR, ESQUEMA_NHL_BACKTEST } from '../api/schemas.ts';
+import { aplicarPublicada } from '../prediction/publicada.ts';
 
 function predictRow(row: NhlUpcomingRow): NhlPrediction | null {
   if (!row.home_id || !row.away_id) return null;
@@ -45,6 +46,8 @@ export function describeRow(row: NhlUpcomingRow, withPrediction = true) {
   if (prediction) {
     logNhlPrediction(row, prediction);
     if (snap) recordSnapshot(snap);
+    // La cabecera es lo publicado (lo mismo que lee Destacados); el cálculo de ahora, aparte.
+    aplicarPublicada('nhl', snap?.matchKey, prediction);
     Object.assign(prediction, { versiones: versionsFor('nhl') });
   }
   return {

@@ -2,6 +2,7 @@
 import type { ReactNode } from 'react';
 import { SeriesDot } from './marks';
 import { useI18n } from '../../i18n';
+import { pct as pctF, num as numF } from '../../lib/formato';
 /**
  * One factor's contribution in a "why" list.
  *
@@ -94,7 +95,7 @@ export function ProbabilityBar({
           key={i}
           className="first:rounded-l-full last:rounded-r-full"
           style={{ width: `${(s.value / total) * 100}%`, backgroundColor: s.color }}
-          title={`${s.label}: ${(s.value * 100).toFixed(1)}%`}
+          title={`${s.label}: ${pctF(s.value, 1)}`}
         />
       ))}
       {markerPct != null && (
@@ -127,7 +128,7 @@ export function MarketGap({ model, market }: { model: number; market: number | n
   return (
     <span className="text-[12px] tabular-nums text-(--ink-muted)">
       <span className="mr-1 inline-block h-[9px] w-[2px] translate-y-[1px] bg-white/85" />
-      mercado, a {Math.abs(pp).toFixed(1)} pp
+      mercado, a {numF(Math.abs(pp), 1)} pp
     </span>
   );
 }

@@ -3,8 +3,9 @@ import type { UfcFactor, UfcPrediction, UfcSide } from '../../lib/ufc';
 import { AWAY_COLOR, HOME_COLOR, NEUTRAL_COLOR, pct } from '../../lib/theme';
 import { CompareRow, FactorValue, FormDots, Panel, SectionTitle } from '../ui';
 import { useI18n, type Clave } from '../../i18n';
+import { num as numF } from '../../lib/formato';
 
-const coma = (x: number, d = 0) => x.toFixed(d).replace('.', ',');
+const coma = (x: number, d = 0) => numF(x, d);
 const record = (r: UfcSide['record']) => `${r.wins}-${r.losses}${r.draws ? `-${r.draws}` : ''}${r.noContests ? ` (${r.noContests} NC)` : ''}`;
 
 /** El nombre de un luchador con su Elo, puesto y récord en la UFC. A la izquierda A, a la derecha B. */
@@ -136,7 +137,7 @@ export function Detail({ prediction }: { prediction: UfcPrediction }) {
 
       {market.market && (
         <Panel>
-          <SectionTitle right={t('eq.margenPct', { p: ((market.market.overround - 1) * 100).toFixed(1) })}>{t('eq.mercado')}</SectionTitle>
+          <SectionTitle right={t('eq.margenPct', { p: numF((market.market.overround - 1) * 100, 1) })}>{t('eq.mercado')}</SectionTitle>
           <dl className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-[13px]">
             <div />
             <div className="w-20 text-right font-medium text-(--ink-strong)">{t('nhld.casa')}</div>

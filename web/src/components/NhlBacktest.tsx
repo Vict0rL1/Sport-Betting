@@ -2,6 +2,7 @@
 // referencias. Antes era la NHL en sombra, detrás de `deportes.nhl`; publicada, está siempre.
 import { localeDe, useI18n } from '../i18n';
 import { useJson } from '../lib/usarJson';
+import { pct as pctF, num as numF } from '../lib/formato';
 
 interface Sombra {
   partidos: number;
@@ -16,8 +17,8 @@ interface Sombra {
   parametros: { k: number; campo: number; golesLiga: number; fuerzaProrroga: number };
 }
 
-const f4 = (x: number | null) => (x == null ? '—' : x.toFixed(4));
-const pct = (x: number | null) => (x == null ? '—' : `${(x * 100).toFixed(1)} %`);
+const f4 = (x: number | null) => (x == null ? '—' : numF(x, 4));
+const pct = (x: number | null) => (x == null ? '—' : `${pctF(x, 1)}`);
 
 function Contenido() {
   const { t, idioma } = useI18n();

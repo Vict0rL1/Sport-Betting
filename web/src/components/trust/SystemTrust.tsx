@@ -10,6 +10,7 @@ import { useSubnavConfianza } from '../../pages/subnav';
 import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../../i18n';
 import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { DeporteIcono, ShieldCheckIcon, StatusMark } from '../icons';
+import { num as numF, pct as pctF } from '../../lib/formato';
 
 interface Sistema {
   prediccionesEnVivo: number;
@@ -57,13 +58,12 @@ function Nombre({ sport }: { sport: string }) {
     </span>
   );
 }
-/** Las cifras con la coma decimal en español, como estaban; con punto en inglés. */
+/** Las cifras con Intl en el idioma activo (lib/formato.ts). */
 function useCifras() {
-  const { idioma } = useI18n();
-  const dec = (x: string) => (idioma === 'es' ? x.replace('.', ',') : x);
+  useI18n();
   return {
-    f3: (x: number | null | undefined) => (x == null ? '—' : dec(x.toFixed(3))),
-    pct: (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '' : '−'}${dec(Math.abs(x * 100).toFixed(1))} %`),
+    f3: (x: number | null | undefined) => (x == null ? '—' : numF(x, 3)),
+    pct: (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '' : '−'}${pctF(Math.abs(x), 1)}`),
   };
 }
 const AMBAR = '#d9a441';

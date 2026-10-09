@@ -2,6 +2,7 @@
 // {var}; una clave sin traducción cae al español, nunca a la clave. El idioma sale de Ajustes
 // (servidor), si no del navegador, y se recuerda localmente.
 
+import { fijarIdiomaFormato } from '../lib/formato';
 import { createContext, createElement, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { es, type Clave } from './es';
 
@@ -60,7 +61,11 @@ if (typeof window !== 'undefined' && (idiomaGuardado() ?? idiomaDelNavegador()) 
 
 function traducir(idioma: Idioma, clave: Clave, vars?: Record<string, string | number>): string {
   let s: string = (idioma === 'en' ? ingles?.[clave] : undefined) ?? es[clave];
-  if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+  if (vars) {
+    // Plurales (D14): «{n|punto|puntos}» elige por el valor de n, en vez de «punto(s)».
+    s = s.replace(/\{(\w+)\|([^|}]*)\|([^}]*)\}/g, (todo, k: string, uno: string, varios: string) => (k in vars ? (Number(vars[k]) === 1 ? uno : varios) : todo));
+    for (const [k, v] of Object.entries(vars)) s = s.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+  }
   return s;
 }
 
@@ -68,6 +73,8 @@ const Ctx = createContext<{ idioma: Idioma; setIdioma: (i: Idioma) => void; t: T
 
 export function I18nProvider({ children, inicial }: { children: ReactNode; inicial?: Idioma }) {
   const [idioma, setIdiomaState] = useState<Idioma>(inicial ?? idiomaGuardado() ?? idiomaDelNavegador());
+  // Los números (lib/formato.ts) siguen al idioma: se fija al pintar, antes que los hijos.
+  fijarIdiomaFormato(idioma);
   const [, setCargado] = useState(0);
   const [fallo, setFallo] = useState(false);
   useEffect(() => {

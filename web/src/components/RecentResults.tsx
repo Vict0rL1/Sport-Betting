@@ -11,15 +11,17 @@
 // con qué comando se arregla.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ID_DE_NOMBRE } from '../lib/hoy';
 import { STATUS } from '../lib/theme';
 import { DeporteIcono, Verdict } from './icons';
 
 export { DeporteIcono };
 import { TeamCrest } from './ui';
 import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../i18n';
+import { num as numF } from '../lib/formato';
 
 /** El servidor manda el nombre del deporte en español: se pasa al catálogo si se conoce. */
-const ID_DE_NOMBRE: Record<string, string> = { Fútbol: 'football', Baloncesto: 'basketball', Béisbol: 'baseball', NFL: 'nfl', NHL: 'nhl', UFC: 'ufc', Tenis: 'tennis' };
+
 const deporteMostrado = (t: Traducir, nombre: string) => (ID_DE_NOMBRE[nombre] ? t(`deporte.${ID_DE_NOMBRE[nombre]}` as Clave) : nombre);
 
 type Origen = 'en vivo' | 'reconstruida';
@@ -255,9 +257,11 @@ function Fila({ r }: { r: Resultado }) {
   );
 }
 
-export default function RecentResults({ estado }: { estado: ReturnType<typeof useHistorial> }) {
+export default function RecentResults({ estado, deporteInicial = null }: { estado: ReturnType<typeof useHistorial>; deporteInicial?: string | null }) {
   const { h, cargando, error, dias, setDias } = estado;
-  const [deporte, setDeporte] = useState<string | null>(null);
+  // Nace filtrado al deporte de la pestaña (D3): en la del fútbol, lo del fútbol. «Todos», a un clic.
+  const [deporte, setDeporte] = useState<string | null>(deporteInicial);
+  useEffect(() => setDeporte(deporteInicial), [deporteInicial]);
   const [origen, setOrigen] = useState<Origen | null>(null);
   const [diaSel, setDiaSel] = useState<string | null>(null);
   const { t, idioma } = useI18n();
@@ -318,7 +322,7 @@ export default function RecentResults({ estado }: { estado: ReturnType<typeof us
           ) : (
             conNodos(
               t('acerto.explica', {
-                unos: (r.esperado ?? 0).toFixed(1).replace('.', ','),
+                unos: numF((r.esperado ?? 0), 1),
                 lo: r.rangoNormal?.[0] ?? '—',
                 hi: r.rangoNormal?.[1] ?? '—',
                 n: r.total,

@@ -9,6 +9,7 @@ import { useEffect, useState } from 'react';
 import { BREAK_EVEN_COLOR, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { StatusMark } from '../icons';
 import { conNodos, useI18n, type Clave } from '../../i18n';
+import { pct as pctF, num as numF, dinero as dineroF } from '../../lib/formato';
 
 interface Apuesta {
   /** Grupos de correlación (server/src/staking/risk.ts), en JSON: el primero es el evento. */
@@ -58,7 +59,8 @@ interface Resumen {
 /** Los seis estados, del catálogo (`apuesta.*`). `push`: empate que devuelve el importe (NFL). */
 const ESTADOS = new Set(['pending', 'won', 'lost', 'push', 'void', 'cancelled']);
 
-const dinero = (n: number) => `${n >= 0 ? '' : '−'}${Math.abs(n).toFixed(2)} $`;
+// Sin símbolo de moneda (D5): el proyecto no inventa una (ver lib/bets.ts).
+const dinero = (n: number) => dineroF(n);
 
 export default function PaperBankroll() {
   const [r, setR] = useState<Resumen | null>(null);
@@ -105,7 +107,7 @@ export default function PaperBankroll() {
           { k: t('papel.beneficio'), v: dinero(r.beneficio), c: color },
           // El ROI no existe sin apuestas liquidadas, y enseñar «0 %» se leería como
           // «no gana nada» cuando lo que pasa es que aún no ha jugado.
-          { k: t('papel.roi'), v: r.roi === null ? '—' : `${(r.roi * 100).toFixed(1)} %`, c: r.roi === null ? undefined : color },
+          { k: t('papel.roi'), v: r.roi === null ? '—' : `${pctF(r.roi, 1)}`, c: r.roi === null ? undefined : color },
           { k: t('papel.comprometido'), v: dinero(r.expuesto) },
         ].map((x) => (
           <div key={x.k} className="bg-(--surface-page) px-4 py-3">
@@ -140,7 +142,7 @@ export default function PaperBankroll() {
       {r.conCierre != null && r.conCierre > 0 && r.clvMedio != null && (
         <p className="border-t border-(--line) px-4 py-2.5 text-[13px] text-(--ink-soft)">
           <strong style={{ color: r.clvMedio >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
-            {t('papel.clvMedio', { v: `${r.clvMedio >= 0 ? '+' : '−'}${Math.abs(r.clvMedio * 100).toFixed(1)} %` })}
+            {t('papel.clvMedio', { v: `${r.clvMedio >= 0 ? '+' : '−'}${pctF(Math.abs(r.clvMedio), 1)}` })}
           </strong>{' '}
           {plural(r.conCierre, 'papel.clvSobre1', 'papel.clvSobreN')}{' '}
           {r.clvMedio >= 0 ? t('papel.clvBueno') : t('papel.clvMalo')}
@@ -220,22 +222,22 @@ export default function PaperBankroll() {
                   </td>
                   <td className="px-4 py-2.5 text-(--ink-strong)">{a.selection}</td>
                   <td className="whitespace-nowrap px-4 py-2.5 text-right text-(--ink-soft)">
-                    {(a.p_model * 100).toFixed(1)} % / {(a.p_market * 100).toFixed(1)} %
+                    {pctF(a.p_model, 1)} / {pctF(a.p_market, 1)}
                   </td>
                   <td className="whitespace-nowrap px-4 py-2.5 text-right text-(--ink-soft)">
-                    <span className="text-(--ink-faint)">{a.opening_odds != null ? a.opening_odds.toFixed(2) : '—'}</span>
+                    <span className="text-(--ink-faint)">{a.opening_odds != null ? numF(a.opening_odds, 2) : '—'}</span>
                     {' · '}
-                    <span className="font-semibold text-(--ink-strong)">{a.odds.toFixed(2)}</span>
+                    <span className="font-semibold text-(--ink-strong)">{numF(a.odds, 2)}</span>
                     {' · '}
-                    <span className="text-(--ink-faint)">{a.closing_odds != null ? a.closing_odds.toFixed(2) : '—'}</span>
+                    <span className="text-(--ink-faint)">{a.closing_odds != null ? numF(a.closing_odds, 2) : '—'}</span>
                     {a.clv != null && (
                       <span className="block text-[11px]" style={{ color: a.clv >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
                         CLV {a.clv >= 0 ? '+' : '−'}
-                        {Math.abs(a.clv * 100).toFixed(1)} %
+                        {pctF(Math.abs(a.clv), 1)}
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-right text-(--ink-soft)">{a.stake.toFixed(2)}</td>
+                  <td className="px-4 py-2.5 text-right text-(--ink-soft)">{numF(a.stake, 2)}</td>
                   <td
                     className="whitespace-nowrap px-4 py-2.5 text-right font-medium"
                     style={{

@@ -18,7 +18,9 @@ import Buscador from './components/busqueda/Buscador';
 import Campana from './components/bandeja/Campana';
 import Recorrido from './components/Recorrido';
 import { SeguimientoProvider } from './components/seguimiento';
-import { ultimaRed, useEnLinea } from './lib/sinConexion';
+import { ESCRITORIO, useMediaQuery } from './lib/useMediaQuery';
+import ErrorBoundary from './components/ErrorBoundary';
+import { ultimaRed, useEnLinea, useDesdeCache } from './lib/sinConexion';
 
 // Cada pantalla en su propio trozo (Fase 5 / 7): la primera carga solo trae el armazón y la
 // pestaña que se abre.
@@ -49,6 +51,7 @@ const Lineas = lazy(() => import('./pages/Lineas'));
 const Archivo = lazy(() => import('./pages/Archivo'));
 import { I18nProvider, idiomaGuardado, localeDe, useI18n, type Clave } from './i18n';
 import { aplicarTema, temaGuardado, type Tema } from './lib/tema';
+import { atajoPermitido } from './lib/dialogo';
 
 /**
  * Ancho máximo del armazón: 80rem (1280px), con las listas de tarjetas a dos columnas en
@@ -79,6 +82,8 @@ function Armazon() {
   const navigate = useNavigate();
   const { t, setIdioma } = useI18n();
   const pestana = pestanaDeRuta(pathname);
+  // Una sola píldora, campana y buscador: los de la disposición que se ve (D12).
+  const escritorio = useMediaQuery(ESCRITORIO);
   // La puerta: si el servidor pide contraseña y no hay sesión, se enseña la entrada y nada más.
   const [auth, setAuth] = useState<EstadoAuth | null>(null);
   const [ajustes, setAjustes] = useState<AjustesUsuario | null>(null);
@@ -132,8 +137,8 @@ function Armazon() {
   // Atajos (Fase 5.17): 1–9 y 0 (la décima) cambian de pestaña fuera de un campo de texto (tantas como pestañas).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement | null)?.tagName;
-      if (e.metaKey || e.ctrlKey || e.altKey || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement | null)?.isContentEditable) return;
+      // Ni en un campo ni con un diálogo abierto (D10): el 2 no cambia de pestaña por debajo.
+      if (!atajoPermitido(e, document)) return;
       const n = e.key === '0' ? 10 : Number(e.key);
       if (n >= 1 && n <= PESTANAS.length) navigate(RUTA_DE_PESTANA[PESTANAS[n - 1]]);
     };
@@ -162,9 +167,13 @@ function Armazon() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
-            <StatusPill />
-            <Buscador />
-            <Campana />
+            {escritorio && (
+              <>
+                <StatusPill />
+                <Buscador />
+                <Campana />
+              </>
+            )}
           </div>
           <SportNav pestana={pestana} ocultos={ocultos} vertical />
           <div className="mt-auto px-2 pb-3">
@@ -182,11 +191,13 @@ function Armazon() {
               <AppMark size={30} className="shrink-0" />
               <h1 className="text-[16px] font-semibold leading-tight text-(--ink-strong)">{t('app.nombre')}</h1>
             </div>
-            <span className="flex items-center gap-2">
-              <Buscador />
-              <Campana />
-              <StatusPill compacto />
-            </span>
+            {!escritorio && (
+              <span className="flex items-center gap-2">
+                <Buscador />
+                <Campana />
+                <StatusPill compacto />
+              </span>
+            )}
           </div>
           {pestana != null && DEPORTES.includes(pestana) && <SportNav pestana={pestana} ocultos={ocultos} soloDeportes />}
         </header>
@@ -195,7 +206,8 @@ function Armazon() {
             (cada pantalla se carga aparte). Medido con Lighthouse: era el mayor desplazamiento. */}
         <main className={`mx-auto ${SHELL_WIDTH} min-h-[100svh] px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 lg:pb-16`}>
           <BannerSinConexion />
-          {conHoy && <TodayPanel />}
+          {conHoy && <TodayPanel pestana={pestana} />}
+          <ErrorBoundary clave={pathname}>
           <Suspense fallback={<p className="text-[13px] text-(--ink-muted)">{t('comun.cargando')}</p>}>
           <Routes>
             <Route path="/" element={<Navigate to={RUTA_DE_PESTANA[ultimaPestana()]} replace />} />
@@ -227,6 +239,7 @@ function Armazon() {
             <Route path="*" element={<NoEncontrada />} />
           </Routes>
           </Suspense>
+          </ErrorBoundary>
         </main>
 
         <footer className={`mx-auto ${SHELL_WIDTH} px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-[max(2.5rem,env(safe-area-inset-bottom))]`}>
@@ -252,8 +265,9 @@ function Armazon() {
 /** «Sin conexión: datos de HH:MM» (Fase 5.26). */
 function BannerSinConexion() {
   const enLinea = useEnLinea();
+  const desdeCache = useDesdeCache();
   const { t, idioma } = useI18n();
-  if (enLinea) return null;
+  if (enLinea && !desdeCache) return null;
   const u = ultimaRed();
   const hora = u ? new Date(u).toLocaleString(localeDe(idioma), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
   return (

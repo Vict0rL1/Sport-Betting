@@ -74,6 +74,16 @@ export interface Horizonte {
   minutosAntesDeLaMarca: number | null;
 }
 
+/**
+ * Qué decir de un horizonte sin fila: si su hora aún no ha llegado, está PENDIENTE (no es que
+ * falte una observación: todavía no podía haberla). Con fila, nada (se enseña la probabilidad).
+ */
+export function etiquetaHorizonte(h: Horizonte, ahora: Date = new Date()): 'fiarse.pendiente' | 'fiarse.sinObservacion' | null {
+  if (h.fila) return null;
+  const marca = Date.parse(h.marca);
+  return Number.isFinite(marca) && marca > ahora.getTime() ? 'fiarse.pendiente' : 'fiarse.sinObservacion';
+}
+
 export interface PrePartido {
   instantaneas: number;
   horizontes: Horizonte[];

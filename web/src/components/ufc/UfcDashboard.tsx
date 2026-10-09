@@ -12,6 +12,8 @@ import { ufcApi, type UfcFightWithPrediction, type UfcMeta, type UfcTrackRecord 
 import FightCard from './FightCard';
 import EloRanking from '../EloRanking';
 import { conNodos, localeDe, useI18n } from '../../i18n';
+import { pct as pctF, num as numF } from '../../lib/formato';
+import { conservarDia } from '../../lib/carga';
 
 const CODIGO = 'rounded bg-(--raised) px-1 text-[12px] text-(--ink-body)';
 
@@ -62,9 +64,11 @@ export default function UfcDashboard() {
   const dayGroups = useMemo(() => groupByDay(fights, (g) => g.fight.commence_time, idioma), [fights, idioma]);
   const dayChips = useMemo(() => dayGroups.map((d) => ({ key: d.key, label: dayChipLabel(d.key, new Date(), idioma), count: d.items.length })), [dayGroups, idioma]);
   const shownGroups = day ? dayGroups.filter((d) => d.key === day) : dayGroups;
+  // D8: mientras carga no hay días (o son los de la liga anterior): el ?dia= del enlace se conserva.
   useEffect(() => {
-    if (day && dayGroups.length && !dayGroups.some((d) => d.key === day)) setDay(null);
-  }, [dayGroups, day]);
+    const sigue = conservarDia(day, dayGroups.map((d) => d.key), loading);
+    if (sigue !== day) setDay(sigue);
+  }, [dayGroups, day, loading]);
 
   const picks = useMemo(() => rankPicks(ufcPicks(fights), Date.now(), { basis: 'confidence' }), [fights]);
   const [stake, setStake] = useStake();
@@ -174,7 +178,7 @@ function HistorialEnVivo() {
           ) : (
             <span className="text-(--ink-strong)">
               {conNodos(t('ufc.acierto'), {
-                pct: <strong className="tabular-nums">{((data.accuracy ?? 0) * 100).toFixed(1)}%</strong>,
+                pct: <strong className="tabular-nums">{pctF((data.accuracy ?? 0), 1)}</strong>,
                 n: <strong className="tabular-nums">{decididas}</strong>,
               })}
               {data.sinGanador > 0 && <span className="text-(--ink-soft)"> {t('ufc.sinGanadorNota', { n: data.sinGanador })}</span>}
@@ -192,7 +196,7 @@ function HistorialEnVivo() {
               <ul className="space-y-0.5">
                 {data.calibration.map((c) => (
                   <li key={c.label} className="tabular-nums">
-                    {t('nflt.calibLinea', { label: c.label, p: (c.predicted * 100).toFixed(0), o: (c.observed * 100).toFixed(0), n: c.n })}
+                    {t('nflt.calibLinea', { label: c.label, p: numF(c.predicted * 100, 0), o: numF(c.observed * 100, 0), n: c.n })}
                   </li>
                 ))}
               </ul>

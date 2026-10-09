@@ -9,6 +9,7 @@ import { Badge, Card, Flag, MatchTime, ResultBanner, SeriesDot } from './ui';
 import { EnlacePartido } from './ui';
 import EventTrustPanel from './trust/EventTrustPanel';
 import { conNodos, localeDe, useI18n } from '../i18n';
+import { num as numF } from '../lib/formato';
 
 export default function MatchCard({
   item,
@@ -313,7 +314,7 @@ function PlayerName({
               : t('tt.probMercado')
           }
         >
-          {(prob * 100).toFixed(1)}
+          {numF(prob * 100, 1)}
           <span className="text-[26px]">%</span>
           {probSource === 'market' && (
             <span className="ml-1 align-middle text-[14px] font-normal text-(--ink-soft)">{t('tt.mercado')}</span>

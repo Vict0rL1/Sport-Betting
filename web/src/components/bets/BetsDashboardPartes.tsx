@@ -5,6 +5,7 @@ import { deporteDe, estadoDe, mercadoDe, money, pctSigned, signed, type Bet, typ
 import { useI18n } from '../../i18n';
 import { BREAK_EVEN_COLOR, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
 import { Card, SectionTitle } from '../ui';
+import { pct as pctF, num as numF } from '../../lib/formato';
 
 export function Headline({ summary }: { summary: BetSummary }) {
   const tot = summary.totals;
@@ -34,7 +35,7 @@ export function Headline({ summary }: { summary: BetSummary }) {
         <Stat label={t('registro.apostado')} value={money(tot.staked)} hint={t(tot.bets === 1 ? 'registro.apuestas1' : 'registro.apuestasN', { n: tot.bets })} />
         <Stat
           label={t('registro.acierto')}
-          value={tot.hitRate == null ? '—' : `${(tot.hitRate * 100).toFixed(0)}%`}
+          value={tot.hitRate == null ? '—' : `${pctF(tot.hitRate, 0)}`}
           hint={`${tot.wins}-${tot.losses}`}
         />
         <Stat
@@ -244,8 +245,8 @@ export function BetRow({
             <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-(--line) pt-2 text-[13px]">
               {bet.model_prob != null && (
                 <span className="text-(--ink-muted)">
-                  {t('registro.modeloPct', { p: (bet.model_prob * 100).toFixed(0) })}
-                  {bet.market_prob != null && t('registro.mercadoPct', { p: (bet.market_prob * 100).toFixed(0) })}
+                  {t('registro.modeloPct', { p: numF(bet.model_prob * 100, 0) })}
+                  {bet.market_prob != null && t('registro.mercadoPct', { p: numF(bet.market_prob * 100, 0) })}
                 </span>
               )}
               {bet.notes && <span className="text-(--ink-soft)">{bet.notes}</span>}

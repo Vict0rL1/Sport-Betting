@@ -3,6 +3,7 @@
 // todo lo puntuable y en la validación. Antes era la UFC en sombra, detrás de `deportes.ufc`.
 import { localeDe, useI18n, type Clave } from '../i18n';
 import { useJson } from '../lib/usarJson';
+import { pct as pctF, num as numF } from '../lib/formato';
 
 interface Referencia {
   clave: string;
@@ -44,9 +45,9 @@ interface Backtest {
   nota: string;
 }
 
-const f4 = (x: number | null) => (x == null ? '—' : x.toFixed(4));
-const pct = (x: number | null) => (x == null ? '—' : `${(x * 100).toFixed(1)} %`);
-const signo = (x: number) => `${x > 0 ? '+' : ''}${x.toFixed(4)}`;
+const f4 = (x: number | null) => (x == null ? '—' : numF(x, 4));
+const pct = (x: number | null) => (x == null ? '—' : `${pctF(x, 1)}`);
+const signo = (x: number) => `${x > 0 ? '+' : ''}${numF(x, 4)}`;
 const CLAVES_REF = ['moneda', 'experiencia', 'record', 'basico'] as const;
 const RASGOS = ['elo', 'record', 'edad', 'alcance', 'experiencia'] as const;
 
@@ -102,7 +103,7 @@ function Contenido() {
         <p className="mb-1">
           {t('diag.ufcPesos', { n: n(s.ajustadaCon), anio: s.holdoutDesde })}{' '}
           {Object.entries(s.pesos)
-            .map(([k, v]) => `${rasgo(k)} ${v.toFixed(3)}`)
+            .map(([k, v]) => `${rasgo(k)} ${numF(v, 3)}`)
             .join(' · ')}
         </p>
       )}

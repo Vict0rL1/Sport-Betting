@@ -3,6 +3,7 @@ import type { NhlPrediction } from '../../lib/nhl';
 import { AWAY_COLOR, HOME_COLOR, NEUTRAL_COLOR, pct } from '../../lib/theme';
 import { BarRow, CompareRow, FactorValue, FormDots, Panel, SectionTitle, TeamCrest } from '../ui';
 import { useI18n } from '../../i18n';
+import { num as numF } from '../../lib/formato';
 
 const coma = (x: number) => String(x).replace('.', ',');
 
@@ -130,7 +131,7 @@ export function Detail({ prediction }: { prediction: NhlPrediction }) {
 
       {market.market && (
         <Panel>
-          <SectionTitle right={t('eq.margenPct', { p: ((market.market.overround - 1) * 100).toFixed(1) })}>{t('eq.mercado')}</SectionTitle>
+          <SectionTitle right={t('eq.margenPct', { p: numF((market.market.overround - 1) * 100, 1) })}>{t('eq.mercado')}</SectionTitle>
           <dl className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-[13px]">
             <div />
             <div className="w-20 text-right font-medium text-(--ink-strong)">{t('nhld.casa')}</div>

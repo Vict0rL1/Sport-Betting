@@ -4,8 +4,9 @@ import { Badge, Card, Disclosure, EmptyState, EnlacePartido, HeroStat, MarketGap
 import EventTrustPanel from '../trust/EventTrustPanel';
 import { Detail, FighterName } from './FightCardPartes';
 import { conNodos, useI18n } from '../../i18n';
+import { num as numF } from '../../lib/formato';
 
-const coma = (x: number, d = 0) => x.toFixed(d).replace('.', ',');
+const coma = (x: number, d = 0) => numF(x, d);
 
 /**
  * Una pelea de la UFC.
@@ -46,8 +47,8 @@ export default function FightCard({ item, onOpenFighter }: { item: UfcFightWithP
       {probs && prediction ? (
         <>
           <div className="flex items-end justify-between gap-3">
-            <HeroStat value={pct(probs.home)} label={t('ufcc.gana')} sub={fight.odds_home ? t('tt.cuota', { c: Number(fight.odds_home.toFixed(2)) }) : undefined} color={HOME_COLOR} />
-            <HeroStat value={pct(probs.away)} label={t('ufcc.gana')} sub={fight.odds_away ? t('tt.cuota', { c: Number(fight.odds_away.toFixed(2)) }) : undefined} color={AWAY_COLOR} align="right" />
+            <HeroStat value={pct(probs.home)} label={t('ufcc.gana')} sub={fight.odds_home ? t('tt.cuota', { c: numF(fight.odds_home, 2) }) : undefined} color={HOME_COLOR} />
+            <HeroStat value={pct(probs.away)} label={t('ufcc.gana')} sub={fight.odds_away ? t('tt.cuota', { c: numF(fight.odds_away, 2) }) : undefined} color={AWAY_COLOR} align="right" />
           </div>
           <div className="mt-2.5">
             <div className="mb-1 flex items-center justify-end">

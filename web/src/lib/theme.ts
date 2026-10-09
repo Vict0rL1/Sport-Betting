@@ -193,4 +193,5 @@ export function inkOn(strength: number): string {
   return strength > 0.55 ? '#0b1220' : '#cbd5e1';
 }
 
-export const pct = (p: number, digits = 1): string => `${(p * 100).toFixed(digits)}%`;
+// Con Intl y en el idioma activo (lib/formato.ts): «52,3 %» en español, «52.3%» en inglés.
+export { pct } from './formato';

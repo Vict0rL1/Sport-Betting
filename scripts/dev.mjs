@@ -42,6 +42,7 @@ import { createServer } from 'node:net';
 import { networkInterfaces } from 'node:os';
 import { DEFAULT_API, DEFAULT_PREVIEW, DEFAULT_WEB } from './ports.mjs';
 import { mensajeOtraCopia, pareceEstaApp } from './otra-copia.mjs';
+import { abiertaALaRed, hostDeEscucha } from './escucha.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -51,17 +52,19 @@ const SEARCH_RANGE = 20;
 /**
  * Is this port actually bindable?
  *
- * Binds 0.0.0.0 rather than 127.0.0.1 on purpose: that is what both dev servers
- * do (the frontend needs it so a phone on the same Wi-Fi can reach it), and a port
- * can be free on loopback while taken on the LAN interface. Testing the narrower
- * address would report free and then fail.
+ * Binds the same address the dev servers will (scripts/escucha.mjs): 127.0.0.1 by default,
+ * every interface only with a password (APP_AUTH=on) or when asked for (DEV_LAN=on). It used
+ * to be 0.0.0.0 always, which left the whole app — bet log included — open to anyone on the
+ * same Wi-Fi with no password (D15 of the 8 Oct 2026 review).
  */
+const HOST = hostDeEscucha();
+const LAN = abiertaALaRed();
 function free(port) {
   return new Promise((resolve) => {
     const s = createServer();
     s.once('error', () => resolve(false));
     s.once('listening', () => s.close(() => resolve(true)));
-    s.listen(port, '0.0.0.0');
+    s.listen(port, HOST);
   });
 }
 
@@ -163,8 +166,12 @@ if (api.moved || web.moved) {
 console.log('\n' + '='.repeat(52));
 console.log(`  App        http://localhost:${web.port}`);
 console.log(`  API        http://localhost:${api.port}/api`);
-for (const ip of lanAddresses()) {
-  console.log(`  En el móvil  http://${ip}:${web.port}`);
+if (LAN) {
+  for (const ip of lanAddresses()) {
+    console.log(`  En el móvil  http://${ip}:${web.port}`);
+  }
+} else {
+  console.log('  Solo en este ordenador. Para el móvil: DEV_LAN=on npm run dev');
 }
 console.log('='.repeat(52) + '\n');
 
@@ -187,7 +194,7 @@ try {
   fs.mkdirSync(path.join(ROOT, 'data'), { recursive: true });
   fs.writeFileSync(
     path.join(ROOT, 'data', '.dev-ports.json'),
-    JSON.stringify({ web: web.port, api: api.port, at: new Date().toISOString() }, null, 2),
+    JSON.stringify({ web: web.port, api: api.port, lan: LAN, at: new Date().toISOString() }, null, 2),
   );
 } catch {
   // Que no se pueda escribir no puede impedir arrancar la app: lo único que se pierde es

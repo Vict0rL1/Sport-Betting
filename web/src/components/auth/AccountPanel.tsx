@@ -56,7 +56,7 @@ export default function AccountPanel({ usuario, onSalir, compacto = false }: { u
       {abierto && (
         <div className="mx-1 mb-1 rounded-lg bg-(--tint) p-2 text-[12.5px] ring-1 ring-(--line)">
           <p className="mb-1.5 px-1 text-[11px] uppercase tracking-wide text-(--ink-muted)">{t('cuenta.sesiones')}</p>
-          {error && <p className="px-1" style={{ color: STATUS.critical }}>{t('cuenta.errorSesiones')}</p>}
+          {error && <p role="alert" className="px-1" style={{ color: STATUS.critical }}>{t('cuenta.errorSesiones')}</p>}
           {lista && (
             <ul className="divide-y divide-(--line)">
               {lista.map((s) => (
