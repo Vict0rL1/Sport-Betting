@@ -50,6 +50,12 @@ export default tseslint.config(
           selector: "NewExpression[callee.object.name='Intl'][callee.property.name=/^(NumberFormat|DateTimeFormat)$/]",
           message: 'Intl solo dentro de lib/formato.ts: un formateador propio es otro sistema de formato.',
         },
+        // `${fmtNum(x, 1)} %` escribe un espacio normal: el «%» puede caer solo
+        // en la línea siguiente (revisión de la Fase 1, 23 sitios).
+        {
+          selector: 'TemplateElement[value.raw=/^\\s+%/], JSXText[value=/^\\s+%/], Literal[value=/^\\s+%/]',
+          message: 'Un porcentaje se escribe con fmtPct (con enPuntos si ya viene en %): lleva espacio duro antes de «%».',
+        },
       ],
     },
   },

@@ -137,7 +137,7 @@ export function DashboardPage() {
               <div key={m.series_id}>
                 <dt className="text-xs text-slate-400">{m.label}</dt>
                 <dd className="text-lg font-semibold tabular-nums text-slate-800">
-                  {m.value !== null ? `${fmtNum(m.value, 1)} %` : '—'}
+                  {fmtPct(m.value, 1, { enPuntos: true })}
                 </dd>
                 <dd className="text-[10px] text-slate-400">{m.ts ?? ''}</dd>
               </div>

@@ -160,7 +160,7 @@ function Concentracion({ c }: { c: ConcentracionReal }) {
             Explica un solo movimiento
           </div>
           <div className="text-2xl font-semibold tabular-nums text-slate-800">
-            {fmtNum(c.primera_componente_pct, 0)} %
+            {fmtPct(c.primera_componente_pct, 0, { enPuntos: true })}
           </div>
         </div>
       </div>
@@ -176,7 +176,7 @@ function Concentracion({ c }: { c: ConcentracionReal }) {
                 key={i}
                 className={i === 0 ? 'bg-slate-700' : 'bg-slate-300'}
                 style={{ width: `${p}%` }}
-                title={`Componente ${i + 1}: ${fmtNum(p, 1)} %`}
+                title={`Componente ${i + 1}: ${fmtPct(p, 1, { enPuntos: true })}`}
               />
             ))}
           </div>
@@ -205,7 +205,7 @@ function Exposicion({ e, titulo }: { e: ExposicionAgregada; titulo: string }) {
               />
             </div>
             <span className="w-12 shrink-0 text-right text-xs tabular-nums text-slate-700">
-              {fmtNum(f.peso_pct, 1)} %
+              {fmtPct(f.peso_pct, 1, { enPuntos: true })}
             </span>
           </li>
         ))}
@@ -251,13 +251,13 @@ function LookThrough({ lt }: { lt: LookThroughEtf }) {
                   )}
                 </td>
                 <td className="py-1.5 text-right tabular-nums text-slate-600">
-                  {e.directa_pct > 0 ? `${fmtNum(e.directa_pct, 1)} %` : '—'}
+                  {e.directa_pct > 0 ? fmtPct(e.directa_pct, 1, { enPuntos: true }) : '—'}
                 </td>
                 <td className="py-1.5 text-right tabular-nums text-slate-600">
-                  {fmtNum(e.indirecta_pct, 2)} %
+                  {fmtPct(e.indirecta_pct, 2, { enPuntos: true })}
                 </td>
                 <td className="py-1.5 text-right font-medium tabular-nums text-slate-800">
-                  {fmtNum(e.total_pct, 2)} %
+                  {fmtPct(e.total_pct, 2, { enPuntos: true })}
                 </td>
                 <td className="py-1.5 pl-3 text-slate-500">
                   {e.via.map((v) => v.etf).join(', ')}
@@ -272,7 +272,7 @@ function LookThrough({ lt }: { lt: LookThroughEtf }) {
         <p className="mt-3 text-[11px] text-slate-500">
           Composición leída:{' '}
           {Object.entries(lt.cobertura_por_etf_pct)
-            .map(([etf, pct]) => `${etf} (${fmtNum(pct, 0)} % del fondo)`)
+            .map(([etf, pct]) => `${etf} (${fmtPct(pct, 0, { enPuntos: true })} del fondo)`)
             .join(', ')}
         </p>
       )}
@@ -296,7 +296,7 @@ function Caracteristicas({ c }: { c: CaracteristicasDeCartera }) {
   const formatear = (campo: string, v: number) => {
     if (campo === 'market_cap') return fmtCompacto(v)
     if (campo === 'roe' || campo === 'revenue_growth_5y') return fmtPct(v, 1)
-    if (campo === 'vol_anual_pct') return `${fmtNum(v, 1)} %`
+    if (campo === 'vol_anual_pct') return fmtPct(v, 1, { enPuntos: true })
     return fmtNum(v, 1)
   }
 
@@ -349,7 +349,7 @@ function Caracteristicas({ c }: { c: CaracteristicasDeCartera }) {
                 </>
               )}
               <td className="py-1.5 text-right tabular-nums text-slate-500">
-                {fmtNum(x.cobertura_pct, 0)} %
+                {fmtPct(x.cobertura_pct, 0, { enPuntos: true })}
               </td>
             </tr>
           ))}
@@ -411,14 +411,13 @@ function Crisis({ c }: { c: CrisisEstresada }) {
               fiable ? 'text-2xl' : 'text-lg opacity-60'
             } ${retorno < 0 ? 'text-red-700' : 'text-emerald-700'}`}
           >
-            {retorno > 0 ? '+' : ''}
-            {fmtNum(retorno, 1)} %
+            {fmtPct(retorno, 1, { enPuntos: true, signo: true })}
           </div>
         </div>
         <div>
           <div className="text-[10px] uppercase tracking-wide text-slate-400">S&P 500</div>
           <div className="text-lg tabular-nums text-slate-500">
-            {fmtNum(c.caida_sp500_pct, 1)} %
+            {fmtPct(c.caida_sp500_pct, 1, { enPuntos: true })}
           </div>
         </div>
         <div>
@@ -426,7 +425,7 @@ function Crisis({ c }: { c: CrisisEstresada }) {
             Caída máxima
           </div>
           <div className="text-lg tabular-nums text-slate-500">
-            {fmtNum(c.max_drawdown_pct, 1)} %
+            {fmtPct(c.max_drawdown_pct, 1, { enPuntos: true })}
           </div>
         </div>
         <div>
@@ -436,7 +435,7 @@ function Crisis({ c }: { c: CrisisEstresada }) {
               fiable ? 'text-slate-500' : 'font-semibold text-amber-800'
             }`}
           >
-            {fmtNum(c.cobertura_pct, 0)} %
+            {fmtPct(c.cobertura_pct, 0, { enPuntos: true })}
           </div>
         </div>
       </div>

@@ -42,7 +42,7 @@ function Cambio({ c }: { c: CambioMetrica }) {
           <span className="ml-1 text-slate-400">({c.absoluto >= 0 ? '+' : ''}{fmtNum(c.absoluto, 2)} puntos)</span>
         )}
         {c.tipo === 'material' && c.unidad !== 'fracción' && c.unidad !== 'puntos' && c.relativo != null && (
-          <span className="ml-1 text-slate-400">({c.relativo >= 0 ? '+' : ''}{fmtNum(c.relativo * 100, 1)} %)</span>
+          <span className="ml-1 text-slate-400">({fmtPct(c.relativo, 1, { signo: true })})</span>
         )}
         {c.tipo === 'dato_nuevo' && <span className="ml-1 rounded bg-sky-100 px-1 text-[10px] text-sky-800">dato nuevo</span>}
         {c.tipo === 'dato_perdido' && <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800">dato perdido</span>}
@@ -117,7 +117,7 @@ export function CosteOportunidadResumen({ oc }: { oc: CosteOportunidad }) {
                   {fmtNum(f.mejora, 2, { ceros: false })} / {fmtNum(f.mejora_requerida, 2, { ceros: false })}
                 </td>
                 <td className="tabular-nums text-slate-500">
-                  {fmtNum(f.coste_del_cambio.total_conocido_pct, 2)} %
+                  {fmtPct(f.coste_del_cambio.total_conocido_pct, 2, { enPuntos: true })}
                   {f.coste_del_cambio.impuestos === 'desconocidos' && f.coste_del_cambio.nota && (
                     <span className="block text-[10px] text-amber-800">+ impuestos desconocidos</span>
                   )}

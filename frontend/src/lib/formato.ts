@@ -12,7 +12,7 @@
  */
 
 export const GUION = '—'
-const ESPACIO_DURO = '\u00a0'
+export const ESPACIO_DURO = '\u00a0'
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic']
 
 // Una hora de mercado lleva la zona de su bolsa: «16:00 ET» no es lo mismo que

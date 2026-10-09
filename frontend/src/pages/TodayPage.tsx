@@ -292,7 +292,7 @@ function SummaryStrip({
     },
     {
       label: 'Cobertura',
-      valor: `${Math.round(cobertura)} %`,
+      valor: fmtPct(cobertura, 0, { enPuntos: true }),
       tono: data.complete ? 'text-slate-900' : 'text-sky-700',
       sub: `${data.scored} de ${data.requested}`,
     },
@@ -474,7 +474,7 @@ function AvoidList({
  */
 /** Un porcentaje en puntos (12.5 → «12,5 %»); lo que falta es «sin dato», no un 0 ni un «undefined». */
 function puntos(v: number | null | undefined): string {
-  return v === null || v === undefined ? 'sin dato' : `${fmtNum(v, 1)} %`
+  return v === null || v === undefined ? 'sin dato' : fmtPct(v, 1, { enPuntos: true })
 }
 
 function SizingPanel({ sizing }: { sizing: Sizing }) {

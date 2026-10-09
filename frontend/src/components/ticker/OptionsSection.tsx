@@ -187,7 +187,7 @@ function Movimiento({ m }: { m: MovimientoEsperado }) {
             Implícito (straddle)
           </div>
           <div className="text-2xl font-semibold tabular-nums text-slate-800">
-            {imp.disponible ? `±${fmtNum(imp.movimiento_pct, 1)} %` : '—'}
+            {imp.disponible ? `±${fmtPct(imp.movimiento_pct, 1, { enPuntos: true })}` : '—'}
           </div>
           {imp.vencimiento && (
             <div className="text-[10px] text-slate-400">
@@ -200,11 +200,11 @@ function Movimiento({ m }: { m: MovimientoEsperado }) {
             Mediana real de la empresa
           </div>
           <div className="text-2xl font-semibold tabular-nums text-slate-500">
-            {hist.disponible ? `${fmtNum(hist.mediana_abs_pct, 1)} %` : '—'}
+            {hist.disponible ? fmtPct(hist.mediana_abs_pct, 1, { enPuntos: true }) : '—'}
           </div>
           {hist.disponible && (
             <div className="text-[10px] text-slate-400">
-              {hist.n} resultados · mayor {fmtNum(hist.maximo_abs_pct, 1)} %
+              {hist.n} resultados · mayor {fmtPct(hist.maximo_abs_pct, 1, { enPuntos: true })}
             </div>
           )}
         </div>
@@ -230,8 +230,7 @@ function Movimiento({ m }: { m: MovimientoEsperado }) {
                   : 'bg-slate-100 text-slate-600'
               }`}
             >
-              {mv.movimiento_pct > 0 ? '+' : ''}
-              {fmtNum(mv.movimiento_pct, 1)} %
+              {fmtPct(mv.movimiento_pct, 1, { enPuntos: true, signo: true })}
             </span>
           ))}
         </div>
@@ -320,8 +319,7 @@ function Actividad({ a }: { a: ActividadOpciones }) {
                   : 'text-slate-800'
               }`}
             >
-              {(a.variacion_oi.cambio_pct ?? 0) > 0 ? '+' : ''}
-              {fmtNum(a.variacion_oi.cambio_pct, 1)} %
+              {fmtPct(a.variacion_oi.cambio_pct, 1, { enPuntos: true, signo: true })}
             </div>
           </div>
         )}
