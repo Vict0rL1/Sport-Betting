@@ -107,6 +107,9 @@ BASE = "USD"
 DIAS_FRESCO = 7
 
 
+_MONEDA_DE_SERIE = {info["serie"]: moneda for moneda, info in SERIES.items()}
+
+
 class SinTipo(Exception):
     """No hay tipo utilizable. El motivo va en el mensaje y acaba en pantalla."""
 
@@ -154,6 +157,22 @@ def comprobar_banda(moneda: str, por_usd: float) -> None:
             f"que la serie {SERIES[moneda]['serie']} está leída del revés. No se "
             "convierte nada antes que convertir mal."
         )
+
+
+def comprobar_serie(serie_id: str | None, valores: list[float | None]) -> None:
+    """La serie de FRED de una moneda, dentro de su banda (ítem 1.12).
+
+    La usa `validacion` al recibir la respuesta del proveedor: una serie leída
+    del revés (CAD a 0,73 por dólar) es un fallo del proveedor, como un NaN, y
+    no un dato. Antes solo se detectaba al convertir, con la respuesta ya
+    guardada en caché, así que se rechazaba en cada lectura sin probar otra
+    fuente. Se mira la mediana, como en `serie_por_usd`: un valor raro suelto
+    no es una inversión. Una serie que no es de tipo de cambio pasa sin mirar."""
+    moneda = _MONEDA_DE_SERIE.get(serie_id or "")
+    utiles = sorted(v for v in valores if v is not None and v > 0)
+    if moneda is None or not utiles:
+        return
+    comprobar_banda(moneda, a_por_usd(moneda, utiles[len(utiles) // 2]))
 
 
 def tipo_desde_observaciones(moneda: str, puntos: list[dict], hoy: date | None = None) -> dict:

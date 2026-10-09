@@ -946,7 +946,10 @@ sola entrada hace fallar cuatro tests.
 
 Encima hay una segunda red: bandas de cordura por divisa, tan anchas que ningún
 movimiento real las cruza y tan estrechas que una serie invertida las cruza
-siempre. No validan el mercado — detectan la inversión.
+siempre. No validan el mercado — detectan la inversión. Se aplican dos veces:
+al recibir la serie del proveedor (`validacion.py`: fuera de banda es un fallo
+del proveedor, como un NaN, así que no se guarda en caché y se prueba la
+siguiente fuente) y al convertir.
 
 ### Lo que no se puede convertir no se suma
 

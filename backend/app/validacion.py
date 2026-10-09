@@ -33,6 +33,7 @@ rango donde un precio puede estar. Detectar un 150,00 que en realidad era
 from __future__ import annotations
 
 from app import datos
+from app.analysis import fx
 from app.formato import plural
 
 
@@ -127,14 +128,15 @@ def _macro(payload: dict) -> dict:
         raise PayloadInvalido("serie macro sin puntos")
     # Los huecos de FRED (`.`) son normales y se dejan pasar como None: quien
     # consume la serie ya sabe saltárselos. Lo que se limpia es el NaN.
-    return {
-        **payload,
-        "points": [
-            {**p, "value": datos.numero(p.get("value"))}
-            for p in puntos
-            if isinstance(p, dict)
-        ],
-    }
+    limpios = [{**p, "value": datos.numero(p.get("value"))} for p in puntos if isinstance(p, dict)]
+    # Un tipo de cambio fuera de su banda de cordura (casi siempre, la serie
+    # leída del revés) es un fallo del proveedor, igual que un NaN: no se
+    # cachea y se prueba la siguiente fuente (ítem 1.12).
+    try:
+        fx.comprobar_serie(payload.get("series_id"), [p["value"] for p in limpios])
+    except fx.SinTipo as exc:
+        raise PayloadInvalido(str(exc)) from None
+    return {**payload, "points": limpios}
 
 
 # Partidas que por definición no pueden ser negativas. El capex entra aquí
