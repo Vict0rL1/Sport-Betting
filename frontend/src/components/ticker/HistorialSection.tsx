@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { DecisionHistorica, ReplayDecision } from '../../api/types'
 import { etiqueta, etiquetaOrigen } from '../../lib/etiquetas'
-import { fmtCompacto, fmtFecha, fmtNum, fmtPct } from '../../lib/formato'
+import { fmtCompacto, fmtFecha, fmtNum, fmtPct, plural } from '../../lib/formato'
 import { DecisionExplicada } from '../DecisionExplicada'
 import { CosteOportunidadResumen, RiesgoResumen } from './QueCambioSection'
 
@@ -12,6 +12,38 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
       <div className="mb-1 text-[10px] uppercase tracking-wide text-slate-400">{titulo}</div>
       {children}
     </div>
+  )
+}
+
+/**
+ * Qué se comprobó contra «nada posterior a la decisión». Con 0 marcas se leía
+ * «Sin información posterior: 0 marcas de tiempo comprobadas», que suena a
+ * garantía y es lo contrario: no se comprobó nada (la coherencia ya lo trata
+ * como UNKNOWN). Lo que no tiene fecha verificable tampoco se comprobó, y no
+ * salía en pantalla (revisión de la Fase 1).
+ */
+export function Anticipacion({ p }: { p: NonNullable<ReplayDecision['proteccion_anticipacion']> }) {
+  const n = p.marcas_comprobadas
+  const sinFecha = p.sin_fecha_verificable ?? []
+  return (
+    <p className="text-[11px] text-slate-500">
+      {n === 0 ? (
+        <span className="text-amber-800">
+          No se pudo comprobar que no hubiera información posterior: la instantánea no guardó ninguna marca de tiempo.
+        </span>
+      ) : (
+        <>
+          {sinFecha.length === 0 ? 'Sin información posterior: ' : ''}
+          {n} {plural(n, 'marca de tiempo comprobada', 'marcas de tiempo comprobadas')} contra «{p.regla}».
+        </>
+      )}
+      {sinFecha.length > 0 && (
+        <span className="text-amber-800"> Sin fecha verificable, no se pudo comprobar: {sinFecha.map((c) => etiqueta(c)).join(', ')}.</span>
+      )}
+      {p.retiradas_por_fecha_futura.length > 0 && (
+        <span className="text-red-700"> Retirado por fecha futura: {p.retiradas_por_fecha_futura.map((c) => etiqueta(c)).join(', ')}.</span>
+      )}
+    </p>
   )
 }
 
@@ -33,15 +65,7 @@ function Replay({ r }: { r: ReplayDecision }) {
         </span>
       </div>
       {r.nota && <p className="rounded bg-amber-50 p-2 text-xs text-amber-900">{r.nota}</p>}
-      {r.proteccion_anticipacion && (
-        <p className="text-[11px] text-slate-500">
-          Sin información posterior: {r.proteccion_anticipacion.marcas_comprobadas} marcas de tiempo comprobadas contra{' '}
-          «{r.proteccion_anticipacion.regla}».
-          {r.proteccion_anticipacion.retiradas_por_fecha_futura.length > 0 && (
-            <span className="text-red-700"> Retirado por fecha futura: {r.proteccion_anticipacion.retiradas_por_fecha_futura.join(', ')}.</span>
-          )}
-        </p>
-      )}
+      {r.proteccion_anticipacion && <Anticipacion p={r.proteccion_anticipacion} />}
       {(r.no_congelado.length > 0 || (r.incompletas ?? []).length > 0) && (
         <p className="text-[11px] text-amber-800">
           {r.no_congelado.length > 0 && <>No se congeló (y no se rellena con lo de hoy): {r.no_congelado.map((c) => etiqueta(c)).join(', ')}. </>}
