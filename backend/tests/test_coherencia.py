@@ -8,6 +8,7 @@ UNKNOWN y nunca PASS.
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -197,3 +198,56 @@ def test_una_ida_y_vuelta_sin_marcas_no_es_un_pass():
               "proteccion_anticipacion": {"retiradas_por_fecha_futura": [], "marcas_comprobadas": 0}}
     filas = co.ida_y_vuelta("X", {"decision": {"action": "sin_datos"}}, replay)
     assert _estado(filas, "replay:sin_datos_futuros") == co.UNKNOWN
+
+
+# --- El informe y `./start.sh validar` (ítem 1.13) --------------------------------
+
+
+def test_el_informe_lista_cada_fila_con_lo_comparado_y_que_mirar_a_mano(tmp_path):
+    script = _script()
+    filas = [
+        co._fila("trimestres_suman_el_ano:revenue", "AAPL", co.FAIL, "FY2025: suma 90 frente a 100 anual | 10 %"),
+        co._fila("cotizacion_frente_a_cierre", "AAPL", co.PASS, "104 frente al cierre de 103"),
+        co._fila("tipo_de_cambio:CAD", None, co.UNKNOWN, "no se pidió (sin FRED configurado)"),
+    ]
+    texto = script.informe_markdown(filas, cuando=AHORA, simbolos=["AAPL"], monedas=["CAD"], opciones="sin replay")
+    assert texto.startswith("# Validación con datos reales · 12 sept 2026, 14:35 UTC")
+    assert "**1 PASS · 1 FAIL · 1 UNKNOWN.** UNKNOWN no es PASS" in texto
+    assert "## AAPL" in texto and "## Cartera" in texto
+    # Lo comparado, con la barra escapada para no romper la tabla, y dónde mirarlo.
+    assert "| FAIL | trimestres_suman_el_ano:revenue | FY2025: suma 90 frente a 100 anual \\| 10 % | Abre el 10-K" in texto
+    assert "un CAD a ~0,7 es la serie leída del revés" in texto
+    assert "## Comprobaciones a mano" in texto
+    assert texto.count("- [ ] ") == len(script.COMPROBACIONES_MANUALES) == 4
+    ruta = script.escribir_informe(texto, tmp_path / "validacion", AHORA)
+    assert ruta.name == "validacion_20260912.md" and ruta.read_text(encoding="utf-8") == texto
+
+
+def _start_sh_en(tmp_path, con_venv: bool):
+    raiz = tmp_path / "app"
+    (raiz / "backend").mkdir(parents=True)
+    (raiz / "start.sh").write_text((Path(__file__).resolve().parents[2] / "start.sh").read_text())
+    (raiz / ".env").write_text("")
+    if con_venv:
+        python = raiz / "backend" / ".venv" / "bin" / "python"
+        python.parent.mkdir(parents=True)
+        # Un «python» que solo dice con qué se le llamó y desde dónde.
+        python.write_text('#!/usr/bin/env bash\necho "cwd=$(basename "$PWD") args=$*"\n')
+        python.chmod(0o755)
+    return raiz
+
+
+def test_start_sh_validar_llama_al_script_con_informe_y_sin_arrancar_nada(tmp_path):
+    raiz = _start_sh_en(tmp_path, con_venv=True)
+    r = subprocess.run(["bash", str(raiz / "start.sh"), "validar", "NVDA", "--monedas", "CAD"],
+                       capture_output=True, text=True, timeout=30)
+    assert r.returncode == 0, r.stderr
+    assert "cwd=backend args=scripts/validar_con_datos_reales.py --informe NVDA --monedas CAD" in r.stdout
+    assert "uvicorn" not in r.stdout + r.stderr
+
+
+def test_start_sh_validar_sin_entorno_lo_dice(tmp_path):
+    raiz = _start_sh_en(tmp_path, con_venv=False)
+    r = subprocess.run(["bash", str(raiz / "start.sh"), "validar"], capture_output=True, text=True, timeout=30)
+    assert r.returncode == 1
+    assert "Primero arranca la app una vez" in r.stderr

@@ -5,6 +5,8 @@
     python scripts/validar_con_datos_reales.py --solo-cache    # sin descargar nada
     python scripts/validar_con_datos_reales.py --json > validacion.json
     python scripts/validar_con_datos_reales.py --grabar        # graba respuestas para los tests de contrato
+    python scripts/validar_con_datos_reales.py --informe       # además, informe en data/validacion/
+    ./start.sh validar                                         # lo mismo, desde la raíz, con informe
 
 Los tests prueban el código con datos fabricados; esto prueba lo que los tests
 no pueden ver: que los datos reales cuadren entre sí. Ninguna comprobación
@@ -162,6 +164,80 @@ def _tipo(service, moneda: str, solo_cache: bool) -> dict | None:
         return {"por_usd": None, "error": str(exc)[:200]}
 
 
+# Qué mirar a mano en cada familia de comprobación (ítem 1.13). Sale en el
+# informe junto a cada fila: un FAIL dice qué no cuadra; esto dice dónde
+# comprobarlo con tus propios ojos.
+A_MANO = {
+    "trimestres_suman_el_ano": "Abre el 10-K y los tres 10-Q del ejercicio en EDGAR: los trimestres deben sumar el "
+                               "año. El CFO del 2.º y 3.er trimestre se deriva del acumulado; el 4.º es el año menos "
+                               "nueve meses.",
+    "fechas_de_publicacion": "En EDGAR, la «Filing date» del periodo: tiene que ser posterior al cierre y no futura.",
+    "escala_del_consenso": "Compara el consenso con la cifra del último 10-Q: ¿unidades, miles o millones? Finnhub "
+                           "mezcla escalas entre empresas.",
+    "cotizacion_frente_a_cierre": "Mira la cotización en tu broker: misma acción, misma moneda, ¿hubo un split?",
+    "tipo_de_cambio": "1 USD vale hoy ~1,3–1,4 CAD y ~0,9 EUR; un CAD a ~0,7 es la serie leída del revés.",
+    "replay": "En la ficha, «Decisiones y replay»: misma decisión, huella íntegra, nada fechado después.",
+    "pasado": "Un análisis a esa fecha no puede traer noticias ni trimestres publicados después.",
+    "financieros": "Sin estados de EDGAR: ¿la empresa presenta a la SEC? (las canadienses, no).",
+}
+
+# Lo que ningún script puede comprobar por ti (§13 de la revisión general).
+COMPROBACIONES_MANUALES = [
+    "Trimestres de EDGAR contra un 10-Q real de una empresa que conozcas (CFO del 2.º y 3.er trimestre "
+    "derivado; 4.º = año − nueve meses).",
+    "Unidades del consenso de Finnhub: el BPA y los ingresos esperados en la misma escala que el 10-Q.",
+    "Dirección del tipo de cambio: 1 USD ≈ 1,3–1,4 CAD, no ≈ 0,7.",
+    "Un análisis completo de una empresa real y su replay al día siguiente: misma decisión y huella íntegra.",
+]
+
+
+def _a_mano(comprobacion: str) -> str:
+    familia = comprobacion.split(":")[0]
+    return A_MANO.get(familia, "")
+
+
+def _celda(texto: str) -> str:
+    return str(texto).replace("|", "\\|").replace("\n", " ")
+
+
+def informe_markdown(filas: list[dict], *, cuando: datetime, simbolos: list[str], monedas: list[str],
+                     opciones: str = "") -> str:
+    """El informe de una validación: cada PASS, FAIL y UNKNOWN con lo que se
+    comparó y dónde mirarlo a mano, más la lista de lo que el script no puede
+    comprobar. UNKNOWN no se cuenta como PASS: se dice que no se pudo mirar."""
+    from app.formato import fmt_fecha
+
+    c = co.resumen(filas)
+    lineas = [
+        f"# Validación con datos reales · {fmt_fecha(cuando, hora=True, zona='UTC')}",
+        "",
+        f"**{c[co.PASS]} PASS · {c[co.FAIL]} FAIL · {c[co.UNKNOWN]} UNKNOWN.** UNKNOWN no es PASS: "
+        "no se pudo comprobar, y la fila dice por qué.",
+        "",
+        f"Empresas: {', '.join(simbolos) or '—'} · monedas: {', '.join(monedas) or '—'}"
+        + (f" · opciones: {opciones}" if opciones else ""),
+    ]
+    actual = object()
+    for f in filas:
+        if f["simbolo"] != actual:
+            actual = f["simbolo"]
+            lineas += ["", f"## {actual or 'Cartera'}", "",
+                       "| Estado | Comprobación | Lo comparado | Qué mirar a mano |", "|---|---|---|---|"]
+        lineas.append(f"| {f['estado']} | {_celda(f['comprobacion'])} | {_celda(f['detalle'])} | "
+                      f"{_celda(_a_mano(f['comprobacion']))} |")
+    lineas += ["", "## Comprobaciones a mano", "",
+               "Lo que ningún script puede ver por ti (§13 de `docs/REVISION_GENERAL.md`):", ""]
+    lineas += [f"- [ ] {x}" for x in COMPROBACIONES_MANUALES]
+    return "\n".join(lineas) + "\n"
+
+
+def escribir_informe(texto: str, carpeta: Path, cuando: datetime) -> Path:
+    carpeta.mkdir(parents=True, exist_ok=True)
+    ruta = carpeta / f"validacion_{cuando:%Y%m%d}.md"
+    ruta.write_text(texto, encoding="utf-8")
+    return ruta
+
+
 def _imprimir(filas: list[dict]) -> None:
     ancho = max((len(f["comprobacion"]) for f in filas), default=20)
     actual = object()
@@ -270,6 +346,9 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dias-pasado", type=int, default=DIAS_PASADO,
                    help="antigüedad del análisis a fecha pasada (por defecto 120 días)")
     p.add_argument("--json", action="store_true", help="salida en JSON")
+    p.add_argument("--informe", action="store_true",
+                   help="escribe además validacion_AAAAMMDD.md (por defecto en backend/data/validacion/)")
+    p.add_argument("--carpeta-informe", type=Path, default=None, help="carpeta del informe")
     p.add_argument("--grabar", action="store_true",
                    help="graba las respuestas reales para los tests de contrato (por defecto AAPL T RY.TO)")
     args = p.parse_args(argv)
@@ -294,11 +373,18 @@ def main(argv: list[str] | None = None) -> int:
     filas = validar(service, [s.upper() for s in args.simbolos], monedas, solo_cache=args.solo_cache,
                     con_replay=not args.sin_replay, con_fred=bool(settings.fred_api_key),
                     dias_pasado=args.dias_pasado)
+    cuando = datetime.now(timezone.utc)
     if args.json:
-        print(json.dumps({"cuando": datetime.now(timezone.utc).isoformat(), "resumen": co.resumen(filas),
+        print(json.dumps({"cuando": cuando.isoformat(), "resumen": co.resumen(filas),
                           "filas": filas}, ensure_ascii=False, indent=2, default=str))
     else:
         _imprimir(filas)
+    if args.informe or args.carpeta_informe:
+        opciones = ", ".join(o for o, si in (("solo caché", args.solo_cache), ("sin replay", args.sin_replay)) if si)
+        texto = informe_markdown(filas, cuando=cuando, simbolos=[s.upper() for s in args.simbolos],
+                                 monedas=monedas, opciones=opciones)
+        carpeta = args.carpeta_informe or Path(settings.database_path).resolve().parent / "validacion"
+        print(f"\ninforme: {escribir_informe(texto, carpeta, cuando)}", file=sys.stderr if args.json else sys.stdout)
     return 1 if any(f["estado"] == co.FAIL for f in filas) else 0
 
 

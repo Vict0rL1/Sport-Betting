@@ -68,7 +68,7 @@ código nuevo, comentarios, mensajes de error, textos de UI, docs y commits.
 ```bash
 cd backend && python -m pytest -q -p no:cacheprovider     # suite completa (~30 s)
 cd frontend && npx tsc -b && npm run build                 # type-check + build
-cd backend && python scripts/validar_con_datos_reales.py   # coherencia con datos reales (necesita claves)
+./start.sh validar                                        # coherencia con datos reales e informe (necesita claves)
 ```
 
 Dobles de prueba: `session_factory` (SQLite en memoria) y

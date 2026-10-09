@@ -174,8 +174,9 @@ como el parser supone o si el consenso llega en otra escala. Esto sí, con tus
 claves y sin necesitar ninguna verdad externa (los datos se cruzan entre sí):
 
 ```bash
-cd backend && .venv/bin/python scripts/validar_con_datos_reales.py            # AAPL MSFT JPM, CAD y EUR
-cd backend && .venv/bin/python scripts/validar_con_datos_reales.py NVDA --solo-cache
+./start.sh validar                       # AAPL MSFT JPM, CAD y EUR, con informe
+./start.sh validar NVDA KO --monedas CAD # lo que pases va al script tal cual
+cd backend && .venv/bin/python scripts/validar_con_datos_reales.py NVDA --solo-cache   # sin informe
 ```
 
 Comprueba que los cuatro trimestres sumen el año, que cada periodo se publicara
@@ -187,6 +188,12 @@ FAIL o UNKNOWN (no se pudo comprobar; nunca cuenta como PASS) y el código de
 salida es 1 si hay algún FAIL. Usa la caché y la cuota de la app; la ida y
 vuelta congela en una base en memoria, no en la tuya. Las comprobaciones viven
 en `app/coherencia.py`.
+
+`./start.sh validar` (o el script con `--informe`) deja además
+`backend/data/validacion/validacion_AAAAMMDD.md`: cada fila con lo que se
+comparó y qué mirar a mano para confirmarlo, y al final la lista de lo que
+ningún script puede comprobar por ti (trimestres de EDGAR contra un 10-Q real,
+unidades del consenso, dirección del tipo de cambio, un replay al día siguiente).
 
 ## Fuentes de datos y sus límites (verificado 2026)
 

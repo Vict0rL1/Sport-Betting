@@ -3,6 +3,7 @@
 # Arranca backend y frontend juntos en una sola terminal.
 #
 #   ./start.sh
+#   ./start.sh validar      # coherencia con datos reales; informe en backend/data/validacion/
 #
 # Ctrl+C para en el mismo comando los dos procesos. En la primera ejecución
 # crea el entorno virtual e instala dependencias; después arranca directo.
@@ -46,6 +47,20 @@ command -v npm >/dev/null || die "No encuentro npm. Instala Node.js desde nodejs
 PY_MINOR=$(python3 -c 'import sys; print(sys.version_info[1])')
 if (( PY_MINOR < 11 )); then
   die "Necesitas Python 3.11+. Tienes 3.$PY_MINOR — instálalo desde python.org"
+fi
+
+# --- ./start.sh validar: coherencia con datos reales, sin arrancar nada ------
+# Corre scripts/validar_con_datos_reales.py con tus claves y tu caché y deja el
+# informe en backend/data/validacion/validacion_AAAAMMDD.md. Los argumentos que
+# sigan se le pasan tal cual (./start.sh validar NVDA KO --monedas CAD).
+if [[ "${1:-}" == "validar" ]]; then
+  shift
+  [[ -x backend/.venv/bin/python ]] \
+    || die "Primero arranca la app una vez con ./start.sh: crea el entorno de Python."
+  [[ -f .env ]] || die "No hay .env con tus claves: cópialo de .env.example y rellénalo."
+  step "Validando con datos reales (usa tu caché y la cuota de cada proveedor)…"
+  (cd backend && exec .venv/bin/python scripts/validar_con_datos_reales.py --informe "$@")
+  exit $?
 fi
 
 if [[ ! -f .env ]]; then
