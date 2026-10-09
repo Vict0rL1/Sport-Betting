@@ -4,6 +4,16 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Mantenimiento: agentes del proyecto y CI de secretos (2026-10-09)
+
+- **Agentes del proyecto.** `CLAUDE.md` con las reglas comunes, `.claude/settings.json` con reglas
+  `deny` para los comandos que no se ejecutan sin pedirlo y seis agentes en `.claude/agents/`
+  (test-runner, security-reviewer, data-guardian, quant-reviewer, ui-tester, fixer). La revisión
+  del 8 de octubre, entera, en `docs/plans/fixes-review.md`.
+- **gitleaks en la PR.** El job «Secretos» de la PR marcaba como `generic-api-key` la contraseña
+  de pruebas del servidor de e2e con la puerta activa (`scripts/e2e-server.mjs`, lote A). Es
+  pública a propósito: va a la lista de permitidos de `.gitleaks.toml`, como `clave-de-test-…`.
+
 ## Revisión del 8 de octubre · lote E, las pruebas que lo habrían cazado (2026-10-09)
 
 Las pruebas que habrían cazado los defectos de A–D (`docs/plans/fixes-E.md`), cada una pasada
