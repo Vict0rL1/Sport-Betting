@@ -16,8 +16,8 @@ export function Last5({ results, color }: { results: boolean[]; color: string })
           className="inline-flex h-4 w-4 items-center justify-center rounded text-[11px] font-bold"
           style={{
             backgroundColor: w ? color : 'transparent',
-            color: w ? '#0a0f1e' : '#f87171',
-            border: w ? 'none' : '1px solid #f87171',
+            color: w ? '#0a0f1e' : 'var(--status-critical)',
+            border: w ? 'none' : '1px solid var(--status-critical)',
           }}
         >
           {w ? t('det.v') : t('det.d')}
@@ -221,14 +221,14 @@ export function ServeCompare({
             <div key={row.key} className="grid grid-cols-[auto_1fr_auto] items-center gap-2 text-[14px]">
               <span
                 className="w-16 text-right tabular-nums"
-                style={{ color: better === 1 ? P1_COLOR : '#cbd5e1', fontWeight: better === 1 ? 600 : 400 }}
+                style={{ color: better === 1 ? P1_COLOR : 'var(--ink-body)', fontWeight: better === 1 ? 600 : 400 }}
               >
                 {fmt(v1 as number | null, row.suffix)}
               </span>
               <span className="text-center text-(--ink-muted)">{t(row.label)}</span>
               <span
                 className="w-16 tabular-nums"
-                style={{ color: better === 2 ? P2_COLOR : '#cbd5e1', fontWeight: better === 2 ? 600 : 400 }}
+                style={{ color: better === 2 ? P2_COLOR : 'var(--ink-body)', fontWeight: better === 2 ? 600 : 400 }}
               >
                 {fmt(v2 as number | null, row.suffix)}
               </span>

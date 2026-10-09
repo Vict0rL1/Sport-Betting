@@ -33,7 +33,7 @@ export function registerAuthRoutes(runtime: AuthRuntime) {
     app.post<{ Body: { password?: unknown; codigo?: unknown } }>('/login', async (req, reply) => {
       if (!config.activa) return { ok: true, nota: 'la autenticación no está activa en este servidor' };
       if (!featureEncendida('auth.sesiones')) return reply.code(404).send({ error: 'Las sesiones están apagadas (features.json); usa Basic Auth.' });
-      const ip = direccionDe(req);
+      const ip = direccionDe(req, config.produccion);
       const espera = limite.bloqueadaSegundos(ip);
       if (espera > 0) return reply.code(429).header('retry-after', String(espera)).send({ error: `Demasiados intentos. Espera ${espera} s.` });
 

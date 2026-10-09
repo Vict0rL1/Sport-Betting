@@ -2,6 +2,7 @@
 // and delegates to repo (DB reads) and model (predict).
 
 import { featureEncendida } from '../features.ts';
+import { aplicarPublicada } from '../prediction/publicada.ts';
 import { validacionEnVivo } from '../evaluation/validation.ts';
 import { evaluacionEnVivo } from '../evaluation/live.ts';
 import { rendimientoEnVivo } from '../evaluation/betting.ts';
@@ -117,6 +118,8 @@ function describeRow(row: UpcomingRow, withPrediction = true) {
     logPrediction(row, prediction);
     // Y la instantánea pre-partido, si cambió algo (ver prematch/snapshots.ts).
     if (snap) recordSnapshot(snap);
+    // La cabecera es lo publicado (lo mismo que lee Destacados); el cálculo de ahora, aparte.
+    aplicarPublicada('tennis', snap?.matchKey, prediction);
   }
   // Qué versión exacta produjo el número que se enseña (ver versions.ts).
   if (prediction) Object.assign(prediction, { versiones: versionsFor('tennis') });
@@ -528,6 +531,8 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
     baloncesto: versionsFor('basketball'),
     beisbol: versionsFor('baseball'),
     nfl: versionsFor('nfl'),
+    nhl: versionsFor('nhl'),
+    ufc: versionsFor('ufc'),
   }));
 
   // --- la evolución del mercado de un evento (snapshots de la fase 2) ---

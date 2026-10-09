@@ -24,6 +24,7 @@ import { useStake } from '../lib/useStake';
 import { dayChipLabel, groupByDay } from '../lib/format';
 import { RefreshInfo, DataBadge, ShortSlateNote } from './TennisDashboardPartes';
 import { conNodos, localeDe, useI18n } from '../i18n';
+import { conservarDia, contadorDePeticiones } from '../lib/carga';
 
 const bloque = (texto: string, clase = 'rounded bg-(--raised) px-1') => <code className={clase}>{texto}</code>;
 
@@ -39,6 +40,7 @@ export default function TennisDashboard() {
   const [tournamentId, setTournamentId] = useFiltroQuery('torneo');
   const [matches, setMatches] = useState<UpcomingWithPrediction[]>([]);
   const [loading, setLoading] = useState(false);
+  const [peticiones] = useState(contadorDePeticiones);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   // Un jugador abre su página (Fase 5.12).
@@ -103,9 +105,11 @@ export default function TennisDashboard() {
   const [stake, setStake] = useStake();
   // Every price on screen invented by this app rather than fetched — see picks.ts.
   const demoOdds = matches.length > 0 && matches.every((r) => r.match.source === 'fixture');
+  // D8: mientras carga no hay días (o son los de la liga anterior): el ?dia= del enlace se conserva.
   useEffect(() => {
-    if (day && !dayGroups.some((d) => d.key === day)) setDay(null);
-  }, [dayGroups, day]);
+    const sigue = conservarDia(day, dayGroups.map((d) => d.key), loading);
+    if (sigue !== day) setDay(sigue);
+  }, [dayGroups, day, loading]);
 
   const tourTournaments = useMemo(
     () => tournaments.filter((t) => t.tours.includes(tour) && t.hasUpcoming),
@@ -127,12 +131,14 @@ export default function TennisDashboard() {
       setMatches([]);
       return;
     }
+    // D8: cambiar dos veces de liga no deja los partidos de la que contestó tarde.
+    const n = peticiones.nueva();
     setLoading(true);
     api
       .upcoming(tour, tournamentId)
-      .then((m) => setMatches(m))
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoading(false));
+      .then((m) => peticiones.esUltima(n) && setMatches(m))
+      .catch((e) => peticiones.esUltima(n) && setError(String(e)))
+      .finally(() => peticiones.esUltima(n) && setLoading(false));
   }, [tour, tournamentId]);
 
   // Computed once: the collapsed header needs the short version and the expanded
@@ -173,7 +179,7 @@ export default function TennisDashboard() {
         <VacioPorqueNoHayCuotas
           reason={meta?.oddsFallbackReason}
           detail={meta?.oddsFallbackDetail}
-          hasKey={meta?.hasOddsKey ?? false}
+          hasKey={meta ? meta.hasOddsKey : null}
           demoFixtures={meta?.demoFixtures ?? true}
         />
       )}

@@ -13,7 +13,12 @@ export interface EstadoAuth {
   sesiones: boolean;
   sesionId?: number | null;
   usuario?: string;
+  /** No se pudo preguntar (sin red en un arranque en frío): se entra a lo guardado. */
+  sinRed?: boolean;
 }
+
+/** La caché de la API del service worker (public/sw.js): se vacía al salir. */
+export const CACHE_API = 'predictor-api-v1';
 
 export interface SesionVista {
   id: number;
@@ -28,9 +33,15 @@ export interface SesionVista {
 export const EVENTO_AUTH = 'auth:required';
 
 export async function estadoAuth(): Promise<EstadoAuth> {
-  const r = await fetch('/api/auth/me');
-  if (!r.ok) return { auth: false, dentro: true, totp: false, sesiones: false };
-  return (await r.json()) as EstadoAuth;
+  try {
+    const r = await fetch('/api/auth/me');
+    if (!r.ok) return { auth: false, dentro: true, totp: false, sesiones: false };
+    return (await r.json()) as EstadoAuth;
+  } catch {
+    // Sin red (arranque en frío sin conexión): se enseña lo guardado en vez de una pantalla en
+    // blanco. No abre nada: el servidor sigue pidiendo sesión, y al salir la caché se vacía.
+    return { auth: false, dentro: true, totp: false, sesiones: false, sinRed: true };
+  }
 }
 
 export async function entrar(password: string, codigo?: string): Promise<{ ok: true } | { ok: false; error: string; totp?: boolean; espera?: number }> {
@@ -42,6 +53,13 @@ export async function entrar(password: string, codigo?: string): Promise<{ ok: t
 
 export async function salir(): Promise<void> {
   await fetch('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
+  // Lo de esta sesión no se sirve sin conexión en la siguiente (D6).
+  try {
+    if (typeof caches !== 'undefined') await caches.delete(CACHE_API);
+    if (typeof navigator !== 'undefined') navigator.serviceWorker?.controller?.postMessage({ tipo: 'vaciar-api' });
+  } catch {
+    // Sin Cache API (contexto no seguro): no había nada guardado.
+  }
 }
 
 export async function sesiones(): Promise<{ actual: number | null; sesiones: SesionVista[] }> {

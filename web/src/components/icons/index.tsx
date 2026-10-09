@@ -89,6 +89,28 @@ export function NflIcon(p: Props) {
   );
 }
 
+/** Hockey: el stick en diagonal, con su pala, y el disco. */
+export function NhlIcon(p: Props) {
+  return (
+    <Svg {...p}>
+      <path d="M17.5 3.5 9.2 15.8a2 2 0 0 1-1.66.89H4" />
+      <path d="M4 16.7v2.3h3.9a3 3 0 0 0 2.5-1.34l.7-1.06" />
+      <ellipse cx="17" cy="18" rx="3.5" ry="1.6" />
+      <path d="M13.5 18v.9c0 .9 1.57 1.6 3.5 1.6s3.5-.7 3.5-1.6V18" />
+    </Svg>
+  );
+}
+
+/** UFC: el octógono visto desde arriba, con la lona por dentro. */
+export function UfcIcon(p: Props) {
+  return (
+    <Svg {...p}>
+      <path d="M20.87 15.67 L15.67 20.87 L8.33 20.87 L3.13 15.67 L3.13 8.33 L8.33 3.13 L15.67 3.13 L20.87 8.33Z" />
+      <path d="M16.99 14.07 L14.07 16.99 L9.93 16.99 L7.01 14.07 L7.01 9.93 L9.93 7.01 L14.07 7.01 L16.99 9.93Z" strokeOpacity={0.55} />
+    </Svg>
+  );
+}
+
 /** Pelota de tenis: las dos curvas de la costura, una en cada esquina. */
 export function TennisIcon(p: Props) {
   return (
@@ -138,6 +160,8 @@ const POR_DEPORTE: Record<SportId, (p: Props) => ReactNode> = {
   basketball: BasketballIcon,
   baseball: BaseballIcon,
   nfl: NflIcon,
+  nhl: NhlIcon,
+  ufc: UfcIcon,
   tennis: TennisIcon,
   bets: TicketIcon,
   trust: ShieldCheckIcon,
@@ -154,12 +178,16 @@ const POR_NOMBRE: Record<string, SportId> = {
   'Baloncesto': 'basketball',
   'Béisbol': 'baseball',
   NFL: 'nfl',
+  NHL: 'nhl',
+  UFC: 'ufc',
   'Tenis': 'tennis',
   tennis: 'tennis',
   football: 'football',
   basketball: 'basketball',
   baseball: 'baseball',
   nfl: 'nfl',
+  nhl: 'nhl',
+  ufc: 'ufc',
 };
 export const sportIdDe = (nombre: string): SportId | null => POR_NOMBRE[nombre] ?? null;
 
@@ -324,7 +352,7 @@ export function Verdict({ ok, okText, koText }: { ok: boolean; okText?: string; 
 
 /** Marca pequeña de estado en línea con el texto (✓ / ⚠ / ?). */
 export function StatusMark({ estado, color, size = 14 }: { estado: 'ok' | 'aviso' | 'desconocido' | 'error'; color?: string; size?: number }) {
-  const c = color ?? (estado === 'ok' ? '#199e70' : estado === 'aviso' ? '#d9a441' : estado === 'error' ? '#e66767' : 'var(--ink-muted)');
+  const c = color ?? (estado === 'ok' ? 'var(--status-good)' : estado === 'aviso' ? 'var(--status-warning)' : estado === 'error' ? 'var(--status-critical)' : 'var(--ink-muted)');
   const I = estado === 'ok' ? CheckIcon : estado === 'aviso' ? AlertIcon : estado === 'error' ? CrossIcon : UnknownIcon;
   return (
     <span className="relative top-[2px] mr-1 inline-flex" style={{ color: c }}>
