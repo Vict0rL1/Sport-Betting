@@ -88,6 +88,19 @@ function ActionChip({ decision }: { decision: Decision }) {
   )
 }
 
+/**
+ * Dónde queda el stop respecto al precio de hoy, con signo: negativo = por
+ * debajo. En una idea nueva el backend manda la distancia en positivo y la
+ * tarjeta pintaba «+12,8 %» en rojo, mientras el disparador decía «Salir si
+ * cierra bajo X (-12,8 %)» (revisión de la Fase 1). Sobre una posición ya
+ * viene con signo, y un positivo es un stop perforado: no se toca.
+ */
+export function distanciaAlStop(decision: Decision): number | null {
+  const pct = decision.levels?.stop_pct
+  if (pct === null || pct === undefined) return null
+  return decision.owned ? pct : -pct
+}
+
 /** El plan completo: por qué, a qué precio, y cuándo salir. */
 function DecisionPlan({ decision, symbol }: { decision: Decision; symbol?: string }) {
   const { levels } = decision
@@ -132,7 +145,7 @@ function DecisionPlan({ decision, symbol }: { decision: Decision; symbol?: strin
             <div className="text-sm tabular-nums text-red-600">
               {fmtNum(levels.stop, 2)}{' '}
               <span className="text-xs text-slate-400">
-                {fmtPct(levels.stop_pct, 1, { signo: true, enPuntos: true })}
+                {fmtPct(distanciaAlStop(decision), 1, { signo: true, enPuntos: true })}
               </span>
             </div>
           </div>

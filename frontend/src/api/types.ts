@@ -659,7 +659,10 @@ export interface DecisionLevels {
   entrada_desde: number | null
   entrada_hasta: number | null
   stop: number
-  /** Distancia del stop **desde el precio de hoy**. Positiva = ya perforado. */
+  /** OJO, dos convenios (el golden congela los dos): en una idea nueva es la
+   *  DISTANCIA hasta el stop, siempre positiva (12,8 = un 12,8 % por debajo);
+   *  sobre una posición (`owned`) va con signo desde el precio de hoy, y positiva
+   *  = ya perforado. Para enseñarla, `distanciaAlStop()` (TodayPage). */
   stop_pct: number
   objetivo: number
   objetivo_pct: number
