@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { CalidadBeneficios, EvidenciaCalidad, Linaje } from '../../api/types'
 import { etiqueta } from '../../lib/etiquetas'
-import { fmtNum, fmtPct } from '../../lib/formato'
+import { fmtCompacto, fmtNum, fmtPct } from '../../lib/formato'
 
 const ESTADO: Record<string, string> = {
   bueno: 'bg-emerald-100 text-emerald-800',
@@ -23,7 +23,7 @@ function Entrada({ nombre, e }: { nombre: string; e: Linaje }) {
   return (
     <li className="text-[11px] text-slate-500">
       <span className="text-slate-700">{etiqueta(nombre, { mayuscula: true })}:</span>{' '}
-      {e.valor === null ? 'desconocido' : Math.abs(e.valor) >= 1e5 ? `${fmtNum(e.valor / 1e6, 1)} M` : fmtNum(e.valor, 2)}
+      {e.valor === null ? 'desconocido' : fmtCompacto(e.valor)}
       {e.formulario && (
         <span className="ml-1 text-slate-400">
           · {e.formulario} {e.accn} · publicado {e.publicado} · {e.etiqueta}

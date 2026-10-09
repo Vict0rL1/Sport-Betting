@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { CalibracionExpectativas, EventoCatalizador, LecturaEvento } from '../../api/types'
 import { etiqueta } from '../../lib/etiquetas'
-import { fmtNum, fmtPct, plural } from '../../lib/formato'
+import { fmtCompacto, fmtNum, fmtPct, plural } from '../../lib/formato'
 
 const FUENTE: Record<string, string> = {
   consenso: 'Consenso (Finnhub)',
@@ -30,7 +30,7 @@ const CLASIFICACION: Record<string, string> = {
 function cifra(v: number | null | undefined, unidad: string | null): string {
   if (v === null || v === undefined) return '—'
   if (unidad === 'fracción') return fmtPct(v, 1)
-  if (unidad === 'USD' && Math.abs(v) >= 1e5) return `${fmtNum(v / 1e6, 1)} M`
+  if (unidad === 'USD') return fmtCompacto(v)
   return fmtNum(v, 2)
 }
 

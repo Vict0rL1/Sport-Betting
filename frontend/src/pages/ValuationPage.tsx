@@ -9,7 +9,7 @@ import type {
   Valoracion,
   WatchlistItem,
 } from '../api/types'
-import { fmtNum, fmtPct, valorDeCampo } from '../lib/formato'
+import { fmtCompacto, fmtNum, fmtPct, valorDeCampo } from '../lib/formato'
 import { Ventana } from '../components/Ventana'
 
 const ESCENARIOS = ['bajista', 'base', 'alcista'] as const
@@ -552,19 +552,9 @@ export function ValuationPage() {
             </h3>
             <dl className="mt-2 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               {[
-                ['FCF de partida', fmtNum(data.entradas.base_fcf / 1e6, 0) + ' M'],
-                [
-                  'Deuda neta',
-                  fmtNum(data.entradas.net_debt / 1e6, 0) +
-                    ' M' +
-                    (data.entradas.deuda_parcial ? ' (parcial)' : ''),
-                ],
-                [
-                  'Acciones',
-                  data.entradas.shares_outstanding
-                    ? fmtNum(data.entradas.shares_outstanding / 1e6, 0) + ' M'
-                    : '—',
-                ],
+                ['FCF de partida', fmtCompacto(data.entradas.base_fcf)],
+                ['Deuda neta', fmtCompacto(data.entradas.net_debt) + (data.entradas.deuda_parcial ? ' (parcial)' : '')],
+                ['Acciones', fmtCompacto(data.entradas.shares_outstanding)],
                 ['Ejercicio', String(data.entradas.fiscal_year ?? '—')],
               ].map(([k, v]) => (
                 <div key={k}>

@@ -57,6 +57,12 @@ export default tseslint.config(
           selector: "CallExpression[callee.property.name=/^replace(All)?$/][arguments.0.regex.pattern='_']",
           message: 'Un código se enseña con etiqueta() (lib/etiquetas.ts); si no tiene etiqueta, añádela en backend/app/etiquetas.py.',
         },
+        // `fmtNum(x / 1e6, 1) + ' M'` es fmtCompacto a medias: sin «mil M», con espacio
+        // normal y, con un dato ausente, «0 M» (null / 1e6 vale 0 en JS).
+        {
+          selector: "BinaryExpression[operator='/'][right.type='Literal'][right.value>=100000]",
+          message: 'Una cifra en M o mil M se escribe con fmtCompacto (lib/formato.ts).',
+        },
         // `${fmtNum(x, 1)} %` escribe un espacio normal: el «%» puede caer solo
         // en la línea siguiente (revisión de la Fase 1, 23 sitios).
         {

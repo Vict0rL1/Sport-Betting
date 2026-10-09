@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { AnalisisEmpresaResponse, CambioMetrica, CosteOportunidad, RiesgoEnCartera } from '../../api/types'
 import { etiqueta } from '../../lib/etiquetas'
-import { fmtFecha, fmtNum, fmtPct, plural } from '../../lib/formato'
+import { fmtCompacto, fmtFecha, fmtNum, fmtPct, plural } from '../../lib/formato'
 import { DecisionExplicada } from '../DecisionExplicada'
 import { BloqueIA, BotonIA } from '../ia/ContenidoIA'
 
@@ -23,7 +23,7 @@ function fmtValor(v: number | string | null | undefined, unidad?: string): strin
   if (v === null || v === undefined) return 'desconocido'
   if (typeof v === 'string') return v
   if (unidad === 'fracción') return fmtPct(v, 1)
-  if (unidad === 'USD') return fmtNum(v / 1e6, 1) + ' M'
+  if (unidad === 'USD') return fmtCompacto(v)
   return fmtNum(v, 2)
 }
 
