@@ -41,6 +41,10 @@ PATRONES = {
     # Un decimal con punto inglés («31.2 %», «EPS estimado 0.52», V4). No toca
     # el punto de miles es-ES («6.000», «1.234.567»): ahí siempre siguen tres cifras.
     "decimal_punto": re.compile(r"(?<![\w.,])(?:0\.\d+|\d+\.\d{1,2}|\d+\.\d{4,})(?![\w.,]?\d)"),
+    # «+1 sobre 1 evaluables» (revisión de la Fase 1, V7): un 1 suelto con el
+    # sustantivo en plural. Las palabras que acaban en «s» en singular, aparte.
+    "uno_plural": re.compile(r"(?<![\w.,])1 (?!(?:es|más|menos|mes|análisis|tesis|crisis|después|antes)\b)"
+                             r"[a-záéíóúñ]+s\b"),
 }
 
 # Legítimos para siempre: notación matemática y nombres de variables de
@@ -110,17 +114,20 @@ def test_las_fugas_pendientes_siguen_existiendo(fugas):
     ("un 31.2 % de la cartera", "decimal_punto"), ("EPS estimado 0.52", "decimal_punto"),
     ("margen = 0.210", "decimal_punto"), ("Vender si cierra por debajo de 90.0", "decimal_punto"),
     ("el tipo sale 0.7299", "decimal_punto"), ("1.3701 CAD", "decimal_punto"),
+    ("+1 sobre 1 evaluables", "uno_plural"), ("Q1 tiene 1 resultados", "uno_plural"),
 ])
 def test_los_patrones_detectan_cada_familia(texto, tipo):
     assert PATRONES[tipo].search(texto)
 
 
 @pytest.mark.parametrize("texto", ["-0,5 %", "−0,03", "2026-09-03", "10-0", "S&P 500", "Euler: σ_p",
-                                   "6.000,00", "1.234.567,89", "20.000", "RY.TO", "BRK.B", "v1.2", "3.400 mil M"])
+                                   "6.000,00", "1.234.567,89", "20.000", "RY.TO", "BRK.B", "v1.2", "3.400 mil M",
+                                   "1 de 9 señales", "solo 1 es", "1 mes", "0,1 años", "2021 años", "Q1 ventas"])
 def test_los_patrones_no_confunden_texto_legitimo(texto):
     assert not PATRONES["menos_cero"].search(texto)
     assert not PATRONES["vacio"].search(texto)
     assert not PATRONES["decimal_punto"].search(texto)
+    assert not PATRONES["uno_plural"].search(texto)
 
 
 if __name__ == "__main__":

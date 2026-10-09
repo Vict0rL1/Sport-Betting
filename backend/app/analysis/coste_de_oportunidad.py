@@ -29,7 +29,7 @@ import math
 
 from app import datos
 from app.etiquetas import etiqueta
-from app.formato import fmt_pct
+from app.formato import fmt_pct, plural
 
 NO_ACCION = "NO_ACCION"
 COMPRAR_CON_EFECTIVO = "COMPRAR_CON_EFECTIVO"
@@ -246,7 +246,8 @@ def evaluar(
         fila["mejora_requerida"] = requerida
         dias = p.get("dias_en_cartera")
         if dias is not None and dias < TENENCIA_MINIMA_DIAS:
-            fila["elegible"], fila["motivo"] = False, f"tenencia mínima: comprada hace {dias} días (< {TENENCIA_MINIMA_DIAS})"
+            cuando = "hoy" if dias == 0 else f"hace {dias} {plural(dias, 'día', 'días')}"
+            fila["elegible"], fila["motivo"] = False, f"tenencia mínima: comprada {cuando} (< {TENENCIA_MINIMA_DIAS})"
         elif fila["atractivo"]["desconocidos"] and len(fila["atractivo"]["desconocidos"]) >= 3:
             fila["elegible"], fila["motivo"] = False, (
                 "casi todo desconocido: no se puede comparar con honestidad"
@@ -283,7 +284,8 @@ def _veredicto(candidata: dict, revisables: list[dict], necesidad: float | None)
             "accion": REVISAR,
             "revisar": mejor["symbol"],
             "motivo": (
-                f"{mejor['symbol']} queda {mejor['mejora']} puntos por debajo de {candidata.get('symbol')} "
+                f"{mejor['symbol']} queda {mejor['mejora']} {plural(mejor['mejora'], 'punto', 'puntos')} por debajo de "
+                f"{candidata.get('symbol')} "
                 f"(mínimo exigido {mejor['mejora_requerida']}, con costes incluidos). Es candidata a REVISIÓN, "
                 "no una orden de venta: relee su tesis antes."
             ),
@@ -295,7 +297,8 @@ def _veredicto(candidata: dict, revisables: list[dict], necesidad: float | None)
     return {
         "accion": NO_TRADE,
         "motivo": (
-            f"La mejor alternativa ({mejor['symbol']}) solo mejora {mejor['mejora']} puntos y hacen falta "
+            f"La mejor alternativa ({mejor['symbol']}) solo mejora {mejor['mejora']} "
+            f"{plural(mejor['mejora'], 'punto', 'puntos')} y hacen falta "
             f"{mejor['mejora_requerida']} con costes: la idea no supera lo que ya tienes por lo suficiente "
             "como para pagar el cambio."
         ),

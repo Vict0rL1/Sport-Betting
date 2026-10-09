@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ScenarioRecord, ThesisRecord, TrackRecord } from '../api/types'
 import { etiqueta } from '../lib/etiquetas'
-import { fmtFecha, fmtNum, fmtPct } from '../lib/formato'
+import { fmtAntiguedad, fmtFecha, fmtNum, fmtPct } from '../lib/formato'
 
 
 function OutcomeChip({ scenario }: { scenario: ScenarioRecord }) {
@@ -239,7 +239,7 @@ export function ThesesPage() {
                   <span className="ml-2 font-normal">{thesis.title}</span>
                 </h2>
                 <div className="text-xs text-slate-400">
-                  Escrita el {fmtFecha(thesis.created_at, { hora: true })} · hace {thesis.days_elapsed} días
+                  Escrita el {fmtFecha(thesis.created_at, { hora: true })} · {fmtAntiguedad(thesis.created_at)}
                   {thesis.current_price !== null && ` · precio hoy ${fmtNum(thesis.current_price)}`}
                 </div>
               </div>

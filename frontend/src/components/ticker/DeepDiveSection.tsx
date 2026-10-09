@@ -6,7 +6,7 @@ import type {
   MultipleStats,
 } from '../../api/types'
 import { etiqueta } from '../../lib/etiquetas'
-import { fmtCompacto, fmtNum, fmtPct } from '../../lib/formato'
+import { fmtCompacto, fmtNum, fmtPct, plural } from '../../lib/formato'
 import { useLlmStatus } from '../../lib/llm'
 import { BloqueIA, BotonIA } from '../ia/ContenidoIA'
 import { DeudaParcial } from './DeudaParcial'
@@ -92,7 +92,7 @@ function ValuationBlock({ report }: { report: DeepDiveReport }) {
                 <span>
                   mín {key === 'fcf_yield' ? fmtPct(stats.min) : fmtNum(stats.min)}
                 </span>
-                <span>{stats.n} observaciones · {report.valuation.years_covered} años</span>
+                <span>{stats.n} {plural(stats.n, 'observación', 'observaciones')} · {report.valuation.years_covered} {plural(report.valuation.years_covered, 'año', 'años')}</span>
                 <span>
                   máx {key === 'fcf_yield' ? fmtPct(stats.max) : fmtNum(stats.max)}
                 </span>

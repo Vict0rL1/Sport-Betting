@@ -54,6 +54,9 @@ export const PATRONES: Record<string, RegExp> = {
   // Un decimal con punto inglés («31.2 %», «EPS estimado 0.52», V4); no toca el
   // punto de miles es-ES («6.000», «1.234.567»), al que siempre siguen tres cifras.
   decimal_punto: /(?<![\w.,])(?:0\.\d+|\d+\.\d{1,2}|\d+\.\d{4,})(?![\w.,]?\d)/g,
+  // «+1 sobre 1 evaluables» (revisión de la Fase 1, V7): un 1 suelto con el
+  // sustantivo en plural. Las palabras que acaban en «s» en singular, aparte.
+  uno_plural: /(?<![\w.,])1 (?!(?:es|más|menos|mes|análisis|tesis|crisis|después|antes)(?![\wáéíóúñ]))[a-záéíóúñ]+s(?![\wáéíóúñ])/g,
 }
 
 // Legítimos para siempre (los mismos que en el backend).

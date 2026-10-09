@@ -50,3 +50,30 @@ def test_posicion_es_tiene_plural_de_verdad():
 def test_plural():
     assert (plural(1, "punto", "puntos"), plural(0, "punto", "puntos"), plural(2, "punto", "puntos")) == (
         "punto", "puntos", "puntos")
+
+
+def test_los_recuentos_que_encontro_la_revision_de_la_fase_1():
+    """«1 empresas cumplen», «hace 1 días», «1 minutos», «1 vez/veces» y
+    «publicado hace None días»: recuentos sin `plural()` que quedaron fuera de 1.9."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.analysis import alertas, confianza, experiments, shortlist
+
+    assert shortlist._nota(1, 5, 2) == "1 empresa cumple las condiciones y cabe en la lista corta."
+    assert "aquí está la de mayor convicción" in shortlist._nota(3, 1, 2)
+    assert alertas._hace(timedelta(seconds=100)) == "1 minuto"
+    abierto = experiments.abrir_holdout("SI, QUEMAR EL HOLDOUT", 1)
+    assert "se abrió 1 vez." in str(abierto)
+
+    ahora = datetime(2026, 9, 12, 14, 35, tzinfo=timezone.utc)
+
+    def frescura(fund):
+        r = confianza.evaluar({"fundamentales": fund}, ahora)
+        return next(f for f in r["factores"] if f["id"] == "frescura_fundamentales")["detalle"]
+
+    assert frescura({"trimestre": {"publicado": "2026-09-11", "periodo": "2026-Q2"}}) == (
+        "último trimestre (2026-Q2) publicado hace 1 día")
+    assert frescura({"trimestre": {"publicado": "2026-09-12"}}) == "último trimestre publicado hoy"
+    assert frescura({"trimestre": {"publicado": "ayer"}}) == (
+        "último trimestre publicado en una fecha que no se pudo leer")
+    assert "None" not in frescura({"publicado": "2026-01-01"})

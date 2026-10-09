@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { CalidadBeneficios, EvidenciaCalidad, Linaje } from '../../api/types'
 import { etiqueta } from '../../lib/etiquetas'
-import { fmtCompacto, fmtNum, fmtPct } from '../../lib/formato'
+import { fmtCompacto, fmtNum, fmtPct, plural } from '../../lib/formato'
 
 const ESTADO: Record<string, string> = {
   bueno: 'bg-emerald-100 text-emerald-800',
@@ -84,7 +84,7 @@ export function CalidadSection({ symbol }: { symbol: string }) {
           </h2>
           {datos.puntuacion && (
             <span className="text-[11px] text-slate-400">
-              Secundaria: {fmtNum(datos.puntuacion.valor, 2, { signo: true, ceros: false })} sobre {datos.puntuacion.evaluables} evaluables ({datos.puntuacion.regla})
+              Secundaria: {fmtNum(datos.puntuacion.valor, 2, { signo: true, ceros: false })} sobre {datos.puntuacion.evaluables} {plural(datos.puntuacion.evaluables, 'evaluable', 'evaluables')} ({datos.puntuacion.regla})
             </span>
           )}
         </div>

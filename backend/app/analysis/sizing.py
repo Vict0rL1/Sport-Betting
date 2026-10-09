@@ -389,7 +389,7 @@ def dimensionar(
                 None
                 if completo
                 else (
-                    f"Solo se pudieron medir {medidas} de {posibles} parejas: el tope "
+                    f"Solo se pudieron medir {medidas} de {posibles} {plural(posibles, 'pareja', 'parejas')}: el tope "
                     f"por correlación NO se ha comprobado del todo. «Sin clusters» "
                     "aquí no significa que nada se mueva junto, significa que no se "
                     "ha podido mirar. Hacen falta al menos 20 retornos comunes por "

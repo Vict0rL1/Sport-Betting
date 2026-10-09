@@ -319,7 +319,7 @@ function Decision({ d }: { d: DecisionRegistrada }) {
         </span>
         <span className="font-medium text-slate-800">{d.symbol}</span>
         <span className="text-xs text-slate-400">
-          {fmtAntiguedad(d.created_at)} · hace {d.days_elapsed} días
+          {fmtAntiguedad(d.created_at)}
         </span>
         {d.price_at_decision !== null && (
           <span className="ml-auto text-xs tabular-nums text-slate-500">

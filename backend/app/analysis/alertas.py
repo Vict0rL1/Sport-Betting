@@ -332,7 +332,7 @@ def _hace(delta: timedelta) -> str:
         return "menos de un minuto" if segundos < 60 else "un minuto"
     minutos = segundos // 60
     if minutos < 60:
-        return f"{minutos} minutos"
+        return f"{minutos} {plural(minutos, 'minuto', 'minutos')}"
     horas = minutos // 60
     if horas < 48:
         return "una hora" if horas == 1 else f"{horas} horas"

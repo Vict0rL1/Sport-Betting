@@ -7,6 +7,8 @@
  * falsa se compara con otras que sí significan lo que dicen. El backend manda la
  * ventana usada (`years`); esto la enseña y avisa cuando no llega a la completa.
  */
+import { plural } from '../lib/formato'
+
 export const VENTANA_NOMINAL = 5
 
 export function Ventana({ anos, nominal = VENTANA_NOMINAL }: { anos: number; nominal?: number }) {
@@ -16,7 +18,7 @@ export function Ventana({ anos, nominal = VENTANA_NOMINAL }: { anos: number; nom
     <span
       title={
         parcial
-          ? `Solo hay ${anos === 1 ? '1 año' : `${anos} años`} de historia; la ventana completa es de ${nominal}.`
+          ? `Solo hay ${anos} ${plural(anos, 'año', 'años')} de historia; la ventana completa es de ${nominal}.`
           : undefined
       }
     >

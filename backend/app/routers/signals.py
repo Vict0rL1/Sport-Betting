@@ -1397,8 +1397,9 @@ def _rule_verdict(resultado: dict, sin_filtro: dict) -> str:
             )
 
     partes.append(
-        f"Racha perdedora más larga: {resultado['racha_perdedora']} operaciones "
-        "seguidas. Si no aguantarías eso, el sistema no es para ti aunque gane."
+        f"Racha perdedora más larga: {resultado['racha_perdedora']} "
+        f"{plural(resultado['racha_perdedora'], 'operación seguida', 'operaciones seguidas')}. "
+        "Si no aguantarías eso, el sistema no es para ti aunque gane."
     )
     return " ".join(partes)
 

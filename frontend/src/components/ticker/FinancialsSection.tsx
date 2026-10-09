@@ -70,10 +70,12 @@ export function FinancialsSection({ symbol }: { symbol: string }) {
             <b className="tabular-nums">{fmtPct(data.growth.revenue_cagr)}</b>
           </span>
           <span>
-            CAGR BPA: <b className="tabular-nums">{fmtPct(data.growth.eps_cagr)}</b>
+            CAGR BPA <Ventana anos={data.growth.years} />:{' '}
+            <b className="tabular-nums">{fmtPct(data.growth.eps_cagr)}</b>
           </span>
           <span>
-            CAGR FCF: <b className="tabular-nums">{fmtPct(data.growth.fcf_cagr)}</b>
+            CAGR FCF <Ventana anos={data.growth.years} />:{' '}
+            <b className="tabular-nums">{fmtPct(data.growth.fcf_cagr)}</b>
           </span>
         </div>
         <div className="overflow-x-auto">

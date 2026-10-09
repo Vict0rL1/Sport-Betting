@@ -13,7 +13,7 @@ import type {
   TodayResponse,
 } from '../api/types'
 import { etiqueta } from '../lib/etiquetas'
-import { fmtAntiguedad, fmtNum, fmtPct } from '../lib/formato'
+import { fmtAntiguedad, fmtNum, fmtPct, plural } from '../lib/formato'
 import { coord } from '../lib/svg'
 
 type View = 'ideas' | 'comprar' | 'vigilar' | 'cartera' | 'todas'
@@ -909,12 +909,10 @@ export function TodayPage() {
           <p className="mt-0.5 max-w-3xl text-sm leading-snug text-slate-500">
             {data
               ? [
-                  `${data.shortlist?.ideas.length ?? 0} ${
-                    (data.shortlist?.ideas.length ?? 0) === 1 ? 'idea' : 'ideas'
-                  } de compra`,
+                  `${data.shortlist?.ideas.length ?? 0} ${plural(data.shortlist?.ideas.length ?? 0, 'idea', 'ideas')} de compra`,
                   acciones.vender > 0 ? `${acciones.vender} para vender` : null,
                   acciones.cartera > 0 ? `${acciones.cartera} en cartera` : null,
-                  `${data.scored} empresas puntuadas`,
+                  `${data.scored} ${plural(data.scored, 'empresa puntuada', 'empresas puntuadas')}`,
                 ]
                   .filter(Boolean)
                   .join(' · ')
@@ -1197,11 +1195,10 @@ export function TodayPage() {
                   onClick={() => setView('todas')}
                   className="mr-2 font-medium text-sky-700 hover:underline"
                 >
-                  {encontradoFuera} coincidencia
-                  {encontradoFuera === 1 ? '' : 's'} más en otras vistas — ver todas
+                  {encontradoFuera} {plural(encontradoFuera, 'coincidencia', 'coincidencias')} más en otras vistas — ver todas
                 </button>
               )}
-              {data.scored} empresas puntuadas de {data.requested}
+              {data.scored} {plural(data.scored, 'empresa puntuada', 'empresas puntuadas')} de {data.requested}
               {data.data_meta && 'retrieved_at' in data.data_meta
                 ? ` · universo actualizado el ${data.data_meta.retrieved_at}`
                 : ''}

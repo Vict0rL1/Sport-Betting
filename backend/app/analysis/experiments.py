@@ -31,7 +31,7 @@ from __future__ import annotations
 import math
 from datetime import date, timedelta
 from statistics import NormalDist
-from app.formato import fmt_num, fmt_pct
+from app.formato import fmt_num, fmt_pct, plural
 
 # Fracción final del periodo que queda reservada e intocable.
 FRACCION_HOLDOUT = 0.30
@@ -170,7 +170,7 @@ def abrir_holdout(confirmacion: str, veces_abierto: int) -> dict:
             "de ahora el holdout está quemado — cualquier decisión que tomes "
             "viéndolo lo convierte en otro conjunto de desarrollo."
             if veces_abierto == 0
-            else f"El holdout ya se abrió {veces_abierto} vez/veces. Este "
+            else f"El holdout ya se abrió {veces_abierto} {plural(veces_abierto, 'vez', 'veces')}. Este "
             "resultado NO es fuera de muestra: ya has ajustado mirándolo, aunque "
             "haya sido sin querer. Trátalo como desarrollo."
         ),
@@ -431,7 +431,7 @@ def historial(session) -> dict:
             + (
                 ""
                 if aperturas == 0
-                else f" ATENCIÓN: el holdout se ha abierto {aperturas} vez/veces; "
+                else f" ATENCIÓN: el holdout se ha abierto {aperturas} {plural(aperturas, 'vez', 'veces')}; "
                 "a partir de la primera dejó de ser fuera de muestra."
             )
         ),

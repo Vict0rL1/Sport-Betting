@@ -63,6 +63,13 @@ def _dias(desde, hasta: datetime) -> int | None:
     return (hasta.date() - d).days
 
 
+def _hace(dias: int | None) -> str:
+    """«hace 1 día», «hoy». Sin fecha legible se dice: antes salía «hace None días»."""
+    if dias is None:
+        return "en una fecha que no se pudo leer"
+    return "hoy" if dias == 0 else f"hace {dias} {plural(dias, 'día', 'días')}"
+
+
 def evaluar(analisis: dict, ahora: datetime) -> dict:
     a = analisis
     factores = []
@@ -91,11 +98,13 @@ def evaluar(analisis: dict, ahora: datetime) -> dict:
     if tri.get("publicado"):
         dias = _dias(tri["publicado"], ahora)
         est = DESCONOCIDO if dias is None else OK if dias <= DIAS_TRIMESTRE_VIEJO else DEBIL
-        det = f"último trimestre ({tri.get('periodo')}) publicado hace {dias} días"
+        periodo = f" ({tri['periodo']})" if tri.get("periodo") else ""
+        det = f"último trimestre{periodo} publicado {_hace(dias)}"
     elif fund.get("publicado"):
         dias = _dias(fund["publicado"], ahora)
         est = DESCONOCIDO if dias is None else OK if dias <= DIAS_EJERCICIO_VIEJO else DEBIL
-        det = f"solo el ejercicio {fund.get('ejercicio')}, publicado hace {dias} días; sin trimestres"
+        cual = f"el ejercicio {fund['ejercicio']}" if fund.get("ejercicio") is not None else "un ejercicio sin año"
+        det = f"solo {cual}, publicado {_hace(dias)}; sin trimestres"
     else:
         est, det = DESCONOCIDO, "sin fecha de publicación de los fundamentales"
     factores.append(_f("frescura_fundamentales", "Antigüedad de los fundamentales", est, det))

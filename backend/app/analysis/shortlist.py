@@ -28,6 +28,8 @@ que evita que la lista corta concentre todo el riesgo en un sitio.
 
 from __future__ import annotations
 
+from app.formato import plural
+
 FACTORES_CLAVE = ("value", "quality", "momentum")
 
 MAX_IDEAS = 5
@@ -220,11 +222,12 @@ def _nota(candidatas: int, elegidas: int, max_sector: int) -> str:
         )
     if candidatas <= elegidas:
         return (
-            f"{candidatas} empresas cumplen las condiciones y caben todas en la "
-            "lista corta."
+            f"{candidatas} {plural(candidatas, 'empresa cumple', 'empresas cumplen')} las condiciones y "
+            f"{plural(candidatas, 'cabe', 'caben todas')} en la lista corta."
         )
     return (
-        f"{candidatas} empresas cumplen las condiciones de compra; aquí están las "
-        f"{elegidas} de mayor convicción, con un máximo de {max_sector} por sector. "
+        f"{candidatas} empresas cumplen las condiciones de compra; aquí "
+        f"{plural(elegidas, 'está la de', f'están las {elegidas} de')} mayor convicción, con un máximo de "
+        f"{max_sector} por sector. "
         "Las demás siguen en «Comprar»: no se han descartado, se han ordenado."
     )

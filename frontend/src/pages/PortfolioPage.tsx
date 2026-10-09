@@ -80,7 +80,9 @@ function EstresPanel({ estres }: { estres: Estres }) {
             Histórico usado
           </dt>
           <dd className="text-lg font-semibold tabular-nums text-slate-800">
-            {fmtNum(estres.años_cubiertos, 1, { ceros: false })} años
+            {estres.años_cubiertos == null
+              ? '—'
+              : `${fmtNum(estres.años_cubiertos, 1, { ceros: false })} ${plural(estres.años_cubiertos, 'año', 'años')}`}
           </dd>
           <dd className="text-[11px] text-slate-400">{estres.cobertura}</dd>
         </div>
