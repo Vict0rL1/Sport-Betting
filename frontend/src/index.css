@@ -110,6 +110,10 @@
   --info: #38bdf8;
   --ai: #c4b5fd;
   --ai-bg: #1e1533;
+
+  /* Una serie calculada más en un gráfico (SMA 200, RSI). Antes usaban --ai, y
+     el violeta es la marca de lo generado por IA (§3): lo calculado no la lleva. */
+  --indicador: #e2e8f0;
 }
 
 body {

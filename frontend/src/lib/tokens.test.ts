@@ -27,14 +27,26 @@ export function contraste(a: string, b: string): number {
 }
 
 const SUPERFICIES = ['surface-page', 'surface-card', 'surface-sunken']
-const TEXTOS = ['text-muted', 'text', 'text-strong', 'buy', 'sell', 'warn', 'info', 'ai']
+const TEXTOS = ['text-muted', 'text', 'text-strong', 'buy', 'sell', 'warn', 'info', 'ai', 'indicador']
 // Los tintes de fondo se usan con su propio color de texto encima.
 const PAREJAS: [string, string][] = [
   ['warn', 'warn-bg'],
   ['ai', 'ai-bg'],
   ['text-strong', 'warn-bg'],
   ['text-strong', 'ai-bg'],
+  // El cuerpo de un bloque de IA (BloqueIA) es texto normal sobre su tinte.
+  ['text', 'ai-bg'],
 ]
+
+// El violeta de la IA marca lo generado por IA (§3); el SMA 200 y el RSI lo
+// usaban siendo cálculos (revisión de la Fase 1). Solo lo pinta esto:
+const PUEDEN_USAR_IA = ['../components/ia/ContenidoIA.tsx', '../components/ApiUsageBar.tsx']
+const FUENTES = import.meta.glob(['../**/*.{ts,tsx}', '!../**/*.test.{ts,tsx}', '!../lib/tokens.ts'], {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+}) as Record<string, string>
+const USO_IA = /(?:token:\s*|leerToken\(|\bc\()\s*['"]ai(?:-bg)?['"]|--ai\b/
 
 describe('tokens de color', () => {
   const v = valores()
@@ -55,6 +67,12 @@ describe('tokens de color', () => {
       if (c < 4.5) malos.push(`${t} sobre ${s}: ${c.toFixed(2)}:1`)
     }
     expect(malos).toEqual([])
+  })
+
+  it('el color de la IA solo lo usa lo generado por IA', () => {
+    expect(Object.keys(FUENTES).length).toBeGreaterThan(40) // que el glob ve el código
+    const usos = Object.entries(FUENTES).filter(([f, src]) => !PUEDEN_USAR_IA.includes(f) && USO_IA.test(src))
+    expect(usos.map(([f]) => f)).toEqual([])
   })
 
   it('la medida de contraste es la de WCAG', () => {

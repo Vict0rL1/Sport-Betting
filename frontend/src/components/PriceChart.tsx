@@ -41,11 +41,11 @@ const RSI_SOBREVENTA = 30
 const SMA_STYLES = [
   { key: 'sma20', token: 'info', label: 'SMA 20' },
   { key: 'sma50', token: 'warn', label: 'SMA 50' },
-  { key: 'sma200', token: 'ai', label: 'SMA 200' },
+  { key: 'sma200', token: 'indicador', label: 'SMA 200' },
 ] as const satisfies readonly { key: string; token: Token; label: string }[]
 
 const LEYENDA_INDICADORES: { token: Token; label: string }[] = [
-  { token: 'ai', label: 'RSI 14 (70/30)' },
+  { token: 'indicador', label: 'RSI 14 (70/30)' },
   { token: 'info', label: 'MACD' },
   { token: 'warn', label: 'señal' },
 ]
@@ -146,7 +146,7 @@ export function PriceChart({ history }: { history: History }) {
     if (rsi.length > 0) {
       const serie = chart.addSeries(
         LineSeries,
-        { color: c('ai'), lineWidth: 1, priceLineVisible: false, lastValueVisible: false },
+        { color: c('indicador'), lineWidth: 1, priceLineVisible: false, lastValueVisible: false },
         panel,
       )
       serie.setData(rsi)

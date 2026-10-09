@@ -18,6 +18,7 @@ export const TOKENS = [
   'info',
   'ai',
   'ai-bg',
+  'indicador',
 ] as const
 
 export type Token = (typeof TOKENS)[number]
