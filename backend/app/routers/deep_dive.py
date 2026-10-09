@@ -56,6 +56,14 @@ para que la tesis alcista funcione y qué la rompería.
 
 
 
+def _piotroski(f: dict | None) -> str:
+    """«7/9»; sin puntuación, «sin datos» (el prompt decía «None/9» y «zona None»)."""
+    f = f or {}
+    if f.get("score") is None:
+        return "sin datos"
+    return f"{f['score']}/{f.get('max_possible', 9)}"
+
+
 def _safe(service: MarketDataService, data_type: str, **kwargs):
     try:
         return service.get(data_type, **kwargs)
@@ -333,8 +341,8 @@ Tendencia del margen operativo: {margins.get('trends', {}).get('operating_margin
 DEUDA
 Deuda neta: {fmt_compacto(debt.get('net_debt'))} | Deuda/capital: {fmt_num(debt.get('debt_to_equity'))}
 Cobertura de intereses: {fmt_num(debt.get('interest_coverage'), 1)}
-Altman Z: {fmt_num((debt.get('altman_z') or {}).get('score'))} (zona {(debt.get('altman_z') or {}).get('zone')})
-Piotroski F: {(debt.get('piotroski_f') or {}).get('score')}/{(debt.get('piotroski_f') or {}).get('max_possible')}
+Altman Z: {fmt_num((debt.get('altman_z') or {}).get('score'))} (zona {(debt.get('altman_z') or {}).get('zone') or 'sin determinar'})
+Piotroski F: {_piotroski(debt.get('piotroski_f'))}
 
 CAJA
 FCF último ejercicio: {fmt_compacto(cash.get('current', {}).get('fcf'))}

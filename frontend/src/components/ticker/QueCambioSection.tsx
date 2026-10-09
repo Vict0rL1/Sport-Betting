@@ -269,7 +269,9 @@ export function QueCambioSection({ symbol }: { symbol: string }) {
                   )}
               </div>
             )}
-            {cambios.materiales != null && cambios.irrelevantes != null && (
+            {cambios.materiales == null || cambios.irrelevantes == null ? (
+              <p className="text-[10px] text-slate-400">Esta comparación no trae el recuento de cambios por debajo de su umbral.</p>
+            ) : (
               <p className="text-[10px] text-slate-400">
                 {cambios.materiales} {plural(cambios.materiales, 'cambio material', 'cambios materiales')};{' '}
                 {cambios.irrelevantes} por debajo de su umbral no se {plural(cambios.irrelevantes, 'enseña', 'enseñan')}

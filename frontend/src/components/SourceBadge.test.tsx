@@ -21,4 +21,14 @@ describe('SourceBadge', () => {
     expect(screen.getByText(/DATO VIEJO · yfinance · hace 20 min/)).toBeInTheDocument()
     expect(screen.queryByText(/en vivo/)).not.toBeInTheDocument()
   })
+
+  it('un dato viejo sin antigüedad no dice «hace 0 min» (revisión de la Fase 1)', () => {
+    render(
+      <SourceBadge
+        data={{ source: 'yfinance', as_of: '2026-10-08T14:00:00Z', cached: true, fetched_at: null, estado: 'viejo', antiguedad_segundos: null }}
+        freshness="live"
+      />,
+    )
+    expect(screen.getByText(/DATO VIEJO · yfinance · antigüedad desconocida/)).toBeInTheDocument()
+  })
 })

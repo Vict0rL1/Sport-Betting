@@ -16,14 +16,16 @@ export function SourceBadge({
   // proveedor — antes una cotización rescatada de hace 20 minutos salía
   // rotulada «en vivo», porque ese era el `freshness` con que se descargó.
   if (data.estado === 'viejo') {
-    const minutos = Math.round((data.antiguedad_segundos ?? 0) / 60)
+    // Sin antigüedad, se dice: `?? 0` pintaba «DATO VIEJO · hace 0 min» (revisión F1).
+    const s = data.antiguedad_segundos
+    const edad = s === null || s === undefined ? 'antigüedad desconocida' : fmtAntiguedad(new Date(Date.now() - s * 1000))
     return (
       <span
         className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800"
         title={data.aviso ?? 'Todas las fuentes fallaron: se muestra la última copia guardada.'}
       >
         <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-        DATO VIEJO · {data.source} · hace {minutos} min
+        DATO VIEJO · {data.source} · {edad}
       </span>
     )
   }

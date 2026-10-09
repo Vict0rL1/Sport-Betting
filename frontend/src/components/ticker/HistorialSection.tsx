@@ -56,7 +56,7 @@ function Replay({ r }: { r: ReplayDecision }) {
         <span className="font-semibold text-slate-800">
           {r.symbol} — {r.fecha} — {etiqueta(r.accion).toUpperCase()}
         </span>
-        <span className="text-slate-400">{r.momento ? fmtFecha(r.momento, { hora: true }) : ''} · {etiquetaOrigen(r.origen)} · reglas v{r.reglas_version}</span>
+        <span className="text-slate-400">{r.momento ? fmtFecha(r.momento, { hora: true, zona: 'UTC' }) : ''} · {etiquetaOrigen(r.origen)} · reglas v{r.reglas_version}</span>
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${r.completo ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
           {r.completo ? 'completo' : 'INCOMPLETO'}
         </span>

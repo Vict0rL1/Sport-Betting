@@ -936,7 +936,7 @@ export function TodayPage() {
           {data && (
             <span>
               {data.cached ? 'Calculado ' : 'Recalculado '}
-              {fmtAntiguedad(data.fetched_at ?? data.as_of)}
+              {data.fetched_at ?? data.as_of ? fmtAntiguedad(data.fetched_at ?? data.as_of) : '(hora desconocida)'}
             </span>
           )}
           <button
