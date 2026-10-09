@@ -641,3 +641,30 @@ def test_varios_lotes_del_mismo_simbolo_cuentan_todos(session_factory):
     d = decide({"score": 0.5}, {"last": 93.0, "sma200": 90.0}, p)
     assert d["action"] == "vender"
     assert any("2 lotes" in r and "1 sin stop" in r for r in d["reasons"])
+
+
+def test_si_no_se_puntua_nada_se_dice_por_que_y_no_se_adivina(session_factory):
+    """V13: el error decía «Revisa que FINNHUB_API_KEY esté en .env» aunque la
+    puntuación sale de EDGAR; ahora cuenta los motivos reales de cada empresa."""
+    todos = {c["symbol"] for c in load_market("canada")["companies"]}
+    service = MarketService(failing=todos)
+
+    def override_session():
+        session = session_factory()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_service] = lambda: service
+    app.dependency_overrides[get_session] = override_session
+    app.dependency_overrides[get_llm] = lambda: None
+    try:
+        with TestClient(app) as c:
+            r = c.get("/api/signals/today?market=canada&budget=600")
+    finally:
+        app.dependency_overrides.clear()
+    assert r.status_code == 502
+    detalle = r.json()["detail"]
+    assert "FINNHUB_API_KEY" not in detalle
+    assert f"{len(todos)} sin fundamentales o cuota agotada" in detalle

@@ -9,6 +9,7 @@ explícita.
 from __future__ import annotations
 
 import logging
+from collections import Counter
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
@@ -454,6 +455,18 @@ def _metrics_desde_edgar(
     return metrics, financials.get("source", "edgar")
 
 
+def _motivos_sin_puntuar(no_disponibles: list[dict], pendientes: list[str]) -> str:
+    """Por qué no se puntuó, contado: «3 sin histórico suficiente, 2 pendientes
+    de descargar». Antes el mensaje adivinaba («Revisa que FINNHUB_API_KEY esté
+    en .env») aunque la puntuación sale de EDGAR y la clave solo es el respaldo."""
+    cuenta = Counter(d.get("reason") or "motivo desconocido" for d in no_disponibles)
+    partes = [f"{n} {motivo}" for motivo, n in cuenta.most_common()]
+    if pendientes:
+        partes.append(f"{len(pendientes)} {plural(len(pendientes), 'pendiente', 'pendientes')} de descargar "
+                      "(repite con «Actualizar» y sigue por donde iba)")
+    return "; ".join(partes) or "ninguna dio datos utilizables"
+
+
 def _score_symbols(
     service: MarketDataService,
     session: Session,
@@ -807,9 +820,8 @@ def scan_universe(
         raise HTTPException(
             status_code=502,
             detail=(
-                f"Solo se pudieron puntuar {scoring['scored']} empresas de "
-                f"{len(symbols)}. Revisa que FINNHUB_API_KEY esté en .env y que "
-                "quede cuota disponible."
+                f"Solo se pudieron puntuar {scoring['scored']} de {len(symbols)} empresas "
+                f"({_motivos_sin_puntuar(scoring['unavailable'], scoring['pending'])})."
             ),
         )
 
@@ -1015,10 +1027,7 @@ def _today(
     if not ranked:
         raise HTTPException(
             status_code=502,
-            detail=(
-                "No se pudo puntuar ningún sector. Revisa que FINNHUB_API_KEY "
-                "esté en .env y que quede cuota disponible."
-            ),
+            detail=f"No se pudo puntuar ningún sector ({_motivos_sin_puntuar(unavailable, pending)}).",
         )
 
     ranked.sort(key=lambda s: s["score"], reverse=True)

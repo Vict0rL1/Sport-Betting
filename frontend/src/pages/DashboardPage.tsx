@@ -26,13 +26,16 @@ export function DashboardPage() {
   const [curve, setCurve] = useState<YieldCurve | null>(null)
   const [macro, setMacro] = useState<MacroIndicator[] | null>(null)
   const [events, setEvents] = useState<EarningsEvent[] | null>(null)
+  const [errorEventos, setErrorEventos] = useState<string | null>(null)
 
   useEffect(() => {
     api.marketOverview().then((d) => setIndices(d.indices), () => setIndices([]))
     api.marketSectors().then((d) => setSectors(d.sectors), () => setSectors([]))
     api.yieldCurve().then(setCurve, () => setCurve(null))
     api.macro().then((d) => setMacro(d.indicators), () => setMacro([]))
-    api.calendar().then((d) => setEvents(d.events), () => setEvents([]))
+    // Un fallo no es «no hay eventos»: antes se pintaba igual y el mensaje
+    // adivinaba la causa («¿falta FINNHUB_API_KEY?»). Se dice lo que pasó.
+    api.calendar().then((d) => setEvents(d.events), (e: Error) => setErrorEventos(e.message))
   }, [])
 
   return (
@@ -149,11 +152,12 @@ export function DashboardPage() {
           <h2 className="mb-2 text-sm font-semibold text-slate-700">
             Próximos resultados <span className="font-normal text-slate-400">(14 días)</span>
           </h2>
-          {events === null && <p className="text-sm text-slate-400">Cargando…</p>}
+          {events === null && !errorEventos && <p className="text-sm text-slate-400">Cargando…</p>}
+          {errorEventos && (
+            <p className="text-sm text-amber-800">No se pudo cargar el calendario de resultados: {errorEventos}</p>
+          )}
           {events !== null && events.length === 0 && (
-            <p className="text-sm text-slate-400">
-              Sin eventos (¿falta FINNHUB_API_KEY en .env?).
-            </p>
+            <p className="text-sm text-slate-400">Ninguna empresa anuncia resultados en los próximos 14 días.</p>
           )}
           <ul className="max-h-64 space-y-1 overflow-y-auto text-sm">
             {(events ?? []).slice(0, 40).map((ev) => (

@@ -244,8 +244,10 @@ endpoint HTTP → MarketDataService → CacheStore (SQLite, TTL por tipo de dato
 
 ### Decisiones de arquitectura
 
-- **SQLite + `create_all`** (sin Alembic por ahora): app local de un solo
-  usuario. La base vive en `backend/data/app.db` (gitignored).
+- **SQLite con migraciones Alembic** (`backend/migrations/versions/`, nunca
+  destructivas): `init_db()` migra al arrancar, con una copia de la base antes
+  de cada migración. App local de un solo usuario; la base vive en
+  `backend/data/app.db` (gitignored).
 - **Unidades normalizadas:** márgenes, ROE, crecimientos y yields se guardan
   como *fracción* (0.25 = 25 %) sin importar cómo los reporte cada API.
 - **Las API keys nunca llegan al navegador:** el frontend habla solo con el
