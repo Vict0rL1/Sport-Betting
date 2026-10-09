@@ -68,7 +68,7 @@ export default function Lineas() {
               {m.margenConsenso != null ? ` · ${t('lineas.margenConsenso', { v: f.porcentaje(m.margenConsenso, 1) })}` : ''}
               {m.margenMejor != null ? ` · ${t('lineas.margenMejor', { v: f.porcentaje(m.margenMejor, 1) })}` : ''}
             </p>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto" tabIndex={0}>
               <table className="w-full min-w-[20rem] text-[13px] tabular-nums">
                 <thead>
                   <tr className="text-left text-(--ink-muted)">

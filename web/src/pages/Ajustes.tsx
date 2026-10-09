@@ -7,7 +7,7 @@ import NotificacionesPanel from '../components/auth/NotificacionesPanel';
 import { aplicarTema, type Tema } from '../lib/tema';
 import { DEPORTES } from '../rutas';
 import { ETIQUETA_POLITICA } from '../lib/politica';
-import { localeDe, useI18n, type Clave, type Idioma, type Traducir } from '../i18n';
+import { conNodos, localeDe, useI18n, type Clave, type Idioma, type Traducir } from '../i18n';
 import { useDialogo } from '../components/ui/useDialogo';
 import { borradorTrasAplicar, CADENCIA_MAX, CADENCIA_MIN, errorDeRespuesta, leerImporte, validarCadencia } from '../lib/ajustes';
 
@@ -138,11 +138,13 @@ function Interruptores() {
   return (
     <ul className="space-y-1.5">
       {error && <li role="alert" className="rounded-lg border border-[#e66767]/40 px-3 py-2 text-[13px] text-[#e66767]">{error}</li>}
-      {deArranque.length > 0 && <li className="text-[12px] text-(--ink-muted)">{t('aj.deArranque', { lista: deArranque.join(', ') })}</li>}
+      {deArranque.length > 0 && <li className="text-[12px] text-(--ink-muted)">{conNodos(t('aj.deArranque', { lista: '{lista}' }), { lista: <code className="font-mono">{deArranque.join(', ')}</code> })}</li>}
       {Object.entries(f).filter(([, x]) => !x.soloArranque).map(([k, x]) => (
         <li key={k} className="flex flex-wrap items-start justify-between gap-2 rounded-lg bg-(--raised) px-3 py-2">
           <div className="min-w-0 flex-1">
-            <p className="text-(--ink-body)">{k}{x.anulada && <span className="ml-1.5 text-[11px] text-(--ink-muted)">{t('aj.anulado')}</span>}{x.falta && <span className="ml-1.5 text-[11px]" style={{ color: '#c98500' }}>{t('notif.falta', { vars: x.falta })}</span>}</p>
+            {/* El nombre del interruptor es un identificador de configuración (config/features.json,
+                npm run features), no texto que traducir: va como código (E8). */}
+            <p className="text-(--ink-body)"><code className="font-mono text-[12px]">{k}</code>{x.anulada && <span className="ml-1.5 text-[11px] text-(--ink-muted)">{t('aj.anulado')}</span>}{x.falta && <span className="ml-1.5 text-[11px]" style={{ color: 'var(--status-warning)' }}>{t('notif.falta', { vars: x.falta })}</span>}</p>
             <p className="text-[12px] text-(--ink-muted)">{x.descripcion}</p>
           </div>
           <div className="flex items-center gap-1.5">

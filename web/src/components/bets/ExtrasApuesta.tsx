@@ -2,7 +2,7 @@
 // snapshot que casar, «¿la habría apostado el modelo?» con la ventaja mínima de la política,
 // y las etiquetas.
 import { useEffect, useState } from 'react';
-import { PROFIT_COLOR, LOSS_COLOR } from '../../lib/theme';
+import { PROFIT_TEXT, LOSS_TEXT } from '../../lib/theme';
 import type { Bet } from '../../lib/bets';
 import { conNodos, useI18n } from '../../i18n';
 import { pct as pctF, num as numF } from '../../lib/formato';
@@ -30,7 +30,7 @@ export function LoHabriaApostado({ bet, minEdge }: { bet: Bet; minEdge: number |
   return (
     <span className="text-(--ink-soft)" title={t('extras.lohabriaNota')}>
       {conNodos(t('extras.lohabria', { ventaja: pct(ventaja), minimo: pct(minEdge) }), {
-        respuesta: <strong style={{ color: si ? PROFIT_COLOR : LOSS_COLOR }}>{si ? t('extras.si') : t('extras.no')}</strong>,
+        respuesta: <strong style={{ color: si ? PROFIT_TEXT : LOSS_TEXT }}>{si ? t('extras.si') : t('extras.no')}</strong>,
       })}
     </span>
   );
@@ -51,7 +51,7 @@ export function ClvPropio({ id }: { id: number }) {
   return (
     <span className="text-(--ink-soft)">
       {conNodos(t('extras.clv', { cierre: (c.cierre == null ? undefined : numF(c.cierre, 2)) ?? '—', casas: c.casas ?? '—' }), {
-        clv: <strong style={{ color: c.clv >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>{pct(c.clv)}</strong>,
+        clv: <strong style={{ color: c.clv >= 0 ? PROFIT_TEXT : LOSS_TEXT }}>{pct(c.clv)}</strong>,
       })}
     </span>
   );

@@ -88,7 +88,7 @@ export default function Luchador() {
                 {info.form.map((x) => (
                   <li key={`${x.date}-${x.opponentName}`} className="flex flex-wrap items-baseline justify-between gap-x-3">
                     <span className="min-w-0 break-words text-(--ink-body)">
-                      <span className="mr-2 font-semibold" style={{ color: x.result === 'W' ? '#199e70' : x.result === 'L' ? '#d95926' : 'var(--ink-soft)' }}>{t(RESULTADO[x.result])}</span>
+                      <span className="mr-2 font-semibold" style={{ color: x.result === 'W' ? 'var(--profit-text)' : x.result === 'L' ? 'var(--loss-text)' : 'var(--ink-soft)' }}>{t(RESULTADO[x.result])}</span>
                       {x.opponentId ? (
                         <Link to={rutaLuchador(x.opponentId)} className="underline-offset-2 hover:underline">{x.opponentName}</Link>
                       ) : (

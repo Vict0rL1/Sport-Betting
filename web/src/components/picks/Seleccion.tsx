@@ -1,6 +1,6 @@
 // «Mi selección»: probabilidad conjunta con la correlación medida y lo que se puede hacer con ella.
 import { useEffect, useState } from 'react';
-import { PROFIT_COLOR, LOSS_COLOR } from '../../lib/theme';
+import { PROFIT_TEXT, LOSS_TEXT } from '../../lib/theme';
 import { DeporteIcono, StarIcon, CrossIcon } from '../icons';
 import { type Pick, type Combinada, pct, num, clave } from './tipos';
 import { useNavigate } from 'react-router';
@@ -72,7 +72,7 @@ export function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quit
               {conNodos(t('sel.cuotaCombinada', { justa: todos > 0 ? num(1 / todos) : '—' }), {
                 cuota: <span className="font-semibold text-(--ink-strong)">{num(cuota)}</span>,
                 v: (
-                  <span style={{ color: (ventaja ?? 0) > 0 ? PROFIT_COLOR : LOSS_COLOR }}>
+                  <span style={{ color: (ventaja ?? 0) > 0 ? PROFIT_TEXT : LOSS_TEXT }}>
                     {(ventaja ?? 0) >= 0 ? '+' : '−'}
                     {pct(Math.abs(ventaja ?? 0), 1)}
                   </span>
@@ -103,7 +103,7 @@ export function Seleccion({ elegidos, quitar, vaciar }: { elegidos: Pick[]; quit
         {t('sel.vaciar')}
       </button>
       {comb && comb.incompatibles.length > 0 && (
-        <p className="text-[12px] leading-relaxed" style={{ color: LOSS_COLOR }}>
+        <p className="text-[12px] leading-relaxed" style={{ color: LOSS_TEXT }}>
           {comb.incompatibles.join('. ')}.
         </p>
       )}

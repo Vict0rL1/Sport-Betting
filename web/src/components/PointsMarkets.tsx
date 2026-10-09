@@ -154,7 +154,7 @@ export default function PointsMarkets({
       {/* --- Hándicaps --- */}
       <div className="mt-3">
         <SectionTitle>{t('pm.handicapJuegos')}</SectionTitle>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0}>
           <table className="w-full min-w-[22rem] text-left text-[13px] tabular-nums">
             <thead className="text-[11px] uppercase tracking-[0.06em] text-(--ink-muted)">
               <tr>

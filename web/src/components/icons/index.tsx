@@ -352,7 +352,7 @@ export function Verdict({ ok, okText, koText }: { ok: boolean; okText?: string; 
 
 /** Marca pequeña de estado en línea con el texto (✓ / ⚠ / ?). */
 export function StatusMark({ estado, color, size = 14 }: { estado: 'ok' | 'aviso' | 'desconocido' | 'error'; color?: string; size?: number }) {
-  const c = color ?? (estado === 'ok' ? '#199e70' : estado === 'aviso' ? '#d9a441' : estado === 'error' ? '#e66767' : 'var(--ink-muted)');
+  const c = color ?? (estado === 'ok' ? 'var(--status-good)' : estado === 'aviso' ? 'var(--status-warning)' : estado === 'error' ? 'var(--status-critical)' : 'var(--ink-muted)');
   const I = estado === 'ok' ? CheckIcon : estado === 'aviso' ? AlertIcon : estado === 'error' ? CrossIcon : UnknownIcon;
   return (
     <span className="relative top-[2px] mr-1 inline-flex" style={{ color: c }}>

@@ -4,6 +4,25 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Revisión del 8 de octubre · lote E, las pruebas que lo habrían cazado (2026-10-09)
+
+Las pruebas que habrían cazado los defectos de A–D (`docs/plans/fixes-E.md`), cada una pasada
+contra el código de antes de su arreglo, donde falla. E1, E5 y E6 ya las tenían los lotes A y B.
+Tests: 632 → 642 (505 del servidor + 51 de la web + 86 de punta a punta). Doctor,
+`verify:data`, `audit`, typecheck, lint, build y Playwright en verde.
+
+- **E2 · axe de verdad.** Las 19 rutas, los dos temas, 1280 y 390 px y las dos hojas abiertas;
+  el contraste cuenta desde `serious` (antes solo `critical`, que el contraste nunca es).
+  Destapó contraste insuficiente en tinta tenue, estados, beneficio/pérdida y el ámbar de la
+  selección (ahora tokens por tema) y tablas con scroll que el teclado no alcanzaba.
+- **E3 · Un 500 de la API ya no pasa** por los e2e: fuera el filtro de «Failed to load resource».
+- **E4 · Arranque en frío sin conexión**: la app pinta con lo guardado y lo dice.
+- **E7 · Ficha = Destacados**, por HTTP y tras una ingesta.
+- **E8 · Ninguna clave cruda** del catálogo ni de la política en ninguna ruta; los nombres de
+  los interruptores van como código.
+- **E9 · La ingesta de baloncesto y otro proceso**: un lector con su propia conexión nunca ve los
+  ratings vacíos (y el control con el patrón de antes, sí).
+
 ## Revisión del 8 de octubre · lote D, interfaz (2026-10-09)
 
 Los diecisiete hallazgos de la interfaz, reproducidos con un test que fallaba antes y arreglados

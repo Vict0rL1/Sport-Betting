@@ -24,7 +24,7 @@ export function StarterChip({ side, color }: { side: BsbSide; color: string }) {
         {delta != null && Math.abs(delta) >= 4 && (
           <span
             className="shrink-0 text-[11px] font-semibold tabular-nums"
-            style={{ color: delta > 0 ? '#199e70' : '#e66767' }}
+            style={{ color: delta > 0 ? 'var(--profit-text)' : 'var(--status-critical)' }}
             title={t('bsd.carrerasTitulo')}
           >
             {t('bsd.pctCarreras', { n: `${delta > 0 ? '−' : '+'}${Math.abs(delta)}` })}

@@ -113,14 +113,29 @@ export const LOSS_COLOR = '#d95926';
 /** The zero pole. Gray on purpose: a hue here would read as a third category. */
 export const BREAK_EVEN_COLOR = '#64748b';
 
+// Los mismos polos como TEXTO (E2 de la revisión del 8 de octubre): el verde y el naranja de
+// las marcas pasan 3:1 (lo que pide un gráfico) pero no 4,5:1 sobre el tema claro, que es lo que
+// pide un número escrito. Cada tema define los suyos en index.css.
+export const PROFIT_TEXT = 'var(--profit-text)';
+export const LOSS_TEXT = 'var(--loss-text)';
+export const NEUTRAL_TEXT = 'var(--status-neutral)';
+
 // ---------------------------------------------------------------------------
 // Status — reserved, never reused as a series colour
 // ---------------------------------------------------------------------------
+//
+// Variables CSS y no hex (E2 de la revisión del 8 de octubre): se usan como TEXTO, y un ámbar
+// que se lee sobre el tema oscuro (#c98500) da 2,5:1 sobre el claro. Cada tema define el suyo
+// en index.css. Para un fondo tenido: `tenido(STATUS.x, 14)`, no `${STATUS.x}22`.
 export const STATUS = {
-  good: '#199e70',
-  warning: '#c98500',
-  critical: '#e66767',
+  good: 'var(--status-good)',
+  warning: 'var(--status-warning)',
+  critical: 'var(--status-critical)',
+  neutral: 'var(--status-neutral)',
 } as const;
+
+/** Un color (hex o variable) al `pct` % sobre transparente: el fondo tenido de una insignia. */
+export const tenido = (color: string, pct: number) => `color-mix(in srgb, ${color} ${pct}%, transparent)`;
 
 /** Reliability tiers wear status colours and always ship with a word, never colour alone. */
 export const RELIABILITY_STYLE: Record<'high' | 'medium' | 'low', string> = {

@@ -97,7 +97,7 @@ function FichaEquipo({ sport, league, id }: { sport: string; league: string; id:
                 <h4 className="mb-1 mt-3 text-[12px] font-medium uppercase tracking-wide text-(--ink-muted)">{t('equipo.forma')}</h4>
                 <ul className="flex flex-wrap gap-1">
                   {info.form.slice(0, 10).map((x, i) => (
-                    <li key={i} title={`${x.date}: ${x.home ? 'vs' : '@'} ${x.opponentName ?? '?'}`} className="grid h-6 w-6 place-items-center rounded text-[11px] font-semibold" style={{ backgroundColor: x.result === 'W' ? 'rgba(25,158,112,0.2)' : x.result === 'L' ? 'rgba(217,89,38,0.2)' : 'var(--raised-2)', color: x.result === 'W' ? '#199e70' : x.result === 'L' ? '#d95926' : 'var(--ink-body)' }}>
+                    <li key={i} title={`${x.date}: ${x.home ? 'vs' : '@'} ${x.opponentName ?? '?'}`} className="grid h-6 w-6 place-items-center rounded text-[11px] font-semibold" style={{ backgroundColor: x.result === 'W' ? 'rgba(25,158,112,0.2)' : x.result === 'L' ? 'rgba(217,89,38,0.2)' : 'var(--raised-2)', color: x.result === 'W' ? 'var(--profit-text)' : x.result === 'L' ? 'var(--loss-text)' : 'var(--ink-body)' }}>
                       {t(x.result === 'W' ? 'equipo.g' : x.result === 'L' ? 'equipo.p' : 'equipo.e')}
                     </li>
                   ))}

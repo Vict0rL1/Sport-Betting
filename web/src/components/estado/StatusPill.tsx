@@ -3,7 +3,7 @@
 // la misma información repetida cinco veces parecía cinco problemas distintos.
 
 import { useEffect, useRef, useState } from 'react';
-import { STATUS } from '../../lib/theme';
+import { STATUS, tenido } from '../../lib/theme';
 import { StatusMark } from '../icons';
 import { useI18n, type Clave, type Traducir } from '../../i18n';
 import { useDialogo } from '../ui/useDialogo';
@@ -83,7 +83,7 @@ export default function StatusPill({ compacto = false }: { compacto?: boolean })
         aria-label={t('estado.aria', { texto: r.texto })}
         data-testid="status-pill"
         className="inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium text-(--ink-body) transition hover:bg-(--raised)"
-        style={{ borderColor: `${r.color}66` }}
+        style={{ borderColor: tenido(r.color, 40) }}
       >
         <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: r.color }} />
         <span className={compacto ? 'sr-only sm:not-sr-only' : ''}>{r.texto}</span>

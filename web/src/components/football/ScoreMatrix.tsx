@@ -43,7 +43,7 @@ export default function ScoreMatrix({ prediction }: { prediction: FbPrediction }
         {t('det.probMarcador')}
       </SectionTitle>
 
-      <div className="-mx-1 overflow-x-auto px-1">
+      <div className="-mx-1 overflow-x-auto px-1" tabIndex={0}>
         <table className="w-full min-w-[22rem] border-separate border-spacing-0.5 text-center text-[13px] tabular-nums">
           <thead>
             <tr>

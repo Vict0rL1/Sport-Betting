@@ -41,7 +41,7 @@ export function EstrellaSeguir({ kind, sport, league = null, refId, label, size 
     recargar();
   };
   return (
-    <button onClick={(e) => void alternar(e)} data-icono="campana" aria-pressed={!!actual} aria-label={`${actual ? t('seguimiento.dejar') : t('seguimiento.seguir')}: ${label}`} title={actual ? t('seguimiento.dejar') : t('seguimiento.seguir')} className={`grid shrink-0 place-items-center rounded p-1 transition ${actual ? 'text-[#f5b544]' : 'text-(--ink-faint) hover:text-(--ink-body)'}`}>
+    <button onClick={(e) => void alternar(e)} data-icono="campana" aria-pressed={!!actual} aria-label={`${actual ? t('seguimiento.dejar') : t('seguimiento.seguir')}: ${label}`} title={actual ? t('seguimiento.dejar') : t('seguimiento.seguir')} className={`grid shrink-0 place-items-center rounded p-1 transition ${actual ? 'text-(--seleccion)' : 'text-(--ink-faint) hover:text-(--ink-body)'}`}>
       {/* Una campana, no una estrella (D13): la estrella es «Añadir a mi selección», y dos
           estrellas en la misma tarjeta se confundían. Seguir es recibir avisos: la campana. */}
       <svg width={size} height={size} viewBox="0 0 24 24" fill={actual ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

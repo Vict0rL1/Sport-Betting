@@ -266,7 +266,7 @@ export default function ExposurePanel() {
             </Disclosure>
           </div>
 
-          <div className="mt-3 overflow-x-auto">
+          <div className="mt-3 overflow-x-auto" tabIndex={0}>
             <table className="w-full min-w-[30rem] text-[13px] tabular-nums">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-[0.06em] text-(--ink-muted)">

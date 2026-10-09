@@ -6,7 +6,7 @@
 
 import ProfitCurve from './ProfitCurve';
 import { useEffect, useState } from 'react';
-import { BREAK_EVEN_COLOR, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
+import { NEUTRAL_TEXT, PROFIT_TEXT, STATUS, LOSS_TEXT } from '../../lib/theme';
 import { StatusMark } from '../icons';
 import { conNodos, useI18n, type Clave } from '../../i18n';
 import { pct as pctF, num as numF, dinero as dineroF } from '../../lib/formato';
@@ -90,7 +90,7 @@ export default function PaperBankroll() {
   }
   if (!r) return null;
 
-  const color = r.beneficio > 0 ? PROFIT_COLOR : r.beneficio < 0 ? LOSS_COLOR : BREAK_EVEN_COLOR;
+  const color = r.beneficio > 0 ? PROFIT_TEXT : r.beneficio < 0 ? LOSS_TEXT : NEUTRAL_TEXT;
 
   return (
     <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
@@ -141,7 +141,7 @@ export default function PaperBankroll() {
           1,94 fue una buena apuesta. */}
       {r.conCierre != null && r.conCierre > 0 && r.clvMedio != null && (
         <p className="border-t border-(--line) px-4 py-2.5 text-[13px] text-(--ink-soft)">
-          <strong style={{ color: r.clvMedio >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
+          <strong style={{ color: r.clvMedio >= 0 ? PROFIT_TEXT : LOSS_TEXT }}>
             {t('papel.clvMedio', { v: `${r.clvMedio >= 0 ? '+' : '−'}${pctF(Math.abs(r.clvMedio), 1)}` })}
           </strong>{' '}
           {plural(r.conCierre, 'papel.clvSobre1', 'papel.clvSobreN')}{' '}
@@ -157,8 +157,8 @@ export default function PaperBankroll() {
         {/* Mismos umbrales que server/src/evaluation/sample.ts (apuestas: 30 y 300). Un aviso,
             no una prueba: el veredicto con intervalo está en «¿Es real?». */}
         {r.roi !== null && r.liquidadas < 300 && (
-          <span className="block" style={{ color: '#d9a441' }}>
-            <StatusMark estado="aviso" color="#d9a441" />
+          <span className="block" style={{ color: STATUS.warning }}>
+            <StatusMark estado="aviso" color={STATUS.warning} />
             {r.liquidadas < 30 ? t('papel.avisoPequena', { n: r.liquidadas }) : t('papel.avisoOrientativo', { n: r.liquidadas })}
           </span>
         )}
@@ -191,7 +191,7 @@ export default function PaperBankroll() {
       )}
 
       {r.apuestas.length > 0 && (
-        <div className="overflow-x-auto border-t border-(--line)">
+        <div className="overflow-x-auto border-t border-(--line)" tabIndex={0}>
           <table className="w-full min-w-[560px] border-collapse text-[14px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
@@ -231,7 +231,7 @@ export default function PaperBankroll() {
                     {' · '}
                     <span className="text-(--ink-faint)">{a.closing_odds != null ? numF(a.closing_odds, 2) : '—'}</span>
                     {a.clv != null && (
-                      <span className="block text-[11px]" style={{ color: a.clv >= 0 ? PROFIT_COLOR : LOSS_COLOR }}>
+                      <span className="block text-[11px]" style={{ color: a.clv >= 0 ? PROFIT_TEXT : LOSS_TEXT }}>
                         CLV {a.clv >= 0 ? '+' : '−'}
                         {pctF(Math.abs(a.clv), 1)}
                       </span>
@@ -245,10 +245,10 @@ export default function PaperBankroll() {
                         a.status === 'pending'
                           ? 'var(--ink-muted)'
                           : (a.profit ?? 0) > 0
-                            ? PROFIT_COLOR
+                            ? PROFIT_TEXT
                             : (a.profit ?? 0) < 0
-                              ? LOSS_COLOR
-                              : BREAK_EVEN_COLOR,
+                              ? LOSS_TEXT
+                              : NEUTRAL_TEXT,
                     }}
                   >
                     {a.status === 'pending' || a.status === 'won' || a.status === 'lost'

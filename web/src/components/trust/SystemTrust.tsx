@@ -8,7 +8,7 @@ import Analitica from './Analitica';
 import { SubNav } from '../nav/SubNav';
 import { useSubnavConfianza } from '../../pages/subnav';
 import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../../i18n';
-import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
+import { PROFIT_COLOR, LOSS_TEXT } from '../../lib/theme';
 import { DeporteIcono, ShieldCheckIcon, StatusMark } from '../icons';
 import { num as numF, pct as pctF } from '../../lib/formato';
 
@@ -66,7 +66,7 @@ function useCifras() {
     pct: (x: number | null | undefined) => (x == null ? '—' : `${x >= 0 ? '' : '−'}${pctF(Math.abs(x), 1)}`),
   };
 }
-const AMBAR = '#d9a441';
+const AMBAR = 'var(--status-warning)';
 
 function Bloque({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
@@ -278,7 +278,7 @@ export default function SystemTrust() {
         <ul className="space-y-1">{s.noSabemos.map((x) => <li key={x}><StatusMark estado="aviso" color={AMBAR} />{x}</li>)}</ul>
       </Bloque>
       <Bloque titulo={t('st.historico')}>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" tabIndex={0}>
           <table className="w-full whitespace-nowrap text-[12px] sm:text-[13px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
@@ -292,7 +292,7 @@ export default function SystemTrust() {
                   <td className="py-1 pr-2 text-right">{b.partidos || '—'}</td>
                   <td className="py-1 pr-2 text-right text-(--ink-strong)">{f3(b.modelo)}</td>
                   <td className="py-1 pr-2">{b.mejorBaseline ? `${b.mejorBaseline.nombre} ${f3(b.mejorBaseline.logLoss)}` : '—'}</td>
-                  <td className="py-1 text-right" style={{ color: b.mercado != null && b.modelo != null && b.mercado < b.modelo ? LOSS_COLOR : undefined }}>
+                  <td className="py-1 text-right" style={{ color: b.mercado != null && b.modelo != null && b.mercado < b.modelo ? LOSS_TEXT : undefined }}>
                     {b.mercado == null ? t('st.sinCuotas') : `${f3(b.mercado)}${b.modelo != null && b.mercado < b.modelo ? t('st.mejor') : ''}`}
                   </td>
                 </tr>
@@ -325,7 +325,7 @@ export default function SystemTrust() {
             })}
           </p>
           {riesgo.grupos.map((g) => (
-            <p key={g.grupo} style={{ color: g.excede ? LOSS_COLOR : undefined }}>{t('st.grupo', { grupo: g.grupo, n: g.apuestas, p: pct(g.pct), l: pct(g.limite) })}</p>
+            <p key={g.grupo} style={{ color: g.excede ? LOSS_TEXT : undefined }}>{t('st.grupo', { grupo: g.grupo, n: g.apuestas, p: pct(g.pct), l: pct(g.limite) })}</p>
           ))}
           <p className="text-[12px] text-(--ink-faint)">{riesgo.nota}</p>
         </Bloque>
@@ -334,7 +334,7 @@ export default function SystemTrust() {
         {alertas.length === 0 ? <p>{t('st.ninguna')}</p> : alertas.map((a) => (
           <p key={a.id}>
             <span className="text-(--ink-faint)">{new Date(a.created_at).toLocaleString(localeDe(idioma))}</span>{' '}
-            <span style={{ color: a.severity === 'importante' ? LOSS_COLOR : a.severity === 'aviso' ? AMBAR : undefined }}>{a.title}</span> — {a.body}
+            <span style={{ color: a.severity === 'importante' ? LOSS_TEXT : a.severity === 'aviso' ? AMBAR : undefined }}>{a.title}</span> — {a.body}
           </p>
         ))}
       </Bloque>

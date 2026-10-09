@@ -122,7 +122,7 @@ export function SlateTable({
             {hayMercado && edad && (
               <>
                 {' · '}
-                <span style={edad.viejo ? { color: '#d9a441' } : undefined}>
+                <span style={edad.viejo ? { color: 'var(--status-warning)' } : undefined}>
                   {t('tabla.precios', { edad: edad.texto })}
                   {edad.viejo ? t('tabla.yaNoValgan') : ''}
                 </span>
@@ -137,7 +137,7 @@ export function SlateTable({
         <div className="border-t border-(--line)">
           {/* El scroll horizontal vive en la tabla, nunca en la página: una fila ancha no
               puede empujar el resto de la pantalla de lado en un móvil. */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" tabIndex={0}>
             <table className="w-full min-w-[520px] border-collapse text-[14px]">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">

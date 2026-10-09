@@ -178,7 +178,7 @@ export default function EloRanking({
             />
           )}
 
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" tabIndex={0}>
             <table className="w-full min-w-[34rem] text-left text-[14px] tabular-nums">
               <thead className="text-(--ink-muted)">
                 <tr>

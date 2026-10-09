@@ -161,7 +161,7 @@ function FranjaDias({ porDia, max, diaSel, onDia }: { porDia: Historial['porDia'
     if (caja.current) caja.current.scrollLeft = caja.current.scrollWidth;
   }, [porDia.length]);
   return (
-    <div ref={caja} className="overflow-x-auto px-3 pb-1">
+    <div ref={caja} className="overflow-x-auto px-3 pb-1" tabIndex={0}>
       <div className="flex items-end gap-1" role="list" aria-label={t('acerto.porDia')}>
         {dias.map((d) => {
           const f = fechaDe(d.dia);

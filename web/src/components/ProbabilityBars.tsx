@@ -56,6 +56,7 @@ function SplitBar({
             width: `${left}%`,
             backgroundColor: hasData ? P1 : '#475569',
           }}
+          role="img"
           aria-label={`${title} ${leftLabel}`}
         >
           {hasData && left >= 18 ? leftLabel : ''}
@@ -66,6 +67,7 @@ function SplitBar({
             width: `${100 - left}%`,
             backgroundColor: hasData ? P2 : '#334155',
           }}
+          role="img"
           aria-label={`${title} ${rightLabel}`}
         >
           {hasData && 100 - left >= 18 ? rightLabel : ''}

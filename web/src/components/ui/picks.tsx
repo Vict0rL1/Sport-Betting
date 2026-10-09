@@ -1,6 +1,6 @@
 // Piezas compartidas de la interfaz: picks. Partido de ui/index.tsx en la Fase 5 (ningún import cambia: index.tsx reexporta).
 import { useState } from 'react';
-import { INK, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
+import { INK, PROFIT_TEXT, LOSS_TEXT } from '../../lib/theme';
 import { relativeTime, shortTime } from '../../lib/format';
 import { StatusMark } from '../icons';
 import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../../i18n';
@@ -195,7 +195,7 @@ export function PicksPanel({
 
           {/* Horizontal scroll on the table only, never the page — a wide row must
               not be able to push the whole layout sideways on a phone. */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" tabIndex={0}>
             <table className="w-full min-w-[46rem] border-collapse text-[14px]">
               <thead>
                 <tr className="border-y border-(--line) text-left text-[12px] uppercase tracking-[0.05em] text-(--ink-muted)">
@@ -246,8 +246,8 @@ export function PicksPanel({
                             : Math.abs(p.edge) < 0.005
                               ? INK.muted
                               : p.edge > 0
-                                ? PROFIT_COLOR
-                                : LOSS_COLOR,
+                                ? PROFIT_TEXT
+                                : LOSS_TEXT,
                       }}
                     >
                       {p.edge == null
@@ -266,7 +266,7 @@ export function PicksPanel({
                           // model — that comparison is circular, so the colour is
                           // withheld rather than flattering our own arithmetic.
                           style={{
-                            color: !demoOdds && p.odds > p.fairOdds ? PROFIT_COLOR : INK.muted,
+                            color: !demoOdds && p.odds > p.fairOdds ? PROFIT_TEXT : INK.muted,
                           }}
                           title={t('discrepancias.cuotaOfrecida', { c: numF(p.odds, 2) })}
                         >

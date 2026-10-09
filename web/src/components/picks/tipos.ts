@@ -71,7 +71,7 @@ export interface Respuesta {
 
 export type Orden = 'confianza' | 'probabilidad' | 'ventaja' | 'hora';
 
-export const AMBAR = '#d9a441';
+export const AMBAR = 'var(--status-warning)';
 export const RANGO: Record<string, number> = { ALTA: 0, MEDIA: 1, BAJA: 2 };
 
 // Con Intl y en el idioma activo (lib/formato.ts). Aquí el porcentaje va sin decimales por defecto.

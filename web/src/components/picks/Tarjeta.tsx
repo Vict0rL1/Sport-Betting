@@ -1,5 +1,5 @@
 // La tarjeta de un partido en Destacados, el chip de filtro y la barra de probabilidad.
-import { AWAY_COLOR, DRAW_COLOR, HOME_COLOR, PROFIT_COLOR, LOSS_COLOR, SPORT_THEMES } from '../../lib/theme';
+import { AWAY_COLOR, DRAW_COLOR, HOME_COLOR, PROFIT_COLOR, SPORT_THEMES, PROFIT_TEXT, LOSS_TEXT } from '../../lib/theme';
 import { DeporteIcono, StarIcon, StatusMark } from '../icons';
 import { TeamCrest, EnlacePartido } from '../ui';
 import { ConfianzaBadge } from '../trust/ConfianzaBadge';
@@ -124,7 +124,7 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
                 {conNodos(t('tj.lineaCuota', { justa: num(p.cuotaJusta) }), {
                   cuota: <span className="font-semibold text-(--ink-strong)">{num(p.cuota)}</span>,
                   valor: (
-                    <span style={{ color: conValor ? PROFIT_COLOR : LOSS_COLOR }}>
+                    <span style={{ color: conValor ? PROFIT_TEXT : LOSS_TEXT }}>
                       {t(conValor ? 'tj.deValor' : 'tj.sinValor', { p: `${p.ventaja! >= 0 ? '+' : '−'}${pct(Math.abs(p.ventaja!), 1)}` })}
                     </span>
                   ),
@@ -150,7 +150,7 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
             })}
             {p.confianza.desacuerdo !== 'SIN COMPONENTES' && t('tj.desacuerdo', { d: codigo(t, p.confianza.desacuerdo).toLowerCase() })}
             {p.confianza.decision === 'BET' ? (
-              <span className="block" style={{ color: PROFIT_COLOR }}>
+              <span className="block" style={{ color: PROFIT_TEXT }}>
                 <StatusMark estado="ok" color={PROFIT_COLOR} size={13} />
                 {t('tj.apostaria')}
               </span>
@@ -173,7 +173,7 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
         onClick={onElegir}
         aria-pressed={elegido}
         className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-medium transition ${
-          elegido ? 'bg-[#f5b544]/15 text-[#f5b544] hover:bg-[#f5b544]/20' : 'bg-(--raised) text-(--ink-body) hover:bg-(--raised-2)'
+          elegido ? 'bg-[#f5b544]/15 text-(--seleccion) hover:bg-[#f5b544]/20' : 'bg-(--raised) text-(--ink-body) hover:bg-(--raised-2)'
         }`}
       >
         <StarIcon size={15} filled={elegido} />

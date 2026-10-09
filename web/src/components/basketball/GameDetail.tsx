@@ -63,8 +63,8 @@ function LastGames({ side, color }: { side: BbTeamSide; color: string }) {
           className="inline-flex h-4 w-4 items-center justify-center rounded text-[11px] font-bold"
           style={{
             backgroundColor: g.won ? color : 'transparent',
-            color: g.won ? '#0a0f1e' : '#f87171',
-            border: g.won ? 'none' : '1px solid #f87171',
+            color: g.won ? '#0a0f1e' : 'var(--status-critical)',
+            border: g.won ? 'none' : '1px solid var(--status-critical)',
           }}
         >
           {g.won ? t('bkd.v') : t('bkd.d')}

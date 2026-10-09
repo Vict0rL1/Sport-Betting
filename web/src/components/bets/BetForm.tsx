@@ -12,7 +12,7 @@ import {
   type BetInput,
   type FieldError,
 } from '../../lib/bets';
-import { HOME_COLOR, PROFIT_COLOR } from '../../lib/theme';
+import { HOME_COLOR, PROFIT_TEXT } from '../../lib/theme';
 import { Payout, ModeTab, Field, inputClass, selectClass, todayLocal } from './BetFormPartes';
 import { conNodos, useI18n } from '../../i18n';
 import { num as numF } from '../../lib/formato';
@@ -220,7 +220,7 @@ export default function BetForm({
                               {s.odds ? t('form.cuota', { c: s.odds }) : t('form.sinCuota')}
                               {s.marketProb != null && t('form.mercadoPct', { p: numF(s.marketProb * 100, 0) })}
                               {s.modelProb != null && (
-                                <span style={{ color: PROFIT_COLOR }}>
+                                <span style={{ color: PROFIT_TEXT }}>
                                   {' '}
                                   {t('form.modeloPct', { p: numF(s.modelProb * 100, 0) })}
                                 </span>

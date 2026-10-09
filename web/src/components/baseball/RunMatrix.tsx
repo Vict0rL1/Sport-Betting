@@ -39,7 +39,7 @@ export default function RunMatrix({ prediction }: { prediction: BsbPrediction })
         {t('det.probMarcador')}
       </SectionTitle>
 
-      <div className="-mx-1 overflow-x-auto px-1">
+      <div className="-mx-1 overflow-x-auto px-1" tabIndex={0}>
         <table className="w-full min-w-[26rem] border-separate border-spacing-0.5 text-center text-[11px] tabular-nums">
           <thead>
             <tr>

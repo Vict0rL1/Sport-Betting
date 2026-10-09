@@ -1,5 +1,5 @@
 // Piezas de BetForm.tsx (partido en la Fase 5: ningún fichero de la interfaz pasa de ~400 líneas).
-import { PROFIT_COLOR } from '../../lib/theme';
+import { PROFIT_TEXT } from '../../lib/theme';
 import { useI18n } from '../../i18n';
 import { money } from '../../lib/bets';
 
@@ -12,7 +12,7 @@ export function Payout({ odds, stake }: { odds: string; stake: string }) {
   return (
     <div className="flex items-end pb-1 text-[14px] text-(--ink-soft) sm:col-span-1">
       {t('form.siGana')}{' '}
-      <strong className="mx-1 font-semibold tabular-nums" style={{ color: PROFIT_COLOR }}>
+      <strong className="mx-1 font-semibold tabular-nums" style={{ color: PROFIT_TEXT }}>
         +{money(win)}
       </strong>
       {t('form.siPierde')} <span className="ml-1 tabular-nums">−{money(s)}</span>

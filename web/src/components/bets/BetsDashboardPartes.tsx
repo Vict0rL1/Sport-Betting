@@ -3,14 +3,14 @@ import { ClvPropio, Etiquetas, LoHabriaApostado } from './ExtrasApuesta';
 import { useState } from 'react';
 import { deporteDe, estadoDe, mercadoDe, money, pctSigned, signed, type Bet, type BetStatus, type BetSummary } from '../../lib/bets';
 import { useI18n } from '../../i18n';
-import { BREAK_EVEN_COLOR, LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
+import { NEUTRAL_TEXT, PROFIT_TEXT, LOSS_TEXT } from '../../lib/theme';
 import { Card, SectionTitle } from '../ui';
 import { pct as pctF, num as numF } from '../../lib/formato';
 
 export function Headline({ summary }: { summary: BetSummary }) {
   const tot = summary.totals;
   const { t } = useI18n();
-  const tone = tot.profit > 0 ? PROFIT_COLOR : tot.profit < 0 ? LOSS_COLOR : BREAK_EVEN_COLOR;
+  const tone = tot.profit > 0 ? PROFIT_TEXT : tot.profit < 0 ? LOSS_TEXT : NEUTRAL_TEXT;
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -85,7 +85,7 @@ export function ModelAgreement({ summary }: { summary: BetSummary }) {
       </span>
       <span
         className="text-[16px] font-semibold tabular-nums"
-        style={{ color: g.profit > 0 ? PROFIT_COLOR : g.profit < 0 ? LOSS_COLOR : BREAK_EVEN_COLOR }}
+        style={{ color: g.profit > 0 ? PROFIT_TEXT : g.profit < 0 ? LOSS_TEXT : NEUTRAL_TEXT }}
       >
         {signed(g.profit)}
         <span className="ml-2 text-[13px] font-normal text-(--ink-muted)">
@@ -123,7 +123,7 @@ export function Breakdown({ summary }: { summary: BetSummary }) {
             </span>
             <span
               className="shrink-0 text-[14px] font-semibold tabular-nums"
-              style={{ color: g.profit > 0 ? PROFIT_COLOR : g.profit < 0 ? LOSS_COLOR : BREAK_EVEN_COLOR }}
+              style={{ color: g.profit > 0 ? PROFIT_TEXT : g.profit < 0 ? LOSS_TEXT : NEUTRAL_TEXT }}
             >
               {signed(g.profit)}
             </span>
@@ -150,7 +150,7 @@ export function DayTotal({ bets }: { bets: Bet[] }) {
   return (
     <span
       className="text-[13px] font-semibold tabular-nums"
-      style={{ color: net > 0 ? PROFIT_COLOR : net < 0 ? LOSS_COLOR : BREAK_EVEN_COLOR }}
+      style={{ color: net > 0 ? PROFIT_TEXT : net < 0 ? LOSS_TEXT : NEUTRAL_TEXT }}
     >
       {signed(net)}
     </span>
@@ -176,12 +176,12 @@ export function BetRow({
   const { t } = useI18n();
   const tone =
     bet.profit == null
-      ? BREAK_EVEN_COLOR
+      ? NEUTRAL_TEXT
       : bet.profit > 0
-        ? PROFIT_COLOR
+        ? PROFIT_TEXT
         : bet.profit < 0
-          ? LOSS_COLOR
-          : BREAK_EVEN_COLOR;
+          ? LOSS_TEXT
+          : NEUTRAL_TEXT;
 
   return (
     <Card className="p-3">
@@ -203,7 +203,7 @@ export function BetRow({
               <div className="mt-0.5 text-[11px] uppercase tracking-[0.06em] text-(--ink-faint)">
                 {deporteDe(t, bet.sport)} · {mercadoDe(t, bet.market)}
                 {bet.withModel != null && (
-                  <span style={{ color: bet.withModel ? PROFIT_COLOR : LOSS_COLOR }}>
+                  <span style={{ color: bet.withModel ? PROFIT_TEXT : LOSS_TEXT }}>
                     {' '}
                     · {bet.withModel ? t('registro.conElModelo') : t('registro.contraElModelo')}
                   </span>

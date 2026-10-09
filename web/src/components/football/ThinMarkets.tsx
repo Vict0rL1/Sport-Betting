@@ -181,7 +181,7 @@ export default function ThinMarkets({
           <h4 className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-(--ink-soft)">
             {t('tm.props')}
           </h4>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto" tabIndex={0}>
             <table className="w-full text-[12px] tabular-nums">
               <thead>
                 <tr className="text-[11px] uppercase tracking-wide text-(--ink-muted)">

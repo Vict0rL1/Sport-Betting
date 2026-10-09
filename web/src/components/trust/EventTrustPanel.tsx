@@ -6,7 +6,7 @@
 // papel.
 
 import { useEffect, useState } from 'react';
-import { LOSS_COLOR, PROFIT_COLOR } from '../../lib/theme';
+import { LOSS_COLOR, PROFIT_COLOR, PROFIT_TEXT, LOSS_TEXT } from '../../lib/theme';
 import { StatusMark } from '../icons';
 import { etiquetaHorizonte, type EvaluacionConfianza, type PrePartido, type PrePartidoRef } from '../../lib/trust';
 import { ConfianzaBadge } from './ConfianzaBadge';
@@ -15,13 +15,13 @@ import { pct as pctF, num as numF } from '../../lib/formato';
 
 const pct = (p: number) => `${pctF(p, 1)}`;
 const pp = (x: number) => `${x >= 0 ? '+' : '−'}${numF(Math.abs(x), 1)} pp`;
-const AMBAR = '#d9a441';
+const AMBAR = 'var(--status-warning)';
 const GRIS = 'var(--ink-muted)';
 
 const COLOR: Record<string, string> = {
-  ALTA: PROFIT_COLOR, BAJO: PROFIT_COLOR, BET: PROFIT_COLOR,
+  ALTA: PROFIT_TEXT, BAJO: PROFIT_TEXT, BET: PROFIT_TEXT,
   MEDIA: AMBAR, MEDIO: AMBAR,
-  BAJA: LOSS_COLOR, ALTO: LOSS_COLOR, 'NO BET': LOSS_COLOR,
+  BAJA: LOSS_TEXT, ALTO: LOSS_TEXT, 'NO BET': LOSS_TEXT,
   'SIN MERCADO': GRIS, 'SIN DATOS': GRIS, 'SIN COMPONENTES': GRIS,
 };
 
@@ -204,7 +204,7 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
           <div className="mt-1 text-[12px] leading-relaxed">
             {c.decision.decision === 'NO BET' && (
               <>
-                <p style={{ color: LOSS_COLOR }}>{t('fiarse.noBetRazones')}</p>
+                <p style={{ color: LOSS_TEXT }}>{t('fiarse.noBetRazones')}</p>
                 <ul className="text-(--ink-soft)">{c.decision.razones.map((r) => <li key={r}>– {r}</li>)}</ul>
                 <p className="mt-1 text-(--ink-soft)">{t('fiarse.haceFalta', { cosas: c.decision.contrafactual.join('; ') })}</p>
               </>
