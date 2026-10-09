@@ -11,6 +11,7 @@ import datos from './etiquetas.json'
 
 const ETIQUETAS: Record<string, string> = datos.etiquetas
 const CODIGO = /^[A-Za-z0-9_:]+$/
+const SIGLA = /^[A-Z][A-Z0-9]{1,5}$/ // BPA, FCF, EBITDA
 const ORIGEN = /^(?<tipo>[a-z_]+):(?<h>\d{2}):(?<m>\d{2})(?::\d{2})?$/
 const ORIGENES: Record<string, string> = { analisis: 'análisis' }
 const avisados = new Set<string>()
@@ -26,8 +27,10 @@ const mayusculaInicial = (texto: string) => texto.slice(0, 1).toUpperCase() + te
 export function etiqueta(codigo: string | null | undefined, { mayuscula = false }: { mayuscula?: boolean } = {}): string {
   if (codigo === null || codigo === undefined || codigo === '') return '—'
   let texto: string
-  if (codigo in ETIQUETAS) texto = ETIQUETAS[codigo]
-  else if (!CODIGO.test(codigo)) texto = codigo
+  // `hasOwn`, no `in`: «constructor» o «toString» están en cualquier objeto.
+  if (Object.hasOwn(ETIQUETAS, codigo)) texto = ETIQUETAS[codigo]
+  // Ya es texto, o una sigla («BPA», la métrica que extrae la IA, salía «Bpa»).
+  else if (!CODIGO.test(codigo) || SIGLA.test(codigo)) texto = codigo
   else if (ORIGEN.test(codigo)) texto = etiquetaOrigen(codigo)
   else if (codigo.includes(':')) {
     const [cabeza, ...resto] = codigo.split(':')

@@ -34,6 +34,11 @@ _BASE: dict[str, str] = {
     "REVISAR_PARA_FINANCIAR": "revisar para financiar",
     "NO_TRADE": "no operar",
     "INDETERMINADO": "indeterminado",
+    # --- Lo que anota la persona en su diario (además de las acciones del motor) ---
+    "reforzar": "reforzar",
+    "descartar": "descartar",
+    # Una sigla se deja como está («BPA», «EBITDA»), salvo la que el glosario prohíbe.
+    "EPS": "BPA",
     # --- Estados ---
     "aviso": "aviso",
     "bueno": "bueno",
@@ -86,10 +91,10 @@ _BASE: dict[str, str] = {
     "deuda_neta": "deuda neta",
     "net_debt": "deuda neta",
     "caja": "caja",
-    "deuda_corto": "deuda a corto",
-    "deuda_largo": "deuda a largo",
-    "short_term_debt": "deuda a corto",
-    "long_term_debt": "deuda a largo",
+    "deuda_corto": "deuda a corto plazo",
+    "deuda_largo": "deuda a largo plazo",
+    "short_term_debt": "deuda a corto plazo",
+    "long_term_debt": "deuda a largo plazo",
     "debt_to_equity": "deuda/capital",
     "interest_coverage": "cobertura de intereses",
     "current_ratio": "ratio corriente",
@@ -286,6 +291,7 @@ ETIQUETAS: dict[str, str] = {
 }
 
 _CODIGO = re.compile(r"^[A-Za-z0-9_:]+$")
+_SIGLA = re.compile(r"^[A-Z][A-Z0-9]{1,5}$")  # BPA, FCF, EBITDA, P2
 _ORIGEN = re.compile(r"^(?P<tipo>[a-z_]+):(?P<h>\d{2}):(?P<m>\d{2})(?::\d{2})?$")
 _ORIGENES = {"analisis": "análisis"}
 _avisados: set[str] = set()
@@ -305,8 +311,10 @@ def etiqueta(codigo: str | None, mayuscula: bool = False) -> str:
         return "—"
     if codigo in ETIQUETAS:
         texto = ETIQUETAS[codigo]
-    elif not _CODIGO.match(codigo):
-        texto = codigo  # ya es texto («media de 200 sesiones»): se deja como está
+    elif not _CODIGO.match(codigo) or _SIGLA.match(codigo):
+        # Ya es texto («media de 200 sesiones») o una sigla («BPA», la métrica
+        # que extrae la IA): se deja. Antes la sigla salía «Bpa» (revisión F1).
+        texto = codigo
     elif _ORIGEN.match(codigo):
         texto = etiqueta_origen(codigo)
     elif ":" in codigo:
@@ -340,6 +348,7 @@ DESTINO = Path(__file__).resolve().parents[2] / "frontend" / "src" / "lib" / "et
 CASOS = [
     ("gross_margin", False), ("gross_margin", True), ("NO_TRADE", True), ("us_sp500", False),
     ("sin_datos", True), ("gross_margin:ingresos", False), ("fcf_growth:capex_anterior", False), ("cuentas por cobrar_anterior", False),
+    ("BPA", True), ("EBITDA", False), ("EPS", True), ("FCF", True),
     ("analisis:03:09:37", False), ("analisis:14:35:00", True), ("algo_nuevo", False),
     ("OTRO_CODIGO", True), ("eps_diluted", True), ("correlacion", False),
     ("media de 200 sesiones", True), ("deuda neta (parcial)", False),

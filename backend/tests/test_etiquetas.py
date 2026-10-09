@@ -28,6 +28,7 @@ from app.analysis import expectativas as ex
 from app.analysis import health
 from app.analysis.markets import MARKETS
 from app.llm.signal_llm import EVENT_WEIGHTS
+from app.routers.theses import ACCIONES_REGISTRADAS
 
 # Lo que se enseña tal cual porque ya es un nombre o una fecha: tickers,
 # monedas, índices, días y periodos («2026-09-16», «2025-Q4»).
@@ -109,6 +110,7 @@ def test_cada_enum_del_backend_tiene_etiqueta():
         "componentes de la Z de Altman": set(health.altman_z({}, None)["components"]),
         "eventos de noticias que clasifica la IA": set(EVENT_WEIGHTS),
         "sectores de un ETF": SECTORES_ETF_YFINANCE,
+        "acciones que anota la persona en su diario": set(ACCIONES_REGISTRADAS),
     }
     sin = {nombre: sorted(c for c in codigos if not _etiquetado(c)) for nombre, codigos in enums.items()}
     assert not {k: v for k, v in sin.items() if v}, sin
@@ -147,10 +149,18 @@ def test_un_codigo_desconocido_sale_legible_y_avisa(caplog):
     ("COMPRAR_CON_EFECTIVO", True, "Comprar con efectivo"), ("REVISAR_PARA_FINANCIAR", True, "Revisar para financiar"),
     ("NO_TRADE", True, "No operar"), ("INDETERMINADO", True, "Indeterminado"),
     ("analisis:03:09:37", True, "Análisis de las 03:09 UTC"), ("us_sp500", False, "EE. UU. — S&P 500"),
-    ("deuda_neta:deuda_corto", False, "deuda neta (deuda a corto)"), (None, False, "—"),
+    ("deuda_neta:deuda_corto", False, "deuda neta (deuda a corto plazo)"), (None, False, "—"),
 ])
 def test_las_etiquetas_del_plan(codigo, mayuscula, esperado):
     assert et.etiqueta(codigo, mayuscula=mayuscula) == esperado
+
+
+@pytest.mark.parametrize("sigla,esperado", [("BPA", "BPA"), ("EBITDA", "EBITDA"), ("FCF", "FCF"), ("EPS", "BPA")])
+def test_una_sigla_no_se_convierte_en_palabra(sigla, esperado):
+    """La métrica que extrae la IA es texto libre y casi siempre «BPA» (el propio
+    prompt lo sugiere): salía «Bpa». «EPS» se escribe «BPA» (glosario)."""
+    assert et.etiqueta(sigla, mayuscula=True) == esperado
+    assert et.etiqueta(sigla) == esperado
 
 
 def test_las_acciones_dicen_lo_mismo_que_el_motor():

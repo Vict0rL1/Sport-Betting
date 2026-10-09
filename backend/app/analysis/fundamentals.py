@@ -8,6 +8,8 @@ del ROIC) viajan en el resultado para que la UI los muestre.
 
 from __future__ import annotations
 
+from app.etiquetas import etiqueta
+
 ROIC_TAX_RATE = 0.21  # supuesto visible: NOPAT = EBIT × (1 − 21 %)
 
 
@@ -23,7 +25,9 @@ def _sub(a: float | None, b: float | None) -> float | None:
     return a - b
 
 
-PATAS_DE_DEUDA = {"long_term_debt": "deuda a largo plazo", "short_term_debt": "deuda a corto plazo"}
+# Sus nombres salen de etiquetas.py: aquí decían «deuda a largo plazo» y la misma
+# pantalla enseñaba «deuda a largo» (revisión de la Fase 1).
+PATAS_DE_DEUDA = ("long_term_debt", "short_term_debt")
 
 
 def deuda_total(period: dict) -> dict:
@@ -42,7 +46,7 @@ def deuda_total(period: dict) -> dict:
 
 
 def nota_deuda_parcial(falta: list[str]) -> str:
-    nombres = " y ".join(PATAS_DE_DEUDA[c] for c in falta)
+    nombres = " y ".join(etiqueta(c) for c in falta)
     return (f"El filing no trae {nombres}: cuenta como cero. Si la empresa la tiene, "
             "la deuda neta está subestimada y el valor, sobreestimado.")
 

@@ -22,6 +22,12 @@ describe('etiquetas', () => {
     expect(aviso).toHaveBeenCalledTimes(1)
   })
 
+  it('una clave del prototipo no es una etiqueta (revisión de la Fase 1)', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(etiqueta('constructor')).toBe('constructor')
+    expect(etiqueta('toString')).toBe('tostring') // la reserva legible, no la función del prototipo
+  })
+
   it('lo ausente es una raya', () => {
     expect(etiqueta(null)).toBe('—')
     expect(etiqueta(undefined)).toBe('—')

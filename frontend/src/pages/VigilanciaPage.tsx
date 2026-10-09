@@ -480,11 +480,11 @@ export function VigilanciaPage() {
           <select
             value={form.accion}
             onChange={(e) => setForm({ ...form, accion: e.target.value })}
-            className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm capitalize"
+            className="rounded-lg border border-slate-300 px-2 py-1.5 text-sm"
           >
             {ACCIONES.map((a) => (
               <option key={a} value={a}>
-                {a}
+                {etiqueta(a, { mayuscula: true })}
               </option>
             ))}
           </select>

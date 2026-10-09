@@ -298,9 +298,14 @@ class TriggerCreate(BaseModel):
     config: dict
 
 
+# Lo que la persona puede anotar en su diario de decisiones. «reforzar» y
+# «descartar» no son acciones del motor y no tenían etiqueta (revisión de la Fase 1).
+ACCIONES_REGISTRADAS = ("comprar", "vender", "reforzar", "reducir", "mantener", "descartar")
+
+
 class DecisionCreate(BaseModel):
     symbol: Simbolo
-    accion: str = Field(pattern="^(comprar|vender|reforzar|reducir|mantener|descartar)$")
+    accion: str = Field(pattern=f"^({'|'.join(ACCIONES_REGISTRADAS)})$")
     # Obligatorio y sin valor por defecto: una decisión sin porqué no es un
     # registro, es una fila. El campo entero existe para esa frase.
     razonamiento: str = Field(min_length=10)

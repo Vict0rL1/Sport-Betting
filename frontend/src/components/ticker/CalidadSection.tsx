@@ -11,6 +11,8 @@ const ESTADO: Record<string, string> = {
   desconocido: 'bg-amber-100 text-amber-800',
 }
 
+// No es un diccionario paralelo: concuerda con «calidad» (DESCONOCIDA, no el
+// «desconocido» genérico de etiquetas.py) y va en mayúsculas como veredicto.
 const GLOBAL: Record<string, string> = {
   solida: 'SÓLIDA',
   vigilar: 'VIGILAR',

@@ -4,13 +4,14 @@ import type { CalibracionExpectativas, EventoCatalizador, LecturaEvento } from '
 import { etiqueta } from '../../lib/etiquetas'
 import { fmtCompacto, fmtNum, fmtPct, plural } from '../../lib/formato'
 
-const FUENTE: Record<string, string> = {
-  consenso: 'Consenso (Finnhub)',
-  guidance: 'Guidance de la dirección (extraído por IA, cita verificada)',
-  modelo_interno: 'Modelo interno de la app',
-  usuario: 'Tus expectativas',
-  reglas: 'Reglas de la tesis',
+// De dónde sale cada fuente. El nombre es su etiqueta (uno solo en toda la app);
+// esto solo añade la procedencia, que en la guidance es además la marca de IA.
+const PROCEDENCIA: Record<string, string> = {
+  consenso: 'Finnhub',
+  guidance: 'extraído por IA, cita verificada',
+  modelo_interno: 'de la app',
 }
+const fuente = (f: string) => `${etiqueta(f, { mayuscula: true })}${PROCEDENCIA[f] ? ` (${PROCEDENCIA[f]})` : ''}`
 
 const LECTURA: Record<string, string> = {
   supera: 'text-emerald-700',
@@ -77,9 +78,9 @@ function Evento({ id, alCambiar }: { id: number; alCambiar: () => void }) {
       {Object.keys(l.por_fuente).length === 0 && (
         <p className="text-xs text-slate-500">Sin expectativas válidas registradas para este evento todavía.</p>
       )}
-      {Object.entries(l.por_fuente).map(([fuente, filas]) => (
-        <div key={fuente}>
-          <div className="text-[10px] uppercase tracking-wide text-slate-400">{FUENTE[fuente] ?? fuente}</div>
+      {Object.entries(l.por_fuente).map(([nombre, filas]) => (
+        <div key={nombre}>
+          <div className="text-[10px] uppercase tracking-wide text-slate-400">{fuente(nombre)}</div>
           <table className="w-full text-xs tabular-nums">
             <thead className="text-[10px] text-slate-400">
               <tr><th className="text-left">Métrica</th><th className="text-right">Esperado</th><th className="text-right">Real</th><th className="text-right">Sorpresa</th><th className="text-right">Lectura</th></tr>
@@ -190,7 +191,7 @@ export function ExpectativasSection({ symbol }: { symbol: string }) {
             <tbody>
               {Object.entries(cal.por_fuente).map(([f, c]) => (
                 <tr key={f} className="border-t border-slate-100">
-                  <td className="text-left text-slate-700">{FUENTE[f] ?? f}{!c.total.suficiente && <span className="ml-1 text-amber-800">(muestra insuficiente)</span>}</td>
+                  <td className="text-left text-slate-700">{fuente(f)}{!c.total.suficiente && <span className="ml-1 text-amber-800">(muestra insuficiente)</span>}</td>
                   <td className="text-right">{c.total.n}</td>
                   <td className="text-right">{fmtPct(c.total.error_medio_abs ?? null, 1)}</td>
                   <td className="text-right">{fmtPct(c.total.sesgo ?? null, 1)}</td>

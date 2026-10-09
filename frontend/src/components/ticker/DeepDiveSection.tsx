@@ -23,11 +23,8 @@ const SEVERITY_STYLES: Record<string, string> = {
   medio: 'bg-amber-100 text-amber-800',
 }
 
-const TREND_LABELS: Record<string, string> = {
-  mejorando: '▲ mejorando',
-  'deteriorándose': '▼ deteriorándose',
-  estable: '→ estable',
-}
+// La flecha es estilo; la palabra, su etiqueta.
+const FLECHA: Record<string, string> = { mejorando: '▲', 'deteriorándose': '▼', estable: '→' }
 
 function Section({ title, reading, children }: { title: string; reading?: string; children?: React.ReactNode }) {
   return (
@@ -243,11 +240,11 @@ export function DeepDiveSection({ symbol }: { symbol: string }) {
             {(['gross_margin', 'operating_margin', 'net_margin'] as const).map((key) => (
               <div key={key}>
                 <dt className="text-xs text-slate-400">
-                  {key === 'gross_margin' ? 'Bruto' : key === 'operating_margin' ? 'Operativo' : 'Neto'}
+                  {etiqueta(key, { mayuscula: true })}
                 </dt>
                 <dd className="tabular-nums">{fmtPct(margins.current[key])}</dd>
                 <dd className="text-[10px] text-slate-400">
-                  {TREND_LABELS[margins.trends[key] ?? ''] ?? ''}
+                  {margins.trends[key] ? `${FLECHA[margins.trends[key]] ?? ''} ${etiqueta(margins.trends[key])}`.trim() : ''}
                 </dd>
               </div>
             ))}
@@ -320,7 +317,7 @@ export function DeepDiveSection({ symbol }: { symbol: string }) {
               return (
                 <div key={kind} className="rounded-lg border border-slate-200 p-3">
                   <div className="text-xs text-slate-500">
-                    {kind === 'bear' ? 'Bajista' : kind === 'base' ? 'Base' : 'Alcista'}
+                    {etiqueta(kind, { mayuscula: true })}
                   </div>
                   <div className="text-xl font-semibold tabular-nums">
                     {fmtNum(sc.value_per_share)}

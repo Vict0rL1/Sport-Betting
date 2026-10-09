@@ -2,6 +2,7 @@
  "_doc": "Generado por `python -m app.etiquetas` desde backend/app/etiquetas.py. No editar a mano.",
  "etiquetas": {
   "COMPRAR_CON_EFECTIVO": "comprar con efectivo",
+  "EPS": "BPA",
   "INDETERMINADO": "indeterminado",
   "NO_ACCION": "no hacer nada",
   "NO_TRADE": "no operar",
@@ -83,14 +84,15 @@
   "decision": "decisión",
   "delayed": "retrasado ~15 min",
   "dentro": "dentro",
+  "descartar": "descartar",
   "desconocido": "desconocido",
   "desconocidos": "desconocidos",
   "desfavorable": "desfavorable",
   "deterioro": "deterioro",
   "deterioros": "deterioros",
   "deteriorándose": "deteriorándose",
-  "deuda_corto": "deuda a corto",
-  "deuda_largo": "deuda a largo",
+  "deuda_corto": "deuda a corto plazo",
+  "deuda_largo": "deuda a largo plazo",
   "deuda_neta": "deuda neta",
   "dilucion_o_ampliacion_de_capital": "dilución o ampliación de capital",
   "discount_rate": "tasa de descuento",
@@ -135,7 +137,7 @@
   "irrelevante_para_la_tesis": "irrelevante para la tesis",
   "litigios": "litigios",
   "live": "en vivo",
-  "long_term_debt": "deuda a largo",
+  "long_term_debt": "deuda a largo plazo",
   "low_volatility": "baja volatilidad",
   "mantener": "mantener",
   "market_cap": "capitalización",
@@ -186,6 +188,7 @@
   "recompra_o_dividendo_al_alza": "recompra o dividendo al alza",
   "reducir": "reducir",
   "reestructuracion": "reestructuración",
+  "reforzar": "reforzar",
   "refutada": "refutada",
   "reglas": "reglas de la tesis",
   "relativa": "relativa",
@@ -207,7 +210,7 @@
   "sector": "sector",
   "senal": "señal",
   "sentiment": "sentimiento",
-  "short_term_debt": "deuda a corto",
+  "short_term_debt": "deuda a corto plazo",
   "sin_calibrar": "sin calibrar",
   "sin_cartera": "sin cartera",
   "sin_datos": "sin datos",
@@ -282,6 +285,26 @@
    "cuentas por cobrar_anterior",
    false,
    "cuentas por cobrar del año anterior"
+  ],
+  [
+   "BPA",
+   true,
+   "BPA"
+  ],
+  [
+   "EBITDA",
+   false,
+   "EBITDA"
+  ],
+  [
+   "EPS",
+   true,
+   "BPA"
+  ],
+  [
+   "FCF",
+   true,
+   "FCF"
   ],
   [
    "analisis:03:09:37",

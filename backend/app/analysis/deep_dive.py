@@ -20,7 +20,7 @@ from app.analysis.fundamentals import (
     total_debt,
 )
 from app.analysis.health import health_snapshot
-from app.formato import fmt_num, fmt_pct
+from app.formato import fmt_num, fmt_pct, plural
 
 
 def _trend(values: list[float | None]) -> str | None:
@@ -113,7 +113,7 @@ def growth_section(periods: list[dict]) -> dict:
 
 
 def _anos(n: int) -> str:
-    return "1 año" if n == 1 else f"{n} años"
+    return f"{n} {plural(n, 'año', 'años')}"
 
 
 def _growth_reading(cagr_5y: float | None, acceleration: str | None, years: int = VENTANA_NOMINAL) -> str:
