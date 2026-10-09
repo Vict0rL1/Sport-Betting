@@ -27,6 +27,14 @@ describe('calendario de resultados del panel de mercado', () => {
     expect(document.body.textContent).not.toMatch(/FINNHUB_API_KEY/)
   })
 
+  it('la curva y los indicadores de FRED que fallan lo dicen, sin adivinar la clave (revisión F1)', async () => {
+    servir({ status: 200, json: { events: [] } })
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    expect(await screen.findByText('No se pudo cargar la curva: sin datos en el test')).toBeInTheDocument()
+    expect(await screen.findByText('No se pudieron cargar los indicadores: sin datos en el test')).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/FRED_API_KEY/)
+  })
+
   it('una lista vacía dice que no hay resultados anunciados', async () => {
     servir({ status: 200, json: { events: [] } })
     render(<MemoryRouter><DashboardPage /></MemoryRouter>)

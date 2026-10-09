@@ -27,14 +27,17 @@ export function DashboardPage() {
   const [macro, setMacro] = useState<MacroIndicator[] | null>(null)
   const [events, setEvents] = useState<EarningsEvent[] | null>(null)
   const [errorEventos, setErrorEventos] = useState<string | null>(null)
+  const [errorCurva, setErrorCurva] = useState<string | null>(null)
+  const [errorMacro, setErrorMacro] = useState<string | null>(null)
 
   useEffect(() => {
     api.marketOverview().then((d) => setIndices(d.indices), () => setIndices([]))
     api.marketSectors().then((d) => setSectors(d.sectors), () => setSectors([]))
-    api.yieldCurve().then(setCurve, () => setCurve(null))
-    api.macro().then((d) => setMacro(d.indicators), () => setMacro([]))
-    // Un fallo no es «no hay eventos»: antes se pintaba igual y el mensaje
-    // adivinaba la causa («¿falta FINNHUB_API_KEY?»). Se dice lo que pasó.
+    // Un fallo no es «no hay datos»: antes se pintaba igual y el mensaje
+    // adivinaba la causa («¿falta FINNHUB_API_KEY?», «¿falta FRED_API_KEY?»; la
+    // curva lo decía incluso mientras cargaba). Se dice lo que pasó.
+    api.yieldCurve().then(setCurve, (e: Error) => setErrorCurva(e.message))
+    api.macro().then((d) => setMacro(d.indicators), (e: Error) => setErrorMacro(e.message))
     api.calendar().then((d) => setEvents(d.events), (e: Error) => setErrorEventos(e.message))
   }, [])
 
@@ -93,10 +96,10 @@ export function DashboardPage() {
             Curva de rendimientos EE. UU.{' '}
             <span className="font-normal text-slate-400">(FRED, cierre anterior)</span>
           </h2>
-          {curve === null ? (
-            <p className="text-sm text-slate-400">
-              Sin datos de FRED (¿falta FRED_API_KEY en .env?).
-            </p>
+          {errorCurva ? (
+            <p className="text-sm text-amber-800">No se pudo cargar la curva: {errorCurva}</p>
+          ) : curve === null ? (
+            <p className="text-sm text-slate-400">Cargando la curva…</p>
           ) : (
             <>
               <div className="flex items-end gap-2">
@@ -143,8 +146,9 @@ export function DashboardPage() {
               </div>
             ))}
           </dl>
+          {errorMacro && <p className="text-sm text-amber-800">No se pudieron cargar los indicadores: {errorMacro}</p>}
           {macro !== null && macro.length === 0 && (
-            <p className="text-sm text-slate-400">Sin datos (¿falta FRED_API_KEY?).</p>
+            <p className="text-sm text-slate-400">FRED no devolvió ningún indicador.</p>
           )}
         </section>
 

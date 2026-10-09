@@ -67,3 +67,20 @@ def test_sin_tarifa_conocida_no_se_inventa_un_precio():
     assert r["usd_estimado"] is None
     assert r["tokens_entrada"] == 12345
     assert "No hay tarifa conocida para el modelo claude-del-futuro" in r["nota"]
+
+
+def test_al_estimar_el_coste_un_modelo_invalido_tambien_se_dice(monkeypatch):
+    """Revisión de la Fase 1: `contar_tokens` se tragaba el 404 y la estimación
+    decía «no se pudo contar los tokens»; la causa salía después, al gastar."""
+    from app.routers.earnings import _estimar
+
+    llm = AnthropicProvider("clave-de-prueba", "claude-que-no-existe")
+
+    def falla(*_, **__):
+        raise _no_encontrado()
+
+    monkeypatch.setattr(llm.client.messages, "count_tokens", falla)
+    coste = _estimar(llm, "texto")
+    assert coste["usd_estimado"] is None
+    assert coste["nota"] == ("Modelo de Claude no válido: claude-que-no-existe. Revisa CLAUDE_MODEL en .env. "
+                             "El coste no se puede estimar de antemano.")

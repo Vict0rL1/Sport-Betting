@@ -144,6 +144,11 @@ class AnthropicProvider(LLMProvider):
                 system=system,
                 messages=[{"role": "user", "content": prompt}],
             ).input_tokens
+        except anthropic.NotFoundError as exc:
+            # Un modelo que el API no conoce se dice ya al estimar, con su nombre:
+            # tragárselo dejaba «no se pudieron contar los tokens» y la causa
+            # salía después, al gastar (revisión de la Fase 1).
+            raise self._modelo_no_valido() from exc
         except anthropic.AnthropicError as exc:
             # Contar es para poder enseñar el coste antes de gastarlo; si falla,
             # no debe impedir el análisis. None significa «no se pudo estimar»,

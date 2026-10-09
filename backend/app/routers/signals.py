@@ -140,6 +140,20 @@ def _safe_get(service: MarketDataService, data_type: str, **kwargs):
         return None
 
 
+def _por_que_sin_fundamentales(exc: Exception) -> str:
+    """Lo que dijo el router, sin adivinar. Antes todo era «sin fundamentales o
+    cuota agotada», y el 502 lo presentaba como el motivo real (revisión F1).
+    Se lee detrás de un recuento: «12 sin cuota en las fuentes de fundamentales»."""
+    if isinstance(exc, DataNotFoundError):
+        return "sin fundamentales en ninguna fuente"
+    motivos = [m for m in getattr(exc, "reasons", {}).values() if not m.startswith(("no configurado", "no soporta"))]
+    if not motivos:
+        return "sin ninguna fuente de fundamentales configurada"
+    if all(m.startswith("límite de llamadas") for m in motivos):
+        return "sin cuota en las fuentes de fundamentales"
+    return "con las fuentes de fundamentales fallando"
+
+
 def _lista_corta_dimensionada(
     ranked: list[dict], posiciones: dict[str, dict] | None = None
 ) -> dict:
@@ -554,10 +568,11 @@ def _score_symbols(
                 pending.append(symbol)
                 continue
         if fundamentals is None:
-            fundamentals = _safe_get(service, "fundamentals", symbol=symbol)
-        if fundamentals is None:
-            unavailable.append({"symbol": symbol, "reason": "sin fundamentales o cuota agotada"})
-            continue
+            try:
+                fundamentals = service.get("fundamentals", symbol=symbol)
+            except (DataNotFoundError, AllProvidersFailedError) as exc:
+                unavailable.append({"symbol": symbol, "reason": _por_que_sin_fundamentales(exc)})
+                continue
         raw_by_symbol[symbol] = build_raw_factors(
             dict(fundamentals["metrics"]), momentum_map.get(symbol), None
         )

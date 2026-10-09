@@ -126,12 +126,13 @@ def _preparar(service: MarketDataService, symbol: str, filing: dict) -> dict:
     return {"documento": doc, "secciones": secciones, "filing": filing}
 
 
-def _coste_estimado(entrada: int | None, modelo: str | None, salida: int = 4000) -> dict:
+def _coste_estimado(entrada: int | None, modelo: str | None, salida: int = 4000, motivo: str | None = None) -> dict:
     if entrada is None:
         return {
             "tokens_entrada": None,
             "usd_estimado": None,
-            "nota": "No se pudo contar los tokens; el coste no se puede estimar de antemano.",
+            "nota": f"{motivo} El coste no se puede estimar de antemano." if motivo else
+                    "No se pudieron contar los tokens; el coste no se puede estimar de antemano.",
         }
     tarifa = TARIFAS_USD_POR_MTOK.get(modelo or "")
     if tarifa is None:
@@ -269,8 +270,15 @@ def estimar_coste(
         },
         "secciones_ausentes": secciones["faltan"],
         "presupuesto": presupuesto,
-        "coste": _coste_estimado(llm.contar_tokens(SYSTEM, prompt), llm.model),
+        "coste": _estimar(llm, prompt),
     }
+
+
+def _estimar(llm: LLMProvider, prompt: str) -> dict:
+    try:
+        return _coste_estimado(llm.contar_tokens(SYSTEM, prompt), llm.model)
+    except LLMUnavailableError as exc:
+        return _coste_estimado(None, llm.model, motivo=str(exc))
 
 
 def _elegir(filings: list[dict], accession_no: str | None) -> dict:

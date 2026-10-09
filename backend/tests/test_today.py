@@ -667,4 +667,19 @@ def test_si_no_se_puntua_nada_se_dice_por_que_y_no_se_adivina(session_factory):
     assert r.status_code == 502
     detalle = r.json()["detail"]
     assert "FINNHUB_API_KEY" not in detalle
-    assert f"{len(todos)} sin fundamentales o cuota agotada" in detalle
+    assert f"{len(todos)} sin fundamentales en ninguna fuente" in detalle
+    assert "cuota" not in detalle  # nadie habló de cuota: no se adivina
+
+
+def test_el_motivo_sin_fundamentales_es_el_que_dio_el_router():
+    """Revisión de la Fase 1: «sin fundamentales o cuota agotada» para todo."""
+    from app.providers.router import AllProvidersFailedError
+    from app.routers.signals import _por_que_sin_fundamentales
+
+    cuota = AllProvidersFailedError("fundamentals", {"edgar": "límite de llamadas agotado en esta ventana",
+                                                     "finnhub": "no configurado (falta API key o credencial en .env)"})
+    caida = AllProvidersFailedError("fundamentals", {"edgar": "HTTP 503", "fmp": "límite de llamadas agotado en esta ventana"})
+    nada = AllProvidersFailedError("fundamentals", {"finnhub": "no configurado (falta API key o credencial en .env)"})
+    assert _por_que_sin_fundamentales(cuota) == "sin cuota en las fuentes de fundamentales"
+    assert _por_que_sin_fundamentales(caida) == "con las fuentes de fundamentales fallando"
+    assert _por_que_sin_fundamentales(nada) == "sin ninguna fuente de fundamentales configurada"
