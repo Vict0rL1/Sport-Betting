@@ -7,6 +7,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts'
 import type { History } from '../api/types'
+import { fmtCompacto, fmtFecha, fmtNum } from '../lib/formato'
 import { conOpacidad, leerToken, type Token } from '../lib/tokens'
 
 function toTime(ts: string): UTCTimestamp {
@@ -50,6 +51,20 @@ const LEYENDA_INDICADORES: { token: Token; label: string }[] = [
   { token: 'warn', label: 'señal' },
 ]
 
+/**
+ * Cifras y fechas del canvas con el mismo formato que el resto de la app. Sin
+ * esto, lightweight-charts escribía ejes y cruz en inglés («123.45», volumen con
+ * «K/M/B», «12 Sep '26»): la V4 dentro del gráfico (revisión de la Fase 1). Las
+ * barras son diarias y van a las 00:00 UTC: la fecha se lee en UTC, o en América
+ * saldría el día anterior.
+ */
+export const LOCALIZACION = {
+  locale: 'es-ES',
+  priceFormatter: (p: number) => fmtNum(p, 2),
+  timeFormatter: (t: unknown) => (typeof t === 'number' ? fmtFecha(new Date(t * 1000), { zona: 'UTC' }) : String(t)),
+}
+export const FORMATO_VOLUMEN = { type: 'custom' as const, formatter: (v: number) => fmtCompacto(v), minMove: 1 }
+
 // El volumen es contexto, no protagonista: semitransparente y en la quinta parte
 // de abajo del panel del precio.
 const OPACIDAD_VOLUMEN = 0.35
@@ -80,6 +95,7 @@ export function PriceChart({ history }: { history: History }) {
       },
       rightPriceScale: { borderColor: borde },
       timeScale: { borderColor: borde },
+      localization: LOCALIZACION,
     })
 
     const candles = chart.addSeries(CandlestickSeries, {
@@ -101,7 +117,7 @@ export function PriceChart({ history }: { history: History }) {
 
     const volume = chart.addSeries(HistogramSeries, {
       priceScaleId: 'volume',
-      priceFormat: { type: 'volume' },
+      priceFormat: FORMATO_VOLUMEN,
       priceLineVisible: false,
       lastValueVisible: false,
     })
