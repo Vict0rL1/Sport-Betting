@@ -39,7 +39,7 @@ from __future__ import annotations
 import math
 
 from app import datos
-from app.formato import fmt_num, fmt_pct, plural
+from app.formato import fmt_fecha, fmt_num, fmt_pct, plural
 from app.registro import log
 
 # --- Límites. Todos aquí, con nombre, para poder discutirlos. ---
@@ -682,7 +682,7 @@ def peor_ventana(
                 "recortar el periodo y seguir rotulándolo igual."
             )
         ),
-        "cobertura": f"{cobertura_desde.isoformat()} → {cobertura_hasta.isoformat()}",
+        "cobertura": f"{fmt_fecha(cobertura_desde)} → {fmt_fecha(cobertura_hasta)}",
         "años_cubiertos": round(años, 1),
         # La advertencia más importante del módulo, y la que más se olvida.
         "aviso_cobertura": _aviso_cobertura(cobertura_desde.year, años),

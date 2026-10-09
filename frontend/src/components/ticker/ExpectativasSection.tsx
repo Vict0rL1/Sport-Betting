@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { CalibracionExpectativas, EventoCatalizador, LecturaEvento } from '../../api/types'
 import { etiqueta } from '../../lib/etiquetas'
-import { fmtCompacto, fmtNum, fmtPct, plural } from '../../lib/formato'
+import { fmtCompacto, fmtFecha, fmtNum, fmtPct, plural } from '../../lib/formato'
 
 // De dónde sale cada fuente. El nombre es su etiqueta (uno solo en toda la app);
 // esto solo añade la procedencia, que en la guidance es además la marca de IA.
@@ -176,7 +176,7 @@ export function ExpectativasSection({ symbol }: { symbol: string }) {
           {(eventos ?? []).map((e) => (
             <button key={e.id} type="button" onClick={() => setAbierto(e.id)}
               className={`rounded-md border px-2 py-1 text-xs ${abierto === e.id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-300 text-slate-700'}`}>
-              {etiqueta(e.tipo, { mayuscula: true })} {e.periodo ?? ''} · {e.fecha_prevista ?? 'sin fecha'} · {e.expectativas} exp / {e.reales} reales
+              {etiqueta(e.tipo, { mayuscula: true })} {e.periodo ?? ''} · {e.fecha_prevista ? fmtFecha(e.fecha_prevista) : 'sin fecha'} · {e.expectativas} exp / {e.reales} reales
             </button>
           ))}
         </div>

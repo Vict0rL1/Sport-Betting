@@ -56,6 +56,9 @@ export const PATRONES: Record<string, RegExp> = {
   decimal_punto: /(?<![\w.,])(?:0\.\d+|\d+\.\d{1,2}|\d+\.\d{4,})(?![\w.,]?\d)/g,
   // «+1 sobre 1 evaluables» (revisión de la Fase 1, V7): un 1 suelto con el
   // sustantivo en plural. Las palabras que acaban en «s» en singular, aparte.
+  // «universo actualizado el 2026-08-06», «2025-04-25 → 2026-09-11» (revisión de la
+  // Fase 1, D3): una fecha para una persona se escribe con fmtFecha («6 ago 2026»).
+  fecha_iso: /(?<![\w-])\d{4}-\d{2}-\d{2}(?:T[\d:.]+(?:Z|[+-]\d{2}:\d{2})?)?(?![\w-])/g,
   uno_plural: /(?<![\w.,])1 (?!(?:es|más|menos|mes|análisis|tesis|crisis|después|antes)(?![\wáéíóúñ]))[a-záéíóúñ]+s(?![\wáéíóúñ])/g,
 }
 

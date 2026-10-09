@@ -8,7 +8,7 @@ import type {
   SeñalesDeOpciones,
   SkewSignal,
 } from '../../api/types'
-import { fmtNum, fmtPct } from '../../lib/formato'
+import { fmtFecha, fmtNum, fmtPct } from '../../lib/formato'
 
 const pct = (v: number | null | undefined, d = 1) => fmtPct(v, d)
 
@@ -191,7 +191,7 @@ function Movimiento({ m }: { m: MovimientoEsperado }) {
           </div>
           {imp.vencimiento && (
             <div className="text-[10px] text-slate-400">
-              vence {imp.vencimiento} · resultados {imp.resultados}
+              vence {fmtFecha(imp.vencimiento)} · resultados {fmtFecha(imp.resultados)}
             </div>
           )}
         </div>
@@ -223,7 +223,7 @@ function Movimiento({ m }: { m: MovimientoEsperado }) {
           {hist.movimientos.map((mv) => (
             <span
               key={mv.fecha}
-              title={mv.fecha}
+              title={fmtFecha(mv.fecha)}
               className={`rounded px-1.5 py-0.5 text-[11px] tabular-nums ${
                 Math.abs(mv.movimiento_pct) > (imp.movimiento_pct ?? Infinity)
                   ? 'bg-amber-100 text-amber-800'

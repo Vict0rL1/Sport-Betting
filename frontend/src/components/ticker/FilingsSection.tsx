@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { FilingsResponse } from '../../api/types'
+import { fmtFecha } from '../../lib/formato'
 import { SourceBadge } from '../SourceBadge'
 
 function FilingList({ title, items }: { title: string; items: FilingsResponse['filings'] }) {
@@ -22,7 +23,7 @@ function FilingList({ title, items }: { title: string; items: FilingsResponse['f
             >
               {filing.type}
             </a>
-            <span className="text-xs text-slate-400">{filing.filed_at}</span>
+            <span className="text-xs text-slate-400">{fmtFecha(filing.filed_at)}</span>
           </li>
         ))}
       </ul>

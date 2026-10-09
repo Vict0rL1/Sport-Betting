@@ -12,7 +12,7 @@ import type {
   UniverseInfo,
 } from '../api/types'
 import { etiqueta } from '../lib/etiquetas'
-import { fmtNum, fmtPct } from '../lib/formato'
+import { fmtFecha, fmtNum, fmtPct } from '../lib/formato'
 import { useLlmStatus } from '../lib/llm'
 import { BloqueIA, BotonIA, EtiquetaIA } from '../components/ia/ContenidoIA'
 
@@ -503,7 +503,7 @@ function RuleBacktestPanel({ result }: { result: RuleBacktestResponse }) {
           Validación de las reglas de compra y venta
         </h3>
         <span className="text-[11px] text-slate-400">
-          {result.periodo.desde} → {result.periodo.hasta} · {result.universo.length} empresas
+          {fmtFecha(result.periodo.desde)} → {fmtFecha(result.periodo.hasta)} · {result.universo.length} empresas
         </span>
       </div>
 

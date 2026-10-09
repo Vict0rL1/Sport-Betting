@@ -6,7 +6,7 @@ import type {
   MultipleStats,
 } from '../../api/types'
 import { etiqueta } from '../../lib/etiquetas'
-import { fmtCompacto, fmtNum, fmtPct, plural } from '../../lib/formato'
+import { fmtCompacto, fmtFecha, fmtNum, fmtPct, plural } from '../../lib/formato'
 import { useLlmStatus } from '../../lib/llm'
 import { BloqueIA, BotonIA } from '../ia/ContenidoIA'
 import { DeudaParcial } from './DeudaParcial'
@@ -414,7 +414,7 @@ export function DeepDiveSection({ symbol }: { symbol: string }) {
       <p className="text-[11px] text-slate-400">
         Informe calculado a partir de SEC EDGAR ({report.data_sources.financials}) y precios
         de {report.data_sources.quote ?? 'n/d'}. Generado el{' '}
-        {report.generated_at?.slice(0, 16).replace('T', ' ')}.
+        {fmtFecha(report.generated_at, { hora: true, zona: 'UTC' })}.
       </p>
     </div>
   )

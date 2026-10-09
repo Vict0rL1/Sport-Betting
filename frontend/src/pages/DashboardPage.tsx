@@ -8,7 +8,7 @@ import type {
   SectorEntry,
   YieldCurve,
 } from '../api/types'
-import { fmtPct, fmtNum } from '../lib/formato'
+import { fmtFecha, fmtNum, fmtPct } from '../lib/formato'
 
 function ChangeChip({ pct }: { pct: number | null | undefined }) {
   if (pct === null || pct === undefined) return <span className="text-slate-400">—</span>
@@ -173,7 +173,7 @@ export function DashboardPage() {
                   {ev.symbol}
                 </Link>
                 <span className="text-xs text-slate-500">
-                  {ev.date}
+                  {fmtFecha(ev.date)}
                   {ev.eps_estimate !== null ? ` · BPA est. ${fmtNum(ev.eps_estimate)}` : ''}
                 </span>
               </li>

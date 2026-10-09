@@ -2364,7 +2364,7 @@
     "hasta": "2026-09-11",
     "indice_beta": "SPY",
     "metodo": "descomposición de Euler de la volatilidad: σ_p = √(wᵀΣw), componente_i = w_i·(Σw)_i/σ_p",
-    "nota": "Riesgo medido sobre el 100 % de la cartera (504 sesiones comunes, 2025-04-25 → 2026-09-11). 1 posición con riesgo DESCONOCIDO queda fuera: el riesgo real es mayor que el medido, no igual.",
+    "nota": "Riesgo medido sobre el 100 % de la cartera (504 sesiones comunes, 25 abr 2025 → 11 sept 2026). 1 posición con riesgo DESCONOCIDO queda fuera: el riesgo real es mayor que el medido, no igual.",
     "observaciones": 504,
     "posiciones": [
      {

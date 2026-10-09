@@ -28,7 +28,7 @@ from datetime import date, datetime
 
 from app import datos
 from app.etiquetas import etiqueta
-from app.formato import fmt_num, fmt_pct, plural
+from app.formato import fmt_fecha, fmt_num, fmt_pct, plural
 
 OK, DEBIL, CRITICO, DESCONOCIDO = "ok", "debil", "critico", "desconocido"
 ALTA, MEDIA, BAJA = "alta", "media", "baja"
@@ -183,7 +183,7 @@ def evaluar(analisis: dict, ahora: datetime) -> dict:
     factores.append(_f(
         "resultados_proximos", "Resultados inminentes",
         DEBIL if res else OK,
-        f"presenta resultados en {dias_res} {plural(dias_res, 'día', 'días')} ({res})" if res else "sin resultados en los próximos 7 días",
+        f"presenta resultados en {dias_res} {plural(dias_res, 'día', 'días')} ({fmt_fecha(res)})" if res else "sin resultados en los próximos 7 días",
     ))
 
     # 10) Validación de las reglas

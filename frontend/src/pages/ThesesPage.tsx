@@ -90,7 +90,7 @@ function TrackRecordPanel({ record }: { record: TrackRecord }) {
                   </td>
                   <td className="px-2 py-1.5 text-slate-600">{etiqueta(s.kind, { mayuscula: true })}</td>
                   <td className="px-2 py-1.5 text-xs text-slate-500">
-                    {s.created_at.slice(0, 10)} ({s.days_elapsed} d)
+                    {fmtFecha(s.created_at)} ({s.days_elapsed} d)
                   </td>
                   <td className="px-2 py-1.5 tabular-nums">
                     {s.price_at_creation !== null ? fmtNum(s.price_at_creation) : '—'}

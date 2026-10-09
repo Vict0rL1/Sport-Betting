@@ -25,7 +25,7 @@ from __future__ import annotations
 import math
 
 from app import datos
-from app.formato import fmt_num, fmt_pct
+from app.formato import fmt_fecha, fmt_num, fmt_pct
 
 # --- Parámetros del sistema. Están aquí, juntos y con nombre, para que se
 # puedan discutir y ajustar sin bucear por el código. ---
@@ -408,17 +408,17 @@ def decide(
         r_resultados["papel"] = "modifica"
         razones.insert(
             0,
-            f"Presenta resultados el {resultados_en}. La idea es buena, pero "
+            f"Presenta resultados el {fmt_fecha(resultados_en)}. La idea es buena, pero "
             "entrar justo antes es apostar a una noticia que el modelo no puede "
             "ver; el movimiento del día lo decide la sorpresa, no los factores.",
         )
         disparadores = [
-            f"Comprar cuando hayan publicado ({resultados_en}) y la puntuación aguante",
+            f"Comprar cuando hayan publicado ({fmt_fecha(resultados_en)}) y la puntuación aguante",
             *disparadores[1:],
         ]
     elif resultados_en:
         r_resultados["papel"] = "informa"
-        razones.append(f"Presenta resultados el {resultados_en}: espera volatilidad.")
+        razones.append(f"Presenta resultados el {fmt_fecha(resultados_en)}: espera volatilidad.")
     reglas.append(r_resultados)
 
     r_viejo = _regla(
@@ -609,7 +609,7 @@ def _cambiaria_sin_posicion(
                _c_precio("≥", entrar, ultimo, "tendencia_a_favor", _media_entrar())]
     extra = []
     if resultados_en:
-        extra.append({"regla": "resultados_proximos", "condicion": f"que pasen los resultados del {resultados_en}",
+        extra.append({"regla": "resultados_proximos", "condicion": f"que pasen los resultados del {fmt_fecha(resultados_en)}",
                       "actual": resultados_en, "umbral": None, "distancia": None, "unidad": None})
     if precio_viejo:
         extra.append({"regla": "precio_viejo", "condicion": "volver a tener precio actual",

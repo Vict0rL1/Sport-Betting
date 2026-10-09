@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { CalidadBeneficios, EvidenciaCalidad, Linaje } from '../../api/types'
 import { etiqueta } from '../../lib/etiquetas'
-import { fmtCompacto, fmtNum, fmtPct, plural } from '../../lib/formato'
+import { fmtCompacto, fmtFecha, fmtNum, fmtPct, plural } from '../../lib/formato'
 
 const ESTADO: Record<string, string> = {
   bueno: 'bg-emerald-100 text-emerald-800',
@@ -28,7 +28,7 @@ function Entrada({ nombre, e }: { nombre: string; e: Linaje }) {
       {e.valor === null ? 'desconocido' : fmtCompacto(e.valor)}
       {e.formulario && (
         <span className="ml-1 text-slate-400">
-          · {e.formulario} {e.accn} · publicado {e.publicado} · {e.etiqueta}
+          · {e.formulario} {e.accn} · publicado {fmtFecha(e.publicado)} · {e.etiqueta}
           {e.derivado ? ` · derivado: ${e.derivado}` : ''}
         </span>
       )}

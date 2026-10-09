@@ -13,7 +13,7 @@ import type {
   Vigilancia,
   WatchlistItem,
 } from '../api/types'
-import { fmtDinero, fmtNum, fmtPct, plural } from '../lib/formato'
+import { fmtDinero, fmtFecha, fmtNum, fmtPct, plural } from '../lib/formato'
 
 type Tab = 'portafolio' | 'watchlist' | 'alertas'
 
@@ -52,7 +52,7 @@ function EstresPanel({ estres }: { estres: Estres }) {
             {fmtPct(estres.max_drawdown_pct, 1, { enPuntos: true })}
           </dd>
           <dd className="text-[11px] text-slate-400">
-            {estres.drawdown_desde} → {estres.drawdown_hasta}
+            {fmtFecha(estres.drawdown_desde)} → {fmtFecha(estres.drawdown_hasta)}
           </dd>
         </div>
         <div>
@@ -66,7 +66,7 @@ function EstresPanel({ estres }: { estres: Estres }) {
                 {fmtPct(estres.peor_ventana_pct, 1, { enPuntos: true })}
               </dd>
               <dd className="text-[11px] text-slate-400">
-                {estres.peor_ventana_desde} → {estres.peor_ventana_hasta}
+                {fmtFecha(estres.peor_ventana_desde)} → {fmtFecha(estres.peor_ventana_hasta)}
               </dd>
             </>
           ) : (
@@ -183,7 +183,7 @@ function DivisasPanel({ d }: { d: DivisasDeCartera }) {
             <li key={m} className="tabular-nums">
               1 {d.base} = {fmtNum(t.por_usd, 4)} {m}
               <span className="ml-2 text-sky-700">
-                ({t.serie}{t.fecha ? ` · ${t.fecha}` : ''})
+                ({t.serie}{t.fecha ? ` · ${fmtFecha(t.fecha)}` : ''})
               </span>
             </li>
           ))}
@@ -256,7 +256,8 @@ function HistorialPanel() {
           Recorrido de la cartera
         </h3>
         <span className="text-[11px] text-slate-400">
-          {d.desde} → {d.hasta} · {d.sesiones} sesiones
+          {fmtFecha(d.desde)} → {fmtFecha(d.hasta)}
+          {d.sesiones != null && ` · ${d.sesiones} ${plural(d.sesiones, 'sesión', 'sesiones')}`}
         </span>
       </div>
 
@@ -300,7 +301,7 @@ function HistorialPanel() {
               {fmtPct(r.max_drawdown_pct, 1, { enPuntos: true })}
             </div>
             <div className="text-[10px] text-slate-400">
-              {r.drawdown_desde} → {r.drawdown_hasta}
+              {fmtFecha(r.drawdown_desde)} → {fmtFecha(r.drawdown_hasta)}
             </div>
           </div>
         </div>
@@ -645,7 +646,7 @@ function PortfolioTab() {
                     <span className="text-slate-700">
                       {p.symbol}
                       <span className="ml-2 text-xs text-slate-400">
-                        {p.closed_at.slice(0, 10)}
+                        {fmtFecha(p.closed_at)}
                       </span>
                     </span>
                     <Pnl value={p.realized_pnl} pct={null} />

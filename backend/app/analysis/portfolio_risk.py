@@ -27,7 +27,7 @@ from __future__ import annotations
 from datetime import date
 
 import numpy as np
-from app.formato import fmt_num, fmt_pct, plural
+from app.formato import fmt_fecha, fmt_num, fmt_pct, plural
 
 # Ventanas de crisis, pico a valle del S&P 500. Fechas fijas y públicas: no se
 # eligen para que el resultado quede bonito, y por eso van escritas aquí y no
@@ -195,7 +195,7 @@ def matriz_correlacion(series: dict[str, list[tuple[date, float]]]) -> dict:
         "descartadas": descartadas,
         "media": round(float(np.mean([p["corr"] for p in parejas])), 3) if parejas else None,
         "nota": (
-            f"Retornos diarios de {fechas[0].isoformat()} a {fechas[-1].isoformat()} "
+            f"Retornos diarios del {fmt_fecha(fechas[0])} al {fmt_fecha(fechas[-1])} "
             f"({n_obs} sesiones comunes a todas). Se mide sobre retornos y no sobre "
             "precios: dos precios que suben correlacionan siempre, y eso no dice nada. "
             + (
@@ -842,7 +842,7 @@ def contribucion_al_riesgo(
         "clusters": clusters_de_riesgo(resultado, desconocidas, parejas, posiciones),
         "nota": (
             f"Riesgo medido sobre el {fmt_pct(peso_medido / (peso_total or 1), 0)} de la cartera "
-            f"({len(fechas) - 1} sesiones comunes, {fechas[0].isoformat()} → {fechas[-1].isoformat()}). "
+            f"({len(fechas) - 1} sesiones comunes, {fmt_fecha(fechas[0])} → {fmt_fecha(fechas[-1])}). "
             + (f"{len(desconocidas)} {plural(len(desconocidas), 'posición', 'posiciones')} con riesgo DESCONOCIDO "
                f"{plural(len(desconocidas), 'queda', 'quedan')} fuera: el riesgo "
                "real es mayor que el medido, no igual." if desconocidas else "Todas las posiciones medidas.")

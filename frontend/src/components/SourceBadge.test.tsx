@@ -22,6 +22,13 @@ describe('SourceBadge', () => {
     expect(screen.queryByText(/en vivo/)).not.toBeInTheDocument()
   })
 
+  it('la hora del dato va en la del mercado, rotulada (revisión de la Fase 1)', () => {
+    const { container } = render(
+      <SourceBadge data={{ source: 'finnhub', as_of: '2026-10-08T14:00:00Z', cached: false, fetched_at: null }} freshness="delayed" />,
+    )
+    expect(container.querySelector('[title]')?.getAttribute('title')).toBe('Fuente: finnhub · dato del 8 oct 2026, 10:00\u00a0ET')
+  })
+
   it('un dato viejo sin antigüedad no dice «hace 0 min» (revisión de la Fase 1)', () => {
     render(
       <SourceBadge

@@ -54,7 +54,7 @@ function Replay({ r }: { r: ReplayDecision }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="font-semibold text-slate-800">
-          {r.symbol} — {r.fecha} — {etiqueta(r.accion).toUpperCase()}
+          {r.symbol} — {fmtFecha(r.fecha)} — {etiqueta(r.accion).toUpperCase()}
         </span>
         <span className="text-slate-400">{r.momento ? fmtFecha(r.momento, { hora: true, zona: 'UTC' }) : ''} · {etiquetaOrigen(r.origen)} · reglas v{r.reglas_version}</span>
         <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${r.completo ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
@@ -77,7 +77,7 @@ function Replay({ r }: { r: ReplayDecision }) {
         {precio && (
           <Bloque titulo="Precio utilizado">
             <p className="text-xs text-slate-700">
-              {fmtNum(precio.valor, 2)} {precio.moneda ?? ''} · {precio.fuente ?? 'fuente desconocida'} · {precio.publicado ?? 'sin fecha'} · {etiqueta(precio.estado)}
+              {fmtNum(precio.valor, 2)} {precio.moneda ?? ''} · {precio.fuente ?? 'fuente desconocida'} · {precio.publicado ? fmtFecha(precio.publicado, { hora: true, zona: 'UTC' }) : 'sin fecha'} · {etiqueta(precio.estado)}
             </p>
           </Bloque>
         )}

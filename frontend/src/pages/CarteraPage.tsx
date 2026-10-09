@@ -13,7 +13,7 @@ import type {
   RiesgoDeCartera,
 } from '../api/types'
 import { etiqueta } from '../lib/etiquetas'
-import { fmtCompacto, fmtNum, fmtPct, plural } from '../lib/formato'
+import { fmtCompacto, fmtFecha, fmtNum, fmtPct, plural } from '../lib/formato'
 
 /** Color de una celda de correlación.
  *
@@ -371,7 +371,7 @@ function Crisis({ c }: { c: CrisisEstresada }) {
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
         <div className="text-sm font-medium text-slate-700">{c.nombre}</div>
         <div className="text-[11px] text-slate-400">
-          {c.desde} → {c.hasta}
+          {fmtFecha(c.desde)} → {fmtFecha(c.hasta)}
         </div>
         <p className="mt-2 text-xs leading-relaxed text-slate-600">{c.nota}</p>
       </div>
@@ -392,7 +392,7 @@ function Crisis({ c }: { c: CrisisEstresada }) {
         <div>
           <div className="text-sm font-medium text-slate-700">{c.nombre}</div>
           <div className="text-[11px] text-slate-400">
-            {c.desde} → {c.hasta}
+            {fmtFecha(c.desde)} → {fmtFecha(c.hasta)}
           </div>
         </div>
         {!fiable && (

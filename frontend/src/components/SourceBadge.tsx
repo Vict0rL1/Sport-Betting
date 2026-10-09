@@ -1,6 +1,6 @@
 import type { Sourced } from '../api/types'
 import { etiqueta } from '../lib/etiquetas'
-import { fmtFecha, fmtAntiguedad } from '../lib/formato'
+import { fmtAntiguedad, fmtFecha, ZONA_MERCADO } from '../lib/formato'
 
 // Principio de la app: toda cifra muestra su fuente y su fecha. Este badge
 // acompaña a cada bloque de datos; si viene de caché, lo dice.
@@ -36,7 +36,9 @@ export function SourceBadge({
   return (
     <span
       className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500"
-      title={`Fuente: ${data.source} · dato del ${fmtFecha(data.as_of, { hora: true })}${
+      // La hora de un dato de mercado va en la del mercado y rotulada (ítem 1.7: «ET»);
+      // nadie la pasaba y salía en hora local sin rótulo (revisión de la Fase 1).
+      title={`Fuente: ${data.source} · dato del ${fmtFecha(data.as_of, { hora: true, zona: ZONA_MERCADO })}${
         data.cached ? ` · descargado ${fmtFecha(data.fetched_at, { hora: true })}` : ''
       }`}
     >

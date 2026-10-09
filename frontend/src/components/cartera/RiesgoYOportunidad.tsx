@@ -35,7 +35,7 @@ export function ContribucionAlRiesgoPanel() {
             {c.disponible && (
               <>
                 <p className="text-xs text-slate-600">
-                  Volatilidad anual medida {fmtPct(c.volatilidad_cartera_medida ?? null, 1)} · {c.desde} → {c.hasta} · cobertura{' '}
+                  Volatilidad anual medida {fmtPct(c.volatilidad_cartera_medida ?? null, 1)} · {fmtFecha(c.desde)} → {fmtFecha(c.hasta)} · cobertura{' '}
                   {fmtPct(c.cobertura_peso ?? null, 0)} del peso.
                 </p>
                 {c.concentracion && (

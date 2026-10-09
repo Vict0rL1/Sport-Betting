@@ -283,7 +283,7 @@ def test_no_se_compra_justo_antes_de_resultados():
     el precio lo moverá una noticia que el modelo no puede ver."""
     d = decide(señal(0.8), precio(last=105, sma200=100), resultados_en="2026-08-25")
     assert d["action"] == "vigilar"
-    assert "2026-08-25" in d["reasons"][0]
+    assert "25 ago 2026" in d["reasons"][0]
     # No la descarta: la aplaza, y dice hasta cuándo.
     assert any("cuando hayan publicado" in t for t in d["triggers"])
 

@@ -13,7 +13,7 @@ import type {
   WatchlistItem,
 } from '../api/types'
 import { etiqueta } from '../lib/etiquetas'
-import { fmtDinero, fmtNum, fmtPct } from '../lib/formato'
+import { fmtDinero, fmtFecha, fmtNum, fmtPct } from '../lib/formato'
 
 /** Enlace al documento en la SEC. Cada dato de esta pantalla sale de uno, y sin
  *  el enlace el análisis sería una opinión anónima sobre una empresa. */
@@ -86,7 +86,7 @@ function FichaTrimestre({ e }: { e: Extraccion }) {
     <section className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold text-slate-800">
-          {e.form_type} · {e.filed_at}
+          {e.form_type} · {fmtFecha(e.filed_at)}
         </h3>
         <EnlaceSEC url={e.source_url}>Documento en la SEC</EnlaceSEC>
       </div>
@@ -174,7 +174,7 @@ function FichaComparacion({ c }: { c: Comparacion }) {
     <section className="rounded-xl border border-slate-200 bg-white p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold text-slate-800">
-          Qué cambió desde {c.contra.filed_at}
+          Qué cambió desde {fmtFecha(c.contra.filed_at)}
         </h3>
         <EnlaceSEC url={c.contra.url}>Trimestre anterior</EnlaceSEC>
       </div>
@@ -371,7 +371,7 @@ function SerieEnElTiempo({ series }: { series: SerieGuidance[] }) {
               {s.puntos.map((p, i) => (
                 <li key={i} className="flex flex-wrap items-baseline gap-2">
                   <span className="w-24 text-xs tabular-nums text-slate-400">
-                    {p.filed_at}
+                    {fmtFecha(p.filed_at)}
                   </span>
                   <span className="tabular-nums text-slate-900">
                     {rango(p.valor_bajo, p.valor_alto, p.unidad)}
@@ -543,7 +543,7 @@ export function EarningsPage() {
                   className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2 text-sm"
                 >
                   <span className="w-14 font-medium text-slate-800">{f.type}</span>
-                  <span className="w-24 tabular-nums text-slate-500">{f.filed_at}</span>
+                  <span className="w-24 tabular-nums text-slate-500">{fmtFecha(f.filed_at)}</span>
                   <EnlaceSEC url={f.url}>
                     <span className="text-xs">SEC</span>
                   </EnlaceSEC>
@@ -573,7 +573,7 @@ export function EarningsPage() {
       {coste && (
         <section className="rounded-xl border border-sky-200 bg-sky-50 p-4">
           <h3 className="text-sm font-semibold text-sky-900">
-            Antes de gastar: {coste.filing.type} de {coste.filing.filed_at}
+            Antes de gastar: {coste.filing.type} del {fmtFecha(coste.filing.filed_at)}
           </h3>
           <dl className="mt-2 grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
             <div>

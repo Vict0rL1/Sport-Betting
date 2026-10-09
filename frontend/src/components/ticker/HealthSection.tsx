@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from '../../api/client'
 import type { Health, RiskResponse } from '../../api/types'
 import { etiqueta } from '../../lib/etiquetas'
-import { fmtCompacto, fmtNum, fmtPct } from '../../lib/formato'
+import { fmtCompacto, fmtFecha, fmtNum, fmtPct } from '../../lib/formato'
 import { SourceBadge } from '../SourceBadge'
 import { DeudaParcial } from './DeudaParcial'
 
@@ -138,7 +138,7 @@ export function HealthSection({ symbol }: { symbol: string }) {
         </dl>
         {risk?.max_drawdown && (
           <p className="mt-2 text-xs text-slate-400">
-            Drawdown: pico {risk.max_drawdown.peak} → valle {risk.max_drawdown.trough}. Ventana:{' '}
+            Drawdown: pico {fmtFecha(risk.max_drawdown.peak)} → valle {fmtFecha(risk.max_drawdown.trough)}. Ventana:{' '}
             {risk.window}.
           </p>
         )}

@@ -18,6 +18,8 @@ const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', '
 // Una hora de mercado lleva la zona de su bolsa: «16:00 ET» no es lo mismo que
 // las 16:00 de quien lo lee.
 const ETIQUETAS_ZONA: Record<string, string> = { 'America/New_York': 'ET', 'America/Toronto': 'ET', UTC: 'UTC' }
+/** La zona de los mercados que sigue la app (NYSE, NASDAQ y TSX abren en ET). */
+export const ZONA_MERCADO = 'America/New_York'
 
 type Num = number | null | undefined
 

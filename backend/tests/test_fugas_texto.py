@@ -41,6 +41,9 @@ PATRONES = {
     # Un decimal con punto inglés («31.2 %», «EPS estimado 0.52», V4). No toca
     # el punto de miles es-ES («6.000», «1.234.567»): ahí siempre siguen tres cifras.
     "decimal_punto": re.compile(r"(?<![\w.,])(?:0\.\d+|\d+\.\d{1,2}|\d+\.\d{4,})(?![\w.,]?\d)"),
+    # «2025-04-25 → 2026-09-11» en una frase (revisión de la Fase 1, D3): una fecha
+    # para una persona se escribe con fmt_fecha («25 abr 2025»).
+    "fecha_iso": re.compile(r"(?<![\w-])\d{4}-\d{2}-\d{2}(?:T[\d:.]+(?:Z|[+-]\d{2}:\d{2})?)?(?![\w-])"),
     # «+1 sobre 1 evaluables» (revisión de la Fase 1, V7): un 1 suelto con el
     # sustantivo en plural. Las palabras que acaban en «s» en singular, aparte.
     "uno_plural": re.compile(r"(?<![\w.,])1 (?!(?:es|más|menos|mes|análisis|tesis|crisis|después|antes)\b)"

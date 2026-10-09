@@ -13,7 +13,7 @@ import type {
   TodayResponse,
 } from '../api/types'
 import { etiqueta } from '../lib/etiquetas'
-import { fmtAntiguedad, fmtNum, fmtPct, plural } from '../lib/formato'
+import { fmtAntiguedad, fmtFecha, fmtNum, fmtPct, plural } from '../lib/formato'
 import { coord } from '../lib/svg'
 
 type View = 'ideas' | 'comprar' | 'vigilar' | 'cartera' | 'todas'
@@ -1213,7 +1213,7 @@ export function TodayPage() {
               )}
               {data.scored} {plural(data.scored, 'empresa puntuada', 'empresas puntuadas')} de {data.requested}
               {data.data_meta && 'retrieved_at' in data.data_meta
-                ? ` · universo actualizado el ${data.data_meta.retrieved_at}`
+                ? ` · universo actualizado el ${fmtFecha(String(data.data_meta.retrieved_at))}`
                 : ''}
             </span>
             {data.unavailable.length > 0 && (
