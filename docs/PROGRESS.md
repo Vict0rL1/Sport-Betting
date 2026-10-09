@@ -72,8 +72,8 @@ Material de partida: `docs/REVISION_GENERAL.md` (revisión del 8-oct-2026) y sus
 | Fase | Etiqueta de inicio | Revisión independiente | Capturas «después» | Etiqueta de cierre |
 |---|---|---|---|---|
 | 0 | `fase-0-inicio` = `e917365` | hecha: 13 hallazgos, 12 arreglados y 1 para Victor (R1–R13, abajo) | no toca pantallas (las capturas de 0.6 se verificaron) | `fase-0-hecha` = `d78926e` |
-| 1 | `fase-1-inicio` = `d78926e` | hecha: el revisor dio 4 listas (A–D); 14 grupos arreglados (S1–S14) y 4 para Victor o la Fase 2 (abajo) | `docs/revision/despues-fase1/` (66, todas a 1440 y 390; comparadas con `revision/`) | `fase-1-hecha` = (commit de cierre, ver «Etiquetas») |
-| 2 | — | — | — | — |
+| 1 | `fase-1-inicio` = `d78926e` | hecha: el revisor dio 4 listas (A–D); 14 grupos arreglados (S1–S14) y 4 para Victor o la Fase 2 (abajo) | `docs/revision/despues-fase1/` (66, todas a 1440 y 390; comparadas con `revision/`) | `fase-1-hecha` = `81d6cae` |
+| 2 | `fase-2-inicio` = `81d6cae` | — | — | — |
 | 3 | — | — | — | — |
 | 4 | — | — | — | — |
 
@@ -126,8 +126,7 @@ la red de seguridad tenía agujeros. Cada hallazgo, su arreglo y su commit:
 El proxy de este entorno deja empujar la rama pero corta los push de etiquetas, así que
 las etiquetas viven en local. Cada sesión nueva las recrea desde la tabla de arriba:
 `git tag fase-0-inicio e917365`, `git tag fase-0-hecha d78926e`, `git tag fase-1-inicio d78926e`,
-`git tag fase-1-hecha <cierre>` y `git tag fase-2-inicio <cierre>`, con `<cierre>` el commit «cierre de la Fase 1»
-(su hash está en el commit siguiente, aquí abajo).
+`git tag fase-1-hecha 81d6cae` y `git tag fase-2-inicio 81d6cae` (y así con las que vengan).
 
 ## Hallazgos fuera de la lista (para decidir en su fase)
 
