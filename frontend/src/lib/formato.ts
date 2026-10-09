@@ -182,7 +182,9 @@ export function fmtAntiguedad(valor: string | Date | null | undefined, ahora: Da
   const f = aFecha(valor)
   if (!f || f.dia) return GUION
   const minutos = Math.floor((ahora.getTime() - f.t.getTime()) / 60000 + 0.5)
-  // Unos segundos de desfase de reloj entre el servidor y el navegador no son «el futuro».
+  // Unos minutos de desfase de reloj entre el servidor y el navegador no son «el futuro»;
+  // más sí: «hace segundos» hacía pasar por fresco un dato con la zona mal leída.
+  if (minutos <= -5) return 'con fecha futura'
   if (minutos < 1) return 'hace segundos'
   if (minutos < 60) return `hace ${minutos} min`
   const horas = Math.floor(minutos / 60 + 0.5)

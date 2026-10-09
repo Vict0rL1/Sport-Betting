@@ -47,7 +47,9 @@ export default tseslint.config(
           message: 'Las cifras y fechas para el usuario se escriben con lib/formato.ts (fmtNum, fmtPct, fmtDinero, fmtFecha…).',
         },
         {
-          selector: "NewExpression[callee.object.name='Intl'][callee.property.name=/^(NumberFormat|DateTimeFormat)$/]",
+          // También sin `new`: `Intl.NumberFormat(...)` es igual de válido (revisión de la Fase 1).
+          selector:
+            ":matches(NewExpression, CallExpression)[callee.object.name='Intl'][callee.property.name=/^(NumberFormat|DateTimeFormat)$/]",
           message: 'Intl solo dentro de lib/formato.ts: un formateador propio es otro sistema de formato.',
         },
         // `codigo.replace(/_/g, ' ')` enseña un código en crudo con espacios:

@@ -328,7 +328,7 @@ def corregir_multiples(pvalores: dict[str, float], alfa: float = 0.05) -> dict:
         "sobreviven_bonferroni": [k for k, v in bonf.items() if v],
         "sobreviven_bh": [k for k, v in bh.items() if v],
         "nota": (
-            f"Con {m} comparaciones y alfa {alfa}, Bonferroni exige un p-valor "
+            f"Con {m} comparaciones y alfa {fmt_num(alfa, 3, ceros=False)}, Bonferroni exige un p-valor "
             f"por debajo de {fmt_num(alfa / m, 5)} para cada una. Benjamini-Hochberg es "
             "menos estricto porque controla la proporción de falsos entre los "
             "declarados, no la probabilidad de que haya uno solo — es lo "

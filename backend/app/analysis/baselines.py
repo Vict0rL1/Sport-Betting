@@ -388,8 +388,8 @@ def _veredicto(resultados: dict, comparaciones: dict) -> str:
         mejor_sharpe = max(sharpes, key=lambda p: p[1])
         if mejor_sharpe[1] > est["sharpe"]:
             partes.append(
-                f"Ojo al riesgo: su Sharpe ({est['sharpe']}) es PEOR que el de "
-                f"{_ETIQUETAS[mejor_sharpe[0]]} ({mejor_sharpe[1]}). Cualquier "
+                f"Ojo al riesgo: su Sharpe ({fmt_num(est['sharpe'])}) es PEOR que el de "
+                f"{_ETIQUETAS[mejor_sharpe[0]]} ({fmt_num(mejor_sharpe[1])}). Cualquier "
                 "retorno extra viene de asumir más volatilidad, no de elegir "
                 "mejor — y esa palanca se consigue sin modelo."
             )

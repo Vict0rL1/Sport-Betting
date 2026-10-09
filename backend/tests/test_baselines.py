@@ -210,7 +210,7 @@ def test_mas_retorno_con_mas_volatilidad_no_se_presenta_como_ganar():
         "momentum_12m": {"cagr_pct": 16.4, "sharpe": 1.39},
     }
     v = _veredicto(resultados, {n: {"distinguible_del_azar": True} for n in resultados})
-    assert "su Sharpe (1.28) es PEOR" in v
+    assert "su Sharpe (1,28) es PEOR" in v
     assert "no de elegir mejor" in v
 
 

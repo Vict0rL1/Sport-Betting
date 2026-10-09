@@ -58,6 +58,20 @@ def test_un_instante_y_un_datetime_con_zona_dan_lo_mismo():
     assert formato.fmt_antiguedad(instante, datetime(2026, 9, 12, 15, 35, tzinfo=timezone.utc)) == "hace 1 h"
 
 
+def test_numpy_y_decimal_son_cifras():
+    """Revisión de la Fase 1: np.int64, np.float32 y Decimal daban «—», un número
+    presente pintado como ausente. (La tabla compartida es JSON y no los expresa.)"""
+    from decimal import Decimal
+
+    import numpy as np
+
+    assert formato.fmt_num(np.int64(5), 0) == "5"
+    assert formato.fmt_num(np.float32(0.5), 1) == "0,5"
+    assert formato.fmt_pct(Decimal("0.123")) == "12,3\u00a0%"
+    assert formato.fmt_compacto(Decimal("2500000")) == "2,5\u00a0M"
+    assert formato.fmt_num(np.float64("nan")) == formato.GUION
+
+
 def test_un_booleano_no_es_una_cifra():
     assert formato.fmt_num(True) == "—"
 

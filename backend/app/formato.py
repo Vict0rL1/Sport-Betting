@@ -25,6 +25,7 @@ Reglas:
 from __future__ import annotations
 
 import math
+import numbers
 from datetime import date, datetime, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from zoneinfo import ZoneInfo
@@ -39,8 +40,14 @@ MESES = ("ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sept", "oct", 
 ETIQUETAS_ZONA = {"America/New_York": "ET", "America/Toronto": "ET", "UTC": "UTC"}
 
 
-def _finito(valor) -> bool:
-    return isinstance(valor, (int, float)) and not isinstance(valor, bool) and math.isfinite(valor)
+def _cifra(valor) -> float | None:
+    """La cifra como float, o None si no la hay. numpy (np.int64, np.float32) y
+    Decimal también son cifras: antes daban «—», un número presente pintado como
+    ausente (revisión de la Fase 1). Un booleano no lo es."""
+    if isinstance(valor, bool) or not isinstance(valor, (numbers.Real, Decimal)):
+        return None
+    v = float(valor)
+    return v if math.isfinite(v) else None
 
 
 def _redondear(valor: float, decimales: int) -> Decimal:
@@ -64,7 +71,8 @@ def fmt_num(valor, decimales: int = 2, *, signo: bool = False, ceros: bool = Tru
     """6000 → «6.000,00». `signo`: «+» delante de los positivos (variaciones).
     `ceros=False`: hasta `decimales`, sin ceros a la derecha (1,50 → «1,5»; 2,00
     → «2»), para un umbral o un parámetro que se escribe tal cual es."""
-    if not _finito(valor):
+    valor = _cifra(valor)
+    if valor is None:
         return GUION
     d = _redondear(valor, decimales)
     texto = _es_es(d, decimales)
@@ -77,7 +85,8 @@ def fmt_pct(
     valor, decimales: int = 1, *, signo: bool = False, en_puntos: bool = False, ceros: bool = True
 ) -> str:
     """0,123 → «12,3 %». Con `en_puntos`, el valor ya viene en puntos (12,3)."""
-    if not _finito(valor):
+    valor = _cifra(valor)
+    if valor is None:
         return GUION
     v = valor if en_puntos else valor * 100
     return f"{fmt_num(v, decimales, signo=signo, ceros=ceros)}{ESPACIO_DURO}%"
@@ -91,7 +100,8 @@ def plural(n, singular: str, plural: str) -> str:
 
 def fmt_dinero(valor, moneda: str | None, decimales: int = 2, *, signo: bool = False) -> str:
     """6000 USD → «6.000,00 USD». Sin moneda conocida, solo la cifra."""
-    if not _finito(valor):
+    valor = _cifra(valor)
+    if valor is None:
         return GUION
     cifra = fmt_num(valor, decimales, signo=signo)
     return f"{cifra}{ESPACIO_DURO}{moneda}" if moneda else cifra
@@ -108,7 +118,8 @@ def fmt_compacto(valor, moneda: str | None = None) -> str:
     Nunca «B»: en inglés es mil millones y en español un billón; el ETF de
     400 000 millones salía «400.0 B$». Por encima del billón se sigue en mil M
     («3.400 mil M»), que no se puede leer mal."""
-    if not _finito(valor):
+    valor = _cifra(valor)
+    if valor is None:
         return GUION
     a = abs(valor)
     if a >= 1e9:
@@ -173,7 +184,11 @@ def fmt_antiguedad(valor, ahora: datetime) -> str:
         return GUION
     segundos = (ahora - f).total_seconds()
     minutos = math.floor(segundos / 60 + 0.5)
-    # Unos segundos de desfase de reloj entre el servidor y el dato no son «el futuro».
+    # Unos minutos de desfase de reloj entre el servidor y el dato no son «el futuro»;
+    # más sí: «hace segundos» hacía pasar por fresco un dato con la zona mal leída
+    # (cuatro horas «en el futuro»; revisión de la Fase 1).
+    if minutos <= -5:
+        return "con fecha futura"
     if minutos < 1:
         return "hace segundos"
     if minutos < 60:
