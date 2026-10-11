@@ -72,3 +72,24 @@ vacíos, la web tenía tres sitios que daban por hecho que siempre había fila:
 | G1b-1 | Ficha del partido: «Solo hay una instantánea» con cinco | `web/src/lib/trust.test.ts` (`avisoSinDeriva`) | con varias instantáneas, dice que aún no caen en dos horizontes (`partido.sinDosHorizontes`) |
 | G1b-2 | Panel de confianza: «Probabilidad de , tal como…» a más de 24 h | `web/src/lib/trust.test.ts` (`nombreDelPrePartido`), `server/src/prematch/pendiente.test.ts` (la ruta) | `/api/prematch/:sport/:key` trae `outcomes` de la última instantánea |
 | G1b-3 | La web volvía a decidir «pendiente» o «sin observación» con el reloj del navegador | `server/src/prematch/pendiente.test.ts` (`estado`), `web/src/lib/trust.test.ts` | cada horizonte lleva su `estado`, decidido con el mismo reloj que su fila |
+
+## G4b y G10b · Lo que encontró `security-reviewer`
+
+G12 cerrado sin nada nuevo (probado con cookies rotas, sesiones revocadas y caducadas, Basic Auth y
+TOTP a medias). G4 y G10 cerraban su defecto pero dejaban tres huecos, los tres arreglados aquí:
+
+| | Defecto | Prueba (falla antes) | Arreglo |
+|---|---|---|---|
+| G4b-1 (media) | Una sesión que muere fuera de la app (caduca, la revocan desde otro dispositivo) llevaba a la entrada con la caché de la API intacta, y sin red se servía sin credenciales | `web/src/lib/auth.test.ts` (dos) | `estadoAuth()` vacía la caché cuando hay puerta y no hay sesión; el detector de 401 la vacía antes de pedir la entrada |
+| G4b-2 (baja) | Una petición que salió con la cookie y contesta después de salir se escribía en la caché recién vaciada | `web/src/lib/sw.test.ts` | el service worker cuenta los vaciados y no guarda lo que empezó antes del último |
+| G10b (baja) | Sin puerta en la app y con un 401 de la API (un proxy delante), cada 401 creaba un estado nuevo y los efectos volvían a pedir: 326 peticiones a `/api/features` en 3 s | `e2e/interfaz.spec.ts` (G10b) | un 401 solo cierra la puerta si la app la tiene, y una vez; los efectos dependen de «dentro» y «sin red», no del objeto; arrancado sin red, un 401 vuelve a preguntar |
+
+Fuera de este lote, anteriores a él y anotados para una tarea aparte (no los toca ningún cambio de G):
+
+- **Media · `server/src/auth/sessions.ts`.** Una sesión creada antes de activar TOTP o de cambiar
+  `APP_PASSWORD` sigue valiendo, y como su caducidad se desliza, puede valer para siempre.
+  Arreglo propuesto: guardar en cada sesión una huella de la configuración de entrada y rechazar
+  las que no casen. Lleva migración: pasa por `data-guardian`.
+- **Baja · `server/src/routes/auth.ts`.** Con TOTP, el error de entrada dice si la contraseña era
+  buena («Código incorrecto» frente a «Contraseña incorrecta»). El límite de cinco intentos lo hace
+  impracticable; arreglo propuesto: un solo mensaje.

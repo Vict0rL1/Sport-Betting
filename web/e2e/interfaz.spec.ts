@@ -209,3 +209,19 @@ test('G8: a 390 px la lista de «Hoy» cabe en su caja (nada cortado a la derech
   expect(medida.ancho, JSON.stringify(medida)).toBeLessThanOrEqual(medida.visible);
   expect(medida.derecha, JSON.stringify(medida)).toBeLessThanOrEqual(medida.borde + 0.5);
 });
+
+// G10b (revisión de security-reviewer al lote G): sin puerta en la app pero con un 401 de la API
+// (un proxy delante con su propia contraseña caducada), cada 401 creaba un estado nuevo, los
+// efectos volvían a pedir y otro 401 cerraba el bucle: cientos de peticiones por segundo.
+test('G10b: una API que contesta 401 sin puerta en la app no provoca un bucle de peticiones', async ({ page }) => {
+  const cuenta: Record<string, number> = {};
+  await page.route('**/api/**', (r) => {
+    const ruta = new URL(r.request().url()).pathname;
+    cuenta[ruta] = (cuenta[ruta] ?? 0) + 1;
+    return r.fulfill({ status: 401, json: { error: 'Contraseña requerida' } });
+  });
+  await page.goto('/destacados');
+  await page.waitForTimeout(3000);
+  const muchas = Object.entries(cuenta).filter(([, n]) => n > 3);
+  expect(muchas, JSON.stringify(cuenta)).toEqual([]);
+});

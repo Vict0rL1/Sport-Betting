@@ -93,3 +93,16 @@ test('D6: al salir se vacía la caché de la API', async () => {
   await sw.mensaje({ tipo: 'vaciar-api' });
   assert.equal(sw.almacen.has('predictor-api-v1'), false);
 });
+
+// G4b (revisión de security-reviewer al lote G): una petición que salió con la cookie y contesta
+// DESPUÉS de salir se escribía en la caché recién vaciada.
+test('G4b: lo que contesta después de vaciar la caché de la API no se guarda', async () => {
+  let soltar: (r: Response) => void = () => undefined;
+  const sw = cargar(() => new Promise<Response>((ok) => (soltar = ok)));
+  const enCurso = sw.pedir('/api/paper?probe=1');
+  await new Promise((ok) => setTimeout(ok, 0));
+  await sw.mensaje({ tipo: 'vaciar-api' });
+  soltar(json());
+  await enCurso;
+  assert.equal(sw.almacen.get('predictor-api-v1')?.size ?? 0, 0);
+});

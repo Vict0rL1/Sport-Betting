@@ -10,6 +10,8 @@
 const ARMAZON = 'predictor-armazon-v1';
 const API = 'predictor-api-v1';
 const NO_GUARDAR = ['/api/auth/', '/api/latency/stream', '/api/metrics', '/api/export/', '/api/bets', '/api/buscar'];
+/** Cuántas veces se ha vaciado la caché de la API (al salir): la época de cada petición. */
+let vaciados = 0;
 
 /** Lo que sale de la caché lleva una marca: la app enseña «Sin conexión: datos de…». */
 function marcarDeCache(r) {
@@ -71,10 +73,13 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (url.pathname.startsWith('/api/') && !NO_GUARDAR.some((p) => url.pathname.startsWith(p))) {
+    // Lo que contesta después de vaciar la caché (salió con la cookie, llega tras salir) no se
+    // guarda: la época cambia con cada vaciado (G4b, lote G).
+    const epoca = vaciados;
     event.respondWith(
       fetch(req)
         .then((res) => {
-          if (res.ok) {
+          if (res.ok && epoca === vaciados) {
             const copia = res.clone();
             caches.open(API).then((c) => c.put(req, copia)).catch(() => undefined);
           }
@@ -87,7 +92,10 @@ self.addEventListener('fetch', (event) => {
 
 // Al salir, la app pide vaciar la caché de la API: lo de una sesión no se sirve en la siguiente.
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.tipo === 'vaciar-api') event.waitUntil(caches.delete(API));
+  if (event.data && event.data.tipo === 'vaciar-api') {
+    vaciados++;
+    event.waitUntil(caches.delete(API));
+  }
 });
 
 self.addEventListener('push', (event) => {

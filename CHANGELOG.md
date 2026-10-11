@@ -17,7 +17,9 @@ migraciones. Tests: 642 → 671 (512 del servidor + 64 de la web + 95 de punta a
   dan por hecho que hay fila (G1b, de la revisión de `quant-reviewer`).
 - **G2 · `?torneo=` sobrevive a la recarga** en el tenis. **G3 · Cambiar de liga** en el fútbol
   ya no enseña los partidos de la anterior mientras carga.
-- **G4 · Salir desde la lista de sesiones** también vacía la caché de la API.
+- **G4 · Salir desde la lista de sesiones** también vacía la caché de la API, y también una
+  sesión que muere fuera de la app (caduca o la revocan desde otro dispositivo); lo que contesta
+  después de vaciarla ya no se guarda (G4b, de la revisión de `security-reviewer`).
 - **G5 · Un solo formato de número.** `t()` escribe los números en el idioma, el catálogo español
   lleva «41,6 %» y el texto del servidor («Lectura completa», titulares, motivos de confianza)
   sale de `server/src/numeros.ts`: coma, «−» y espacio duro.
@@ -28,7 +30,7 @@ migraciones. Tests: 642 → 671 (512 del servidor + 64 de la web + 95 de punta a
 - **G7 · «Salir» se alcanza** con muchas sesiones (la barra lateral se desplaza). **G8 · «Hoy» a
   390 px** cabe entero.
 - **G9 · Sin 404 de simulación** en Equipo y Liga de la NHL. **G10 · Sin 401** en la pantalla de
-  entrada. **G11 · El buscador** atrapa y devuelve el foco. **G12 · `/api/auth/me`** no dice el
+  entrada, y sin bucle de peticiones cuando un proxy delante contesta 401 (G10b). **G11 · El buscador** atrapa y devuelve el foco. **G12 · `/api/auth/me`** no dice el
   usuario a quien no ha entrado.
 
 ## Mantenimiento: agentes del proyecto y CI de secretos (2026-10-09)

@@ -67,3 +67,47 @@ test('G4: cerrar OTRA sesión no toca la caché', async () => {
     delete g.caches;
   }
 });
+
+// G4b (revisión de security-reviewer al lote G): la sesión que muere fuera de la app (caduca, la
+// revocan desde otro dispositivo) llevaba a la pantalla de entrada con la caché de la API intacta,
+// y sin red se servía sin credenciales: justo el caso para el que existe revocar en remoto.
+test('G4b: si el servidor dice que no hay sesión, la caché de la API se vacía', async () => {
+  const original = g.fetch;
+  const borradas: string[] = [];
+  g.caches = { delete: async (n) => (borradas.push(n), true) };
+  const me = (cuerpo: object) => (async () => new Response(JSON.stringify(cuerpo), { headers: { 'content-type': 'application/json' } })) as typeof fetch;
+  try {
+    g.fetch = me({ auth: true, dentro: true, totp: false, sesiones: true });
+    await estadoAuth();
+    g.fetch = me({ auth: false, dentro: true, totp: false, sesiones: false });
+    await estadoAuth();
+    assert.deepEqual(borradas, [], 'con sesión, o sin puerta, no se toca');
+    g.fetch = me({ auth: true, dentro: false, totp: false, sesiones: true });
+    await estadoAuth();
+    assert.deepEqual(borradas, [CACHE_API]);
+  } finally {
+    g.fetch = original;
+    delete g.caches;
+  }
+});
+
+test('G4b: un 401 de la API (la sesión murió fuera) vacía la caché antes de pedir la entrada', async () => {
+  const { instalarDetector401, EVENTO_AUTH } = await import('./auth.ts');
+  const w = globalThis as unknown as { window?: EventTarget & { fetch: typeof fetch } };
+  const borradas: string[] = [];
+  g.caches = { delete: async (n) => (borradas.push(n), true) };
+  const ventana = Object.assign(new EventTarget(), { fetch: (async () => new Response('{}', { status: 401 })) as typeof fetch });
+  w.window = ventana;
+  let avisos = 0;
+  ventana.addEventListener(EVENTO_AUTH, () => avisos++);
+  try {
+    instalarDetector401();
+    await ventana.fetch('/api/paper');
+    await new Promise((ok) => setTimeout(ok, 0));
+    assert.equal(avisos, 1);
+    assert.deepEqual(borradas, [CACHE_API]);
+  } finally {
+    delete w.window;
+    delete g.caches;
+  }
+});

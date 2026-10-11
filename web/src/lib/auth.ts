@@ -36,7 +36,11 @@ export async function estadoAuth(): Promise<EstadoAuth> {
   try {
     const r = await fetch('/api/auth/me');
     if (!r.ok) return { auth: false, dentro: true, totp: false, sesiones: false };
-    return (await r.json()) as EstadoAuth;
+    const e = (await r.json()) as EstadoAuth;
+    // Puerta y sin sesión: la anterior caducó o la cerraron desde otro dispositivo. Lo que guardó
+    // no se sirve a quien abre ahora el navegador (G4b, lote G).
+    if (e.auth && !e.dentro) await vaciarCacheApi();
+    return e;
   } catch {
     // Sin red (arranque en frío sin conexión): se enseña lo guardado en vez de una pantalla en
     // blanco. No abre nada: el servidor sigue pidiendo sesión, y al salir la caché se vacía.
@@ -52,7 +56,7 @@ export async function entrar(password: string, codigo?: string): Promise<{ ok: t
 }
 
 /** Vacía la caché de la API del service worker: lo de esta sesión no se sirve en la siguiente (D6). */
-async function vaciarCacheApi(): Promise<void> {
+export async function vaciarCacheApi(): Promise<void> {
   try {
     if (typeof caches !== 'undefined') await caches.delete(CACHE_API);
     if (typeof navigator !== 'undefined') navigator.serviceWorker?.controller?.postMessage({ tipo: 'vaciar-api' });
@@ -89,6 +93,8 @@ export function instalarDetector401(): void {
     const res = await original(entrada, init);
     const url = typeof entrada === 'string' ? entrada : entrada instanceof URL ? entrada.href : entrada.url;
     if (res.status === 401 && url.includes('/api/') && !url.includes('/api/auth/')) {
+      // La sesión murió fuera de la app: su caché se va antes de enseñar la entrada (G4b).
+      await vaciarCacheApi();
       window.dispatchEvent(new CustomEvent(EVENTO_AUTH));
     }
     return res;

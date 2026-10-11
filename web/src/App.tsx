@@ -84,26 +84,43 @@ function Armazon() {
   const escritorio = useMediaQuery(ESCRITORIO);
   // La puerta: si el servidor pide contraseña y no hay sesión, se enseña la entrada y nada más.
   const [auth, setAuth] = useState<EstadoAuth | null>(null);
+  // El estado de ahora para el aviso de 401, que se instala una vez.
+  const authActual = useRef<EstadoAuth | null>(null);
+  useEffect(() => {
+    authActual.current = auth;
+  }, [auth]);
   const [ajustes, setAjustes] = useState<AjustesUsuario | null>(null);
   useEffect(() => {
     instalarDetector401();
     let vivo = true;
     estadoAuth().then((a) => vivo && setAuth(a));
-    const alPedir = () => setAuth((a) => (a ? { ...a, dentro: false } : a));
+    // Un 401 solo cierra la puerta si la app tiene puerta, y solo una vez: devolver el mismo
+    // estado no vuelve a lanzar los efectos (G10b, lote G: con un proxy que contestaba 401, cada
+    // 401 creaba un estado nuevo, los efectos volvían a pedir y otro 401 cerraba el bucle). Si se
+    // arrancó sin red, un 401 es que la red ha vuelto: se pregunta otra vez.
+    const alPedir = () => {
+      const a = authActual.current;
+      if (a?.sinRed) void estadoAuth().then((b) => vivo && !b.sinRed && setAuth(b));
+      else if (a && a.auth && a.dentro) setAuth({ ...a, dentro: false });
+    };
     window.addEventListener(EVENTO_AUTH, alPedir);
     return () => {
       vivo = false;
       window.removeEventListener(EVENTO_AUTH, alPedir);
     };
   }, []);
+  // Dentro (o sin puerta), con un valor que solo cambia cuando cambia de verdad: los efectos de
+  // abajo dependen de él y no de la identidad del objeto (G10b).
+  const dentro = auth != null && (!auth.auth || auth.dentro);
+  const sinRed = !!auth?.sinRed;
   // El service worker, una vez dentro (G10): registrarlo pide /api/features, que necesita sesión.
   useEffect(() => {
-    if (!auth || (auth.auth && !auth.dentro) || auth.sinRed) return;
+    if (!dentro || sinRed) return;
     if (import.meta.env.PROD) void registrarServiceWorker();
-  }, [auth]);
+  }, [dentro, sinRed]);
   // Los ajustes de la persona (tema, idioma, deportes visibles) una vez dentro.
   useEffect(() => {
-    if (!auth || (auth.auth && !auth.dentro)) return;
+    if (!dentro) return;
     let vivo = true;
     fetch('/api/ajustes')
       .then((r) => (r.ok ? r.json() : Promise.reject()))
@@ -118,7 +135,7 @@ function Armazon() {
     return () => {
       vivo = false;
     };
-  }, [auth, setIdioma]);
+  }, [dentro, setIdioma]);
   const headerRef = useRef<HTMLElement>(null);
 
   // La altura de la barra superior, para que los encabezados pegajosos se coloquen debajo.
