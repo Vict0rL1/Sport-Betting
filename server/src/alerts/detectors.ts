@@ -2,6 +2,7 @@
 // que guarda el hecho las llama y emite lo que devuelvan (alerts/engine.ts).
 
 import type { TipoAlerta, Alerta } from './engine.ts';
+import { pct as pctEs } from '../numeros.ts';
 
 export interface Disparo {
   type: TipoAlerta;
@@ -23,12 +24,12 @@ export function deInstantanea(
   const d = despues.probs.map((p, i) => p - (antes.probs[i] ?? p));
   const i = d.reduce((m, x, k) => (Math.abs(x) > Math.abs(d[m]) ? k : m), 0);
   if (Math.abs(d[i]) >= 0.03) {
-    out.push({ type: 'cambio_prediccion', severity: Math.abs(d[i]) >= 0.06 ? 'importante' : 'aviso', title: `${partido}: la predicción se mueve ${pp(d[i])}`, body: `${despues.outcomes[i]}: ${(antes.probs[i] * 100).toFixed(1)} % → ${(despues.probs[i] * 100).toFixed(1)} %`, data: { delta: d } });
+    out.push({ type: 'cambio_prediccion', severity: Math.abs(d[i]) >= 0.06 ? 'importante' : 'aviso', title: `${partido}: la predicción se mueve ${pp(d[i])}`, body: `${despues.outcomes[i]}: ${pctEs(antes.probs[i])} → ${pctEs(despues.probs[i])}`, data: { delta: d } });
   }
   if (antes.market_probs && despues.market_probs) {
     const m = despues.market_probs.map((p, k) => p - (antes.market_probs as number[])[k]);
     const j = m.reduce((a, x, k) => (Math.abs(x) > Math.abs(m[a]) ? k : a), 0);
-    if (Math.abs(m[j]) >= 0.05) out.push({ type: 'mercado_movido', severity: 'aviso', title: `${partido}: el mercado se mueve ${pp(m[j])}`, body: `${despues.outcomes[j]} en el mercado: ${(antes.market_probs[j] * 100).toFixed(1)} % → ${(despues.market_probs[j] * 100).toFixed(1)} %`, data: { delta: m } });
+    if (Math.abs(m[j]) >= 0.05) out.push({ type: 'mercado_movido', severity: 'aviso', title: `${partido}: el mercado se mueve ${pp(m[j])}`, body: `${despues.outcomes[j]} en el mercado: ${pctEs(antes.market_probs[j])} → ${pctEs(despues.market_probs[j])}`, data: { delta: m } });
   }
   for (const [k, e] of Object.entries(despues.entradas)) {
     const v0 = antes.entradas[k]?.valor ?? null;

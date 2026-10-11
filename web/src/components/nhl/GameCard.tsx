@@ -5,6 +5,7 @@ import EventTrustPanel from '../trust/EventTrustPanel';
 import { TeamName } from '../nfl/GameCardPartes';
 import { Detail } from './GameCardPartes';
 import { conNodos, useI18n } from '../../i18n';
+import { cifra } from '../../lib/formato';
 
 /**
  * Un partido de la NHL.
@@ -119,7 +120,7 @@ export default function GameCard({ item, onOpenTeam }: { item: NhlGameWithPredic
                   hint={prediction.total.push > 0.005 ? t('nhlc.menosYNulo', { u: pct(prediction.total.under), n: pct(prediction.total.push) }) : t('nflc.under', { p: pct(prediction.total.under) })}
                   title={prediction.total.fromMarket ? t('nflc.lineaMercado') : t('nhlc.lineaModelo')}
                 />
-                <StatTile label={t('nhlc.golesEsperados')} value={String(prediction.goals.total).replace('.', ',')} hint={`${String(prediction.goals.away).replace('.', ',')} – ${String(prediction.goals.home).replace('.', ',')}`} />
+                <StatTile label={t('nhlc.golesEsperados')} value={cifra(prediction.goals.total)} hint={`${cifra(prediction.goals.away)} – ${cifra(prediction.goals.home)}`} />
                 {/* Visitante-local, como el resto de la tarjeta (el servidor lo da local-visitante). */}
                 <StatTile label={t('nhlc.marcador60')} value={prediction.scorelines[0] ? `${prediction.scorelines[0].away}-${prediction.scorelines[0].home}` : '—'} hint={t('fbc.masProbable', { p: pct(prediction.scorelines[0]?.probability ?? 0) })} />
               </StatRow>

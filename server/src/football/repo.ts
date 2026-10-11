@@ -219,9 +219,11 @@ export function getUpcomingById(id: string): FbUpcomingRow | null {
 }
 
 export function getLeaguesWithUpcoming(): { league: string; count: number }[] {
+  // Con la misma regla que la lista (G13): un partido ya jugado no cuenta como próximo.
+  const fresh = freshFilter();
   return getDb()
-    .prepare('SELECT league, COUNT(*) AS count FROM fb_upcoming GROUP BY league')
-    .all() as unknown as { league: string; count: number }[];
+    .prepare(`SELECT league, COUNT(*) AS count FROM fb_upcoming WHERE ${fresh.sql} GROUP BY league`)
+    .all(...fresh.params) as unknown as { league: string; count: number }[];
 }
 
 export function countMatches(league?: string): number {

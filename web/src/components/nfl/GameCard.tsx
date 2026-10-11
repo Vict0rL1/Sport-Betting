@@ -6,6 +6,7 @@ import EventTrustPanel from '../trust/EventTrustPanel';
 import { Badge, Card, Disclosure, EmptyState, HeroStat, MatchTime, ProbabilityBar, ReliabilityChip, ResultBanner, StatRow, StatTile, MarketGap } from '../ui';
 import { fmtLine, KeyNumbers, TeamName, Detail } from './GameCardPartes';
 import { conNodos, useI18n } from '../../i18n';
+import { cifra } from '../../lib/formato';
 
 /**
  * One NFL game.
@@ -228,7 +229,7 @@ export default function GameCard({
                 <StatTile
                   label={t('nflc.margenEsperado')}
                   value={prediction.spread.label}
-                  hint={`${prediction.points.home}-${prediction.points.away}`}
+                  hint={`${cifra(prediction.points.home)}-${cifra(prediction.points.away)}`}
                 />
                 <StatTile
                   label={t('fbc.marcador')}

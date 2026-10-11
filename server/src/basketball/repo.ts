@@ -384,11 +384,11 @@ export function getUpcomingById(id: string): UpcomingGameRow | null {
 
 /** Leagues that currently have upcoming games, with counts. */
 export function getLeaguesWithUpcoming(): { league: string; count: number }[] {
+  // Con la misma regla que la lista (G13): un partido ya jugado no cuenta como próximo.
+  const fresh = freshFilter();
   return getDb()
-    .prepare(
-      'SELECT league, COUNT(*) AS count FROM bb_upcoming GROUP BY league ORDER BY count DESC',
-    )
-    .all() as unknown as { league: string; count: number }[];
+    .prepare(`SELECT league, COUNT(*) AS count FROM bb_upcoming WHERE ${fresh.sql} GROUP BY league ORDER BY count DESC`)
+    .all(...fresh.params) as unknown as { league: string; count: number }[];
 }
 
 export function countGames(league?: string): number {

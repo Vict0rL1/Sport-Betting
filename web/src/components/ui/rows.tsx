@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react';
 import { SeriesDot } from './marks';
 import { useI18n } from '../../i18n';
-import { pct as pctF, num as numF } from '../../lib/formato';
+import { cifra, pct as pctF, num as numF } from '../../lib/formato';
 /**
  * One factor's contribution in a "why" list.
  *
@@ -44,8 +44,9 @@ export function CompareRow({
       <dt className="min-w-0 break-words py-1 text-(--ink-soft)" title={title}>
         {label}
       </dt>
-      <dd className="py-1 text-right tabular-nums text-(--ink-body)">{left}</dd>
-      <dd className="py-1 text-right tabular-nums text-(--ink-body)">{right}</dd>
+      {/* Un número llega tal cual de la API: se escribe en el idioma (G5b, «2.09» junto a «2,64»). */}
+      <dd className="py-1 text-right tabular-nums text-(--ink-body)">{typeof left === 'number' ? cifra(left) : left}</dd>
+      <dd className="py-1 text-right tabular-nums text-(--ink-body)">{typeof right === 'number' ? cifra(right) : right}</dd>
     </>
   );
 }

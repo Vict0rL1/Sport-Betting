@@ -2,7 +2,7 @@ import type { BbPrediction, BbTeamSide } from '../../lib/basketball';
 import { formatDate } from '../../lib/format';
 import { AWAY_COLOR, HOME_COLOR } from '../../lib/theme';
 import { conNodos, useI18n, type Traducir } from '../../i18n';
-import { pct as pctF, num as numF } from '../../lib/formato';
+import { cifra, pct as pctF, num as numF } from '../../lib/formato';
 
 function Num({ value, plus = false }: { value: number; plus?: boolean }) {
   const sign = plus && value > 0 ? '+' : '';
@@ -10,7 +10,7 @@ function Num({ value, plus = false }: { value: number; plus?: boolean }) {
   return (
     <span className={color}>
       {sign}
-      {value}
+      {cifra(value)}
     </span>
   );
 }
@@ -95,7 +95,7 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
       home: <Num value={home.restAdjustment} plus />,
       away: <Num value={away.restAdjustment} plus />,
     },
-    { label: t('det.ratingAjustado'), home: <strong>{homeAdj}</strong>, away: <strong>{awayAdj}</strong> },
+    { label: t('det.ratingAjustado'), home: <strong>{cifra(homeAdj)}</strong>, away: <strong>{cifra(awayAdj)}</strong> },
     {
       label: prediction.neutral ? t('bkd.ventajaCampoNeutral') : t('bkd.ventajaCampo'),
       home: <Num value={homeCourt} plus />,
@@ -124,7 +124,7 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
               <FactorBar points={f.pointsForHome} max={maxFactor} />
               <span className="text-right text-[14px] tabular-nums text-(--ink-body)">
                 {f.pointsForHome > 0 ? '+' : ''}
-                {f.pointsForHome}
+                {cifra(f.pointsForHome)}
               </span>
             </div>
           ))}
@@ -150,8 +150,8 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
       {rows.map((r) => (
         <div key={r.label} className="-my-2 grid grid-cols-[1fr_auto_auto] gap-2">
           <div className="text-(--ink-soft)">{r.label}</div>
-          <div className="w-24 text-right tabular-nums">{r.away}</div>
-          <div className="w-24 text-right tabular-nums">{r.home}</div>
+          <div className="w-24 text-right tabular-nums">{typeof r.away === 'number' ? cifra(r.away) : r.away}</div>
+          <div className="w-24 text-right tabular-nums">{typeof r.home === 'number' ? cifra(r.home) : r.home}</div>
         </div>
       ))}
 
@@ -196,11 +196,11 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
             {home.abbreviation ?? home.name}
           </div>
           <div className="text-(--ink-soft)">{t('bkd.puntosPartido')}</div>
-          <div className="w-20 text-right tabular-nums">{away.ppg ?? '—'}</div>
-          <div className="w-20 text-right tabular-nums">{home.ppg ?? '—'}</div>
+          <div className="w-20 text-right tabular-nums">{away.ppg != null ? cifra(away.ppg) : '—'}</div>
+          <div className="w-20 text-right tabular-nums">{home.ppg != null ? cifra(home.ppg) : '—'}</div>
           <div className="text-(--ink-soft)">{t('bkd.puntosRecibidos')}</div>
-          <div className="w-20 text-right tabular-nums">{away.papg ?? '—'}</div>
-          <div className="w-20 text-right tabular-nums">{home.papg ?? '—'}</div>
+          <div className="w-20 text-right tabular-nums">{away.papg != null ? cifra(away.papg) : '—'}</div>
+          <div className="w-20 text-right tabular-nums">{home.papg != null ? cifra(home.papg) : '—'}</div>
         </div>
       </div>
 

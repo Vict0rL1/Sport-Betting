@@ -22,7 +22,7 @@ import { realMarket } from '../../lib/picks';
 import { EnlacePartido } from '../ui';
 import EventTrustPanel from '../trust/EventTrustPanel';
 import { conNodos, useI18n } from '../../i18n';
-import { pct as pctF } from '../../lib/formato';
+import { cifra, pct as pctF } from '../../lib/formato';
 
 /**
  * A readable label for a margin band.
@@ -244,7 +244,7 @@ export default function GameCard({
               hint={t('bkc.margenEsperado')}
             />
             <StatTile
-              label={t('bkc.cubre', { linea: `${prediction.projection.distribution.spreadLine > 0 ? '+' : ''}${prediction.projection.distribution.spreadLine}` })}
+              label={t('bkc.cubre', { linea: `${prediction.projection.distribution.spreadLine > 0 ? '+' : ''}${cifra(prediction.projection.distribution.spreadLine)}` })}
               value={pct(prediction.projection.distribution.homeCovers)}
               hint={t('bkc.localHandicap')}
               title={t('bkc.cubreTitulo')}
@@ -257,7 +257,7 @@ export default function GameCard({
             <StatTile
               label={
                 prediction.projection.distribution.totalLine != null
-                  ? `+${prediction.projection.distribution.totalLine}`
+                  ? `+${cifra(prediction.projection.distribution.totalLine)}`
                   : 'Over'
               }
               value={

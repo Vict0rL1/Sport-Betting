@@ -15,7 +15,7 @@ import UfcCard from '../components/ufc/FightCard';
 import TennisCard from '../components/MatchCard';
 import { LineChart } from '../components/charts';
 import { EstrellaSeguir } from '../components/seguimiento';
-import { aComun, nombrePartido, URL_PARTIDO, type DeporteId, type PartidoComun } from '../lib/partidos';
+import { aComun, nombrePartido, puedeTenerResultado, URL_PARTIDO, type DeporteId, type PartidoComun } from '../lib/partidos';
 import { rutaEquipo, rutaJugador, rutaLuchador, RUTA_DE_PESTANA } from '../rutas';
 import { avisoSinDeriva, nombreDelPrePartido, type PrePartido } from '../lib/trust';
 import { useI18n, formato } from '../i18n';
@@ -72,15 +72,17 @@ function FichaPartido({ sport, id }: { sport: string; id: string }) {
   const publicada = item && item !== 'error' ? ((item.prediction as { publicada?: { en: string; actual: number[]; difiere: boolean } } | null)?.publicada ?? null) : null;
   const clave = comun?.prePartido?.matchKey ?? comun?.confianza?.matchKey ?? q.get('clave');
 
+  // Se espera a saber la hora del partido (G14): con ?clave= la petición salía antes de que llegara.
+  const conResultado = item !== null && puedeTenerResultado(comun);
   useEffect(() => {
     if (!deporte || !clave) return;
     let vivo = true;
     fetch(`/api/prematch/${deporte}/${encodeURIComponent(clave)}`).then((r) => (r.ok ? r.json() : null)).then((j) => vivo && setPre(j)).catch(() => undefined);
-    fetch(`/api/resultado/${deporte}/${encodeURIComponent(clave)}`).then((r) => (r.ok ? r.json() : null)).then((j) => vivo && setRes(j)).catch(() => undefined);
+    if (conResultado) fetch(`/api/resultado/${deporte}/${encodeURIComponent(clave)}`).then((r) => (r.ok ? r.json() : null)).then((j) => vivo && setRes(j)).catch(() => undefined);
     return () => {
       vivo = false;
     };
-  }, [deporte, clave]);
+  }, [deporte, clave, conResultado]);
 
   if (!deporte) return <p className="text-[14px] text-(--ink-soft)">{t('partido.deporteDesconocido')}</p>;
 

@@ -400,7 +400,7 @@ function spreadQuote(d: Distribution, line: number, homeName: string, awayName: 
   const h = coverProbability(d, line, 'home');
   const a = coverProbability(d, -line, 'away');
   const fmt = (team: string, l: number) =>
-    l === 0 ? `${team} sin hándicap` : `${team} ${l > 0 ? '+' : ''}${l}`;
+    l === 0 ? `${team} sin hándicap` : `${team} ${l > 0 ? '+' : ''}${num(l)}`;
   return {
     home: { line, cover: h.cover, push: h.push, fail: h.fail, label: fmt(homeName, line) },
     away: { line: -line, cover: a.cover, push: a.push, fail: a.fail, label: fmt(awayName, -line) },
@@ -650,7 +650,7 @@ export function buildPrediction(input: PredictInput): NafPrediction | null {
   if (seasonsAhead > 0) {
     factors.push({
       key: 'offseason',
-      label: `Regresión de pretemporada (×${SEASON_CARRYOVER}${seasonsAhead > 1 ? `, ${seasonsAhead} veces` : ''})`,
+      label: `Regresión de pretemporada (×${num(SEASON_CARRYOVER)}${seasonsAhead > 1 ? `, ${seasonsAhead} veces` : ''})`,
       pointsForHome: round1(agedEloPoints - rawEloPoints),
     });
   }
@@ -681,9 +681,9 @@ export function buildPrediction(input: PredictInput): NafPrediction | null {
       : '';
   const reasoningText =
     (input.neutral
-      ? `${favourite} llega mejor valorado (${Math.abs(eloPoints)} puntos de diferencia por Elo) y se juega en campo neutral.`
-      : `${favourite} llega mejor valorado (${Math.abs(eloPoints)} puntos por Elo) y ${
-          edgePoints >= 0 ? `jugar en casa vale ${edgePoints} puntos más` : 'el campo no lo compensa'
+      ? `${favourite} llega mejor valorado (${num(Math.abs(eloPoints))} puntos de diferencia por Elo) y se juega en campo neutral.`
+      : `${favourite} llega mejor valorado (${num(Math.abs(eloPoints))} puntos por Elo) y ${
+          edgePoints >= 0 ? `jugar en casa vale ${num(edgePoints)} puntos más` : 'el campo no lo compensa'
         }.`) + offseasonNote;
 
   // --- reliability ----------------------------------------------------------

@@ -47,6 +47,7 @@ import { gruposDe, cabeEnGrupos } from '../staking/risk.ts';
 import { anotarEnCubos, cabeEnCubos, cubosDe } from '../staking/cubos.ts';
 import { emitirAlerta } from '../alerts/engine.ts';
 import { roiDe } from '../evaluation/roi.ts';
+import { conSigno, num, pct as pctEs } from '../numeros.ts';
 
 /** El banco inicial del experimento. Se guarda para que cambiarlo sea deliberado. */
 export const BANCO_INICIAL = 1000;
@@ -546,7 +547,7 @@ export function juicioDeConfianza(
   if (a.decision !== 'BET') return no((JSON.parse(a.reasons) as string[])[0] ?? a.decision, a);
   const actual = (JSON.parse(a.probs) as number[])[i];
   if (Math.abs(actual - c.salidas[i].p) > Math.max(a.uncertainty_pp / 100, 0.01)) {
-    return no(`la predicción registrada (${(c.salidas[i].p * 100).toFixed(1)} %) está desfasada de la actual (${(actual * 100).toFixed(1)} %)`, a);
+    return no(`la predicción registrada (${pctEs(c.salidas[i].p)}) está desfasada de la actual (${pctEs(actual)})`, a);
   }
   return { apostar: true, razon: null, factor: Math.min(1, a.stake_factor), id: a.id, confianza: a.confidence, calidad: a.data_quality };
 }
@@ -701,12 +702,12 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
     for (const g of grupos) enGrupos.set(g, (enGrupos.get(g) ?? 0) + stake);
     anotarEnCubos(cubos, { commence_time: c.commence, league: c.league }, stake);
     senalDe('apostada', stake, Number(alta.changes) ? Number(alta.lastInsertRowid) : null);
-    if (Number(alta.changes)) void notificar('papel_apostada', { titulo: `Banco de papel: ${c.label}`, cuerpo: `${e.label} a ${e.odds.toFixed(2)} · ${stake.toFixed(2)} (${(d.edge * 100).toFixed(1)} pp de ventaja)`, url: urlPartido(c.sport, c.match_key) ?? '/apuestas' }, { sport: c.sport, matchKey: c.match_key });
+    if (Number(alta.changes)) void notificar('papel_apostada', { titulo: `Banco de papel: ${c.label}`, cuerpo: `${e.label} a ${num(e.odds, 2)} · ${num(stake, 2)} (${num(d.edge * 100, 1)} pp de ventaja)`, url: urlPartido(c.sport, c.match_key) ?? '/apuestas' }, { sport: c.sport, matchKey: c.match_key });
     // La exposición se acumula DENTRO del bucle: sin esto, veinte candidatas se
     // dimensionarían todas como si fueran la primera y los topes no servirían.
     abierto += stake;
     colocadas++;
-    detalle.push(`${c.label}: ${e.label} a ${e.odds.toFixed(2)} · ${stake.toFixed(2)} (${(d.edge * 100).toFixed(1)} pp de ventaja)`);
+    detalle.push(`${c.label}: ${e.label} a ${num(e.odds, 2)} · ${num(stake, 2)} (${num(d.edge * 100, 1)} pp de ventaja)`);
   }
   guardarPasada({ cuando: AHORA(), candidatas: candidatas.length, colocadas, rechazos });
   return {
@@ -800,7 +801,7 @@ export function settle(now = new Date()): { liquidadas: number } {
     banco += profit;
     upd.run(final.status, cuando, profit, final.resultado, Math.round(banco * 100) / 100, profit / a.stake, a.id);
     liquidadas++;
-    void notificar('papel_liquidada', { titulo: `Papel liquidada: ${a.label}`, cuerpo: `${a.selection} → ${final.status} (${profit >= 0 ? '+' : ''}${profit.toFixed(2)}) · banco ${banco.toFixed(2)}`, url: urlPartido(a.sport, a.match_key) ?? '/apuestas' }, { sport: a.sport, matchKey: a.match_key });
+    void notificar('papel_liquidada', { titulo: `Papel liquidada: ${a.label}`, cuerpo: `${a.selection} → ${final.status} (${conSigno(profit, 2)}) · banco ${num(banco, 2)}`, url: urlPartido(a.sport, a.match_key) ?? '/apuestas' }, { sport: a.sport, matchKey: a.match_key });
   }
   return { liquidadas };
 }

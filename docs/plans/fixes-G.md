@@ -94,12 +94,33 @@ Fuera de este lote, anteriores a él y anotados para una tarea aparte (no los to
   buena («Código incorrecto» frente a «Contraseña incorrecta»). El límite de cinco intentos lo hace
   impracticable; arreglo propuesto: un solo mensaje.
 
+## G5b y G13–G15 · La segunda pasada de `ui-tester`
+
+La segunda pasada en el navegador (base real, 120 cargas) dio por arreglados G1–G4 y G6–G12, y
+encontró que **G5 no estaba terminado**: quedaban números con punto en las tarjetas desplegadas y en
+las fichas, en textos del servidor que la primera prueba no leía (escenarios de estabilidad,
+supuestos, cuerpos de los avisos) y en etiquetas de líneas. Y tres defectos nuevos.
+
+| | Defecto | Prueba (falla antes) | Arreglo |
+|---|---|---|---|
+| G5b | «1.43 – 1.21» junto a «total 2,64»; «×0.75», «+13.2 pts», «factor 0.98»; «44.8 % → 41.5 %» en la bandeja; «Over 227.5»; «−2.5:» | `server/src/prediction/formatoTexto.test.ts` (ahora TODO el texto de la predicción y de su evaluación de confianza, los avisos y una guardia contra `toFixed` en los textos), `web/src/lib/formato.test.ts` (`cifra`, `lineasEnIdioma`) | `cifra()` en `lib/formato.ts` (los decimales que trae, en el idioma, sin separador de miles), usada por `t()`, `CompareRow`, los `Num` de las fichas y las cifras sueltas; las líneas de una selección se escriben en el idioma al pintarlas (los nombres son claves); el servidor, con `numeros.ts` en perturbación, adaptadores, avisos y banco de papel |
+| G13 | Las pastillas de liga y torneo contaban partidos ya jugados: «Premier League 6» sobre «No hay partidos próximos» | `server/src/prediction/contadores.test.ts` | los contadores aplican `freshFilter()`, la misma regla que la lista |
+| G14 | La ficha de un partido por jugar pedía `/api/resultado` y dejaba un 404 en consola | `web/src/lib/partidos.test.ts` (`puedeTenerResultado`) | solo se pregunta cuando el partido ya empezó (y una vez se sabe la hora); el 404 del servidor sigue siendo el contrato |
+| G15 | La bandeja enseñaba el código del aviso («cambio prediccion») | `web/src/i18n/avisos.test.ts` | `tipoDeAviso()` y quince nombres en el catálogo (es y en) |
+
+Comprobado además a mano contra una copia de la base real con partidos de demostración frescos:
+ningún número con punto fuera de `/confianza`, ningún error en consola en siete fichas, los
+contadores casan con las listas y la bandeja dice «Calidad de datos baja». Lo que queda en
+`/confianza` son los 15 textos del registro de experimentos, que se enseñan tal cual y no se
+reescriben (fuera de este lote, como se dijo arriba). Sin tocar: los nombres de los interruptores
+en Ajustes van como código a propósito (E8).
+
 ## Resultado
 
 | | Antes del lote G | Después |
 |---|---|---|
-| Tests del servidor | 505 | 514 |
-| Tests de la web | 51 | 70 |
+| Tests del servidor | 505 | 517 |
+| Tests de la web | 51 | 74 |
 | Pruebas de punta a punta | 86 | 96 |
 | Typecheck, lint, build | verde | verde |
 | `verify:data` | 528 correctas | 528 correctas |

@@ -27,6 +27,7 @@ import { fechaDeDatos } from '../prematch/snapshots.ts';
 import { deTenis, deFutbol, deBaloncesto, deBeisbol, deNfl, deNhl, deUfc } from '../prematch/adapters.ts';
 import { ok, aviso, desconocido, graduado, cuotasRecientes, archivoAlDia } from './dataQuality.ts';
 import type { EventoConfianza, Factor, ItemDato, Ood } from './types.ts';
+import { num } from '../numeros.ts';
 
 const ELO = Math.LN10 / 400;
 const logit = (p: number) => Math.log(Math.max(p, 1e-9) / Math.max(1 - p, 1e-9));
@@ -250,7 +251,7 @@ export function confianzaBeisbol(row: BsbUpcomingRow, p: BsbPrediction, now = ne
   const datos: ItemDato[] = [
     ambos ? ok('Abridores anunciados (probables de MLB, no confirmación oficial)', 25) : aviso('Algún abridor sin anunciar', 25),
     ambos ? graduado(minStarts, 3, 10, 10, (v) => `${v} aperturas del abridor con menos historia`) : aviso('Historial del abridor: sin abridor', 10),
-    p.park ? ok(`Estadio conocido (${p.park.name}, factor ${p.park.factor.toFixed(2)})`, 10) : aviso('Estadio desconocido', 10),
+    p.park ? ok(`Estadio conocido (${p.park.name}, factor ${num(p.park.factor, 2)})`, 10) : aviso('Estadio desconocido', 10),
     graduado(Math.min(p.teams.home.gamesInDb, p.teams.away.gamesInDb), 60, 162, 15, (v) => `${v} partidos del equipo con menos historia`),
     desconocido('Clima y viento: no hay previsión'),
     desconocido('Bullpen: no hay datos de uso reciente'),

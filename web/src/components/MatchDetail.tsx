@@ -1,5 +1,6 @@
 import type { Prediction } from '../lib/api';
 import { pct, surfaceLabelEs, formatDate } from '../lib/format';
+import { cifra } from '../lib/formato';
 import { P1_COLOR, P2_COLOR } from './ProbabilityBars';
 import { ReliabilityBlock, FormBox, FitnessBlock, ServeCompare } from './MatchDetailPartes';
 import { conNodos, useI18n } from '../i18n';
@@ -10,7 +11,7 @@ function Num({ value, plus = false }: { value: number; plus?: boolean }) {
   return (
     <span className={color}>
       {sign}
-      {value}
+      {cifra(value)}
     </span>
   );
 }
@@ -61,7 +62,7 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
           },
         ]
       : []),
-    { label: t('det.ratingAjustado'), p1: <strong>{adjustedRatings.p1}</strong>, p2: <strong>{adjustedRatings.p2}</strong> },
+    { label: t('det.ratingAjustado'), p1: <strong>{cifra(adjustedRatings.p1)}</strong>, p2: <strong>{cifra(adjustedRatings.p2)}</strong> },
     { label: t('det.probModelo'), p1: <strong>{pct(prediction.model.prob1, 1)}</strong>, p2: <strong>{pct(prediction.model.prob2, 1)}</strong> },
   ];
 
@@ -107,8 +108,8 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
       {rows.map((r) => (
         <div key={r.label} className="grid grid-cols-[1fr_auto_auto] gap-2 -my-2">
           <div className="text-(--ink-soft)">{r.label}</div>
-          <div className="w-24 text-right tabular-nums">{r.p1}</div>
-          <div className="w-24 text-right tabular-nums">{r.p2}</div>
+          <div className="w-24 text-right tabular-nums">{typeof r.p1 === 'number' ? cifra(r.p1) : r.p1}</div>
+          <div className="w-24 text-right tabular-nums">{typeof r.p2 === 'number' ? cifra(r.p2) : r.p2}</div>
         </div>
       ))}
 

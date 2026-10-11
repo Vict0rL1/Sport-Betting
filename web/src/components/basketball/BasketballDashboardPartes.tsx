@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { bbApi, type BbMeta, type BbTrackRecord } from '../../lib/basketball';
 import { CheckIcon, CrossIcon } from '../icons';
 import { conNodos, localeDe, useI18n } from '../../i18n';
-import { pct as pctF, num as numF } from '../../lib/formato';
+import { cifra, pct as pctF, num as numF } from '../../lib/formato';
 
 export function DataLine({ meta }: { meta: BbMeta }) {
   const { t, idioma } = useI18n();
@@ -105,7 +105,7 @@ export function BbTrackRecordPanel({ league }: { league: string }) {
                 label={t('bkt.sesgoMargen')}
                 value={
                   data.marginBias != null
-                    ? `${data.marginBias > 0 ? '+' : ''}${data.marginBias}`
+                    ? `${data.marginBias > 0 ? '+' : ''}${cifra(data.marginBias)}`
                     : '—'
                 }
                 hint={t('bkt.sesgoHint')}

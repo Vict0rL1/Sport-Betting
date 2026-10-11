@@ -5,14 +5,14 @@ import { PostprocessPanel } from '../PostprocessPanel';
 import { BarRow, CompareRow, FactorValue, FormDots, Panel, SectionTitle, TeamCrest } from '../ui';
 import { ClimaPanel } from '../ClimaPanel';
 import { useI18n } from '../../i18n';
-import { num as numF } from '../../lib/formato';
+import { cifra, num as numF } from '../../lib/formato';
 
 export const twoWay = (m: { home: number; away: number }): { home: number; away: number } => ({
   home: m.home / (m.home + m.away),
   away: m.away / (m.home + m.away),
 });
 
-export const fmtLine = (l: number) => (l === 0 ? 'PK' : `${l > 0 ? '+' : ''}${l}`);
+export const fmtLine = (l: number) => (l === 0 ? 'PK' : `${l > 0 ? '+' : ''}${cifra(l)}`);
 
 /**
  * The key numbers.
@@ -159,7 +159,7 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
                       ? '—'
                       : qb.points === 0
                         ? t('nfld.nivelMedio')
-                        : t('nfld.qbPts', { p: `${qb.points > 0 ? '+' : ''}${qb.points}`, n: qb.starts })}
+                        : t('nfld.qbPts', { p: `${qb.points > 0 ? '+' : ''}${cifra(qb.points)}`, n: qb.starts })}
                   </FactorValue>
                 </dd>
               </div>
@@ -343,7 +343,7 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
             <>
               <p className="text-[13px] leading-relaxed text-(--ink-body)">
                 {t('nfld.lineaCierre', {
-                  linea: `${market.market.line! > 0 ? '+' : ''}${market.market.line}`,
+                  linea: `${market.market.line! > 0 ? '+' : ''}${cifra(market.market.line!)}`,
                   pa: pct(market.market.away),
                   ph: pct(market.market.home),
                 })}

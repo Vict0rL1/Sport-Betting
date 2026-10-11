@@ -96,3 +96,13 @@ export function aComun(sport: DeporteId, item: Fila): PartidoComun | null {
 }
 
 export const nombrePartido = (p: Pick<PartidoComun, 'sport' | 'casa' | 'fuera'>) => (p.sport === 'nfl' || p.sport === 'nhl' ? `${p.fuera} @ ${p.casa}` : `${p.casa} vs ${p.fuera}`);
+
+/**
+ * ¿Puede tener ya resultado? Solo un partido que ha empezado (G14: por jugar, /api/resultado
+ * contesta 404 y deja un error en consola). Sin hora conocida —un enlace con ?clave= a un partido
+ * que ya no está en la lista—, se pregunta.
+ */
+export function puedeTenerResultado(p: { cuando: string } | null, ahora: Date = new Date()): boolean {
+  const t = p ? Date.parse(p.cuando) : NaN;
+  return !Number.isFinite(t) || t <= ahora.getTime();
+}

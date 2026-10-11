@@ -11,7 +11,7 @@ import { StatusMark } from '../icons';
 import { etiquetaHorizonte, nombreDelPrePartido, type EvaluacionConfianza, type PrePartido, type PrePartidoRef } from '../../lib/trust';
 import { ConfianzaBadge } from './ConfianzaBadge';
 import { codigo, useI18n } from '../../i18n';
-import { pct as pctF, num as numF } from '../../lib/formato';
+import { cifra, pct as pctF, num as numF } from '../../lib/formato';
 
 const pct = (p: number) => `${pctF(p, 1)}`;
 const pp = (x: number) => `${x >= 0 ? '+' : '−'}${numF(Math.abs(x), 1)} pp`;
@@ -229,7 +229,7 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
               {c.calidadDatos.items.map((i) => (
                 <p key={i.texto}>
                   <StatusMark estado={i.estado} color={COLOR_ICONO[i.estado]} />{i.texto}
-                  {i.estado === 'desconocido' ? <span className="text-(--ink-faint)">{t('fiarse.desconocido')}</span> : <span className="text-(--ink-faint)"> ({i.puntos}/{i.max})</span>}
+                  {i.estado === 'desconocido' ? <span className="text-(--ink-faint)">{t('fiarse.desconocido')}</span> : <span className="text-(--ink-faint)"> ({cifra(i.puntos)}/{cifra(i.max)})</span>}
                 </p>
               ))}
               <p className="text-(--ink-faint)">{c.calidadDatos.explicacion}</p>

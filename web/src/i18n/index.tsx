@@ -2,7 +2,7 @@
 // {var}; una clave sin traducción cae al español, nunca a la clave. El idioma sale de Ajustes
 // (servidor), si no del navegador, y se recuerda localmente.
 
-import { fijarIdiomaFormato, localeFormato } from '../lib/formato';
+import { cifra, fijarIdiomaFormato } from '../lib/formato';
 import { createContext, createElement, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { es, type Clave } from './es';
 
@@ -76,9 +76,7 @@ function traducir(idioma: Idioma, clave: Clave, vars?: Record<string, string | n
  * llevan separador de miles.
  */
 function valor(idioma: Idioma, v: string | number): string {
-  if (typeof v !== 'number' || !Number.isFinite(v) || Number.isInteger(v)) return String(v);
-  const decimales = Math.min(4, String(v).split('.')[1]?.length ?? 0);
-  return new Intl.NumberFormat(localeFormato(idioma), { maximumFractionDigits: decimales, useGrouping: false }).format(v).replace('-', '−');
+  return typeof v === 'number' && !Number.isInteger(v) ? cifra(v, idioma) : String(v);
 }
 
 const Ctx = createContext<{ idioma: Idioma; setIdioma: (i: Idioma) => void; t: Traducir }>({ idioma: 'es', setIdioma: () => {}, t: (c, v) => traducir('es', c, v) });
@@ -157,6 +155,15 @@ export function conNodos(texto: string, nodos: Record<string, ReactNode>): React
 export function codigo(t: Traducir, c: string): string {
   const k = `codigo.${c}`;
   return k in es ? t(k as Clave) : c;
+}
+
+/**
+ * El nombre de un tipo de aviso (bandeja, notificaciones) en el idioma de la pantalla. Un tipo sin
+ * entrada en el catálogo sale legible, sin guiones bajos: nunca la clave (G15).
+ */
+export function tipoDeAviso(t: Traducir, tipo: string): string {
+  const k = `aviso.tipo.${tipo}`;
+  return k in es ? t(k as Clave) : tipo.replace(/_/g, ' ');
 }
 
 export type { Clave };

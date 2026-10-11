@@ -4,7 +4,7 @@ import { INK, PROFIT_TEXT, LOSS_TEXT } from '../../lib/theme';
 import { relativeTime, shortTime } from '../../lib/format';
 import { StatusMark } from '../icons';
 import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../../i18n';
-import { pct as pctF, num as numF } from '../../lib/formato';
+import { lineasEnIdioma, pct as pctF, num as numF } from '../../lib/formato';
 
 // Los nombres de mercado y selección son también claves de lib/picks (tasas base, orden): se
 // traducen al pintarlos, no en los datos.
@@ -23,7 +23,7 @@ function seleccionPick(t: Traducir, s: string): string {
   if (s === 'Empate') return t('fbc.empateBarra');
   if (s === 'Sí') return t('pick.sel.si');
   const doble = /^(.*) o empate$/.exec(s);
-  return doble ? t('pick.sel.oEmpate', { nombre: doble[1] }) : s;
+  return lineasEnIdioma(doble ? t('pick.sel.oEmpate', { nombre: doble[1] }) : s);
 }
 /**
  * "Lo que el modelo destacaría" — the ranked markets panel.

@@ -9,7 +9,7 @@ cambian.
 Doce defectos que el agente `ui-tester` encontró en la app construida con la base real, tres en
 cosas que los lotes D y E daban por arregladas (D2, D5, D8). Cada uno con su prueba, que falla
 antes del arreglo (`docs/plans/fixes-G.md`). Ningún parámetro de modelo cambia y no hay
-migraciones. Tests: 642 → 680 (514 del servidor + 70 de la web + 96 de punta a punta).
+migraciones. Tests: 642 → 687 (517 del servidor + 74 de la web + 96 de punta a punta).
 Typecheck, lint, build, `verify:data` (528), `audit` (4500) y Playwright en verde; el doctor, solo
 lo esperado aquí (sin `ODDS_API_KEY`) y los avisos de datos atrasados del lote F.
 
@@ -29,6 +29,12 @@ lo esperado aquí (sin `ODDS_API_KEY`) y los avisos de datos atrasados del lote 
   contadores, insignias de confianza, escudos de club, botón y error de la pantalla de entrada,
   errores de Ajustes. Los estados de cada tema, retocados para pasar de 4,5:1 sobre su tinte.
   `contrastes()` en los e2e mide lo que axe deja como incompleto.
+- **G5b · Lo que quedaba de G5** (segunda pasada de `ui-tester`): `cifra()` para los números que
+  llegan tal cual (filas de comparación, fichas, líneas de una selección) y `numeros.ts` en los
+  escenarios de estabilidad, los avisos y el banco de papel.
+- **G13 · Contadores sin partidos ya jugados**, con la misma regla que la lista. **G14 · Sin 404**
+  de `/api/resultado` en la ficha de un partido por jugar. **G15 · La bandeja** nombra el tipo de
+  aviso en vez de enseñar su código.
 - **G7 · «Salir» se alcanza** con muchas sesiones (la barra lateral se desplaza). **G8 · «Hoy» a
   390 px** cabe entero.
 - **G9 · Sin 404 de simulación** en Equipo y Liga de la NHL. **G10 · Sin 401** en la pantalla de

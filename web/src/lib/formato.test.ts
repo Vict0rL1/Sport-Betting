@@ -35,3 +35,25 @@ test('D5: los rangos del catálogo no se parten de línea', () => {
     }
   }
 });
+
+// G5b (segunda pasada de ui-tester): un número que llega tal cual a la pantalla (una fila de
+// comparación, un `Num` de las fichas) sale con la coma o el punto del idioma y los decimales que
+// trae: «1.43» al lado de «total 2,64» en la misma tarjeta.
+test('G5b: cifra() escribe el número con los decimales que trae, en el idioma y sin separador de miles', async () => {
+  const { cifra } = await import('./formato.ts');
+  assert.equal(cifra(1.43, 'es'), '1,43');
+  assert.equal(cifra(1682.5, 'es'), '1682,5');
+  assert.equal(cifra(-8.6, 'es'), '−8,6');
+  assert.equal(cifra(115, 'es'), '115');
+  assert.equal(cifra(2026, 'en'), '2026');
+  assert.equal(cifra(18.8, 'en'), '18.8');
+  assert.equal(cifra(0.1 + 0.2, 'es'), '0,3');
+});
+
+test('G5b: las líneas de una selección («Over 2.5», «Yankees −1.5») se escriben en el idioma al pintarlas', async () => {
+  const { lineasEnIdioma } = await import('./formato.ts');
+  assert.equal(lineasEnIdioma('Over 227.5', 'es'), 'Over 227,5');
+  assert.equal(lineasEnIdioma('New York Yankees −1.5', 'es'), 'New York Yankees −1,5');
+  assert.equal(lineasEnIdioma('Over 2.5', 'en'), 'Over 2.5');
+  assert.equal(lineasEnIdioma('1. FC Köln', 'es'), '1. FC Köln', 'un nombre con punto no es una línea');
+});

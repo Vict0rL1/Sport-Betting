@@ -7,6 +7,7 @@ import { EnlacePartido } from '../ui';
 import EventTrustPanel from '../trust/EventTrustPanel';
 import { TeamName, MissingModel, Detail, topOutcome, actualOutcome } from './MatchCardPartes';
 import { conNodos, useI18n } from '../../i18n';
+import { cifra } from '../../lib/formato';
 
 /**
  * One fixture.
@@ -254,7 +255,7 @@ export default function MatchCard({
                   <StatRow>
                 <StatTile
                   label={t('fbc.golesEsp')}
-                  value={`${prediction.goals.expectedHome} – ${prediction.goals.expectedAway}`}
+                  value={`${cifra(prediction.goals.expectedHome)} – ${cifra(prediction.goals.expectedAway)}`}
                   hint={t('fbc.total', { n: prediction.goals.expectedTotal })}
                 />
                 <StatTile
@@ -265,7 +266,7 @@ export default function MatchCard({
                 <StatTile
                   label={t('fbc.mas25')}
                   value={pct(prediction.goals.over25)}
-                  hint={`−2.5: ${pct(prediction.goals.under25)}`}
+                  hint={`−${cifra(2.5)}: ${pct(prediction.goals.under25)}`}
                 />
                 <StatTile
                   label={t('fbc.ambos')}

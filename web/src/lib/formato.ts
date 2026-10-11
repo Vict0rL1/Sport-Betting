@@ -40,6 +40,26 @@ export function num(x: number, d = 2, i: IdiomaFormato = activo): string {
   return nf(i, 'decimal', d).format(x).replace('-', '−');
 }
 
+/**
+ * Un número tal cual llega (una media de goles, un rating, un factor), con los decimales que trae
+ * —a lo sumo 4: lo demás es ruido de coma flotante— y la coma o el punto del idioma. Sin separador
+ * de miles: un año o un Elo no lo llevan. Lo usan `t()` y las filas de comparación (G5b).
+ */
+export function cifra(x: number, i: IdiomaFormato = activo): string {
+  if (!Number.isFinite(x)) return String(x);
+  const decimales = Number.isInteger(x) ? 0 : Math.min(4, String(x).split('.')[1]?.length ?? 0);
+  return new Intl.NumberFormat(localeFormato(i), { maximumFractionDigits: decimales, useGrouping: false }).format(x).replace('-', '−');
+}
+
+/**
+ * Las líneas decimales de un nombre de selección, en el idioma: «Over 2.5» → «Over 2,5». Los
+ * nombres son también claves (tasas base, Mi selección), así que se escriben así al PINTARLOS y no
+ * en los datos (G5b).
+ */
+export function lineasEnIdioma(s: string, i: IdiomaFormato = activo): string {
+  return s.replace(/\d+\.\d+/g, (m) => cifra(Number(m), i));
+}
+
 /** Puntos porcentuales con signo: «+2,4 pp». */
 export function pp(x: number, d = 1, i: IdiomaFormato = activo): string {
   return `${x > 0 ? '+' : x < 0 ? '−' : ''}${num(Math.abs(x), d, i)} pp`;

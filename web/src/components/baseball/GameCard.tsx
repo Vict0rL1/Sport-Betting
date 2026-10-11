@@ -9,6 +9,7 @@ import EventTrustPanel from '../trust/EventTrustPanel';
 import { StadiumIcon } from '../icons';
 import { StarterChip, TeamName, MissingModel, Detail } from './GameCardPartes';
 import { conNodos, useI18n } from '../../i18n';
+import { cifra } from '../../lib/formato';
 
 export default function GameCard({
   item,
@@ -201,7 +202,7 @@ export default function GameCard({
                       n: (
                         <strong className="font-semibold tabular-nums text-(--ink-body)">
                           {prediction.park.runsVsNeutral > 0 ? '+' : ''}
-                          {prediction.park.runsVsNeutral}
+                          {cifra(prediction.park.runsVsNeutral)}
                         </strong>
                       ),
                     },
@@ -274,7 +275,7 @@ export default function GameCard({
                   <StatRow>
                 <StatTile
                   label={t('bsc.carrerasEspCorto')}
-                  value={`${prediction.runs.expectedAway} – ${prediction.runs.expectedHome}`}
+                  value={`${cifra(prediction.runs.expectedAway)} – ${cifra(prediction.runs.expectedHome)}`}
                   hint={t('fbc.total', { n: prediction.runs.expectedTotal })}
                 />
                 <StatTile
