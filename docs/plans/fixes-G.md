@@ -93,3 +93,20 @@ Fuera de este lote, anteriores a él y anotados para una tarea aparte (no los to
 - **Baja · `server/src/routes/auth.ts`.** Con TOTP, el error de entrada dice si la contraseña era
   buena («Código incorrecto» frente a «Contraseña incorrecta»). El límite de cinco intentos lo hace
   impracticable; arreglo propuesto: un solo mensaje.
+
+## Resultado
+
+| | Antes del lote G | Después |
+|---|---|---|
+| Tests del servidor | 505 | 514 |
+| Tests de la web | 51 | 70 |
+| Pruebas de punta a punta | 86 | 96 |
+| Typecheck, lint, build | verde | verde |
+| `verify:data` | 528 correctas | 528 correctas |
+| `audit` | 4688 correctas (9 oct) | 4500 correctas (11 oct; la cifra sigue a la ventana de fechas, no al código) |
+| Doctor `--sin-red` | sin `ODDS_API_KEY` (esperado) | lo mismo, más los avisos de datos atrasados de tenis y béisbol (lote F) |
+
+Revisiones: `quant-reviewer` (G1 y G5 limpios; G1b arreglado) y `security-reviewer` (G12 cerrado;
+G4b y G10b arreglados; dos hallazgos anteriores, arriba, para una tarea aparte). `test-runner` y la
+primera segunda pasada de `ui-tester` se cortaron por el límite de uso de la sesión: la batería
+completa se corrió a mano con el resultado de esta tabla, y `ui-tester` se relanzó.

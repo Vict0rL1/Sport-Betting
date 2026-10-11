@@ -9,7 +9,9 @@ cambian.
 Doce defectos que el agente `ui-tester` encontró en la app construida con la base real, tres en
 cosas que los lotes D y E daban por arregladas (D2, D5, D8). Cada uno con su prueba, que falla
 antes del arreglo (`docs/plans/fixes-G.md`). Ningún parámetro de modelo cambia y no hay
-migraciones. Tests: 642 → 671 (512 del servidor + 64 de la web + 95 de punta a punta).
+migraciones. Tests: 642 → 680 (514 del servidor + 70 de la web + 96 de punta a punta).
+Typecheck, lint, build, `verify:data` (528), `audit` (4500) y Playwright en verde; el doctor, solo
+lo esperado aquí (sin `ODDS_API_KEY`) y los avisos de datos atrasados del lote F.
 
 - **G1 · Horizontes pendientes, de verdad.** Un T-6h, T-1h o final que aún no ha llegado dice
   «pendiente»; antes se rellenaba con la última instantánea (D2 solo probaba filas vacías). Cada
