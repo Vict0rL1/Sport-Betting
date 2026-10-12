@@ -31,6 +31,11 @@ cambian.
   `explain` y `path` usando nombres de símbolos, y se mantiene al día con `graphify update .`.
 - `graphify-out/` va al `.gitignore`: es salida generada, pesa varios MB y se regenera en
   segundos. Ningún cambio en la app.
+- **En cada sesión de Claude Code en la web**, `.claude/hooks/session-start.sh` (registrado en
+  `.claude/settings.json`, sin tocar las reglas `deny`) instala las dependencias, instala
+  graphify 0.9.86 si falta y construye o pone al día el grafo. Tarda unos 30 s y, si graphify
+  falla, la sesión arranca igual. En un ordenador local no hace nada. `CLAUDE.md` dice cuándo usar
+  el grafo: antes de leer ficheros sueltos, y `graphify update .` después de editar código.
 
 ## Revisión del 8 de octubre · lote G, lo que encontró la prueba en el navegador (2026-10-10)
 

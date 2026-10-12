@@ -33,6 +33,14 @@ cd web && npx playwright test
 `npm run doctor -- --sin-red` exits 1 without `ODDS_API_KEY`: that is expected here. Commit with
 `git -c core.hooksPath=.githooks commit` (the hook runs the secret scanner).
 
+## Code graph (graphify)
+
+Web sessions build it at start (`.claude/hooks/session-start.sh`); locally: `graphify extract .
+--code-only && graphify cluster-only . --no-label`. For questions about the code, try first
+`graphify query "<symbol names>"`, `graphify explain "<symbol>"` or `graphify path "<A>" "<B>"`
+before reading files one by one (it matches symbol names, not phrases). After editing code, run
+`graphify update .`. `graphify-out/` is generated and ignored.
+
 ## Agents (`.claude/agents/`)
 
 - `test-runner`: runs the whole check suite and reports only what failed. After any change and
