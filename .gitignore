@@ -56,3 +56,6 @@ data/tennis.db.backup-*
 # Playwright
 web/test-results/
 web/playwright-report/
+# graphify: el grafo del código (graphify extract . --code-only). Salida generada, varios MB;
+# se regenera en segundos con `graphify update .`.
+graphify-out/
