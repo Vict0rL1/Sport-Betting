@@ -13,7 +13,7 @@ import type { AuthRuntime } from '../auth.ts';
 import { direccionDe } from '../auth.ts';
 import { igual } from '../auth/compare.ts';
 import { verificarTotp } from '../auth/totp.ts';
-import { crearSesion, revocarPorToken, revocarSesion, sesionDe, sesionesActivas, SESION_DIAS } from '../auth/sessions.ts';
+import { crearSesion, materialDeEntrada, revocarPorToken, revocarSesion, sesionDe, sesionesActivas, SESION_DIAS } from '../auth/sessions.ts';
 import { borrarCookieSesion, ponerCookieSesion, tokenDeSesion } from '../auth/cookies.ts';
 import { featureEncendida } from '../features.ts';
 
@@ -23,10 +23,12 @@ export function registerAuthRoutes(runtime: AuthRuntime) {
     // El secreto ya viene en la configuración (del entorno con el que se construyó la app):
     // no se vuelve a leer process.env, para que la app sea la misma en tests y en producción.
     const totpActivo = () => featureEncendida('auth.totp') && !!config.totpSecret;
+    // Con qué se entra ahora: una sesión vale solo para la entrada con la que se abrió (lote H, H2).
+    const entrada = () => materialDeEntrada(config, totpActivo());
 
     app.get('/me', async (req) => {
       if (!config.activa) return { auth: false, dentro: true, totp: false, sesiones: false };
-      const s = featureEncendida('auth.sesiones') ? sesionDe(tokenDeSesion(req)) : null;
+      const s = featureEncendida('auth.sesiones') ? sesionDe(tokenDeSesion(req), entrada()) : null;
       // El usuario solo a quien ya ha entrado (G12, lote G): no es la contraseña, pero es la mitad
       // de lo que se prueba en la entrada, y quien no ha entrado no tiene por qué saberlo.
       return { auth: true, dentro: !!s, totp: totpActivo(), sesiones: featureEncendida('auth.sesiones'), sesionId: s?.id ?? null, ...(s ? { usuario: config.usuario } : {}) };
@@ -47,10 +49,11 @@ export function registerAuthRoutes(runtime: AuthRuntime) {
       if (!(okClave && okTotp)) {
         const bloqueo = limite.fallo(ip);
         if (bloqueo > 0) return reply.code(429).header('retry-after', String(bloqueo)).send({ error: `Demasiados intentos. Espera ${bloqueo} s.` });
-        return reply.code(401).send({ error: totpActivo() && okClave ? 'Código incorrecto' : 'Contraseña incorrecta', totp: totpActivo() });
+        // Con TOTP, un solo mensaje (lote H, H3): «Código incorrecto» decía que la contraseña era buena.
+        return reply.code(401).send({ error: totpActivo() ? 'Contraseña o código incorrectos' : 'Contraseña incorrecta', totp: totpActivo() });
       }
       limite.acierto(ip);
-      const { token, id } = crearSesion({ userAgent: req.headers['user-agent'], ip });
+      const { token, id } = crearSesion({ userAgent: req.headers['user-agent'], ip }, entrada());
       ponerCookieSesion(req, reply, token, SESION_DIAS * 86_400, config.produccion);
       return { ok: true, sesionId: id };
     });

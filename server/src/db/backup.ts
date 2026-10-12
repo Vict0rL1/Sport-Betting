@@ -6,13 +6,14 @@
 // `integrity_check` antes de darla por buena. Se guardan las últimas N en local y, si hay
 // credenciales, cada una se sube también a un almacén S3 compatible (db/s3.ts).
 
+import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { getDb, getMeta, setMeta } from '../db.ts';
 import { LEDGER_SCHEMA, LAYOUT, ficherosDe, directorioCopias, PATRON_COPIA, apartarLateralesHuerfanos, apartarLibroVacio, nombreLibre } from './layout.ts';
 import { subirS3, configS3 } from './s3.ts';
-import { copiaConsistente, otraConexionAbierta, quitarLaterales } from './sqliteSeguro.ts';
+import { copiaConsistente, integridadDe, otraConexionAbierta, quitarLaterales } from './sqliteSeguro.ts';
 
 export const CLAVE_ULTIMA = 'backup:last_at';
 export const CLAVE_ULTIMO_FICHERO = 'backup:last_file';
@@ -45,21 +46,105 @@ export function copiasLocales(dir = directorioCopias()): { fichero: string; byte
     .sort((a, b) => b.mtime.localeCompare(a.mtime));
 }
 
+/** Por qué una copia recién escrita no sirve, o 'ok': con algo dentro, íntegra y con pinta de libro mayor. */
+function validarCopia(fichero: string): string {
+  if (fs.statSync(fichero).size === 0) return 'vacía';
+  try {
+    const integridad = integridadDe(fichero);
+    if (integridad !== 'ok') return integridad;
+    const d = new DatabaseSync(fichero, { readOnly: true });
+    try {
+      const tablas = (d.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((r) => r.name);
+      // La misma regla que restaurarCopia: una copia que restore rechazaría no ocupa sitio en la rotación.
+      if (!tablas.includes('paper_bets') || !tablas.includes('prediction_log')) return 'sin paper_bets o prediction_log';
+    } finally {
+      d.close();
+    }
+    return 'ok';
+  } catch (e) {
+    return (e as Error).message;
+  }
+}
+
+/** `ledger-X.db` → `ledger-X-2.db`, `-3`…: el siguiente nombre si el primero ya está cogido. */
+function conSufijo(destino: string, n: number): string {
+  const ext = path.extname(destino);
+  return `${destino.slice(0, destino.length - ext.length)}-${n}${ext}`;
+}
+
+/**
+ * Escribe una copia del libro mayor sin que nunca exista a medias con nombre de copia (lote H,
+ * H1). `escribir` llena un temporal propio de este escritor, `<destino>.<pid>-<azar>.parcial`, que
+ * no casa con `PATRON_COPIA`: ni la rotación, ni `restore`, ni las huellas lo ven. Después se
+ * comprueba (con algo dentro, íntegro, con las tablas del libro mayor), se fuerza a disco y se
+ * publica con un enlace, que nunca pisa: si el nombre ya está cogido (otro escritor en el mismo
+ * segundo), el siguiente libre. Devuelve dónde quedó.
+ *
+ * Antes se escribía sobre el nombre final, y una copia cortada a mitad parecía buena: la rotación
+ * borraba por ella una copia de verdad. Si algo falla, el temporal propio se quita y el error sube;
+ * si el proceso muere, queda el `.parcial` (y quizá su `-journal`), que no es una copia.
+ */
+export function escribirCopiaAtomica(destino: string, escribir: (temporal: string) => void): { fichero: string; integridad: string } {
+  const temporal = `${destino}.${process.pid}-${randomBytes(4).toString('hex')}.parcial`;
+  try {
+    escribir(temporal);
+    const integridad = validarCopia(temporal);
+    if (integridad !== 'ok') throw new Error(`La copia no sirve (${integridad}); descartada.`);
+    const fd = fs.openSync(temporal, 'r+');
+    try {
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    let fichero = destino;
+    for (let n = 2; ; n++) {
+      try {
+        fs.linkSync(temporal, fichero);
+        fs.rmSync(temporal);
+        break;
+      } catch (e) {
+        const codigo = (e as NodeJS.ErrnoException).code;
+        if (codigo === 'EEXIST') {
+          fichero = conSufijo(destino, n);
+          continue;
+        }
+        // Un disco sin enlaces (FAT, exFAT, algunos montajes de red): renombrar, mirando antes.
+        if (!['EPERM', 'ENOTSUP', 'EXDEV', 'ENOSYS', 'EOPNOTSUPP'].includes(codigo ?? '')) throw e;
+        if (fs.existsSync(fichero)) {
+          fichero = conSufijo(destino, n);
+          continue;
+        }
+        fs.renameSync(temporal, fichero);
+        break;
+      }
+    }
+    try {
+      // La publicación también tiene que llegar al disco; no todos los sistemas dejan abrir una carpeta.
+      const d = fs.openSync(path.dirname(fichero), 'r');
+      try {
+        fs.fsyncSync(d);
+      } finally {
+        fs.closeSync(d);
+      }
+    } catch {
+      // Windows: sin fsync de carpetas.
+    }
+    return { fichero, integridad };
+  } catch (e) {
+    fs.rmSync(temporal, { force: true });
+    throw e;
+  }
+}
+
 export async function hacerCopia(opts: { dir?: string; ahora?: Date; entorno?: NodeJS.ProcessEnv; subir?: boolean } = {}): Promise<Copia> {
   const dir = opts.dir ?? directorioCopias(opts.entorno);
   const ahora = opts.ahora ?? new Date();
   fs.mkdirSync(dir, { recursive: true });
-  const fichero = path.join(dir, `ledger-${sello(ahora)}.db`);
   const db = getDb();
-  fs.rmSync(fichero, { force: true });
-  db.exec(`VACUUM ${LEDGER_SCHEMA} INTO '${fichero.replace(/'/g, "''")}'`);
-  const copia = new DatabaseSync(fichero);
-  const integridad = (copia.prepare('PRAGMA integrity_check').get() as { integrity_check: string }).integrity_check;
-  copia.close();
-  if (integridad !== 'ok') {
-    fs.rmSync(fichero, { force: true });
-    throw new Error(`La copia no pasa integrity_check (${integridad}); descartada.`);
-  }
+  // Dos copias en el mismo segundo no se pisan: la segunda queda como `ledger-<fecha>-2.db`.
+  const { fichero, integridad } = escribirCopiaAtomica(path.join(dir, `ledger-${sello(ahora)}.db`), (temporal) =>
+    db.exec(`VACUUM ${LEDGER_SCHEMA} INTO '${temporal.replace(/'/g, "''")}'`),
+  );
   const bytes = fs.statSync(fichero).size;
   // Rotación: las últimas N.
   const borradas: string[] = [];

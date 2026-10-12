@@ -120,3 +120,85 @@ test('si la restauración falla después de apartar un ledger.db vacío y su WAL
   );
   fs.rmSync(dir, { recursive: true });
 });
+
+// Lote H, H1: una copia a medias no puede parecer una copia buena.
+test('H1: escribirCopiaAtomica no deja nada con el nombre de la copia si la escritura falla a mitad o no es una base', async () => {
+  const { escribirCopiaAtomica } = await import('./backup.ts');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'copia-atomica-'));
+  const destino = path.join(dir, 'ledger-2026-10-12T10-00-00.db');
+  assert.throws(() =>
+    escribirCopiaAtomica(destino, (temporal) => {
+      fs.writeFileSync(temporal, 'SQLite format 3\0 a medias');
+      throw new Error('corte a mitad');
+    }),
+  /corte a mitad/);
+  assert.equal(fs.existsSync(destino), false, 'tras un fallo a mitad');
+  assert.throws(() => escribirCopiaAtomica(destino, (temporal) => fs.writeFileSync(temporal, 'no soy una base')), /descartada/);
+  assert.equal(fs.existsSync(destino), false, 'con algo que no es una base');
+  assert.deepEqual(copiasLocales(dir), [], 'nada que la rotación o restore puedan tomar por copia');
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('H1: dos copias en el mismo segundo son dos copias íntegras', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'copia-segundo-'));
+  const ahora = new Date('2026-10-12T10:00:00Z');
+  const a = await hacerCopia({ dir, ahora, subir: false });
+  const b = await hacerCopia({ dir, ahora, subir: false });
+  assert.notEqual(a.fichero, b.fichero);
+  assert.equal(copiasLocales(dir).length, 2);
+  for (const c of [a, b]) assert.equal(c.integridad, 'ok');
+  fs.rmSync(dir, { recursive: true });
+});
+
+// Revisión de data-guardian al lote H: dos escritores del mismo nombre a la vez (la copia programada
+// y `npm run backup` en el mismo segundo) compartían el temporal, y una base vacía pasaba integrity_check.
+const baseConMarca = (fichero: string, marca: string) => {
+  const d = new DatabaseSync(fichero);
+  d.exec(`CREATE TABLE paper_bets (x); CREATE TABLE prediction_log (x); CREATE TABLE marca (v TEXT); INSERT INTO marca VALUES ('${marca}')`);
+  d.close();
+};
+const marcaDe = (fichero: string) => {
+  const d = new DatabaseSync(fichero, { readOnly: true });
+  const v = (d.prepare('SELECT v FROM marca').get() as { v: string }).v;
+  d.close();
+  return v;
+};
+
+test('H1: dos escritores con el mismo nombre a la vez publican los dos, cada uno lo suyo, sin pisarse', async () => {
+  const { escribirCopiaAtomica } = await import('./backup.ts');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'copia-dos-'));
+  const destino = path.join(dir, 'ledger-2026-10-12T10-00-00.db');
+  let interior: { fichero: string } | null = null;
+  const exterior = escribirCopiaAtomica(destino, (temporal) => {
+    baseConMarca(temporal, 'A');
+    // El otro escritor empieza y acaba mientras el primero aún no ha publicado.
+    interior = escribirCopiaAtomica(destino, (t) => baseConMarca(t, 'B'));
+  });
+  assert.ok(interior);
+  const b = interior as { fichero: string };
+  assert.notEqual(exterior.fichero, b.fichero);
+  assert.equal(marcaDe(exterior.fichero), 'A');
+  assert.equal(marcaDe(b.fichero), 'B');
+  assert.equal(copiasLocales(dir).length, 2);
+  assert.deepEqual(fs.readdirSync(dir).filter((f) => f.includes('.parcial')), [], 'ningún temporal suelto');
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('H1: una base vacía, o sin las tablas del libro mayor, tampoco es una copia', async () => {
+  const { escribirCopiaAtomica } = await import('./backup.ts');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'copia-vacia-'));
+  const destino = path.join(dir, 'ledger-2026-10-12T10-00-00.db');
+  assert.throws(() => escribirCopiaAtomica(destino, (t) => fs.writeFileSync(t, '')), /descartada/);
+  assert.throws(
+    () =>
+      escribirCopiaAtomica(destino, (t) => {
+        const d = new DatabaseSync(t);
+        d.exec('CREATE TABLE x (n)');
+        d.close();
+      }),
+    /descartada/,
+  );
+  assert.deepEqual(copiasLocales(dir), []);
+  assert.deepEqual(fs.readdirSync(dir), [], 'ni copia ni temporal');
+  fs.rmSync(dir, { recursive: true });
+});

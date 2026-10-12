@@ -273,6 +273,20 @@ export const MIGRACIONES: Migracion[] = [
       if (!cols.includes('policy_version_id')) d.exec(`ALTER TABLE ${tabla} ADD COLUMN policy_version_id INTEGER`);
     },
   },
+  // sessions.huella (lote H, H2): la entrada con la que se abrió cada sesión. Las de antes quedan
+  // sin huella y no entran: tras actualizar, hay que entrar una vez.
+  {
+    version: 22,
+    nombre: 'sesiones-huella',
+    destino: 'ledger',
+    up: (d, ctx) => {
+      const prefijo = ctx.ledger === 'main' ? '' : `${ctx.ledger}.`;
+      const existe = (d.prepare(`SELECT COUNT(*) AS n FROM ${prefijo}sqlite_master WHERE type = 'table' AND name = 'sessions'`).get() as { n: number }).n;
+      if (!existe) return;
+      const cols = (d.prepare(`PRAGMA ${prefijo}table_info(sessions)`).all() as { name: string }[]).map((c) => c.name);
+      if (!cols.includes('huella')) d.exec(`ALTER TABLE ${prefijo}sessions ADD COLUMN huella TEXT`);
+    },
+  },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {

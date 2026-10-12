@@ -4,6 +4,30 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Lote H · copias a prueba de cortes y sesiones que caducan con la entrada (2026-10-12)
+
+Plan y verificación en `docs/plans/fixes-H.md`.
+
+- **H1 · Una copia a medias ya no parece buena.** `npm run backup` y la copia programada escriben
+  en un temporal `.parcial`. Después comprueban `integrity_check`, fuerzan a disco y solo
+  entonces renombran. Antes se escribía sobre el nombre final: un corte a mitad dejaba un fichero
+  que la rotación contaba como copia (y borraba por él una buena) y que `npm run restore`
+  ofrecía. Cada escritor usa su propio temporal y publica sin pisar: la copia programada y
+  `npm run backup` en el mismo segundo dan dos copias (`-2`). Una base vacía o sin las tablas del
+  libro mayor no cuenta como copia.
+- **H2 · Cambiar la contraseña echa a quien ya estaba dentro.** Cada sesión guarda una huella del
+  usuario, la contraseña y el secreto TOTP si está activo, atada a su propio token (HMAC con la
+  cookie como clave). Con la base sola (una copia, S3) no sirve para adivinar la contraseña. Una
+  sesión abierta antes de cambiar `APP_PASSWORD`, `APP_USER` o de activar `TOTP_SECRET` ya no
+  entra: se revoca al presentarse, y no vuelve aunque se deshaga el cambio. Reiniciar con la
+  misma configuración no echa a nadie. Migración 22: columna `sessions.huella`. **Tras actualizar
+  hay que entrar una vez**, porque las sesiones de antes no tienen huella. Tras cambiar una
+  contraseña filtrada, cierra también las sesiones que no reconozcas (Cuenta → Sesiones abiertas).
+- **H3 · Con TOTP, el error no dice si la contraseña era buena.** El login responde «Contraseña o
+  código incorrectos» en los dos casos. Basic Auth también: la pista de la cabecera `X-TOTP-Code`
+  sale siempre.
+- Pruebas: `server/src/auth/puerta.test.ts` (H2, H3) y `server/src/db/backup.test.ts` (H1).
+
 ## Arreglo: un clon nuevo ya no se niega a arrancar (2026-10-12)
 
 - **`data/ledger.db.existe` fuera de git.** La marca de que en una máquina hubo un libro mayor
