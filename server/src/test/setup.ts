@@ -9,11 +9,16 @@
 //     impide que el .env de la raíz meta tu ODDS_API_KEY real en un test.
 //  3. NUNCA LA RED. `fetch` queda bloqueado: un test que olvide simular una respuesta
 //     falla en voz alta en vez de gastar créditos de tu plan en silencio.
+//  4. NUNCA TUS COPIAS. BACKUP_DIR es una ruta global, no de un DATA_DIR: con la de tu .env, un
+//     test leería tus copias reales del libro mayor, escribiría entre ellas o subiría una de
+//     demostración a tu bucket. Cada proceso de test usa la carpeta de su DATA_DIR y ningún S3.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'predicciones-test-'));
+process.env.BACKUP_DIR = path.join(process.env.DATA_DIR, 'backups');
+for (const k of ['BACKUP_S3_BUCKET', 'BACKUP_S3_ACCESS_KEY', 'BACKUP_S3_SECRET_KEY', 'BACKUP_S3_ENDPOINT']) process.env[k] = '';
 process.env.ODDS_API_KEY = 'clave-de-test-0000000000000000000';
 process.env.THE_ODDS_API_KEY = '';
 process.env.ODDS_REGIONS = 'eu';

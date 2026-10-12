@@ -10,10 +10,10 @@ import '../test/setup.ts';
 const { ledgerize, masterDe } = await import('./ledgerize.ts');
 const { TABLAS_LEDGER, esLedger, claveEsLedger } = await import('./tables.ts');
 const { migrar, estadoPorVersion, MigracionFallida } = await import('./migrations.ts');
-const { partirBase, hayQuePartir } = await import('./split.ts');
+const { partirBase, hayQuePartir, legadoSinPartir, apartarParaPartir, filasDelLegadoQueFaltan } = await import('./split.ts');
 const { getDb, setMeta, getMeta, esquemaCompleto, addMissingColumns, MIGRACIONES } = await import('../db.ts');
 const { PAPER_TRIGGERS } = await import('../paper/schema.ts');
-const { LAYOUT, LEDGER_SCHEMA, HISTORY_DB_PATH, LEDGER_DB_PATH } = await import('./layout.ts');
+const { LAYOUT, LEDGER_SCHEMA, HISTORY_DB_PATH, LEDGER_DB_PATH, apartarConLaterales } = await import('./layout.ts');
 
 test('ledgerize: las tablas del libro mayor, sus índices y sus triggers llevan el prefijo; las demás no; en single es la identidad', () => {
   const sql = `
@@ -158,4 +158,193 @@ test('partirBase: dos copias físicas, cada una con lo suyo, el original apartad
   o.close();
   assert.ok(esLedger('alerts') && !esLedger('fb_matches'));
   assert.equal(LEDGER_SCHEMA, 'ledger');
+});
+
+// Revisión de data-guardian a 8522ca1 (C): un tennis.db sin partir JUNTO a history.db o ledger.db
+// (una partición que se cortó a medias, o un «LEDGER_NUEVO=si» que empezó otro libro mayor) no lo
+// partía nadie y el doctor callaba, porque solo lo miraba sin ninguno de los dos.
+test('legadoSinPartir: solo, junto a la base partida, o nada (sin él o con 0 bytes)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'legado-'));
+  const [original, history, ledger] = ['tennis.db', 'history.db', 'ledger.db'].map((f) => path.join(dir, f));
+  assert.equal(legadoSinPartir(original, history, ledger), null);
+  fs.writeFileSync(original, '');
+  assert.equal(legadoSinPartir(original, history, ledger), null, '0 bytes: nada que partir');
+  fs.writeFileSync(original, 'todo dentro');
+  assert.equal(legadoSinPartir(original, history, ledger), 'sin-partir');
+  fs.writeFileSync(history, 'x');
+  assert.equal(legadoSinPartir(original, history, ledger), 'junto');
+  fs.writeFileSync(ledger, 'x');
+  assert.equal(legadoSinPartir(original, history, ledger), 'junto');
+  fs.rmSync(dir, { recursive: true });
+});
+
+// Tercera revisión de data-guardian (12 de octubre). Un tennis.db de verdad, con una apuesta.
+function legadoConUnaApuesta(dir: string): string {
+  const original = path.join(dir, 'tennis.db');
+  const old = new DatabaseSync(original);
+  old.exec(esquemaCompleto('main'));
+  addMissingColumns(old);
+  old.exec(PAPER_TRIGGERS);
+  old.exec("INSERT INTO bets (created_at, placed_on, sport, event, market, selection, odds, stake, status) VALUES ('2026-10-01T00:00:00Z', '2026-10-01', 'tennis', 'LEGADO', 'moneyline', 'A', 1.9, 10, 'pending')");
+  old.close();
+  return original;
+}
+
+/** El WAL de OTRA base que se cortó (con sus commits sin volcar), dejado en `destino`. */
+function walAjeno(dir: string, destino: string): void {
+  const f = path.join(dir, `ajena-${Math.random().toString(36).slice(2)}.db`);
+  const d = new DatabaseSync(f);
+  d.exec('PRAGMA journal_mode = WAL; PRAGMA wal_autocheckpoint = 0;');
+  d.exec("CREATE TABLE marca (v TEXT); INSERT INTO marca VALUES ('AJENA')");
+  fs.writeFileSync(destino, fs.readFileSync(`${f}-wal`));
+  d.close();
+}
+
+test('partirBase: un WAL huérfano junto a donde va ledger.db se aparta; SQLite no lo aplica encima del libro partido', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'split-wal-'));
+  const original = legadoConUnaApuesta(dir);
+  const [history, ledger] = [path.join(dir, 'history.db'), path.join(dir, 'ledger.db')];
+  walAjeno(dir, `${ledger}-wal`);
+  walAjeno(dir, `${history}-wal`);
+  partirBase(original, history, ledger);
+  const l = new DatabaseSync(ledger, { readOnly: true });
+  assert.equal((l.prepare('PRAGMA integrity_check').get() as { integrity_check: string }).integrity_check, 'ok');
+  assert.equal((l.prepare("SELECT COUNT(*) AS n FROM bets WHERE event = 'LEGADO'").get() as { n: number }).n, 1, 'la apuesta del legado está');
+  assert.equal(l.prepare("SELECT name FROM sqlite_master WHERE name = 'marca'").get(), undefined, 'nada de la base ajena');
+  l.close();
+  const apartados = fs.readdirSync(dir).filter((f) => /-wal\.huerfano-/.test(f)).sort();
+  assert.deepEqual(apartados.map((f) => f.replace(/huerfano-.*/, 'huerfano')), ['history.db-wal.huerfano', 'ledger.db-wal.huerfano']);
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('apartarParaPartir: aparta history.db CON su WAL (emparejados) y un ledger.db vacío; después se puede partir', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'partir-legado-'));
+  const original = legadoConUnaApuesta(dir);
+  const [history, ledger] = [path.join(dir, 'history.db'), path.join(dir, 'ledger.db')];
+  const h = new DatabaseSync(history);
+  h.exec('PRAGMA journal_mode = WAL; CREATE TABLE fb_matches (id INTEGER)');
+  h.close();
+  fs.writeFileSync(ledger, '');
+  walAjeno(dir, `${ledger}-wal`);
+  const ahora = new Date('2026-10-12T10:00:00Z');
+  const apartados = apartarParaPartir(original, history, ledger, ahora);
+  assert.equal(fs.existsSync(history) || fs.existsSync(ledger) || fs.existsSync(`${ledger}-wal`), false);
+  assert.ok(apartados.some((f) => f.endsWith('history.db.aparte-2026-10-12T10-00-00')), apartados.join(', '));
+  assert.ok(apartados.some((f) => /ledger\.db\.vacio-/.test(f)) && apartados.some((f) => /ledger\.db-wal\.huerfano-/.test(f)));
+  assert.equal(hayQuePartir(original, history, ledger), true);
+  partirBase(original, history, ledger);
+  const l = new DatabaseSync(ledger, { readOnly: true });
+  assert.equal((l.prepare("SELECT COUNT(*) AS n FROM bets WHERE event = 'LEGADO'").get() as { n: number }).n, 1);
+  l.close();
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('apartarParaPartir se niega: sin tennis.db con datos, con un ledger.db con datos, o con history.db abierto', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'partir-no-'));
+  const [original, history, ledger] = ['tennis.db', 'history.db', 'ledger.db'].map((f) => path.join(dir, f));
+  assert.throws(() => apartarParaPartir(original, history, ledger), /tennis\.db/);
+  legadoConUnaApuesta(dir);
+  fs.writeFileSync(ledger, 'apuestas');
+  assert.throws(() => apartarParaPartir(original, history, ledger), /ledger\.db.*datos/);
+  assert.equal(fs.readFileSync(ledger, 'utf8'), 'apuestas', 'no se ha movido');
+  fs.rmSync(ledger);
+  const abierta = new DatabaseSync(history);
+  abierta.exec('PRAGMA journal_mode = WAL; CREATE TABLE x (n)'); // como la app: en WAL, una conexión ociosa también se ve
+  try {
+    assert.throws(() => apartarParaPartir(original, history, ledger), /abiert/);
+    assert.equal(fs.existsSync(history), true, 'no se ha movido');
+  } finally {
+    abierta.close();
+  }
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('filasDelLegadoQueFaltan: 0 si ledger.db salió de ese tennis.db; las que solo están en tennis.db, si no', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'comparar-'));
+  const original = legadoConUnaApuesta(dir);
+  const [history, ledger] = [path.join(dir, 'history.db'), path.join(dir, 'ledger.db')];
+  const r = partirBase(original, history, ledger);
+  fs.copyFileSync(r.original, original); // la partición se cortó antes de apartar el original
+  const faltan = (t: string) => filasDelLegadoQueFaltan(original, ledger).find((x) => x.tabla === t)?.faltan;
+  assert.equal(faltan('bets'), 0);
+  assert.equal(faltan('paper_bets'), 0);
+  const o = new DatabaseSync(original);
+  o.exec("INSERT INTO bets (created_at, placed_on, sport, event, market, selection, odds, stake, status) VALUES ('2026-10-02T00:00:00Z', '2026-10-02', 'tennis', 'SOLO EN EL LEGADO', 'moneyline', 'B', 2.1, 5, 'pending')");
+  o.close();
+  assert.equal(faltan('bets'), 1);
+  // Lo que no se puede leer no es 0: es DESCONOCIDO.
+  assert.equal(filasDelLegadoQueFaltan(path.join(dir, 'no-existe.db'), ledger).every((x) => x.faltan === null), true);
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('hayQuePartir: un tennis.db de 0 bytes no se parte solo (abrirlo le borraría el WAL, si tiene)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'partir-vacio-'));
+  const [original, history, ledger] = ['tennis.db', 'history.db', 'ledger.db'].map((f) => path.join(dir, f));
+  fs.writeFileSync(original, '');
+  fs.writeFileSync(`${original}-wal`, 'commits sin volcar');
+  assert.equal(hayQuePartir(original, history, ledger), false);
+  fs.rmSync(dir, { recursive: true });
+});
+
+// Cuarta revisión de data-guardian: «ledger.db ya tiene todo» miraba 3 tablas de ~30. Un tennis.db
+// con solo un registro de fútbol o un precio observado pasaba por vacío, y el doctor acababa
+// diciendo que se podía borrar.
+test('filasDelLegadoQueFaltan mira todas las tablas del libro mayor, también las que ledger.db no tiene', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'comparar-todo-'));
+  const original = legadoConUnaApuesta(dir);
+  const [history, ledger] = [path.join(dir, 'history.db'), path.join(dir, 'ledger.db')];
+  const r = partirBase(original, history, ledger);
+  fs.copyFileSync(r.original, original);
+  const o = new DatabaseSync(original);
+  o.exec("INSERT INTO alerts (created_at, type, severity, title, body) VALUES ('2026-10-02T00:00:00Z', 'x', 'info', 'SOLO EN EL LEGADO', 'b')");
+  o.close();
+  const faltan = (t: string) => filasDelLegadoQueFaltan(original, ledger).find((x) => x.tabla === t)?.faltan;
+  assert.equal(faltan('alerts'), 1, 'una alerta que solo está en tennis.db');
+  assert.equal(faltan('bets'), 0);
+  // Una tabla que ledger.db no tiene: todas sus filas faltan (no «no se sabe», no 0).
+  const l = new DatabaseSync(ledger);
+  l.exec('DROP TABLE alerts');
+  l.close();
+  assert.equal(faltan('alerts'), 1);
+  // Las de operación (sesiones, errores, ejecuciones) no son el libro mayor de nadie.
+  assert.equal(filasDelLegadoQueFaltan(original, ledger).some((x) => ['sessions', 'error_log', 'ingestion_runs', 'scheduler_jobs', 'notification_log'].includes(x.tabla)), false);
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('filasDelLegadoQueFaltan no abre un ledger.db de 0 bytes (SQLite le borraría el WAL): DESCONOCIDO', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'comparar-vacio-'));
+  const original = legadoConUnaApuesta(dir);
+  const ledger = path.join(dir, 'ledger.db');
+  fs.writeFileSync(ledger, '');
+  fs.writeFileSync(`${ledger}-wal`, 'commits sin volcar');
+  const r = filasDelLegadoQueFaltan(original, ledger);
+  assert.ok(r.length > 0 && r.every((x) => x.faltan === null));
+  assert.equal(fs.readFileSync(`${ledger}-wal`, 'utf8'), 'commits sin volcar');
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('apartarParaPartir no mueve nada si tennis.db no es una base íntegra', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'partir-roto-'));
+  const [original, history, ledger] = ['tennis.db', 'history.db', 'ledger.db'].map((f) => path.join(dir, f));
+  fs.writeFileSync(original, 'no soy una base');
+  const h = new DatabaseSync(history);
+  h.exec('CREATE TABLE fb_matches (id INTEGER)');
+  h.close();
+  assert.throws(() => apartarParaPartir(original, history, ledger), /tennis\.db/);
+  assert.equal(fs.existsSync(history), true, 'history.db sigue en su sitio');
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('apartarConLaterales: el WAL y el SHM van con su base, con el mismo nombre nuevo', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aparte-'));
+  const f = path.join(dir, 'history.db');
+  fs.writeFileSync(f, 'base');
+  fs.writeFileSync(`${f}-wal`, 'wal');
+  fs.writeFileSync(`${f}-shm`, 'shm');
+  const r = apartarConLaterales(f, 'aparte', new Date('2026-10-12T10:00:00Z'));
+  const base = 'history.db.aparte-2026-10-12T10-00-00';
+  assert.deepEqual(r.map((x) => path.basename(x)), [base, `${base}-wal`, `${base}-shm`]);
+  assert.deepEqual(r.map((x) => fs.readFileSync(x, 'utf8')), ['base', 'wal', 'shm']);
+  assert.equal([f, `${f}-wal`, `${f}-shm`].some((x) => fs.existsSync(x)), false);
+  fs.rmSync(dir, { recursive: true });
 });

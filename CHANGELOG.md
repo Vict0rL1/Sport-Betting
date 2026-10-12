@@ -4,6 +4,96 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Arreglo: un clon nuevo ya no se niega a arrancar (2026-10-12)
+
+- **`data/ledger.db.existe` fuera de git.** La marca de que en una máquina hubo un libro mayor
+  (lote B) se coló en el commit del lote B. Cada clon nuevo la traía, y `npm run setup`,
+  `update-all` y `npm run dev` se negaban a arrancar pidiendo un libro mayor que esa instalación
+  nunca tuvo. Ahora va en el `.gitignore` y `server/src/db/marcaEnGit.test.ts` lo vigila. En
+  una instalación con libro mayor, un `git pull` borra la marca versionada y la app la vuelve a
+  escribir al abrir la base, así que la protección no se pierde. Como `main` la llevaba, el
+  trabajo nocturno de datos tampoco podía publicar la release `data-latest`.
+- **`data/` solo versiona `data/raw/.gitkeep`** (revisión de `data-guardian`). Era una lista de lo
+  que no se sube y se le escapaban restos como `ledger.db.restaurando`, que es una copia entera
+  del libro mayor. Ahora es una lista de lo que sí, y el mismo test lo comprueba.
+- **El libro mayor no depende solo de la marca.** Sin `ledger.db`, la app tampoco empieza uno vacío
+  si quedan otras huellas: su WAL, una restauración a medias o una copia en `data/backups`
+  (`server/src/db/libroMayorPerdido.test.ts`).
+- **Segunda revisión de `data-guardian`:**
+  - Los tests y los servidores de e2e usan la carpeta de copias de su propio `DATA_DIR` y ningún
+    bucket. Con el `BACKUP_DIR` de un `.env`, los tests veían las copias reales como huellas
+    (161 de 434 fallaban), y la copia programada de los e2e metía libros de demostración entre
+    las copias reales. La rotación borraba las más viejas de verdad.
+  - Un `ledger.db-wal` sin su `ledger.db` se aparta como `ledger.db-wal.huerfano-<fecha>`, tanto
+    con `LEDGER_NUEVO=si` como al restaurar una copia. Antes se borraba, y podía llevar los
+    últimos commits.
+  - Más huellas: un `tennis.db` sin partir, los restos de una partición o de una restauración, y
+    un `ledger.db` de 0 bytes. Una carpeta de copias que no se deja leer también cuenta.
+  - `npm run setup` se para si la base no se abre, en vez de acabar en «Listo».
+  - Pruebas: `server/src/test/aislamiento.test.ts` y `server/src/db/libroMayorPerdido.test.ts`.
+- **Tercera y cuarta revisión de `data-guardian`:**
+  - Restaurar una copia encima de un `ledger.db` de 0 bytes perdía su WAL: SQLite borra el WAL
+    de una base vacía al abrirla, y la restauración la abría para ver si había otra conexión.
+    Ahora el fichero vacío y su WAL se apartan antes de abrir nada (`.vacio-<fecha>` y
+    `-wal.huerfano-<fecha>`). Si la restauración falla después, el error dice qué se apartó.
+  - Un `tennis.db` sin partir junto a un `history.db` no se parte solo. El aviso proponía
+    `LEDGER_NUEVO=si`, que dejaba las apuestas varadas dentro de él. Ahora:
+    - Si `tennis.db` es la única huella, el aviso dice que el libro mayor sigue dentro y da
+      `npm run db:migrate -- --partir-legado`.
+    - Si hay más huellas (una copia, la marca que dejó la app, un WAL), pudo haber un libro mayor
+      más nuevo: el aviso ofrece primero `npm run restore`, con la fecha de la copia más nueva, y
+      partir `tennis.db` solo como segunda opción.
+    - `LEDGER_NUEVO=si` no se acepta con un `tennis.db` al lado.
+  - `--partir-legado` es un comando de la app, no un `mv` a mano:
+    - Se niega si la base está abierta o si ya hay un `ledger.db` con datos.
+    - Aparta `history.db` junto con su `-wal`/`-shm`, y aparta un `ledger.db` vacío junto con su
+      WAL.
+    - Después parte `tennis.db`.
+  - `partirBase` aparta cualquier WAL que encuentre donde van a ir los ficheros nuevos y nunca
+    escribe encima de un fichero existente. SQLite aplica un WAL a la base que lleve su nombre,
+    venga de donde venga. La revisión lo reprodujo: con el `mv` a mano, el WAL de un libro mayor
+    cortado acababa encima del libro recién partido.
+  - `npm run doctor` avisa de un `tennis.db` sin partir también cuando ya existe la base partida.
+    No aconseja mover nunca el `ledger.db` en uso. Compara los dos ficheros en todas las tablas del
+    libro mayor, salvo las de operación (sesiones, errores, ejecuciones):
+    - Si `ledger.db` ya tiene todas las filas de `tennis.db`, basta con renombrar `tennis.db`, con
+      su `-wal` y su `-shm`.
+    - Si `tennis.db` tiene filas que faltan en `ledger.db`, hay dos libros mayores: no se mueve
+      nada.
+    - Si la comparación no se puede hacer, el resultado es DESCONOCIDO, nunca 0.
+  - Más huellas: el WAL de un `tennis.db` (aunque este tenga 0 bytes), y un
+    `ledger.db-wal.huerfano-*` con algo dentro. Un WAL de 0 bytes no cuenta: no lleva commits y lo
+    deja cualquier lectura. Un `tennis.db` de 0 bytes ya no cuenta como huella y no se parte solo,
+    porque abrirlo borraría su WAL.
+  - `--partir-legado` no mueve nada si `tennis.db` no es una base íntegra con tablas del libro
+    mayor. La comparación del doctor no abre un fichero de 0 bytes.
+  - Ningún apartado pisa a otro hecho en el mismo segundo, tampoco `.antes-de-restaurar-*`. La
+    revisión reprodujo dos restauraciones seguidas en las que la segunda borraba el libro real que
+    había apartado la primera.
+  - Comprobado de punta a punta con las reproducciones de la revisión. Pruebas en
+    `libroMayorPerdido.test.ts`, `layout.test.ts`, `backup.test.ts` y `doctor/checks.test.ts`.
+- Si al hacer `git pull` git dice que `data/ledger.db.existe` tiene cambios locales:
+  `git checkout -- data/ledger.db.existe` y repite el pull (no `git stash`). La app la vuelve a
+  escribir sola.
+
+## Mantenimiento: grafo del código con graphify (2026-10-12)
+
+- **graphify** (`uv tool install graphifyy`) construye en local un grafo del código, sin modelo
+  ni clave de API: `graphify extract . --code-only` y `graphify cluster-only . --no-label`
+  (6.079 nodos, 19.543 relaciones, 170 comunidades). Se consulta con `graphify query`,
+  `explain` y `path` usando nombres de símbolos, y se mantiene al día con `graphify update .`.
+- `graphify-out/` va al `.gitignore`: es salida generada, pesa varios MB y se regenera en
+  segundos. Ningún cambio en la app.
+- **En cada sesión de Claude Code en la web**, `.claude/hooks/session-start.sh` (registrado en
+  `.claude/settings.json`, sin tocar las reglas `deny`) instala las dependencias, instala
+  graphify 0.9.86 si falta y construye o pone al día el grafo. Tarda unos 30 s y, si graphify
+  falla, la sesión arranca igual. En un ordenador local no hace nada. `CLAUDE.md` dice cuándo usar
+  el grafo: antes de leer ficheros sueltos, y `graphify update .` después de editar código.
+- **El grafo se pone al día solo.** Después de cada edición de código de Claude (Edit/Write), el hook
+  `.claude/hooks/graphify-update.sh` lanza `graphify update .` en segundo plano: vuelve en
+  ~10 ms, la actualización (unos 15 s) corre aparte, una sola a la vez, y si llegan más ediciones
+  repite al acabar. No se activa para lo que no es código, ni donde no hay graphify o grafo.
+
 ## Revisión del 8 de octubre · lote G, lo que encontró la prueba en el navegador (2026-10-10)
 
 Doce defectos que el agente `ui-tester` encontró en la app construida con la base real, tres en

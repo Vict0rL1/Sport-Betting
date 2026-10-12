@@ -67,6 +67,7 @@ import { familiaDeMotivo } from '../trust/decision.ts';
 import { execFileSync } from 'node:child_process';
 import { configAuth } from '../auth/mode.ts';
 import { LAYOUT, ficherosDe } from '../db/layout.ts';
+import { filasDelLegadoQueFaltan, legadoSinPartir } from '../db/split.ts';
 import { estadoPorVersion } from '../db/migrations.ts';
 import { copiasLocales, ultimaCopia } from '../db/backup.ts';
 import { configS3 } from '../db/s3.ts';
@@ -378,13 +379,15 @@ if (dbExistia) {
     }
   };
   const copia = uno(() => ultimaCopia(), null);
+  const legado = LAYOUT === 'split' ? legadoSinPartir(LEGACY_DB_PATH, f.history, f.ledger!) : null;
   const retAt = getMeta('retention:last_at');
   const estado: EstadoAlmacenamiento = {
     layout: LAYOUT,
     history: tam(f.history),
     ledger: tam(f.ledger),
     preSplit,
-    legacySinPartir: LAYOUT === 'split' && fs.existsSync(LEGACY_DB_PATH) && !fs.existsSync(f.history) && !fs.existsSync(f.ledger!),
+    legacySinPartir: legado,
+    legadoFaltan: legado === 'junto' ? filasDelLegadoQueFaltan(LEGACY_DB_PATH, f.ledger!) : [],
     migracionesFallidas: fallidas,
     backup: copia ? { cuando: copia.cuando, fichero: copia.fichero, existe: !!copia.fichero && fs.existsSync(copia.fichero) } : null,
     copiasLocales: uno(() => copiasLocales().length, 0),

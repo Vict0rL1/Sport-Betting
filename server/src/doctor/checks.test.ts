@@ -9,6 +9,7 @@ const {
   comprobarBaseDeDatos,
   comprobarFrescura,
   comprobarServidor,
+  comprobarAlmacenamiento,
   resultado,
   enmascarar,
 } = await import('./checks.ts');
@@ -454,4 +455,52 @@ test('operación: trabajos que fallan o se cuelgan, envíos fallidos, anulacione
   assert.ok(r.some((x) => x.nivel === 'aviso' && /viejo\.interruptor/.test(x.texto)));
   assert.ok(r.some((x) => x.nivel === 'aviso' && /Fuente ESPN.*403/.test(x.texto)));
   assert.ok(!r.some((x) => /Fuente GitHub/.test(x.texto)), 'solo se listan las que no contestan');
+});
+
+test('almacenamiento: un tennis.db sin partir junto a la base partida avisa, nunca manda mover ledger.db y compara los dos', () => {
+  const e = {
+    layout: 'split' as const,
+    history: { ruta: '/d/history.db', mb: 10 },
+    ledger: { ruta: '/d/ledger.db', mb: 1 },
+    preSplit: [],
+    legacySinPartir: 'junto' as const,
+    legadoFaltan: [
+      { tabla: 'bets', faltan: 0 },
+      { tabla: 'paper_bets', faltan: 0 },
+      { tabla: 'prediction_log', faltan: 0 },
+    ] as { tabla: string; faltan: number | null }[],
+    migracionesFallidas: [],
+    backup: null,
+    copiasLocales: 0,
+    backupHoras: 24,
+    s3: false,
+    apuestasRegistradas: 0,
+    retencion: null,
+    snapshots: 0,
+    ejecuciones: [],
+    muertas: 0,
+  };
+  const ahora = new Date('2026-10-12T10:00:00Z');
+  const legado = (estado: typeof e) => comprobarAlmacenamiento(estado, ahora).find((x) => /tennis\.db/.test(x.texto));
+  const accion = (x: ReturnType<typeof legado>) => (x?.accion ?? []).join(' ');
+  // ledger.db ya tiene todo lo de tennis.db (una partición cortada justo antes de apartarlo).
+  const todo = legado(e);
+  assert.ok(todo, 'el doctor lo dice');
+  assert.equal(todo.nivel, 'aviso');
+  assert.match(accion(todo), /tennis\.db\.pre-split-/);
+  assert.match(accion(todo), /servidor parado/);
+  assert.match(accion(todo), /tennis\.db-wal/, 'sus laterales van con él');
+  // tennis.db tiene filas que no están en ledger.db: dos libros mayores, no se mueve nada.
+  const dos = legado({ ...e, legadoFaltan: [{ tabla: 'bets', faltan: 3 }, { tabla: 'paper_bets', faltan: 0 }, { tabla: 'prediction_log', faltan: 0 }] });
+  assert.match(dos!.texto + (dos!.detalle ?? []).join(' '), /3/);
+  assert.match(accion(dos), /no muevas nada/i);
+  // No se pudo comparar: DESCONOCIDO, y tampoco se mueve nada.
+  const nose = legado({ ...e, legadoFaltan: [{ tabla: 'bets', faltan: null }, { tabla: 'paper_bets', faltan: 0 }, { tabla: 'prediction_log', faltan: 0 }] });
+  assert.match((nose!.detalle ?? []).join(' '), /DESCONOCIDO/);
+  assert.match(accion(nose), /no muevas nada/i);
+  for (const x of [todo, dos, nose]) {
+    assert.doesNotMatch(accion(x), /aparta[^.]*ledger\.db|db:migrate|LEDGER_NUEVO/, 'nunca mover el libro mayor que está en uso');
+  }
+  // Sin tennis.db, nada de eso.
+  assert.equal(comprobarAlmacenamiento({ ...e, legacySinPartir: null, legadoFaltan: [] }, ahora).some((x) => /tennis\.db/.test(x.texto)), false);
 });

@@ -9,9 +9,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { DATA_DIR } from '../config.ts';
 import { getDb, getMeta, setMeta } from '../db.ts';
-import { LEDGER_SCHEMA, LAYOUT, ficherosDe } from './layout.ts';
+import { LEDGER_SCHEMA, LAYOUT, ficherosDe, directorioCopias, PATRON_COPIA, apartarLateralesHuerfanos, apartarLibroVacio, nombreLibre } from './layout.ts';
 import { subirS3, configS3 } from './s3.ts';
 import { copiaConsistente, otraConexionAbierta, quitarLaterales } from './sqliteSeguro.ts';
 
@@ -19,9 +18,7 @@ export const CLAVE_ULTIMA = 'backup:last_at';
 export const CLAVE_ULTIMO_FICHERO = 'backup:last_file';
 export const COPIAS_LOCALES = 14;
 
-export function directorioCopias(entorno: NodeJS.ProcessEnv = process.env): string {
-  return entorno.BACKUP_DIR?.trim() || path.join(DATA_DIR, 'backups');
-}
+export { directorioCopias };
 
 export interface Copia {
   fichero: string;
@@ -40,7 +37,7 @@ export function copiasLocales(dir = directorioCopias()): { fichero: string; byte
   if (!fs.existsSync(dir)) return [];
   return fs
     .readdirSync(dir)
-    .filter((f) => /^ledger-.*\.db$/.test(f))
+    .filter((f) => PATRON_COPIA.test(f))
     .map((f) => {
       const st = fs.statSync(path.join(dir, f));
       return { fichero: path.join(dir, f), bytes: st.size, mtime: st.mtime.toISOString() };
@@ -111,30 +108,48 @@ export function restaurarCopia(origen: string, opts: { ahora?: Date; destino?: s
   if (!tablas.includes('paper_bets') || !tablas.includes('prediction_log')) throw new Error('Ese fichero no parece un libro mayor (faltan paper_bets o prediction_log).');
   const destino = opts.destino ?? ficherosDe().ledger;
   if (!destino) throw new Error(`En disposición ${LAYOUT} no hay ledger.db que restaurar.`);
-  if (otraConexionAbierta(destino)) {
-    throw new Error(`${destino} está abierto por otro proceso (el servidor en marcha). Párala y vuelve a intentarlo: restaurar encima de una conexión abierta corrompe el libro mayor.`);
-  }
-  let apartado: string | null = null;
-  let aviso: string | null = null;
-  if (fs.existsSync(destino)) {
-    apartado = `${destino}.antes-de-restaurar-${sello(opts.ahora ?? new Date())}`;
-    try {
-      const ok = copiaConsistente(destino, apartado);
-      if (ok !== 'ok') aviso = `el libro mayor apartado no pasa integrity_check (${ok}); se restaura igual`;
-    } catch (e) {
-      // No se deja copiar como base: se aparta tal cual, con sus laterales, y se dice.
-      fs.copyFileSync(destino, apartado);
-      for (const suf of ['-wal', '-shm']) if (fs.existsSync(destino + suf)) fs.copyFileSync(destino + suf, apartado + suf);
-      aviso = `el libro mayor actual no se pudo copiar como base (${(e as Error).message}); se apartó tal cual`;
+  // Un ledger.db de 0 bytes no es un libro mayor, pero abrirlo (para ver si hay otra conexión o para
+  // apartarlo) hace que SQLite borre su WAL, que puede llevar los últimos commits: antes de abrir
+  // nada se apartan los dos. Una base en uso no tiene 0 bytes (abrirBase escribe la página 1 al
+  // pasar a WAL, justo tras el ATTACH): solo un libro truncado en caliente se saltaría la sonda de
+  // abajo, y esa sonda también le habría borrado el WAL.
+  const sinLibro: string[] = [];
+  const avisoSinLibro = () => `no había libro mayor encima (faltaba o tenía 0 bytes); se apartó, sin borrarlo: ${sinLibro.map((f) => path.basename(f)).join(', ')}`;
+  try {
+    if (fs.existsSync(destino) && fs.statSync(destino).size === 0) apartarLibroVacio(destino, opts.ahora, sinLibro);
+    if (otraConexionAbierta(destino)) {
+      throw new Error(`${destino} está abierto por otro proceso (el servidor en marcha). Párala y vuelve a intentarlo: restaurar encima de una conexión abierta corrompe el libro mayor.`);
     }
+    let apartado: string | null = null;
+    let aviso: string | null = null;
+    if (fs.existsSync(destino)) {
+      // Con nombre libre: dos restauraciones en el mismo segundo no pisan el primer libro apartado.
+      apartado = nombreLibre(`${destino}.antes-de-restaurar-${sello(opts.ahora ?? new Date())}`);
+      try {
+        const ok = copiaConsistente(destino, apartado);
+        if (ok !== 'ok') aviso = `el libro mayor apartado no pasa integrity_check (${ok}); se restaura igual`;
+      } catch (e) {
+        // No se deja copiar como base: se aparta tal cual, con sus laterales, y se dice.
+        fs.copyFileSync(destino, apartado);
+        for (const suf of ['-wal', '-shm']) if (fs.existsSync(destino + suf)) fs.copyFileSync(destino + suf, apartado + suf);
+        aviso = `el libro mayor actual no se pudo copiar como base (${(e as Error).message}); se apartó tal cual`;
+      }
+    }
+    const temporal = `${destino}.restaurando`;
+    const ok = copiaConsistente(origen, temporal);
+    if (ok !== 'ok') {
+      fs.rmSync(temporal, { force: true });
+      throw new Error(`La copia reconstruida no pasa integrity_check (${ok}); no se toca el libro mayor.`);
+    }
+    // Sin libro mayor pero con su WAL: puede llevar los últimos commits; se aparta, no se borra.
+    if (!apartado) apartarLateralesHuerfanos(destino, opts.ahora, sinLibro);
+    if (sinLibro.length) aviso = avisoSinLibro();
+    quitarLaterales(destino);
+    fs.renameSync(temporal, destino);
+    return { destino, apartado, aviso };
+  } catch (e) {
+    // Lo que ya se apartó no se pierde de vista aunque la restauración falle a mitad.
+    if (sinLibro.length && e instanceof Error) e.message += ` Ojo: ${avisoSinLibro()}.`;
+    throw e;
   }
-  const temporal = `${destino}.restaurando`;
-  const ok = copiaConsistente(origen, temporal);
-  if (ok !== 'ok') {
-    fs.rmSync(temporal, { force: true });
-    throw new Error(`La copia reconstruida no pasa integrity_check (${ok}); no se toca el libro mayor.`);
-  }
-  quitarLaterales(destino);
-  fs.renameSync(temporal, destino);
-  return { destino, apartado, aviso };
 }
