@@ -294,6 +294,7 @@ export function abrirBase(opts: { reintentar?: boolean; log?: (m: string) => voi
   if (LAYOUT === 'split' && hayQuePartir(LEGACY_DB_PATH, HISTORY_DB_PATH, LEDGER_DB_PATH)) {
     const r = partirBase(LEGACY_DB_PATH, HISTORY_DB_PATH, LEDGER_DB_PATH);
     opts.log?.(`Base partida en dos: ${r.tablasHistory.length} tablas en history.db, ${r.tablasLedger.length} en ledger.db (${r.settingsCopiadas} claves de estado). El original queda en ${r.original}.`);
+    for (const f of r.apartados) opts.log?.(`Apartado sin borrar: ${f}`);
   }
   if (LAYOUT === 'split') comprobarLibroMayor(opts.log);
   const d = new DatabaseSync(rutaPrincipal());
@@ -319,19 +320,62 @@ function comprobarLibroMayor(log?: (m: string) => void): void {
   if (fs.existsSync(LEDGER_DB_PATH) && fs.statSync(LEDGER_DB_PATH).size > 0) return;
   const huellas = huellasDeLibroMayor();
   if (huellas.length === 0) return;
+  // Un tennis.db sin partir (con datos, o con su WAL): el libro mayor puede seguir DENTRO de él
+  // (revisiones de data-guardian del 12 de octubre). Se parte con un comando de la app, que mira
+  // si la base está abierta y aparta cada fichero con sus laterales; nunca con un `mv` a mano.
+  const legado = path.basename(LEGACY_DB_PATH);
+  const legadoConDatos = huellas.includes(legado);
+  const walDelLegado = huellas.includes(`${legado}-wal`);
+  const partir =
+    '      npm run db:migrate -- --partir-legado\n' +
+    `      (aparta ${path.basename(HISTORY_DB_PATH)}, que se reconstruye, sin borrarlo, y parte ${legado})`;
+  const walSuelto = `  · ${legado}-wal lleva commits y ${legado} está vacío: no lo borres ni abras ${legado} (SQLite lo descartaría). Recuperarlo es a mano.`;
   if (process.env.LEDGER_NUEVO?.trim().toLowerCase() === 'si') {
+    if (legadoConDatos || walDelLegado) {
+      throw new Error(
+        `LEDGER_NUEVO=si no se acepta con un ${legado} sin partir al lado (${LEGACY_DB_PATH}): tu libro mayor puede estar dentro.\n` +
+          `${legadoConDatos ? `  · Para partirlo, con el servidor parado:\n${partir}` : walSuelto}\n` +
+          `  · Si de verdad no lo quieres, renómbralo tú (no lo borres) y vuelve a intentarlo.`,
+      );
+    }
     log?.('LEDGER_NUEVO=si: se empieza un libro mayor nuevo a sabiendas (el anterior no está).');
     // SQLite descartaría el WAL huérfano al abrir el nuevo: se aparta antes, con sus commits.
     for (const f of apartarLateralesHuerfanos(LEDGER_DB_PATH)) log?.(`Apartado sin borrar: ${f}`);
     fs.rmSync(LEDGER_MARCA_PATH, { force: true });
     return;
   }
+  // Solo tennis.db: el libro mayor está ahí. Con más huellas (una copia, la marca que dejó la app, un
+  // WAL…) pudo haber otro MÁS NUEVO después, y partir tennis.db pondría el viejo en su sitio.
+  if (legadoConDatos && huellas.every((h) => h === legado || h === `${legado}-wal`)) {
+    throw new Error(
+      `Falta ${LEDGER_DB_PATH} y hay un ${legado} sin partir (${huellas.join(', ')}): tu libro mayor sigue DENTRO de ${LEGACY_DB_PATH} (apuestas, registro de predicciones, precios observados).\n` +
+        '  No se arranca con uno vacío; tampoco empieces uno nuevo: lo dejarías ahí.\n' +
+        `  · Para partirlo, con el servidor parado:\n${partir}`,
+    );
+  }
+  const copia = copiaMasNueva();
+  const fecha = (f: string) => fs.statSync(f).mtime.toISOString().slice(0, 16).replace('T', ' ');
   throw new Error(
     `Falta ${LEDGER_DB_PATH} y hay huellas de que aquí hubo un libro mayor (${huellas.join(', ')}): apuestas, registro de predicciones, precios observados.\n` +
       '  No se arranca con uno vacío.\n' +
-      '  · Para recuperarlo:              npm run restore   (lista las copias; npm run restore -- <fichero>)\n' +
-      '  · Para empezar uno nuevo A SABIENDAS:  LEDGER_NUEVO=si npm run dev',
+      `  · Para recuperarlo:  npm run restore   (lista las copias; npm run restore -- <fichero>)${copia ? `; la más nueva es de ${fecha(copia)}` : ''}\n` +
+      (legadoConDatos
+        ? `  · Hay además un ${legado} sin partir, modificado el ${fecha(LEGACY_DB_PATH)}. Solo si tu libro mayor es ese (y no ${copia ? 'el de una copia más nueva' : 'uno posterior que se perdió'}), con el servidor parado:\n${partir}`
+        : walDelLegado
+          ? walSuelto
+          : '  · Para empezar uno nuevo A SABIENDAS:  LEDGER_NUEVO=si npm run dev'),
   );
+}
+
+/** La copia más nueva de la carpeta de copias, o null. */
+function copiaMasNueva(): string | null {
+  try {
+    const dir = directorioCopias();
+    const copias = fs.readdirSync(dir).filter((f) => PATRON_COPIA.test(f)).map((f) => path.join(dir, f));
+    return copias.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0] ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -353,14 +397,29 @@ function huellasDeLibroMayor(): string[] {
       return [];
     }
   };
+  const bytes = (f: string) => {
+    try {
+      return fs.statSync(f).size;
+    } catch {
+      return 0;
+    }
+  };
   const nombre = path.basename(LEDGER_DB_PATH);
   const legado = path.basename(LEGACY_DB_PATH);
   if (fs.existsSync(LEDGER_MARCA_PATH)) huellas.push(path.basename(LEDGER_MARCA_PATH));
-  if (fs.existsSync(`${LEDGER_DB_PATH}-wal`)) huellas.push(`${nombre}-wal`);
-  // Un tennis.db sin partir: si hubiera que partirlo, abrirBase ya lo habría hecho antes de llegar aquí.
-  if (fs.existsSync(LEGACY_DB_PATH)) huellas.push(legado);
-  for (const f of leer(path.dirname(LEDGER_DB_PATH))) {
+  // Un WAL de 0 bytes no lleva commits: lo deja cualquier lectura de una base en WAL (el doctor, al
+  // comparar). Contarlo bloquearía con una explicación falsa.
+  if (bytes(`${LEDGER_DB_PATH}-wal`) > 0) huellas.push(`${nombre}-wal`);
+  // Un tennis.db sin partir: si hubiera que partirlo, abrirBase ya lo habría hecho antes de llegar
+  // aquí. Uno de 0 bytes no tiene nada (la misma regla que un ledger.db de 0 bytes), pero su WAL sí
+  // puede tener commits.
+  if (fs.existsSync(LEGACY_DB_PATH) && fs.statSync(LEGACY_DB_PATH).size > 0) huellas.push(legado);
+  if (bytes(`${LEGACY_DB_PATH}-wal`) > 0) huellas.push(`${legado}-wal`);
+  const dir = path.dirname(LEDGER_DB_PATH);
+  for (const f of leer(dir)) {
     if (f.startsWith(`${nombre}.antes-de-restaurar-`) || f === `${nombre}.restaurando` || f.startsWith(`${legado}.pre-split-`)) huellas.push(f);
+    // Un WAL apartado (al restaurar, al empezar uno nuevo, al partir) con commits dentro.
+    else if (f.startsWith(`${nombre}-wal.huerfano-`) && bytes(path.join(dir, f)) > 0) huellas.push(f);
   }
   const copias = directorioCopias();
   const copia = leer(copias).find((f) => PATRON_COPIA.test(f));

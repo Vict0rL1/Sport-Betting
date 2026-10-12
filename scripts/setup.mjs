@@ -64,9 +64,10 @@ console.log('\nBase de datos: history.db (historia) + ledger.db (lo tuyo). Un te
 // Si la base no se abre (falta el libro mayor y hay huellas de que lo hubo), seguir con los datos
 // y acabar en «Listo» engañaba: la app no arrancaría. Se para aquí y se dice qué hacer.
 if ((await pregunta('¿Aplico las migraciones ahora (npm run db:migrate)?')) && !corre(['run', 'db:migrate'])) {
-  console.log(`\n${C.red}✗ La base no se abrió: el motivo está justo arriba. No sigo, los pasos siguientes la necesitan.${C.off}`);
+  console.log(`\n${C.red}✗ La base no se abrió: el motivo y qué hacer están justo arriba. No sigo, los pasos siguientes la necesitan.${C.off}`);
+  console.log(`  · Si el aviso habla de un tennis.db sin partir, sigue sus pasos con el servidor parado; no empieces uno nuevo.`);
   console.log(`  · Si falta tu libro mayor: ${C.bold}npm run restore${C.off} (lista las copias) y después vuelve a ${C.bold}npm run setup${C.off}.`);
-  console.log(`  · Si de verdad empiezas de cero: ${C.bold}LEDGER_NUEVO=si npm run setup${C.off}.`);
+  console.log(`  · Solo si de verdad empiezas de cero (con un tennis.db al lado no se acepta): ${C.bold}LEDGER_NUEVO=si npm run setup${C.off}.`);
   rl.close();
   process.exit(1);
 }

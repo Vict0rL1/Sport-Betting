@@ -31,6 +31,47 @@ cambian.
     un `ledger.db` de 0 bytes. Una carpeta de copias que no se deja leer también cuenta.
   - `npm run setup` se para si la base no se abre, en vez de acabar en «Listo».
   - Pruebas: `server/src/test/aislamiento.test.ts` y `server/src/db/libroMayorPerdido.test.ts`.
+- **Tercera y cuarta revisión de `data-guardian`:**
+  - Restaurar una copia encima de un `ledger.db` de 0 bytes perdía su WAL: SQLite borra el WAL
+    de una base vacía al abrirla, y la restauración la abría para ver si había otra conexión.
+    Ahora el fichero vacío y su WAL se apartan antes de abrir nada (`.vacio-<fecha>` y
+    `-wal.huerfano-<fecha>`). Si la restauración falla después, el error dice qué se apartó.
+  - Un `tennis.db` sin partir junto a un `history.db` no se parte solo. El aviso proponía
+    `LEDGER_NUEVO=si`, que dejaba las apuestas varadas dentro de él. Ahora:
+    - Si `tennis.db` es la única huella, el aviso dice que el libro mayor sigue dentro y da
+      `npm run db:migrate -- --partir-legado`.
+    - Si hay más huellas (una copia, la marca que dejó la app, un WAL), pudo haber un libro mayor
+      más nuevo: el aviso ofrece primero `npm run restore`, con la fecha de la copia más nueva, y
+      partir `tennis.db` solo como segunda opción.
+    - `LEDGER_NUEVO=si` no se acepta con un `tennis.db` al lado.
+  - `--partir-legado` es un comando de la app, no un `mv` a mano:
+    - Se niega si la base está abierta o si ya hay un `ledger.db` con datos.
+    - Aparta `history.db` junto con su `-wal`/`-shm`, y aparta un `ledger.db` vacío junto con su
+      WAL.
+    - Después parte `tennis.db`.
+  - `partirBase` aparta cualquier WAL que encuentre donde van a ir los ficheros nuevos y nunca
+    escribe encima de un fichero existente. SQLite aplica un WAL a la base que lleve su nombre,
+    venga de donde venga. La revisión lo reprodujo: con el `mv` a mano, el WAL de un libro mayor
+    cortado acababa encima del libro recién partido.
+  - `npm run doctor` avisa de un `tennis.db` sin partir también cuando ya existe la base partida.
+    No aconseja mover nunca el `ledger.db` en uso. Compara los dos ficheros en todas las tablas del
+    libro mayor, salvo las de operación (sesiones, errores, ejecuciones):
+    - Si `ledger.db` ya tiene todas las filas de `tennis.db`, basta con renombrar `tennis.db`, con
+      su `-wal` y su `-shm`.
+    - Si `tennis.db` tiene filas que faltan en `ledger.db`, hay dos libros mayores: no se mueve
+      nada.
+    - Si la comparación no se puede hacer, el resultado es DESCONOCIDO, nunca 0.
+  - Más huellas: el WAL de un `tennis.db` (aunque este tenga 0 bytes), y un
+    `ledger.db-wal.huerfano-*` con algo dentro. Un WAL de 0 bytes no cuenta: no lleva commits y lo
+    deja cualquier lectura. Un `tennis.db` de 0 bytes ya no cuenta como huella y no se parte solo,
+    porque abrirlo borraría su WAL.
+  - `--partir-legado` no mueve nada si `tennis.db` no es una base íntegra con tablas del libro
+    mayor. La comparación del doctor no abre un fichero de 0 bytes.
+  - Ningún apartado pisa a otro hecho en el mismo segundo, tampoco `.antes-de-restaurar-*`. La
+    revisión reprodujo dos restauraciones seguidas en las que la segunda borraba el libro real que
+    había apartado la primera.
+  - Comprobado de punta a punta con las reproducciones de la revisión. Pruebas en
+    `libroMayorPerdido.test.ts`, `layout.test.ts`, `backup.test.ts` y `doctor/checks.test.ts`.
 - Si al hacer `git pull` git dice que `data/ledger.db.existe` tiene cambios locales:
   `git checkout -- data/ledger.db.existe` y repite el pull (no `git stash`). La app la vuelve a
   escribir sola.

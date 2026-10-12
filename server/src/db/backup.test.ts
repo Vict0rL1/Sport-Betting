@@ -87,3 +87,36 @@ test('S3: sin las tres variables no hay configuración; la firma SigV4 es determ
   assert.notEqual(distinta.headers.authorization, a.headers.authorization, 'otro cuerpo, otra firma');
   assert.ok(!('host' in a.headers), 'host lo pone fetch');
 });
+
+// Tercera revisión de data-guardian (12 de octubre).
+test('restaurar dos veces en el mismo segundo no pisa el primer libro apartado', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'restaurar-2-'));
+  const c = await hacerCopia({ dir, ahora: new Date('2026-10-07T05:00:00Z'), subir: false });
+  const destino = path.join(dir, 'ledger.db');
+  const ahora = new Date('2026-10-07T06:00:00Z');
+  fs.copyFileSync(c.fichero, destino);
+  const d = new DatabaseSync(destino);
+  d.exec("CREATE TABLE el_libro_real (v TEXT); INSERT INTO el_libro_real VALUES ('EL-LIBRO-REAL')");
+  d.close();
+  const a = restaurarCopia(c.fichero, { destino, ahora });
+  const b = restaurarCopia(c.fichero, { destino, ahora });
+  assert.notEqual(a.apartado, b.apartado);
+  const primero = new DatabaseSync(a.apartado!, { readOnly: true });
+  assert.equal((primero.prepare('SELECT v FROM el_libro_real').get() as { v: string }).v, 'EL-LIBRO-REAL');
+  primero.close();
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('si la restauración falla después de apartar un ledger.db vacío y su WAL, el error lo dice', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'restaurar-falla-'));
+  const c = await hacerCopia({ dir, ahora: new Date('2026-10-07T05:00:00Z'), subir: false });
+  const destino = path.join(dir, 'ledger.db');
+  fs.writeFileSync(destino, '');
+  fs.writeFileSync(`${destino}-wal`, 'commits sin volcar');
+  fs.mkdirSync(`${destino}.restaurando`); // el temporal no se puede escribir: falla a mitad
+  assert.throws(
+    () => restaurarCopia(c.fichero, { destino, ahora: new Date('2026-10-07T06:00:00Z') }),
+    (e: Error) => /ledger\.db-wal\.huerfano-/.test(e.message) && /ledger\.db\.vacio-/.test(e.message),
+  );
+  fs.rmSync(dir, { recursive: true });
+});

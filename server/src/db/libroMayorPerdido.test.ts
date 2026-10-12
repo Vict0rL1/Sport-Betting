@@ -85,27 +85,35 @@ test('restaurar una copia sin ledger.db pero con un WAL huérfano: se aparta, no
   const { cerrarDb } = await import('../db.ts');
   const copia = await hacerCopia({ subir: false });
   cerrarDb();
-  quitarLibro();
-  fs.writeFileSync(`${LEDGER_DB_PATH}-wal`, 'commits sin volcar');
-  restaurarCopia(copia.fichero);
-  assert.equal(fs.existsSync(LEDGER_DB_PATH), true, 'restaurado');
-  const h = huerfanos();
-  assert.equal(h.length, 1, 'el WAL huérfano queda apartado');
-  assert.equal(fs.readFileSync(path.join(path.dirname(LEDGER_DB_PATH), h[0]), 'utf8'), 'commits sin volcar');
+  try {
+    quitarLibro();
+    fs.writeFileSync(`${LEDGER_DB_PATH}-wal`, 'commits sin volcar');
+    restaurarCopia(copia.fichero);
+    assert.equal(fs.existsSync(LEDGER_DB_PATH), true, 'restaurado');
+    const h = huerfanos();
+    assert.equal(h.length, 1, 'el WAL huérfano queda apartado');
+    assert.equal(fs.readFileSync(path.join(path.dirname(LEDGER_DB_PATH), h[0]), 'utf8'), 'commits sin volcar');
+    for (const f of h) fs.rmSync(path.join(path.dirname(LEDGER_DB_PATH), f));
+  } finally {
+    // La copia es una huella: si se queda, la prueba siguiente se negaría por ella y no por lo que mira.
+    fs.rmSync(copia.fichero, { force: true });
+  }
 });
 
 // Más huellas (misma revisión): un tennis.db antiguo sin partir junto a un history.db, los restos
 // de una partición o de una restauración, un ledger.db de 0 bytes (existe, pero no es un libro
 // mayor) y una carpeta de copias que no se deja leer (no es lo mismo que «no hay copias»).
-test('otras huellas: tennis.db sin partir, restos de partición o restauración, ledger.db vacío, copias ilegibles', async () => {
+test('otras huellas: cada una por sí sola niega el arranque y el aviso la nombra', async () => {
   const { LEGACY_DB_PATH } = await import('./layout.ts');
   const dir = path.dirname(LEDGER_DB_PATH);
-  const casos: [string, () => () => void][] = [
-    ['tennis.db sin partir', () => (fs.writeFileSync(LEGACY_DB_PATH, 'todo dentro'), () => fs.rmSync(LEGACY_DB_PATH))],
-    ['resto de una partición', () => { const f = `${LEGACY_DB_PATH}.pre-split-2026-10-01`; fs.writeFileSync(f, 'x'); return () => fs.rmSync(f); }],
-    ['restauración a medias', () => { const f = `${LEDGER_DB_PATH}.restaurando`; fs.writeFileSync(f, 'x'); return () => fs.rmSync(f); }],
-    ['ledger.db de 0 bytes con la marca', () => { fs.writeFileSync(LEDGER_DB_PATH, ''); fs.writeFileSync(LEDGER_MARCA_PATH, 'x'); return () => fs.rmSync(LEDGER_MARCA_PATH); }],
-    ['carpeta de copias ilegible', () => {
+  abrirBase().close(); // history.db existe: tennis.db no se partiría, es una huella
+  fs.rmSync(directorioCopias(), { recursive: true, force: true }); // ninguna copia que tape lo que se mira
+  const casos: [string, RegExp, () => () => void][] = [
+    ['tennis.db sin partir', /\(tennis\.db\)/, () => (fs.writeFileSync(LEGACY_DB_PATH, 'todo dentro'), () => fs.rmSync(LEGACY_DB_PATH))],
+    ['resto de una partición', /tennis\.db\.pre-split-/, () => { const f = `${LEGACY_DB_PATH}.pre-split-2026-10-01`; fs.writeFileSync(f, 'x'); return () => fs.rmSync(f); }],
+    ['restauración a medias', /ledger\.db\.restaurando/, () => { const f = `${LEDGER_DB_PATH}.restaurando`; fs.writeFileSync(f, 'x'); return () => fs.rmSync(f); }],
+    ['ledger.db de 0 bytes con la marca', /ledger\.db\.existe/, () => { fs.writeFileSync(LEDGER_DB_PATH, ''); fs.writeFileSync(LEDGER_MARCA_PATH, 'x'); return () => fs.rmSync(LEDGER_MARCA_PATH); }],
+    ['carpeta de copias ilegible', /no se pudo leer/, () => {
       const antes = process.env.BACKUP_DIR;
       const fichero = path.join(dir, 'no-es-una-carpeta');
       fs.writeFileSync(fichero, 'x');
@@ -113,14 +121,161 @@ test('otras huellas: tennis.db sin partir, restos de partición o restauración,
       return () => { process.env.BACKUP_DIR = antes; fs.rmSync(fichero); };
     }],
   ];
-  for (const [nombre, preparar] of casos) {
+  for (const [nombre, huella, preparar] of casos) {
     quitarLibro();
     fs.rmSync(LEDGER_MARCA_PATH, { force: true });
     const limpiar = preparar();
     try {
-      assert.throws(() => abrirBase(), /npm run restore/, nombre);
+      assert.throws(() => abrirBase(), huella, nombre);
     } finally {
       limpiar();
     }
+  }
+});
+
+// Revisión de data-guardian a 8522ca1. Si la huella es un tennis.db sin partir, el libro mayor
+// sigue DENTRO de él: «LEDGER_NUEVO=si» lo dejaba allí varado y empezaba uno vacío. El aviso dice
+// cómo partirlo, con un comando de la app (tercera revisión: un `mv` a mano dejaba atrás los WAL
+// y no comprobaba si el servidor seguía en marcha).
+const sinNada = () => {
+  abrirBase().close(); // history.db existe: tennis.db no se partiría solo
+  fs.rmSync(directorioCopias(), { recursive: true, force: true });
+  quitarLibro();
+  fs.rmSync(LEDGER_MARCA_PATH, { force: true });
+};
+
+test('con un tennis.db sin partir como única huella, el aviso da el comando para partirlo y no propone empezar de cero', async () => {
+  const { LEGACY_DB_PATH } = await import('./layout.ts');
+  sinNada();
+  fs.writeFileSync(LEGACY_DB_PATH, 'todo dentro');
+  try {
+    assert.throws(
+      () => abrirBase(),
+      (e: Error) => /npm run db:migrate -- --partir-legado/.test(e.message) && !/LEDGER_NUEVO/.test(e.message) && !/\bmv\b/.test(e.message),
+    );
+  } finally {
+    fs.rmSync(LEGACY_DB_PATH);
+  }
+});
+
+// Tercera revisión: con más huellas que tennis.db (una copia, la marca que dejó la app), pudo haber
+// un libro mayor MÁS NUEVO que el de tennis.db. Primero se ofrece restaurar.
+test('con tennis.db y además una copia y la marca, primero restaurar; partir tennis.db, después y avisado', async () => {
+  const { LEGACY_DB_PATH } = await import('./layout.ts');
+  sinNada();
+  fs.writeFileSync(LEGACY_DB_PATH, 'todo dentro');
+  fs.writeFileSync(LEDGER_MARCA_PATH, 'libro mayor creado por la app');
+  const copias = directorioCopias();
+  fs.mkdirSync(copias, { recursive: true });
+  const copia = path.join(copias, 'ledger-2026-10-11T03-00-00.db');
+  fs.writeFileSync(copia, 'copia');
+  try {
+    assert.throws(() => abrirBase(), (e: Error) => {
+      const restaurar = e.message.indexOf('npm run restore');
+      const partir = e.message.indexOf('--partir-legado');
+      return restaurar >= 0 && partir > restaurar && !/LEDGER_NUEVO/.test(e.message) && /DENTRO/.test(e.message) === false;
+    });
+  } finally {
+    fs.rmSync(LEGACY_DB_PATH);
+    fs.rmSync(copia);
+    fs.rmSync(LEDGER_MARCA_PATH);
+  }
+});
+
+test('LEDGER_NUEVO=si no se acepta con un tennis.db con datos al lado', async () => {
+  const { LEGACY_DB_PATH } = await import('./layout.ts');
+  sinNada();
+  fs.writeFileSync(LEGACY_DB_PATH, 'todo dentro');
+  process.env.LEDGER_NUEVO = 'si';
+  try {
+    assert.throws(() => abrirBase(), /--partir-legado/);
+    assert.equal(fs.existsSync(LEDGER_DB_PATH), false, 'no empezó uno vacío');
+  } finally {
+    delete process.env.LEDGER_NUEVO;
+    fs.rmSync(LEGACY_DB_PATH);
+  }
+});
+
+test('un tennis.db de 0 bytes con su WAL sí es una huella (los commits pueden estar en el WAL)', async () => {
+  const { LEGACY_DB_PATH } = await import('./layout.ts');
+  sinNada();
+  fs.writeFileSync(LEGACY_DB_PATH, '');
+  fs.writeFileSync(`${LEGACY_DB_PATH}-wal`, 'commits sin volcar');
+  try {
+    assert.throws(() => abrirBase(), /tennis\.db-wal/);
+  } finally {
+    fs.rmSync(LEGACY_DB_PATH);
+    fs.rmSync(`${LEGACY_DB_PATH}-wal`);
+  }
+});
+
+test('un WAL apartado (ledger.db-wal.huerfano-*) con algo dentro es una huella', () => {
+  sinNada();
+  const f = `${LEDGER_DB_PATH}-wal.huerfano-2026-10-12T10-00-00`;
+  fs.writeFileSync(f, 'commits sin volcar');
+  try {
+    assert.throws(() => abrirBase(), /ledger\.db-wal\.huerfano-/);
+  } finally {
+    fs.rmSync(f);
+  }
+});
+
+test('un tennis.db de 0 bytes no es una huella (no hay nada que proteger)', async () => {
+  const { LEGACY_DB_PATH } = await import('./layout.ts');
+  quitarLibro();
+  fs.rmSync(LEDGER_MARCA_PATH, { force: true });
+  fs.writeFileSync(LEGACY_DB_PATH, '');
+  try {
+    abrirBase().close();
+    assert.equal(fs.existsSync(LEDGER_DB_PATH), true);
+  } finally {
+    fs.rmSync(LEGACY_DB_PATH);
+  }
+});
+
+test('restaurar sobre un ledger.db de 0 bytes aparta su WAL (y el fichero vacío) antes de abrir nada', async () => {
+  const { hacerCopia, restaurarCopia } = await import('./backup.ts');
+  const { cerrarDb } = await import('../db.ts');
+  abrirBase().close();
+  const copia = await hacerCopia({ subir: false });
+  cerrarDb();
+  try {
+    quitarLibro();
+    fs.writeFileSync(LEDGER_DB_PATH, '');
+    fs.writeFileSync(`${LEDGER_DB_PATH}-wal`, 'commits sin volcar');
+    const r = restaurarCopia(copia.fichero);
+    const h = huerfanos();
+    assert.equal(h.length, 1, 'el WAL queda apartado');
+    assert.equal(fs.readFileSync(path.join(path.dirname(LEDGER_DB_PATH), h[0]), 'utf8'), 'commits sin volcar');
+    assert.match(r.aviso ?? '', /huerfano/);
+    for (const f of h) fs.rmSync(path.join(path.dirname(LEDGER_DB_PATH), f));
+  } finally {
+    fs.rmSync(copia.fichero, { force: true });
+  }
+});
+
+test('apartar dos veces en el mismo segundo no pisa el primer apartado', async () => {
+  const { apartarLateralesHuerfanos } = await import('./layout.ts');
+  const f = path.join(path.dirname(LEDGER_DB_PATH), 'otro.db');
+  const ahora = new Date('2026-10-12T10:00:00Z');
+  fs.writeFileSync(`${f}-wal`, 'primero');
+  const [a] = apartarLateralesHuerfanos(f, ahora);
+  fs.writeFileSync(`${f}-wal`, 'segundo');
+  const [b] = apartarLateralesHuerfanos(f, ahora);
+  assert.notEqual(a, b);
+  assert.deepEqual([fs.readFileSync(a, 'utf8'), fs.readFileSync(b, 'utf8')], ['primero', 'segundo']);
+});
+
+// Cuarta revisión: cualquier lectura de una base en WAL deja un -wal de 0 bytes; eso no son commits.
+test('un WAL de 0 bytes (de tennis.db o de ledger.db) no es una huella', async () => {
+  const { LEGACY_DB_PATH } = await import('./layout.ts');
+  sinNada();
+  fs.writeFileSync(`${LEGACY_DB_PATH}-wal`, '');
+  fs.writeFileSync(`${LEDGER_DB_PATH}-wal`, '');
+  try {
+    abrirBase().close();
+    assert.equal(fs.existsSync(LEDGER_DB_PATH), true);
+  } finally {
+    fs.rmSync(`${LEGACY_DB_PATH}-wal`, { force: true });
   }
 });

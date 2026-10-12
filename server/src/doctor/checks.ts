@@ -668,8 +668,10 @@ export interface EstadoAlmacenamiento {
   ledger: { ruta: string; mb: number } | null;
   /** Ficheros `tennis.db.pre-split-*` que quedaron al partir la base. */
   preSplit: string[];
-  /** Hay un tennis.db antiguo y aún no hay history.db/ledger.db. */
-  legacySinPartir: boolean;
+  /** Un tennis.db antiguo sin partir: solo, o junto a history.db/ledger.db (ver `legadoSinPartir`). */
+  legacySinPartir: 'sin-partir' | 'junto' | null;
+  /** Con `junto`: filas de tennis.db que no están, iguales, en ledger.db (null: DESCONOCIDO). */
+  legadoFaltan: { tabla: string; faltan: number | null }[];
   migracionesFallidas: string[];
   /** La última copia anotada; `existe` dice si el fichero sigue ahí. */
   backup: { cuando: string; fichero: string | null; existe: boolean } | null;
@@ -692,12 +694,39 @@ export function comprobarAlmacenamiento(e: EstadoAlmacenamiento, ahora: Date): H
   const mb = (n: number) => `${n.toFixed(n < 10 ? 1 : 0)} MB`;
 
   // 1. Disposición y ficheros.
-  if (e.legacySinPartir) {
+  if (e.legacySinPartir === 'sin-partir') {
     out.push(h(S, 'aviso', 'Hay una base antigua (tennis.db) todavía sin partir en history.db + ledger.db', { accion: ['npm run db:migrate   (no pierde nada: el original queda al lado como tennis.db.pre-split-<fecha>)'] }));
   } else if (e.layout === 'split') {
     out.push(h(S, 'ok', `Dos ficheros: history.db ${e.history ? mb(e.history.mb) : '—'} (historia, reconstruible) · ledger.db ${e.ledger ? mb(e.ledger.mb) : '—'} (apuestas, predicciones registradas, precios: lo tuyo)`));
   } else {
     out.push(h(S, 'info', `Disposición single (DB_LAYOUT=single): todo en un fichero${e.history ? ` de ${mb(e.history.mb)}` : ''}. Sin ledger.db no hay copias del libro mayor por separado.`));
+  }
+  // Revisiones de data-guardian (12 de octubre): junto a la base partida, nadie lo parte y la app no
+  // lo usa; si tenía apuestas, siguen dentro. Nunca se aconseja mover ledger.db: es el que está en
+  // uso y tiene sus propias apuestas. Se compara, y solo si ledger.db ya lo tiene todo se dice qué hacer.
+  if (e.legacySinPartir === 'junto') {
+    const desconocido = e.legadoFaltan.length === 0 || e.legadoFaltan.some((x) => x.faltan === null);
+    const total = e.legadoFaltan.reduce((n, x) => n + (x.faltan ?? 0), 0);
+    const distintas = e.legadoFaltan.filter((x) => x.faltan !== 0);
+    const detalle = [
+      'Pasa si una partición se cortó a medias o si se empezó un libro mayor nuevo con tennis.db al lado.',
+      `Comparadas ${e.legadoFaltan.length} tabla(s) del libro mayor. Filas de tennis.db que no están, iguales, en ledger.db: ${distintas.map((x) => `${x.tabla} ${x.faltan ?? 'DESCONOCIDO'}`).join(' · ') || 'ninguna'}`,
+    ];
+    if (!desconocido && total === 0) {
+      out.push(
+        h(S, 'aviso', 'Hay una base antigua (tennis.db) sin partir junto a history.db/ledger.db; ledger.db ya tiene todo lo suyo', {
+          detalle,
+          accion: ['Con el servidor parado, renombra tennis.db (sin borrarlo) a tennis.db.pre-split-<fecha>, y tennis.db-wal y tennis.db-shm si están, con el mismo nombre nuevo. El aviso se va; ledger.db no se toca.'],
+        }),
+      );
+    } else {
+      out.push(
+        h(S, 'aviso', `Hay una base antigua (tennis.db) sin partir junto a ledger.db, ${desconocido ? 'y no se pudo comparar: puede haber' : `con ${total} fila(s) que ledger.db no tiene: hay`} dos libros mayores`, {
+          detalle,
+          accion: ['No muevas nada: ledger.db es el que usa la app y tiene sus propias apuestas.', 'Juntar los dos es a mano; mientras tanto, tennis.db se queda donde está.'],
+        }),
+      );
+    }
   }
   if (e.preSplit.length) out.push(h(S, 'info', `${e.preSplit.length} fichero(s) pre-split guardados (${e.preSplit.join(', ')}). Cuando te fíes de la base partida, puedes borrarlos.`));
   if (e.migracionesFallidas.length) {
