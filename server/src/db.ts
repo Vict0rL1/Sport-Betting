@@ -315,18 +315,47 @@ export function abrirBase(opts: { reintentar?: boolean; log?: (m: string) => voi
  * seguiría como si nada. `LEDGER_NUEVO=si` empieza uno nuevo a sabiendas.
  */
 function comprobarLibroMayor(log?: (m: string) => void): void {
-  if (fs.existsSync(LEDGER_DB_PATH) || !fs.existsSync(LEDGER_MARCA_PATH)) return;
+  if (fs.existsSync(LEDGER_DB_PATH)) return;
+  const huellas = huellasDeLibroMayor();
+  if (huellas.length === 0) return;
   if (process.env.LEDGER_NUEVO?.trim().toLowerCase() === 'si') {
     log?.('LEDGER_NUEVO=si: se empieza un libro mayor nuevo a sabiendas (el anterior no está).');
     fs.rmSync(LEDGER_MARCA_PATH, { force: true });
     return;
   }
   throw new Error(
-    `Falta ${LEDGER_DB_PATH} y ${path.basename(LEDGER_MARCA_PATH)} dice que aquí hubo un libro mayor (apuestas, registro de predicciones, precios observados).\n` +
+    `Falta ${LEDGER_DB_PATH} y hay huellas de que aquí hubo un libro mayor (${huellas.join(', ')}): apuestas, registro de predicciones, precios observados.\n` +
       '  No se arranca con uno vacío.\n' +
       '  · Para recuperarlo:              npm run restore   (lista las copias; npm run restore -- <fichero>)\n' +
       '  · Para empezar uno nuevo A SABIENDAS:  LEDGER_NUEVO=si npm run dev',
   );
+}
+
+/**
+ * Lo que dice que aquí HUBO un libro mayor: la marca, y también lo que la marca no cubre (revisión
+ * de data-guardian, 12 de octubre): su WAL, una restauración a medias y las copias de
+ * data/backups. Con la marca fuera de git, una instalación que la pierde en un `git pull` y luego
+ * pierde ledger.db antes de abrir la base seguiría protegida. Un clon nuevo no tiene ninguna. Las
+ * copias se buscan aquí y no con backup.ts, que importa este módulo.
+ */
+function huellasDeLibroMayor(): string[] {
+  const leer = (dir: string) => {
+    try {
+      return fs.readdirSync(dir);
+    } catch {
+      return [];
+    }
+  };
+  const nombre = path.basename(LEDGER_DB_PATH);
+  const huellas: string[] = [];
+  if (fs.existsSync(LEDGER_MARCA_PATH)) huellas.push(path.basename(LEDGER_MARCA_PATH));
+  if (fs.existsSync(`${LEDGER_DB_PATH}-wal`)) huellas.push(`${nombre}-wal`);
+  const apartado = leer(path.dirname(LEDGER_DB_PATH)).find((f) => f.startsWith(`${nombre}.antes-de-restaurar-`));
+  if (apartado) huellas.push(apartado);
+  const copias = process.env.BACKUP_DIR?.trim() || path.join(DATA_DIR, 'backups');
+  const copia = leer(copias).find((f) => /^ledger-.*\.db$/.test(f));
+  if (copia) huellas.push(`una copia en ${copias} (${copia})`);
+  return huellas;
 }
 
 export function getDb(): DatabaseSync {

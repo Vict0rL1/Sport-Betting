@@ -18,3 +18,15 @@ test('la marca del libro mayor no está en git y el .gitignore la deja fuera', {
   assert.equal(git('ls-files', 'data/ledger.db.existe'), '', 'un clon nuevo no puede traer la marca de otra máquina');
   assert.equal(git('check-ignore', 'data/ledger.db.existe'), 'data/ledger.db.existe');
 });
+
+// Revisión de data-guardian (12 de octubre): la misma clase de accidente seguía abierta. Una
+// restauración interrumpida deja `ledger.db.restaurando`, una copia ENTERA del libro mayor, y un
+// `git add -A` la subía (secret-scan no mira los binarios). data/ es ahora una lista de lo que SÍ
+// se versiona: solo data/raw/.gitkeep.
+test('de data/ solo se versiona data/raw/.gitkeep: todo lo demás (copias, descargas, restos) queda fuera', { skip: !hayGit && 'sin .git (no es un checkout)' }, () => {
+  assert.equal(git('ls-files', 'data/'), 'data/raw/.gitkeep');
+  const restos = ['data/ledger.db.restaurando', 'data/ledger.db.partiendo', 'data/history.db.partiendo', 'data/history.db.sin-filas-2026-10-12', 'data/history.db.download', 'data/history.db.new', 'data/history.db.backup-2026-10-12', 'data/cualquier-cosa-nueva.db', 'data/raw/atp_matches_2026.csv'];
+  const ignorados = execFileSync('git', ['check-ignore', ...restos], { cwd: RAIZ, encoding: 'utf8' }).trim().split('\n');
+  assert.deepEqual(ignorados, restos);
+  assert.throws(() => git('check-ignore', 'data/raw/.gitkeep'), 'data/raw/.gitkeep se versiona');
+});

@@ -11,7 +11,17 @@ cambian.
   `update-all` y `npm run dev` se negaban a arrancar pidiendo un libro mayor que esa instalación
   nunca tuvo. Ahora va en el `.gitignore` y `server/src/db/marcaEnGit.test.ts` lo vigila. En
   una instalación con libro mayor, un `git pull` borra la marca versionada y la app la vuelve a
-  escribir al abrir la base, así que la protección no se pierde.
+  escribir al abrir la base, así que la protección no se pierde. Como `main` la llevaba, el
+  trabajo nocturno de datos tampoco podía publicar la release `data-latest`.
+- **`data/` solo versiona `data/raw/.gitkeep`** (revisión de `data-guardian`). Era una lista de lo
+  que no se sube y se le escapaban restos como `ledger.db.restaurando`, que es una copia entera
+  del libro mayor. Ahora es una lista de lo que sí, y el mismo test lo comprueba.
+- **El libro mayor no depende solo de la marca.** Sin `ledger.db`, la app tampoco empieza uno vacío
+  si quedan otras huellas: su WAL, una restauración a medias o una copia en `data/backups`
+  (`server/src/db/libroMayorPerdido.test.ts`).
+- Si al hacer `git pull` git dice que `data/ledger.db.existe` tiene cambios locales:
+  `git checkout -- data/ledger.db.existe` y repite el pull (no `git stash`). La app la vuelve a
+  escribir sola.
 
 ## Mantenimiento: grafo del código con graphify (2026-10-12)
 
