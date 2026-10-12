@@ -2,7 +2,7 @@
 // filtros por tipo y deporte, y enlace al partido o al informe.
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useI18n, formato } from '../i18n';
+import { useI18n, formato, tipoDeAviso } from '../i18n';
 import { useJson, enviarJson } from '../lib/usarJson';
 import { pillClass } from '../components/ui';
 import { STATUS } from '../lib/theme';
@@ -23,7 +23,7 @@ interface Aviso {
 }
 interface Respuesta { avisos: Aviso[]; noLeidas: number; tipos: { tipo: string; n: number }[]; hayMas: boolean }
 
-const DEPORTES = ['football', 'basketball', 'baseball', 'nfl', 'tennis'];
+const DEPORTES = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'ufc', 'tennis'];
 const COLOR: Record<Aviso['severidad'], string | undefined> = { importante: STATUS.critical, aviso: STATUS.warning, info: undefined };
 
 export default function Bandeja() {
@@ -55,7 +55,7 @@ export default function Bandeja() {
     <div>
       <h2 className="mb-1 text-[20px] font-semibold text-(--ink-strong)">{t('nav.bandeja')}</h2>
       <p className="mb-4 max-w-3xl text-[14px] leading-relaxed text-(--ink-soft)">{t('bandeja.intro')}</p>
-      {error && <p className="text-[14px] text-(--ink-soft)">{error}</p>}
+      {error && <p role="alert" className="text-[14px] text-(--ink-soft)">{error}</p>}
       <div className="mb-3 flex flex-wrap items-center gap-1.5">
         <button className={pillClass(!soloNoLeidas)} onClick={() => setSoloNoLeidas(false)}>{t('bandeja.todas')}</button>
         <button className={pillClass(soloNoLeidas)} onClick={() => setSoloNoLeidas(true)}>
@@ -64,7 +64,7 @@ export default function Bandeja() {
         <select aria-label={t('bandeja.tipo')} value={tipo} onChange={(e) => setTipo(e.target.value)} className="rounded-full bg-(--raised) px-3 py-1.5 text-[14px] text-(--ink-body) ring-1 ring-(--line)">
           <option value="">{t('bandeja.todosTipos')}</option>
           {(datos?.tipos ?? []).map((x) => (
-            <option key={x.tipo} value={x.tipo}>{x.tipo.replace(/_/g, ' ')} ({x.n})</option>
+            <option key={x.tipo} value={x.tipo}>{tipoDeAviso(t, x.tipo)} ({x.n})</option>
           ))}
         </select>
         <select aria-label={t('lab.deporte')} value={sport} onChange={(e) => setSport(e.target.value)} className="rounded-full bg-(--raised) px-3 py-1.5 text-[14px] text-(--ink-body) ring-1 ring-(--line)">
@@ -89,7 +89,7 @@ export default function Bandeja() {
                 <p className={`break-words text-[14px] ${a.leida_at ? 'text-(--ink-soft)' : 'font-semibold text-(--ink-strong)'}`}>{a.titulo}</p>
                 <p className="break-words text-[13px] text-(--ink-body)">{a.cuerpo}</p>
                 <p className="mt-1 text-[12px] text-(--ink-muted)">
-                  {f.fecha(a.created_at)} · {a.tipo.replace(/_/g, ' ')}
+                  {f.fecha(a.created_at)} · {tipoDeAviso(t, a.tipo)}
                   {a.severidad !== 'info' && <span style={{ color: COLOR[a.severidad] }}> · {a.severidad}</span>}
                   {a.sport && ` · ${t(`deporte.${a.sport}` as never)}`}
                 </p>

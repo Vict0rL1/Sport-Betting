@@ -6,6 +6,7 @@ import EventTrustPanel from '../trust/EventTrustPanel';
 import { Badge, Card, Disclosure, EmptyState, HeroStat, MatchTime, ProbabilityBar, ReliabilityChip, ResultBanner, StatRow, StatTile, MarketGap } from '../ui';
 import { fmtLine, KeyNumbers, TeamName, Detail } from './GameCardPartes';
 import { conNodos, useI18n } from '../../i18n';
+import { cifra } from '../../lib/formato';
 
 /**
  * One NFL game.
@@ -30,7 +31,8 @@ export default function GameCard({
 }) {
   const { t } = useI18n();
   const { game, prediction, marketOnly, teams } = item;
-  const probs = prediction?.model ?? marketOnly ?? null;
+  // La cabecera es la final publicada (la que registra el historial y lee Destacados), no la cruda.
+  const probs = prediction?.final ?? marketOnly ?? null;
 
   return (
     <Card as="article" className="p-4">
@@ -69,7 +71,7 @@ export default function GameCard({
             ? item.outcome.result.homeScore === item.outcome.result.awayScore
               ? null
               : (item.outcome.result.homeScore > item.outcome.result.awayScore) ===
-                (item.prediction.model.home >= 0.5)
+                (item.prediction.final.home >= 0.5)
             : null
         }
       />
@@ -227,7 +229,7 @@ export default function GameCard({
                 <StatTile
                   label={t('nflc.margenEsperado')}
                   value={prediction.spread.label}
-                  hint={`${prediction.points.home}-${prediction.points.away}`}
+                  hint={`${cifra(prediction.points.home)}-${cifra(prediction.points.away)}`}
                 />
                 <StatTile
                   label={t('fbc.marcador')}

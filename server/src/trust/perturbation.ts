@@ -31,6 +31,7 @@
 //                   la probabilidad final, sin depender del orden.
 
 import type { EventoConfianza } from './types.ts';
+import { num } from '../numeros.ts';
 
 const logit = (p: number) => Math.log(Math.max(p, 1e-9) / Math.max(1 - p, 1e-9));
 const sigm = (x: number) => 1 / (1 + Math.exp(-x));
@@ -165,7 +166,7 @@ export function estabilidad(e: EventoConfianza): Estabilidad {
     for (const [m, nombre] of [[f.rango[0], 'bajo'], [f.rango[1], 'alto']] as const) {
       if (m === 1) continue;
       const delta = f.puntos * (m - 1);
-      escenarios.push({ texto: `${f.etiqueta}: extremo ${nombre} (×${m})`, p: mover(e, delta)[top] });
+      escenarios.push({ texto: `${f.etiqueta}: extremo ${nombre} (×${num(m)})`, p: mover(e, delta)[top] });
     }
   }
   const r = rng(semillaDe(`${e.sport}|${e.matchKey}|estabilidad`));
@@ -189,7 +190,7 @@ export function estabilidad(e: EventoConfianza): Estabilidad {
     p90,
     anchoPp: Math.round(ancho * 10) / 10,
     simulaciones: otros.length ? SIMULACIONES : 0,
-    supuestos: otros.map((f) => `${f.etiqueta}: ${f.puntos > 0 ? '+' : ''}${f.puntos} pts, entre ×${f.rango[0]} y ×${f.rango[1]} (${f.porQue})`),
+    supuestos: otros.map((f) => `${f.etiqueta}: ${f.puntos > 0 ? '+' : ''}${num(f.puntos)} pts, entre ×${num(f.rango[0])} y ×${num(f.rango[1])} (${f.porQue})`),
     criterio:
       `Ancho entre los percentiles 10 y 90 de ${SIMULACIONES} simulaciones moviendo a la vez cada factor ` +
       `(salvo el rating, que es la incertidumbre) dentro de su rango: menos de ${ESTABILIDAD_UMBRALES.alta} pp ALTA, ` +

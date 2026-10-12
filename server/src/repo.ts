@@ -524,8 +524,10 @@ export function listUpcoming(filter: {
 export function getUpcomingTournaments(
   tour?: string,
 ): { tournament_id: string; tournament_name: string; surface: string; tour: string; count: number }[] {
-  const where = tour ? 'WHERE tour = ?' : '';
-  const params = tour ? [tour] : [];
+  // Con la misma regla que la lista (G13): un partido ya jugado no cuenta como próximo.
+  const fresh = freshFilter();
+  const where = `WHERE ${fresh.sql}${tour ? ' AND tour = ?' : ''}`;
+  const params = [...fresh.params, ...(tour ? [tour] : [])];
   return getDb()
     .prepare(
       `SELECT tournament_id, tournament_name, surface, tour, COUNT(*) AS count

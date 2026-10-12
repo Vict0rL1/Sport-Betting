@@ -16,3 +16,20 @@ test('aComun: fútbol publica `final`; NFL a dos vías sin empate; tenis prob1',
   assert.equal(t?.league, 'atp');
   assert.equal(aComun('basketball', { game: g, prediction: null })?.probs, null, 'sin modelo, sin probabilidad');
 });
+
+test('D1: la NFL en la ficha es la final publicada (la que lee Destacados), no la cruda', () => {
+  const nfl = aComun('nfl', { game: g, prediction: { model: { home: 0.6, away: 0.38, tie: 0.02 }, final: { home: 0.55, away: 0.45 } } });
+  assert.deepEqual(nfl!.probs, [0.55, 0.45]);
+});
+
+// G14 (segunda pasada de ui-tester al lote G): la ficha de un partido de fútbol, baloncesto o béisbol
+// por jugar pedía /api/resultado, que contesta 404 (no hay predicción registrada todavía) y deja un
+// error en consola. Un partido que no ha empezado no puede tener resultado: no se pregunta.
+test('G14: solo se pregunta por el resultado de un partido que ya empezó (o del que no se sabe la hora)', async () => {
+  const { puedeTenerResultado } = await import('./partidos.ts');
+  const ahora = new Date('2026-10-11T12:00:00Z');
+  assert.equal(puedeTenerResultado({ cuando: '2026-10-11T18:00:00Z' }, ahora), false);
+  assert.equal(puedeTenerResultado({ cuando: '2026-10-11T11:00:00Z' }, ahora), true);
+  assert.equal(puedeTenerResultado(null, ahora), true, 'un enlace con ?clave= a un partido que ya no está en la lista');
+  assert.equal(puedeTenerResultado({ cuando: 'no es una fecha' }, ahora), true);
+});
