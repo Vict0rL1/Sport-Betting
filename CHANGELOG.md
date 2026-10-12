@@ -4,6 +4,15 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Arreglo: un clon nuevo ya no se niega a arrancar (2026-10-12)
+
+- **`data/ledger.db.existe` fuera de git.** La marca de que en una máquina hubo un libro mayor
+  (lote B) se coló en el commit del lote B. Cada clon nuevo la traía, y `npm run setup`,
+  `update-all` y `npm run dev` se negaban a arrancar pidiendo un libro mayor que esa instalación
+  nunca tuvo. Ahora va en el `.gitignore` y `server/src/db/marcaEnGit.test.ts` lo vigila. En
+  una instalación con libro mayor, un `git pull` borra la marca versionada y la app la vuelve a
+  escribir al abrir la base, así que la protección no se pierde.
+
 ## Mantenimiento: grafo del código con graphify (2026-10-12)
 
 - **graphify** (`uv tool install graphifyy`) construye en local un grafo del código, sin modelo

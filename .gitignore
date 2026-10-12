@@ -22,6 +22,9 @@ data/history.export.db
 data/ledger.db
 data/ledger.db-*
 data/ledger.db.antes-de-restaurar-*
+# La marca de que en ESTA máquina hubo un libro mayor (lote B): es de cada instalación. Versionada,
+# cada clon nuevo se negaba a arrancar pidiendo un libro mayor que nunca tuvo.
+data/ledger.db.existe
 data/*.pre-split-*
 data/backups/
 data/archive/
