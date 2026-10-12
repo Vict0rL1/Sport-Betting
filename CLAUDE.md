@@ -38,8 +38,9 @@ cd web && npx playwright test
 Web sessions build it at start (`.claude/hooks/session-start.sh`); locally: `graphify extract .
 --code-only && graphify cluster-only . --no-label`. For questions about the code, try first
 `graphify query "<symbol names>"`, `graphify explain "<symbol>"` or `graphify path "<A>" "<B>"`
-before reading files one by one (it matches symbol names, not phrases). After editing code, run
-`graphify update .`. `graphify-out/` is generated and ignored.
+before reading files one by one (it matches symbol names, not phrases). After each Edit/Write
+`.claude/hooks/graphify-update.sh` refreshes it in the background (~15 s); after a `git pull` or
+code written by a script, run `graphify update .`. `graphify-out/` is generated and ignored.
 
 ## Agents (`.claude/agents/`)
 

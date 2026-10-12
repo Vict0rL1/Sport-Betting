@@ -36,6 +36,10 @@ cambian.
   graphify 0.9.86 si falta y construye o pone al día el grafo. Tarda unos 30 s y, si graphify
   falla, la sesión arranca igual. En un ordenador local no hace nada. `CLAUDE.md` dice cuándo usar
   el grafo: antes de leer ficheros sueltos, y `graphify update .` después de editar código.
+- **El grafo se pone al día solo.** Después de cada edición de código de Claude (Edit/Write), el hook
+  `.claude/hooks/graphify-update.sh` lanza `graphify update .` en segundo plano: vuelve en
+  ~10 ms, la actualización (unos 15 s) corre aparte, una sola a la vez, y si llegan más ediciones
+  repite al acabar. No se activa para lo que no es código, ni donde no hay graphify o grafo.
 
 ## Revisión del 8 de octubre · lote G, lo que encontró la prueba en el navegador (2026-10-10)
 
