@@ -19,6 +19,18 @@ cambian.
 - **El libro mayor no depende solo de la marca.** Sin `ledger.db`, la app tampoco empieza uno vacío
   si quedan otras huellas: su WAL, una restauración a medias o una copia en `data/backups`
   (`server/src/db/libroMayorPerdido.test.ts`).
+- **Segunda revisión de `data-guardian`:**
+  - Los tests y los servidores de e2e usan la carpeta de copias de su propio `DATA_DIR` y ningún
+    bucket. Con el `BACKUP_DIR` de un `.env`, los tests veían las copias reales como huellas
+    (161 de 434 fallaban), y la copia programada de los e2e metía libros de demostración entre
+    las copias reales. La rotación borraba las más viejas de verdad.
+  - Un `ledger.db-wal` sin su `ledger.db` se aparta como `ledger.db-wal.huerfano-<fecha>`, tanto
+    con `LEDGER_NUEVO=si` como al restaurar una copia. Antes se borraba, y podía llevar los
+    últimos commits.
+  - Más huellas: un `tennis.db` sin partir, los restos de una partición o de una restauración, y
+    un `ledger.db` de 0 bytes. Una carpeta de copias que no se deja leer también cuenta.
+  - `npm run setup` se para si la base no se abre, en vez de acabar en «Listo».
+  - Pruebas: `server/src/test/aislamiento.test.ts` y `server/src/db/libroMayorPerdido.test.ts`.
 - Si al hacer `git pull` git dice que `data/ledger.db.existe` tiene cambios locales:
   `git checkout -- data/ledger.db.existe` y repite el pull (no `git stash`). La app la vuelve a
   escribir sola.

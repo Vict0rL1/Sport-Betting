@@ -28,7 +28,7 @@ import { REPORTS_SCHEMA } from './informes/schema.ts';
 import { NHL_PUBLICADA_SCHEMA, NHL_REGISTRO_SCHEMA, NHL_SCHEMA } from './nhl/schema.ts';
 import { UFC_PUBLICADA_SCHEMA, UFC_REGISTRO_SCHEMA, UFC_SCHEMA } from './ufc/schema.ts';
 import { ERROR_LOG_SCHEMA } from './security/errors.ts';
-import { HISTORY_DB_PATH, LAYOUT, LEDGER_DB_PATH, LEDGER_SCHEMA, LEGACY_DB_PATH, rutaPrincipal, LEDGER_MARCA_PATH } from './db/layout.ts';
+import { HISTORY_DB_PATH, LAYOUT, LEDGER_DB_PATH, LEDGER_SCHEMA, LEGACY_DB_PATH, rutaPrincipal, LEDGER_MARCA_PATH, directorioCopias, PATRON_COPIA, apartarLateralesHuerfanos } from './db/layout.ts';
 import { ledgerize, masterDe } from './db/ledgerize.ts';
 import { migrar, type Migracion } from './db/migrations.ts';
 import { hayQuePartir, partirBase } from './db/split.ts';
@@ -315,11 +315,14 @@ export function abrirBase(opts: { reintentar?: boolean; log?: (m: string) => voi
  * seguiría como si nada. `LEDGER_NUEVO=si` empieza uno nuevo a sabiendas.
  */
 function comprobarLibroMayor(log?: (m: string) => void): void {
-  if (fs.existsSync(LEDGER_DB_PATH)) return;
+  // Un ledger.db de 0 bytes existe, pero no es un libro mayor: cuenta como que falta.
+  if (fs.existsSync(LEDGER_DB_PATH) && fs.statSync(LEDGER_DB_PATH).size > 0) return;
   const huellas = huellasDeLibroMayor();
   if (huellas.length === 0) return;
   if (process.env.LEDGER_NUEVO?.trim().toLowerCase() === 'si') {
     log?.('LEDGER_NUEVO=si: se empieza un libro mayor nuevo a sabiendas (el anterior no está).');
+    // SQLite descartaría el WAL huérfano al abrir el nuevo: se aparta antes, con sus commits.
+    for (const f of apartarLateralesHuerfanos(LEDGER_DB_PATH)) log?.(`Apartado sin borrar: ${f}`);
     fs.rmSync(LEDGER_MARCA_PATH, { force: true });
     return;
   }
@@ -333,27 +336,34 @@ function comprobarLibroMayor(log?: (m: string) => void): void {
 
 /**
  * Lo que dice que aquí HUBO un libro mayor: la marca, y también lo que la marca no cubre (revisión
- * de data-guardian, 12 de octubre): su WAL, una restauración a medias y las copias de
- * data/backups. Con la marca fuera de git, una instalación que la pierde en un `git pull` y luego
- * pierde ledger.db antes de abrir la base seguiría protegida. Un clon nuevo no tiene ninguna. Las
- * copias se buscan aquí y no con backup.ts, que importa este módulo.
+ * de data-guardian, 12 de octubre): su WAL, una restauración o una partición a medias, un
+ * tennis.db antiguo sin partir y las copias de la carpeta de copias. Con la marca fuera de git,
+ * una instalación que la pierde en un `git pull` y luego pierde ledger.db antes de abrir la base
+ * sigue protegida. Un clon nuevo no tiene ninguna. Una carpeta que no se deja leer cuenta como
+ * huella: no saber si hay copias no es lo mismo que saber que no las hay.
  */
 function huellasDeLibroMayor(): string[] {
-  const leer = (dir: string) => {
+  const huellas: string[] = [];
+  const leer = (dir: string): string[] => {
     try {
       return fs.readdirSync(dir);
-    } catch {
+    } catch (e) {
+      const codigo = (e as NodeJS.ErrnoException).code;
+      if (codigo !== 'ENOENT') huellas.push(`no se pudo leer ${dir} (${codigo ?? 'error'})`);
       return [];
     }
   };
   const nombre = path.basename(LEDGER_DB_PATH);
-  const huellas: string[] = [];
+  const legado = path.basename(LEGACY_DB_PATH);
   if (fs.existsSync(LEDGER_MARCA_PATH)) huellas.push(path.basename(LEDGER_MARCA_PATH));
   if (fs.existsSync(`${LEDGER_DB_PATH}-wal`)) huellas.push(`${nombre}-wal`);
-  const apartado = leer(path.dirname(LEDGER_DB_PATH)).find((f) => f.startsWith(`${nombre}.antes-de-restaurar-`));
-  if (apartado) huellas.push(apartado);
-  const copias = process.env.BACKUP_DIR?.trim() || path.join(DATA_DIR, 'backups');
-  const copia = leer(copias).find((f) => /^ledger-.*\.db$/.test(f));
+  // Un tennis.db sin partir: si hubiera que partirlo, abrirBase ya lo habría hecho antes de llegar aquí.
+  if (fs.existsSync(LEGACY_DB_PATH)) huellas.push(legado);
+  for (const f of leer(path.dirname(LEDGER_DB_PATH))) {
+    if (f.startsWith(`${nombre}.antes-de-restaurar-`) || f === `${nombre}.restaurando` || f.startsWith(`${legado}.pre-split-`)) huellas.push(f);
+  }
+  const copias = directorioCopias();
+  const copia = leer(copias).find((f) => PATRON_COPIA.test(f));
   if (copia) huellas.push(`una copia en ${copias} (${copia})`);
   return huellas;
 }

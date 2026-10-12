@@ -9,9 +9,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { DATA_DIR } from '../config.ts';
 import { getDb, getMeta, setMeta } from '../db.ts';
-import { LEDGER_SCHEMA, LAYOUT, ficherosDe } from './layout.ts';
+import { LEDGER_SCHEMA, LAYOUT, ficherosDe, directorioCopias, PATRON_COPIA, apartarLateralesHuerfanos } from './layout.ts';
 import { subirS3, configS3 } from './s3.ts';
 import { copiaConsistente, otraConexionAbierta, quitarLaterales } from './sqliteSeguro.ts';
 
@@ -19,9 +18,7 @@ export const CLAVE_ULTIMA = 'backup:last_at';
 export const CLAVE_ULTIMO_FICHERO = 'backup:last_file';
 export const COPIAS_LOCALES = 14;
 
-export function directorioCopias(entorno: NodeJS.ProcessEnv = process.env): string {
-  return entorno.BACKUP_DIR?.trim() || path.join(DATA_DIR, 'backups');
-}
+export { directorioCopias };
 
 export interface Copia {
   fichero: string;
@@ -40,7 +37,7 @@ export function copiasLocales(dir = directorioCopias()): { fichero: string; byte
   if (!fs.existsSync(dir)) return [];
   return fs
     .readdirSync(dir)
-    .filter((f) => /^ledger-.*\.db$/.test(f))
+    .filter((f) => PATRON_COPIA.test(f))
     .map((f) => {
       const st = fs.statSync(path.join(dir, f));
       return { fichero: path.join(dir, f), bytes: st.size, mtime: st.mtime.toISOString() };
@@ -133,6 +130,11 @@ export function restaurarCopia(origen: string, opts: { ahora?: Date; destino?: s
   if (ok !== 'ok') {
     fs.rmSync(temporal, { force: true });
     throw new Error(`La copia reconstruida no pasa integrity_check (${ok}); no se toca el libro mayor.`);
+  }
+  // Sin libro mayor pero con su WAL: puede llevar los últimos commits; se aparta, no se borra.
+  if (!apartado) {
+    const huerfanos = apartarLateralesHuerfanos(destino, opts.ahora);
+    if (huerfanos.length) aviso = `quedaba ${huerfanos.map((h) => path.basename(h)).join(' y ')} sin su libro mayor: apartado, no borrado`;
   }
   quitarLaterales(destino);
   fs.renameSync(temporal, destino);

@@ -14,9 +14,15 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'predictor-e2e-'));
+// Las copias del libro mayor, en la carpeta de cada DATA_DIR y sin S3: con el BACKUP_DIR de tu
+// .env, la copia programada a los 2 minutos metía libros de demostración entre tus copias reales
+// (y la rotación borraba las más viejas de verdad) o los subía a tu bucket.
+const SIN_S3 = { BACKUP_S3_BUCKET: '', BACKUP_S3_ACCESS_KEY: '', BACKUP_S3_SECRET_KEY: '', BACKUP_S3_ENDPOINT: '' };
 const env = {
   ...process.env,
+  ...SIN_S3,
   DATA_DIR,
+  BACKUP_DIR: path.join(DATA_DIR, 'backups'),
   PORT: '7390',
   APP_AUTH: 'off',
   ODDS_API_KEY: '',
@@ -36,7 +42,7 @@ if (seed.status !== 0) process.exit(seed.status ?? 1);
 // mismo fichero migrarían a la vez.
 const DATA_DIR_AUTH = fs.mkdtempSync(path.join(os.tmpdir(), 'predictor-e2e-auth-'));
 fs.cpSync(DATA_DIR, DATA_DIR_AUTH, { recursive: true });
-const envAuth = { ...env, DATA_DIR: DATA_DIR_AUTH, PORT: '7391', APP_AUTH: 'on', APP_PASSWORD: 'contrasena-de-pruebas-e2e' };
+const envAuth = { ...env, DATA_DIR: DATA_DIR_AUTH, BACKUP_DIR: path.join(DATA_DIR_AUTH, 'backups'), PORT: '7391', APP_AUTH: 'on', APP_PASSWORD: 'contrasena-de-pruebas-e2e' };
 
 const arranca = (e) => spawn(process.execPath, ['--import', 'tsx', path.join(ROOT, 'server', 'src', 'index.ts')], { cwd: ROOT, env: e, stdio: 'inherit' });
 const hijos = [arranca(env), arranca(envAuth)];

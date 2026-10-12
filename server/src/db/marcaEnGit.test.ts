@@ -28,5 +28,6 @@ test('de data/ solo se versiona data/raw/.gitkeep: todo lo demás (copias, desca
   const restos = ['data/ledger.db.restaurando', 'data/ledger.db.partiendo', 'data/history.db.partiendo', 'data/history.db.sin-filas-2026-10-12', 'data/history.db.download', 'data/history.db.new', 'data/history.db.backup-2026-10-12', 'data/cualquier-cosa-nueva.db', 'data/raw/atp_matches_2026.csv'];
   const ignorados = execFileSync('git', ['check-ignore', ...restos], { cwd: RAIZ, encoding: 'utf8' }).trim().split('\n');
   assert.deepEqual(ignorados, restos);
-  assert.throws(() => git('check-ignore', 'data/raw/.gitkeep'), 'data/raw/.gitkeep se versiona');
+  // --no-index: sin él, git nunca da por ignorado un fichero que ya versiona y esto no probaría nada.
+  assert.throws(() => git('check-ignore', '--no-index', 'data/raw/.gitkeep'), 'data/raw/.gitkeep se versiona');
 });

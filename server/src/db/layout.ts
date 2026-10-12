@@ -7,6 +7,7 @@
 // esquema caen en ella, y solo las tablas del libro mayor (pocas, listadas en tables.ts)
 // llevan el prefijo, que pone `ledgerize.ts` sin tocar los esquemas.
 
+import fs from 'node:fs';
 import path from 'node:path';
 import { DATA_DIR, DB_PATH } from '../config.ts';
 
@@ -40,4 +41,32 @@ export function rutaPrincipal(layout: Layout = LAYOUT): string {
 /** Los ficheros que componen la base en una disposición (para el doctor y los backups). */
 export function ficherosDe(layout: Layout = LAYOUT): { history: string; ledger: string | null } {
   return layout === 'split' ? { history: HISTORY_DB_PATH, ledger: LEDGER_DB_PATH } : { history: LEGACY_DB_PATH, ledger: null };
+}
+
+/**
+ * La carpeta de las copias del libro mayor: BACKUP_DIR o data/backups. Aquí y no en backup.ts
+ * para que db.ts (que backup.ts importa) la use sin un ciclo: una sola definición, la de las copias
+ * y la de las huellas de un libro mayor perdido.
+ */
+export function directorioCopias(entorno: NodeJS.ProcessEnv = process.env): string {
+  return entorno.BACKUP_DIR?.trim() || path.join(DATA_DIR, 'backups');
+}
+
+/** El nombre de una copia del libro mayor en esa carpeta. */
+export const PATRON_COPIA = /^ledger-.*\.db$/;
+
+/**
+ * Aparta los `-wal`/`-shm` de un fichero que ya no está, en vez de borrarlos: un WAL huérfano
+ * puede llevar los últimos commits del libro mayor. Quedan como `<fichero>-wal.huerfano-<fecha>`.
+ */
+export function apartarLateralesHuerfanos(fichero: string, ahora: Date = new Date()): string[] {
+  const sello = ahora.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const apartados: string[] = [];
+  for (const suf of ['-wal', '-shm']) {
+    if (!fs.existsSync(fichero + suf)) continue;
+    const destino = `${fichero}${suf}.huerfano-${sello}`;
+    fs.renameSync(fichero + suf, destino);
+    apartados.push(destino);
+  }
+  return apartados;
 }

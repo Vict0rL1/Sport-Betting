@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { hayHistoria } from './datos-estado.mjs';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
-const C = { bold: '\x1b[1m', dim: '\x1b[2m', green: '\x1b[32m', amber: '\x1b[33m', off: '\x1b[0m' };
+const C = { bold: '\x1b[1m', dim: '\x1b[2m', red: '\x1b[31m', green: '\x1b[32m', amber: '\x1b[33m', off: '\x1b[0m' };
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const pregunta = async (texto, porDefecto = 's') => {
   const r = (await rl.question(`${texto} ${C.dim}[${porDefecto === 's' ? 'S/n' : 's/N'}]${C.off} `)).trim().toLowerCase();
@@ -61,7 +61,15 @@ if (fs.existsSync(env)) {
 
 // 3. Base de datos: partir la antigua si la hay y migrar.
 console.log('\nBase de datos: history.db (historia) + ledger.db (lo tuyo). Un tennis.db antiguo se parte sin perder nada.');
-if (await pregunta('¿Aplico las migraciones ahora (npm run db:migrate)?')) corre(['run', 'db:migrate']);
+// Si la base no se abre (falta el libro mayor y hay huellas de que lo hubo), seguir con los datos
+// y acabar en «Listo» engañaba: la app no arrancaría. Se para aquí y se dice qué hacer.
+if ((await pregunta('¿Aplico las migraciones ahora (npm run db:migrate)?')) && !corre(['run', 'db:migrate'])) {
+  console.log(`\n${C.red}✗ La base no se abrió: el motivo está justo arriba. No sigo, los pasos siguientes la necesitan.${C.off}`);
+  console.log(`  · Si falta tu libro mayor: ${C.bold}npm run restore${C.off} (lista las copias) y después vuelve a ${C.bold}npm run setup${C.off}.`);
+  console.log(`  · Si de verdad empiezas de cero: ${C.bold}LEDGER_NUEVO=si npm run setup${C.off}.`);
+  rl.close();
+  process.exit(1);
+}
 
 // 4. Datos. Por FILAS, no por si el fichero existe: db:migrate (paso 3) acaba de dejar un
 // history.db solo con esquema, y antes eso pasaba por «ya hay historia» (lote A, A7).
