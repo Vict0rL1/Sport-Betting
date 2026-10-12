@@ -4,6 +4,15 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Mantenimiento: grafo del código con graphify (2026-10-12)
+
+- **graphify** (`uv tool install graphifyy`) construye en local un grafo del código, sin modelo
+  ni clave de API: `graphify extract . --code-only` y `graphify cluster-only . --no-label`
+  (6.079 nodos, 19.543 relaciones, 170 comunidades). Se consulta con `graphify query`,
+  `explain` y `path` usando nombres de símbolos, y se mantiene al día con `graphify update .`.
+- `graphify-out/` va al `.gitignore`: es salida generada, pesa varios MB y se regenera en
+  segundos. Ningún cambio en la app.
+
 ## Revisión del 8 de octubre · lote G, lo que encontró la prueba en el navegador (2026-10-10)
 
 Doce defectos que el agente `ui-tester` encontró en la app construida con la base real, tres en
