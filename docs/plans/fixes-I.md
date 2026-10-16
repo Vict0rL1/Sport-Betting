@@ -35,3 +35,21 @@ lo borraba. En este contenedor había más de 8.000 carpetas, cada una con sus b
     crea y borra la suya.
   - En Windows, una base aún abierta no se borra y se queda, como antes.
 - **Medido:** un `npm test` entero (568 tests) ya no deja ninguna carpeta nueva.
+
+## I3 · «Tenis punto a punto» fallaba el 12 de octubre desde las 09:00 UTC
+
+**No se reproduce.** La sospecha era la hora del día: los partidos de demostración del tenis salen
+a las 11:00, 13:30, 16:00 y 19:30 (hora local) y se saltan los que ya pasaron, así que lo que hay
+en `/tenis` cambia a lo largo del día.
+
+- **Barrido.** Servidor (semilla y API) con el reloj desplazado y el navegador con
+  `page.clock.setSystemTime`. El test pasó a las 11 horas probadas: 09:00, 10:59, 11:01, 12:00,
+  13:29, 13:31, 15:59, 16:01, 19:29, 19:31 y 22:30 UTC. 11 de 11.
+- **El test no ha cambiado desde el 9 de octubre**, y aquel día volvió a pasar en CI a las 10:24
+  y en local por la noche. No hay un fallo que reproducir, así que no se toca el test: el método
+  pide un test que falle antes del arreglo, y «arreglar» lo que pasa sería inventar.
+- **Lo que sí cambia, para la próxima vez:**
+  - Playwright guarda la traza de cada test que falla (`trace: 'retain-on-failure'`): red,
+    consola, DOM y capturas de cada paso, en `web/test-results/`.
+  - En CI, el trabajo de e2e la sube como artefacto (`e2e-trazas`, 7 días) si falla.
+  - Antes, un fallo intermitente no dejaba nada que mirar.

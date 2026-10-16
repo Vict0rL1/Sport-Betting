@@ -16,6 +16,10 @@ Plan y verificación en `docs/plans/fixes-I.md`.
 - **I2 · Los tests ya no dejan carpetas en /tmp.** Cada proceso de test borra al salir el DATA_DIR
   temporal que creó; en este contenedor se habían juntado más de 8.000. `CONSERVAR_DATOS_TEST=1`
   lo conserva para mirarlo.
+- **I3 · El e2e «tenis punto a punto» no depende de la hora.** Falló el 12 de octubre por la
+  mañana. Con el reloj desplazado en el servidor y en el navegador pasó a las 11 horas probadas,
+  así que no se toca. Lo que cambia: Playwright guarda la traza de cada test que falla, y CI la
+  sube como artefacto (`e2e-trazas`), para que el próximo fallo intermitente traiga su causa.
 - Pruebas: `server/src/doctor/doctor.e2e.test.ts`, `server/src/doctor/checks.test.ts` y
   `server/src/test/aislamiento.test.ts`.
 
