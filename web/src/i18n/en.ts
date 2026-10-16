@@ -383,6 +383,8 @@ export const en: Partial<Record<Clave, string>> = {
   'cuenta.salir': 'Sign out',
   'cuenta.cerrarEsta': 'Close this session',
   'cuenta.cerrarDe': 'Close session on {dispositivo}',
+  'cuenta.cerrarLasDemas': 'Close the others',
+  'cuenta.errorCerrarLasDemas': 'Could not sign out the other sessions. They are still open.',
   'insignia.alta': 'High confidence',
   'insignia.media': 'Medium confidence',
   'insignia.baja': 'Low confidence',

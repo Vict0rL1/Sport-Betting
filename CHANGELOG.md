@@ -4,6 +4,73 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Lote J · ninguna web ajena toca la app, y los restos de copias se ven (2026-10-16)
+
+Plan y verificación en `docs/plans/fixes-J.md`.
+
+- **J1 · Otra web ya no puede hacer que tu navegador cambie (ni, sin contraseña, lea) nada de la
+  app.** Un POST «simple» (text/plain o sin cuerpo) no pasa por CORS. Sin contraseña, lo normal en
+  el portátil, cualquier página que visitaras podía hacer que tu navegador generara informes,
+  cambiara ajustes o lanzara cualquier ruta POST sin cuerpo de la API en 127.0.0.1. Con
+  contraseña, solo lo frenaba la cookie. Ahora:
+  - Los POST, PUT, PATCH y DELETE se niegan (403) si el navegador dice que vienen de otro sitio
+    (`Sec-Fetch-Site`) o su `Origin` no es exactamente el de la app. Pasan siempre los orígenes de
+    `CORS_ORIGINS`, curl y los scripts.
+  - Sin contraseña, la app solo atiende a `localhost`, a una IP o a los nombres de `APP_HOSTS` (por
+    ejemplo `APP_HOSTS=mi-mac.local`). Eso cierra el rebinding de DNS.
+  - El proxy de Vite ya no cambia el Host hacia la API local, así que el móvil en la misma wifi
+    sigue entrando.
+- **J2 · El doctor dice si quedan restos de copias cortadas a medias** (`.parcial`, de hace más de
+  una hora), con lo que pesan. No son copias y se pueden borrar a mano.
+- Pruebas: `server/src/security/origen.test.ts` y `server/src/doctor/checks.test.ts`.
+
+## Lote I · fiabilidad (2026-10-16)
+
+Plan y verificación en `docs/plans/fixes-I.md`.
+
+- **I1 · El doctor ya no muere cuando la base se niega a abrir.** Sin `ledger.db` y con huellas de
+  que lo hubo, `npm run doctor` salía con una traza de pila a la primera lectura. Ahora abre la
+  base una vez al principio y, si se niega, lo dice en DATOS Y COPIAS («La base no se abre: …»)
+  con su remedio en QUÉ HACER (`npm run restore`, `--partir-legado`…). Salta lo que necesita la
+  base y no crea nada.
+- **I2 · Los tests ya no dejan carpetas en /tmp.** Cada proceso de test borra al salir el DATA_DIR
+  temporal que creó; en este contenedor se habían juntado más de 8.000. `CONSERVAR_DATOS_TEST=1`
+  lo conserva para mirarlo.
+- **I3 · El e2e «tenis punto a punto» no depende de la hora.** Falló el 12 de octubre por la
+  mañana. Con el reloj desplazado en el servidor y en el navegador pasó a las 11 horas probadas,
+  así que no se toca. Lo que cambia: Playwright guarda la traza de cada test que falla, y CI la
+  sube como artefacto (`e2e-trazas`), para que el próximo fallo intermitente traiga su causa.
+- **I4 · «Cerrar las demás».** En Cuenta → Sesiones abiertas, un botón cierra de una vez todas
+  las sesiones menos la tuya. Es lo que hay que hacer tras cambiar una contraseña filtrada: una sesión robada
+  que no se use mientras tanto seguía viva hasta cerrarla a mano.
+- Pruebas: `server/src/doctor/doctor.e2e.test.ts`, `server/src/doctor/checks.test.ts`,
+  `server/src/test/aislamiento.test.ts`, `server/src/auth/puerta.test.ts` y
+  `web/e2e/auth.spec.ts`.
+
+## Lote H · copias a prueba de cortes y sesiones que caducan con la entrada (2026-10-12)
+
+Plan y verificación en `docs/plans/fixes-H.md`.
+
+- **H1 · Una copia a medias ya no parece buena.** `npm run backup` y la copia programada escriben
+  en un temporal `.parcial`. Después comprueban `integrity_check`, fuerzan a disco y solo
+  entonces renombran. Antes se escribía sobre el nombre final: un corte a mitad dejaba un fichero
+  que la rotación contaba como copia (y borraba por él una buena) y que `npm run restore`
+  ofrecía. Cada escritor usa su propio temporal y publica sin pisar: la copia programada y
+  `npm run backup` en el mismo segundo dan dos copias (`-2`). Una base vacía o sin las tablas del
+  libro mayor no cuenta como copia.
+- **H2 · Cambiar la contraseña echa a quien ya estaba dentro.** Cada sesión guarda una huella del
+  usuario, la contraseña y el secreto TOTP si está activo, atada a su propio token (HMAC con la
+  cookie como clave). Con la base sola (una copia, S3) no sirve para adivinar la contraseña. Una
+  sesión abierta antes de cambiar `APP_PASSWORD`, `APP_USER` o de activar `TOTP_SECRET` ya no
+  entra: se revoca al presentarse, y no vuelve aunque se deshaga el cambio. Reiniciar con la
+  misma configuración no echa a nadie. Migración 22: columna `sessions.huella`. **Tras actualizar
+  hay que entrar una vez**, porque las sesiones de antes no tienen huella. Tras cambiar una
+  contraseña filtrada, usa también «Cuenta → Cerrar las demás» (lote I).
+- **H3 · Con TOTP, el error no dice si la contraseña era buena.** El login responde «Contraseña o
+  código incorrectos» en los dos casos. Basic Auth también: la pista de la cabecera `X-TOTP-Code`
+  sale siempre.
+- Pruebas: `server/src/auth/puerta.test.ts` (H2, H3) y `server/src/db/backup.test.ts` (H1).
+
 ## Arreglo: un clon nuevo ya no se niega a arrancar (2026-10-12)
 
 - **`data/ledger.db.existe` fuera de git.** La marca de que en una máquina hubo un libro mayor

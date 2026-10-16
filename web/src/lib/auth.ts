@@ -84,6 +84,13 @@ export async function revocar(id: number): Promise<{ ok: boolean; eraLaActual: b
   return j;
 }
 
+/** Cierra todas las sesiones menos esta (lote I, I4). Devuelve cuántas cerró. */
+export async function cerrarLasDemas(): Promise<number> {
+  const r = await fetch('/api/auth/sessions/revoke-others', { method: 'POST' });
+  if (!r.ok) throw new Error(String(r.status));
+  return ((await r.json()) as { cerradas: number }).cerradas;
+}
+
 let instalado = false;
 export function instalarDetector401(): void {
   if (instalado || typeof window === 'undefined') return;

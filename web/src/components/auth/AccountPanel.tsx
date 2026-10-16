@@ -1,7 +1,8 @@
-// «Cuenta»: las sesiones abiertas, cerrar otra y salir. Solo cuando la puerta está activa.
+// «Cuenta»: las sesiones abiertas, cerrar otra (o todas las demás) y salir. Solo cuando la puerta
+// está activa.
 
-import { useEffect, useState } from 'react';
-import { revocar, salir, sesiones, type SesionVista } from '../../lib/auth';
+import { useEffect, useRef, useState } from 'react';
+import { cerrarLasDemas, revocar, salir, sesiones, type SesionVista } from '../../lib/auth';
 import { CrossIcon, LogoutIcon, UserIcon } from '../icons';
 import NotificacionesPanel from './NotificacionesPanel';
 import { useI18n, type Traducir } from '../../i18n';
@@ -21,6 +22,12 @@ export default function AccountPanel({ usuario, onSalir, compacto = false }: { u
   const [abierto, setAbierto] = useState(false);
   const [lista, setLista] = useState<SesionVista[] | null>(null);
   const [error, setError] = useState(false);
+  // Aparte del error de leer la lista: `cargar()` lo limpia al volver a leerla, y un fallo al cerrar
+  // las demás no puede borrarse solo (quien lo pulsa cree que la sesión robada ya está cerrada).
+  const [errorAlCerrar, setErrorAlCerrar] = useState(false);
+  const [cerrando, setCerrando] = useState(false);
+  // Al cerrar las demás, el botón desaparece: el foco va a «Salir» y no se pierde en la página.
+  const salirRef = useRef<HTMLButtonElement>(null);
   const { t, idioma } = useI18n();
   const loc = idioma === 'en' ? 'en-GB' : 'es';
 
@@ -57,6 +64,7 @@ export default function AccountPanel({ usuario, onSalir, compacto = false }: { u
         <div className="mx-1 mb-1 rounded-lg bg-(--tint) p-2 text-[12.5px] ring-1 ring-(--line)">
           <p className="mb-1.5 px-1 text-[11px] uppercase tracking-wide text-(--ink-muted)">{t('cuenta.sesiones')}</p>
           {error && <p role="alert" className="px-1" style={{ color: STATUS.critical }}>{t('cuenta.errorSesiones')}</p>}
+          {errorAlCerrar && <p role="alert" className="px-1" style={{ color: STATUS.critical }}>{t('cuenta.errorCerrarLasDemas')}</p>}
           {lista && (
             <ul className="divide-y divide-(--line)">
               {lista.map((s) => (
@@ -87,7 +95,34 @@ export default function AccountPanel({ usuario, onSalir, compacto = false }: { u
               ))}
             </ul>
           )}
+          {/* Tras cambiar una contraseña filtrada (lote I, I4): una sesión robada que no se use
+              mientras tanto sigue viva hasta que se cierra. */}
+          {/* Solo con «esta» en la lista: sin ella (entrada por Basic Auth) el servidor dice que no. */}
+          {lista && lista.some((s) => s.actual) && lista.some((s) => !s.actual) && (
+            <button
+              disabled={cerrando}
+              onClick={async () => {
+                setCerrando(true);
+                let ok = false;
+                try {
+                  await cerrarLasDemas();
+                  ok = true;
+                } catch {
+                  // Se dice abajo y se queda.
+                }
+                setErrorAlCerrar(!ok);
+                setCerrando(false);
+                await cargar();
+                if (ok) salirRef.current?.focus();
+              }}
+              className="mt-1.5 inline-flex w-full items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] text-(--ink-body) ring-1 ring-(--line) hover:bg-(--raised) disabled:opacity-60"
+            >
+              <CrossIcon size={14} />
+              {t('cuenta.cerrarLasDemas')}
+            </button>
+          )}
           <button
+            ref={salirRef}
             onClick={async () => {
               await salir();
               onSalir();

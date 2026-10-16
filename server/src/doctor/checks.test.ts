@@ -10,6 +10,7 @@ const {
   comprobarFrescura,
   comprobarServidor,
   comprobarAlmacenamiento,
+  comprobarAperturaBase,
   resultado,
   enmascarar,
 } = await import('./checks.ts');
@@ -503,4 +504,65 @@ test('almacenamiento: un tennis.db sin partir junto a la base partida avisa, nun
   }
   // Sin tennis.db, nada de eso.
   assert.equal(comprobarAlmacenamiento({ ...e, legacySinPartir: null, legadoFaltan: [] }, ahora).some((x) => /tennis\.db/.test(x.texto)), false);
+});
+
+test('apertura de la base: sin error, nada; con la negativa de comprobarLibroMayor, un error con sus remedios como acciones', () => {
+  assert.deepEqual(comprobarAperturaBase(null), []);
+  const mensaje =
+    'Falta /d/ledger.db y hay huellas de que aquí hubo un libro mayor (ledger.db.existe): apuestas, registro de predicciones, precios observados.\n' +
+    '  No se arranca con uno vacío.\n' +
+    '  · Para recuperarlo:  npm run restore   (lista las copias; npm run restore -- <fichero>)\n' +
+    '  · Para empezar uno nuevo A SABIENDAS:  LEDGER_NUEVO=si npm run dev';
+  const [h, ...resto] = comprobarAperturaBase(mensaje);
+  assert.equal(resto.length, 0);
+  assert.equal(h.seccion, 'DATOS Y COPIAS');
+  assert.equal(h.nivel, 'error');
+  assert.match(h.texto, /^La base no se abre: Falta \/d\/ledger\.db/);
+  assert.deepEqual(h.detalle, ['No se arranca con uno vacío.']);
+  assert.deepEqual(h.accion, ['Para recuperarlo:  npm run restore   (lista las copias; npm run restore -- <fichero>)', 'Para empezar uno nuevo A SABIENDAS:  LEDGER_NUEVO=si npm run dev']);
+  // Las líneas de continuación (el comando bajo «Para partirlo…») van con su acción.
+  const partir = comprobarAperturaBase('Falta x\n  · Para partirlo, con el servidor parado:\n      npm run db:migrate -- --partir-legado\n      (aparta history.db)')[0];
+  assert.deepEqual(partir.accion, ['Para partirlo, con el servidor parado:', '  npm run db:migrate -- --partir-legado', '  (aparta history.db)']);
+});
+
+test('J2: los restos de copias cortadas a medias (.parcial) se dicen, con lo que pesan; sin ellos, nada', () => {
+  const base = {
+    layout: 'split' as const,
+    history: { ruta: '/d/history.db', mb: 10 },
+    ledger: { ruta: '/d/ledger.db', mb: 1 },
+    preSplit: [],
+    legacySinPartir: null,
+    legadoFaltan: [],
+    migracionesFallidas: [],
+    backup: null,
+    copiasLocales: 0,
+    backupHoras: 24,
+    s3: false,
+    apuestasRegistradas: 0,
+    retencion: null,
+    snapshots: 0,
+    ejecuciones: [],
+    muertas: 0,
+    parciales: [] as { fichero: string; mb: number; minutos: number }[],
+  };
+  const ahora = new Date('2026-10-16T10:00:00Z');
+  assert.equal(comprobarAlmacenamiento(base, ahora).some((x) => /a medias/.test(x.texto)), false);
+  const conRestos = comprobarAlmacenamiento(
+    {
+      ...base,
+      parciales: [
+        { fichero: 'ledger-2026-10-15T03-00-00.db.123-ab.parcial', mb: 52, minutos: 600 },
+        { fichero: 'ledger-2026-10-15T03-00-00.db.123-ab.parcial-journal', mb: 0.1, minutos: 600 },
+        // Una copia que se está escribiendo ahora mismo: borrarla la haría fallar.
+        { fichero: 'ledger-2026-10-16T09-59-00.db.456-cd.parcial', mb: 30, minutos: 1 },
+      ],
+    },
+    ahora,
+  ).find((x) => /a medias/.test(x.texto));
+  assert.ok(conRestos);
+  assert.equal(conRestos.nivel, 'info');
+  assert.match(conRestos.texto, /2 restos/);
+  assert.match(conRestos.texto, /52/);
+  assert.ok((conRestos.detalle ?? []).some((d) => d.includes('.parcial-journal')));
+  assert.equal((conRestos.detalle ?? []).some((d) => d.includes('456-cd')), false, 'la que se está escribiendo no se lista');
 });

@@ -43,6 +43,7 @@ import {
   comprobarConfianza,
   comprobarSeguridad,
   comprobarAlmacenamiento,
+  comprobarAperturaBase,
   comprobarAnalitica,
   type EstadoAnalitica,
   comprobarProducto,
@@ -69,7 +70,7 @@ import { configAuth } from '../auth/mode.ts';
 import { LAYOUT, ficherosDe } from '../db/layout.ts';
 import { filasDelLegadoQueFaltan, legadoSinPartir } from '../db/split.ts';
 import { estadoPorVersion } from '../db/migrations.ts';
-import { copiasLocales, ultimaCopia } from '../db/backup.ts';
+import { copiasLocales, directorioCopias, ultimaCopia } from '../db/backup.ts';
 import { configS3 } from '../db/s3.ts';
 import { marcarMuertas, ultimasEjecuciones } from '../ingest/runs.ts';
 import { sesionesActivas } from '../auth/sessions.ts';
@@ -154,13 +155,25 @@ hallazgos.push(
 // La base se abre DESPUÉS de mirar si existe: getDb() la crea vacía si no está, y
 // entonces «no existe la base de datos» nunca saldría.
 const dbExistia = fs.existsSync(rutaPrincipal()) || fs.existsSync(LEGACY_DB_PATH);
+// Se abre UNA vez, aquí (lote I). Si se niega (falta el libro mayor y hay huellas de que lo hubo, una
+// migración a medias…), el doctor lo dice como hallazgo y salta lo que la necesita, en vez de morir
+// con una traza a la primera lectura. Al negarse, abrirBase no crea nada.
+let errorBase: string | null = null;
+try {
+  getDb();
+} catch (e) {
+  errorBase = (e as Error).message;
+}
+const baseAbre = errorBase === null;
+/** Lo que lee la base, o `porDefecto` si no se abre. */
+const conBase = <T,>(fn: () => T, porDefecto: T): T => (baseAbre ? fn() : porDefecto);
 let listado: Listado | null = null;
 if (env.oddsApiKey && !SIN_RED) {
   const t0 = Date.now();
   try {
     const res = await fetch(`${ODDS_API_BASE}/sports/?apiKey=${encodeURIComponent(env.oddsApiKey)}`);
     const ms = Date.now() - t0;
-    recordQuota(res);
+    if (baseAbre) recordQuota(res);
     const cuerpo = res.ok ? '' : await res.text().catch(() => '');
     let deportes: Listado['deportes'] = null;
     if (res.ok) {
@@ -184,9 +197,9 @@ hallazgos.push(
     hayClave: !!env.oddsApiKey,
     sinRed: SIN_RED,
     listado,
-    plan: planTotal(),
-    ritmo: withinMonthlyPace(1),
-    gastoPorCiclo: lastCycleCredits(),
+    plan: conBase(() => planTotal(), null),
+    ritmo: conBase(() => withinMonthlyPace(1), { ok: true } as const),
+    gastoPorCiclo: conBase(() => lastCycleCredits(), null),
     minutosEntreCiclos: env.autoRefreshMinutes,
   }),
 );
@@ -207,7 +220,7 @@ if (PROBAR && listado?.status === 200) {
 }
 const deportesConfig: DeporteConfig[] = [];
 for (const d of DEPORTES) {
-  const conf: DeporteConfig = { nombre: d.nombre, claves: d.nombre === 'Tenis' ? [...new Set([...d.claves, ...tenisActivas])] : d.claves, ultimas: readKeyOutcomes(d.prefijo) };
+  const conf: DeporteConfig = { nombre: d.nombre, claves: d.nombre === 'Tenis' ? [...new Set([...d.claves, ...tenisActivas])] : d.claves, ultimas: conBase(() => readKeyOutcomes(d.prefijo), []) };
   const clave = primeraActiva(d);
   if (PROBAR && listado?.status === 200 && clave) {
     try {
@@ -231,7 +244,7 @@ hallazgos.push(...comprobarDeportes(deportesConfig, listado?.status === 200 ? li
 // ---------------------------------------------------------------------------
 const conteos: ConteoDeporte[] = [];
 const frescura: { nombre: string; ultimoRefresco: string | null; precioMasNuevo: string | null }[] = [];
-if (dbExistia) {
+if (dbExistia && baseAbre) {
   const db = getDb();
   for (const d of DEPORTES) {
     try {
@@ -253,12 +266,12 @@ if (dbExistia) {
   }
 }
 hallazgos.push(...comprobarBaseDeDatos(rutaPrincipal(), dbExistia, conteos, !!env.oddsApiKey));
-if (dbExistia) hallazgos.push(...comprobarFrescura(frescura, new Date(), !!env.oddsApiKey));
+if (dbExistia && baseAbre) hallazgos.push(...comprobarFrescura(frescura, new Date(), !!env.oddsApiKey));
 
 // ---------------------------------------------------------------------------
 // CONFIANZA — ¿corre el ciclo pre-partido y por qué se abstiene?
 // ---------------------------------------------------------------------------
-if (dbExistia) {
+if (dbExistia && baseAbre) {
   const db = getDb();
   const ahora = new Date();
   const iso = (msAtras: number) => new Date(ahora.getTime() - msAtras).toISOString();
@@ -356,7 +369,8 @@ if (dbExistia) {
 // ---------------------------------------------------------------------------
 // DATOS Y COPIAS — ficheros, migraciones, copia del libro mayor, ingestas
 // ---------------------------------------------------------------------------
-{
+hallazgos.push(...comprobarAperturaBase(errorBase));
+if (baseAbre) {
   const db = getDb();
   const ahora = new Date();
   const tam = (ruta: string | null) => (ruta && fs.existsSync(ruta) ? { ruta, mb: fs.statSync(ruta).size / 1048576 } : null);
@@ -380,12 +394,23 @@ if (dbExistia) {
   };
   const copia = uno(() => ultimaCopia(), null);
   const legado = LAYOUT === 'split' ? legadoSinPartir(LEGACY_DB_PATH, f.history, f.ledger!) : null;
+  const parciales = uno(() => {
+    const dir = directorioCopias();
+    return fs
+      .readdirSync(dir)
+      .filter((x) => /^ledger-.*\.parcial(-journal)?$/.test(x))
+      .map((x) => {
+        const st = fs.statSync(path.join(dir, x));
+        return { fichero: x, mb: st.size / 1048576, minutos: (Date.now() - st.mtimeMs) / 60_000 };
+      });
+  }, [] as { fichero: string; mb: number; minutos: number }[]);
   const retAt = getMeta('retention:last_at');
   const estado: EstadoAlmacenamiento = {
     layout: LAYOUT,
     history: tam(f.history),
     ledger: tam(f.ledger),
     preSplit,
+    parciales,
     legacySinPartir: legado,
     legadoFaltan: legado === 'junto' ? filasDelLegadoQueFaltan(LEGACY_DB_PATH, f.ledger!) : [],
     migracionesFallidas: fallidas,
@@ -405,7 +430,7 @@ if (dbExistia) {
 // ---------------------------------------------------------------------------
 // OPERACIÓN — trabajos, canales de aviso, interruptores, frescura y fuentes (Fase 9)
 // ---------------------------------------------------------------------------
-{
+if (baseAbre) {
   const db = getDb();
   const uno = <T,>(fn: () => T, porDefecto: T): T => {
     try {
@@ -491,7 +516,7 @@ if (dbExistia) {
 // ---------------------------------------------------------------------------
 // ANALÍTICA E INTERFAZ — monitorización, simulación, calendario, ajustes, seguimiento
 // ---------------------------------------------------------------------------
-{
+if (baseAbre) {
   const db = getDb();
   const ahora = new Date();
   const uno = <T,>(fn: () => T, porDefecto: T): T => {
@@ -526,7 +551,7 @@ if (dbExistia) {
 // ---------------------------------------------------------------------------
 // PRODUCTO — laboratorio de estrategias, bandeja, informes, líneas y archivo (Fase 6)
 // ---------------------------------------------------------------------------
-{
+if (baseAbre) {
   const db = getDb();
   const uno = <T,>(fn: () => T, porDefecto: T): T => {
     try {
@@ -621,7 +646,7 @@ if (dbExistia) {
   }
   let sesiones = 0;
   let errores24h = 0;
-  if (dbExistia) {
+  if (dbExistia && baseAbre) {
     try {
       sesiones = sesionesActivas().length;
       errores24h = contarErrores(new Date(Date.now() - 24 * 3_600_000).toISOString());

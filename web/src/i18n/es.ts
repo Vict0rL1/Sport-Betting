@@ -383,6 +383,8 @@ export const es = {
   'cuenta.salir': 'Salir',
   'cuenta.cerrarEsta': 'Cerrar esta sesión',
   'cuenta.cerrarDe': 'Cerrar sesión de {dispositivo}',
+  'cuenta.cerrarLasDemas': 'Cerrar las demás',
+  'cuenta.errorCerrarLasDemas': 'No se pudieron cerrar las demás sesiones. Siguen abiertas.',
   'insignia.alta': 'Confianza alta',
   'insignia.media': 'Confianza media',
   'insignia.baja': 'Confianza baja',

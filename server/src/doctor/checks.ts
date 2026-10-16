@@ -684,6 +684,29 @@ export interface EstadoAlmacenamiento {
   ejecuciones: EjecucionResumen[];
   /** Ejecuciones que seguían `running` tras horas y se marcaron como muertas. */
   muertas: number;
+  /** Restos de copias cortadas a medias (`.parcial` y su `-journal`) en la carpeta de copias (lote J, J2). */
+  parciales?: { fichero: string; mb: number; minutos: number }[];
+}
+
+/**
+ * La base no se abrió (lote I): comprobarLibroMayor se niega sin libro mayor y con huellas de que lo
+ * hubo, y una migración a medias tampoco arranca. El mensaje ya trae el remedio: su primera línea es
+ * el qué, las líneas con «·» son las acciones (con sus líneas de continuación) y el resto, detalle.
+ * Antes el doctor moría aquí con una traza.
+ */
+export function comprobarAperturaBase(error: string | null): Hallazgo[] {
+  if (!error) return [];
+  const [primera, ...resto] = error.split('\n');
+  const detalle: string[] = [];
+  const accion: string[] = [];
+  for (const linea of resto) {
+    const t = linea.trim();
+    if (!t) continue;
+    if (t.startsWith('·')) accion.push(t.replace(/^·\s*/, ''));
+    else if (accion.length) accion.push(`  ${t}`);
+    else detalle.push(t);
+  }
+  return [h('DATOS Y COPIAS', 'error', `La base no se abre: ${primera.trim()}`, { detalle, accion: accion.length ? accion : ['npm run db:migrate   (enseña el error completo)'] })];
 }
 
 export const BACKUP_AVISO_HORAS = 36;
@@ -727,6 +750,19 @@ export function comprobarAlmacenamiento(e: EstadoAlmacenamiento, ahora: Date): H
         }),
       );
     }
+  }
+  // Lote J, J2: un corte a mitad de una copia deja su temporal. No es una copia (ni la rotación ni
+  // restore lo ven), pero puede pesar tanto como el libro mayor y nadie lo decía.
+  // Solo los de hace más de una hora: uno más reciente puede ser una copia escribiéndose ahora, y
+  // borrarlo la haría fallar.
+  const restos = (e.parciales ?? []).filter((p) => p.minutos >= 60);
+  if (restos.length) {
+    const total = restos.reduce((n, p) => n + p.mb, 0);
+    out.push(
+      h(S, 'info', `${restos.length === 1 ? '1 resto de una copia cortada' : `${restos.length} restos de copias cortadas`} a medias en la carpeta de copias (${mb(total)}): no son copias y se pueden borrar a mano`, {
+        detalle: restos.map((p) => `${p.fichero} · ${mb(p.mb)}`),
+      }),
+    );
   }
   if (e.preSplit.length) out.push(h(S, 'info', `${e.preSplit.length} fichero(s) pre-split guardados (${e.preSplit.join(', ')}). Cuando te fíes de la base partida, puedes borrarlos.`));
   if (e.migracionesFallidas.length) {

@@ -1,7 +1,7 @@
 // Preparación común de los tests (`npm test`). Se carga ANTES que cualquier módulo de la
 // app, en cada proceso de test (node:test aísla cada fichero en su propio proceso).
 //
-// Tres garantías, y las tres son de seguridad, no de comodidad:
+// Cinco garantías:
 //
 //  1. BASE DE DATOS DE USAR Y TIRAR. `DATA_DIR` apunta a un directorio temporal nuevo:
 //     un test nunca puede tocar data/tennis.db, que es donde viven tus apuestas.
@@ -12,11 +12,23 @@
 //  4. NUNCA TUS COPIAS. BACKUP_DIR es una ruta global, no de un DATA_DIR: con la de tu .env, un
 //     test leería tus copias reales del libro mayor, escribiría entre ellas o subiría una de
 //     demostración a tu bucket. Cada proceso de test usa la carpeta de su DATA_DIR y ningún S3.
+//  5. SIN RESTOS (lote I). El proceso que crea el DATA_DIR temporal lo borra al salir; antes se
+//     quedaban miles en /tmp, cada uno con sus bases. `CONSERVAR_DATOS_TEST=1` lo deja para mirarlo.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'predicciones-test-'));
+const DATOS_DE_ESTE_PROCESO = fs.mkdtempSync(path.join(os.tmpdir(), 'predicciones-test-'));
+process.env.DATA_DIR = DATOS_DE_ESTE_PROCESO;
+if (process.env.CONSERVAR_DATOS_TEST !== '1') {
+  process.on('exit', () => {
+    try {
+      fs.rmSync(DATOS_DE_ESTE_PROCESO, { recursive: true, force: true });
+    } catch {
+      // Windows no borra una base que sigue abierta: se queda, como antes.
+    }
+  });
+}
 process.env.BACKUP_DIR = path.join(process.env.DATA_DIR, 'backups');
 for (const k of ['BACKUP_S3_BUCKET', 'BACKUP_S3_ACCESS_KEY', 'BACKUP_S3_SECRET_KEY', 'BACKUP_S3_ENDPOINT']) process.env[k] = '';
 process.env.ODDS_API_KEY = 'clave-de-test-0000000000000000000';

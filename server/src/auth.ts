@@ -49,7 +49,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { configAuth, type ConfigAuth } from './auth/mode.ts';
 import { igual } from './auth/compare.ts';
 import { LimiteDeIntentos } from './auth/rateLimit.ts';
-import { sesionDe } from './auth/sessions.ts';
+import { materialDeEntrada, sesionDe } from './auth/sessions.ts';
 import { tokenDeSesion } from './auth/cookies.ts';
 import { verificarTotp } from './auth/totp.ts';
 import { featureEncendida } from './features.ts';
@@ -123,6 +123,7 @@ export function registerAuth(app: FastifyInstance, runtime: AuthRuntime): void {
   if (!config.activa) return;
   const sesionesOn = featureEncendida('auth.sesiones');
   const totpActivo = featureEncendida('auth.totp') && !!config.totpSecret;
+  const entrada = materialDeEntrada(config, totpActivo);
 
   app.addHook('onRequest', async (req: FastifyRequest, reply: FastifyReply) => {
     if (rutaExenta(req.url) || esEstatica(req)) return;
@@ -130,7 +131,7 @@ export function registerAuth(app: FastifyInstance, runtime: AuthRuntime): void {
     // La sesión ANTES del bloqueo: una dirección bloqueada (o compartida con quien la bloqueó)
     // no deja fuera a quien ya entró.
     if (sesionesOn) {
-      const s = sesionDe(tokenDeSesion(req));
+      const s = sesionDe(tokenDeSesion(req), entrada);
       if (s) {
         (req as FastifyRequest & { sesion?: { id: number } }).sesion = { id: s.id };
         return;
@@ -151,9 +152,6 @@ export function registerAuth(app: FastifyInstance, runtime: AuthRuntime): void {
       if (basic && okTotp) return;
       const bloqueo = limite.fallo(ip);
       if (bloqueo > 0) return reply.code(429).header('retry-after', String(bloqueo)).send({ error: `Demasiados intentos. Espera ${bloqueo} s.` });
-      if (basic && totpActivo) {
-        return reply.code(401).send({ error: 'Código TOTP requerido (cabecera X-TOTP-Code)', totp: true, login: '/api/auth/login' });
-      }
     }
 
     // Para la API y para la pantalla, 401 con JSON. `WWW-Authenticate` solo se añade si la
@@ -162,7 +160,10 @@ export function registerAuth(app: FastifyInstance, runtime: AuthRuntime): void {
     // propia pantalla de entrada.
     const esNavegador = (req.headers.accept ?? '').includes('text/html') || !!req.headers.cookie || req.headers['sec-fetch-mode'] !== undefined;
     if (!esNavegador) reply.header('WWW-Authenticate', 'Basic realm="Sports Predictor", charset="UTF-8"');
-    return reply.code(401).send({ error: 'Contraseña requerida', login: '/api/auth/login', totp: totpActivo });
+    // Con TOTP, la misma respuesta con la contraseña buena o mala (lote H, H3): antes, «Código TOTP
+    // requerido» solo salía con la buena. La pista de la cabecera va siempre.
+    const error = basic !== null && totpActivo ? 'Contraseña o código incorrectos (con TOTP, el código va en la cabecera X-TOTP-Code)' : 'Contraseña requerida';
+    return reply.code(401).send({ error, login: '/api/auth/login', totp: totpActivo });
   });
 }
 

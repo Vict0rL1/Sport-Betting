@@ -94,6 +94,16 @@ jobs:
       - run: npm run e2e
         env:
           CI: 'true'
+      # Lote I: si un e2e falla, su traza (red, consola, DOM y capturas) queda como artefacto.
+      # Ábrela con `npx playwright show-trace <fichero>.zip`.
+      - name: Trazas de los e2e que fallaron
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-trazas
+          path: web/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
       # Fase 7.3: p95 de los endpoints de predicciones y 50 conexiones SSE contra la base de
       # demostración; falla si algo pasa de config/presupuestos.json.
       - name: Prueba de carga con presupuestos

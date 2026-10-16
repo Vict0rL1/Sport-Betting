@@ -348,3 +348,31 @@ test('apartarConLaterales: el WAL y el SHM van con su base, con el mismo nombre 
   assert.equal([f, `${f}-wal`, `${f}-shm`].some((x) => fs.existsSync(x)), false);
   fs.rmSync(dir, { recursive: true });
 });
+
+// Revisión de data-guardian al lote H: la migración 22 no tenía prueba del camino ALTER (las bases
+// de los tests nacen ya con la columna).
+test('migración 22: añade sessions.huella a una tabla de antes, en main y en un ledger adjunto, sin tocar filas; dos veces no hace nada', () => {
+  const m = MIGRACIONES.find((x) => x.version === 22)!;
+  const vieja = (esquema: string) =>
+    `CREATE TABLE ${esquema}sessions (id INTEGER PRIMARY KEY AUTOINCREMENT, token_hash TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL, last_seen_at TEXT NOT NULL, expires_at TEXT NOT NULL, revoked_at TEXT, user_agent TEXT, ip TEXT);
+     INSERT INTO ${esquema}sessions (token_hash, created_at, last_seen_at, expires_at) VALUES ('h', 'a', 'b', 'c');`;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'migracion-22-'));
+  const comprobar = (d: DatabaseSync, esquema: string) => {
+    const cols = (d.prepare(`PRAGMA ${esquema}table_info(sessions)`).all() as { name: string }[]).map((c) => c.name);
+    assert.ok(cols.includes('huella'), cols.join(','));
+    assert.deepEqual(d.prepare(`SELECT token_hash, huella FROM ${esquema}sessions`).all().map((r) => ({ ...r })), [{ token_hash: 'h', huella: null }]);
+  };
+  const single = new DatabaseSync(path.join(dir, 'tennis.db'));
+  single.exec(vieja(''));
+  for (let i = 0; i < 2; i++) m.up(single, { ledger: 'main', fichero: 'ledger' } as Parameters<typeof m.up>[1]);
+  comprobar(single, '');
+  single.close();
+  const split = new DatabaseSync(path.join(dir, 'history.db'));
+  split.exec(`ATTACH '${path.join(dir, 'ledger.db')}' AS ledger`);
+  split.exec(vieja('ledger.'));
+  for (let i = 0; i < 2; i++) m.up(split, { ledger: 'ledger', fichero: 'ledger' } as Parameters<typeof m.up>[1]);
+  comprobar(split, 'ledger.');
+  assert.equal(split.prepare("SELECT name FROM main.sqlite_master WHERE name = 'sessions'").get(), undefined, 'nada en history.db');
+  split.close();
+  fs.rmSync(dir, { recursive: true });
+});

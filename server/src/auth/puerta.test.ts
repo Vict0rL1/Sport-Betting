@@ -222,3 +222,170 @@ test('G12: /api/auth/me sin sesión no lleva el usuario; con sesión, sí', asyn
   assert.equal(typeof dentro.usuario, 'string');
   await app.close();
 });
+
+// ---------------------------------------------------------------------------
+// Lote H: una sesión vale para la entrada con la que se abrió, y el error no delata la contraseña
+// ---------------------------------------------------------------------------
+const SECRETO = base32Encode(Buffer.from('12345678901234567890', 'ascii'));
+
+async function entrar(extra: Partial<NodeJS.ProcessEnv> = {}, password = PASSWORD) {
+  const app = await appConAuth(extra);
+  const codigo = extra.TOTP_SECRET ? totp(extra.TOTP_SECRET) : undefined;
+  const r = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password, codigo } });
+  assert.equal(r.statusCode, 200, r.body);
+  const cookie = soloToken(String(r.headers['set-cookie']));
+  await app.close();
+  return cookie;
+}
+const entra = async (cookie: string, extra: Partial<NodeJS.ProcessEnv> = {}) => {
+  const app = await appConAuth(extra);
+  const r = await app.inject({ method: 'GET', url: '/api/health', headers: { cookie } });
+  const me = (await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } })).json();
+  await app.close();
+  return { status: r.statusCode, dentro: me.dentro as boolean };
+};
+
+test('H2: reiniciar con la misma entrada no echa a nadie', async () => {
+  const cookie = await entrar();
+  assert.deepEqual(await entra(cookie), { status: 200, dentro: true });
+});
+
+test('H2: tras cambiar APP_PASSWORD, una sesión abierta con la vieja ya no entra', async () => {
+  const cookie = await entrar();
+  assert.deepEqual(await entra(cookie, { APP_PASSWORD: 'otra-frase-larga-y-nueva' }), { status: 401, dentro: false });
+});
+
+test('H2: tras activar TOTP, una sesión abierta sin segundo factor ya no entra; con él, sí', async () => {
+  const sinTotp = await entrar();
+  assert.deepEqual(await entra(sinTotp, { TOTP_SECRET: SECRETO }), { status: 401, dentro: false });
+  const conTotp = await entrar({ TOTP_SECRET: SECRETO });
+  assert.deepEqual(await entra(conTotp, { TOTP_SECRET: SECRETO }), { status: 200, dentro: true });
+});
+
+test('H2: con solo la base (una copia robada) no se puede comprobar una contraseña: la huella va atada al token', async () => {
+  const { getDb } = await import('../db.ts');
+  const { createHash, createHmac, scryptSync } = await import('node:crypto');
+  const { materialDeEntrada } = await import('./sessions.ts');
+  await entrar();
+  await entrar();
+  const filas = getDb().prepare('SELECT token_hash, huella FROM sessions ORDER BY id DESC LIMIT 2').all() as { token_hash: string; huella: string | null }[];
+  assert.equal(filas.length, 2);
+  assert.ok(filas.every((f) => typeof f.huella === 'string' && f.huella.startsWith('v1$')), String(filas.map((f) => f.huella)));
+  assert.notEqual(filas[0].huella, filas[1].huella);
+  // Quien tiene la base y acierta la contraseña no puede confirmarlo con nada de lo que hay en ella.
+  const material = materialDeEntrada(configAuth(ENTORNO), false);
+  for (const f of filas) {
+    const h = f.huella!;
+    assert.equal(h.includes(PASSWORD), false);
+    const partes = h.split('$');
+    const conLoDeLaBase = [
+      createHash('sha256').update(material).digest('base64url'),
+      createHmac('sha256', f.token_hash).update(material).digest('base64url'),
+      ...partes.slice(1, -1).map((sal) => scryptSync(material, Buffer.from(sal, 'base64url'), 32).toString('base64url')),
+    ];
+    for (const intento of conLoDeLaBase) assert.equal(h.endsWith(intento), false, 'la huella se puede comprobar sin el token');
+  }
+});
+
+test('H2: una sesión de antes del arreglo (sin huella) no entra', async () => {
+  const { getDb } = await import('../db.ts');
+  const cookie = await entrar();
+  getDb().prepare('UPDATE sessions SET huella = NULL WHERE id = (SELECT MAX(id) FROM sessions)').run();
+  assert.deepEqual(await entra(cookie), { status: 401, dentro: false });
+});
+
+test('H2: una sesión rechazada por la entrada nueva se revoca: no vuelve si se deshace el cambio', async () => {
+  const cookie = await entrar();
+  assert.deepEqual(await entra(cookie, { TOTP_SECRET: SECRETO }), { status: 401, dentro: false });
+  // Se quita el TOTP (el móvil perdido): la configuración vuelve a ser la de antes.
+  assert.deepEqual(await entra(cookie), { status: 401, dentro: false }, 'la sesión vieja no resucita');
+});
+
+test('H2: la lista de sesiones no enseña una sesión rechazada por la entrada nueva', async () => {
+  const vieja = await entrar();
+  const nuevaClave = 'otra-frase-larga-y-nueva';
+  const app = await appConAuth({ APP_PASSWORD: nuevaClave });
+  assert.equal((await app.inject({ method: 'GET', url: '/api/health', headers: { cookie: vieja } })).statusCode, 401);
+  const login = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: nuevaClave } });
+  const cookie = soloToken(String(login.headers['set-cookie']));
+  const lista = (await app.inject({ method: 'GET', url: '/api/auth/sessions', headers: { cookie } })).json() as { sesiones: { id: number; actual: boolean }[] };
+  assert.equal(lista.sesiones.some((x) => x.actual), true);
+  const { getDb } = await import('../db.ts');
+  const idVieja = (getDb().prepare('SELECT id FROM sessions WHERE revoked_at IS NOT NULL ORDER BY id DESC LIMIT 1').get() as { id: number } | undefined)?.id;
+  assert.ok(idVieja, 'la vieja quedó revocada');
+  assert.equal(lista.sesiones.some((x) => x.id === idVieja), false);
+  await app.close();
+});
+
+test('H3: con TOTP, la contraseña mala y el código malo dan la misma respuesta al entrar', async () => {
+  const app = await appConAuth({ TOTP_SECRET: SECRETO });
+  const malaClave = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: 'no-es-esta-frase', codigo: totp(SECRETO) } });
+  const malCodigo = await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: PASSWORD, codigo: '000000' } });
+  assert.equal(malaClave.statusCode, 401);
+  assert.deepEqual([malCodigo.statusCode, malCodigo.json()], [malaClave.statusCode, malaClave.json()]);
+  await app.close();
+});
+
+test('H3: con TOTP, Basic Auth tampoco dice si la contraseña era buena', async () => {
+  const app = await appConAuth({ TOTP_SECRET: SECRETO });
+  const malaClave = await app.inject({ method: 'GET', url: '/api/health', headers: { authorization: basic('no-es-esta-frase') } });
+  const sinCodigo = await app.inject({ method: 'GET', url: '/api/health', headers: { authorization: basic() } });
+  assert.equal(malaClave.statusCode, 401);
+  assert.deepEqual([sinCodigo.statusCode, sinCodigo.json()], [malaClave.statusCode, malaClave.json()]);
+  assert.match(String(sinCodigo.json().error), /X-TOTP-Code/, 'la pista de la cabecera, siempre');
+  await app.close();
+});
+
+test('H2: el token cabe en un bloque de HMAC (≤ 64 bytes): si no, la clave sería su SHA-256, que está en la base', async () => {
+  const { crearSesion, materialDeEntrada } = await import('./sessions.ts');
+  const { token } = crearSesion({}, materialDeEntrada(configAuth(ENTORNO), false));
+  assert.ok(Buffer.byteLength(token) <= 64, `${Buffer.byteLength(token)} bytes`);
+});
+
+// Lote I, I4: tras cambiar una contraseña filtrada, una sesión robada que no se use mientras tanto
+// sigue viva (la huella no se puede comprobar sin su token). «Cerrar las demás» las cierra de una vez.
+test('I4: cerrar las demás sesiones deja solo la actual', async () => {
+  const app = await appConAuth();
+  const login = async () => soloToken(String((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: PASSWORD } })).headers['set-cookie']));
+  const [mia, otra, otraMas] = [await login(), await login(), await login()];
+  const r = await app.inject({ method: 'POST', url: '/api/auth/sessions/revoke-others', headers: { cookie: mia } });
+  assert.equal(r.statusCode, 200, r.body);
+  assert.ok(r.json().cerradas >= 2, r.body);
+  for (const c of [otra, otraMas]) assert.equal((await app.inject({ method: 'GET', url: '/api/health', headers: { cookie: c } })).statusCode, 401);
+  assert.equal((await app.inject({ method: 'GET', url: '/api/health', headers: { cookie: mia } })).statusCode, 200, 'la actual sigue');
+  const lista = (await app.inject({ method: 'GET', url: '/api/auth/sessions', headers: { cookie: mia } })).json() as { sesiones: { actual: boolean }[] };
+  assert.deepEqual(lista.sesiones.map((s) => s.actual), [true]);
+  await app.close();
+});
+
+test('I4: sin sesión no se cierra nada (la ruta va detrás de la puerta)', async () => {
+  const app = await appConAuth();
+  const r = await app.inject({ method: 'POST', url: '/api/auth/sessions/revoke-others' });
+  assert.equal(r.statusCode, 401);
+  await app.close();
+});
+
+test('I4: con Basic Auth no hay «la actual» que dejar: se niega y no cierra ninguna', async () => {
+  const app = await appConAuth();
+  const cookie = soloToken(String((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: PASSWORD } })).headers['set-cookie']));
+  const r = await app.inject({ method: 'POST', url: '/api/auth/sessions/revoke-others', headers: { authorization: basic() } });
+  assert.equal(r.statusCode, 400);
+  assert.equal((await app.inject({ method: 'GET', url: '/api/health', headers: { cookie } })).statusCode, 200, 'la sesión sigue');
+  await app.close();
+});
+
+test('I4: «cerrar las demás» no reescribe las sesiones ya caducadas ni las cuenta', async () => {
+  const { getDb } = await import('../db.ts');
+  const app = await appConAuth();
+  const login = async () => soloToken(String((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: PASSWORD } })).headers['set-cookie']));
+  const cerrar = async (cookie: string) => (await app.inject({ method: 'POST', url: '/api/auth/sessions/revoke-others', headers: { cookie } })).json() as { cerradas: number };
+  const mia = await login();
+  await cerrar(mia); // las de los tests anteriores fuera: se cuenta desde aquí
+  await login();
+  await login();
+  const ultima = () => getDb().prepare('SELECT id, revoked_at FROM sessions ORDER BY id DESC LIMIT 1').get() as { id: number; revoked_at: string | null };
+  getDb().prepare("UPDATE sessions SET expires_at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(ultima().id);
+  assert.equal((await cerrar(mia)).cerradas, 1, 'solo la viva que enseñaba la lista');
+  assert.equal(ultima().revoked_at, null, 'la caducada se queda como estaba');
+  await app.close();
+});

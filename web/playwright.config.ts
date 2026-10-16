@@ -12,7 +12,10 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 60_000,
   retries: process.env.CI ? 1 : 0,
-  use: { baseURL: process.env.E2E_URL ?? 'http://localhost:7390', locale: 'es-ES', launchOptions: chromium ? { executablePath: chromium } : {} },
+  // Lote I: un e2e que falla de vez en cuando («tenis punto a punto», 12 de octubre) no dejaba nada
+  // que mirar. Con la traza (red, consola, DOM y capturas de cada paso) en web/test-results, el
+  // siguiente fallo trae su causa; en CI se sube como artefacto.
+  use: { baseURL: process.env.E2E_URL ?? 'http://localhost:7390', locale: 'es-ES', trace: 'retain-on-failure', launchOptions: chromium ? { executablePath: chromium } : {} },
   webServer: {
     command: 'node ../scripts/e2e-server.mjs',
     url: 'http://localhost:7390/healthz',
