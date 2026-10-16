@@ -53,3 +53,45 @@ en `/tenis` cambia a lo largo del día.
     consola, DOM y capturas de cada paso, en `web/test-results/`.
   - En CI, el trabajo de e2e la sube como artefacto (`e2e-trazas`, 7 días) si falla.
   - Antes, un fallo intermitente no dejaba nada que mirar.
+
+## I4 · «Cerrar las demás sesiones»
+
+**Por qué.** Lo dejó anotado `security-reviewer` en el lote H. Tras cambiar una contraseña
+filtrada, una sesión robada que no se use mientras tanto sigue viva: su huella no se puede
+comprobar sin su token. Volvería a entrar si se deshiciera el cambio. Hasta ahora había que
+cerrarlas una a una desde la lista.
+
+- **Test (falla antes):**
+  - `puerta.test.ts`: con tres sesiones, `POST /api/auth/sessions/revoke-others` desde una cierra
+    las otras dos (401) y deja la actual. Con Basic Auth no hay «actual» que dejar: 400, y no
+    cierra ninguna. Sin credenciales, 401.
+  - `web/e2e/auth.spec.ts`: con otra sesión abierta, «Cuenta → Cerrar las demás sesiones» la
+    cierra, la otra ya no entra, esta sigue y el botón desaparece.
+- **Arreglo:**
+  - `revocarLasDemas(actual)` en `server/src/auth/sessions.ts` y la ruta en `routes/auth.ts`,
+    detrás de la puerta.
+  - En el panel Cuenta, el botón sale solo si hay alguna sesión que no es esta.
+  - Textos en `es.ts` y `en.ts` (`cuenta.cerrarLasDemas`).
+- **Revisión de `security-reviewer`:** nada bloquea. Tres hallazgos bajos, arreglados con prueba que
+  falla antes:
+  - Se reescribían (y se contaban) sesiones caducadas hace tiempo. Ahora solo las vivas, como la
+    lista.
+  - Si cerrar fallaba, el aviso se borraba solo al releer la lista, y con el texto de «no se
+    pudieron leer». Ahora tiene su propio aviso, que se queda, y el botón se desactiva mientras
+    trabaja.
+  - El botón salía sin «esta» en la lista (entrada por Basic Auth), donde el servidor responde 400.
+    Ahora solo sale con ella.
+
+## Fuera de este lote
+
+- **Comprobar `Origin` / `Sec-Fetch-Site` en los POST de `/api`.** Hoy los protege solo la cookie
+  `SameSite=Strict`. Desde otro sitio no se puede, porque el navegador no la manda. Desde un
+  subdominio hermano sí se podría, si un día la app se sirve en un dominio propio (mismo sitio).
+  Es de antes de este lote y afecta a todos los POST, no solo a este: va en su propio cambio.
+- **Revisión de `ui-tester`** (1280 y 390 px, claro y oscuro, es y en). Con prueba que falla antes:
+  - A 1280 px el botón partía en dos líneas («Cerrar las demás / sesiones») junto a un «Salir» de
+    una. Ahora dice «Cerrar las demás» («Close the others»): una línea, y en inglés ya no choca con
+    «Sign out».
+  - Usado con el teclado, el foco se perdía al desaparecer el botón. Ahora pasa a «Salir».
+  - El fallo silencioso y los dos clics seguidos ya estaban arreglados por la revisión de seguridad.
+  - Sin confirmación al pulsar, igual que la ✕ de cada sesión: se deja así.

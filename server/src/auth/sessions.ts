@@ -122,6 +122,18 @@ export function revocarPorToken(token: string, ahora = new Date()): boolean {
 }
 
 /**
+ * Revoca todas las sesiones vivas menos `actual` (lote I, I4): tras cambiar una contraseña
+ * filtrada, una sesión robada que no se use mientras tanto sigue viva, porque su huella no se
+ * puede comprobar sin su token. Devuelve cuántas cerró.
+ */
+export function revocarLasDemas(actual: number, ahora = new Date()): number {
+  ensureSessionsSchema();
+  // Solo las vivas, como la lista: una caducada hace tiempo no se reescribe ni se cuenta.
+  const t = ahora.toISOString();
+  return Number(getDb().prepare('UPDATE sessions SET revoked_at = ? WHERE revoked_at IS NULL AND expires_at > ? AND id != ?').run(t, t, actual).changes);
+}
+
+/**
  * Las sesiones vivas (ni revocadas ni caducadas), la más reciente primero. Sin el token no se sabe si
  * una vale para la entrada de ahora: se enseñan todas, para poder cerrarlas. Las que se presentan
  * con una entrada distinta ya quedaron revocadas (`sesionDe`).

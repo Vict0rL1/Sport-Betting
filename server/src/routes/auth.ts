@@ -5,6 +5,7 @@
 //   POST /api/auth/logout              revoca la sesión de la cookie
 //   GET  /api/auth/sessions            las sesiones vivas (la actual marcada)
 //   POST /api/auth/sessions/:id/revoke cierra otra sesión
+//   POST /api/auth/sessions/revoke-others cierra todas menos la actual (lote I, I4)
 //
 // `login` y `me` están exentas de la puerta (auth.ts); las demás van detrás.
 
@@ -13,7 +14,7 @@ import type { AuthRuntime } from '../auth.ts';
 import { direccionDe } from '../auth.ts';
 import { igual } from '../auth/compare.ts';
 import { verificarTotp } from '../auth/totp.ts';
-import { crearSesion, materialDeEntrada, revocarPorToken, revocarSesion, sesionDe, sesionesActivas, SESION_DIAS } from '../auth/sessions.ts';
+import { crearSesion, materialDeEntrada, revocarLasDemas, revocarPorToken, revocarSesion, sesionDe, sesionesActivas, SESION_DIAS } from '../auth/sessions.ts';
 import { borrarCookieSesion, ponerCookieSesion, tokenDeSesion } from '../auth/cookies.ts';
 import { featureEncendida } from '../features.ts';
 
@@ -68,6 +69,13 @@ export function registerAuthRoutes(runtime: AuthRuntime) {
     app.get('/sessions', async (req: FastifyRequest) => {
       const actual = (req as FastifyRequest & { sesion?: { id: number } }).sesion?.id ?? null;
       return { actual, sesiones: sesionesActivas().map((s) => ({ ...s, actual: s.id === actual })) };
+    });
+
+    // Solo desde una sesión: con Basic Auth no hay «la actual» que dejar abierta.
+    app.post('/sessions/revoke-others', async (req, reply) => {
+      const actual = (req as FastifyRequest & { sesion?: { id: number } }).sesion?.id ?? null;
+      if (actual === null) return reply.code(400).send({ error: 'Solo desde una sesión abierta en la pantalla.' });
+      return { ok: true, cerradas: revocarLasDemas(actual) };
     });
 
     app.post<{ Params: { id: string } }>('/sessions/:id/revoke', async (req, reply) => {

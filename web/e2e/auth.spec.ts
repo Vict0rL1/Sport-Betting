@@ -93,3 +93,72 @@ for (const tema of ['claro', 'oscuro'] as const) {
     expect(medidos.filter((m) => m.ratio < 4.5), JSON.stringify(medidos)).toEqual([]);
   });
 }
+
+// Lote I, I4: tras cambiar una contraseña filtrada, cerrar de una vez las sesiones de los demás.
+test('I4: «Cerrar las demás sesiones» deja solo esta, y la otra ya no entra', async ({ page, playwright }) => {
+  const otro = await playwright.request.newContext({ baseURL: URL_AUTH });
+  expect((await otro.post('/api/auth/login', { data: { password: CONTRASENA } })).ok()).toBeTruthy();
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto('/');
+  await page.getByLabel('Contraseña').fill(CONTRASENA);
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await expect(page.getByRole('tablist', { name: 'Deportes' }).first()).toBeVisible();
+  await page.getByRole('button', { name: /^Cuenta/ }).click();
+  await page.getByRole('button', { name: 'Cerrar las demás' }).click();
+  // Con solo esta abierta, el botón ya no hace falta.
+  await expect(page.getByRole('button', { name: 'Cerrar las demás' })).toHaveCount(0);
+  expect((await otro.get('/api/health')).status()).toBe(401);
+  expect((await page.request.get('/api/health')).status()).toBe(200);
+  await otro.dispose();
+});
+
+const entrarEnLaPantalla = async (page: import('@playwright/test').Page) => {
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto('/');
+  await page.getByLabel('Contraseña').fill(CONTRASENA);
+  await page.getByRole('button', { name: 'Entrar' }).click();
+  await expect(page.getByRole('tablist', { name: 'Deportes' }).first()).toBeVisible();
+};
+
+test('I4: si cerrar las demás falla, se dice y no se borra solo; las otras siguen', async ({ page, playwright }) => {
+  const otro = await playwright.request.newContext({ baseURL: URL_AUTH });
+  expect((await otro.post('/api/auth/login', { data: { password: CONTRASENA } })).ok()).toBeTruthy();
+  await entrarEnLaPantalla(page);
+  await page.route('**/api/auth/sessions/revoke-others', (r) => r.fulfill({ status: 500, json: { error: 'fallo' } }));
+  await page.getByRole('button', { name: /^Cuenta/ }).click();
+  await page.getByRole('button', { name: 'Cerrar las demás' }).click();
+  const alerta = page.getByRole('alert').filter({ hasText: 'No se pudieron cerrar las demás sesiones' });
+  await expect(alerta).toBeVisible();
+  // La lista se vuelve a leer y el aviso sigue ahí: no se borra solo.
+  await expect(page.getByRole('button', { name: 'Cerrar las demás' })).toBeEnabled();
+  await expect(alerta).toBeVisible();
+  expect((await otro.get('/api/health')).status()).toBe(200);
+  await otro.dispose();
+});
+
+test('I4: sin «esta» en la lista (entrada por Basic Auth) el botón no sale: el servidor diría que no', async ({ page }) => {
+  await entrarEnLaPantalla(page);
+  const sesion = (id: number) => ({ id, created_at: '2026-10-16T08:00:00.000Z', last_seen_at: '2026-10-16T08:00:00.000Z', expires_at: '2026-11-15T08:00:00.000Z', revoked_at: null, user_agent: null, ip: null, actual: false });
+  await page.route('**/api/auth/sessions', (r) => r.fulfill({ json: { actual: null, sesiones: [sesion(1), sesion(2)] } }));
+  await page.getByRole('button', { name: /^Cuenta/ }).click();
+  await expect(page.getByRole('complementary').getByText('Dispositivo desconocido')).toHaveCount(2);
+  await expect(page.getByRole('button', { name: 'Cerrar las demás' })).toHaveCount(0);
+});
+
+test('I4: a 1280 px el botón cabe en una línea, como «Salir»; usado con el teclado, el foco pasa a «Salir»', async ({ page, playwright }) => {
+  const otro = await playwright.request.newContext({ baseURL: URL_AUTH });
+  expect((await otro.post('/api/auth/login', { data: { password: CONTRASENA } })).ok()).toBeTruthy();
+  await entrarEnLaPantalla(page);
+  await page.getByRole('button', { name: /^Cuenta/ }).click();
+  const panel = page.getByRole('complementary');
+  const boton = panel.getByRole('button', { name: 'Cerrar las demás' });
+  // El «Salir» de abajo (la fila de esta sesión también se llama así).
+  const salir = panel.getByRole('button', { name: 'Salir', exact: true }).last();
+  const [b, s] = [await boton.boundingBox(), await salir.boundingBox()];
+  expect(Math.round(b!.height), 'en una línea, como «Salir»').toBe(Math.round(s!.height));
+  await boton.focus();
+  await page.keyboard.press('Enter');
+  await expect(boton).toHaveCount(0);
+  await expect(salir).toBeFocused();
+  await otro.dispose();
+});

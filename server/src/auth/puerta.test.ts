@@ -341,3 +341,51 @@ test('H2: el token cabe en un bloque de HMAC (≤ 64 bytes): si no, la clave ser
   const { token } = crearSesion({}, materialDeEntrada(configAuth(ENTORNO), false));
   assert.ok(Buffer.byteLength(token) <= 64, `${Buffer.byteLength(token)} bytes`);
 });
+
+// Lote I, I4: tras cambiar una contraseña filtrada, una sesión robada que no se use mientras tanto
+// sigue viva (la huella no se puede comprobar sin su token). «Cerrar las demás» las cierra de una vez.
+test('I4: cerrar las demás sesiones deja solo la actual', async () => {
+  const app = await appConAuth();
+  const login = async () => soloToken(String((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: PASSWORD } })).headers['set-cookie']));
+  const [mia, otra, otraMas] = [await login(), await login(), await login()];
+  const r = await app.inject({ method: 'POST', url: '/api/auth/sessions/revoke-others', headers: { cookie: mia } });
+  assert.equal(r.statusCode, 200, r.body);
+  assert.ok(r.json().cerradas >= 2, r.body);
+  for (const c of [otra, otraMas]) assert.equal((await app.inject({ method: 'GET', url: '/api/health', headers: { cookie: c } })).statusCode, 401);
+  assert.equal((await app.inject({ method: 'GET', url: '/api/health', headers: { cookie: mia } })).statusCode, 200, 'la actual sigue');
+  const lista = (await app.inject({ method: 'GET', url: '/api/auth/sessions', headers: { cookie: mia } })).json() as { sesiones: { actual: boolean }[] };
+  assert.deepEqual(lista.sesiones.map((s) => s.actual), [true]);
+  await app.close();
+});
+
+test('I4: sin sesión no se cierra nada (la ruta va detrás de la puerta)', async () => {
+  const app = await appConAuth();
+  const r = await app.inject({ method: 'POST', url: '/api/auth/sessions/revoke-others' });
+  assert.equal(r.statusCode, 401);
+  await app.close();
+});
+
+test('I4: con Basic Auth no hay «la actual» que dejar: se niega y no cierra ninguna', async () => {
+  const app = await appConAuth();
+  const cookie = soloToken(String((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: PASSWORD } })).headers['set-cookie']));
+  const r = await app.inject({ method: 'POST', url: '/api/auth/sessions/revoke-others', headers: { authorization: basic() } });
+  assert.equal(r.statusCode, 400);
+  assert.equal((await app.inject({ method: 'GET', url: '/api/health', headers: { cookie } })).statusCode, 200, 'la sesión sigue');
+  await app.close();
+});
+
+test('I4: «cerrar las demás» no reescribe las sesiones ya caducadas ni las cuenta', async () => {
+  const { getDb } = await import('../db.ts');
+  const app = await appConAuth();
+  const login = async () => soloToken(String((await app.inject({ method: 'POST', url: '/api/auth/login', payload: { password: PASSWORD } })).headers['set-cookie']));
+  const cerrar = async (cookie: string) => (await app.inject({ method: 'POST', url: '/api/auth/sessions/revoke-others', headers: { cookie } })).json() as { cerradas: number };
+  const mia = await login();
+  await cerrar(mia); // las de los tests anteriores fuera: se cuenta desde aquí
+  await login();
+  await login();
+  const ultima = () => getDb().prepare('SELECT id, revoked_at FROM sessions ORDER BY id DESC LIMIT 1').get() as { id: number; revoked_at: string | null };
+  getDb().prepare("UPDATE sessions SET expires_at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(ultima().id);
+  assert.equal((await cerrar(mia)).cerradas, 1, 'solo la viva que enseñaba la lista');
+  assert.equal(ultima().revoked_at, null, 'la caducada se queda como estaba');
+  await app.close();
+});

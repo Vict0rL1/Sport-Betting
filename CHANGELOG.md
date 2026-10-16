@@ -20,8 +20,12 @@ Plan y verificación en `docs/plans/fixes-I.md`.
   mañana. Con el reloj desplazado en el servidor y en el navegador pasó a las 11 horas probadas,
   así que no se toca. Lo que cambia: Playwright guarda la traza de cada test que falla, y CI la
   sube como artefacto (`e2e-trazas`), para que el próximo fallo intermitente traiga su causa.
-- Pruebas: `server/src/doctor/doctor.e2e.test.ts`, `server/src/doctor/checks.test.ts` y
-  `server/src/test/aislamiento.test.ts`.
+- **I4 · «Cerrar las demás».** En Cuenta → Sesiones abiertas, un botón cierra de una vez todas
+  las sesiones menos la tuya. Es lo que hay que hacer tras cambiar una contraseña filtrada: una sesión robada
+  que no se use mientras tanto seguía viva hasta cerrarla a mano.
+- Pruebas: `server/src/doctor/doctor.e2e.test.ts`, `server/src/doctor/checks.test.ts`,
+  `server/src/test/aislamiento.test.ts`, `server/src/auth/puerta.test.ts` y
+  `web/e2e/auth.spec.ts`.
 
 ## Lote H · copias a prueba de cortes y sesiones que caducan con la entrada (2026-10-12)
 
@@ -41,7 +45,7 @@ Plan y verificación en `docs/plans/fixes-H.md`.
   entra: se revoca al presentarse, y no vuelve aunque se deshaga el cambio. Reiniciar con la
   misma configuración no echa a nadie. Migración 22: columna `sessions.huella`. **Tras actualizar
   hay que entrar una vez**, porque las sesiones de antes no tienen huella. Tras cambiar una
-  contraseña filtrada, cierra también las sesiones que no reconozcas (Cuenta → Sesiones abiertas).
+  contraseña filtrada, usa también «Cuenta → Cerrar las demás» (lote I).
 - **H3 · Con TOTP, el error no dice si la contraseña era buena.** El login responde «Contraseña o
   código incorrectos» en los dos casos. Basic Auth también: la pista de la cabecera `X-TOTP-Code`
   sale siempre.
