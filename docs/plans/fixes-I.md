@@ -82,12 +82,6 @@ cerrarlas una a una desde la lista.
   - El botón salía sin «esta» en la lista (entrada por Basic Auth), donde el servidor responde 400.
     Ahora solo sale con ella.
 
-## Fuera de este lote
-
-- **Comprobar `Origin` / `Sec-Fetch-Site` en los POST de `/api`.** Hoy los protege solo la cookie
-  `SameSite=Strict`. Desde otro sitio no se puede, porque el navegador no la manda. Desde un
-  subdominio hermano sí se podría, si un día la app se sirve en un dominio propio (mismo sitio).
-  Es de antes de este lote y afecta a todos los POST, no solo a este: va en su propio cambio.
 - **Revisión de `ui-tester`** (1280 y 390 px, claro y oscuro, es y en). Con prueba que falla antes:
   - A 1280 px el botón partía en dos líneas («Cerrar las demás / sesiones») junto a un «Salir» de
     una. Ahora dice «Cerrar las demás» («Close the others»): una línea, y en inglés ya no choca con
@@ -95,3 +89,9 @@ cerrarlas una a una desde la lista.
   - Usado con el teclado, el foco se perdía al desaparecer el botón. Ahora pasa a «Salir».
   - El fallo silencioso y los dos clics seguidos ya estaban arreglados por la revisión de seguridad.
   - Sin confirmación al pulsar, igual que la ✕ de cada sesión: se deja así.
+
+## Fuera de este lote
+
+- **Comprobar `Origin` / `Sec-Fetch-Site` en los POST de `/api`.** Hecho en el lote J
+  (`docs/plans/fixes-J.md`). Era más que «un subdominio hermano»: sin contraseña, cualquier web
+  podía hacer POST «simples» a la API local.
