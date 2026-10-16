@@ -686,6 +686,27 @@ export interface EstadoAlmacenamiento {
   muertas: number;
 }
 
+/**
+ * La base no se abrió (lote I): comprobarLibroMayor se niega sin libro mayor y con huellas de que lo
+ * hubo, y una migración a medias tampoco arranca. El mensaje ya trae el remedio: su primera línea es
+ * el qué, las líneas con «·» son las acciones (con sus líneas de continuación) y el resto, detalle.
+ * Antes el doctor moría aquí con una traza.
+ */
+export function comprobarAperturaBase(error: string | null): Hallazgo[] {
+  if (!error) return [];
+  const [primera, ...resto] = error.split('\n');
+  const detalle: string[] = [];
+  const accion: string[] = [];
+  for (const linea of resto) {
+    const t = linea.trim();
+    if (!t) continue;
+    if (t.startsWith('·')) accion.push(t.replace(/^·\s*/, ''));
+    else if (accion.length) accion.push(`  ${t}`);
+    else detalle.push(t);
+  }
+  return [h('DATOS Y COPIAS', 'error', `La base no se abre: ${primera.trim()}`, { detalle, accion: accion.length ? accion : ['npm run db:migrate   (enseña el error completo)'] })];
+}
+
 export const BACKUP_AVISO_HORAS = 36;
 
 export function comprobarAlmacenamiento(e: EstadoAlmacenamiento, ahora: Date): Hallazgo[] {

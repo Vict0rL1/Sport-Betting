@@ -4,6 +4,21 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Lote I · fiabilidad (2026-10-16)
+
+Plan y verificación en `docs/plans/fixes-I.md`.
+
+- **I1 · El doctor ya no muere cuando la base se niega a abrir.** Sin `ledger.db` y con huellas de
+  que lo hubo, `npm run doctor` salía con una traza de pila a la primera lectura. Ahora abre la
+  base una vez al principio y, si se niega, lo dice en DATOS Y COPIAS («La base no se abre: …»)
+  con su remedio en QUÉ HACER (`npm run restore`, `--partir-legado`…). Salta lo que necesita la
+  base y no crea nada.
+- **I2 · Los tests ya no dejan carpetas en /tmp.** Cada proceso de test borra al salir el DATA_DIR
+  temporal que creó; en este contenedor se habían juntado más de 8.000. `CONSERVAR_DATOS_TEST=1`
+  lo conserva para mirarlo.
+- Pruebas: `server/src/doctor/doctor.e2e.test.ts`, `server/src/doctor/checks.test.ts` y
+  `server/src/test/aislamiento.test.ts`.
+
 ## Lote H · copias a prueba de cortes y sesiones que caducan con la entrada (2026-10-12)
 
 Plan y verificación en `docs/plans/fixes-H.md`.
