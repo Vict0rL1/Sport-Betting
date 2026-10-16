@@ -25,6 +25,7 @@ import { registerStatic, webBuildExists, WEB_DIST } from './static.ts';
 import { recordLatency } from './latency/record.ts';
 import { registerSecurityHeaders } from './security/headers.ts';
 import { origenesPermitidos, politicaCors } from './security/cors.ts';
+import { hostsPermitidos, registrarComprobacionDeOrigen } from './security/origen.ts';
 import { registerErrorHandler } from './security/errors.ts';
 import { estadoFeatures, featureEncendida } from './features.ts';
 
@@ -135,6 +136,8 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   } catch {
     // Sin base todavía: los interruptores valen lo que diga el fichero.
   }
+  // Antes que la puerta (lote J, J1): un POST de otro sitio no llega ni a intentar entrar.
+  registrarComprobacionDeOrigen(app, { permitidos: origenesPermitidos(entorno), comprobarHost: !auth.config.activa, hosts: hostsPermitidos(entorno) });
   registerAuth(app, auth);
 
   if (featureEncendida('seguridad.cabeceras')) registerSecurityHeaders(app, { hsts: auth.config.produccion });

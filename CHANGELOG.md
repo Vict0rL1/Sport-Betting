@@ -4,6 +4,26 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Lote J · ninguna web ajena toca la app, y los restos de copias se ven (2026-10-16)
+
+Plan y verificación en `docs/plans/fixes-J.md`.
+
+- **J1 · Otra web ya no puede hacer que tu navegador cambie (ni, sin contraseña, lea) nada de la
+  app.** Un POST «simple» (text/plain o sin cuerpo) no pasa por CORS. Sin contraseña, lo normal en
+  el portátil, cualquier página que visitaras podía hacer que tu navegador generara informes,
+  cambiara ajustes o lanzara cualquier ruta POST sin cuerpo de la API en 127.0.0.1. Con
+  contraseña, solo lo frenaba la cookie. Ahora:
+  - Los POST, PUT, PATCH y DELETE se niegan (403) si el navegador dice que vienen de otro sitio
+    (`Sec-Fetch-Site`) o su `Origin` no es exactamente el de la app. Pasan siempre los orígenes de
+    `CORS_ORIGINS`, curl y los scripts.
+  - Sin contraseña, la app solo atiende a `localhost`, a una IP o a los nombres de `APP_HOSTS` (por
+    ejemplo `APP_HOSTS=mi-mac.local`). Eso cierra el rebinding de DNS.
+  - El proxy de Vite ya no cambia el Host hacia la API local, así que el móvil en la misma wifi
+    sigue entrando.
+- **J2 · El doctor dice si quedan restos de copias cortadas a medias** (`.parcial`, de hace más de
+  una hora), con lo que pesan. No son copias y se pueden borrar a mano.
+- Pruebas: `server/src/security/origen.test.ts` y `server/src/doctor/checks.test.ts`.
+
 ## Lote I · fiabilidad (2026-10-16)
 
 Plan y verificación en `docs/plans/fixes-I.md`.

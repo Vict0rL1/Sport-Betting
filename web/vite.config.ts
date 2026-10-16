@@ -5,6 +5,7 @@ import tailwindcss from '@tailwindcss/vite';
 // are not Vite's own 5173.
 import { DEFAULT_API, DEFAULT_PREVIEW, DEFAULT_WEB } from '../scripts/ports.mjs';
 import { hostDeEscucha } from '../scripts/escucha.mjs';
+import { proxyDeApi } from '../scripts/proxy-api.mjs';
 
 /**
  * Where to send /api — and it must NOT be hardcoded.
@@ -17,10 +18,8 @@ import { hostDeEscucha } from '../scripts/escucha.mjs';
  * VITE_API_BASE still wins, for pointing the frontend at a backend somewhere else
  * entirely.
  */
-const API_PORT = Number(process.env.PORT) || DEFAULT_API;
-// 127.0.0.1 y no «localhost»: la API escucha en IPv4 (scripts/escucha.mjs) y «localhost» puede
-// resolverse primero a ::1.
-const API_TARGET = process.env.VITE_API_BASE || `http://127.0.0.1:${API_PORT}`;
+// scripts/proxy-api.mjs decide el destino y si se cambia el Host (no, hacia la API local: lote J).
+const PROXY_API = proxyDeApi(process.env, DEFAULT_API);
 
 /** This server's own port, likewise chosen upstream. */
 const WEB_PORT = Number(process.env.WEB_PORT) || DEFAULT_WEB;
@@ -28,7 +27,7 @@ const WEB_PORT = Number(process.env.WEB_PORT) || DEFAULT_WEB;
 // The frontend calls "/api/…" and Vite proxies it to the backend, so there is
 // no CORS to configure during development.
 const proxy = {
-  '/api': { target: API_TARGET, changeOrigin: true },
+  '/api': PROXY_API,
 };
 
 /**

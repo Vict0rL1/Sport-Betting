@@ -70,7 +70,7 @@ import { configAuth } from '../auth/mode.ts';
 import { LAYOUT, ficherosDe } from '../db/layout.ts';
 import { filasDelLegadoQueFaltan, legadoSinPartir } from '../db/split.ts';
 import { estadoPorVersion } from '../db/migrations.ts';
-import { copiasLocales, ultimaCopia } from '../db/backup.ts';
+import { copiasLocales, directorioCopias, ultimaCopia } from '../db/backup.ts';
 import { configS3 } from '../db/s3.ts';
 import { marcarMuertas, ultimasEjecuciones } from '../ingest/runs.ts';
 import { sesionesActivas } from '../auth/sessions.ts';
@@ -394,12 +394,23 @@ if (baseAbre) {
   };
   const copia = uno(() => ultimaCopia(), null);
   const legado = LAYOUT === 'split' ? legadoSinPartir(LEGACY_DB_PATH, f.history, f.ledger!) : null;
+  const parciales = uno(() => {
+    const dir = directorioCopias();
+    return fs
+      .readdirSync(dir)
+      .filter((x) => /^ledger-.*\.parcial(-journal)?$/.test(x))
+      .map((x) => {
+        const st = fs.statSync(path.join(dir, x));
+        return { fichero: x, mb: st.size / 1048576, minutos: (Date.now() - st.mtimeMs) / 60_000 };
+      });
+  }, [] as { fichero: string; mb: number; minutos: number }[]);
   const retAt = getMeta('retention:last_at');
   const estado: EstadoAlmacenamiento = {
     layout: LAYOUT,
     history: tam(f.history),
     ledger: tam(f.ledger),
     preSplit,
+    parciales,
     legacySinPartir: legado,
     legadoFaltan: legado === 'junto' ? filasDelLegadoQueFaltan(LEGACY_DB_PATH, f.ledger!) : [],
     migracionesFallidas: fallidas,

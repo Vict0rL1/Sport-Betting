@@ -524,3 +524,45 @@ test('apertura de la base: sin error, nada; con la negativa de comprobarLibroMay
   const partir = comprobarAperturaBase('Falta x\n  · Para partirlo, con el servidor parado:\n      npm run db:migrate -- --partir-legado\n      (aparta history.db)')[0];
   assert.deepEqual(partir.accion, ['Para partirlo, con el servidor parado:', '  npm run db:migrate -- --partir-legado', '  (aparta history.db)']);
 });
+
+test('J2: los restos de copias cortadas a medias (.parcial) se dicen, con lo que pesan; sin ellos, nada', () => {
+  const base = {
+    layout: 'split' as const,
+    history: { ruta: '/d/history.db', mb: 10 },
+    ledger: { ruta: '/d/ledger.db', mb: 1 },
+    preSplit: [],
+    legacySinPartir: null,
+    legadoFaltan: [],
+    migracionesFallidas: [],
+    backup: null,
+    copiasLocales: 0,
+    backupHoras: 24,
+    s3: false,
+    apuestasRegistradas: 0,
+    retencion: null,
+    snapshots: 0,
+    ejecuciones: [],
+    muertas: 0,
+    parciales: [] as { fichero: string; mb: number; minutos: number }[],
+  };
+  const ahora = new Date('2026-10-16T10:00:00Z');
+  assert.equal(comprobarAlmacenamiento(base, ahora).some((x) => /a medias/.test(x.texto)), false);
+  const conRestos = comprobarAlmacenamiento(
+    {
+      ...base,
+      parciales: [
+        { fichero: 'ledger-2026-10-15T03-00-00.db.123-ab.parcial', mb: 52, minutos: 600 },
+        { fichero: 'ledger-2026-10-15T03-00-00.db.123-ab.parcial-journal', mb: 0.1, minutos: 600 },
+        // Una copia que se está escribiendo ahora mismo: borrarla la haría fallar.
+        { fichero: 'ledger-2026-10-16T09-59-00.db.456-cd.parcial', mb: 30, minutos: 1 },
+      ],
+    },
+    ahora,
+  ).find((x) => /a medias/.test(x.texto));
+  assert.ok(conRestos);
+  assert.equal(conRestos.nivel, 'info');
+  assert.match(conRestos.texto, /2 restos/);
+  assert.match(conRestos.texto, /52/);
+  assert.ok((conRestos.detalle ?? []).some((d) => d.includes('.parcial-journal')));
+  assert.equal((conRestos.detalle ?? []).some((d) => d.includes('456-cd')), false, 'la que se está escribiendo no se lista');
+});
