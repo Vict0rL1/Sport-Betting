@@ -69,7 +69,7 @@ export function DayFilter({
   const total = days.reduce((a, d) => a + d.count, 0);
   return (
     <div
-      className="mb-4 flex gap-2 overflow-x-auto pb-1"
+      className="mb-4 flex gap-2 desliza-x overflow-x-auto pb-1"
       role="tablist"
       aria-label={t('dias.filtrar')}
     >

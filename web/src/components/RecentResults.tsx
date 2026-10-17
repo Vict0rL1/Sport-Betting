@@ -161,7 +161,7 @@ function FranjaDias({ porDia, max, diaSel, onDia }: { porDia: Historial['porDia'
     if (caja.current) caja.current.scrollLeft = caja.current.scrollWidth;
   }, [porDia.length]);
   return (
-    <div ref={caja} className="overflow-x-auto px-3 pb-1" tabIndex={0}>
+    <div ref={caja} className="desliza-x overflow-x-auto px-3 pb-1" tabIndex={0}>
       <div className="flex items-end gap-1" role="list" aria-label={t('acerto.porDia')}>
         {dias.map((d) => {
           const f = fechaDe(d.dia);
@@ -363,7 +363,7 @@ export default function RecentResults({ estado, deporteInicial = null }: { estad
 
       {/* Por deporte */}
       {Object.keys(h.porDeporte).length > 1 && (
-        <div className="flex gap-1.5 overflow-x-auto px-4 pb-1 pt-2">
+        <div className="flex gap-1.5 desliza-x overflow-x-auto px-4 pb-1 pt-2">
           <Chip activo={deporte === null} onClick={() => setDeporte(null)}>
             {t('acerto.todosDeportes')}
           </Chip>

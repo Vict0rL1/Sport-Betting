@@ -18,3 +18,6 @@ export function useMediaQuery(consulta: string): boolean {
 
 /** El punto en el que aparece la barra lateral (`lg:` de Tailwind). */
 export const ESCRITORIO = '(min-width: 1024px)';
+
+/** Un teléfono: por debajo de `sm:` de Tailwind (640 px). Las tablas anchas pasan a lista (lote K). */
+export const MOVIL = '(max-width: 639.98px)';

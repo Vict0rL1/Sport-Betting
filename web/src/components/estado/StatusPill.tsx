@@ -82,7 +82,7 @@ export default function StatusPill({ compacto = false }: { compacto?: boolean })
         aria-expanded={abierto}
         aria-label={t('estado.aria', { texto: r.texto })}
         data-testid="status-pill"
-        className="inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium text-(--ink-body) transition hover:bg-(--raised)"
+        className="toque inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] [--toque-y:13px] font-medium text-(--ink-body) transition hover:bg-(--raised)"
         style={{ borderColor: tenido(r.color, 40) }}
       >
         <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: r.color }} />

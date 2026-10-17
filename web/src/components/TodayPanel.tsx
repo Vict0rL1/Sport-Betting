@@ -18,6 +18,7 @@ import RecentResults, { DeporteIcono, lineaResumen, useHistorial } from './Recen
 import { deporteInicial, panelAbierto } from '../lib/hoy';
 import { localeDe, useI18n } from '../i18n';
 import { pct as pctF } from '../lib/formato';
+import { MOVIL } from '../lib/useMediaQuery';
 
 interface Partido {
   deporte: string;
@@ -35,12 +36,20 @@ const CLAVE_VISTA = 'predictor.today.view';
 const CLAVE_ALTO = 'predictor.hoy.alto';
 
 /**
+ * En el móvil (por debajo de 640 px), cuántos partidos se ven antes de «Ver los N partidos» (K2,
+ * lote K). Con la lista entera, «Hoy» llenaba la primera pantalla de cada deporte: en Fútbol se
+ * veían siete partidos de hockey y lo de fútbol empezaba debajo.
+ */
+const FILAS_MOVIL = 3;
+
+/**
  * El alto con el que se pintó la última vez. Sin recuerdo (primera visita), el habitual: plegado,
  * la cabecera (46 px); desplegado, cabecera, pestañas y la lista a su alto máximo de 22 rem, que es
- * lo que ocupa en cuanto hay más de ocho partidos.
+ * lo que ocupa en cuanto hay más de ocho partidos (en el móvil, tres filas de dos líneas y el botón).
  */
 function altoRecordado(abierto: boolean): number {
-  const porDefecto = abierto ? 46 + 41 + 352 : 46;
+  const movil = typeof window !== 'undefined' && window.matchMedia?.(MOVIL).matches;
+  const porDefecto = abierto ? 46 + 41 + (movil ? FILAS_MOVIL * 64 + 45 : 352) : 46;
   try {
     const n = Number(localStorage.getItem(CLAVE_ALTO));
     return Number.isFinite(n) && n > 0 && n < 1200 ? n : porDefecto;
@@ -53,6 +62,9 @@ function altoRecordado(abierto: boolean): number {
 function medir(el: HTMLElement | null): (() => void) | void {
   if (!el) return;
   const guardar = () => {
+    // Desplegado del todo en el móvil no es como nace: reservar ese alto la próxima vez lo dejaría
+    // con un hueco debajo.
+    if (el.dataset.todos) return;
     try {
       localStorage.setItem(CLAVE_ALTO, String(Math.round(el.getBoundingClientRect().height)));
     } catch {
@@ -68,6 +80,8 @@ function medir(el: HTMLElement | null): (() => void) | void {
 
 export default function TodayPanel({ pestana = null }: { pestana?: string | null }) {
   const [datos, setDatos] = useState<{ partidos: Partido[]; nota: string | null } | null>(null);
+  // En el móvil, la lista entera o solo las primeras FILAS_MOVIL.
+  const [todos, setTodos] = useState(false);
   // Los resultados recientes (registro en vivo + reconstruidos), con su ventana.
   const historial = useHistorial();
   const { t, idioma } = useI18n();
@@ -126,7 +140,10 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
   // faltan (el archivo sin actualizar). Esconderlos con la lista vacía era justo lo que
   // hacía parecer que el historial de la semana no existía.
   const hayHoy = (datos?.partidos.length ?? 0) > 0;
-  const hayRes = historial.h != null;
+  // Los resultados cuentan desde que se piden (K3, lote K): el interruptor «Qué hay hoy /
+  // ¿Acertó?» salía al llegar y empujaba la lista 45 px hacia abajo en cada deporte. Mientras
+  // cargan, «¿Acertó?» lleva a su propio «cargando…», que no es una lista vacía.
+  const hayRes = historial.h != null || historial.cargando;
   // Mientras carga, el hueco que ocupó la última vez (Fase 7.8): aparecer de la nada empujaba
   // la página entera hacia abajo, que es el desplazamiento que más mide Lighthouse.
   if (datos == null) return <div aria-hidden className="mb-5" style={{ height: altoRecordado(panelAbierto(guardado, vista)) }} />;
@@ -138,7 +155,7 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
   const conPrecio = datos?.partidos.filter((p) => p.precioReal).length ?? 0;
 
   return (
-    <section ref={medir} className="mb-5 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
+    <section ref={medir} data-todos={todos || undefined} className="mb-5 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
       <button
         onClick={() => alternar(abierto)}
         aria-expanded={abierto}
@@ -190,13 +207,15 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
             <RecentResults estado={historial} deporteInicial={deporteInicial(pestana)} />
           ) : (
             <>
-              <div className="max-h-[22rem] overflow-y-auto">
+              {/* El desplazamiento propio, solo desde 640 px: en el móvil el dedo movía la caja
+                  y no la página. Allí se cortan las filas y el resto va detrás de un botón. */}
+              <div className="sm:max-h-[22rem] sm:overflow-y-auto">
                 <table className="w-full border-collapse text-[14px]">
                   <tbody>
                     {(datos?.partidos ?? []).map((p, i) => (
                       <tr
                         key={i}
-                        className="border-t border-(--line) first:border-t-0"
+                        className={`border-t border-(--line) first:border-t-0 ${i >= FILAS_MOVIL && !todos ? 'max-sm:hidden' : ''}`}
                         // Un partido empezado no se esconde —sigue siendo lo de hoy— pero
                         // se atenúa: verlo igual que uno por jugar invita a apostarlo. Con la
                         // tinta tenue y no con `opacity` (G6: al 45 % quedaba en 2,1:1).
@@ -226,6 +245,15 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
                   </tbody>
                 </table>
               </div>
+              {(datos?.partidos.length ?? 0) > FILAS_MOVIL && (
+                <button
+                  onClick={() => setTodos((v) => !v)}
+                  aria-expanded={todos}
+                  className="w-full border-t border-(--line) px-4 py-3 text-left text-[14px] font-medium text-(--ink-soft) sm:hidden"
+                >
+                  {todos ? t('hoy.verMenos') : t('hoy.verTodos', { n: datos?.partidos.length ?? 0 })}
+                </button>
+              )}
               {datos?.nota && (
                 <p className="border-t border-(--line) px-4 py-2 text-[12px] text-(--ink-muted)">
                   {datos.nota}

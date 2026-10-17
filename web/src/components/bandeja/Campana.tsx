@@ -34,7 +34,7 @@ export default function Campana() {
       to="/bandeja"
       aria-label={t('bandeja.campana', { n })}
       data-testid="campana"
-      className="relative grid h-8 w-8 place-items-center rounded-lg text-(--ink-soft) ring-1 ring-(--line) hover:bg-(--raised) hover:text-(--ink-strong)"
+      className="toque relative grid h-8 w-8 place-items-center rounded-lg text-(--ink-soft) ring-1 ring-(--line) hover:bg-(--raised) hover:text-(--ink-strong)"
     >
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />

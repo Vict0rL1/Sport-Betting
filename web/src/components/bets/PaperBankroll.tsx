@@ -191,7 +191,7 @@ export default function PaperBankroll() {
       )}
 
       {r.apuestas.length > 0 && (
-        <div className="overflow-x-auto border-t border-(--line)" tabIndex={0}>
+        <div className="desliza-x overflow-x-auto border-t border-(--line)" tabIndex={0}>
           <table className="w-full min-w-[560px] border-collapse text-[14px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">

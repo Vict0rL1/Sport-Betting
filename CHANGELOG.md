@@ -4,6 +4,37 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Lote K · la app en el móvil: que se vea bien y que responda (2026-10-17)
+
+Plan, auditoría a 390 y 360 px y verificación en `docs/plans/fixes-K.md`. Pruebas nuevas en
+`web/e2e/movil.spec.ts` (a 390 px con pantalla táctil) y `web/src/lib/precarga.test.ts`.
+
+- **K1 · La hoja «Deportes» ya no se cierra sola.** Abierta justo después de entrar en fútbol, se
+  cerraba cuando la página añadía la liga a la dirección. Ahora solo se cierra al navegar o al
+  elegir.
+- **K2 · Al entrar en un deporte se ve el deporte.** En el móvil, «Hoy» enseña tres partidos y
+  «Ver los N partidos». Antes eran siete, en una caja con su propio desplazamiento, y llenaban la
+  primera pantalla de cada pestaña. En el escritorio no cambia.
+- **K3 · «Hoy» ya no empuja la página** 45 px cuando llegan los resultados.
+- **K4 · Las tablas de partidos se leen en el teléfono.** «Lo que el modelo ve más probable» y «Los
+  partidos» pasan a lista por debajo de 640 px, con la probabilidad del modelo a la vista; antes
+  quedaba en el borde, con el resto fuera. Lo que se desplaza de lado (clasificaciones, la fila de
+  deportes) se difumina por donde hay más.
+- **K5 · Cambiar de deporte no espera.** Las pestañas se precargan con la app ociosa, salvo con
+  «ahorro de datos». Sin red, un deporte que no se había abierto se abre igual; antes la app
+  acababa en la pantalla «No internet» del navegador. Mientras carga una pantalla se ve su
+  esqueleto, no «Cargando…».
+- **K6 · Tocar se nota:** lo que se pulsa se atenúa mientras el dedo está encima.
+- **K7 · La hoja y la barra con movimiento.** La hoja sube desde abajo, en 4 columnas con
+  iconos de 44 px, y se cierra deslizándola. La pestaña activa lleva una píldora, y tocarla otra
+  vez vuelve arriba. Con movimiento reducido, sin animaciones.
+- **K8 · Botones pequeños más fáciles de acertar**: más área de toque invisible en la cabecera (44
+  px) y en las tarjetas (24 px como mínimo, sin pisar el control de al lado).
+- **K9 · El servidor de los e2e ya no baja resultados de internet.** A los 5 minutos de arrancar
+  descargaba fútbol, NHL y UFC, y cambiaba los datos debajo de las pruebas («NHL sin datos»
+  fallaba según el minuto). `RESULTS_REFRESH_HOURS=0` en `scripts/e2e-server.mjs`.
+- **K10 · Una pantalla nueva empieza arriba**, no a la altura a la que se dejó la anterior.
+
 ## Lote J · ninguna web ajena toca la app, y los restos de copias se ven (2026-10-16)
 
 Plan y verificación en `docs/plans/fixes-J.md`.

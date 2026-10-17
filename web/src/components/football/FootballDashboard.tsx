@@ -224,7 +224,7 @@ export default function FootballDashboard() {
           // horizontal; desde `sm` vuelve a envolver, porque ahí caben en dos filas y
           // verlas todas de golpe sí ayuda a elegir. `snap` para que al soltar el dedo
           // quede una pastilla entera a la vista y no cortada por la mitad.
-          className="mb-4 flex snap-x gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]"
+          className="mb-4 flex snap-x gap-2 desliza-x overflow-x-auto pb-1 [scrollbar-width:thin]"
           role="tablist" aria-label={tr('eq.ligas')}>
           {selectable.map((l) => {
             const on = league === l.id;

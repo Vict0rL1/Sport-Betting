@@ -182,7 +182,7 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
   const top = c.probs.indexOf(Math.max(...c.probs));
   return (
     <div className="mt-2 rounded-lg border border-(--line) bg-(--tint) px-3 py-2">
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-2 text-left" aria-expanded={open}>
+      <button onClick={() => setOpen((o) => !o)} className="toque flex w-full [--toque-y:4px] items-center justify-between gap-2 text-left" aria-expanded={open}>
         <span className="text-[14px] font-medium text-(--ink-body)">{t('fiarse.titulo')}</span>
         <span className="flex flex-wrap items-center justify-end gap-1.5 text-[12px] text-(--ink-soft)">
           <ConfianzaBadge nivel={c.confianza.nivel} decision={c.decision.decision} compacta />

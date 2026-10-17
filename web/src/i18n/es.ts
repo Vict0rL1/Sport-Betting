@@ -962,6 +962,8 @@ export const es = {
   'hoy.queHay': 'Qué hay hoy',
   'hoy.acerto': '¿Acertó?',
   'hoy.sinPrediccion': 'sin predicción',
+  'hoy.verTodos': 'Ver los {n} partidos',
+  'hoy.verMenos': 'Ver menos',
   'tt.oddsDemo': 'odds demo',
   'tt.ganoPartido': 'ganó el partido',
   'tt.favorece': 'El modelo favorece a {dot} {nombre} {detalle}',

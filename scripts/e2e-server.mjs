@@ -28,6 +28,10 @@ const env = {
   ODDS_API_KEY: '',
   THE_ODDS_API_KEY: '',
   AUTO_REFRESH_MINUTES: '0',
+  // Sin el trabajo «resultados» (lote K, K9): a los 5 minutos bajaba resultados de internet, y la
+  // batería dura más; lo que llegaba cambiaba los datos debajo de las pruebas. Los tests nunca
+  // usan la red.
+  RESULTS_REFRESH_HOURS: '0',
   DEMO_FIXTURES: 'on',
   NODE_ENV: 'test',
   NODE_OPTIONS: '--experimental-sqlite --disable-warning=ExperimentalWarning',

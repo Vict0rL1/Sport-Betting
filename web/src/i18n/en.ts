@@ -962,6 +962,8 @@ export const en: Partial<Record<Clave, string>> = {
   'hoy.queHay': 'What\'s on today',
   'hoy.acerto': 'Did it get it right?',
   'hoy.sinPrediccion': 'no prediction',
+  'hoy.verTodos': 'See all {n} games',
+  'hoy.verMenos': 'Show fewer',
   'tt.oddsDemo': 'demo odds',
   'tt.ganoPartido': 'won the match',
   'tt.favorece': 'The model favours {dot} {nombre} {detalle}',

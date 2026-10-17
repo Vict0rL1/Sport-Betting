@@ -4,6 +4,7 @@ import type { SlateRow } from '../../lib/slate';
 import { conNodos, localeDe, useI18n, type Traducir } from '../../i18n';
 import { pct as pctF, num as numF } from '../../lib/formato';
 import { motivoVacio } from '../../lib/vacio';
+import { MOVIL, useMediaQuery } from '../../lib/useMediaQuery';
 /**
  * LA TABLA DE PARTIDOS: qué se juega y qué dice el modelo, haya precios o no.
  * ===========================================================================
@@ -87,6 +88,9 @@ export function SlateTable({
   // cabecera «6 partidos», tabla con 1 fila.
   const [umbral, setUmbral] = useState(0);
   const { t, idioma } = useI18n();
+  // En el móvil, una lista (K4, lote K): a 390 px la tabla dejaba Mercado y Cuota fuera, y cada
+  // fila partía el partido y el favorito en tres líneas.
+  const movil = useMediaQuery(MOVIL);
   if (rows.length === 0) return null;
 
   // La banda EXACTA del umbral, no «la más alta por debajo». Béisbol no tiene banda del
@@ -135,9 +139,45 @@ export function SlateTable({
 
       {open && (
         <div className="border-t border-(--line)">
-          {/* El scroll horizontal vive en la tabla, nunca en la página: una fila ancha no
-              puede empujar el resto de la pantalla de lado en un móvil. */}
-          <div className="overflow-x-auto" tabIndex={0}>
+          {movil ? (
+            <ul>
+              {vistas.map((r, i) => {
+                const dif = r.marketProb != null ? r.pickProb - r.marketProb : null;
+                return (
+                  <li key={r.id} className={`px-4 py-3 ${i > 0 ? 'border-t border-(--line)' : ''}`}>
+                    <p className="text-[12px] text-(--ink-muted)">
+                      {new Date(r.when).toLocaleString(loc, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                    <p className="text-[14px] text-(--ink-body)">{r.match}</p>
+                    <p className="mt-1 text-[14px]">
+                      <span className="text-[12px] text-(--ink-muted)">{t('tabla.favoritoModelo')}</span>{' '}
+                      <span className="text-(--ink-strong)">{r.pick}</span>{' '}
+                      <span className="whitespace-nowrap font-semibold text-(--ink-strong)">{pct(r.pickProb)}</span>
+                      {r.drawProb != null && <span className="ml-2 text-[12px] text-(--ink-muted)">{t('tabla.empate', { p: pct(r.drawProb) })}</span>}
+                    </p>
+                    {hayMercado && (
+                      <dl className="mt-1 flex flex-wrap gap-x-4 text-[13px] tabular-nums">
+                        <div className="flex gap-1.5">
+                          <dt className="text-(--ink-muted)">{t('tabla.mercado')}</dt>
+                          <dd className="text-(--ink-soft)">
+                            {r.marketProb == null ? '—' : pct(r.marketProb)}
+                            {dif != null && Math.abs(dif) >= 0.04 && ` (${dif > 0 ? '+' : ''}${numF(dif * 100, 1)} pp)`}
+                          </dd>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <dt className="text-(--ink-muted)">{t('tabla.cuota')}</dt>
+                          <dd className="text-(--ink-soft)">{r.odds == null ? '—' : numF(r.odds, 2)}</dd>
+                        </div>
+                      </dl>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+          /* El scroll horizontal vive en la tabla, nunca en la página: una fila ancha no
+              puede empujar el resto de la pantalla de lado en un móvil. */
+          <div className="desliza-x overflow-x-auto" tabIndex={0}>
             <table className="w-full min-w-[520px] border-collapse text-[14px]">
               <thead>
                 <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
@@ -192,6 +232,7 @@ export function SlateTable({
               </tbody>
             </table>
           </div>
+          )}
 
           {/* El control del umbral, con lo que cuesta y lo que da, los dos medidos. */}
           <div className="flex flex-wrap items-center gap-2 border-t border-(--line) px-4 py-2.5">

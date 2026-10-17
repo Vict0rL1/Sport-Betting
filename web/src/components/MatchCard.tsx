@@ -370,7 +370,7 @@ function Bullets({ items }: { items: string[] }) {
       {ocultos > 0 && (
         <button
           onClick={() => setOpen((o) => !o)}
-          className="mt-1.5 text-[13px] text-(--ink-muted) underline-offset-2 hover:text-(--ink-body) hover:underline"
+          className="toque mt-1.5 text-[13px] [--toque-y:4px] text-(--ink-muted) underline-offset-2 hover:text-(--ink-body) hover:underline"
         >
           {open ? t('tt.verMenos') : t(ocultos === 1 ? 'tt.verMas1' : 'tt.verMasN', { n: ocultos })}
         </button>

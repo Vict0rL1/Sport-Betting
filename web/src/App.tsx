@@ -3,7 +3,7 @@
 // Destacados. Cada pestaña sigue hablando solo con su trozo de la API.
 
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router';
+import { Navigate, Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router';
 import { SPORT_THEMES, type SportId } from './lib/theme';
 import TodayPanel from './components/TodayPanel';
 import { AppMark, SportIcon } from './components/icons';
@@ -21,19 +21,32 @@ import { SeguimientoProvider } from './components/seguimiento';
 import { ESCRITORIO, useMediaQuery } from './lib/useMediaQuery';
 import ErrorBoundary from './components/ErrorBoundary';
 import { registrarServiceWorker, ultimaRed, useEnLinea, useDesdeCache } from './lib/sinConexion';
+import { cuandoOciosa, entornoDelNavegador, precargar } from './lib/precarga';
+import { SkeletonList } from './components/ui/states';
 
 // Cada pantalla en su propio trozo (Fase 5 / 7): la primera carga solo trae el armazón y la
-// pestaña que se abre.
-const TennisDashboard = lazy(() => import('./components/TennisDashboard'));
-const BasketballDashboard = lazy(() => import('./components/basketball/BasketballDashboard'));
-const FootballDashboard = lazy(() => import('./components/football/FootballDashboard'));
-const BaseballDashboard = lazy(() => import('./components/baseball/BaseballDashboard'));
-const NflDashboard = lazy(() => import('./components/nfl/NflDashboard'));
-const NhlDashboard = lazy(() => import('./components/nhl/NhlDashboard'));
-const UfcDashboard = lazy(() => import('./components/ufc/UfcDashboard'));
-const BetsDashboard = lazy(() => import('./components/bets/BetsDashboard'));
-const SystemTrust = lazy(() => import('./components/trust/SystemTrust'));
-const TopPicks = lazy(() => import('./components/picks/TopPicks'));
+// pestaña que se abre. Los de las pestañas se precargan después, con la app ociosa (K5, lote K).
+const cargarTenis = () => import('./components/TennisDashboard');
+const cargarBaloncesto = () => import('./components/basketball/BasketballDashboard');
+const cargarFutbol = () => import('./components/football/FootballDashboard');
+const cargarBeisbol = () => import('./components/baseball/BaseballDashboard');
+const cargarNfl = () => import('./components/nfl/NflDashboard');
+const cargarNhl = () => import('./components/nhl/NhlDashboard');
+const cargarUfc = () => import('./components/ufc/UfcDashboard');
+const cargarApuestas = () => import('./components/bets/BetsDashboard');
+const cargarConfianza = () => import('./components/trust/SystemTrust');
+const cargarDestacados = () => import('./components/picks/TopPicks');
+const PESTANAS_PRECARGADAS = [cargarDestacados, cargarFutbol, cargarBaloncesto, cargarBeisbol, cargarNfl, cargarNhl, cargarUfc, cargarTenis, cargarApuestas, cargarConfianza];
+const TennisDashboard = lazy(cargarTenis);
+const BasketballDashboard = lazy(cargarBaloncesto);
+const FootballDashboard = lazy(cargarFutbol);
+const BaseballDashboard = lazy(cargarBeisbol);
+const NflDashboard = lazy(cargarNfl);
+const NhlDashboard = lazy(cargarNhl);
+const UfcDashboard = lazy(cargarUfc);
+const BetsDashboard = lazy(cargarApuestas);
+const SystemTrust = lazy(cargarConfianza);
+const TopPicks = lazy(cargarDestacados);
 const Diagnostico = lazy(() => import('./pages/Diagnostico'));
 const Ajustes = lazy(() => import('./pages/Ajustes'));
 const Glosario = lazy(() => import('./pages/Glosario'));
@@ -77,6 +90,7 @@ export default function App() {
 
 function Armazon() {
   const { pathname } = useLocation();
+  const tipoNavegacion = useNavigationType();
   const navigate = useNavigate();
   const { t, setIdioma } = useI18n();
   const pestana = pestanaDeRuta(pathname);
@@ -118,6 +132,12 @@ function Armazon() {
     if (!dentro || sinRed) return;
     if (import.meta.env.PROD) void registrarServiceWorker();
   }, [dentro, sinRed]);
+  // Las pestañas, precargadas con la app ociosa (K5, lote K): cambiar de deporte no espera a la
+  // red, y sin ella un deporte que no se había abierto todavía se abre.
+  useEffect(() => {
+    if (!dentro || sinRed) return;
+    return cuandoOciosa(() => precargar(PESTANAS_PRECARGADAS), entornoDelNavegador());
+  }, [dentro, sinRed]);
   // Los ajustes de la persona (tema, idioma, deportes visibles) una vez dentro.
   useEffect(() => {
     if (!dentro) return;
@@ -153,6 +173,15 @@ function Armazon() {
   useEffect(() => {
     if (pestana) recordarPestana(pestana);
   }, [pestana]);
+
+  // Una pantalla nueva empieza arriba (K10, lote K): sin esto se abría a la altura a la que se
+  // había dejado la anterior (desde Confianza bajada, Tenis salía a media página). Solo al ir a
+  // otra (PUSH). «Atrás» no se toca: lo intenta el navegador, que no siempre llega (la pantalla
+  // aún no ha cargado sus datos). Una dirección que la página reescribe (la liga, un filtro) no
+  // mueve nada.
+  useEffect(() => {
+    if (tipoNavegacion === 'PUSH') window.scrollTo(0, 0);
+  }, [pathname, tipoNavegacion]);
 
   // Atajos (Fase 5.17): 1–9 y 0 (la décima) cambian de pestaña fuera de un campo de texto (tantas como pestañas).
   useEffect(() => {
@@ -233,7 +262,9 @@ function Armazon() {
           <BannerSinConexion />
           {conHoy && <TodayPanel pestana={pestana} />}
           <ErrorBoundary clave={pathname}>
-          <Suspense fallback={<p className="text-[13px] text-(--ink-muted)">{t('comun.cargando')}</p>}>
+          {/* La forma de lo que viene, no la palabra (K5, lote K): lo mismo que enseña cada pantalla
+              mientras llegan sus datos, así que no hay un salto de «Cargando…» a tarjetas. */}
+          <Suspense fallback={<SkeletonList />}>
           <Routes>
             <Route path="/" element={<Navigate to={RUTA_DE_PESTANA[ultimaPestana()]} replace />} />
             <Route path="/destacados" element={<TopPicks />} />
@@ -360,7 +391,7 @@ function SportNav({ pestana, ocultos, vertical = false, soloDeportes = false }: 
     navigate(RUTA_DE_PESTANA[lista[j]]);
   };
   return (
-    <nav role="tablist" aria-label={t('nav.deportes')} aria-orientation={vertical ? 'vertical' : 'horizontal'} className={vertical ? 'flex flex-col gap-0.5 px-2' : `mx-auto ${SHELL_WIDTH} -mb-px flex gap-0.5 overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
+    <nav role="tablist" aria-label={t('nav.deportes')} aria-orientation={vertical ? 'vertical' : 'horizontal'} className={vertical ? 'flex flex-col gap-0.5 px-2' : `mx-auto ${SHELL_WIDTH} -mb-px flex gap-0.5 desliza-x overflow-x-auto px-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>
       {lista.map((id, i) => {
         const s = SPORT_THEMES[id];
         const active = pestana === id;

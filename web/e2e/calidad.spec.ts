@@ -73,3 +73,14 @@ test('E8: ninguna clave cruda (catálogo o política) en ninguna ruta', async ({
     }
   }
 });
+
+// Lote K (encontrado al verificarlo): el servidor de los e2e bajaba resultados de internet a los
+// 5 minutos de arrancar (el trabajo «resultados»). La batería dura más que eso, y lo que llegaba
+// (fútbol, NHL, UFC…) cambiaba los datos debajo de las pruebas: «NHL sin datos» pasaba o fallaba
+// según el minuto en que corriera. Y los tests nunca usan la red.
+test('K9: el servidor de los e2e no programa la descarga de resultados', async ({ request }) => {
+  const r = await request.get('/api/scheduler');
+  expect(r.ok()).toBe(true);
+  const { trabajos } = (await r.json()) as { trabajos: { nombre: string }[] };
+  expect(trabajos.map((t) => t.nombre)).not.toContain('resultados');
+});
