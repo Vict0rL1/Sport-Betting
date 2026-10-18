@@ -133,15 +133,42 @@ pantalla táctil.
 ## K9 · El servidor de los e2e bajaba resultados de internet (encontrado al verificar)
 
 - **Qué pasaba:** a los 5 minutos de arrancar, `scripts/e2e-server.mjs` corría el trabajo
-  «resultados» y bajaba fútbol, baloncesto, NHL y UFC. La batería dura más de 5 minutos, así que lo
-  que llegaba cambiaba los datos debajo de las pruebas: «NHL sin datos» y «UFC sin datos» fallaban
-  según el minuto. Además, los tests no deben usar la red. También explica por qué el primer
-  servidor de la auditoría tenía hockey.
+  «resultados» y bajaba los resultados de los seis deportes con archivo propio (fútbol, baloncesto,
+  béisbol, NFL, NHL y UFC), en procesos hijo que escribían la base mientras las pruebas la leían.
+  La batería dura más de 5 minutos, así que lo que llegaba cambiaba los datos debajo de las
+  pruebas: «NHL sin datos» y «UFC sin datos» fallaban según el minuto. Además, los tests no deben
+  usar la red. También explica por qué el primer servidor de la auditoría tenía hockey.
 - **Test (falla antes):** `calidad.spec.ts`, K9. `/api/scheduler` del servidor de los e2e no tiene
   «resultados».
-- **Arreglo:** `RESULTS_REFRESH_HOURS=0` en el servidor de los e2e: el trabajo no se registra. El
-  clima, el otro que sale a la red, hizo 0 consultas: en la base del e2e no hay partidos con
-  estadio.
+- **Arreglo:** `RESULTS_REFRESH_HOURS=0` en el servidor de los e2e: el trabajo no se registra.
+- **Revisión de `data-guardian`:** confirmado, nada bloquea. Antes, 9 trabajos con «resultados»;
+  después, 8. Con un bloqueo de red, cero salidas. El clima hizo 0 consultas porque solo mira los
+  próximos partidos de NFL y MLB que no son de demostración, y en la base del e2e no hay ninguno.
+  Lo demás que sale a la red (cuotas, cierre de cuotas, bullpen, asistente de Telegram) no se
+  registra sin clave o sin datos. Encontró K11.
+
+## K11 · El servidor de los e2e heredaba los canales de aviso del .env (revisión de `data-guardian`)
+
+- **Qué pasaba:** el entorno del servidor de los e2e es el de quien corre los tests, con solo las
+  claves de cuotas y de S3 vaciadas, y dotenv rellena lo que falta con el `.env`. Así llegaban
+  Telegram, el webhook, el correo, las notificaciones push y la clave de Anthropic.
+  «Generar el de hoy» (`producto.spec.ts`) avisa por todos los canales configurados: en una
+  máquina con Telegram en el `.env`, cada pasada de los e2e mandaba un resumen de demostración al
+  Telegram de verdad. En CI no pasa porque no hay esos secretos, y en este contenedor tampoco.
+- **Y Anthropic:** con `ANTHROPIC_API_KEY` en el `.env`, «Preguntar a los datos» (`/api/ask`)
+  elige la consulta con el modelo de Anthropic: salida a la red y gasto en la cuenta de quien corre
+  los tests. Hoy ningún e2e pregunta nada, pero el primero que lo hiciera saldría a la red.
+- **Tests (fallan antes):** `calidad.spec.ts`, K11.
+  - `/api/notifications/canales` no tiene ningún canal configurado.
+  - `/api/ask` contesta con el enrutador de siempre, sin nota de un modelo.
+- **Reproducido** sin red, con el servidor en otros puertos (sin tocar el de las pruebas): un
+  `fetch` que bloquea y apunta toda salida que no sea a esta máquina, y un `TELEGRAM_BOT_TOKEN`, un
+  `WEBHOOK_URL` y una `ANTHROPIC_API_KEY` falsos en el entorno.
+  - Antes: Telegram y webhook salían configurados, `/api/ask` intentó llamar a
+    `api.anthropic.com` (bloqueado) y las dos pruebas fallaban.
+  - Después, con el mismo entorno: ningún canal, ningún intento de salida, y las dos pasan.
+- **Arreglo:** el servidor de los e2e vacía esas variables, igual que S3. Vacías y no ausentes,
+  porque dotenv no pisa una que ya existe.
 
 ## K10 · Una pantalla nueva se abría a media altura (encontrado al verificar)
 

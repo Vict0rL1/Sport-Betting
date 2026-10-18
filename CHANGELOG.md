@@ -31,9 +31,15 @@ Plan, auditoría a 390 y 360 px y verificación en `docs/plans/fixes-K.md`. Prue
 - **K8 · Botones pequeños más fáciles de acertar**: más área de toque invisible en la cabecera (44
   px) y en las tarjetas (24 px como mínimo, sin pisar el control de al lado).
 - **K9 · El servidor de los e2e ya no baja resultados de internet.** A los 5 minutos de arrancar
-  descargaba fútbol, NHL y UFC, y cambiaba los datos debajo de las pruebas («NHL sin datos»
-  fallaba según el minuto). `RESULTS_REFRESH_HOURS=0` en `scripts/e2e-server.mjs`.
+  descargaba los de los seis deportes con archivo propio, y cambiaba los datos debajo de las
+  pruebas («NHL sin datos» fallaba según el minuto). `RESULTS_REFRESH_HOURS=0` en
+  `scripts/e2e-server.mjs`.
 - **K10 · Una pantalla nueva empieza arriba**, no a la altura a la que se dejó la anterior.
+- **K11 · Los e2e ya no avisan por tus canales de verdad ni gastan tu clave de Anthropic.** El
+  servidor de las pruebas heredaba del `.env` Telegram, webhook, correo, push y la clave de
+  Anthropic. En una máquina con Telegram configurado, cada pasada mandaba un resumen de
+  demostración; con la clave, «Preguntar a los datos» llamaría al modelo. Ahora vacía esas
+  variables (lo encontró `data-guardian`).
 
 ## Lote J · ninguna web ajena toca la app, y los restos de copias se ven (2026-10-16)
 
