@@ -91,7 +91,7 @@ function CaveatNote({ text }: { text: string }) {
           )}
           <button
             onClick={() => setOpen((o) => !o)}
-            className="mt-1.5 text-[12px] font-medium text-amber-200/60 underline-offset-2 hover:text-amber-200 hover:underline"
+            className="toque mt-1.5 text-[12px] font-medium text-amber-200/60 underline-offset-2 hover:text-amber-200 hover:underline"
           >
             {open ? t('discrepancias.ocultar') : t('discrepancias.verMedido')}
           </button>

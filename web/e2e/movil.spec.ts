@@ -306,11 +306,8 @@ test.describe('con movimiento reducido', () => {
   });
 });
 
-test('K8: los controles pequeños se aciertan aunque el dedo caiga al lado, sin quitarle sitio al de al lado', async ({ page }) => {
-  await page.goto('/tenis');
-  await page.waitForLoadState('networkidle');
-  /** Dónde «cuenta» como este control, recorriendo su vertical de 1 en 1 px por el centro. */
-  const zona = (loc: import('@playwright/test').Locator) =>
+/** Dónde «cuenta» como este control, recorriendo su vertical de 1 en 1 px por el centro. */
+const zona = (loc: import('@playwright/test').Locator) =>
     loc.first().evaluate(async (el) => {
       await el.scrollIntoView({ block: 'center' });
       // Dos fotogramas: las secciones de días van con `content-visibility: auto`, y lo recién
@@ -328,6 +325,10 @@ test('K8: los controles pequeños se aciertan aunque el dedo caiga al lado, sin 
       for (let y = Math.ceil(r.top); y < Math.floor(r.bottom); y++) propio.push(es(y + 0.5));
       return { alto, visible: Math.round(r.height), suyoEntero: propio.every(Boolean) };
     });
+
+test('K8: los controles pequeños se aciertan aunque el dedo caiga al lado, sin quitarle sitio al de al lado', async ({ page }) => {
+  await page.goto('/tenis');
+  await page.waitForLoadState('networkidle');
   const cabecera = page.locator('header');
   for (const [nombre, loc] of [
     ['Buscar', cabecera.getByRole('button', { name: 'Buscar' })],
@@ -360,4 +361,129 @@ test('K10: al cambiar de pantalla, la nueva empieza arriba, no a la altura de la
   await expect(page).toHaveURL(/\/tenis/);
   await page.waitForLoadState('networkidle');
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
+});
+
+// ---------------------------------------------------------------------------------------------
+// K12: lo que encontró la revisión de ui-tester al lote K.
+// ---------------------------------------------------------------------------------------------
+
+test('K12: tras desplegar «Hoy» y plegarlo, la carga siguiente reserva el alto que de verdad tiene', async ({ page }) => {
+  await page.route('**/api/today', (r) => r.fulfill({ json: SIETE }));
+  await page.goto('/futbol');
+  const panel = panelHoy(page);
+  /** Recarga con «Hoy» retenido: lo que se reservó mientras, y lo que mide cuando llega. */
+  const recargar = async () => {
+    await page.waitForTimeout(300);
+    await page.unroute('**/api/today');
+    let soltar!: () => void;
+    const retenido = new Promise<void>((r) => (soltar = r));
+    await page.route('**/api/today', async (r) => {
+      await retenido;
+      await r.fulfill({ json: SIETE });
+    });
+    await page.reload();
+    const hueco = page.getByTestId('hoy-hueco');
+    await expect(hueco).toBeAttached();
+    const reservado = (await hueco.boundingBox())!.height;
+    soltar();
+    await expect(panel).toBeVisible();
+    await page.waitForTimeout(200);
+    return { reservado, real: (await panel.boundingBox())!.height };
+  };
+  // Desplegado: la próxima vez nace con tres filas, y eso es lo que tiene que reservar.
+  await panel.getByRole('button', { name: 'Ver los 7 partidos' }).click();
+  await expect(panel.locator('tbody tr').filter({ visible: true })).toHaveCount(7);
+  const desplegado = await recargar();
+  expect(Math.abs(desplegado.reservado - desplegado.real), JSON.stringify(desplegado)).toBeLessThanOrEqual(2);
+  // Desplegado y plegado: la próxima vez nace plegado.
+  await panel.getByRole('button', { name: 'Ver los 7 partidos' }).click();
+  await panel.getByRole('button', { name: /^Hoy/ }).click();
+  await expect(panel.getByRole('button', { name: /^Hoy/ })).toHaveAttribute('aria-expanded', 'false');
+  const plegado = await recargar();
+  expect(Math.abs(plegado.reservado - plegado.real), JSON.stringify(plegado)).toBeLessThanOrEqual(2);
+});
+
+/** Una caja `desliza-x` de prueba, de 300 px, con `extra` px de más que desplazar. */
+const cajaDeslizable = (extra: number, id: string) => `{
+  const d = document.createElement('div');
+  d.id = '${id}'; d.className = 'desliza-x'; d.tabIndex = 0;
+  d.style.cssText = 'overflow-x:auto;width:300px';
+  d.innerHTML = '<div style="width:${300 + extra}px;height:20px"></div>';
+  document.querySelector('main').prepend(d);
+}`;
+const dosFotogramas = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+test('K12: el difuminado nunca tapa más de lo que queda por desplazar', async ({ page }) => {
+  await page.goto('/glosario');
+  await expect(page.locator('main')).toBeAttached();
+  await page.evaluate(`${cajaDeslizable(4, 'poca')}; ${cajaDeslizable(400, 'mucha')}`);
+  const lado = (id: string, prop: string) => page.evaluate(([i, p]) => parseFloat(getComputedStyle(document.getElementById(i)!).getPropertyValue(p)), [id, prop]);
+  await page.evaluate(dosFotogramas);
+  // A 740–768 px la tabla de selecciones sobraba 2 px y la última columna salía atenuada entera.
+  expect(await lado('poca', '--desliza-der')).toBeLessThanOrEqual(4.5);
+  expect(await lado('mucha', '--desliza-der')).toBe(32);
+  await page.evaluate(() => document.querySelectorAll<HTMLElement>('#poca, #mucha').forEach((e) => (e.scrollLeft = 9999)));
+  await page.evaluate(dosFotogramas);
+  expect(await lado('poca', '--desliza-izq')).toBeLessThanOrEqual(4.5);
+  expect(await lado('mucha', '--desliza-izq')).toBe(32);
+});
+
+test('K12: con el foco del teclado, la caja que se desplaza no se difumina (el anillo se ve entero)', async ({ page }) => {
+  await page.goto('/glosario');
+  await expect(page.locator('main')).toBeAttached();
+  await page.evaluate(`${cajaDeslizable(400, 'caja')}; const b = document.createElement('button'); b.id = 'antes'; b.textContent = 'antes'; document.querySelector('main').prepend(b);`);
+  await page.locator('#antes').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#caja')).toBeFocused();
+  expect(await page.locator('#caja').evaluate((e) => getComputedStyle(e).maskImage)).toBe('none');
+});
+
+test('K12: pulsar el fondo oscuro de la hoja no lo aclara', async ({ page }) => {
+  await page.goto('/destacados');
+  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Deportes' }).click();
+  const hoja = page.getByRole('dialog', { name: 'Deportes' });
+  const fondo = hoja.getByRole('button', { name: 'Cerrar' });
+  await fondo.evaluate((b) => Promise.all(b.getAnimations().map((a) => a.finished)));
+  await page.mouse.move(195, 120);
+  await page.mouse.down();
+  expect(await fondo.evaluate((b) => Number(getComputedStyle(b).opacity))).toBe(1);
+  await page.mouse.up();
+  await expect(hoja).toBeHidden();
+});
+
+test('K12: más controles pequeños llegan a 24 px sin pisar al de al lado', async ({ page }) => {
+  await page.goto('/tenis');
+  await page.waitForLoadState('networkidle');
+  const pie = page.getByRole('contentinfo');
+  const tarjeta = page.locator('article', { has: page.getByRole('link', { name: 'Abrir partido ›' }) }).first();
+  await tarjeta.getByRole('button', { name: /^¿Cuánto fiarse\?/ }).click();
+  for (const [nombre, loc] of [
+    ['Informes (pie)', pie.getByRole('button', { name: 'Informes' })],
+    ['Glosario (pie)', pie.getByRole('button', { name: 'Glosario' })],
+    ['Ver contra qué se ha medido', page.getByRole('button', { name: 'Ver contra qué se ha medido' })],
+    ['Calidad de datos (¿Cuánto fiarse?)', tarjeta.getByRole('button', { name: /^Calidad de datos/ })],
+    ['Incertidumbre (¿Cuánto fiarse?)', tarjeta.getByRole('button', { name: /^Incertidumbre/ })],
+  ] as const) {
+    const z = await zona(loc);
+    expect(z.alto, `${nombre}: ${JSON.stringify(z)}`).toBeGreaterThanOrEqual(24);
+    expect(z.suyoEntero, `${nombre}: ${JSON.stringify(z)}`).toBe(true);
+  }
+});
+
+test('K12: en inglés, el botón de «Hoy» dice «matches», como la cabecera', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('predictor.idioma', 'en'));
+  await page.route('**/api/today', (r) => r.fulfill({ json: SIETE }));
+  await page.goto('/futbol');
+  await expect(page.getByRole('button', { name: 'See all 7 matches' })).toBeVisible();
+});
+
+test.describe('en el escritorio, sin máscara', () => {
+  test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
+  test('K12: a 1280 px las cajas con desplazamiento no llevan máscara (el texto conserva su suavizado)', async ({ page }) => {
+    await page.goto('/confianza');
+    await page.waitForLoadState('networkidle');
+    const mascaras = await page.evaluate(() => [...document.querySelectorAll('.desliza-x')].map((e) => getComputedStyle(e).maskImage));
+    expect(mascaras.length).toBeGreaterThan(0);
+    expect(mascaras.filter((m) => m !== 'none')).toEqual([]);
+  });
 });

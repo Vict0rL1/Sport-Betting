@@ -179,6 +179,62 @@ pantalla táctil.
   el navegador, que no siempre llega. Medido: Confianza a 1.500 px, Tenis, «atrás», y vuelve a
   264 px, porque la pantalla aún no ha cargado sus datos cuando el navegador lo intenta.
 
+## K12 · Lo que encontró la revisión de `ui-tester`
+
+Revisión en Chromium a 390, 360 y 1280 px, más 768, 320, 280 y el borde de 639/640, en claro y
+oscuro y una pasada en inglés, con toques de verdad por CDP. Para comparar construyó la versión de
+antes del lote (bf1066d) y la sirvió aparte. 198 cargas de página: 0 errores de consola, 0
+peticiones fallidas y 0 desbordes. axe sin infracciones en Tenis a 390 y 1280, también con la hoja
+abierta. Antes del lote había una `scrollable-region-focusable` a 390, que K arregló. Nada
+bloqueante. Arreglado, cada uno con su prueba que falla antes (`movil.spec.ts`, «K12»):
+
+- **Medio · El alto que se reservaba para «Hoy» se quedaba viejo.**
+  - Al desplegar «Ver los N partidos», plegar el panel y recargar, la carga siguiente reservaba
+    el alto abierto: un hueco de unos 300 px y luego un salto (CLS 0,29; antes del lote, 0,001).
+  - Causa: mientras estaba desplegado no se guardaba ningún alto, tampoco al plegarlo.
+  - Ahora, desplegado, se guarda el alto sin las filas que la próxima vez no saldrán; plegado, el
+    plegado. La prueba recarga con «Hoy» retenido y compara lo reservado con lo que mide al llegar.
+- **El difuminado tapaba más de lo que quedaba.** Entre 740 y 768 px (un iPad en vertical), la
+  tabla de selecciones sobraba 2 px y salía con la última columna atenuada. Ahora cada lado crece
+  con los primeros 2 rem de desplazamiento que le quedan (`animation-range`): si sobran 2 px, se
+  difuminan 2.
+- **Con el foco del teclado, el anillo salía cortado** por la máscara en los lados difuminados.
+  Ahora, con el foco del teclado, no hay máscara.
+- **En el escritorio, el texto de esas tablas perdía el suavizado de subpíxel.** La máscara lo
+  pasaba a gris, y solo se nota en pantallas de 1x con ClearType. Desde 1024 px no hay máscara:
+  allí las tablas caben.
+- **Pulsar el fondo oscuro de una hoja lo aclaraba** (K6 lo atenuaba al 60 %). Los fondos de la
+  hoja de deportes y de la de filtros no se atenúan.
+- **Más controles pequeños llegan a 24 px**, sin tapar lo que se ve del de al lado: los enlaces del
+  pie (Informes, Bandeja, Ajustes, Diagnóstico, Glosario, ahora con 8 px entre líneas si se
+  parten), «Ver contra qué se ha medido» y las filas de «¿Cuánto fiarse?».
+- **En inglés,** el botón decía «See all 7 games» y la cabecera «7 matches»: ahora «See all 7
+  matches».
+
+Se queda como está, a propósito:
+
+- **Si los resultados fallan, el interruptor de «Hoy» desaparece y la lista sube 45 px.** Es K3
+  al revés: antes saltaba cuando los resultados llegaban bien (lo normal) y no cuando fallaban. Se
+  prefiere el caso normal.
+- **La primera visita reserva para «Hoy» un alto aproximado.** Las filas miden entre 62 y 101 px
+  según lo largos que sean los nombres. Afecta solo a la primera vez; desde la segunda se reserva
+  lo medido.
+- **La píldora de la barra y el asa de la hoja tienen poco contraste** (1,2:1 y 1,5–1,7:1). Son
+  adorno: dónde se está lo dicen la etiqueta (16,7:1 frente a 6,2:1) y `aria-current`, y el asa no
+  es un control. En claro, la píldora baja un poco el contraste del icono de color, que ya estaba
+  por debajo de 3:1 antes del lote.
+- **«Ver los N partidos» se mantiene al cambiar de pestaña** hasta recargar: es el mismo panel en
+  todas.
+
+Ya pasaba antes del lote (comparado con bf1066d), y no se toca aquí:
+
+- «Atrás» no devuelve a la altura de la lista. Está en «Fuera de este lote».
+- «¿Acertó?» en un perfil nuevo pliega el panel mientras carga.
+- A 360 px, «Wolverhampton» se parte por la mitad en «¿Acertó?».
+- A 320 y 280 px, la etiqueta «Posible value: …» sale 11 px de la pantalla.
+- En inglés, frases que vienen del servidor siguen en español, y hay formatos de número mezclados
+  («67.0 %» junto a «88.0%»).
+
 ## Fuera de este lote
 
 - **Que «atrás» vuelva exactamente donde se estaba.** Haría falta guardar la posición de cada

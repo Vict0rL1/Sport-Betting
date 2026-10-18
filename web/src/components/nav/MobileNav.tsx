@@ -85,7 +85,7 @@ export default function MobileNav({ ocultos = [] }: { ocultos?: string[] }) {
     <>
       {hoja && (
         <div ref={dialogo} className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label={t('nav.deportes')}>
-          <button aria-label={t('comun.cerrar')} className="anim-aparece absolute inset-0 bg-black/50" onClick={() => setHoja(false)} />
+          <button aria-label={t('comun.cerrar')} data-sin-pulsado className="anim-aparece absolute inset-0 bg-black/50" onClick={() => setHoja(false)} />
           <div
             ref={panel}
             data-testid="hoja-deportes"

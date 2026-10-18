@@ -62,11 +62,13 @@ function altoRecordado(abierto: boolean): number {
 function medir(el: HTMLElement | null): (() => void) | void {
   if (!el) return;
   const guardar = () => {
-    // Desplegado del todo en el móvil no es como nace: reservar ese alto la próxima vez lo dejaría
-    // con un hueco debajo.
-    if (el.dataset.todos) return;
+    // Desplegado del todo en el móvil no es como nace: la próxima vez salen FILAS_MOVIL filas, así
+    // que se guarda el alto sin las demás. Antes no se guardaba nada mientras estaba desplegado, y
+    // plegarlo así dejaba reservado el alto abierto: la carga siguiente saltaba unos 300 px (K12).
+    let alto = el.getBoundingClientRect().height;
+    if (el.dataset.todos) for (const f of el.querySelectorAll('[data-extra]')) alto -= f.getBoundingClientRect().height;
     try {
-      localStorage.setItem(CLAVE_ALTO, String(Math.round(el.getBoundingClientRect().height)));
+      localStorage.setItem(CLAVE_ALTO, String(Math.round(alto)));
     } catch {
       // Sin almacenamiento, la próxima vez se reserva solo la cabecera.
     }
@@ -146,7 +148,7 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
   const hayRes = historial.h != null || historial.cargando;
   // Mientras carga, el hueco que ocupó la última vez (Fase 7.8): aparecer de la nada empujaba
   // la página entera hacia abajo, que es el desplazamiento que más mide Lighthouse.
-  if (datos == null) return <div aria-hidden className="mb-5" style={{ height: altoRecordado(panelAbierto(guardado, vista)) }} />;
+  if (datos == null) return <div aria-hidden data-testid="hoy-hueco" className="mb-5" style={{ height: altoRecordado(panelAbierto(guardado, vista)) }} />;
   if (!hayHoy && !hayRes) return null;
   const activa: 'hoy' | 'resultados' = vista === 'resultados' && hayRes ? 'resultados' : hayHoy ? 'hoy' : 'resultados';
   const abierto = panelAbierto(guardado, activa);
@@ -216,6 +218,7 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
                       <tr
                         key={i}
                         className={`border-t border-(--line) first:border-t-0 ${i >= FILAS_MOVIL && !todos ? 'max-sm:hidden' : ''}`}
+                        data-extra={i >= FILAS_MOVIL || undefined}
                         // Un partido empezado no se esconde —sigue siendo lo de hoy— pero
                         // se atenúa: verlo igual que uno por jugar invita a apostarlo. Con la
                         // tinta tenue y no con `opacity` (G6: al 45 % quedaba en 2,1:1).

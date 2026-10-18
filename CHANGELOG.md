@@ -35,6 +35,14 @@ Plan, auditoría a 390 y 360 px y verificación en `docs/plans/fixes-K.md`. Prue
   pruebas («NHL sin datos» fallaba según el minuto). `RESULTS_REFRESH_HOURS=0` en
   `scripts/e2e-server.mjs`.
 - **K10 · Una pantalla nueva empieza arriba**, no a la altura a la que se dejó la anterior.
+- **K12 · Lo que encontró la revisión en el navegador** (`ui-tester`, nada bloqueante):
+  - Desplegar «Hoy», plegarlo y recargar ya no deja un hueco de 300 px.
+  - El difuminado nunca tapa más de lo que queda por desplazar.
+  - Con el foco del teclado se ve el anillo entero, y en el escritorio las tablas conservan el
+    suavizado del texto.
+  - El fondo de las hojas no se aclara al pulsarlo.
+  - Más controles pequeños llegan a 24 px.
+  - En inglés, «See all 7 matches».
 - **K11 · Los e2e ya no avisan por tus canales de verdad ni gastan tu clave de Anthropic.** El
   servidor de las pruebas heredaba del `.env` Telegram, webhook, correo, push y la clave de
   Anthropic. En una máquina con Telegram configurado, cada pasada mandaba un resumen de

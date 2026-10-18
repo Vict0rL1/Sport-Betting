@@ -346,13 +346,13 @@ function EnlacesSecundarios({ pathname, enLinea = false }: { pathname: string; e
     ['/glosario', t('nav.glosario')],
   ];
   return (
-    <span className={enLinea ? 'flex flex-wrap gap-x-3' : 'flex flex-col gap-0.5'}>
+    <span className={enLinea ? 'flex flex-wrap gap-x-3 gap-y-2' : 'flex flex-col gap-0.5'}>
       {enlaces.map(([ruta, etiqueta]) => (
         <button
           key={ruta}
           onClick={() => navigate(ruta)}
           aria-current={pathname === ruta ? 'page' : undefined}
-          className={enLinea ? `underline-offset-2 hover:underline ${pathname === ruta ? 'text-(--ink-body)' : ''}` : `rounded-lg px-3 py-1.5 text-left text-[13px] ${pathname === ruta ? 'bg-(--raised) text-(--ink-strong)' : 'text-(--ink-muted) hover:bg-(--raised) hover:text-(--ink-body)'}`}
+          className={enLinea ? `toque underline-offset-2 [--toque-y:4px] hover:underline ${pathname === ruta ? 'text-(--ink-body)' : ''}` : `rounded-lg px-3 py-1.5 text-left text-[13px] ${pathname === ruta ? 'bg-(--raised) text-(--ink-strong)' : 'text-(--ink-muted) hover:bg-(--raised) hover:text-(--ink-body)'}`}
         >
           {etiqueta}
         </button>

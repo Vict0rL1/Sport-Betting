@@ -38,7 +38,7 @@ function Fila({ titulo, valor, children }: { titulo: string; valor: React.ReactN
   const [open, setOpen] = useState(false);
   return (
     <div className="border-t border-(--line) py-2">
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-3 text-left text-[13px]" aria-expanded={open}>
+      <button onClick={() => setOpen((o) => !o)} className="toque flex w-full items-center justify-between gap-3 text-left text-[13px] [--toque-y:4px]" aria-expanded={open}>
         <span className="text-(--ink-soft)">{titulo}</span>
         <span className="flex items-center gap-2 text-(--ink-body)">
           {valor}
