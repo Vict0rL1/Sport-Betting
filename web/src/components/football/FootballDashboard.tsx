@@ -212,7 +212,12 @@ export default function FootballDashboard() {
       )}
 
       {/* ---- LEAGUE SUB-TABS ---- */}
-      {selectable.length > 0 ? (
+      {/* Mientras no han llegado las ligas (llegan con `meta`), su sitio y nada más (L1, lote L): antes
+          salía «No hay datos de …» en cada carga, que es decir que no hay datos cuando aún no se sabe,
+          y al llegar saltaba 100 px. Si la petición falla, lo dice el aviso de error. */}
+      {meta == null ? (
+        <div aria-hidden className="mb-4 h-[2.375rem]" />
+      ) : selectable.length > 0 ? (
         <nav
           // UNA FILA QUE SE DESLIZA EN EL MÓVIL, no nueve que se apilan.
           //

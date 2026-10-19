@@ -19,6 +19,7 @@ import { Seleccion } from './Seleccion';
 import { Mercado } from './Mercado';
 import { useSeguimiento } from '../seguimiento';
 import FiltrosMovil from './FiltrosMovil';
+import { SkeletonList } from '../ui';
 import { conNodos, useI18n, type Clave } from '../../i18n';
 import { deporteDe } from '../../lib/bets';
 
@@ -169,7 +170,8 @@ export default function TopPicks() {
       <div className="grid gap-4 lg:grid-cols-[1fr_20rem]">
         <div className={cargando ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
           {error && !datos && <p className="text-[14px] text-(--ink-soft)">{t('tp.errorLista')}</p>}
-          {!datos && !error && <p className="text-[14px] text-(--ink-soft)">{t('form.cargandoPartidos')}</p>}
+          {/* La forma de las tarjetas, no la palabra (L4, lote L), como en las demás pantallas. */}
+          {!datos && !error && <SkeletonList />}
           {datos && lista.length === 0 && (
             <div className="rounded-xl border border-(--line) bg-(--tint) p-5 text-[14px] leading-relaxed text-(--ink-soft)">
               {datos.partidos.length === 0 ? (
@@ -210,6 +212,9 @@ export default function TopPicks() {
           )}
         </div>
 
+        {/* «Mi selección» espera a la lista (L4, lote L): en el móvil va debajo, y la lista, al llegar,
+            la sacaba de la pantalla (CLS 0,28 con los datos reales). */}
+        {(datos || error) && (
         <aside id="mi-seleccion" className="scroll-mt-24 lg:sticky lg:top-4 lg:self-start">
           <div className="rounded-xl border border-(--line) bg-(--tint) p-4">
             <h3 className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-(--ink-strong)">
@@ -234,6 +239,7 @@ export default function TopPicks() {
           </div>
           <Mercado />
         </aside>
+        )}
       </div>
 
       {/* En el móvil el panel queda debajo de toda la lista: una barra fija con el

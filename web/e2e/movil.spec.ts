@@ -8,6 +8,11 @@ test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('predictor.recorrido', '1'));
 });
+// Una respuesta retenida o reescrita que sigue en vuelo cuando la prueba acaba no es un fallo de
+// la prueba: se suelta sin más.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'ignoreErrors' });
+});
 
 const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -486,4 +491,36 @@ test.describe('en el escritorio, sin máscara', () => {
     expect(mascaras.length).toBeGreaterThan(0);
     expect(mascaras.filter((m) => m !== 'none')).toEqual([]);
   });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Lote L (docs/plans/fixes-L.md).
+// ---------------------------------------------------------------------------------------------
+
+test('L7: «atrás» desde un partido vuelve a la altura a la que se dejó la lista', async ({ page }) => {
+  test.slow();
+  await page.goto('/tenis');
+  const enlaces = page.getByRole('link', { name: 'Abrir partido ›' });
+  await expect(enlaces.nth(2)).toBeAttached({ timeout: 20_000 });
+  // El enlace en mitad de la pantalla, donde lo toca una persona. Con scrollIntoViewIfNeeded la
+  // página quedaba a 6.695 px pero el enlace 1.551 px por encima de la pantalla (los días de encima
+  // se pintan más bajos que los 900 px que reservan), y click() bajaba él mismo a 4.732 antes de
+  // pulsar: la altura que se «dejaba» no era la del toque.
+  await enlaces.nth(2).evaluate((el) => el.scrollIntoView({ block: 'center' }));
+  await page.waitForTimeout(300);
+  const dejada = await page.evaluate(() => window.scrollY);
+  expect(dejada).toBeGreaterThan(600);
+  await page.evaluate(() =>
+    window.addEventListener('click', () => ((window as unknown as { alTocar: number }).alTocar = window.scrollY), { capture: true, once: true }),
+  );
+  await enlaces.nth(2).click();
+  // Se tocó desde ahí: click() no ha tenido que mover la lista.
+  expect(await page.evaluate(() => (window as unknown as { alTocar: number }).alTocar)).toBe(dejada);
+  await expect(page).toHaveURL(/\/partido\//);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/tenis/);
+  // La lista vuelve a cargar sus partidos: la altura se recupera en cuanto hay sitio para ella.
+  await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 8_000 }).toBeGreaterThan(dejada - 40);
+  expect(await page.evaluate(() => window.scrollY)).toBeLessThan(dejada + 40);
 });

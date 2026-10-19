@@ -97,7 +97,9 @@ export default function NhlDashboard() {
       <PicksPanel {...picks} caveat={t(CAVEATS.nhl)} demoOdds={false} confidenceReason={t('nhl.ordenConfianza')} stake={stake} onStakeChange={setStake} />
 
       {/* Como la NFL: el calendario es real aunque no haya precio, y aquí se dice por qué no lo hay. */}
-      <NflNoLineNote reason={meta?.oddsFallbackReason} detail={meta?.oddsFallbackDetail} hasKey={meta?.hasOddsKey ?? false} />
+      {/* `null` mientras no ha llegado `meta` (L3, lote L): con `?? false` decía «falta ODDS_API_KEY»
+          antes de saberlo (D14), y la nota salía encima de las listas, que la empujaban al llegar. */}
+      <NflNoLineNote reason={meta?.oddsFallbackReason} detail={meta?.oddsFallbackDetail} hasKey={meta ? meta.hasOddsKey : null} />
       <SlateTable rows={slate} demoOdds={false} refrescadas={meta?.oddsRefreshedAt} bands={meta?.bands} />
 
       {error && <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/[0.06] p-3 text-[15px] text-rose-200">{error}</div>}

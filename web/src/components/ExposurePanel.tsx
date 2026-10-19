@@ -92,11 +92,17 @@ function readBankroll(): number {
   }
 }
 
-export default function ExposurePanel() {
+export default function ExposurePanel({ onListo }: { onListo?: () => void } = {}) {
   const [bankroll, setBankroll] = useState<number>(readBankroll);
   const [book, setBook] = useState<Book | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { t, idioma } = useI18n();
+  // Avisa cuando ya se sabe qué pintar (L5, lote L): Apuestas espera a esto para enseñar los paneles
+  // y el historial a la vez. Antes, el panel llegaba encima y lo empujaba todo.
+  const cargado = book != null || error != null;
+  useEffect(() => {
+    if (cargado) onListo?.();
+  }, [cargado, onListo]);
 
   useEffect(() => {
     try {

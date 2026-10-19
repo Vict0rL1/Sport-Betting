@@ -13,7 +13,7 @@ import MatchCard from './MatchCard';
 import TrackRecordPanel from './TrackRecordPanel';
 import TennisEloPanel from './TennisEloPanel';
 import {
-  DayFilter, DayHeading, pillClass, StaleHistoryWarning, PicksPanel, DashboardHeader,
+  DayFilter, DayHeading, pillClass, StaleHistoryWarning, PicksPanel, DashboardHeader, SkeletonList,
   EmptySlate, SlateTable, VacioPorqueNoHayCuotas,
 } from './ui';
 import AskPanel from './AskPanel';
@@ -42,6 +42,10 @@ export default function TennisDashboard() {
   const [tournamentId, setTournamentId] = useFiltroQuery('torneo');
   const [matches, setMatches] = useState<UpcomingWithPrediction[]>([]);
   const [loading, setLoading] = useState(false);
+  // La primera carga de partidos ya contestó (L3, lote L). Hasta entonces, debajo de la cabecera solo
+  // va el esqueleto: «Preguntar a los datos», los circuitos y los torneos se pintaban antes y las dos
+  // listas, al llegar encima, los empujaban más de 500 px.
+  const [partidosCargados, setPartidosCargados] = useState(false);
   const [peticiones] = useState(contadorDePeticiones);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -146,8 +150,16 @@ export default function TennisDashboard() {
       .upcoming(tour, tournamentId)
       .then((m) => peticiones.esUltima(n) && setMatches(m))
       .catch((e) => peticiones.esUltima(n) && setError(String(e)))
-      .finally(() => peticiones.esUltima(n) && setLoading(false));
+      .finally(() => {
+        if (!peticiones.esUltima(n)) return;
+        setLoading(false);
+        setPartidosCargados(true);
+      });
   }, [tour, tournamentId]);
+
+  // Lo de debajo de la cabecera, cuando ya se sabe qué partidos hay: llegaron, o el circuito no tiene
+  // torneos con partidos (no se piden), o algo falló y hay que decirlo.
+  const listo = partidosCargados || (torneosDe === tour && tourTournaments.length === 0) || error != null;
 
   // Computed once: the collapsed header needs the short version and the expanded
   // one the full paragraph, and they must be the same judgement.
@@ -175,6 +187,10 @@ export default function TennisDashboard() {
         <TrackRecordPanel tour={tour} />
       </DashboardHeader>
 
+      {!listo ? (
+        <SkeletonList />
+      ) : (
+      <>
       {/* The ranked-markets panel. Built from the SAME rows the cards below
           render, so the two can never disagree about a number. */}
       <PicksPanel {...picks} caveat={t(CAVEATS.tennis)} demoOdds={demoOdds} stake={stake} onStakeChange={setStake} />
@@ -292,6 +308,8 @@ export default function TennisDashboard() {
       )}
 
       <TennisEloPanel tour={tour} onOpenPlayer={(t, id) => setProfile({ tour: t, id })} />
+      </>
+      )}
     </div>
   );
 }

@@ -39,6 +39,10 @@ export default function NflDashboard() {
     { id: string; name: string; elo: number; games: number; pf: number | null; pa: number | null }[]
   >([]);
   const [loading, setLoading] = useState(false);
+  // La primera carga de partidos ya contestó (L3, lote L): hasta entonces, debajo de la cabecera solo
+  // va el esqueleto. La nota de la línea, la fila de ligas y la clasificación se pintaban antes, y las
+  // listas, al llegar encima, los empujaban.
+  const [partidosCargados, setPartidosCargados] = useState(false);
   const [peticiones] = useState(contadorDePeticiones);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -88,7 +92,11 @@ export default function NflDashboard() {
         setPower(p.teams);
       })
       .catch((e) => peticiones.esUltima(n) && setError(String(e)))
-      .finally(() => peticiones.esUltima(n) && setLoading(false));
+      .finally(() => {
+        if (!peticiones.esUltima(n)) return;
+        setLoading(false);
+        setPartidosCargados(true);
+      });
   }, [league]);
 
   async function handleRefresh() {
@@ -145,6 +153,9 @@ export default function NflDashboard() {
   // Computed once: the collapsed header needs the short version and the
   // expanded one the full paragraph, and they must be the same judgement.
   const stale = staleness('nfl', leagueMeta?.historyThrough);
+  // Lo de debajo de la cabecera, cuando ya se sabe qué partidos hay: llegaron, o no hay liga que
+  // pedir, o algo falló y hay que decirlo.
+  const listo = partidosCargados || (meta != null && selectable.length === 0) || error != null;
 
   return (
     <div>
@@ -167,6 +178,10 @@ export default function NflDashboard() {
         {league && <NflTrackRecordPanel league={league} />}
       </DashboardHeader>
 
+      {!listo ? (
+        <SkeletonList />
+      ) : (
+      <>
       {/* The ranked-markets panel. Built from the SAME rows the cards below
           render, so the two can never disagree about a number. */}
       <PicksPanel
@@ -205,7 +220,12 @@ export default function NflDashboard() {
         </div>
       )}
 
-      {selectable.length > 0 ? (
+      {/* Mientras no han llegado las ligas (llegan con `meta`), su sitio y nada más (L1, lote L): antes
+          salía «No hay datos de …» en cada carga, que es decir que no hay datos cuando aún no se sabe,
+          y al llegar saltaba 100 px. Si la petición falla, lo dice el aviso de error. */}
+      {meta == null ? (
+        <div aria-hidden className="mb-4 h-[2.125rem]" />
+      ) : selectable.length > 0 ? (
         <div className="mb-4 flex flex-wrap gap-2">
           {selectable.map((l) => (
             <button
@@ -299,6 +319,8 @@ export default function NflDashboard() {
           <>{tr('nfl.eloPie')}</>
         }
       />
+      </>
+      )}
     </div>
   );
 }

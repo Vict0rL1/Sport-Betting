@@ -92,6 +92,9 @@ export function DashboardHeader({
             <StatusMark estado="aviso" color="#fcd34d" size={13} />{alert}
           </span>
         )}
+        {/* En el móvil, «Detalles» va siempre en su línea (L2, lote L): compartía la de los contadores
+            y, al llegar estos, ya no cabía y bajaba, con todo lo de debajo (+39 px en cada deporte). */}
+        <span aria-hidden className="basis-full sm:hidden" />
         <button
           onClick={toggle}
           aria-expanded={open}

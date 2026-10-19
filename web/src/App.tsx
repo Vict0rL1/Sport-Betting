@@ -22,6 +22,7 @@ import { ESCRITORIO, useMediaQuery } from './lib/useMediaQuery';
 import ErrorBoundary from './components/ErrorBoundary';
 import { registrarServiceWorker, ultimaRed, useEnLinea, useDesdeCache } from './lib/sinConexion';
 import { cuandoOciosa, entornoDelNavegador, precargar } from './lib/precarga';
+import { entornoDeVentana, volverA } from './lib/desplazamiento';
 import { SkeletonList } from './components/ui/states';
 
 // Cada pantalla en su propio trozo (Fase 5 / 7): la primera carga solo trae el armazón y la
@@ -89,7 +90,7 @@ export default function App() {
 }
 
 function Armazon() {
-  const { pathname } = useLocation();
+  const { pathname, key } = useLocation();
   const tipoNavegacion = useNavigationType();
   const navigate = useNavigate();
   const { t, setIdioma } = useI18n();
@@ -176,12 +177,28 @@ function Armazon() {
 
   // Una pantalla nueva empieza arriba (K10, lote K): sin esto se abría a la altura a la que se
   // había dejado la anterior (desde Confianza bajada, Tenis salía a media página). Solo al ir a
-  // otra (PUSH). «Atrás» no se toca: lo intenta el navegador, que no siempre llega (la pantalla
-  // aún no ha cargado sus datos). Una dirección que la página reescribe (la liga, un filtro) no
-  // mueve nada.
+  // otra (PUSH). Una dirección que la página reescribe (la liga, un filtro) no mueve nada.
   useEffect(() => {
     if (tipoNavegacion === 'PUSH') window.scrollTo(0, 0);
   }, [pathname, tipoNavegacion]);
+
+  // Y «atrás» vuelve a la altura a la que se dejó (L7, lote L). El navegador lo intentaba solo,
+  // pero la lista aún no había cargado y se quedaba corto (dejada a 4.732 px, vuelta a 301): aquí
+  // se guarda la altura de cada entrada del historial y se reintenta hasta que hay sitio. La
+  // entrada es la del navegador en ese instante (`history.state.key`, la misma clave que React
+  // Router da a cada una).
+  const alturas = useRef(new Map<string, number>());
+  useEffect(() => {
+    const guardar = () => alturas.current.set((window.history.state as { key?: string } | null)?.key ?? 'default', window.scrollY);
+    window.addEventListener('scroll', guardar, { passive: true });
+    return () => window.removeEventListener('scroll', guardar);
+  }, []);
+  useEffect(() => {
+    if (tipoNavegacion !== 'POP') return;
+    const y = alturas.current.get(key);
+    if (!y) return;
+    return volverA(y, entornoDeVentana());
+  }, [key, tipoNavegacion]);
 
   // Atajos (Fase 5.17): 1–9 y 0 (la décima) cambian de pestaña fuera de un campo de texto (tantas como pestañas).
   useEffect(() => {

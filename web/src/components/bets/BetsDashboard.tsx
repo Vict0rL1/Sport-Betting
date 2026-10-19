@@ -31,6 +31,11 @@ export default function BetsDashboard() {
   const [summary, setSummary] = useState<BetSummary | null>(null);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Bet | null>(null);
+  // Los dos paneles del banco avisan cuando ya han cargado (L5, lote L).
+  const [carteraLista, setCarteraLista] = useState(false);
+  const [papelListo, setPapelListo] = useState(false);
+  const alListaCartera = useCallback(() => setCarteraLista(true), []);
+  const alListoPapel = useCallback(() => setPapelListo(true), []);
   const [sport, setSport] = useState<string | null>(null);
   const [day, setDay] = useState<string | null>(null);
   const [borrador, setBorrador] = useState<Record<string, unknown> | null>(null);
@@ -95,6 +100,11 @@ export default function BetsDashboard() {
   };
 
   if (bets == null) return <SkeletonList />;
+  // Los dos paneles del banco y el historial salen a la vez, cuando los dos paneles han cargado
+  // (L5, lote L). Los paneles no pintan nada mientras cargan, y al llegar empujaban hacia abajo
+  // lo que hubiera debajo: el historial, y luego el esqueleto que lo esperaba (0,16 con los datos
+  // de verdad). Mientras, cargan ocultos y el esqueleto espera en su sitio.
+  const panelesListos = carteraLista && papelListo;
 
   return (
     <div className="space-y-4">
@@ -118,14 +128,17 @@ export default function BetsDashboard() {
         )}
       </div>
 
-      {/* El sizing de cartera vive aquí y no en la pestaña de fútbol porque es una
-          pregunta sobre TU dinero, no sobre un partido: cuánto hay en juego a la vez y
-          cuánto riesgo es eso de verdad. */}
-      <ExposurePanel />
+      {!panelesListos && <SkeletonList count={1} />}
+      <div hidden={!panelesListos} className="space-y-4">
+        {/* El sizing de cartera vive aquí y no en la pestaña de fútbol porque es una
+            pregunta sobre TU dinero, no sobre un partido: cuánto hay en juego a la vez y
+            cuánto riesgo es eso de verdad. */}
+        <ExposurePanel onListo={alListaCartera} />
 
-      {/* El banco del modelo va ANTES del formulario y separado del registro propio:
-          son dos cuentas distintas y mezclarlas haría imposible leer ninguna de las dos. */}
-      <PaperBankroll />
+        {/* El banco del modelo va ANTES del formulario y separado del registro propio:
+            son dos cuentas distintas y mezclarlas haría imposible leer ninguna de las dos. */}
+        <PaperBankroll onListo={alListoPapel} />
+      </div>
 
       {(adding || editing) && (
         <BetForm
@@ -144,6 +157,8 @@ export default function BetsDashboard() {
         />
       )}
 
+      {panelesListos && (
+      <>
       {summary && summary.totals.bets > 0 ? (
         <>
           <Card className="p-4">
@@ -206,6 +221,8 @@ export default function BetsDashboard() {
             </div>
           </section>
         ))
+      )}
+      </>
       )}
     </div>
   );

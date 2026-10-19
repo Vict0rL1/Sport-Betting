@@ -13,6 +13,7 @@ import { localeDe, useI18n } from '../i18n';
 import { SubNav } from '../components/nav/SubNav';
 import { useSubnavConfianza } from './subnav';
 import { num as numF } from '../lib/formato';
+import { SkeletonList } from '../components/ui';
 
 interface Ejecucion { id: number; source: string; started_at: string; finished_at: string | null; status: 'running' | 'ok' | 'error'; rows_added: number | null; rows_updated: number | null; error: string | null; detail: string | null }
 interface Trabajo { nombre: string; descripcion: string; cadenciaMin: number; cadenciaPorDefecto: number; enabled: boolean; lastRunAt: string | null; lastDurationMs: number | null; lastStatus: 'ok' | 'error' | 'running' | null; lastError: string | null; nextRunAt: string | null; runsOk: number; runsError: number }
@@ -57,6 +58,9 @@ export default function Diagnostico() {
   const datos = usarJson<DatosEstado>('/api/datos/estado');
   const cuota = usarJson<Cuota>('/api/odds-quota');
   const rendimiento = usarJson<{ cache: { entradas: number; aciertos: number; fallos: number; on: boolean; ttlSegundos: number }; compresion: boolean }>('/api/rendimiento');
+  // Las secciones, cuando han contestado las seis comprobaciones (L6, lote L). Cada una se pintaba
+  // vacía y crecía al llegar lo suyo, y «Rendimiento» aparecía de la nada: todo lo de debajo saltaba.
+  const listo = [trabajos, rendimiento, ingestas, errores, datos, cuota].every((x) => x !== null);
   return (
     <div>
       <p className="mb-1 text-[12px] text-(--ink-muted)">
@@ -66,6 +70,10 @@ export default function Diagnostico() {
       <h2 className="mb-1 text-[20px] font-semibold text-(--ink-strong)">{t('nav.diagnostico')}</h2>
       <p className="mb-4 text-[13px] text-(--ink-muted)">{t('diag.intro')}</p>
 
+      {!listo ? (
+        <SkeletonList />
+      ) : (
+      <>
       <Bloque titulo={t('ajustes.cadencias')}>
         {trabajos === 'error' && <p>{t('comun.error')}</p>}
         {trabajos && trabajos !== 'error' && (
@@ -165,6 +173,8 @@ export default function Diagnostico() {
       <UfcBacktest />
 
       <LatencyPanel />
+      </>
+      )}
     </div>
   );
 }

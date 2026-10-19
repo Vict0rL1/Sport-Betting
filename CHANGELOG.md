@@ -4,6 +4,30 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Lote L · en el móvil nada salta al cargar, y «atrás» vuelve donde se estaba (2026-10-19)
+
+Plan, medición y verificación en `docs/plans/fixes-L.md`. Pruebas nuevas en
+`web/e2e/saltos.spec.ts`, `web/e2e/movil.spec.ts` y `web/src/lib/desplazamiento.test.ts`.
+Saltos de diseño (CLS) de quien vuelve, con la red y la CPU de un móvil: Tenis 0,55 → 0,03,
+Diagnóstico 0,32 → 0,00, Destacados 0,28 → 0,00, Apuestas 0,20 → 0,00, NFL 0,15 → 0,00, NHL
+0,08 → 0,00, y Baloncesto, Béisbol y Fútbol 0,02–0,03 → 0,01 como mucho.
+
+- **L1 · Ya no dice «No hay datos» mientras cargan las ligas.** En fútbol, baloncesto, béisbol y
+  NFL salía en cada carga, aunque los datos estaban de camino.
+- **L2 · «Detalles» no baja de línea** cuando llegan los contadores de la cabecera.
+- **L3 · Tenis, NFL y NHL ya no saltan cuando llegan los partidos.** Lo de debajo de las listas
+  espera, con el esqueleto en su sitio; en Tenis, las listas lo empujaban más de 500 px. La NHL ya
+  no dice que falta la clave de cuotas antes de saberlo.
+- **L4 · Destacados:** el esqueleto en lugar de «Cargando partidos…», y «Mi selección» ya no se
+  va de la pantalla cuando llega la lista.
+- **L5 · Apuestas:** los dos paneles del banco y el historial salen a la vez; antes, los paneles
+  llegaban encima y lo empujaban todo.
+- **L6 · Diagnóstico:** las secciones esperan a sus seis comprobaciones en vez de crecer una a
+  una.
+- **L7 · «Atrás» vuelve a la altura a la que se dejó la lista.** Volvía casi arriba, porque cuando
+  el navegador lo intentaba la lista aún no había cargado. Ahora se reintenta hasta que hay sitio,
+  y se deja de intentar en cuanto la persona toca, desplaza o teclea.
+
 ## Lote K · la app en el móvil: que se vea bien y que responda (2026-10-17)
 
 Plan, auditoría a 390 y 360 px y verificación en `docs/plans/fixes-K.md`. Pruebas nuevas en
