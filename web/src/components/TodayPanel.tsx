@@ -56,14 +56,22 @@ const FILAS_MOVIL = 3;
  */
 function altoRecordado(abierto: boolean, vista: 'hoy' | 'resultados'): number {
   const movil = typeof window !== 'undefined' && window.matchMedia?.(MOVIL).matches;
-  const porDefecto = abierto ? 46 + 41 + (movil ? FILAS_MOVIL * 64 + 45 : 352) : 46;
+  return recordado(abierto, vista) ?? (abierto ? 46 + 41 + (movil ? FILAS_MOVIL * 64 + 45 : 352) : 46);
+}
+
+/**
+ * Solo lo medido, sin el habitual (N11, lote N). Para lo que se ve: con el habitual de «Hoy»
+ * abierto, la primera vez y sin partidos hoy, «¿Acertó?» se pintaba plegado dentro de una tarjeta
+ * vacía de 324 px que luego se cerraba.
+ */
+function recordado(abierto: boolean, vista: 'hoy' | 'resultados'): number | undefined {
   try {
     const [estado, valor] = (localStorage.getItem(CLAVE_ALTO) ?? '').split('|');
     const n = Number(valor ?? estado);
     const mismo = valor == null || estado === `${vista}:${abierto ? 1 : 0}`;
-    return mismo && Number.isFinite(n) && n > 0 && n < 6000 ? n : porDefecto;
+    return mismo && Number.isFinite(n) && n > 0 && n < 6000 ? n : undefined;
   } catch {
-    return porDefecto;
+    return undefined;
   }
 }
 
@@ -173,7 +181,7 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
   // En «¿Acertó?», mientras llegan los resultados, el alto que tenía (N2, lote N). «Hoy» llega antes:
   // abierto, el panel medía 136 px hasta que llegaban y luego más de 1.000; plegado, en el móvil
   // crecía 24 px cuando el resumen ocupaba dos líneas. Todo lo de debajo saltaba.
-  const reservaResultados = activa === 'resultados' && historial.cargando ? altoRecordado(abiertoPedido, vista) : undefined;
+  const reservaResultados = activa === 'resultados' && historial.cargando ? recordado(abiertoPedido, vista) : undefined;
 
   const porJugar = datos?.partidos.filter((p) => !p.empezado) ?? [];
   const conPrecio = datos?.partidos.filter((p) => p.precioReal).length ?? 0;

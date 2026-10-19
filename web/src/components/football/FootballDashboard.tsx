@@ -203,6 +203,7 @@ export default function FootballDashboard() {
         refreshTitle={tr('eq.refrescarTitulo')}
         chips={meta && (<>{tr('eq.chipsEquipos', { partidos: meta.counts.matches.toLocaleString(localeDe(idioma)), equipos: meta.counts.teams })}</>)}
         alert={staleLabel(stale, idioma)}
+        avisoPendiente={league == null && !sinLigas && error == null}
       >
           <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
             {tr('fb.lema')}
@@ -305,7 +306,7 @@ export default function FootballDashboard() {
       {loading || (!partidosCargados && !sinLigas && error == null) ? (
         <SkeletonList />
       ) : fixtures.length === 0 ? (
-        !sinLigas && <EmptySlate what={active?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
+        !sinLigas && error == null && <EmptySlate what={active?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />

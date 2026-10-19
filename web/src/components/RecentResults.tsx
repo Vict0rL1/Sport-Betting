@@ -223,7 +223,8 @@ function Fila({ r }: { r: Resultado }) {
                     palabra: «Wolverhampt / on Wanderers». Así la línea se parte entre palabras. */}
                 <span className={`min-w-0 break-words text-[14px] leading-snug ${gano ? 'font-medium text-(--ink-strong)' : 'text-(--ink-soft)'}`}>
                   {l.nombre}
-                  {(r.deporte === 'NFL' || r.deporte === 'NHL') && i === 0 && <span className="text-[12px] font-normal text-(--ink-faint)">{' @'}</span>}
+                  {/* Pegada al nombre (sin espacio, nunca empieza línea) y a 4 px, como antes de M (N13). */}
+                  {(r.deporte === 'NFL' || r.deporte === 'NHL') && i === 0 && <span className="ml-1 text-[12px] font-normal text-(--ink-faint)">@</span>}
                   {/* La separación es un espacio, ensanchado a los 8 px de antes, y no un margen: si
                       «ganó» baja de línea, el espacio se queda al final de la de arriba y la etiqueta
                       empieza alineada con el nombre (N7, lote N). Con su propio interlineado, mide lo

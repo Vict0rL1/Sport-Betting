@@ -167,6 +167,7 @@ export default function BaseballDashboard() {
           )
         }
         alert={staleLabel(stale, idioma)}
+        avisoPendiente={league == null && !sinLigas && error == null}
       >
         <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
           {conNodos(tr('bsb.lema'), { abridor: <strong>{tr('bsb.abridor')}</strong> })}
@@ -241,7 +242,7 @@ export default function BaseballDashboard() {
       {loading || (!partidosCargados && !sinLigas && error == null) ? (
         <SkeletonList />
       ) : games.length === 0 ? (
-        !sinLigas && <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
+        !sinLigas && error == null && <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />

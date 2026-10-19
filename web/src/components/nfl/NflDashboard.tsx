@@ -65,6 +65,9 @@ export default function NflDashboard() {
   }, []);
 
   const selectable = useMemo(() => leagues.filter((l) => l.hasUpcoming || l.games > 0), [leagues]);
+  // Sin ninguna liga con datos lo dice «No hay datos de fútbol americano todavía»: «el modelo está
+  // listo, pero no hay nada en el calendario» no sería verdad (N12, lote N; como N3).
+  const sinLigas = meta != null && selectable.length === 0;
   useEffect(() => {
     if (leagues.length === 0) return;
     if (league && selectable.some((l) => l.id === league)) return;
@@ -155,7 +158,7 @@ export default function NflDashboard() {
   const stale = staleness('nfl', leagueMeta?.historyThrough);
   // Lo de debajo de la cabecera, cuando ya se sabe qué partidos hay: llegaron, o no hay liga que
   // pedir, o algo falló y hay que decirlo.
-  const listo = partidosCargados || (meta != null && selectable.length === 0) || error != null;
+  const listo = partidosCargados || sinLigas || error != null;
 
   return (
     <div>
@@ -165,6 +168,7 @@ export default function NflDashboard() {
         refreshTitle={tr('eq.refrescarTitulo')}
         chips={meta && (<>{tr('eq.chipsEquipos', { partidos: meta.counts.games.toLocaleString(localeDe(idioma)), equipos: meta.counts.teams })}</>)}
         alert={staleLabel(stale, idioma)}
+        avisoPendiente={league == null && !sinLigas && error == null}
       >
           <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
             {tr('nfl.lema')}
@@ -264,7 +268,7 @@ export default function NflDashboard() {
       {loading ? (
         <SkeletonList />
       ) : games.length === 0 ? (
-        <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
+        !sinLigas && error == null && <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />

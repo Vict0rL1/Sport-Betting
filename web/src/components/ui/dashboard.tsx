@@ -54,6 +54,7 @@ function filaRecordada(pestana: string): number | undefined {
 export function DashboardHeader({
   chips,
   alert,
+  avisoPendiente = false,
   onRefresh,
   refreshing = false,
   refreshTitle,
@@ -63,6 +64,11 @@ export function DashboardHeader({
   chips?: ReactNode;
   /** Compact stale-data note. Stays visible when collapsed — see above. */
   alert?: string | null;
+  /**
+   * El aviso aún no se sabe: depende de la liga, que se elige un render después de llegar los
+   * contadores (fútbol, baloncesto, béisbol y NFL). Mientras, la fila guarda su sitio (N9, lote N).
+   */
+  avisoPendiente?: boolean;
   onRefresh?: () => void;
   refreshing?: boolean;
   refreshTitle?: string;
@@ -71,8 +77,10 @@ export function DashboardHeader({
 }) {
   const { t } = useI18n();
   const pestana = useLocation().pathname.split('/')[1] ?? '';
-  // Sin contadores, los datos aún no han llegado (todas las pestañas pasan `meta && …`).
-  const llegando = chips == null;
+  // Sin contadores, los datos aún no han llegado (todas las pestañas pasan `meta && …`). Y con el
+  // aviso pendiente, tampoco: la reserva se soltaba con los contadores, la fila se encogía 35 px y
+  // volvía a crecer al llegar el aviso de la liga (N9).
+  const llegando = chips == null || avisoPendiente;
   const fila = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = fila.current;

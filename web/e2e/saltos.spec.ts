@@ -276,6 +276,7 @@ for (const [ruta, meta] of [
   ['/futbol', '**/api/football/meta'],
   ['/baloncesto', '**/api/basketball/meta'],
   ['/beisbol', '**/api/baseball/meta'],
+  ['/nfl', '**/api/nfl/meta'],
 ] as const) {
   test(`N3: ${ruta} no dice «No hay partidos próximos para esta liga» ni mientras llegan las ligas ni sin datos`, async ({ page }) => {
     const soltar = await retener(page, meta);
@@ -383,4 +384,84 @@ test('N8: si no se pueden cargar las apuestas, Apuestas lo dice, no que no hay n
   await expect(page.getByText(/No se han podido cargar tus apuestas/)).toBeVisible();
   // «Todavía no has registrado ninguna apuesta» no se sabe: la petición falló.
   await expect(page.getByText('Todavía no has registrado ninguna apuesta')).toHaveCount(0);
+});
+
+test('N9: con el aviso de datos viejos de la liga, «Detalles» no baja y sube cuando llegan', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('predictor.today.open', '0'));
+  // En fútbol, baloncesto, béisbol y NFL el aviso es el de la liga elegida, y la liga se elige un
+  // render después de llegar los contadores. Una liga con partidos y con el archivo viejo.
+  let soltar: () => void = () => {};
+  let retenido: Promise<void> = Promise.resolve();
+  await page.route('**/api/football/leagues', async (r) => {
+    const res = await r.fetch();
+    const ligas = (await res.json()) as { id: string }[];
+    await r.fulfill({ response: res, json: ligas.map((l) => (l.id === 'epl' ? { ...l, hasUpcoming: true, upcomingCount: 3, matches: 100 } : l)) });
+  });
+  await page.route('**/api/football/meta', async (r) => {
+    await retenido;
+    const res = await r.fetch();
+    const m = (await res.json()) as { counts: object; leagues: { id: string }[] };
+    await r.fulfill({
+      response: res,
+      json: { ...m, dataSource: 'archivo', counts: { ...m.counts, matches: 1_234_567 }, leagues: m.leagues.map((l) => (l.id === 'epl' ? { ...l, historyThrough: '2025-09-28' } : l)) },
+    });
+  });
+  await page.goto('/futbol');
+  await expect(page.getByText(/1\.234\.567 partidos/)).toBeVisible();
+  await page.waitForTimeout(400);
+  retenido = new Promise<void>((ok) => (soltar = ok));
+  // Sin la liga en la dirección (como al llegar desde la barra de pestañas): se elige al llegar.
+  await page.goto('/futbol');
+  await expect(page.getByRole('button', { name: /^Detalles/ })).toBeVisible();
+  // Con la CPU de un móvil: sin ella, la liga se elige en el mismo fotograma en que llegan los
+  // contadores y el hueco entre los dos no se llega a pintar.
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 6 });
+  // Dónde está «Detalles» en cada fotograma desde que llegan los contadores.
+  await page.evaluate(() => {
+    const w = window as unknown as { __ys: number[] };
+    w.__ys = [];
+    const boton = [...document.querySelectorAll('button')].find((b) => /^Detalles/.test(b.textContent ?? ''))!;
+    const f = () => {
+      w.__ys.push(boton.getBoundingClientRect().y);
+      if (w.__ys.length < 300) requestAnimationFrame(f);
+    };
+    requestAnimationFrame(f);
+  });
+  soltar();
+  await expect(page.getByText(/1\.234\.567 partidos/)).toBeVisible();
+  await page.waitForTimeout(1000);
+  const ys = await page.evaluate(() => (window as unknown as { __ys: number[] }).__ys);
+  // Antes: los contadores llegaban, la fila se encogía 35 px y volvía a crecer con el aviso.
+  expect(Math.max(...ys) - Math.min(...ys)).toBeLessThan(1);
+});
+
+for (const [ruta, ligas] of [
+  ['/futbol', '**/api/football/leagues'],
+  ['/baloncesto', '**/api/basketball/leagues'],
+  ['/beisbol', '**/api/baseball/leagues'],
+  ['/nfl', '**/api/nfl/leagues'],
+] as const) {
+  test(`N12: si ${ruta} no puede cargar, dice el error y no «No hay partidos próximos para esta liga»`, async ({ page }) => {
+    await page.route(ligas, (r) => r.fulfill({ status: 500, json: { error: 'caída' } }));
+    await page.goto(ruta);
+    await expect(page.getByRole('button', { name: /Actualizar/ })).toBeVisible();
+    await expect(page.getByText(/No se pudo cargar|500|caída/).first()).toBeVisible();
+    // Con la petición fallida no se sabe si hay partidos: «el modelo está listo» no es verdad.
+    await expect(page.getByText(/No hay partidos próximos para/)).toHaveCount(0);
+  });
+}
+
+test('N11: la primera vez, sin partidos hoy, «¿Acertó?» no es una tarjeta vacía de 324 px mientras cargan los resultados', async ({ page }) => {
+  await page.route('**/api/today', (r) => r.fulfill({ json: { nota: null, partidos: [] } }));
+  const soltar = await retener(page, '**/api/recent-results*');
+  await page.goto('/tenis');
+  const cabecera = page.getByRole('button', { name: /^Cómo le fue al modelo/ });
+  await expect(cabecera).toBeVisible();
+  await page.waitForTimeout(400);
+  // Sin alto recordado no hay nada que reservar: se pinta plegado, a su alto. Antes reservaba el de
+  // «Hoy» abierto (324 px) en una tarjeta plegada y vacía, que luego se cerraba.
+  const panel = page.locator('section', { has: cabecera });
+  expect((await panel.boundingBox())!.height).toBeLessThan(120);
+  soltar();
 });

@@ -27,6 +27,16 @@ Plan, medición y verificación en `docs/plans/fixes-N.md`. Pruebas nuevas en `w
   - Los esqueletos de Apuestas y Diagnóstico dicen «Cargando…».
   - Si las apuestas no cargan, se dice.
   - En inglés, Diagnóstico ya no dice «añadidas».
+- **N9–N13 · Lo que encontró la revisión en el navegador de N:**
+  - **N9:** en fútbol, baloncesto, béisbol y NFL, la fila de los contadores ya no se encoge y
+    vuelve a crecer cuando llega el aviso de la liga. Béisbol, con los datos de verdad: 0,027 →
+    0,001.
+  - **N10:** «atrás» desde el glosario devuelve Confianza a su sitio aunque las secciones de
+    encima lleguen tarde. Antes la dejaba 1.500 px más abajo.
+  - **N11:** la primera vez, sin partidos hoy, «¿Acertó?» ya no es una tarjeta vacía de 324 px.
+  - **N12:** «No hay partidos próximos para esta liga» ya no sale junto a un error de carga, ni en
+    la NFL sin datos.
+  - **N13:** «@» vuelve a quedar a 4 px del visitante.
 
 ## Lote M · pantallas estrechas: nada se sale ni se parte por la mitad (2026-10-19)
 

@@ -158,6 +158,7 @@ export default function BasketballDashboard() {
         refreshTitle={tr('eq.refrescarTitulo')}
         chips={meta && (<>{tr('eq.chipsEquipos', { partidos: meta.counts.games.toLocaleString(localeDe(idioma)), equipos: meta.counts.teams })}</>)}
         alert={staleLabel(stale, idioma)}
+        avisoPendiente={league == null && !sinLigas && error == null}
       >
           <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
             {tr('bk.lema')}
@@ -234,7 +235,7 @@ export default function BasketballDashboard() {
       {loading || (!partidosCargados && !sinLigas && error == null) ? (
         <SkeletonList />
       ) : games.length === 0 ? (
-        !sinLigas && <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
+        !sinLigas && error == null && <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />

@@ -602,6 +602,42 @@ test.describe('«ganó» en el escritorio', () => {
   });
 });
 
+test.describe('«@» en el escritorio', () => {
+  test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
+  test('N13: en la NHL, «@» queda a 4 px del visitante, como antes del lote M', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('predictor.today.open', '1');
+      localStorage.setItem('predictor.today.view', 'resultados');
+    });
+    const dia = new Date().toISOString().slice(0, 10);
+    await page.route('**/api/recent-results*', async (r) => {
+      const res = await r.fetch();
+      const j = (await res.json()) as { resultados: unknown[] };
+      const [casa, fuera] = ['Boston Bruins', 'Toronto Maple Leafs'];
+      j.resultados.unshift({ deporte: 'NHL', liga: 'nhl', dia, cuando: null, partido: `${fuera} @ ${casa}`, casa, fuera, casaId: null, fueraId: null, favorito: casa, probabilidad: 0.58, ganador: casa, acerto: true, origen: 'reconstruida' });
+      await r.fulfill({ response: res, json: j });
+    });
+    await page.goto('/nhl');
+    const nombre = page.locator('li', { hasText: 'Boston Bruins' }).getByText('Toronto Maple Leafs');
+    await expect(nombre).toBeVisible();
+    const hueco = await nombre.evaluate((el) => {
+      const r = document.createRange();
+      const texto = [...el.childNodes].find((n) => n.nodeType === 3 && (n as Text).data.includes('Toronto')) as Text;
+      r.selectNodeContents(texto);
+      const fin = [...r.getClientRects()].at(-1)!.right;
+      const arroba = [...el.querySelectorAll('span')].find((s) => s.textContent?.includes('@'))!;
+      const t = arroba.firstChild as Text;
+      const i = t.data.indexOf('@');
+      r.setStart(t, i);
+      r.setEnd(t, i + 1);
+      return r.getClientRects()[0].left - fin;
+    });
+    // Antes de M: 4 px (el hueco de 8 menos el margen negativo de 4). Con M, el espacio duro de 12 px.
+    expect(hueco).toBeGreaterThan(3.5);
+    expect(hueco).toBeLessThan(5);
+  });
+});
+
 test('N7: si «ganó» baja de línea, empieza alineado con el nombre', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await conGanador(page, 'Wolverhampton Wanderers');
@@ -609,6 +645,40 @@ test('N7: si «ganó» baja de línea, empieza alineado con el nombre', async ({
   const m = await medirGano(page);
   expect(m.top, 'en otra línea').toBeGreaterThan(m.topNombre);
   expect(Math.abs(m.izquierda - m.inicioNombre)).toBeLessThan(0.5);
+});
+
+test('N10: «atrás» desde el glosario vuelve a Confianza donde se dejó, aunque la página siga creciendo al volver', async ({ page }) => {
+  test.slow();
+  await page.goto('/confianza');
+  const enlace = page.locator('main a[href="/glosario#brier"]');
+  await expect(enlace).toBeAttached({ timeout: 20_000 });
+  await page.waitForLoadState('networkidle');
+  for (let i = 0; i < 2; i++) {
+    await enlace.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+    await page.waitForTimeout(400);
+  }
+  const antes = (await enlace.boundingBox())!.y;
+  await enlace.click();
+  await expect(page).toHaveURL(/\/glosario/);
+  // Al volver, las secciones de encima (la evaluación y la analítica) tardan, como con los datos de
+  // verdad y la red de un móvil: más de los 3 s que hay para llegar a la altura, y la página ya
+  // tiene alto para la altura guardada antes de que lleguen.
+  let llegadas = 0;
+  await page.route(/\/api\/(evaluation|monitoring)/, async (r) => {
+    await espera(4000);
+    await r.continue();
+    llegadas++;
+  });
+  await page.goBack();
+  await expect(page).toHaveURL(/\/confianza$/);
+  // Hasta que llega lo de encima: antes, la página aún no mide lo que medía al irse. (Tras «atrás»
+  // no hay documento nuevo, y esperar a «networkidle» no espera a nada.)
+  await expect.poll(() => llegadas, { timeout: 20_000 }).toBeGreaterThanOrEqual(4);
+  await page.waitForTimeout(800);
+  // Antes: la vuelta acababa en cuanto la página tenía alto, las secciones de encima seguían
+  // llegando y el navegador, para no mover lo que se veía, bajaba la página 1.500 px más.
+  const despues = (await enlace.boundingBox())!.y;
+  expect(Math.abs(despues - antes), `antes ${Math.round(antes)}, después ${Math.round(despues)}`).toBeLessThan(40);
 });
 
 // Lote M (docs/plans/fixes-M.md): lo que la revisión del lote K vio y ya pasaba antes.

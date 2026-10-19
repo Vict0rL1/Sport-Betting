@@ -117,3 +117,66 @@ recién arrancado. En la pasada anterior fallaron dos:
 - «K12: en inglés, el botón de "Hoy" dice "matches"» falló una vez (el botón no apareció en 5 s),
   con las pruebas en paralelo. Sola (3 de 3), con su fichero (2 de 2) y en la pasada siguiente,
   pasa. Se apunta como intermitente.
+
+## Lo que encontró la revisión en el navegador del lote N
+
+`ui-tester` sobre 68842c6, comparado con L+M (cf85cca). Confirma los arreglos con sus propios
+barridos:
+
+- **Atrás:** el partido abierto vuelve a su sitio en 24 de 24 casos a 390 px (antes 10), y en 13 de
+  13 a 1280 (antes 8).
+- **«¿Acertó?»:** el salto pasa de 0,87–0,96 a 0,0013, y en la matriz de 36 estados queda en 0,0016
+  como mucho.
+- **N3 y N5:** ni «No hay partidos próximos» mientras carga, ni el formulario bajando.
+- **N6 y N7:** limpios en 141 anchos.
+- **Fallos:** 39 escenarios de fallo, y ningún esqueleto se queda para siempre.
+
+Arreglado, cada uno con su prueba que falla antes:
+
+- **N9 · La reserva de la fila de contadores se soltaba antes de tiempo (la causó N4).** En fútbol,
+  baloncesto, béisbol y NFL, el aviso de datos viejos es el de la liga elegida, y la liga se elige
+  un render después de llegar los contadores. La fila se encogía 35 px y volvía a crecer. Con el
+  aviso de todas las ligas forzado, fútbol pasaba de 0,106 a 0,200; con los datos de verdad,
+  béisbol de 0,011 a 0,027.
+  - **Arreglo:** con la liga sin elegir, la pestaña avisa de que el aviso está pendiente
+    (`avisoPendiente`), y la fila sigue reservando hasta entonces.
+  - **Medido después**, con los datos de verdad y la CPU de un móvil: béisbol, fútbol, baloncesto,
+    NFL y NHL, 0,001.
+- **N10 · «Atrás» desde el glosario dejaba Confianza 1.500 px más abajo (ya pasaba desde L7).**
+  - **Causa:** la vuelta acababa en cuanto la página tenía alto. Luego llegaban las secciones de
+    encima (la evaluación y la analítica), y el anclaje del navegador, para no mover lo que se veía,
+    bajaba la página lo que crecían.
+  - **Arreglo:** desde que se vuelve hasta que la persona toca, desplaza o teclea (o 10 s como
+    mucho), el navegador no recoloca la página (`overflow-anchor: none`). Alcanzada la altura, ya
+    no se mueve.
+  - **Por qué no un tiempo fijo:** el primer intento lo dejaba en los 3 s que hay para llegar, y con
+    lo de encima tardando más, fallaba igual.
+  - **Por qué no esperar a que la página deje de crecer:** el segundo intento lo hacía, pero la
+    página se queda quieta mientras espera algo y no avisa: parada 4 s, sin crecer.
+  - **Test:** con la evaluación y la analítica tardando 4 s al volver, el enlace queda donde estaba.
+    Antes quedaba fuera de la pantalla, a −872 px.
+  - **El test también medía mal:** tras «atrás» no hay documento nuevo, y esperar a «networkidle»
+    no espera a nada. Medía antes de que llegara lo de encima, y en la pasada en paralelo falló.
+    Ahora espera a que lleguen las cuatro respuestas.
+- **N11 · La primera vez, sin partidos hoy, «¿Acertó?» era una tarjeta vacía de 324 px (la causó
+  N2).** Se reservaba el alto habitual de «Hoy» abierto en un panel que se pinta plegado. Ahora
+  solo se reserva lo que se midió de verdad.
+- **N12 · «No hay partidos próximos para esta liga» salía junto a un error de carga, y en la NFL
+  sin datos.** Igual que N3: con la petición fallida no se sabe, y sin datos no es verdad.
+- **N13 · «@» quedaba a 2,8 px del visitante.** Antes de M estaba a 4. Ahora tiene un margen de 4 px
+  y sin espacio: sigue sin poder empezar una línea.
+
+Comprobado, sin cambio:
+
+- **A 280 px, «el nombre de la app baja de línea cuando llega la píldora de estado».** No se
+  reproduce. Con la base del e2e y con la copia de los datos de verdad, a 280 px la barra mide 96
+  px antes y después de la píldora, y el nombre ocupa dos líneas en los dos casos. Una explicación
+  posible es el cambio de fuente: IBM Plex Sans llega después de pintarse con la del sistema
+  (`font-display: swap`). Sin una prueba que falle, no se toca.
+- **Dentro de «¿Acertó?» abierto, el resumen pasa de una línea a dos al llegar (0,02),** y la
+  primera visita después de tocarlo salta 0,02–0,07. Es la primera vez que se pinta plegado y no
+  hay alto recordado. Desde la segunda visita, 0,0013.
+- **Ya pasaban antes de L:**
+  - con los resultados fallando y sin partidos hoy, «Hoy» desaparece y la página sube;
+  - «atrás» después de girar el teléfono en el partido no deja la lista donde estaba: lo recordado
+    es de la otra anchura.
