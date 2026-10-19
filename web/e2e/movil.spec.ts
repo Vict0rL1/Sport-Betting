@@ -524,3 +524,72 @@ test('L7: «atrás» desde un partido vuelve a la altura a la que se dejó la li
   await expect.poll(() => page.evaluate(() => window.scrollY), { timeout: 8_000 }).toBeGreaterThan(dejada - 40);
   expect(await page.evaluate(() => window.scrollY)).toBeLessThan(dejada + 40);
 });
+
+// Lote M (docs/plans/fixes-M.md): lo que la revisión del lote K vio y ya pasaba antes.
+
+test('M1: con un perfil nuevo, tocar «¿Acertó?» enseña los resultados en vez de plegar el panel', async ({ page }) => {
+  // Perfil nuevo: nada guardado de «Hoy» (el beforeEach solo salta el recorrido).
+  await page.route('**/api/today', (r) => r.fulfill({ json: SIETE }));
+  await page.goto('/tenis');
+  await expect(page.getByRole('button', { name: /^Hoy/ })).toHaveAttribute('aria-expanded', 'true');
+  await page.getByRole('button', { name: '¿Acertó?' }).click();
+  // Sigue abierto, ahora con lo que dijo el modelo y qué pasó.
+  await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByRole('button', { name: 'Qué hay hoy' })).toBeVisible();
+  // Y la próxima vez sale como se dejó.
+  await page.reload();
+  await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toHaveAttribute('aria-expanded', 'true');
+});
+
+for (const ancho of [360, 320, 280]) {
+  test(`M2: a ${ancho} px la ficha «Posible value» cabe en su tarjeta`, async ({ page }) => {
+    await page.setViewportSize({ width: ancho, height: 800 });
+    await page.goto('/tenis');
+    const fichas = page.getByText(/^Posible value: /);
+    await expect(fichas.first()).toBeAttached({ timeout: 20_000 });
+    // Antes, a 320 px la de «Alexander Zverev» acababa 11 px fuera de la pantalla, y a 280, 51.
+    for (const ficha of await fichas.all()) {
+      const [derecha, fila] = await ficha.evaluate((el) => [el.getBoundingClientRect().right, el.parentElement!.getBoundingClientRect().right]);
+      expect(derecha, `${await ficha.textContent()}: dentro de su fila`).toBeLessThanOrEqual(fila + 0.5);
+      expect(fila, 'y la fila, dentro de la pantalla').toBeLessThanOrEqual(ancho);
+    }
+  });
+}
+
+for (const ancho of [360, 320, 280]) {
+  test(`M3: a ${ancho} px, en «¿Acertó?» un nombre largo se parte entre palabras, no por la mitad`, async ({ page }) => {
+    await page.setViewportSize({ width: ancho, height: 800 });
+    await page.addInitScript(() => {
+      localStorage.setItem('predictor.today.open', '1');
+      localStorage.setItem('predictor.today.view', 'resultados');
+    });
+    // La base del e2e no tiene fútbol: un resultado con el nombre largo de la revisión, que ganó
+    // (con su «ganó» al lado, que es lo que le quitaba el sitio).
+    const dia = new Date().toISOString().slice(0, 10);
+    await page.route('**/api/recent-results*', async (r) => {
+      const res = await r.fetch();
+      const j = (await res.json()) as { resultados: unknown[] };
+      const casa = 'Wolverhampton Wanderers';
+      j.resultados.unshift({ deporte: 'Fútbol', liga: 'epl', dia, cuando: null, partido: `${casa} - Sheffield United`, casa, fuera: 'Sheffield United', casaId: null, fueraId: null, favorito: casa, probabilidad: 0.61, ganador: casa, acerto: true, origen: 'reconstruida' });
+      await r.fulfill({ response: res, json: j });
+    });
+    await page.goto('/futbol');
+    const fila = page.locator('li', { hasText: 'el modelo dijo' }).filter({ hasText: 'Sheffield United' });
+    await expect(fila).toBeVisible();
+    // Cuántas líneas ocupa la palabra «Wolverhampton» en el nombre: una, si no se parte.
+    const lineas = await fila.evaluate((li) => {
+      const w = document.createTreeWalker(li, NodeFilter.SHOW_TEXT);
+      for (let n = w.nextNode() as Text | null; n; n = w.nextNode() as Text | null) {
+        if (!n.data.startsWith('Wolverhampton')) continue;
+        const r = document.createRange();
+        r.setStart(n, 0);
+        r.setEnd(n, 'Wolverhampton'.length);
+        return r.getClientRects().length;
+      }
+      return -1;
+    });
+    expect(lineas).toBe(1);
+    // Y el veredicto, una vez y a la vista: a la derecha o, si no cabe, debajo del nombre.
+    await expect(fila.getByText('acertó', { exact: true }).filter({ visible: true })).toHaveCount(1);
+  });
+}

@@ -4,6 +4,17 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Lote M · pantallas estrechas: nada se sale ni se parte por la mitad (2026-10-19)
+
+Plan y verificación en `docs/plans/fixes-M.md`. Pruebas nuevas en `web/e2e/movil.spec.ts`.
+
+- **M1 · Tocar «¿Acertó?» ya no pliega el panel.** Con un perfil nuevo, el panel se cerraba entero
+  en vez de enseñar los resultados.
+- **M2 · La ficha «Posible value» cabe en su tarjeta** a 360, 320 y 280 px. Antes acababa hasta
+  51 px fuera de la pantalla.
+- **M3 · Los nombres largos se parten entre palabras.** «Wolverhampton» salía en dos líneas a
+  360 px y en tres a 320. Por debajo de 360 px, el veredicto va debajo del nombre.
+
 ## Lote L · en el móvil nada salta al cargar, y «atrás» vuelve donde se estaba (2026-10-19)
 
 Plan, medición y verificación en `docs/plans/fixes-L.md`. Pruebas nuevas en

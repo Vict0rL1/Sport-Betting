@@ -116,7 +116,9 @@ export default function MatchCard({
                 <span className="text-(--ink-soft)">{t('tt.parejo')}</span>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            {/* Las dos fichas bajan de línea si no caben juntas (M2, lote M): sin eso, a 320 px
+                «Posible value: Alexander Zverev» acababa 11 px fuera de la pantalla, y a 280, 51. */}
+            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
               <ReliabilityBadge reliability={prediction.reliability} />
               {valuePlayer && (
                 <Badge tone="good">{t('tt.posibleValue', { nombre: valuePlayer })}</Badge>

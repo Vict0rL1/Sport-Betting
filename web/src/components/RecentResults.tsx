@@ -218,14 +218,32 @@ function Fila({ r }: { r: Resultado }) {
             return (
               <div key={i} className="flex min-w-0 items-center gap-2">
                 <TeamCrest league={r.liga ?? ''} name={l.nombre} code={l.id} size={24} />
-                <span className={`min-w-0 break-words text-[14px] leading-snug ${gano ? 'font-medium text-(--ink-strong)' : 'text-(--ink-soft)'}`}>{l.nombre}</span>
-                {(r.deporte === 'NFL' || r.deporte === 'NHL') && i === 0 && <span className="-ml-1 text-[12px] text-(--ink-faint)">@</span>}
-                {gano && <span className="shrink-0 rounded bg-(--raised) px-1.5 py-px text-[10.5px] uppercase tracking-wide text-(--ink-soft)">{t('acerto.gano')}</span>}
+                {/* El nombre, la «@» y «ganó», en la misma línea de texto (M3, lote M). «Ganó» iba
+                    aparte y sin encogerse, y a 360 px le dejaba al nombre menos sitio que una
+                    palabra: «Wolverhampt / on Wanderers». Así la línea se parte entre palabras. */}
+                <span className={`min-w-0 break-words text-[14px] leading-snug ${gano ? 'font-medium text-(--ink-strong)' : 'text-(--ink-soft)'}`}>
+                  {l.nombre}
+                  {(r.deporte === 'NFL' || r.deporte === 'NHL') && i === 0 && <span className="text-[12px] font-normal text-(--ink-faint)">{' @'}</span>}
+                  {/* Con un espacio y no con margen: si baja de línea, empieza alineado con el nombre. */}
+                  {gano && (
+                    <>
+                      {' '}
+                      <span className="ml-0.5 inline-block whitespace-nowrap rounded bg-(--raised) px-1.5 py-px align-middle text-[10.5px] font-normal uppercase tracking-wide text-(--ink-soft)">
+                        {t('acerto.gano')}
+                      </span>
+                    </>
+                  )}
+                </span>
               </div>
             );
           })}
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-(--ink-soft)">
+          {/* Por debajo de 360 px, el veredicto va aquí y no a la derecha (M3): a su lado, el
+              nombre se quedaba en 100 px a 320 y en 60 a 280, menos que «Wolverhampton». */}
+          <span className="min-[360px]:hidden">
+            <Verdict ok={r.acerto} />
+          </span>
           <span>
             {conNodos(t('acerto.dijo'), {
               favorito: <span className="text-(--ink-body)">{r.favorito}</span>,
@@ -250,7 +268,7 @@ function Fila({ r }: { r: Resultado }) {
         </div>
       </div>
       {/* El veredicto lleva palabra y símbolo, nunca solo color. */}
-      <span className="mt-0.5 shrink-0">
+      <span className="mt-0.5 shrink-0 max-[359px]:hidden">
         <Verdict ok={r.acerto} />
       </span>
     </li>

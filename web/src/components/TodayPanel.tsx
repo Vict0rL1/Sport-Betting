@@ -125,16 +125,24 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
     } catch {
       // No poder recordarlo no impide aplicarlo ahora.
     }
+    // Los botones de las vistas solo están con el panel abierto, y cambiar de vista lo deja
+    // abierto (M1, lote M). Sin preferencia guardada, «¿Acertó?» nace plegado (panelAbierto), y
+    // tocarlo con un perfil nuevo plegaba el panel entero. Se guarda abierto: la próxima vez sale
+    // como se dejó, con el alto que se recuerda.
+    if (guardado == null) fijarAbierto(true);
   }
 
-  function alternar(abiertoAhora: boolean) {
-    const v = !abiertoAhora;
+  function fijarAbierto(v: boolean) {
     setGuardado(v ? '1' : '0');
     try {
       localStorage.setItem(CLAVE, v ? '1' : '0');
     } catch {
       // No poder recordar la preferencia no puede impedir aplicarla ahora.
     }
+  }
+
+  function alternar(abiertoAhora: boolean) {
+    fijarAbierto(!abiertoAhora);
   }
 
   // Se esconde solo si NO hay nada que enseñar en NINGUNA de las dos vistas. Los

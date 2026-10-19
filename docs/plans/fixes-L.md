@@ -126,7 +126,8 @@ donde se dejó; antes volvía a 301.
 
 ## Fuera de este lote
 
-Vistos en la revisión de `ui-tester` del lote K (ya pasaban antes de K), sin test todavía:
+Vistos en la revisión de `ui-tester` del lote K (ya pasaban antes de K). Los tres primeros se
+arreglaron en el lote M (`docs/plans/fixes-M.md`); el último sigue pendiente:
 
 - con un perfil nuevo, tocar «¿Acertó?» pliega el panel entero, y mientras carga solo se ve «Cómo
   le fue al modelo cargando…»;
