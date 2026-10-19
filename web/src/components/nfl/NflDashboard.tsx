@@ -4,7 +4,7 @@ import { rutaEquipo } from '../../rutas';
 import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../../lib/rutas';
 import {
   pillClass, SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader,
-  EmptySlate, LeagueFlag, NflNoLineNote, SlateTable, VacioPorqueNoHayCuotas} from '../ui';
+  EmptySlate, LeagueFlag, NflNoLineNote, SlateTable, VacioPorqueNoHayCuotas, SeccionDia} from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, nflPicks } from '../../lib/picks';
 import { nflSlate } from '../../lib/slate';
@@ -269,7 +269,7 @@ export default function NflDashboard() {
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
           {shownGroups.map((group) => (
-            <section key={group.key} className="seccion-dia mb-6">
+            <SeccionDia key={group.key} clave={group.key} className="mb-6">
               <DayHeading label={group.label} count={group.items.length} />
               {/* Two-up from 1280px. The shell got wider (see SHELL_WIDTH in
                   App.tsx) and a card does not want to BE wider — it wants a
@@ -288,7 +288,7 @@ export default function NflDashboard() {
                   <GameCard key={g.game.id} item={g} onOpenTeam={(lg, id) => setTeam({ league: lg, id })} />
                 ))}
               </div>
-            </section>
+            </SeccionDia>
           ))}
         </>
       )}

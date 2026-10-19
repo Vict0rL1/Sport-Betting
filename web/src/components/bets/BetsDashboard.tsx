@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { deleteBet, deporteDe, fetchBetSummary, fetchBets, patchBet, type Bet, type BetStatus, type BetSummary } from '../../lib/bets';
 import { dayLabel, groupByDay } from '../../lib/format';
-import { Card, DayHeading, EmptyState, Panel, SkeletonList, pillClass } from '../ui';
+import { Card, DayHeading, EmptyState, Panel, SkeletonList, pillClass, SeccionDia } from '../ui';
 import ExposurePanel from '../ExposurePanel';
 import BetCalendar from './BetCalendar';
 import ProfitCurve from './ProfitCurve';
@@ -36,6 +36,14 @@ export default function BetsDashboard() {
   const [papelListo, setPapelListo] = useState(false);
   const alListaCartera = useCallback(() => setCarteraLista(true), []);
   const alListoPapel = useCallback(() => setPapelListo(true), []);
+  // Abierto mientras cargan los paneles del banco, el formulario va encima de ellos hasta que se
+  // cierra (N5, lote N). Debajo, al llegar los paneles, bajaba 500 px y salía de la pantalla con lo
+  // escrito dentro, y pasaba siempre al llegar con un borrador desde «Mi selección». Abierto con
+  // los paneles ya en pantalla, va donde siempre: después del banco del modelo.
+  const [formArriba, setFormArriba] = useState(false);
+  // Si no se pueden cargar las apuestas, se dice (N8, lote N). Con la lista vacía salía «Todavía no
+  // has registrado ninguna apuesta», que no se sabe: la petición había fallado.
+  const [errorCarga, setErrorCarga] = useState(false);
   const [sport, setSport] = useState<string | null>(null);
   const [day, setDay] = useState<string | null>(null);
   const [borrador, setBorrador] = useState<Record<string, unknown> | null>(null);
@@ -53,6 +61,8 @@ export default function BetsDashboard() {
     } catch {
       // Sin almacenamiento: el formulario sale vacío.
     }
+    // Se llega con el borrador: los paneles del banco aún no han cargado.
+    setFormArriba(true);
     setAdding(true);
     setQ((prev) => {
       const n = new URLSearchParams(prev);
@@ -70,10 +80,12 @@ export default function BetsDashboard() {
       .then(([b, s]) => {
         setBets(b);
         setSummary(s);
+        setErrorCarga(false);
       })
       .catch(() => {
         setBets([]);
         setSummary(null);
+        setErrorCarga(true);
       });
   }, [sport]);
 
@@ -99,12 +111,30 @@ export default function BetsDashboard() {
     load();
   };
 
-  if (bets == null) return <SkeletonList />;
+  if (bets == null) return <SkeletonList etiqueta={t('comun.cargando')} />;
   // Los dos paneles del banco y el historial salen a la vez, cuando los dos paneles han cargado
   // (L5, lote L). Los paneles no pintan nada mientras cargan, y al llegar empujaban hacia abajo
   // lo que hubiera debajo: el historial, y luego el esqueleto que lo esperaba (0,16 con los datos
   // de verdad). Mientras, cargan ocultos y el esqueleto espera en su sitio.
   const panelesListos = carteraLista && papelListo;
+  const formulario = (adding || editing) && (
+    <BetForm
+      editing={editing}
+      borrador={editing ? null : borrador}
+      onDone={() => {
+        setAdding(false);
+        setEditing(null);
+        setFormArriba(false);
+        setBorrador(null);
+        load();
+      }}
+      onCancel={() => {
+        setAdding(false);
+        setEditing(null);
+        setFormArriba(false);
+      }}
+    />
+  );
 
   return (
     <div className="space-y-4">
@@ -115,7 +145,10 @@ export default function BetsDashboard() {
         </p>
         {!adding && !editing && (
           <button
-            onClick={() => setAdding(true)}
+            onClick={() => {
+              setFormArriba(!(carteraLista && papelListo));
+              setAdding(true);
+            }}
             className="rounded-lg bg-(--raised-2) px-3.5 py-2 text-[15px] font-medium text-(--ink-strong) ring-1 ring-inset ring-(--line-strong) transition hover:bg-(--raised-3)"
           >
             {t('registro.nueva')}
@@ -128,7 +161,8 @@ export default function BetsDashboard() {
         )}
       </div>
 
-      {!panelesListos && <SkeletonList count={1} />}
+      {formArriba && formulario}
+      {!panelesListos && <SkeletonList count={1} etiqueta={t('comun.cargando')} />}
       <div hidden={!panelesListos} className="space-y-4">
         {/* El sizing de cartera vive aquí y no en la pestaña de fútbol porque es una
             pregunta sobre TU dinero, no sobre un partido: cuánto hay en juego a la vez y
@@ -140,22 +174,7 @@ export default function BetsDashboard() {
         <PaperBankroll onListo={alListoPapel} />
       </div>
 
-      {(adding || editing) && (
-        <BetForm
-          editing={editing}
-          borrador={editing ? null : borrador}
-          onDone={() => {
-            setAdding(false);
-            setEditing(null);
-            setBorrador(null);
-            load();
-          }}
-          onCancel={() => {
-            setAdding(false);
-            setEditing(null);
-          }}
-        />
-      )}
+      {!formArriba && formulario}
 
       {panelesListos && (
       <>
@@ -202,13 +221,15 @@ export default function BetsDashboard() {
         </button>
       )}
 
-      {bets.length === 0 ? (
+      {errorCarga ? (
+        <EmptyState tone="critical" title={t('registro.errorCargar')} />
+      ) : bets.length === 0 ? (
         <EmptyState title={t('registro.vacioTitulo')}>
           {t('registro.vacio')}
         </EmptyState>
       ) : (
         groups.map((g) => (
-          <section key={g.key} className="seccion-dia">
+          <SeccionDia key={g.key} clave={g.key}>
             <DayHeading
               label={g.label}
               count={g.items.length}
@@ -219,7 +240,7 @@ export default function BetsDashboard() {
                 <BetRow key={b.id} bet={b} minEdge={minEdge} onSettle={settle} onEdit={setEditing} onDelete={remove} />
               ))}
             </div>
-          </section>
+          </SeccionDia>
         ))
       )}
       </>

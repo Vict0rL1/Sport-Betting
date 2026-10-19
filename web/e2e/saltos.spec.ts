@@ -168,3 +168,219 @@ test('L6: en Diagnóstico, las secciones no saltan según llega cada comprobaci�
   await page.waitForTimeout(500);
   expect(await saltos()).toBeLessThan(0.05);
 });
+
+// N2 (lote N): «¿Acertó?» con una semana de resultados (la base del e2e no tiene ninguno), que
+// llegan después que «Hoy», como en un móvil.
+const HOY = {
+  nota: null,
+  partidos: [1, 2, 3].map((i) => ({
+    deporte: 'Tenis',
+    cuando: new Date(Date.now() + i * 3600_000).toISOString(),
+    partido: `Jugador ${i} - Rival ${i}`,
+    favorito: `Jugador ${i}`,
+    probabilidad: 0.6,
+    precioReal: false,
+    empezado: false,
+  })),
+};
+async function conResultados(page: Page, retraso: () => number) {
+  await page.route('**/api/today', (r) => r.fulfill({ json: HOY }));
+  await page.route('**/api/recent-results*', async (r) => {
+    const res = await r.fetch();
+    const j = (await res.json()) as { resultados: unknown[] };
+    for (let i = 0; i < 12; i++) {
+      const dia = new Date(Date.now() - (i % 6) * 86_400_000).toISOString().slice(0, 10);
+      const [casa, fuera] = [`Jugador ${i}`, `Rival ${i}`];
+      j.resultados.push({ deporte: 'Tenis', liga: null, dia, cuando: null, partido: `${casa} - ${fuera}`, casa, fuera, casaId: null, fueraId: null, favorito: casa, probabilidad: 0.62, ganador: i % 3 ? casa : fuera, acerto: i % 3 !== 0, origen: 'reconstruida' });
+    }
+    const ms = retraso();
+    if (ms) await new Promise((ok) => setTimeout(ok, ms));
+    await r.fulfill({ response: res, json: j });
+  });
+}
+
+test('N2: tocar «¿Acertó?» no deja la semana abierta para la visita siguiente, y esa visita no salta', async ({ page }) => {
+  let retraso = 0;
+  await conResultados(page, () => retraso);
+  const saltos = await contarSaltos(page);
+  await page.goto('/tenis');
+  await page.getByRole('button', { name: '¿Acertó?' }).click();
+  await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.getByText('el modelo dijo').first()).toBeVisible();
+  await page.waitForTimeout(300);
+  retraso = 1500;
+  await page.reload();
+  // Nace plegado, como sin preferencia guardada: la tabla de la semana se consulta de vez en
+  // cuando. Antes se guardaba abierta, y cada carga la abría encima de cada pestaña.
+  await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toHaveAttribute('aria-expanded', 'false');
+  await page.waitForTimeout(2200);
+  expect(await saltos()).toBeLessThan(0.05);
+});
+
+test('N2: con «¿Acertó?» abierto a propósito, la visita siguiente reserva su alto mientras llegan los resultados', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('predictor.today.open', '1');
+    localStorage.setItem('predictor.today.view', 'resultados');
+  });
+  let retraso = 0;
+  await conResultados(page, () => retraso);
+  const saltos = await contarSaltos(page);
+  await page.goto('/tenis');
+  await expect(page.getByText('el modelo dijo').first()).toBeVisible();
+  await page.waitForTimeout(300);
+  retraso = 1500;
+  await page.reload();
+  await expect(page.getByText('el modelo dijo').first()).toBeVisible({ timeout: 10_000 });
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(500);
+  // Antes, el panel medía 136 px hasta que llegaban los resultados y luego más de 1.000.
+  expect(await saltos()).toBeLessThan(0.05);
+});
+
+test('N2: sin partidos hoy, la visita siguiente reserva lo que de verdad midió «Hoy»', async ({ page }) => {
+  // Hoy no hay partidos: el panel se queda en los resultados, plegado (46 px). La siguiente carga
+  // no puede reservar el alto de «Hoy» abierto: ese estado no se llegó a pintar.
+  await page.route('**/api/today', (r) => r.fulfill({ json: { nota: null, partidos: [] } }));
+  const saltos = await contarSaltos(page);
+  await page.goto('/tenis');
+  await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toBeVisible();
+  await page.waitForTimeout(500);
+  await page.reload();
+  await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toBeVisible();
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(500);
+  expect(await saltos()).toBeLessThan(0.05);
+});
+
+test('N2: plegado, «¿Acertó?» no crece cuando llega su resumen', async ({ page }) => {
+  // En el móvil, «Cómo le fue al modelo cargando…» cabe en una línea y el resumen ocupa dos: el panel
+  // crecía 24 px al llegar y empujaba todo lo de debajo.
+  await page.addInitScript(() => localStorage.setItem('predictor.today.view', 'resultados'));
+  let retraso = 0;
+  await conResultados(page, () => retraso);
+  await page.goto('/tenis');
+  const cabecera = page.getByRole('button', { name: /^Cómo le fue al modelo/ });
+  await expect(cabecera).toHaveAttribute('aria-expanded', 'false');
+  await page.waitForTimeout(500);
+  retraso = 1500;
+  await page.reload();
+  const panel = page.locator('section', { has: cabecera });
+  await expect(cabecera).toBeVisible();
+  const mientras = (await panel.boundingBox())!.height;
+  await page.waitForResponse('**/api/recent-results*');
+  await page.waitForTimeout(300);
+  expect(Math.abs((await panel.boundingBox())!.height - mientras)).toBeLessThan(1);
+});
+
+for (const [ruta, meta] of [
+  ['/futbol', '**/api/football/meta'],
+  ['/baloncesto', '**/api/basketball/meta'],
+  ['/beisbol', '**/api/baseball/meta'],
+] as const) {
+  test(`N3: ${ruta} no dice «No hay partidos próximos para esta liga» ni mientras llegan las ligas ni sin datos`, async ({ page }) => {
+    const soltar = await retener(page, meta);
+    await page.goto(ruta);
+    await expect(page.getByRole('button', { name: /Actualizar/ })).toBeVisible();
+    await page.waitForTimeout(400);
+    // «El modelo está listo, pero no hay nada en el calendario»: mientras llegan las ligas no se
+    // sabe, y sin datos del deporte no es verdad.
+    const falso = page.getByText(/No hay partidos próximos para/);
+    await expect(falso).toHaveCount(0);
+    soltar();
+    await expect(page.getByText(/No hay datos de .* todavía/)).toBeVisible();
+    await expect(falso).toHaveCount(0);
+  });
+}
+
+for (const ancho of [320, 390]) {
+  test(`N4: a ${ancho} px, la fila de los contadores no crece cuando llegan`, async ({ page }) => {
+    await page.setViewportSize({ width: ancho, height: 800 });
+    await page.addInitScript(() => localStorage.setItem('predictor.today.open', '0'));
+    // Como con los datos de verdad: muchos partidos y el aviso de datos viejos, que en el móvil no
+    // caben en la línea de «Actualizar». La base del e2e es de demostración y no lo tiene.
+    let soltar: () => void = () => {};
+    let retenido: Promise<void> = Promise.resolve();
+    await page.route('**/api/meta', async (r) => {
+      await retenido;
+      const res = await r.fetch();
+      const m = (await res.json()) as { counts: { matches: number } };
+      await r.fulfill({ response: res, json: { ...m, dataSource: 'archivo', historyThrough: '2025-09-28', counts: { ...m.counts, matches: 1_234_567 } } });
+    });
+    // Una visita antes: es lo de cada día, y así la app sabe lo que mide la fila en esta pestaña.
+    await page.goto('/tenis');
+    await expect(page.getByText(/1\.234\.567 partidos/)).toBeVisible();
+    await page.waitForTimeout(300);
+    retenido = new Promise<void>((ok) => (soltar = ok));
+    await page.reload();
+    const fila = page.locator('header > div', { has: page.getByRole('button', { name: /^Detalles/ }) });
+    await expect(fila).toBeVisible();
+    await page.waitForTimeout(300);
+    const detalles = page.getByRole('button', { name: /^Detalles/ });
+    const antes = (await fila.boundingBox())!.height;
+    const detallesAntes = (await detalles.boundingBox())!.y;
+    soltar();
+    await expect(page.getByText(/1\.234\.567 partidos/)).toBeVisible();
+    // Antes, los contadores y el aviso bajaban de línea y la fila crecía 28–36 px, con todo lo de
+    // debajo. Y «Detalles» tampoco se mueve: el hueco reservado queda encima de su línea.
+    expect(Math.abs((await fila.boundingBox())!.height - antes)).toBeLessThan(1);
+    expect(Math.abs((await detalles.boundingBox())!.y - detallesAntes)).toBeLessThan(1);
+  });
+}
+
+for (const [como, abrir] of [
+  ['con «Registrar apuesta»', async (page: Page) => {
+    await page.goto('/apuestas');
+    await page.getByRole('button', { name: /Registrar apuesta/ }).click();
+    await page.getByRole('button', { name: 'A mano' }).click();
+  }],
+  ['desde «Mi selección», con el borrador', async (page: Page) => {
+    await page.addInitScript(() => localStorage.setItem('predictor.borradorApuesta', '{}'));
+    await page.goto('/apuestas?borrador=1');
+  }],
+] as const) {
+  test(`N5: el formulario abierto ${como} mientras cargan los paneles del banco no se va abajo`, async ({ page }) => {
+    const soltarPapel = await retener(page, '**/api/paper');
+    const soltarCartera = await retener(page, '**/api/staking/book?*');
+    await abrir(page);
+    const cantidad = page.getByLabel('Cantidad');
+    await expect(cantidad).toBeVisible();
+    await cantidad.fill('25');
+    const antes = (await cantidad.boundingBox())!.y;
+    soltarPapel();
+    soltarCartera();
+    await expect(page.getByRole('heading', { name: 'El modelo apostando solo' })).toBeVisible();
+    await page.waitForTimeout(300);
+    // Antes, a 390 px bajaba 500 px y salía de la pantalla, con lo escrito dentro.
+    expect(Math.abs((await cantidad.boundingBox())!.y - antes)).toBeLessThan(1);
+    await expect(cantidad).toHaveValue('25');
+  });
+}
+
+test('N8: los esqueletos de Apuestas y Diagnóstico no dicen «Cargando partidos»', async ({ page }) => {
+  // Lo que oye un lector de pantalla mientras carga: allí no se cargan partidos.
+  const esqueleto = page.locator('main [aria-busy="true"]').first();
+  const soltarApuestas = await retener(page, '**/api/bets*');
+  await page.goto('/apuestas');
+  await expect(esqueleto).toBeVisible();
+  await expect(esqueleto).not.toHaveAttribute('aria-label', 'Cargando partidos');
+  soltarApuestas();
+  const soltarCartera = await retener(page, '**/api/staking/book?*');
+  await page.reload();
+  await expect(page.getByRole('button', { name: /Registrar apuesta/ })).toBeVisible();
+  await expect(esqueleto).toBeVisible();
+  await expect(esqueleto).not.toHaveAttribute('aria-label', 'Cargando partidos');
+  soltarCartera();
+  const soltarDiagnostico = await retener(page, '**/api/scheduler');
+  await page.goto('/confianza/diagnostico');
+  await expect(esqueleto).toBeVisible();
+  await expect(esqueleto).not.toHaveAttribute('aria-label', 'Cargando partidos');
+  soltarDiagnostico();
+});
+
+test('N8: si no se pueden cargar las apuestas, Apuestas lo dice, no que no hay ninguna', async ({ page }) => {
+  await page.route('**/api/bets*', (r) => r.fulfill({ status: 500, json: { error: 'caída' } }));
+  await page.goto('/apuestas');
+  await expect(page.getByText(/No se han podido cargar tus apuestas/)).toBeVisible();
+  // «Todavía no has registrado ninguna apuesta» no se sabe: la petición falló.
+  await expect(page.getByText('Todavía no has registrado ninguna apuesta')).toHaveCount(0);
+});

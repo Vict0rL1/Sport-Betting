@@ -4,7 +4,7 @@ import { rutaEquipo } from '../../rutas';
 import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../../lib/rutas';
 import {
   pillClass, SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader,
-  EmptySlate, LeagueFlag, SlateTable, VacioPorqueNoHayCuotas} from '../ui';
+  EmptySlate, LeagueFlag, SlateTable, VacioPorqueNoHayCuotas, SeccionDia} from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, baseballPicks } from '../../lib/picks';
 import { baseballSlate } from '../../lib/slate';
@@ -37,6 +37,9 @@ export default function BaseballDashboard() {
   const [games, setGames] = useState<BsbGameWithPrediction[]>([]);
   const [power, setPower] = useState<BsbPowerTeam[]>([]);
   const [loading, setLoading] = useState(false);
+  // Si hay partidos no se sabe hasta que contesta la primera petición (N3, lote N). Antes, mientras
+  // llegaban las ligas, salía «No hay partidos próximos para esta liga».
+  const [partidosCargados, setPartidosCargados] = useState(false);
   const [peticiones] = useState(contadorDePeticiones);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -62,6 +65,9 @@ export default function BaseballDashboard() {
     () => leagues.filter((l) => l.hasUpcoming || l.games > 0),
     [leagues],
   );
+  // Sin ninguna liga con datos lo dice «No hay datos de béisbol todavía»: «el modelo está listo,
+  // pero no hay nada en el calendario» no sería verdad (N3).
+  const sinLigas = meta != null && selectable.length === 0;
   useEffect(() => {
     if (leagues.length === 0) return;
     if (league && selectable.some((l) => l.id === league)) return;
@@ -90,7 +96,11 @@ export default function BaseballDashboard() {
         setPower(p.teams);
       })
       .catch((e) => peticiones.esUltima(n) && setError(String(e)))
-      .finally(() => peticiones.esUltima(n) && setLoading(false));
+      .finally(() => {
+        if (!peticiones.esUltima(n)) return;
+        setLoading(false);
+        setPartidosCargados(true);
+      });
   }, [league]);
 
   async function handleRefresh() {
@@ -228,15 +238,15 @@ export default function BaseballDashboard() {
         </div>
       )}
 
-      {loading ? (
+      {loading || (!partidosCargados && !sinLigas && error == null) ? (
         <SkeletonList />
       ) : games.length === 0 ? (
-        <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
+        !sinLigas && <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
           {shownGroups.map((group) => (
-            <section key={group.key} className="seccion-dia mb-6">
+            <SeccionDia key={group.key} clave={group.key} className="mb-6">
               <DayHeading label={group.label} count={group.items.length} />
               {/* Two-up from 1280px. The shell got wider (see SHELL_WIDTH in
                   App.tsx) and a card does not want to BE wider — it wants a
@@ -255,7 +265,7 @@ export default function BaseballDashboard() {
                   <GameCard key={g.game.id} item={g} onOpenTeam={(lg, id) => setTeam({ league: lg, id })} />
                 ))}
               </div>
-            </section>
+            </SeccionDia>
           ))}
         </>
       )}

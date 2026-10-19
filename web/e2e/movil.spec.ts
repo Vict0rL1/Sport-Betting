@@ -525,6 +525,92 @@ test('L7: «atrás» desde un partido vuelve a la altura a la que se dejó la li
   expect(await page.evaluate(() => window.scrollY)).toBeLessThan(dejada + 40);
 });
 
+test('N1: en una lista de muchos días, «atrás» vuelve al mismo partido, no solo a la misma altura', async ({ page }) => {
+  test.slow();
+  // Seis días de partidos. Cada día se pinta al acercarse a la pantalla (content-visibility) y,
+  // mientras, reserva 900 px: al volver, los días de encima no miden lo que medían al irse.
+  await page.route('**/api/matches/upcoming?*', async (r) => {
+    const res = await r.fetch();
+    const base = (await res.json()) as { match: { id: string; commence_time: string } }[];
+    const dias = Array.from({ length: 6 }, (_, d) =>
+      base.map((x) => ({ ...x, match: { ...x.match, id: `${x.match.id}-d${d}`, commence_time: new Date(Date.parse(x.match.commence_time) + d * 86_400_000).toISOString() } })),
+    ).flat();
+    await r.fulfill({ response: res, json: dias });
+  });
+  await page.goto('/tenis');
+  const enlaces = page.getByRole('link', { name: 'Abrir partido ›' });
+  await expect(enlaces.nth(20)).toBeAttached({ timeout: 20_000 });
+  const elegido = enlaces.nth((await enlaces.count()) - 3);
+  // Dos veces: al acercarse, los días de en medio se pintan y cambian de alto.
+  for (let i = 0; i < 2; i++) {
+    await elegido.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+    await page.waitForTimeout(400);
+  }
+  const href = (await elegido.getAttribute('href'))!;
+  const antes = (await elegido.boundingBox())!.y;
+  await elegido.click();
+  await expect(page).toHaveURL(/\/partido\//);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/tenis/);
+  // El partido que se abrió, donde estaba en la pantalla.
+  const mismo = page.locator(`a[href="${href}"]`);
+  await expect.poll(async () => Math.round((await mismo.boundingBox())?.y ?? -1e6), { timeout: 8_000 }).toBeGreaterThan(antes - 40);
+  await page.waitForTimeout(600);
+  const despues = (await mismo.boundingBox())!.y;
+  expect(Math.abs(despues - antes), `antes ${Math.round(antes)}, después ${Math.round(despues)}`).toBeLessThan(40);
+});
+
+/** «¿Acertó?» con un resultado de fútbol que ganó el de casa (la base del e2e no tiene fútbol). */
+async function conGanador(page: import('@playwright/test').Page, casa: string) {
+  await page.addInitScript(() => {
+    localStorage.setItem('predictor.today.open', '1');
+    localStorage.setItem('predictor.today.view', 'resultados');
+  });
+  const dia = new Date().toISOString().slice(0, 10);
+  await page.route('**/api/recent-results*', async (r) => {
+    const res = await r.fetch();
+    const j = (await res.json()) as { resultados: unknown[] };
+    j.resultados.unshift({ deporte: 'Fútbol', liga: 'epl', dia, cuando: null, partido: `${casa} - Sheffield United`, casa, fuera: 'Sheffield United', casaId: null, fueraId: null, favorito: casa, probabilidad: 0.61, ganador: casa, acerto: true, origen: 'reconstruida' });
+    await r.fulfill({ response: res, json: j });
+  });
+}
+
+/** La etiqueta «ganó» de la fila y dónde acaba el nombre al que acompaña. */
+async function medirGano(page: import('@playwright/test').Page) {
+  const gano = page.locator('li', { hasText: 'Sheffield United' }).getByText('ganó', { exact: true });
+  await expect(gano).toBeVisible();
+  return gano.evaluate((el) => {
+    const nombre = el.parentElement!.firstChild as Text;
+    const r = document.createRange();
+    r.selectNodeContents(nombre);
+    const lineas = [...r.getClientRects()];
+    const g = el.getBoundingClientRect();
+    return { alto: g.height, izquierda: g.left, top: g.top, finNombre: lineas.at(-1)!.right, inicioNombre: lineas[0].left, topNombre: lineas.at(-1)!.top };
+  });
+}
+
+test.describe('«ganó» en el escritorio', () => {
+  test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
+  test('N7: «ganó» mide y se separa del nombre como antes del lote M', async ({ page }) => {
+    await conGanador(page, 'Arsenal');
+    await page.goto('/futbol');
+    const m = await medirGano(page);
+    // Antes de M: 17,8 px de alto y 8 px del nombre. Con M, 16,4 y unos 5.
+    expect(m.alto).toBeGreaterThan(17.4);
+    expect(m.izquierda - m.finNombre).toBeGreaterThan(7);
+    expect(m.izquierda - m.finNombre).toBeLessThan(9);
+  });
+});
+
+test('N7: si «ganó» baja de línea, empieza alineado con el nombre', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  await conGanador(page, 'Wolverhampton Wanderers');
+  await page.goto('/futbol');
+  const m = await medirGano(page);
+  expect(m.top, 'en otra línea').toBeGreaterThan(m.topNombre);
+  expect(Math.abs(m.izquierda - m.inicioNombre)).toBeLessThan(0.5);
+});
+
 // Lote M (docs/plans/fixes-M.md): lo que la revisión del lote K vio y ya pasaba antes.
 
 test('M1: con un perfil nuevo, tocar «¿Acertó?» enseña los resultados en vez de plegar el panel', async ({ page }) => {
@@ -536,9 +622,7 @@ test('M1: con un perfil nuevo, tocar «¿Acertó?» enseña los resultados en ve
   // Sigue abierto, ahora con lo que dijo el modelo y qué pasó.
   await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByRole('button', { name: 'Qué hay hoy' })).toBeVisible();
-  // Y la próxima vez sale como se dejó.
-  await page.reload();
-  await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toHaveAttribute('aria-expanded', 'true');
+  // La visita siguiente, en saltos.spec.ts (N2): nace plegado, sin saltar.
 });
 
 for (const ancho of [360, 320, 280]) {
@@ -556,7 +640,7 @@ for (const ancho of [360, 320, 280]) {
   });
 }
 
-for (const ancho of [360, 320, 280]) {
+for (const ancho of [360, 359, 320, 280]) {
   test(`M3: a ${ancho} px, en «¿Acertó?» un nombre largo se parte entre palabras, no por la mitad`, async ({ page }) => {
     await page.setViewportSize({ width: ancho, height: 800 });
     await page.addInitScript(() => {

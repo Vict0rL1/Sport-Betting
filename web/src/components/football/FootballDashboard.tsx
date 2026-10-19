@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { reportClientLatency } from '../../lib/liveOdds';
 import {
   pillClass, SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader,
-  EmptySlate, LeagueFlag, SlateTable, VacioPorqueNoHayCuotas} from '../ui';
+  EmptySlate, LeagueFlag, SlateTable, VacioPorqueNoHayCuotas, SeccionDia} from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, footballPicks } from '../../lib/picks';
 import { footballSlate } from '../../lib/slate';
@@ -46,6 +46,9 @@ export default function FootballDashboard() {
   const fixtures = useMemo(() => filasDeLaLiga(fixturesTodas, (f) => f.fixture.league, league), [fixturesTodas, league]);
   const [power, setPower] = useState<FbPowerTeam[]>([]);
   const [loading, setLoading] = useState(false);
+  // Si hay partidos no se sabe hasta que contesta la primera petición (N3, lote N). Antes, mientras
+  // llegaban las ligas, salía «No hay partidos próximos para esta liga».
+  const [partidosCargados, setPartidosCargados] = useState(false);
   const [peticiones] = useState(contadorDePeticiones);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -77,6 +80,9 @@ export default function FootballDashboard() {
     () => leagues.filter((l) => l.hasUpcoming || l.matches > 0),
     [leagues],
   );
+  // Sin ninguna liga con datos lo dice «No hay datos de fútbol todavía»: «el modelo está listo,
+  // pero no hay nada en el calendario» no sería verdad (N3).
+  const sinLigas = meta != null && selectable.length === 0;
 
   useEffect(() => {
     // Hasta que no llegan las ligas no se toca la URL: un enlace profundo no puede perderse
@@ -107,7 +113,11 @@ export default function FootballDashboard() {
         setPower(p.teams);
       })
       .catch((e) => peticiones.esUltima(n) && setError(String(e)))
-      .finally(() => peticiones.esUltima(n) && setLoading(false));
+      .finally(() => {
+        if (!peticiones.esUltima(n)) return;
+        setLoading(false);
+        setPartidosCargados(true);
+      });
   }, [league]);
 
   /**
@@ -292,15 +302,15 @@ export default function FootballDashboard() {
         />
       )}
 
-      {loading ? (
+      {loading || (!partidosCargados && !sinLigas && error == null) ? (
         <SkeletonList />
       ) : fixtures.length === 0 ? (
-        <EmptySlate what={active?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
+        !sinLigas && <EmptySlate what={active?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
           {shownGroups.map((group) => (
-            <section key={group.key} className="seccion-dia mb-6">
+            <SeccionDia key={group.key} clave={group.key} className="mb-6">
               <DayHeading label={group.label} count={group.items.length} />
               {/* Two-up from 1280px. The shell got wider (see SHELL_WIDTH in
                   App.tsx) and a card does not want to BE wider — it wants a
@@ -323,7 +333,7 @@ export default function FootballDashboard() {
                   />
                 ))}
               </div>
-            </section>
+            </SeccionDia>
           ))}
         </>
       )}

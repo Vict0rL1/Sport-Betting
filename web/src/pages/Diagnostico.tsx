@@ -71,7 +71,7 @@ export default function Diagnostico() {
       <p className="mb-4 text-[13px] text-(--ink-muted)">{t('diag.intro')}</p>
 
       {!listo ? (
-        <SkeletonList />
+        <SkeletonList etiqueta={t('comun.cargando')} />
       ) : (
       <>
       <Bloque titulo={t('ajustes.cadencias')}>
@@ -114,7 +114,7 @@ export default function Diagnostico() {
                 <StatusMark estado={e.status === 'ok' ? 'ok' : e.status === 'error' ? 'error' : 'aviso'} color={colorEstado(e.status)} />
                 <span className="text-(--ink-body)">{e.source}</span>
                 <span>{fecha(e.finished_at ?? e.started_at)}</span>
-                {e.rows_added != null && <span>· {e.rows_added} añadidas{e.rows_updated != null ? `, ${e.rows_updated} actualizadas` : ''}</span>}
+                {e.rows_added != null && <span>{t('diag.anadidas', { n: e.rows_added })}{e.rows_updated != null ? t('diag.actualizadas', { n: e.rows_updated }) : ''}</span>}
                 {e.error && <span style={{ color: STATUS.critical }}>{e.error}</span>}
               </li>
             ))}

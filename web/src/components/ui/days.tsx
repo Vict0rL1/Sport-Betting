@@ -1,10 +1,38 @@
 // Piezas compartidas de la interfaz: days. Partido de ui/index.tsx en la Fase 5 (ningún import cambia: index.tsx reexporta).
-import type { ReactNode } from 'react';
+import { useCallback, type ReactNode } from 'react';
+import { useLocation } from 'react-router';
 import { PROFIT_TEXT, LOSS_TEXT } from '../../lib/theme';
 import { relativeTime, shortTime } from '../../lib/format';
+import { altoDeSeccion, recordarAltoDeSeccion } from '../../lib/desplazamiento';
 import { CheckIcon, CrossIcon } from '../icons';
 import { pillClass } from './states';
 import { useI18n } from '../../i18n';
+
+/**
+ * Un día de una lista larga. No se pinta hasta que se acerca a la pantalla (Fase 7.8,
+ * `.seccion-dia`), y recuerda lo que mide en esta entrada del historial (N1, lote N). Al volver con
+ * «atrás», los días de fuera de la pantalla reservan lo que medían al irse, no 900 px, y la altura
+ * a la que se vuelve cae en el mismo partido.
+ */
+export function SeccionDia({ clave, className = '', children }: { clave: string; className?: string; children: ReactNode }) {
+  const { key } = useLocation();
+  const id = `${key}|${clave}`;
+  const medir = useCallback(
+    (el: HTMLElement | null) => {
+      if (!el || typeof ResizeObserver === 'undefined') return;
+      const ro = new ResizeObserver(([e]) => recordarAltoDeSeccion(id, e.contentRect.height));
+      ro.observe(el);
+      return () => ro.disconnect();
+    },
+    [id],
+  );
+  const alto = altoDeSeccion(id);
+  return (
+    <section ref={medir} className={`seccion-dia ${className}`.trim()} style={alto ? { containIntrinsicSize: `auto ${alto}px` } : undefined}>
+      {children}
+    </section>
+  );
+}
 /**
  * The heading above one day's matches.
  *

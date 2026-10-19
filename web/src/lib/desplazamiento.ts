@@ -63,3 +63,18 @@ export function volverA(y: number, entorno: EntornoDesplazamiento, limiteMs = 30
   marco = entorno.fotograma(intentar);
   return parar;
 }
+
+// Lo que mide cada día de una lista larga en cada entrada del historial (N1, lote N). Un día no se
+// pinta hasta que se acerca a la pantalla (`.seccion-dia`, content-visibility), y mientras reserva
+// 900 px. Al volver con «atrás», la lista se monta de nuevo: los días de fuera de la pantalla
+// reservaban 900 px y no lo que medían al irse, y la altura guardada caía en otro partido (en
+// Tenis con seis días, 2.800 px más abajo). Con lo que medían, la página vuelve a medir lo mismo.
+const altosDeSecciones = new Map<string, number>();
+
+export function recordarAltoDeSeccion(id: string, alto: number): void {
+  if (alto > 0) altosDeSecciones.set(id, Math.round(alto));
+}
+
+export function altoDeSeccion(id: string): number | undefined {
+  return altosDeSecciones.get(id);
+}

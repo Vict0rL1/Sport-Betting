@@ -4,6 +4,30 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Lote N · lo que encontró la revisión en el navegador de L y M (2026-10-19)
+
+Plan, medición y verificación en `docs/plans/fixes-N.md`. Pruebas nuevas en `web/e2e/saltos.spec.ts`,
+`movil.spec.ts` e `idioma.spec.ts`.
+
+- **N1 · «Atrás» vuelve al mismo partido en las listas de muchos días.** Volvía a la altura, pero
+  los días de encima medían distinto al volver y caía en otro partido (hasta 7.800 px). NHL con
+  datos de verdad: 24 de 24 en su sitio a 390 px, y 13 de 13 a 1280.
+- **N2 · «¿Acertó?» ya no hace saltar la carga siguiente.** Tocarlo lo deja abierto solo en esa
+  visita. Abierto a propósito, reserva su alto mientras llegan los resultados. La carga siguiente
+  saltaba 0,87–0,96. Ahora salta 0,02 como mucho, salvo la primera visita tras tocarlo (0,07 en
+  Destacados).
+- **N3 · Fútbol, baloncesto y béisbol ya no dicen «No hay partidos próximos para esta liga»**
+  mientras llegan las ligas, ni cuando no hay datos del deporte.
+- **N4 · La fila de los contadores no crece al llegar** (36 px en el móvil, 63 a 320).
+- **N5 · El formulario de apuesta ya no baja 500 px** si se abre mientras cargan los paneles del
+  banco, ni al llegar con un borrador desde «Mi selección».
+- **N6 · A 359 px sale un solo veredicto.**
+- **N7 · «ganó» recupera su alto y su separación.**
+- **N8 · Detalles:**
+  - Los esqueletos de Apuestas y Diagnóstico dicen «Cargando…».
+  - Si las apuestas no cargan, se dice.
+  - En inglés, Diagnóstico ya no dice «añadidas».
+
 ## Lote M · pantallas estrechas: nada se sale ni se parte por la mitad (2026-10-19)
 
 Plan y verificación en `docs/plans/fixes-M.md`. Pruebas nuevas en `web/e2e/movil.spec.ts`.

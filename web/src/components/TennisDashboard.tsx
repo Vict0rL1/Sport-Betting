@@ -14,7 +14,7 @@ import TrackRecordPanel from './TrackRecordPanel';
 import TennisEloPanel from './TennisEloPanel';
 import {
   DayFilter, DayHeading, pillClass, StaleHistoryWarning, PicksPanel, DashboardHeader, SkeletonList,
-  EmptySlate, SlateTable, VacioPorqueNoHayCuotas,
+  EmptySlate, SlateTable, VacioPorqueNoHayCuotas, SeccionDia,
 } from './ui';
 import AskPanel from './AskPanel';
 import { staleLabel, staleness } from '../lib/staleness';
@@ -279,7 +279,7 @@ export default function TennisDashboard() {
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
           <ShortSlateNote matches={matches} meta={meta} />
           {shownGroups.map((group) => (
-            <section key={group.key} className="seccion-dia mb-6">
+            <SeccionDia key={group.key} clave={group.key} className="mb-6">
               <DayHeading label={group.label} count={group.items.length} />
               {/* Two-up from 1280px. The shell got wider (see SHELL_WIDTH in
                   App.tsx) and a card does not want to BE wider — it wants a
@@ -302,7 +302,7 @@ export default function TennisDashboard() {
                   />
                 ))}
               </div>
-            </section>
+            </SeccionDia>
           ))}
         </>
       )}

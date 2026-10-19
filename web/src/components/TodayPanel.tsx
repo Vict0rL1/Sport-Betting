@@ -46,13 +46,22 @@ const FILAS_MOVIL = 3;
  * El alto con el que se pintó la última vez. Sin recuerdo (primera visita), el habitual: plegado,
  * la cabecera (46 px); desplegado, cabecera, pestañas y la lista a su alto máximo de 22 rem, que es
  * lo que ocupa en cuanto hay más de ocho partidos (en el móvil, tres filas de dos líneas y el botón).
+ *
+ * Solo si se midió con lo mismo pedido al cargar, la vista guardada y si nace abierto (N2, lote N).
+ * Medido con «¿Acertó?» abierto y usado al nacer plegado, reservaba un hueco que luego se cerraba.
+ * Lo pedido y no lo pintado: sin partidos hoy se pinta «¿Acertó?» aunque se pidiera «Hoy», y antes
+ * de que lleguen los partidos solo se sabe lo pedido. Y hasta
+ * 6.000 px: la semana de resultados abierta pasa de los 1.200 de antes, que eran de cuando el panel
+ * abierto medía 439 como mucho. Lo guardado sin estado (antes del lote N) vale como entonces.
  */
-function altoRecordado(abierto: boolean): number {
+function altoRecordado(abierto: boolean, vista: 'hoy' | 'resultados'): number {
   const movil = typeof window !== 'undefined' && window.matchMedia?.(MOVIL).matches;
   const porDefecto = abierto ? 46 + 41 + (movil ? FILAS_MOVIL * 64 + 45 : 352) : 46;
   try {
-    const n = Number(localStorage.getItem(CLAVE_ALTO));
-    return Number.isFinite(n) && n > 0 && n < 1200 ? n : porDefecto;
+    const [estado, valor] = (localStorage.getItem(CLAVE_ALTO) ?? '').split('|');
+    const n = Number(valor ?? estado);
+    const mismo = valor == null || estado === `${vista}:${abierto ? 1 : 0}`;
+    return mismo && Number.isFinite(n) && n > 0 && n < 6000 ? n : porDefecto;
   } catch {
     return porDefecto;
   }
@@ -68,7 +77,8 @@ function medir(el: HTMLElement | null): (() => void) | void {
     let alto = el.getBoundingClientRect().height;
     if (el.dataset.todos) for (const f of el.querySelectorAll('[data-extra]')) alto -= f.getBoundingClientRect().height;
     try {
-      localStorage.setItem(CLAVE_ALTO, String(Math.round(alto)));
+      // Con lo pedido al cargar (N2): la sección lo lleva en data-vista y data-abierto.
+      localStorage.setItem(CLAVE_ALTO, `${el.dataset.vista}:${el.dataset.abierto}|${Math.round(alto * 10) / 10}`);
     } catch {
       // Sin almacenamiento, la próxima vez se reserva solo la cabecera.
     }
@@ -127,22 +137,20 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
     }
     // Los botones de las vistas solo están con el panel abierto, y cambiar de vista lo deja
     // abierto (M1, lote M). Sin preferencia guardada, «¿Acertó?» nace plegado (panelAbierto), y
-    // tocarlo con un perfil nuevo plegaba el panel entero. Se guarda abierto: la próxima vez sale
-    // como se dejó, con el alto que se recuerda.
-    if (guardado == null) fijarAbierto(true);
+    // tocarlo con un perfil nuevo plegaba el panel entero. Abierto en esta visita, sin guardarlo
+    // (N2, lote N): guardado, cada carga siguiente abría la tabla de la semana encima de cada
+    // pestaña. La próxima vez nace plegado, como siempre.
+    if (guardado == null) setGuardado('1');
   }
 
-  function fijarAbierto(v: boolean) {
+  function alternar(abiertoAhora: boolean) {
+    const v = !abiertoAhora;
     setGuardado(v ? '1' : '0');
     try {
       localStorage.setItem(CLAVE, v ? '1' : '0');
     } catch {
       // No poder recordar la preferencia no puede impedir aplicarla ahora.
     }
-  }
-
-  function alternar(abiertoAhora: boolean) {
-    fijarAbierto(!abiertoAhora);
   }
 
   // Se esconde solo si NO hay nada que enseñar en NINGUNA de las dos vistas. Los
@@ -156,16 +164,29 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
   const hayRes = historial.h != null || historial.cargando;
   // Mientras carga, el hueco que ocupó la última vez (Fase 7.8): aparecer de la nada empujaba
   // la página entera hacia abajo, que es el desplazamiento que más mide Lighthouse.
-  if (datos == null) return <div aria-hidden data-testid="hoy-hueco" className="mb-5" style={{ height: altoRecordado(panelAbierto(guardado, vista)) }} />;
+  // Lo pedido al cargar (N2): con eso se guarda el alto y con eso se busca.
+  const abiertoPedido = panelAbierto(guardado, vista);
+  if (datos == null) return <div aria-hidden data-testid="hoy-hueco" className="mb-5" style={{ height: altoRecordado(abiertoPedido, vista) }} />;
   if (!hayHoy && !hayRes) return null;
   const activa: 'hoy' | 'resultados' = vista === 'resultados' && hayRes ? 'resultados' : hayHoy ? 'hoy' : 'resultados';
   const abierto = panelAbierto(guardado, activa);
+  // En «¿Acertó?», mientras llegan los resultados, el alto que tenía (N2, lote N). «Hoy» llega antes:
+  // abierto, el panel medía 136 px hasta que llegaban y luego más de 1.000; plegado, en el móvil
+  // crecía 24 px cuando el resumen ocupaba dos líneas. Todo lo de debajo saltaba.
+  const reservaResultados = activa === 'resultados' && historial.cargando ? altoRecordado(abiertoPedido, vista) : undefined;
 
   const porJugar = datos?.partidos.filter((p) => !p.empezado) ?? [];
   const conPrecio = datos?.partidos.filter((p) => p.precioReal).length ?? 0;
 
   return (
-    <section ref={medir} data-todos={todos || undefined} className="mb-5 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
+    <section
+      ref={medir}
+      data-todos={todos || undefined}
+      data-vista={vista}
+      data-abierto={abiertoPedido ? 1 : 0}
+      className="mb-5 overflow-hidden rounded-xl border border-(--line) bg-(--tint)"
+      style={reservaResultados ? { minHeight: reservaResultados } : undefined}
+    >
       <button
         onClick={() => alternar(abierto)}
         aria-expanded={abierto}

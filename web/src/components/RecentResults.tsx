@@ -224,11 +224,14 @@ function Fila({ r }: { r: Resultado }) {
                 <span className={`min-w-0 break-words text-[14px] leading-snug ${gano ? 'font-medium text-(--ink-strong)' : 'text-(--ink-soft)'}`}>
                   {l.nombre}
                   {(r.deporte === 'NFL' || r.deporte === 'NHL') && i === 0 && <span className="text-[12px] font-normal text-(--ink-faint)">{' @'}</span>}
-                  {/* Con un espacio y no con margen: si baja de línea, empieza alineado con el nombre. */}
+                  {/* La separación es un espacio, ensanchado a los 8 px de antes, y no un margen: si
+                      «ganó» baja de línea, el espacio se queda al final de la de arriba y la etiqueta
+                      empieza alineada con el nombre (N7, lote N). Con su propio interlineado, mide lo
+                      que medía fuera del nombre. */}
                   {gano && (
                     <>
-                      {' '}
-                      <span className="ml-0.5 inline-block whitespace-nowrap rounded bg-(--raised) px-1.5 py-px align-middle text-[10.5px] font-normal uppercase tracking-wide text-(--ink-soft)">
+                      <span className="[word-spacing:0.25rem]">{' '}</span>
+                      <span className="inline-block whitespace-nowrap rounded bg-(--raised) px-1.5 py-px align-middle text-[10.5px] font-normal leading-normal uppercase tracking-wide text-(--ink-soft)">
                         {t('acerto.gano')}
                       </span>
                     </>
@@ -268,7 +271,8 @@ function Fila({ r }: { r: Resultado }) {
         </div>
       </div>
       {/* El veredicto lleva palabra y símbolo, nunca solo color. */}
-      <span className="mt-0.5 shrink-0 max-[359px]:hidden">
+      {/* `max-[360px]` es «menos de 360 px»: con `max-[359px]`, entre 359 y 360 salían los dos (N6). */}
+      <span className="mt-0.5 shrink-0 max-[360px]:hidden">
         <Verdict ok={r.acerto} />
       </span>
     </li>
