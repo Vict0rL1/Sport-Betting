@@ -316,14 +316,23 @@ lo callan: 0 de 20 pasadas, frente a 9 de 20 antes.
 
 Todo esto es local. Nada se ha probado contra la copia del 12 de octubre.
 
+Con el código del commit, en un contenedor sin datos (`data/` vacío):
+
 - `npm run typecheck`, `npm run lint`: limpios.
-- `npm test`: 606/606.
+- `npm test`: 630/630 en el servidor y 89/89 en la web.
 - `npm run build`: ok.
-- `npm run verify:data`: 528/528.
-- `npm run audit`: 4332/4332.
 - Playwright: 187/187.
-- `npm run auditoria:copia` sobre la copia local de `data/`. El original quedó intacto (mismos
-  SHA-256). Reproduce:
+- `npm run verify:data`: 401 de 402. Falla «puntos: useSurface=false deja las desviaciones
+  exactamente en cero», igual que en b3d0abc sin estos cambios: sin partidos de tenis no hay nada
+  que ajustar.
+- `npm run audit`: 4/4, con todos los deportes «sin datos, saltado».
+
+Antes, con la copia local de `data/` (hasta el 8 de octubre). El contenedor se reinició después y
+esa copia ya no está, así que esto no se ha podido repetir con el código final:
+
+- `npm run verify:data`: 528/528 y `npm run audit`: 4332/4332.
+- `npm run auditoria:copia` sobre esa copia. El original quedó intacto (mismos SHA-256).
+  Reprodujo:
   - los 10 grupos de partidos repetidos;
   - las 13 anomalías de los CSV, entre ellas la línea 2945;
   - las 64/52/12 peleas de la UFC.
