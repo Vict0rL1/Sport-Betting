@@ -303,11 +303,18 @@ Comprobado, sin cambio:
   500, el hueco invisible se queda (sin salto).
 - **La primera visita, entre 320 y 344 px, el nombre puede volver a una línea al llegar IBM Plex.**
   Se pinta antes con la fuente del sistema, más ancha, y con la campana y la píldora ya en su sitio
-  no cabe. La cabecera baja 8 px (0,009). Medido en Chromium de Linux; los anchos dependen de la
-  fuente del sistema. Después la fuente sale de la caché del service worker, y no vuelve a pasar.
-  Quitarlo es decidir cómo se carga la fuente (precargarla, o `font-display: optional`) o partir
-  siempre el nombre por debajo de 360 px: es una decisión de diseño, no se toma aquí.
+  no cabe. La cabecera baja 8 px (0,009–0,012; antes, en esos anchos, la campana la subía 2 px en
+  cada carga, 0,0016). Medido en Chromium de Linux; los anchos dependen de la fuente del sistema.
+  Después no vuelve a pasar: la fuente se sirve con un año de caché (`max-age=31536000`) y el
+  service worker la guarda. (La revisión la ve en cada carga porque sirve la build sin caché y sin
+  service worker.) Quitarlo es decidir cómo se carga la fuente (precargarla, o `font-display:
+  optional`) o partir siempre el nombre por debajo de 360 px: es una decisión de diseño, no se toma
+  aquí.
 
 Verificación de los dos arreglos de después: typecheck, lint, tests (581 del servidor y 89 de la
 web), build, verify:data y audit (4.332 comprobaciones) en verde. Playwright, 187 de 187 con el
 servidor recién arrancado.
+Con los guiones de la revisión sobre c462482: salir con la pestaña, con la tecla 1, y atrás, atrás,
+adelante, con lo de encima 4 s tarde, acaban con el enlace a 414 px, donde estaba, también mientras
+llega lo de encima (bae1be2 enseñaba otra sección, a −599 px). De 280 a 316 px, de 0,045 a 0,0003.
+
