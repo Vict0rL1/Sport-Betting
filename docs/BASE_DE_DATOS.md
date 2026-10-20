@@ -71,7 +71,7 @@ el test `db/hot.test.ts` y `verify:data` fallan si alguna vuelve a recorrer su t
   interruptor `datos.backupProgramado` en `config/features.json`). La primera, dos minutos
   después de arrancar si la última es más vieja que el intervalo, para que reiniciar no
   dispare copias. A mano: `npm run backup`.
-- **Restaurar**: `npm run restore` lista las copias; `npm run restore -- <fichero>`, **con el
+- **Restaurar**: `npm run restore` lista las copias; `npm run restore -- <fichero> --confirmar`, **con el
   servidor parado** (y se niega si no lo está: comprueba que nadie tiene `ledger.db` abierto),
   comprueba la integridad y que el fichero es un libro mayor, aparta el actual como
   `ledger.db.antes-de-restaurar-<fecha>` con `VACUUM INTO` (completo, con lo que hubiera en su

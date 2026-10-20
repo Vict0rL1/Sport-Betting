@@ -34,6 +34,7 @@ import { migrar, type Migracion } from './db/migrations.ts';
 import { hayQuePartir, partirBase } from './db/split.ts';
 import { QUOTE_STATE_SCHEMA } from './odds/schema.ts';
 import { claveEsLedger } from './db/tables.ts';
+import { TRIGGERS_PREPARTIDO } from './prematch/tiempo.ts';
 
 let db: DatabaseSync | null = null;
 
@@ -79,6 +80,22 @@ export const INGESTION_RUNS_SCHEMA = `
     detail        TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_ingestion_runs_source ON ingestion_runs (source, started_at);
+`;
+
+/** Anomalías de ingesta (migración 24): una fila por cosa rara de un fichero de una fuente. */
+export const INGEST_ANOMALIAS_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS ingest_anomalias (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    fuente       TEXT NOT NULL,
+    fichero      TEXT NOT NULL,
+    linea        INTEGER NOT NULL,
+    tipo         TEXT NOT NULL CHECK (tipo IN ('campos_de_menos', 'campos_de_mas', 'faltan_datos', 'duplicado_exacto', 'duplicado_con_otros_datos', 'clave_repetida')),
+    accion       TEXT NOT NULL CHECK (accion IN ('recuperada', 'descartada', 'conservada')),
+    id_fuente    TEXT,
+    detalle      TEXT NOT NULL,
+    detectada_en TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_ingest_anomalias ON ingest_anomalias (fuente, fichero);
 `;
 
 /** Los índices de la Fase 2 (migración 2). Los nombres van sin prefijo: ledgerize lo pone. */
@@ -287,6 +304,41 @@ export const MIGRACIONES: Migracion[] = [
       if (!cols.includes('huella')) d.exec(`ALTER TABLE ${prefijo}sessions ADD COLUMN huella TEXT`);
     },
   },
+  // «Antes del partido» con instantes, no con texto (auditoría del 17 de octubre, punto 2): ningún
+  // registro, instantánea, final congelada ni apuesta se escribe en o después del inicio. Solo
+  // triggers nuevos: las filas que ya hay no se tocan (las tardías se quedan, con su procedencia, y
+  // la evaluación no las cuenta: prematch/tiempo.ts). IF NOT EXISTS: repetirla no cambia nada.
+  { version: 23, nombre: 'prepartido-con-instantes', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(TRIGGERS_PREPARTIDO, ctx.ledger)) },
+  // Lo que la ingesta encontró raro en una fuente y qué hizo con ello (auditoría del 17 de octubre,
+  // punto 4): filas cortadas, columnas corridas, partidos repetidos. En la historia, que se
+  // reconstruye: cada ingesta reescribe las de su fichero. IF NOT EXISTS: repetirla no cambia nada.
+  { version: 24, nombre: 'ingest-anomalias', destino: 'history', up: (d) => d.exec(INGEST_ANOMALIAS_SCHEMA) },
+  // ingestion_runs.metrics (auditoría del 17 de octubre, punto 5): lo que midió cada ejecución, en
+  // JSON. Las de antes se quedan sin él. Comprueba la columna antes: repetirla no cambia nada.
+  {
+    version: 25,
+    nombre: 'ingestion-runs-metricas',
+    destino: 'ledger',
+    up: (d, ctx) => {
+      const prefijo = ctx.ledger === 'main' ? '' : `${ctx.ledger}.`;
+      const cols = (d.prepare(`PRAGMA ${prefijo}table_info(ingestion_runs)`).all() as { name: string }[]).map((c) => c.name);
+      if (cols.length && !cols.includes('metrics')) d.exec(`ALTER TABLE ${prefijo}ingestion_runs ADD COLUMN metrics TEXT`);
+    },
+  },
+  // ufc_fights.sin_ficha (auditoría del 17 de octubre, punto 6): por qué una pelea no tiene id de
+  // luchador cuando no es ambigua. Con la ingesta de antes, NULL y no ambigua solo podía ser eso, así
+  // que se rellena; si además era ambigua, lo dirá la próxima ingesta (el archivo se rehace entero).
+  {
+    version: 26,
+    nombre: 'ufc-sin-ficha',
+    destino: 'history',
+    up: (d) => {
+      const cols = (d.prepare('PRAGMA table_info(ufc_fights)').all() as { name: string }[]).map((c) => c.name);
+      if (!cols.length || cols.includes('sin_ficha')) return;
+      d.exec('ALTER TABLE ufc_fights ADD COLUMN sin_ficha INTEGER NOT NULL DEFAULT 0');
+      d.exec('UPDATE ufc_fights SET sin_ficha = 1 WHERE (luchador_a IS NULL OR luchador_b IS NULL) AND ambigua = 0');
+    },
+  },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {
@@ -372,7 +424,7 @@ function comprobarLibroMayor(log?: (m: string) => void): void {
   throw new Error(
     `Falta ${LEDGER_DB_PATH} y hay huellas de que aquí hubo un libro mayor (${huellas.join(', ')}): apuestas, registro de predicciones, precios observados.\n` +
       '  No se arranca con uno vacío.\n' +
-      `  · Para recuperarlo:  npm run restore   (lista las copias; npm run restore -- <fichero>)${copia ? `; la más nueva es de ${fecha(copia)}` : ''}\n` +
+      `  · Para recuperarlo:  npm run restore   (lista las copias; npm run restore -- <fichero> --confirmar)${copia ? `; la más nueva es de ${fecha(copia)}` : ''}\n` +
       (legadoConDatos
         ? `  · Hay además un ${legado} sin partir, modificado el ${fecha(LEGACY_DB_PATH)}. Solo si tu libro mayor es ese (y no ${copia ? 'el de una copia más nueva' : 'uno posterior que se perdió'}), con el servidor parado:\n${partir}`
         : walDelLegado
@@ -1496,6 +1548,8 @@ export function resetData(): void {
   for (const t of ['upcoming_matches', 'player_ratings', 'player_rankings', 'matches', 'players']) {
     d.exec(`DELETE FROM ${t};`);
   }
+  // Las anomalías de TML describen filas de `matches`: se van con ellas (la próxima ingesta las vuelve a apuntar).
+  d.exec("DELETE FROM ingest_anomalias WHERE fuente LIKE 'tml:%'");
   const del = d.prepare('DELETE FROM meta WHERE key = ?');
   for (const k of TENNIS_META_KEYS) del.run(k);
 }

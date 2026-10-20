@@ -23,6 +23,12 @@ data/*
 data/raw/*
 !data/raw/.gitkeep
 
+# Salidas de `npm run copia:consolidar` y `npm run auditoria:copia`: llevan libros mayores enteros.
+# Por defecto van a la carpeta personal y se niegan a escribir dentro del repositorio; esto es por
+# si alguien las mueve aquí a mano (revisión data-guardian, 20 de octubre).
+copia-consolidada-*/
+auditoria-copia-*/
+
 # Logs
 logs
 *.log

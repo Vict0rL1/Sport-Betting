@@ -31,8 +31,12 @@ resultado, y la pantalla lo enseña.
 Cambios de comportamiento:
 - Se decide con la probabilidad **calibrada** (la que se enseña y miden las bandas), no con la
   cruda; las dos quedan guardadas.
-- `push`: empate en el moneyline de la NFL (antes `void`). `cancelled`: sin resultado 14 días
-  después del inicio; se devuelve el importe.
+- `push`: empate en el moneyline de la NFL (antes `void`). `cancelled`: ya no lo pone nadie. Hasta
+  la auditoría del 17 de octubre de 2026 era «sin resultado 14 días después del inicio; se devuelve
+  el importe», y eso daba por anulados partidos que sí se jugaron cuando la fuente iba atrasada.
+  Ahora una apuesta sin resultado sigue pendiente; `npm run doctor` (sección OPERACIÓN) dice
+  cuántas llevan más de 48 h y por qué: la fuente no llega a esa fecha, o llega y el partido no
+  aparece. Las `cancelled` antiguas se quedan como están: el libro mayor no se reescribe.
 - El banco de papel es solo hacia delante y vive en su propia tabla: ningún backtest escribe
   en ella.
 

@@ -4,6 +4,60 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Auditoría del 17 de octubre · copias, pre-partido, liquidación, ingesta y cobertura (2026-10-20)
+
+Hallazgos, causas, lo que falta confirmar en la copia del 12 de octubre y las acciones que
+necesitan aprobación: `docs/plans/auditoria-17-octubre.md`. Se comprueba sobre una copia, sin
+tocarla, con `npm run auditoria:copia`.
+
+- **1 · Copias.** Nuevo `npm run copia:consolidar`: de una carpeta con `-wal` a copias autónomas,
+  contando lo que se perdería restaurando solo el fichero principal. Cada `npm run backup`
+  restaura su copia de prueba y compara, tabla a tabla, con un manifiesto independiente del orden.
+  Nuevo `restore -- --verificar`. El doctor enseña el último simulacro.
+- **2 · Pre-partido con instantes, no con texto** (migración 23):
+  - Ningún registro, instantánea, final ni apuesta se escribe en o después del inicio.
+  - La evaluación y los track records no cuentan las filas tardías que ya había. Siguen en el
+    libro mayor y el archivo las marca.
+- **3 · Liquidación y frescura:**
+  - Se retira la cancelación automática a los 14 días: una apuesta sin resultado sigue pendiente.
+  - Nuevo `monitoring/vencidas.ts`: lo vencido por competición y causa, en el doctor.
+  - Freno por competición: no se apuesta donde hay partidos jugados que la fuente no tiene.
+  - La temporada en curso de TML se vuelve a pedir en cada ingesta.
+- **4 · TML validado fila a fila** (migración 24, `ingest_anomalias`):
+  - la fila cortada de `2025.csv:2945` entra sin estadísticas;
+  - 8 partidos repetidos con otro número y 2 con estadísticas distintas entran una vez;
+  - todo queda apuntado con fichero, línea y número de partido.
+- **5 · Cuotas observables** (migración 25, `ingestion_runs.metrics`):
+  - cada ejecución dice qué pidió, qué llegó, qué cambió y qué guardó;
+  - `rows_added` = snapshots guardados;
+  - un fallo al guardar es un error.
+- **6 · UFC:** las peleas sin id dicen por qué (migración 26, `sin_ficha`). La NFL sin empate es
+  a propósito.
+- **Revisiones (data-guardian y quant):**
+  - `restore --verificar` ya no toca la copia que comprueba.
+  - Las salidas con libros mayores van fuera del repositorio.
+  - Las temporadas vivas se comprueban antes de vaciar el tenis.
+  - Una copia que no pasa el simulacro se aparta y el doctor lo da como error.
+  - El freno pide dos días de pruebas, mira la NFL por liga, vale para todas las estrategias y es
+    `abstencion.archivoAtrasadoHoras` en la política.
+  - «¿Acertó?» y la confianza del sistema tampoco cuentan filas tardías.
+  - El doctor da error si lo vencido se come el tope de exposición.
+  - Quedan para el dueño: cómo liquidar lo que la fuente no traerá (F1), y si los límites de
+    pérdida cuentan por fecha de liquidación o del partido (F2).
+  - Segunda pasada:
+    - una descarga rota ya no pisa la copia buena;
+    - un fallo a mitad de temporada deshace su transacción;
+    - `restore` pide `--confirmar`;
+    - el freno empieza con la versión de política que lo dice.
+  - Tercera pasada:
+    - una descarga que ni se deja leer tampoco pisa la copia;
+    - el preflight ya no guarda la temporada en curso sin comprobarla, que se saltaba la parada;
+    - un circuito que falla a medias se vacía antes de la reserva, que si no lo duplicaba; si ni
+      eso se puede, no se prueba la reserva y el error lo dice (no un «bloqueo de red»);
+    - ROLLBACK ya no tapa el error de verdad;
+    - los tests no pueden salir a la red por `git clone`.
+
+
 ## Lote N · lo que encontró la revisión en el navegador de L y M (2026-10-19)
 
 Plan, medición y verificación en `docs/plans/fixes-N.md`. Pruebas nuevas en `web/e2e/saltos.spec.ts`,

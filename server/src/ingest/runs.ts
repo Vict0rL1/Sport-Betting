@@ -15,12 +15,15 @@ export interface Ejecucion {
   rows_updated: number | null;
   error: string | null;
   detail: string | null;
+  metrics?: string | null;
 }
 
 export interface ResultadoIngesta {
   rowsAdded?: number;
   rowsUpdated?: number;
   detail?: string;
+  /** Lo que se midió en la ejecución, en ingestion_runs.metrics como JSON (odds/metricas.ts). */
+  metricas?: unknown;
 }
 
 export function empezarEjecucion(source: string, ahora = new Date()): number {
@@ -28,14 +31,15 @@ export function empezarEjecucion(source: string, ahora = new Date()): number {
   return Number(r.lastInsertRowid);
 }
 
-export function terminarEjecucion(id: number, resultado: ResultadoIngesta | { error: string }, ahora = new Date()): void {
+export function terminarEjecucion(id: number, resultado: ResultadoIngesta | { error: string; metricas?: unknown }, ahora = new Date()): void {
+  const metricas = resultado.metricas === undefined ? null : JSON.stringify(resultado.metricas);
   if ('error' in resultado) {
-    getDb().prepare("UPDATE ingestion_runs SET finished_at = ?, status = 'error', error = ? WHERE id = ?").run(ahora.toISOString(), resultado.error.slice(0, 1000), id);
+    getDb().prepare("UPDATE ingestion_runs SET finished_at = ?, status = 'error', error = ?, metrics = ? WHERE id = ?").run(ahora.toISOString(), resultado.error.slice(0, 1000), metricas, id);
     return;
   }
   getDb()
-    .prepare("UPDATE ingestion_runs SET finished_at = ?, status = 'ok', rows_added = ?, rows_updated = ?, detail = ? WHERE id = ?")
-    .run(ahora.toISOString(), resultado.rowsAdded ?? null, resultado.rowsUpdated ?? null, resultado.detail?.slice(0, 1000) ?? null, id);
+    .prepare("UPDATE ingestion_runs SET finished_at = ?, status = 'ok', rows_added = ?, rows_updated = ?, detail = ?, metrics = ? WHERE id = ?")
+    .run(ahora.toISOString(), resultado.rowsAdded ?? null, resultado.rowsUpdated ?? null, resultado.detail?.slice(0, 1000) ?? null, metricas, id);
 }
 
 /** Envuelve un trabajo: fila `running` al empezar, `ok` o `error` al acabar. Relanza el error. */
@@ -46,7 +50,7 @@ export async function conRegistro<T extends ResultadoIngesta | void>(source: str
     terminarEjecucion(id, (r ?? {}) as ResultadoIngesta);
     return r;
   } catch (e) {
-    terminarEjecucion(id, { error: (e as Error).message });
+    terminarEjecucion(id, { error: (e as Error).message, metricas: (e as { metricas?: unknown }).metricas });
     void notificar('trabajo_fallido', { titulo: `Trabajo de datos fallido: ${source}`, cuerpo: (e as Error).message.slice(0, 500), url: '/confianza/diagnostico' });
     throw e;
   }

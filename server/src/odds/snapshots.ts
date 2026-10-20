@@ -65,7 +65,7 @@ export function recordOddsResponse(
   sportKey: string,
   markets: string,
   r: Pick<OddsResponse, 'events' | 'fetchedAt'>,
-): { observaciones: number; snapshots: number; retiradas: number } {
+): { observaciones: number; snapshots: number; retiradas: number; cotizaciones: number; fuenteMasNueva: string | null } {
   const db = getDb();
   const sport = sportOfKey(sportKey);
   const pedidos = new Set(markets.split(',').map((m) => m.trim()));
@@ -92,6 +92,8 @@ export function recordOddsResponse(
 
   let snapshots = 0;
   let retiradas = 0;
+  let cotizaciones = 0;
+  let fuenteMasNueva: string | null = null;
   db.exec('BEGIN');
   try {
     for (const ev of r.events) {
@@ -107,6 +109,8 @@ export function recordOddsResponse(
       for (const q of quotes) {
         const clave = k(q);
         vistas.add(clave);
+        cotizaciones++;
+        if (q.sourceUpdatedAt && (!fuenteMasNueva || Date.parse(q.sourceUpdatedAt) > Date.parse(fuenteMasNueva))) fuenteMasNueva = q.sourceUpdatedAt;
         const prev = estado.get(clave);
         if (prev && !prev.withdrawn && prev.odds_decimal === q.odds && prev.line === q.line) continue;
         const res = insSnap.run(
@@ -133,7 +137,7 @@ export function recordOddsResponse(
     db.exec('ROLLBACK');
     throw e;
   }
-  return { observaciones: r.events.length, snapshots, retiradas };
+  return { observaciones: r.events.length, snapshots, retiradas, cotizaciones, fuenteMasNueva };
 }
 
 // ===========================================================================

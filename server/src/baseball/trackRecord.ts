@@ -14,6 +14,7 @@ import { stampPredictionVersions } from '../versions.ts';
 import { getDb } from '../db.ts';
 import type { BsbPrediction } from './predict.ts';
 import type { BsbUpcomingRow } from './types.ts';
+import { prepartidoSql } from '../prematch/tiempo.ts';
 
 /** Scheduled first pitch can slip a day across time zones; allow a window. */
 const RESOLVE_WINDOW_DAYS = 3;
@@ -169,7 +170,7 @@ export function resolveBaseballPredictions(): { resolved: number } {
 
 export function getBaseballTrackRecord(league?: string): BaseballTrackRecord {
   const db = getDb();
-  const where = league ? 'WHERE league = ?' : '';
+  const where = `WHERE ${prepartidoSql()}${league ? ' AND league = ?' : ''}`;
   const params = league ? [league] : [];
   const rows = db
     .prepare(

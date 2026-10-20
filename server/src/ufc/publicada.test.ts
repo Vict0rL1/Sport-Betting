@@ -55,7 +55,7 @@ function archivo(n: number): Archivo {
     const z = (x + 1 + Math.floor(rnd() * (ACTIVOS.length - 1))) % ACTIVOS.length;
     const ganaX = rnd() < (x < z ? 0.7 : 0.3);
     const [a, b] = [ACTIVOS[x], ACTIVOS[z]];
-    peleas.push({ id: `f${String(i).padStart(15, '0')}`, evento_id: ev, fecha, orden: 0, luchador_a: a.id, luchador_b: b.id, nombre_a: a.nombre, nombre_b: b.nombre, resultado: ganaX ? 'A' : 'B', categoria: 'Light Heavyweight Bout', metodo: i % 3 ? 'KO/TKO' : 'Decision - Unanimous', asalto: 1 + (i % 3), tiempo: '1:00', ambigua: false });
+    peleas.push({ id: `f${String(i).padStart(15, '0')}`, evento_id: ev, fecha, orden: 0, luchador_a: a.id, luchador_b: b.id, nombre_a: a.nombre, nombre_b: b.nombre, resultado: ganaX ? 'A' : 'B', categoria: 'Light Heavyweight Bout', metodo: i % 3 ? 'KO/TKO' : 'Decision - Unanimous', asalto: 1 + (i % 3), tiempo: '1:00', ambigua: false, sin_ficha: false });
   }
   const luchadores = Object.values(L).map((f) => ({ id: f.id, nombre: f.nombre, apodo: null, altura_cm: 180, alcance_cm: f.alc, guardia: 'Orthodox', nacimiento: f.nac, ambiguo: f.nombre === 'Bruno Silva' }));
   return { eventos, luchadores, peleas, descartadas: { sinFecha: 0, ilegibles: 0 } };
@@ -178,7 +178,7 @@ test('registro: la primera predicción manda, el puntero sigue a la pelea y el r
   // El resultado llega al archivo con los dos AL REVÉS (la fuente pone primero a Hill) y gana Pereira.
   const a = archivo(900);
   a.eventos.push({ id: 'eventoreal000001', nombre: 'UFC Real', fecha: fechaUfc(cuando), lugar: null });
-  a.peleas.push({ id: 'peleareal0000001', evento_id: 'eventoreal000001', fecha: fechaUfc(cuando), orden: 0, luchador_a: L.hill.id, luchador_b: L.pereira.id, nombre_a: 'Jamahal Hill', nombre_b: 'Alex Pereira', resultado: 'B', categoria: 'Light Heavyweight Title Bout', metodo: 'KO/TKO', asalto: 1, tiempo: '3:14', ambigua: false });
+  a.peleas.push({ id: 'peleareal0000001', evento_id: 'eventoreal000001', fecha: fechaUfc(cuando), orden: 0, luchador_a: L.hill.id, luchador_b: L.pereira.id, nombre_a: 'Jamahal Hill', nombre_b: 'Alex Pereira', resultado: 'B', categoria: 'Light Heavyweight Title Bout', metodo: 'KO/TKO', asalto: 1, tiempo: '3:14', ambigua: false, sin_ficha: false });
   guardarArchivo(a);
   olvidarEstado();
   assert.ok(resolveUfcPredictions().resolved >= 1);

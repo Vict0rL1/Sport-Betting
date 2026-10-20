@@ -10,6 +10,7 @@
 // las que fijan los tests de doctor/checks.test.ts.
 
 import { ACCION_POR_FALLO, classifyFailure, type KeyOutcome, type OddsApiFailure } from '../oddsApi.ts';
+import { MIN_DIAS_PRUEBA, VENTANA_PRUEBA_DIAS, type Vencidas } from '../monitoring/vencidas.ts';
 
 export type Nivel = 'ok' | 'aviso' | 'error' | 'info';
 export type Seccion =
@@ -475,6 +476,13 @@ const ACCION_TUBERIA: Record<string, string[]> = {
   'sin evaluación': ['npm run dev   (el ciclo pre-partido evalúa cada 15 min)', 'npm run paper (o una pasada a mano: evalúa y después apuesta)'],
   'evaluación anterior a las cuotas': ['npm run dev   (el ciclo pre-partido evalúa cada 15 min)', 'npm run paper (o una pasada a mano: evalúa y después apuesta)'],
   'evaluación con otra cuota': ['npm run dev   (el ciclo pre-partido evalúa cada 15 min)', 'npm run paper (o una pasada a mano: evalúa y después apuesta)'],
+  // La fuente de resultados de la competición no trae partidos ya jugados (monitoring/vencidas.ts).
+  'archivo atrasado': ['npm run update-results   # o el update-data del deporte; OPERACIÓN dice cuál y desde cuándo', 'si la fuente sigue sin avanzar: docs/FUENTES.md'],
+};
+
+/** Por qué una familia de tubería deja al banco sin apostar, dicho para quien lee el doctor. */
+const DETALLE_TUBERIA: Record<string, string> = {
+  'archivo atrasado': 'No es prudencia: la fuente de resultados no tiene partidos ya jugados de esa competición, así que sus ratings no los conocen y lo apostado no se podría liquidar.',
 };
 
 export function comprobarConfianza(e: EstadoConfianza, ahora: Date): Hallazgo[] {
@@ -560,8 +568,8 @@ export function comprobarConfianza(e: EstadoConfianza, ahora: Date): Hallazgo[] 
     if (e.banco7d.total >= MIN_PATRON && t / e.banco7d.total >= 0.5) {
       const peor = e.banco7d.familias.filter((f) => f.tuberia).sort((a, b) => b.n - a.n)[0];
       out.push(
-        h(S, 'aviso', `El banco descartó ${t} de ${e.banco7d.total} partido(s) en 7 días porque la evaluación no estaba al día (${peor.familia})`, {
-          detalle: ['No es prudencia: el banco no tenía una evaluación hecha con las cuotas que iba a apostar.'],
+        h(S, 'aviso', `El banco descartó ${t} de ${e.banco7d.total} partido(s) en 7 días por algo de operación, no del partido (${peor.familia})`, {
+          detalle: [DETALLE_TUBERIA[peor.familia] ?? 'No es prudencia: el banco no tenía una evaluación hecha con las cuotas que iba a apostar.'],
           accion: ACCION_TUBERIA[peor.familia] ?? ['npm run dev'],
         }),
       );
@@ -677,6 +685,7 @@ export interface EstadoAlmacenamiento {
   backup: { cuando: string; fichero: string | null; existe: boolean } | null;
   copiasLocales: number;
   backupHoras: number;
+  verificacion?: { cuando: string; fichero: string; tablas: number; filas: number; diferencias: unknown[]; error?: string } | null;
   s3: boolean;
   apuestasRegistradas: number;
   retencion: { cuando: string; borradas: number } | null;
@@ -773,7 +782,12 @@ export function comprobarAlmacenamiento(e: EstadoAlmacenamiento, ahora: Date): H
 
   // 2. La copia del libro mayor.
   if (e.layout === 'split') {
-    if (!e.backup) {
+    const vPrimera = e.verificacion;
+    if (!e.backup && vPrimera && (vPrimera.error || vPrimera.diferencias.length)) {
+      // La primera copia de todas no pasó la restauración de prueba: no hay copia buena, y no es que
+      // nunca se haya intentado (revisión data-guardian del 20 de octubre).
+      out.push(h(S, 'error', `No hay ninguna copia buena del libro mayor: la única que se hizo ${vPrimera.error ? `no se pudo restaurar de prueba (${vPrimera.error})` : `no se restaura igual (${vPrimera.diferencias.length} tabla(s) distintas)`} y se apartó: ${vPrimera.fichero}`, { accion: ['npm run backup   # otra copia; si vuelve a fallar, el error dice por qué'] }));
+    } else if (!e.backup) {
       if (e.apuestasRegistradas > 0) {
         out.push(h(S, 'error', `Nunca se ha hecho una copia del libro mayor y hay ${e.apuestasRegistradas} apuesta(s) de papel registradas`, { accion: ['npm run backup   (y deja el servidor en marcha: la hace sola cada BACKUP_HOURS h)'] }));
       } else {
@@ -788,6 +802,21 @@ export function comprobarAlmacenamiento(e: EstadoAlmacenamiento, ahora: Date): H
         out.push(h(S, 'aviso', `La última copia (${cuando}) ya no está en ${e.backup.fichero ?? 'su sitio'}`, { accion: ['npm run backup'] }));
       } else {
         out.push(h(S, 'ok', `Copia del libro mayor ${cuando} · ${e.copiasLocales} local(es)${e.s3 ? ' · se sube a S3' : ''}${e.backupHoras > 0 ? ` · programada cada ${e.backupHoras} h` : ''}`));
+      }
+      // Que la copia exista no dice que restaurarla devuelva lo que tiene (auditoría del 17 de
+      // octubre: una copia íntegra a la que le faltaban 133 filas). Cada copia se restaura de prueba.
+      const v = e.verificacion;
+      // La última comprobación falló y es posterior a la última copia buena: esa copia se apartó
+      // (`.sin-verificar`) y no hay una más nueva que valga.
+      const fallo = v && (v.error || v.diferencias.length) && (!e.backup.cuando || Date.parse(v.cuando) >= Date.parse(e.backup.cuando));
+      if (fallo) {
+        out.push(h(S, 'error', v.error ? `La última copia no se pudo restaurar de prueba (${v.error}) y se apartó: ${v.fichero}` : `La última copia NO se restaura igual (${v.diferencias.length} tabla(s) distintas) y se apartó: ${v.fichero}`, { accion: ['npm run backup   # otra copia; si vuelve a fallar, el error dice por qué', `npm run restore -- --verificar ${v.fichero}`] }));
+      } else if (!v || v.fichero !== e.backup.fichero) {
+        out.push(h(S, 'aviso', 'La última copia no se ha restaurado de prueba', { accion: [`npm run restore -- --verificar ${e.backup.fichero ?? '<fichero>'}`] }));
+      } else if (v.diferencias.length) {
+        out.push(h(S, 'error', `La última copia NO se restaura igual: ${v.diferencias.length} tabla(s) distintas`, { accion: [`npm run restore -- --verificar ${v.fichero}`, 'No la uses para restaurar: haz otra con  npm run backup'] }));
+      } else {
+        out.push(h(S, 'ok', `Restaurada de prueba: ${v.tablas} tablas y ${v.filas} filas, iguales a la copia`));
       }
     }
     if (!e.s3) out.push(h(S, 'info', 'Las copias solo están en esta máquina. Para tener una fuera, rellena BACKUP_S3_* (.env.example): AWS, R2, B2 o MinIO.'));
@@ -1148,5 +1177,74 @@ export function comprobarOperacion(e: EstadoOperacion, ahora: Date): Hallazgo[] 
     if (caidas.length === 0) out.push(h(S, 'ok', `Fuentes: las ${e.fuentes.length} contestan desde esta máquina`));
     for (const x of caidas) out.push(h(S, 'aviso', `Fuente ${x.nombre} (${x.host}): ${x.detalle}`));
   } else out.push(h(S, 'info', 'Para comprobar que cada fuente de datos contesta desde esta máquina: npm run doctor -- --fuentes'));
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// VENCIDAS (auditoría del 17 de octubre, punto 3): lo que lleva más de 48 h sin resultado, por
+// competición y con su causa. No se da nada por jugado ni por cancelado: se resuelve solo cuando
+// la fuente lo trae.
+// ---------------------------------------------------------------------------
+const COMANDO_DATOS: Record<string, string> = {
+  tennis: 'npm run update-data',
+  football: 'npm run update-data:fb',
+  basketball: 'npm run update-data:bb',
+  baseball: 'npm run update-data:bsb',
+  nfl: 'npm run update-data:naf',
+  nhl: 'npm run update-data:nhl',
+  ufc: 'npm run update-data:ufc',
+};
+
+/**
+ * `banco`: el banco de papel y su tope de exposición total (fracción). Sin resultado, una apuesta
+ * sigue contando en los topes: si las vencidas se comen la mitad del tope, el banco deja de apostar
+ * sin que nada lo diga (revisión quant del 20 de octubre). Eso es un error, no un aviso.
+ */
+export function comprobarVencidas(v: Vencidas, banco?: { saldo: number; topeTotal: number }): Hallazgo[] {
+  const S: Seccion = 'OPERACIÓN';
+  const out: Hallazgo[] = [];
+  const dia = (iso: string | null) => (iso ? iso.slice(0, 10) : '—');
+  const causas = (x: { fuenteAtrasada: number; sinEmparejar: number; sinHora: number }, ultimo: string | null | undefined) =>
+    [
+      x.fuenteAtrasada ? `${x.fuenteAtrasada} posteriores al último resultado de su fuente (${ultimo ?? 'no tiene ninguno'})` : '',
+      x.sinEmparejar ? `${x.sinEmparejar} que la fuente cubre y no aparecen (emparejamiento, o no se jugó ese día)` : '',
+      x.sinHora ? `${x.sinHora} con una hora que no se entiende` : '',
+    ].filter(Boolean);
+  if (v.total.predicciones === 0 && v.total.apuestas === 0) {
+    out.push(h(S, 'ok', `Ninguna predicción ni apuesta lleva más de ${v.horasGracia} h sin resultado`));
+    return out;
+  }
+  for (const c of v.competiciones) {
+    // Lo mismo que decide el freno (monitoring/vencidas.ts → trust/decision.ts), dicho aquí.
+    const freno =
+      v.freno === undefined || c.fuenteAtrasada === 0
+        ? ''
+        : !v.freno
+          ? ' · el freno de la política está apagado: se sigue apostando en ella'
+          : c.diasConPrueba >= MIN_DIAS_PRUEBA
+            ? ' · el banco ya no apuesta en esta competición (freno por resultados atrasados)'
+            : ` · aún no frena: hacen falta pruebas de ${MIN_DIAS_PRUEBA} días distintos de los últimos ${VENTANA_PRUEBA_DIAS} (hay ${c.diasConPrueba})`;
+    out.push(
+      h(S, 'aviso', `Resultados de ${c.sport} · ${c.competicion}: ${c.vencidas} predicción(es) sin resultado más de ${v.horasGracia} h después del inicio (la más antigua, del ${dia(c.masAntigua)}): ${causas(c, c.ultimoResultado).join('; ')}${freno}`, {
+        accion: c.fuenteAtrasada ? [`${COMANDO_DATOS[c.sport] ?? 'npm run update-data'}   # si la fuente sigue sin avanzar, docs/FUENTES.md`] : ['npm run update-results   # vuelve a emparejar lo pendiente con lo que ya hay'],
+      }),
+    );
+  }
+  const enPapel = v.apuestas.filter((a) => a.banco === 'papel').reduce((s, a) => s + a.importe, 0);
+  if (banco && enPapel > 0 && enPapel >= 0.5 * banco.topeTotal * banco.saldo) {
+    out.push(
+      h(S, 'error', `El banco de papel tiene ${enPapel.toFixed(2)} en apuestas vencidas sin resultado: ${Math.round((enPapel / (banco.topeTotal * banco.saldo)) * 100)} % de su tope de exposición (${(banco.topeTotal * banco.saldo).toFixed(2)}). Mientras no se liquiden, apuesta menos o nada`, {
+        accion: ['traer los resultados (abajo, por competición)', 'si la fuente no los va a traer nunca (p. ej. los playoffs de la MLB), es una decisión: docs/plans/auditoria-17-octubre.md › acciones'],
+      }),
+    );
+  }
+  for (const a of v.apuestas) {
+    const otras = [a.sinRegistro ? `${a.sinRegistro} sin predicción registrada con su clave` : '', a.porLiquidar ? `${a.porLiquidar} con resultado y aún sin liquidar` : ''].filter(Boolean);
+    out.push(
+      h(S, 'aviso', `Banco ${a.banco}, ${a.sport} · ${a.competicion}: ${a.n} apuesta(s) pendiente(s) más de ${v.horasGracia} h después del inicio (la más antigua, del ${dia(a.masAntigua)}): ${[...causas(a, v.competiciones.find((c) => c.sport === a.sport && c.competicion === a.competicion)?.ultimoResultado), ...otras].join('; ')}. Siguen pendientes (${a.importe.toFixed(2)} que cuentan en los topes): no se dan por jugadas ni por canceladas`, {
+        accion: a.porLiquidar ? ['el servidor las liquida en su próximo ciclo (npm run paper también, pero además coloca apuestas nuevas)'] : undefined,
+      }),
+    );
+  }
   return out;
 }

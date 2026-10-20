@@ -48,6 +48,7 @@ import { anotarEnCubos, cabeEnCubos, cubosDe } from '../staking/cubos.ts';
 import { emitirAlerta } from '../alerts/engine.ts';
 import { roiDe } from '../evaluation/roi.ts';
 import { conSigno, num, pct as pctEs } from '../numeros.ts';
+import { empezado } from '../prematch/tiempo.ts';
 
 /** El banco inicial del experimento. Se guarda para que cambiarlo sea deliberado. */
 export const BANCO_INICIAL = 1000;
@@ -319,7 +320,7 @@ function candidatasTenis(excluir = true): Candidato[] {
           AND l.market_prob1 IS NOT NULL
           AND u.source <> 'fixture'
           AND u.p1_odds IS NOT NULL AND u.p2_odds IS NOT NULL
-          AND u.commence_time > ?
+          AND julianday(u.commence_time) > julianday(?)
           ${excluir ? 'AND l.upcoming_id NOT IN (SELECT event_id FROM paper_bets)' : ''}`,
     )
     .all(AHORA()) as unknown as {
@@ -384,7 +385,7 @@ function candidatasDosSalidas(excluir: boolean, cfg: {
           ${cfg.mercadoRegistrado === false ? '' : 'AND l.market_prob_home IS NOT NULL'}
           AND u.source <> 'fixture'
           AND u.${cfg.oddsCasa} IS NOT NULL AND u.${cfg.oddsFuera} IS NOT NULL
-          AND u.commence_time > ?
+          AND julianday(u.commence_time) > julianday(?)
           ${excluir ? 'AND l.upcoming_id NOT IN (SELECT event_id FROM paper_bets)' : ''}`,
     )
     .all(AHORA()) as unknown as {
@@ -433,7 +434,7 @@ function candidatasFutbol(excluir = true): Candidato[] {
           AND l.market_prob_home IS NOT NULL
           AND u.source <> 'fixture'
           AND u.odds_home IS NOT NULL AND u.odds_draw IS NOT NULL AND u.odds_away IS NOT NULL
-          AND u.commence_time > ?
+          AND julianday(u.commence_time) > julianday(?)
           ${excluir ? 'AND l.upcoming_id NOT IN (SELECT event_id FROM paper_bets)' : ''}`,
     )
     .all(AHORA()) as unknown as {
@@ -618,6 +619,13 @@ export function place(): { colocadas: number; motivo: string | null; detalle: st
   const rechazos: Record<string, number> = {};
 
   for (const c of candidatas) {
+    // Empezado entre la consulta de candidatas y ahora (o con una hora que no se entiende): no se
+    // apuesta, y el trigger de paper_bets no llega a saltar a mitad de la pasada (revisión
+    // data-guardian del 20 de octubre).
+    if (empezado(c.commence, new Date(ahora)) !== false) {
+      rechazos['ya empezado'] = (rechazos['ya empezado'] ?? 0) + 1;
+      continue;
+    }
     const d = decideEvent(
       c.salidas.map((s) => ({ label: s.label, p: s.p, odds: s.odds })),
       { sport: c.sport, bankroll: banco, openExposure: abierto, perdidas },
@@ -740,7 +748,7 @@ export function captureClosing(now = new Date()): { fijados: number } {
   const sinCierre = db
     .prepare(
       `SELECT id, provider_event_id, provider_selection, market, commence_time, odds, placed_at FROM paper_bets
-        WHERE closing_odds IS NULL AND provider_event_id IS NOT NULL AND commence_time IS NOT NULL AND commence_time <= ?`,
+        WHERE closing_odds IS NULL AND provider_event_id IS NOT NULL AND commence_time IS NOT NULL AND julianday(commence_time) <= julianday(?)`,
     )
     .all(now.toISOString()) as { id: number; provider_event_id: string; provider_selection: string; market: string; commence_time: string; odds: number; placed_at: string }[];
   const upd = db.prepare('UPDATE paper_bets SET closing_odds = ?, closing_line = ?, closing_observed_at = ?, clv = ? WHERE id = ?');
@@ -759,15 +767,18 @@ export function captureClosing(now = new Date()): { fijados: number } {
 // ---------------------------------------------------------------------------
 // LIQUIDAR
 // ---------------------------------------------------------------------------
-/** Días sin resultado tras el inicio a partir de los cuales una apuesta se da por cancelada. */
-export const DIAS_CANCELACION = 14;
-
 export type Liquidacion = { status: 'won' | 'lost' | 'push' | 'void' | 'cancelled'; resultado: string };
 
 /**
  * Liquida contra el resultado REAL, leyéndolo del log de predicciones (que ya sabe
  * emparejar un partido con su resultado). Cada apuesta se liquida UNA vez: los triggers
  * impiden volver a escribir el resultado.
+ *
+ * Sin resultado, la apuesta sigue pendiente, pase el tiempo que pase (auditoría del 17 de
+ * octubre, punto 3). Antes se cancelaba a los 14 días y se devolvía el importe; pero «no hay
+ * resultado» casi siempre era «la fuente va atrasada» (el tenis, meses), y una apuesta liquidada
+ * no se vuelve a liquidar: el partido se había jugado y el banco lo daba por anulado para siempre.
+ * Lo que lleva demasiado sin resultado lo enseña monitoring/vencidas.ts, con su causa.
  */
 export function settle(now = new Date()): { liquidadas: number } {
   captureClosing(now);
@@ -785,17 +796,8 @@ export function settle(now = new Date()): { liquidadas: number } {
   let banco = bancoActual();
   let liquidadas = 0;
   for (const a of pend) {
-    const l = resultado(a);
-    let final = l;
-    if (!final) {
-      // Sin resultado mucho después del inicio: el partido no se jugó (o la fuente no lo
-      // tiene). Se cancela y se devuelve el importe, que es lo que haría una casa. Dejarla
-      // pendiente para siempre inmovilizaría exposición que ya no está en riesgo.
-      const inicio = (a as ApuestaPapel & { commence_time?: string | null }).commence_time;
-      if (inicio && now.getTime() - Date.parse(inicio) > DIAS_CANCELACION * 86_400_000) {
-        final = { status: 'cancelled', resultado: `sin resultado ${DIAS_CANCELACION} días después del inicio` };
-      } else continue;
-    }
+    const final = resultado(a);
+    if (!final) continue;
     const profit =
       final.status === 'won' ? Math.round(a.stake * (a.odds - 1) * 100) / 100 : final.status === 'lost' ? -a.stake : 0;
     banco += profit;

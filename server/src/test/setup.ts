@@ -1,7 +1,7 @@
 // Preparación común de los tests (`npm test`). Se carga ANTES que cualquier módulo de la
 // app, en cada proceso de test (node:test aísla cada fichero en su propio proceso).
 //
-// Cinco garantías:
+// Seis garantías:
 //
 //  1. BASE DE DATOS DE USAR Y TIRAR. `DATA_DIR` apunta a un directorio temporal nuevo:
 //     un test nunca puede tocar data/tennis.db, que es donde viven tus apuestas.
@@ -14,6 +14,8 @@
 //     demostración a tu bucket. Cada proceso de test usa la carpeta de su DATA_DIR y ningún S3.
 //  5. SIN RESTOS (lote I). El proceso que crea el DATA_DIR temporal lo borra al salir; antes se
 //     quedaban miles en /tmp, cada uno con sus bases. `CONSERVAR_DATOS_TEST=1` lo deja para mirarlo.
+//  6. GIT TAMPOCO. La ingesta del tenis cae a `git clone` si ninguna descarga vale; el fetch
+//     simulado no lo para. Solo se permiten clones de carpetas locales (protocolo file).
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -37,6 +39,7 @@ process.env.ODDS_REGIONS = 'eu';
 process.env.DEMO_FIXTURES = 'on';
 process.env.AUTO_REFRESH_MINUTES = '0';
 process.env.ANTHROPIC_API_KEY = '';
+process.env.GIT_ALLOW_PROTOCOL = 'file';
 
 type Handler = (url: string, init?: RequestInit) => Promise<Response> | Response;
 let handler: Handler | null = null;

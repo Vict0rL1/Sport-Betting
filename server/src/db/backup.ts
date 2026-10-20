@@ -8,15 +8,19 @@
 
 import { randomBytes } from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { getDb, getMeta, setMeta } from '../db.ts';
 import { LEDGER_SCHEMA, LAYOUT, ficherosDe, directorioCopias, PATRON_COPIA, apartarLateralesHuerfanos, apartarLibroVacio, nombreLibre } from './layout.ts';
 import { subirS3, configS3 } from './s3.ts';
 import { copiaConsistente, integridadDe, otraConexionAbierta, quitarLaterales } from './sqliteSeguro.ts';
+import { compararManifiestos, manifiestoDeFichero, type DiferenciaTabla } from './manifiesto.ts';
 
 export const CLAVE_ULTIMA = 'backup:last_at';
 export const CLAVE_ULTIMO_FICHERO = 'backup:last_file';
+/** La última restauración de prueba (auditoría del 17 de octubre, punto 1): JSON con su resultado. */
+export const CLAVE_ULTIMA_VERIFICACION = 'backup:last_verify';
 export const COPIAS_LOCALES = 14;
 
 export { directorioCopias };
@@ -25,6 +29,8 @@ export interface Copia {
   fichero: string;
   bytes: number;
   integridad: string;
+  /** La restauración de prueba de esta copia. */
+  verificacion: VerificacionRestauracion;
   s3?: { subido: boolean; destino?: string; error?: string };
   borradas: string[];
 }
@@ -146,13 +152,33 @@ export async function hacerCopia(opts: { dir?: string; ahora?: Date; entorno?: N
     db.exec(`VACUUM ${LEDGER_SCHEMA} INTO '${temporal.replace(/'/g, "''")}'`),
   );
   const bytes = fs.statSync(fichero).size;
+  let verificacion: VerificacionRestauracion;
+  try {
+    verificacion = verificarRestauracion(fichero);
+  } catch (e) {
+    verificacion = { fichero, tablas: 0, filas: 0, diferencias: [], error: (e as Error).message };
+  }
+  if (verificacion.diferencias.length || verificacion.error) {
+    // Una copia que no se restaura igual (o que no se pudo comprobar) no entra en la rotación ni se
+    // sube: se aparta con un nombre que no es de copia, sin borrarla (puede ser lo único que hay), y
+    // solo se guarda la última apartada. El doctor lo enseña como error (revisión data-guardian del
+    // 20 de octubre, hallazgo 5).
+    for (const f of fs.readdirSync(dir)) if (f.endsWith('.sin-verificar')) fs.rmSync(path.join(dir, f), { force: true });
+    const apartada = nombreLibre(`${fichero}.sin-verificar`);
+    fs.renameSync(fichero, apartada);
+    setMeta(CLAVE_ULTIMA_VERIFICACION, JSON.stringify({ cuando: ahora.toISOString(), ...verificacion, fichero: apartada }));
+    throw new Error(
+      `La copia ${path.basename(fichero)} ${verificacion.error ? `no se pudo restaurar de prueba (${verificacion.error})` : `no se restaura igual: ${verificacion.diferencias.map((d) => `${d.tabla} ${d.a ?? '—'}→${d.b ?? '—'}${d.contenidoDistinto ? ' (contenido distinto)' : ''}`).join(', ')}`}; apartada como ${path.basename(apartada)}`,
+    );
+  }
+  setMeta(CLAVE_ULTIMA_VERIFICACION, JSON.stringify({ cuando: ahora.toISOString(), ...verificacion }));
   // Rotación: las últimas N.
   const borradas: string[] = [];
   for (const c of copiasLocales(dir).slice(COPIAS_LOCALES)) {
     fs.rmSync(c.fichero, { force: true });
     borradas.push(c.fichero);
   }
-  const out: Copia = { fichero, bytes, integridad, borradas };
+  const out: Copia = { fichero, bytes, integridad, verificacion, borradas };
   const s3 = configS3(opts.entorno);
   if (s3 && opts.subir !== false) {
     try {
@@ -165,6 +191,41 @@ export async function hacerCopia(opts: { dir?: string; ahora?: Date; entorno?: N
   setMeta(CLAVE_ULTIMA, ahora.toISOString());
   setMeta(CLAVE_ULTIMO_FICHERO, fichero);
   return out;
+}
+
+export interface VerificacionRestauracion {
+  fichero: string;
+  tablas: number;
+  filas: number;
+  /** Tablas en que lo restaurado no es la copia. Vacío (y sin error) = verificada. */
+  diferencias: DiferenciaTabla[];
+  /** La restauración de prueba no se pudo hacer (disco lleno, la copia no abre…). */
+  error?: string;
+}
+
+/**
+ * Restaura `fichero` en una carpeta de usar y tirar, por el mismo camino que `npm run restore`
+ * (restaurarCopia), y compara el manifiesto de lo restaurado con el de la copia. No toca el libro
+ * mayor ni BACKUP_DIR: todo pasa en un directorio temporal que se borra al acabar.
+ */
+export function verificarRestauracion(fichero: string): VerificacionRestauracion {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'verificar-restauracion-'));
+  try {
+    // Ni el manifiesto se lee del original: abrir una base con su -wal al lado le crea un -shm.
+    const trabajo = copiaDeTrabajo(fichero, dir);
+    const destino = path.join(dir, 'ledger.db');
+    restaurarCopia(trabajo, { destino });
+    const copia = manifiestoDeFichero(trabajo);
+    const restaurada = manifiestoDeFichero(destino);
+    return {
+      fichero,
+      tablas: Object.keys(copia.tablas).length,
+      filas: Object.values(copia.tablas).reduce((a, t) => a + t.filas, 0),
+      diferencias: compararManifiestos(copia, restaurada),
+    };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 
 /** Cuándo fue la última copia (null si nunca). */
@@ -185,14 +246,35 @@ export function ultimaCopia(): { cuando: string; fichero: string | null } | null
  */
 export function restaurarCopia(origen: string, opts: { ahora?: Date; destino?: string } = {}): { destino: string; apartado: string | null; aviso: string | null } {
   if (!fs.existsSync(origen)) throw new Error(`No existe ${origen}`);
+  // La copia que se restaura no se abre nunca: SQLite volcaría su -wal en ella al cerrar (y le
+  // crearía un -shm). Se trabaja sobre una copia suya, con su -wal, junto al destino (revisión
+  // data-guardian del 20 de octubre, hallazgo 1).
+  const destinoFinal = opts.destino ?? ficherosDe().ledger;
+  if (!destinoFinal) throw new Error(`En disposición ${LAYOUT} no hay ledger.db que restaurar.`);
+  const dirTrabajo = fs.mkdtempSync(path.join(path.dirname(destinoFinal), '.restaurar-'));
+  try {
+    return restaurarDesde(copiaDeTrabajo(origen, dirTrabajo), destinoFinal, opts.ahora);
+  } finally {
+    fs.rmSync(dirTrabajo, { recursive: true, force: true });
+  }
+}
+
+/** Una copia de `origen` en `dir`, con su -wal si lo tiene (sin -shm: SQLite lo rehace). */
+function copiaDeTrabajo(origen: string, dir: string): string {
+  const f = path.join(dir, 'origen.db');
+  fs.copyFileSync(origen, f);
+  if (fs.existsSync(origen + '-wal')) fs.copyFileSync(origen + '-wal', f + '-wal');
+  return f;
+}
+
+function restaurarDesde(origen: string, destino: string, ahora: Date | undefined): { destino: string; apartado: string | null; aviso: string | null } {
+  const opts = { ahora };
   const prueba = new DatabaseSync(origen, { readOnly: true });
   const integridad = (prueba.prepare('PRAGMA integrity_check').get() as { integrity_check: string }).integrity_check;
   const tablas = (prueba.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map((r) => r.name);
   prueba.close();
   if (integridad !== 'ok') throw new Error(`La copia no pasa integrity_check (${integridad}).`);
   if (!tablas.includes('paper_bets') || !tablas.includes('prediction_log')) throw new Error('Ese fichero no parece un libro mayor (faltan paper_bets o prediction_log).');
-  const destino = opts.destino ?? ficherosDe().ledger;
-  if (!destino) throw new Error(`En disposición ${LAYOUT} no hay ledger.db que restaurar.`);
   // Un ledger.db de 0 bytes no es un libro mayor, pero abrirlo (para ver si hay otra conexión o para
   // apartarlo) hace que SQLite borre su WAL, que puede llevar los últimos commits: antes de abrir
   // nada se apartan los dos. Una base en uso no tiene 0 bytes (abrirBase escribe la página 1 al

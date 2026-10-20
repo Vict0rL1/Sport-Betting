@@ -15,6 +15,7 @@ export const ETIQUETA_POLITICA: Record<string, Clave> = {
   'staking.maxExposurePerLeague': 'aj.pol.maxExposurePerLeague',
   'abstencion.desapareceMax': 'aj.pol.desapareceMax',
   'abstencion.precioViejoHoras': 'aj.pol.precioViejoHoras',
+  'abstencion.archivoAtrasadoHoras': 'aj.pol.archivoAtrasadoHoras',
   'recortes.estabilidadMedia': 'aj.pol.estabilidadMedia',
   'recortes.desacuerdoMedio': 'aj.pol.desacuerdoMedio',
   'recortes.desacuerdoAlto': 'aj.pol.desacuerdoAlto',

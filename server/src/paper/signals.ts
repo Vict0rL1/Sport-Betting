@@ -70,7 +70,7 @@ export function captureSignalClosing(now = new Date()): { fijados: number } {
   const sin = db
     .prepare(
       `SELECT id, provider_event_id, provider_selection, market, commence_time, odds FROM edge_signals
-        WHERE closing_odds IS NULL AND provider_event_id IS NOT NULL AND commence_time <= ?`,
+        WHERE closing_odds IS NULL AND provider_event_id IS NOT NULL AND julianday(commence_time) <= julianday(?)`,
     )
     .all(now.toISOString()) as { id: number; provider_event_id: string; provider_selection: string; market: string; commence_time: string; odds: number }[];
   const upd = db.prepare('UPDATE edge_signals SET closing_odds = ?, closing_observed_at = ?, clv = ? WHERE id = ?');
