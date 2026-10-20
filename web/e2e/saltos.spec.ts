@@ -452,6 +452,157 @@ for (const [ruta, ligas] of [
   });
 }
 
+for (const [ruta, ligas, partidos, primera, segunda, nombre] of [
+  ['/futbol', '**/api/football/leagues', '**/api/football/fixtures/upcoming?*', 'epl', 'laliga', 'LaLiga'],
+  ['/baloncesto', '**/api/basketball/leagues', '**/api/basketball/games/upcoming?*', 'nba', 'wnba', 'WNBA'],
+  ['/beisbol', '**/api/baseball/leagues', '**/api/baseball/games/upcoming?*', 'mlb', 'npb', 'NPB'],
+  ['/nfl', '**/api/nfl/leagues', '**/api/nfl/games/upcoming?*', 'nfl', 'ncaaf', 'NCAA'],
+] as const) {
+  test(`N16: en ${ruta}, el error al cargar una liga no se queda al pasar a otra`, async ({ page }) => {
+    // Dos ligas con partidos; la primera no puede cargarlos.
+    await page.route(ligas, async (r) => {
+      const res = await r.fetch();
+      const todas = (await res.json()) as { id: string }[];
+      const con = { hasUpcoming: true, upcomingCount: 2, matches: 100, games: 100 };
+      await r.fulfill({ response: res, json: todas.map((l) => (l.id === primera || l.id === segunda ? { ...l, ...con } : l)) });
+    });
+    await page.route(partidos, (r) => (new URL(r.request().url()).searchParams.get('league') === primera ? r.fulfill({ status: 500, json: { error: 'caída' } }) : r.continue()));
+    await page.goto(`${ruta}/${primera}`);
+    const aviso = page.getByText(/→ (HTTP )?500/);
+    await expect(aviso).toBeVisible();
+    await page.locator(`button[title^="${nombre} ·"]`).click();
+    // La otra liga sí contestó, y sin partidos: el error era de la primera. Antes seguía ahí, y
+    // tapaba que no hay partidos.
+    await expect(page.getByText(`No hay partidos próximos para ${nombre}`)).toBeVisible();
+    await expect(aviso).toHaveCount(0);
+  });
+}
+
+test('N17: en fútbol, con el historial viejo, el aviso largo está en «Detalles» una vez y no empuja la lista al llegar', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('predictor.today.open', '0'));
+  // Una liga con partidos, con modelo (como todas las de los datos de verdad) y con el historial
+  // viejo (como la revisión, que lo forzó así).
+  await page.route('**/api/football/leagues', async (r) => {
+    const res = await r.fetch();
+    const ligas = (await res.json()) as { id: string }[];
+    await r.fulfill({ response: res, json: ligas.map((l) => (l.id === 'epl' ? { ...l, hasUpcoming: true, upcomingCount: 3, matches: 100, hasModel: true } : l)) });
+  });
+  let soltar: () => void = () => {};
+  let retenido: Promise<void> = Promise.resolve();
+  await page.route('**/api/football/meta', async (r) => {
+    await retenido;
+    const res = await r.fetch();
+    const m = (await res.json()) as { leagues: { id: string }[] };
+    await r.fulfill({ response: res, json: { ...m, dataSource: 'archivo', leagues: m.leagues.map((l) => (l.id === 'epl' ? { ...l, historyThrough: '2023-01-01' } : l)) } });
+  });
+  // Los partidos no llegan: la lista se queda en su esqueleto.
+  await page.route('**/api/football/fixtures/upcoming?*', () => {});
+  const pildora = page.getByText('datos de ene 2023');
+  // Quien vuelve: lo que mide la cabecera ya está recordado.
+  await page.goto('/futbol');
+  await expect(pildora).toBeVisible();
+  await page.waitForTimeout(400);
+  retenido = new Promise<void>((ok) => (soltar = ok));
+  await page.goto('/futbol');
+  const esqueleto = page.locator('[aria-busy="true"]').last();
+  await expect(esqueleto).toBeVisible();
+  await page.waitForTimeout(400);
+  const antes = (await esqueleto.boundingBox())!.y;
+  soltar();
+  await expect(pildora).toBeVisible();
+  await page.waitForTimeout(400);
+  // Antes, el aviso entero (209 px en el móvil) salía también debajo de las ligas, encima del
+  // esqueleto, y lo bajaba al llegar (CLS 0,13). Plegada, la cabecera ya lo dice con la píldora.
+  expect((await esqueleto.boundingBox())!.y - antes).toBe(0);
+  const largo = page.getByText(/^El historial termina en/);
+  await expect(largo).toHaveCount(0);
+  await page.getByRole('button', { name: /^Detalles/ }).click();
+  await expect(largo).toHaveCount(1);
+});
+
+for (const [ruta, deporte, partidos, liga] of [
+  ['/futbol', 'football', '**/api/football/fixtures/upcoming?*', 'epl'],
+  ['/baloncesto', 'basketball', '**/api/basketball/games/upcoming?*', 'nba'],
+  ['/beisbol', 'baseball', '**/api/baseball/games/upcoming?*', 'mlb'],
+] as const) {
+  test(`N17: en ${ruta}, la lista no se mueve ni un píxel cuando llegan las ligas`, async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('predictor.today.open', '0'));
+    await page.route(`**/api/${deporte}/leagues`, async (r) => {
+      const res = await r.fetch();
+      const ligas = (await res.json()) as { id: string }[];
+      const con = { hasUpcoming: true, upcomingCount: 3, matches: 100, games: 100, hasModel: true };
+      await r.fulfill({ response: res, json: ligas.map((l) => (l.id === liga ? { ...l, ...con } : l)) });
+    });
+    let soltar: () => void = () => {};
+    let retenido: Promise<void> = Promise.resolve();
+    await page.route(`**/api/${deporte}/meta`, async (r) => {
+      await retenido;
+      await r.continue();
+    });
+    await page.route(partidos, () => {});
+    const pastilla = page.locator('main button[title*=" · "]');
+    // Quien vuelve: lo que mide la cabecera ya está recordado.
+    await page.goto(ruta);
+    await expect(pastilla).toBeVisible();
+    await page.waitForTimeout(400);
+    retenido = new Promise<void>((ok) => (soltar = ok));
+    await page.goto(ruta);
+    const esqueleto = page.locator('[aria-busy="true"]').last();
+    await expect(esqueleto).toBeVisible();
+    await page.waitForTimeout(400);
+    const antes = (await esqueleto.boundingBox())!.y;
+    soltar();
+    await expect(pastilla).toBeVisible();
+    await page.waitForTimeout(400);
+    // El hueco de la fila de ligas medía 1 px más que la fila (38 por 37 en fútbol, 34 por 33 en los
+    // demás): la lista subía ese píxel al llegar, en cada visita (los 0,0013 que quedaban).
+    expect((await esqueleto.boundingBox())!.y - antes).toBe(0);
+  });
+}
+
+for (const ancho of [280, 390, 1280]) {
+  test(`N14: a ${ancho} px, la campana no mueve nada cuando llega`, async ({ page }) => {
+    await page.setViewportSize({ width: ancho, height: 800 });
+    if (ancho >= 1024) await page.emulateMedia({ reducedMotion: 'reduce' });
+    const soltar = await retener(page, '**/api/bandeja/contador');
+    await page.goto('/confianza');
+    // En el móvil, la cabecera; en el escritorio, los deportes de la barra lateral, debajo de la
+    // fila donde va la campana.
+    const zona = ancho >= 1024 ? page.locator('aside nav').first() : page.locator('header').first();
+    await expect(zona).toBeVisible();
+    await page.waitForTimeout(500);
+    const antes = (await zona.boundingBox())!;
+    soltar();
+    await expect(page.getByTestId('campana')).toBeVisible();
+    await page.waitForTimeout(300);
+    const despues = (await zona.boundingBox())!;
+    // Antes llegaba a los 950 ms y la cabecera crecía: 2 px, y 10 a 280 y 300 px, donde el nombre
+    // de la app bajaba de línea (CLS 0,047). En el escritorio, la fila se partía en dos y los
+    // deportes bajaban 40 px.
+    expect([despues.y, despues.height]).toEqual([antes.y, antes.height]);
+  });
+}
+
+test('N14: con la bandeja apagada, la vez siguiente no se guarda el sitio de la campana', async ({ page }) => {
+  await page.setViewportSize({ width: 280, height: 800 });
+  await page.route('**/api/bandeja/contador', (r) => r.fulfill({ status: 404, json: { error: 'apagada' } }));
+  await page.goto('/confianza');
+  const cabecera = page.locator('header').first();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('predictor.campana'))).toBe('0');
+  await page.waitForTimeout(300);
+  const sinCampana = (await cabecera.boundingBox())!;
+  // Mientras llega la respuesta, nada: si se guardara el sitio, la cabecera mediría lo que con ella
+  // y luego se encogería.
+  await page.unroute('**/api/bandeja/contador');
+  await retener(page, '**/api/bandeja/contador');
+  await page.reload();
+  await expect(page.getByRole('button', { name: /Actualizar/ }).or(page.getByRole('heading', { level: 2 })).first()).toBeVisible();
+  await page.waitForTimeout(500);
+  const mientras = (await cabecera.boundingBox())!;
+  expect([mientras.y, mientras.height]).toEqual([sinCampana.y, sinCampana.height]);
+  await expect(page.getByTestId('campana')).toHaveCount(0);
+});
+
 test('N11: la primera vez, sin partidos hoy, «¿Acertó?» no es una tarjeta vacía de 324 px mientras cargan los resultados', async ({ page }) => {
   await page.route('**/api/today', (r) => r.fulfill({ json: { nota: null, partidos: [] } }));
   const soltar = await retener(page, '**/api/recent-results*');

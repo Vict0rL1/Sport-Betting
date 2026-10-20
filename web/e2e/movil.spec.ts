@@ -671,6 +671,12 @@ test('N10: «atrás» desde el glosario vuelve a Confianza donde se dejó, aunqu
   });
   await page.goBack();
   await expect(page).toHaveURL(/\/confianza$/);
+  // Mientras lo de encima no llega, el enlace ya está donde estaba (N15): antes se veía otra sección
+  // durante esos segundos y, al llegar, la página saltaba 1.000 px hasta él.
+  await page.waitForTimeout(1500);
+  expect(llegadas, 'lo de encima aún no ha llegado').toBe(0);
+  const mientras = (await enlace.boundingBox())!.y;
+  expect(Math.abs(mientras - antes), `antes ${Math.round(antes)}, mientras llega lo de encima ${Math.round(mientras)}`).toBeLessThan(40);
   // Hasta que llega lo de encima: antes, la página aún no mide lo que medía al irse. (Tras «atrás»
   // no hay documento nuevo, y esperar a «networkidle» no espera a nada.)
   await expect.poll(() => llegadas, { timeout: 20_000 }).toBeGreaterThanOrEqual(4);

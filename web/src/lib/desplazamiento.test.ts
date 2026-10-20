@@ -1,10 +1,13 @@
 // L7 (lote L): «atrás» vuelve a la altura a la que se dejó la pantalla.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { volverA, type EntornoDesplazamiento } from './desplazamiento.ts';
+import { volverA, type EnlaceTocado, type EntornoDesplazamiento } from './desplazamiento.ts';
 
-/** Un entorno de mentira: los fotogramas y los relojes avanzan a mano. */
-function entorno(altos: number[]) {
+/**
+ * Un entorno de mentira: los fotogramas y los relojes avanzan a mano. `enlace`: dónde está en la
+ * página el enlace que se tocó en cada fotograma (null si aún no está).
+ */
+function entorno(altos: number[], enlace: (number | null)[] = []) {
   let i = 0;
   const fotogramas: (() => void)[] = [];
   const relojes = new Map<number, { ms: number; f: () => void }>();
@@ -14,7 +17,12 @@ function entorno(altos: number[]) {
   const anclaje: boolean[] = [];
   const e: EntornoDesplazamiento = {
     maximo: () => altos[Math.min(i, altos.length - 1)],
-    ir: (y) => posiciones.push(y),
+    ir: (y) => posiciones.push(Math.min(y, altos[Math.min(i, altos.length - 1)])),
+    actual: () => posiciones.at(-1) ?? 0,
+    posicionDe: () => {
+      const en = enlace[Math.min(i, enlace.length - 1)];
+      return en == null ? null : en - (posiciones.at(-1) ?? 0);
+    },
     fotograma: (f) => fotogramas.push(f),
     cancelarFotograma: () => fotogramas.splice(0),
     temporizador: (f, ms) => {
@@ -42,6 +50,8 @@ function entorno(altos: number[]) {
     /** Lo último que se pidió al navegador: recolocar la página (true) o no (false). */
     anclado: () => anclaje.at(-1) ?? true,
     tocar: () => interaccion?.(),
+    /** La mueve otro: la barra de desplazamiento, la propia página. */
+    desplazar: (y: number) => posiciones.push(y),
     /** Vence el reloj de `ms` (el límite para llegar, o el tope para esperar), si sigue puesto. */
     vencer: (ms: number) => {
       for (const [id, r] of relojes) {
@@ -116,4 +126,55 @@ test('L7: pasado el límite sin alto suficiente, se queda donde llegó', () => {
   assert.equal(x.pendientes(), 0);
   assert.equal(x.escuchando(), false);
   assert.equal(x.anclado(), true);
+});
+
+/** El enlace que se tocó: estaba a 413 px de lo alto de la pantalla, con la página a `y`. */
+const tocado = (y: number): EnlaceTocado => ({ href: '/glosario#brier', indice: 0, total: 1, top: 413, y });
+
+test('N15: con el enlace tocado, lo deja donde estaba en la pantalla aunque lo de encima no haya llegado', () => {
+  // Al irse: página a 3.209 y el enlace 413 px más abajo (en 3.622). Al volver, lo de encima aún no
+  // ha llegado y el enlace está en 2.209: hay que ir a 1.796, no a 3.209. Luego llegan 1.209 px
+  // encima y el enlace baja a 3.418: la página baja con él, antes de pintarse.
+  const x = entorno([6000, 6000, 6000, 7209], [2209, 2209, 2209, 3418]);
+  volverA(3209, x.e, { ancla: tocado(3209) });
+  for (let k = 0; k < 5; k++) x.fotograma();
+  assert.deepEqual(x.posiciones, [1796, 3005]);
+  assert.equal(x.anclado(), false, 'lo de encima lo compensa esto, no el navegador');
+  assert.equal(x.escuchando(), true);
+  x.vencer(10_000);
+  assert.equal(x.anclado(), true);
+  assert.equal(x.escuchando(), false);
+  assert.equal(x.pendientes(), 0);
+});
+
+test('N15: mientras el enlace no está (la lista carga), se acerca con la altura guardada', () => {
+  const x = entorno([300, 300, 6000], [null, null, 3622]);
+  volverA(3209, x.e, { ancla: tocado(3209) });
+  for (let k = 0; k < 5; k++) x.fotograma();
+  assert.deepEqual(x.posiciones, [300, 300, 3209]);
+});
+
+test('N15: si el enlace no aparece, se queda en la altura guardada, como sin él', () => {
+  const x = entorno([6000], [null]);
+  volverA(3209, x.e, { ancla: tocado(3209) });
+  x.fotograma();
+  x.vencer(3000);
+  assert.deepEqual(x.posiciones, [3209]);
+  assert.equal(x.anclado(), false);
+  x.vencer(10_000);
+  assert.equal(x.anclado(), true);
+  assert.equal(x.escuchando(), false);
+  assert.equal(x.pendientes(), 0);
+});
+
+test('N15: si otro mueve la página mientras se sostiene (la barra de desplazamiento), se deja', () => {
+  const x = entorno([6000], [2209]);
+  volverA(3209, x.e, { ancla: tocado(3209) });
+  x.fotograma();
+  x.desplazar(2600);
+  x.fotograma();
+  x.fotograma();
+  assert.deepEqual(x.posiciones, [1796, 2600], 'no se le pelea');
+  assert.equal(x.anclado(), true);
+  assert.equal(x.escuchando(), false);
 });

@@ -22,7 +22,7 @@ import { ESCRITORIO, useMediaQuery } from './lib/useMediaQuery';
 import ErrorBoundary from './components/ErrorBoundary';
 import { registrarServiceWorker, ultimaRed, useEnLinea, useDesdeCache } from './lib/sinConexion';
 import { cuandoOciosa, entornoDelNavegador, precargar } from './lib/precarga';
-import { entornoDeVentana, volverA } from './lib/desplazamiento';
+import { enlaceTocado, entornoDeVentana, volverA, type EnlaceTocado } from './lib/desplazamiento';
 import { SkeletonList } from './components/ui/states';
 
 // Cada pantalla en su propio trozo (Fase 5 / 7): la primera carga solo trae el armazón y la
@@ -187,17 +187,30 @@ function Armazon() {
   // se guarda la altura de cada entrada del historial y se reintenta hasta que hay sitio. La
   // entrada es la del navegador en ese instante (`history.state.key`, la misma clave que React
   // Router da a cada una).
+  //
+  // Y con el enlace que se tocó para irse, lo que vuelve es ese enlace a su sitio en la pantalla
+  // (N15): lo de encima puede tardar en llegar, y con solo la altura se veía otra sección mientras.
+  // Se apunta antes de que el enlace navegue (en la captura), con la entrada que se deja.
   const alturas = useRef(new Map<string, number>());
+  const tocados = useRef(new Map<string, EnlaceTocado | null>());
   useEffect(() => {
-    const guardar = () => alturas.current.set((window.history.state as { key?: string } | null)?.key ?? 'default', window.scrollY);
+    const entrada = () => (window.history.state as { key?: string } | null)?.key ?? 'default';
+    const guardar = () => alturas.current.set(entrada(), window.scrollY);
+    const tocar = (e: MouseEvent) => tocados.current.set(entrada(), enlaceTocado(e.target));
     window.addEventListener('scroll', guardar, { passive: true });
-    return () => window.removeEventListener('scroll', guardar);
+    window.addEventListener('click', tocar, true);
+    return () => {
+      window.removeEventListener('scroll', guardar);
+      window.removeEventListener('click', tocar, true);
+    };
   }, []);
   useEffect(() => {
     if (tipoNavegacion !== 'POP') return;
     const y = alturas.current.get(key);
     if (!y) return;
-    return volverA(y, entornoDeVentana());
+    // Solo si la página no se movió después de tocarlo: si no, ese enlace ya no dice dónde se estaba.
+    const t = tocados.current.get(key);
+    return volverA(y, entornoDeVentana(), { ancla: t && Math.abs(t.y - y) < 2 ? t : undefined });
   }, [key, tipoNavegacion]);
 
   // Atajos (Fase 5.17): 1–9 y 0 (la décima) cambian de pestaña fuera de un campo de texto (tantas como pestañas).

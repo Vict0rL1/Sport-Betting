@@ -41,7 +41,11 @@ export default function BaseballDashboard() {
   // llegaban las ligas, salía «No hay partidos próximos para esta liga».
   const [partidosCargados, setPartidosCargados] = useState(false);
   const [peticiones] = useState(contadorDePeticiones);
-  const [error, setError] = useState<string | null>(null);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  // El de los partidos va aparte (N16, lote N): es de esa liga, y se borra al pedir otra. Antes se
+  // quedaba encima de la liga nueva y tapaba que no tenía partidos.
+  const [errorLiga, setErrorLiga] = useState<string | null>(null);
+  const error = errorCarga ?? errorLiga;
   const navigate = useNavigate();
   // Un equipo abre su página (Fase 5.12): una URL, no un modal.
   const setTeam = (t: { league: string; id: string }) => navigate(rutaEquipo('baseball', t.league, t.id));
@@ -57,7 +61,7 @@ export default function BaseballDashboard() {
         setLeagues(l);
       })
       .catch((e) =>
-        setError(tr('bsb.errorCargar', { error: String(e) })),
+        setErrorCarga(tr('bsb.errorCargar', { error: String(e) })),
       );
   }, []);
 
@@ -89,13 +93,14 @@ export default function BaseballDashboard() {
     // D8: cambiar dos veces de liga no deja los partidos de la que contestó tarde.
     const n = peticiones.nueva();
     setLoading(true);
+    setErrorLiga(null);
     Promise.all([bsbApi.upcoming(league), bsbApi.power(league, 40)])
       .then(([g, p]) => {
         if (!peticiones.esUltima(n)) return;
         setGames(g);
         setPower(p.teams);
       })
-      .catch((e) => peticiones.esUltima(n) && setError(String(e)))
+      .catch((e) => peticiones.esUltima(n) && setErrorLiga(String(e)))
       .finally(() => {
         if (!peticiones.esUltima(n)) return;
         setLoading(false);
@@ -105,7 +110,8 @@ export default function BaseballDashboard() {
 
   async function handleRefresh() {
     setRefreshing(true);
-    setError(null);
+    setErrorCarga(null);
+    setErrorLiga(null);
     try {
       await bsbApi.refresh();
       const [m, l, g] = await Promise.all([
@@ -117,7 +123,7 @@ export default function BaseballDashboard() {
       setLeagues(l);
       setGames(g);
     } catch (e) {
-      setError(tr('comun.errorActualizar', { error: String(e) }));
+      setErrorCarga(tr('comun.errorActualizar', { error: String(e) }));
     } finally {
       setRefreshing(false);
     }
@@ -204,9 +210,11 @@ export default function BaseballDashboard() {
 
       {/* Mientras no han llegado las ligas (llegan con `meta`), su sitio y nada más (L1, lote L): antes
           salía «No hay datos de …» en cada carga, que es decir que no hay datos cuando aún no se sabe,
-          y al llegar saltaba 100 px. Si la petición falla, lo dice el aviso de error. */}
+          y al llegar saltaba 100 px. Si la petición falla, lo dice el aviso de error. El hueco es una
+          pastilla invisible, para medir lo mismo que la fila (N17, lote N): con un alto a mano medía
+          1 px más, y la lista subía ese píxel al llegar. */}
       {meta == null ? (
-        <div aria-hidden className="mb-4 h-[2.125rem]" />
+        <div aria-hidden className="invisible mb-4 flex"><span className={pillClass(false)}>&nbsp;</span></div>
       ) : selectable.length > 0 ? (
         <div className="mb-4 flex flex-wrap gap-2">
           {selectable.map((l) => (

@@ -100,7 +100,8 @@ L) y 0dacf77 (L). Cada hallazgo tiene su prueba que falla antes (`web/e2e/movil.
 - **Tras recargar en un partido, «atrás» no vuelve a la altura:** las alturas viven en memoria,
   igual que antes de L.
 - **Arrastrar la barra de desplazamiento no detiene la vuelta.** No se puede emular sin pantalla,
-  y en el móvil no hay barra.
+  y en el móvil no hay barra. (Desde N15, mientras se sostiene el enlace, si la página se mueve por
+  otra vía se deja, y un clic cuenta como tocar.)
 - **La fila de ligas reserva una línea.** Con varias ligas con datos, en el móvil se parte en dos o
   tres (+40 / +81 px, simulado). En la copia de los datos de verdad cada deporte tiene una sola liga.
   Si crece, se arregla como N4.
@@ -172,7 +173,8 @@ Comprobado, sin cambio:
   reproduce. Con la base del e2e y con la copia de los datos de verdad, a 280 px la barra mide 96
   px antes y después de la píldora, y el nombre ocupa dos líneas en los dos casos. Una explicación
   posible es el cambio de fuente: IBM Plex Sans llega después de pintarse con la del sistema
-  (`font-display: swap`). Sin una prueba que falle, no se toca.
+  (`font-display: swap`). Sin una prueba que falle, no se toca. (La revisión siguiente dio con la
+  causa: la campana. Ver N14.)
 - **Dentro de «¿Acertó?» abierto, el resumen pasa de una línea a dos al llegar (0,02),** y la
   primera visita después de tocarlo salta 0,02–0,07. Es la primera vez que se pinta plegado y no
   hay alto recordado. Desde la segunda visita, 0,0013.
@@ -180,3 +182,84 @@ Comprobado, sin cambio:
   - con los resultados fallando y sin partidos hoy, «Hoy» desaparece y la página sube;
   - «atrás» después de girar el teléfono en el partido no deja la lista donde estaba: lo recordado
     es de la otra anchura.
+
+## Lo que encontró la revisión en el navegador de N9–N13
+
+`ui-tester` sobre bae1be2, comparado con 68842c6. Confirma los arreglos:
+
+- **N9:** béisbol con los datos de verdad, de 0,027 a 0,001. Con el aviso de datos viejos forzado,
+  baloncesto, béisbol y NFL bajan de 0,053 a 0,002, y «Detalles» ya no sube y baja en ninguna
+  pestaña.
+- **N10:** «atrás» a Confianza, 4 de 4 en su sitio (antes 0), pero con un precio que arregla N15.
+- **N11:** la tarjeta vacía de 324 px ya no sale.
+- **N12:** en 48 escenarios de fallo, ninguno dice «No hay partidos próximos» junto al error (antes
+  38 de 38).
+- **N13:** «@» a 4,00 px del visitante, como antes de M. Sin partir en 14.500 filas, de 280 a 420 px.
+
+Arreglado, cada uno con su prueba que falla antes:
+
+- **N14 · A 280 y 300 px, el nombre de la app bajaba de línea al llegar la campana.** No era la
+  píldora ni la fuente, como se apuntó arriba.
+  - **Causa:** la campana sale cuando contesta `/api/bandeja/contador` (a los 950 ms en un móvil).
+    En una pantalla estrecha le quitaba al nombre el sitio que le quedaba, y la cabecera crecía 10
+    px (CLS 0,047). Desde 320 px crecía 2, porque la campana es más alta que la fila. En el
+    escritorio, la fila de la barra lateral crecía 4 px y los deportes bajaban.
+  - **Arreglo:** mientras llega la cuenta, su sitio. No se guarda si la vez anterior la bandeja
+    estaba apagada: entonces no sale nada. Un fallo de red ya no la esconde: se queda lo que había.
+  - **Medido después**, con los datos de verdad y la CPU de un móvil: a 280 px la cabecera no
+    cambia de alto en Confianza, Béisbol y NHL.
+- **N15 · Al volver a Confianza, mientras llegaba lo de encima se veía otra sección (lo causó
+  N10).**
+  - **Causa:** N10 deja la página en la altura guardada, sin que el navegador la recoloque. Esa
+    altura es la buena cuando ha llegado todo. Mientras tanto se veía «Alertas recientes» durante
+    4 s, y al llegar lo de encima la página saltaba 1.000 px hasta el enlace.
+  - **Arreglo:** se apunta qué enlace se tocó al irse y dónde estaba en la pantalla. Al volver, en
+    cuanto el enlace está, se deja en ese sitio. Lo que llegue encima se compensa antes de
+    pintarse, hasta que la persona toca, desplaza, hace clic o teclea (o 10 s como mucho).
+  - **Si la página se mueve por otra vía** (la barra de desplazamiento), se deja.
+  - **Sin enlace, o si no aparece,** se vuelve a la altura guardada, como en N10.
+  - **Medido después**, con los datos de verdad y la evaluación y la analítica tardando 4 s: el
+    enlace está en su sitio a los 110 ms y no se mueve en ninguno de los 420 fotogramas
+    siguientes, a 390 y a 1280 px. En NHL, 6 de 6 en su sitio a los 200–300 ms.
+  - **El CLS no lo ve así:** el navegador da 0,92 cuando llega lo de encima. Cuenta como
+    desplazamiento lo que la página mueve ella misma, y solo deja fuera el anclaje del propio
+    navegador. En la pantalla no se mueve nada.
+- **N16 · Un error al cargar una liga se quedaba al pasar a otra.** En fútbol, baloncesto, béisbol
+  y NFL, el aviso de un fallo de la Premier seguía encima de LaLiga, que sí había contestado. Además
+  tapaba que LaLiga no tenía partidos, y solo «Actualizar» lo quitaba.
+  - **Arreglo:** el error de los partidos de la liga va aparte y se borra al pedir otra. El de las
+    ligas y el de «Actualizar» siguen como estaban.
+- **N17 · En fútbol, con el historial viejo, el aviso entero bajaba la lista 209 px al llegar (CLS
+  0,132).**
+  - **Causa:** fútbol lo pintaba dos veces: en «Detalles», como los demás deportes, y otra vez
+    debajo de las ligas. Esa copia se quedó al plegar la cabecera (ff7451f). Salía aunque «Detalles»
+    estuviera plegado, salía dos veces al abrirlo, y con el historial de la liga también repetido.
+  - **Arreglo:** se quita la copia. Plegada, la cabecera lo dice con la píldora («datos de ene
+    2023»), como en los demás deportes.
+  - **El hueco de la fila de ligas medía 1 px más que la fila:** 38 px para 37 en fútbol, y 34 para
+    33 en baloncesto, béisbol y NFL. La lista subía ese píxel al llegar. Ahora el hueco es una
+    pastilla invisible, que mide lo mismo que las de verdad.
+  - **Medido después**, con el aviso forzado y la CPU de un móvil: fútbol pasa de 0,132 a 0,002 a
+    390 px, y de 0,057 a 0,004 a 1280. Baloncesto, béisbol y NFL, 0,002.
+
+Comprobado, sin cambio:
+
+- **Un aviso de liga «sin modelo» también bajaría la lista al llegar,** pero no pasa con los datos
+  de verdad: las 14 ligas de fútbol con partidos tienen modelo.
+- **En el escritorio, la píldora de estado parte en dos la fila de la barra lateral** cuando su
+  texto es largo («Demo · con errores»). Al llegar, los deportes bajan 36 px (0,003 en todas las
+  pestañas). Ya pasaba antes de L. Arreglarlo es rehacer esa fila del escritorio, y este lote es
+  del móvil.
+- **La primera visita sin partidos hoy sigue en 0,26** (Tenis de demostración), como con L+M. Ya no
+  hay tarjeta vacía (N11), pero el hueco que guarda «Hoy» mientras carga (324 px) se cierra al
+  contestar `/api/today` sin partidos. Sin nada recordado no se sabe si los habrá, y casi todos
+  los días los hay.
+- **Siguen como estaban:**
+  - el resumen de «¿Acertó?» al llegar (0,023);
+  - los resultados fallando sin partidos hoy (0,334);
+  - «atrás» después de girar el teléfono.
+
+
+Verificación de N14–N17: typecheck, lint, tests (581 del servidor y 88 de la web), build,
+verify:data y audit (4.328 comprobaciones) en verde. Playwright, 183 de 183 con el servidor recién
+arrancado.
