@@ -583,6 +583,26 @@ for (const ancho of [280, 390, 1280]) {
   });
 }
 
+for (const ancho of [284, 300, 316]) {
+  test(`N14: a ${ancho} px, la píldora de estado no mueve la cabecera cuando llega`, async ({ page }) => {
+    await page.setViewportSize({ width: ancho, height: 800 });
+    const soltar = await retener(page, '**/api/estado');
+    await page.goto('/confianza');
+    const cabecera = page.locator('header').first();
+    await expect(page.getByTestId('campana')).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    await page.waitForTimeout(500);
+    const antes = (await cabecera.boundingBox())!;
+    soltar();
+    await expect(page.getByTestId('status-pill')).toBeVisible();
+    await page.waitForTimeout(300);
+    const despues = (await cabecera.boundingBox())!;
+    // Entre 284 y 316 px, con la campana ya en su sitio, la que partía el nombre de la app era la
+    // píldora (88 → 96 px, CLS 0,044).
+    expect([despues.y, despues.height]).toEqual([antes.y, antes.height]);
+  });
+}
+
 test('N14: con la bandeja apagada, la vez siguiente no se guarda el sitio de la campana', async ({ page }) => {
   await page.setViewportSize({ width: 280, height: 800 });
   await page.route('**/api/bandeja/contador', (r) => r.fulfill({ status: 404, json: { error: 'apagada' } }));

@@ -72,7 +72,19 @@ export default function StatusPill({ compacto = false }: { compacto?: boolean })
   const { t, idioma } = useI18n();
   const dialogo = useRef<HTMLDivElement>(null);
   useDialogo(abierto, () => setAbierto(false), dialogo, { bloquear: false });
-  if (!e) return null;
+  // La compacta (la de la cabecera del móvil) guarda su sitio mientras llega el estado (N14, lote N):
+  // entre 284 y 316 px, al llegar le quitaba al nombre de la app el sitio que le quedaba y lo partía
+  // en dos líneas. En el móvil es solo el punto, así que su caja se sabe; en el escritorio lleva texto.
+  if (!e) {
+    if (!compacto) return null;
+    return (
+      <div aria-hidden className="invisible">
+        <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium">
+          <span className="h-2 w-2 shrink-0" />
+        </span>
+      </div>
+    );
+  }
   const r = resumenEstado(e, t);
   const loc = idioma === 'en' ? 'en-GB' : 'es';
   return (

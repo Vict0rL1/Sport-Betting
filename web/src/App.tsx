@@ -190,13 +190,26 @@ function Armazon() {
   //
   // Y con el enlace que se tocó para irse, lo que vuelve es ese enlace a su sitio en la pantalla
   // (N15): lo de encima puede tardar en llegar, y con solo la altura se veía otra sección mientras.
-  // Se apunta antes de que el enlace navegue (en la captura), con la entrada que se deja.
+  // Se apunta antes de que el enlace navegue (en la captura), con la entrada que se deja. Un clic
+  // que no es en un enlace (la barra de abajo) no lo borra: si la página no se ha movido desde
+  // entonces, sigue diciendo dónde se estaba.
+  //
+  // Mientras se vuelve, lo que se desplaza la página es cosa de la vuelta, no de la persona, y no
+  // se guarda como su altura: con lo de encima sin llegar, la vuelta la deja más arriba para
+  // sostener el enlace, y quien se iba en esos segundos volvía la vez siguiente 1.000 px más abajo.
   const alturas = useRef(new Map<string, number>());
-  const tocados = useRef(new Map<string, EnlaceTocado | null>());
+  const tocados = useRef(new Map<string, EnlaceTocado>());
+  const volviendo = useRef<string | null>(null);
   useEffect(() => {
     const entrada = () => (window.history.state as { key?: string } | null)?.key ?? 'default';
-    const guardar = () => alturas.current.set(entrada(), window.scrollY);
-    const tocar = (e: MouseEvent) => tocados.current.set(entrada(), enlaceTocado(e.target));
+    const guardar = () => {
+      const k = entrada();
+      if (k !== volviendo.current) alturas.current.set(k, window.scrollY);
+    };
+    const tocar = (e: MouseEvent) => {
+      const t = enlaceTocado(e.target);
+      if (t) tocados.current.set(entrada(), t);
+    };
     window.addEventListener('scroll', guardar, { passive: true });
     window.addEventListener('click', tocar, true);
     return () => {
@@ -210,7 +223,15 @@ function Armazon() {
     if (!y) return;
     // Solo si la página no se movió después de tocarlo: si no, ese enlace ya no dice dónde se estaba.
     const t = tocados.current.get(key);
-    return volverA(y, entornoDeVentana(), { ancla: t && Math.abs(t.y - y) < 2 ? t : undefined });
+    volviendo.current = key;
+    const acabar = () => {
+      if (volviendo.current === key) volviendo.current = null;
+    };
+    const parar = volverA(y, entornoDeVentana(), { ancla: t && Math.abs(t.y - y) < 2 ? t : undefined, alAcabar: acabar });
+    return () => {
+      parar();
+      acabar();
+    };
   }, [key, tipoNavegacion]);
 
   // Atajos (Fase 5.17): 1–9 y 0 (la décima) cambian de pestaña fuera de un campo de texto (tantas como pestañas).

@@ -687,6 +687,45 @@ test('N10: «atrás» desde el glosario vuelve a Confianza donde se dejó, aunqu
   expect(Math.abs(despues - antes), `antes ${Math.round(antes)}, después ${Math.round(despues)}`).toBeLessThan(40);
 });
 
+test('N15: si se sale de Confianza mientras llega lo de encima, la vuelta siguiente deja el enlace donde estaba', async ({ page }) => {
+  test.slow();
+  await page.goto('/confianza');
+  const enlace = page.locator('main a[href="/glosario#brier"]');
+  await expect(enlace).toBeAttached({ timeout: 20_000 });
+  await page.waitForLoadState('networkidle');
+  for (let i = 0; i < 2; i++) {
+    await enlace.evaluate((el) => el.scrollIntoView({ block: 'center' }));
+    await page.waitForTimeout(400);
+  }
+  const antes = (await enlace.boundingBox())!.y;
+  await enlace.click();
+  await expect(page).toHaveURL(/\/glosario/);
+  let llegadas = 0;
+  await page.route(/\/api\/(evaluation|monitoring)/, async (r) => {
+    await espera(4000);
+    await r.continue();
+    llegadas++;
+  });
+  await page.goBack();
+  await expect(page).toHaveURL(/\/confianza$/);
+  await page.waitForTimeout(1000);
+  // Se va antes de que llegue lo de encima, con la barra de abajo, y vuelve.
+  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Destacados' }).click();
+  await expect(page).toHaveURL(/\/destacados/);
+  await page.goBack();
+  await expect(page).toHaveURL(/\/confianza$/);
+  await page.waitForTimeout(1500);
+  const mientras = (await enlace.boundingBox())!.y;
+  expect(Math.abs(mientras - antes), `antes ${Math.round(antes)}, mientras llega lo de encima ${Math.round(mientras)}`).toBeLessThan(40);
+  // Las cuatro de la primera vuelta y las cuatro de esta.
+  await expect.poll(() => llegadas, { timeout: 20_000 }).toBeGreaterThanOrEqual(8);
+  await page.waitForTimeout(800);
+  // Antes: la vuelta guardaba como altura de la página la que ponía ella para sostener el enlace
+  // (con lo de encima sin llegar), y la siguiente acababa 1.013 px más abajo.
+  const despues = (await enlace.boundingBox())!.y;
+  expect(Math.abs(despues - antes), `antes ${Math.round(antes)}, después ${Math.round(despues)}`).toBeLessThan(40);
+});
+
 // Lote M (docs/plans/fixes-M.md): lo que la revisión del lote K vio y ya pasaba antes.
 
 test('M1: con un perfil nuevo, tocar «¿Acertó?» enseña los resultados en vez de plegar el panel', async ({ page }) => {

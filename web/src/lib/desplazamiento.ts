@@ -113,6 +113,8 @@ export interface OpcionesVuelta {
   limiteMs?: number;
   /** Cuánto se sostiene, si la persona no toca antes. */
   topeMs?: number;
+  /** Se llama una vez, al acabar (por lo que sea). */
+  alAcabar?: () => void;
 }
 
 /**
@@ -120,7 +122,7 @@ export interface OpcionesVuelta {
  * Con `ancla`, en cuanto el enlace está, lo deja donde estaba en la pantalla y lo sostiene ahí.
  * Hasta que la persona toca, o `topeMs`, el navegador no la recoloca. Devuelve cómo parar.
  */
-export function volverA(y: number, entorno: EntornoDesplazamiento, { ancla, limiteMs = 3000, topeMs = 10_000 }: OpcionesVuelta = {}): () => void {
+export function volverA(y: number, entorno: EntornoDesplazamiento, { ancla, limiteMs = 3000, topeMs = 10_000, alAcabar }: OpcionesVuelta = {}): () => void {
   let fin = false;
   let marco: number | null = null;
   /** Ya llegó (a la altura, o el enlace a su sitio): desde ahí se sostiene. */
@@ -135,6 +137,7 @@ export function volverA(y: number, entorno: EntornoDesplazamiento, { ancla, limi
     entorno.cancelarTemporizador(tope);
     dejarDeEscuchar();
     entorno.anclar(true);
+    alAcabar?.();
   };
   const llegar = () => {
     if (!llegada) entorno.cancelarTemporizador(reloj);

@@ -38,10 +38,12 @@ Plan, medición y verificación en `docs/plans/fixes-N.md`. Pruebas nuevas en `w
     la NFL sin datos.
   - **N13:** «@» vuelve a quedar a 4 px del visitante.
 - **N14–N17 · Lo que encontró la revisión en el navegador de N9–N13:**
-  - **N14:** a 280 y 300 px, el nombre de la app ya no baja de línea cuando llega la campana: su
-    sitio se guarda mientras llega la cuenta. La cabecera crecía 10 px (CLS 0,047), y 2 desde 320.
+  - **N14:** de 280 a 316 px, el nombre de la app ya no baja de línea cuando llegan la campana y
+    la píldora de estado: su sitio se guarda mientras llegan. La cabecera crecía 8–10 px (CLS
+    0,047), y 2 desde 320.
   - **N15:** al volver a Confianza, el enlace que se tocó está en su sitio desde el principio,
     aunque lo de encima tarde. Antes se veía otra sección 4 s y luego la página saltaba 1.000 px.
+    Y salir en esos segundos ya no estropea la vuelta siguiente.
   - **N16:** un error al cargar una liga ya no se queda al pasar a otra.
   - **N17:** en fútbol con el historial viejo, el aviso ya no baja la lista 209 px al llegar: sale
     en «Detalles», una vez, como en los demás deportes (0,132 → 0,002). Y la lista ya no sube 1 px

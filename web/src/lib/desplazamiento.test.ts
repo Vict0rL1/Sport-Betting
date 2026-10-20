@@ -178,3 +178,16 @@ test('N15: si otro mueve la página mientras se sostiene (la barra de desplazami
   assert.equal(x.anclado(), true);
   assert.equal(x.escuchando(), false);
 });
+
+test('N15: avisa una vez cuando acaba, por lo que sea', () => {
+  let avisos = 0;
+  const x = entorno([6000], [2209]);
+  const parar = volverA(3209, x.e, { ancla: tocado(3209), alAcabar: () => avisos++ });
+  x.fotograma();
+  assert.equal(avisos, 0, 'mientras se sostiene, no');
+  x.tocar();
+  parar();
+  x.vencer(10_000);
+  assert.equal(avisos, 1);
+});
+

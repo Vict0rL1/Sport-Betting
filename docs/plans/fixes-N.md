@@ -260,6 +260,54 @@ Comprobado, sin cambio:
   - «atrás» después de girar el teléfono.
 
 
-Verificación de N14–N17: typecheck, lint, tests (581 del servidor y 88 de la web), build,
+Verificación de N14–N17 (ecc586e): typecheck, lint, tests (581 del servidor y 88 de la web), build,
 verify:data y audit (4.328 comprobaciones) en verde. Playwright, 183 de 183 con el servidor recién
 arrancado.
+
+### La revisión en el navegador de N14–N17
+
+`ui-tester` sobre ecc586e, comparado con bae1be2:
+
+- **N15:** el enlace está en su sitio a los 29–51 ms de volver (223–247 con la red y la CPU de un
+  móvil), y no se sale ni un fotograma de los ~810 de cada pasada, en 24 pasadas (antes, hasta
+  1.013 px). NHL: 24 de 24 a 390 px y 13 de 13 a 1280. Una rueda, un clic, una tecla, un toque o
+  un `scrollTo` de fuera lo sueltan en menos de 50 ms, sin pelear, y a los 10 s se suelta solo.
+- **N16:** arreglado en los cuatro deportes, también en inglés.
+- **N17:** con el aviso forzado, fútbol de 0,1322 a 0,0008 (390), y la lista ya no sube 1 px.
+- **N14:** a 280 px, de 0,047 a 0,0014. En las 11 pantallas a 390 px, de 0,0013–0,0016 a
+  0,0006–0,0011.
+
+Arreglado después, cada uno con su prueba que falla antes:
+
+- **N15 · Salir durante la vuelta estropeaba la siguiente (lo causó N15).**
+  - **Causa:** mientras lo de encima no llegaba, la vuelta subía la página para sostener el enlace,
+    y eso se guardaba como la altura de la entrada. El enlace tocado se apuntaba con la altura de
+    antes, no coincidían, y la vuelta siguiente iba a la altura sin enlace: 1.013 px más abajo. Un
+    toque en la barra de abajo, además, borraba el enlace.
+  - **Arreglo:** mientras se vuelve, lo que se desplaza la página no se guarda como su altura. Un
+    clic que no es en un enlace no borra el que se tocó.
+- **N14 · Entre 284 y 316 px, quien partía el nombre de la app era la píldora de estado.** Con la
+  campana ya en su sitio, la píldora llegaba después y la cabecera crecía 8 px (0,044). La del
+  móvil es solo el punto, así que su caja se sabe, y ahora guarda su sitio como la campana. De 280
+  a 420 px, cada 4 px, con campana y sin ella: la cabecera no cambia al llegar.
+
+Comprobado, sin cambio:
+
+- **Pasado el sostén, lo de encima que llega tarde sigue moviendo la página.** Pasa después del
+  primer toque, desplazamiento o clic, o después de 10 s. En Confianza, con lo de encima 4 s tarde
+  y un clic al primer segundo, el enlace acaba 552 px más abajo (1280) o 1.013 (390). El anclaje
+  del navegador no lo arregla: lo que tenía como ancla era el «Cargando…» que se sustituye. Ya
+  pasaba antes (N10 tenía el mismo límite).
+- **La primera vez con la bandeja apagada, el sitio de la campana desaparece al llegar el 404:** a
+  280 px, la cabecera baja de 96 a 86 px (0,046), una sola vez. Después se recuerda. Si contesta un
+  500, el hueco invisible se queda (sin salto).
+- **La primera visita, entre 320 y 344 px, el nombre puede volver a una línea al llegar IBM Plex.**
+  Se pinta antes con la fuente del sistema, más ancha, y con la campana y la píldora ya en su sitio
+  no cabe. La cabecera baja 8 px (0,009). Medido en Chromium de Linux; los anchos dependen de la
+  fuente del sistema. Después la fuente sale de la caché del service worker, y no vuelve a pasar.
+  Quitarlo es decidir cómo se carga la fuente (precargarla, o `font-display: optional`) o partir
+  siempre el nombre por debajo de 360 px: es una decisión de diseño, no se toma aquí.
+
+Verificación de los dos arreglos de después: typecheck, lint, tests (581 del servidor y 89 de la
+web), build, verify:data y audit (4.332 comprobaciones) en verde. Playwright, 187 de 187 con el
+servidor recién arrancado.
