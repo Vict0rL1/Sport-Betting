@@ -76,7 +76,9 @@ Plan, medición y verificación en `docs/plans/fixes-N.md`. Pruebas nuevas en `w
 - **N5 · El formulario de apuesta ya no baja 500 px** si se abre mientras cargan los paneles del
   banco, ni al llegar con un borrador desde «Mi selección».
 - **N6 · A 359 px sale un solo veredicto.**
-- **N7 · «ganó» recupera su alto y su separación.**
+- **N7 · «ganó» recupera su alto y su separación.** Su e2e fallaba en CI desde que entró: allí el
+  hinting de la fuente redondea el espacio a 3 px y la separación es de 7 justos, no de 7,3. La
+  prueba vigila ahora que no vuelva a los 5 px de antes (> 6,5).
 - **N8 · Detalles:**
   - Los esqueletos de Apuestas y Diagnóstico dicen «Cargando…».
   - Si las apuestas no cargan, se dice.

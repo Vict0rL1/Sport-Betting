@@ -595,9 +595,12 @@ test.describe('«ganó» en el escritorio', () => {
     await conGanador(page, 'Arsenal');
     await page.goto('/futbol');
     const m = await medirGano(page);
-    // Antes de M: 17,8 px de alto y 8 px del nombre. Con M, 16,4 y unos 5.
+    // Antes de M: 17,8 px de alto y 8 px del nombre. Con M, 16,4 y unos 5. Ahora la separación es el
+    // espacio de IBM Plex (3,3 px a 14 px) más 4 de word-spacing: 7,3 px, o 7 justos donde el
+    // hinting de la fuente redondea el espacio a píxeles enteros, como en el Chromium de CI
+    // (`--font-render-hinting=full`). Lo que se vigila es que no vuelva a los 5.
     expect(m.alto).toBeGreaterThan(17.4);
-    expect(m.izquierda - m.finNombre).toBeGreaterThan(7);
+    expect(m.izquierda - m.finNombre).toBeGreaterThan(6.5);
     expect(m.izquierda - m.finNombre).toBeLessThan(9);
   });
 });
