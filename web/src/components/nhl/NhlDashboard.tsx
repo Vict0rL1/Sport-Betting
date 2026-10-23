@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { rutaEquipo } from '../../rutas';
 import { useFiltroQuery } from '../../lib/rutas';
-import { SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader, EmptySlate, NflNoLineNote, SlateTable } from '../ui';
+import { SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader, EmptySlate, NflNoLineNote, SlateTable, SeccionDia } from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, nhlPicks } from '../../lib/picks';
 import { nflSlate } from '../../lib/slate';
@@ -97,7 +97,9 @@ export default function NhlDashboard() {
       <PicksPanel {...picks} caveat={t(CAVEATS.nhl)} demoOdds={false} confidenceReason={t('nhl.ordenConfianza')} stake={stake} onStakeChange={setStake} />
 
       {/* Como la NFL: el calendario es real aunque no haya precio, y aquí se dice por qué no lo hay. */}
-      <NflNoLineNote reason={meta?.oddsFallbackReason} detail={meta?.oddsFallbackDetail} hasKey={meta?.hasOddsKey ?? false} />
+      {/* `null` mientras no ha llegado `meta` (L3, lote L): con `?? false` decía «falta ODDS_API_KEY»
+          antes de saberlo (D14), y la nota salía encima de las listas, que la empujaban al llegar. */}
+      <NflNoLineNote reason={meta?.oddsFallbackReason} detail={meta?.oddsFallbackDetail} hasKey={meta ? meta.hasOddsKey : null} />
       <SlateTable rows={slate} demoOdds={false} refrescadas={meta?.oddsRefreshedAt} bands={meta?.bands} />
 
       {error && <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/[0.06] p-3 text-[15px] text-rose-200">{error}</div>}
@@ -115,14 +117,14 @@ export default function NhlDashboard() {
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
           {shownGroups.map((group) => (
-            <section key={group.key} className="seccion-dia mb-6">
+            <SeccionDia key={group.key} clave={group.key} className="mb-6">
               <DayHeading label={group.label} count={group.items.length} />
               <div className="grid gap-4 grid-cols-[minmax(0,1fr)] xl:grid-cols-[repeat(2,minmax(0,1fr))] xl:items-start">
                 {group.items.map((g) => (
                   <GameCard key={g.game.id} item={g} onOpenTeam={abrirEquipo} />
                 ))}
               </div>
-            </section>
+            </SeccionDia>
           ))}
         </>
       )}

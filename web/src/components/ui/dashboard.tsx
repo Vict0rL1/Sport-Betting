@@ -1,5 +1,6 @@
 // Piezas compartidas de la interfaz: dashboard. Partido de ui/index.tsx en la Fase 5 (ningún import cambia: index.tsx reexporta).
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router';
 import { StatusMark } from '../icons';
 import { conNodos, useI18n } from '../../i18n';
 
@@ -34,9 +35,26 @@ const CODIGOS = {
  */
 const HEADER_OPEN_KEY = 'predictor.header.open';
 
+/**
+ * Lo que midió la fila de arriba (Actualizar, contadores y aviso) la última vez en esta pestaña y a
+ * este ancho (N4, lote N). Los contadores y el aviso llegan con los datos y, en el móvil, no caben en
+ * la línea de «Actualizar»: la fila crecía 28–36 px (63 a 320) y empujaba todo lo de debajo.
+ * Mientras llegan, la fila reserva lo que midió. Medido a otro ancho (girar el teléfono), no vale.
+ */
+const claveFila = (pestana: string) => `predictor.cabecera.fila.${pestana}`;
+function filaRecordada(pestana: string): number | undefined {
+  try {
+    const [ancho, alto] = (localStorage.getItem(claveFila(pestana)) ?? '').split('|').map(Number);
+    return ancho === window.innerWidth && alto > 0 && alto < 400 ? alto : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function DashboardHeader({
   chips,
   alert,
+  avisoPendiente = false,
   onRefresh,
   refreshing = false,
   refreshTitle,
@@ -46,6 +64,11 @@ export function DashboardHeader({
   chips?: ReactNode;
   /** Compact stale-data note. Stays visible when collapsed — see above. */
   alert?: string | null;
+  /**
+   * El aviso aún no se sabe: depende de la liga, que se elige un render después de llegar los
+   * contadores (fútbol, baloncesto, béisbol y NFL). Mientras, la fila guarda su sitio (N9, lote N).
+   */
+  avisoPendiente?: boolean;
   onRefresh?: () => void;
   refreshing?: boolean;
   refreshTitle?: string;
@@ -53,6 +76,29 @@ export function DashboardHeader({
   children: ReactNode;
 }) {
   const { t } = useI18n();
+  const pestana = useLocation().pathname.split('/')[1] ?? '';
+  // Sin contadores, los datos aún no han llegado (todas las pestañas pasan `meta && …`). Y con el
+  // aviso pendiente, tampoco: la reserva se soltaba con los contadores, la fila se encogía 35 px y
+  // volvía a crecer al llegar el aviso de la liga (N9).
+  const llegando = chips == null || avisoPendiente;
+  const fila = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = fila.current;
+    if (!el || llegando) return;
+    const guardar = () => {
+      try {
+        localStorage.setItem(claveFila(pestana), `${window.innerWidth}|${Math.round(el.getBoundingClientRect().height * 10) / 10}`);
+      } catch {
+        // Sin almacenamiento, la próxima vez no se reserva nada, como antes.
+      }
+    };
+    guardar();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(guardar);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [pestana, llegando]);
+  const reserva = llegando ? filaRecordada(pestana) : undefined;
   const [open, setOpen] = useState<boolean>(() => {
     try {
       return localStorage.getItem(HEADER_OPEN_KEY) === '1';
@@ -72,7 +118,9 @@ export function DashboardHeader({
 
   return (
     <header className="mb-5">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {/* `content-between`: con alto reservado, el hueco queda entre «Actualizar» y «Detalles», que
+          ya está en su sitio cuando llegan los contadores. */}
+      <div ref={fila} className="flex flex-wrap content-between items-center gap-x-3 gap-y-2" style={reserva ? { minHeight: reserva } : undefined}>
         {onRefresh && (
           <button
             onClick={onRefresh}
@@ -92,6 +140,9 @@ export function DashboardHeader({
             <StatusMark estado="aviso" color="#fcd34d" size={13} />{alert}
           </span>
         )}
+        {/* En el móvil, «Detalles» va siempre en su línea (L2, lote L): compartía la de los contadores
+            y, al llegar estos, ya no cabía y bajaba, con todo lo de debajo (+39 px en cada deporte). */}
+        <span aria-hidden className="basis-full sm:hidden" />
         <button
           onClick={toggle}
           aria-expanded={open}

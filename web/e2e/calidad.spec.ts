@@ -73,3 +73,37 @@ test('E8: ninguna clave cruda (catálogo o política) en ninguna ruta', async ({
     }
   }
 });
+
+// Lote K (encontrado al verificarlo): el servidor de los e2e bajaba resultados de internet a los
+// 5 minutos de arrancar (el trabajo «resultados»). La batería dura más que eso, y lo que llegaba
+// (fútbol, NHL, UFC…) cambiaba los datos debajo de las pruebas: «NHL sin datos» pasaba o fallaba
+// según el minuto en que corriera. Y los tests nunca usan la red.
+test('K9: el servidor de los e2e no programa la descarga de resultados', async ({ request }) => {
+  const r = await request.get('/api/scheduler');
+  expect(r.ok()).toBe(true);
+  const { trabajos } = (await r.json()) as { trabajos: { nombre: string }[] };
+  expect(trabajos.map((t) => t.nombre)).not.toContain('resultados');
+});
+
+// Lote K (revisión de data-guardian a K9): el servidor de los e2e heredaba del .env de quien los
+// corre los canales de aviso (Telegram, webhook, correo, push). «Generar el de hoy» (producto.spec)
+// avisa por todos los configurados: en una máquina con Telegram en el .env, cada pasada mandaba un
+// resumen de demostración al Telegram de verdad.
+test('K11: el servidor de los e2e no tiene ningún canal de aviso configurado', async ({ request }) => {
+  const r = await request.get('/api/notifications/canales');
+  expect(r.ok()).toBe(true);
+  const { canales } = (await r.json()) as { canales: { nombre: string; configurado: boolean }[] };
+  expect(canales.length).toBeGreaterThan(0);
+  expect(canales.filter((c) => c.configurado).map((c) => c.nombre)).toEqual([]);
+});
+
+// K11, la misma herencia: con ANTHROPIC_API_KEY en el .env, «Preguntar a los datos» elegía la
+// consulta con el modelo de Anthropic, con salida a la red y gasto en la cuenta de quien corre los
+// tests.
+test('K11: «Preguntar a los datos» no llama a ningún modelo desde el servidor de los e2e', async ({ request }) => {
+  const r = await request.post('/api/ask', { data: { pregunta: 'top 10 ATP' } });
+  expect(r.ok()).toBe(true);
+  const j = (await r.json()) as { via: string; nota?: string };
+  expect(j.via).toBe('determinista');
+  expect(j.nota).toBeUndefined();
+});

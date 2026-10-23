@@ -23,6 +23,7 @@ import { stampPredictionVersions } from './versions.ts';
 import { getDb } from './db.ts';
 import type { Prediction } from './model/predict.ts';
 import type { TourId, UpcomingRow } from './types.ts';
+import { prepartidoSql } from './prematch/tiempo.ts';
 
 /** Tournament dates are START dates, so a match can be played weeks later. */
 const RESOLVE_WINDOW_BEFORE_DAYS = 10; // fixture listed before the event's start date
@@ -261,7 +262,7 @@ export function getTrackRecord(tour?: string): TrackRecord {
       `SELECT prob1, market_prob1, reliability, winner_id, p1_id, p2_id, p1_name, p2_name,
               tournament_name, surface, commence_time
        FROM prediction_log
-       WHERE resolved_at IS NOT NULL ${where}
+       WHERE resolved_at IS NOT NULL AND ${prepartidoSql()} ${where}
        ORDER BY commence_time DESC`,
     )
     .all(...params) as unknown as ScoredRow[];

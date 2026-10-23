@@ -379,6 +379,18 @@ export async function preflightTennisData(tour: TourId, year: number): Promise<{
   };
 }
 
+/**
+ * ROLLBACK sin tapar el error: si SQLite ya deshizo la transacción (SQLITE_FULL, por ejemplo),
+ * ROLLBACK lanza «no transaction is active» (revisión data-guardian, tercera vuelta).
+ */
+function deshacer(db: ReturnType<typeof getDb>): void {
+  try {
+    db.exec('ROLLBACK');
+  } catch {
+    // ya no había transacción
+  }
+}
+
 /** Ingest a range of seasons for one tour. Returns per-season counts. */
 export async function ingestTennisData(
   tour: TourId,
@@ -446,7 +458,7 @@ export async function ingestTennisData(
       }
       db.exec('COMMIT');
     } catch (e) {
-      db.exec('ROLLBACK');
+      deshacer(db);
       throw e;
     }
     out.push({ year, matches: rows.length, withOdds, skipped });
@@ -462,7 +474,7 @@ export async function ingestTennisData(
       for (const [id, r] of latestRank) insertRanking.run(id, tour, r.rank, r.points, r.date);
       db.exec('COMMIT');
     } catch (e) {
-      db.exec('ROLLBACK');
+      deshacer(db);
       throw e;
     }
     process.stdout.write(`  rankings oficiales: ${latestRank.size} jugadores\n`);

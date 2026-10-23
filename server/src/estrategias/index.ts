@@ -24,7 +24,6 @@ import { idPoliticaVigente, politica, politicaPorDefecto, validarPolitica } from
 import { roiDe } from '../evaluation/roi.ts';
 import {
   BANCO_INICIAL,
-  DIAS_CANCELACION,
   candidatasPapel,
   conMercadoActual,
   juicioDeConfianza,
@@ -37,6 +36,10 @@ import { cabeEnGrupos, gruposDe, type Abierta } from '../staking/risk.ts';
 import { anotarEnCubos, cabeEnCubos, cubosDe } from '../staking/cubos.ts';
 import { avisoMuestra, type AvisoMuestra } from '../evaluation/sample.ts';
 import { maxDrawdown } from '../evaluation/betting.ts';
+import { empezado } from '../prematch/tiempo.ts';
+import { motivoArchivoAtrasado } from '../monitoring/vencidas.ts';
+import { horasArchivoAtrasado } from '../trust/decision.ts';
+import type { SportId } from '../sports.ts';
 
 export { STRATEGIES_SCHEMA } from './schema.ts';
 
@@ -252,7 +255,8 @@ export function colocarEstrategias(now = new Date(), candidatas?: Candidato[]): 
     const pasada: PasadaEstrategia = { id: e.id, nombre: e.nombre, evaluadas: 0, colocadas: 0, rechazos: {} };
     const rechazo = (m: string) => (pasada.rechazos[m] = (pasada.rechazos[m] ?? 0) + 1);
     for (const c of todas) {
-      if (!e.config.deportes.includes(c.sport) || ya.has(c.event_id) || c.commence <= ahora) continue;
+      // Empezado (o con una hora que no se entiende): instantes, no texto, como el trigger que lo rechazaría.
+      if (!e.config.deportes.includes(c.sport) || ya.has(c.event_id) || empezado(c.commence, now) !== false) continue;
       pasada.evaluadas++;
       const d = decideEvent(
         c.salidas.map((s) => ({ label: s.label, p: s.p, odds: s.odds })),
@@ -263,6 +267,14 @@ export function colocarEstrategias(now = new Date(), candidatas?: Candidato[]): 
       );
       if (!d || d.stake <= 0) {
         rechazo(d?.blockedBy ?? 'ninguna salida con ventaja');
+        continue;
+      }
+      // Una apuesta que la fuente de resultados no podrá liquidar no se coloca, aunque la estrategia
+      // no mire la capa de confianza: no es una opinión sobre el partido, es que no habrá resultado
+      // (revisión quant del 20 de octubre).
+      const horas = horasArchivoAtrasado();
+      if (horas > 0 && motivoArchivoAtrasado(c.sport as SportId, c.match_key, now, horas)) {
+        rechazo('archivo de resultados atrasado');
         continue;
       }
       let factor = 1;
@@ -316,7 +328,7 @@ export function colocarEstrategias(now = new Date(), candidatas?: Candidato[]): 
 export function cierreEstrategias(now = new Date()): { fijados: number } {
   const db = getDb();
   const sin = db
-    .prepare('SELECT id, provider_event_id, provider_selection, commence_time, odds, placed_at FROM strategy_bets WHERE closing_odds IS NULL AND provider_event_id IS NOT NULL AND provider_selection IS NOT NULL AND commence_time IS NOT NULL AND commence_time <= ?')
+    .prepare('SELECT id, provider_event_id, provider_selection, commence_time, odds, placed_at FROM strategy_bets WHERE closing_odds IS NULL AND provider_event_id IS NOT NULL AND provider_selection IS NOT NULL AND commence_time IS NOT NULL AND julianday(commence_time) <= julianday(?)')
     .all(now.toISOString()) as { id: number; provider_event_id: string; provider_selection: string; commence_time: string; odds: number; placed_at: string }[];
   const upd = db.prepare('UPDATE strategy_bets SET closing_odds = ?, closing_observed_at = ?, clv = ? WHERE id = ?');
   let fijados = 0;
@@ -344,12 +356,9 @@ export function liquidarEstrategias(now = new Date()): { liquidadas: number } {
   const bancos = new Map<number, number>();
   let liquidadas = 0;
   for (const a of pend) {
-    let final = resultado(a);
-    if (!final) {
-      if (a.commence_time && now.getTime() - Date.parse(a.commence_time) > DIAS_CANCELACION * 86_400_000) {
-        final = { status: 'cancelled', resultado: `sin resultado ${DIAS_CANCELACION} días después del inicio` };
-      } else continue;
-    }
+    // Sin resultado sigue pendiente, como en el banco principal (paper/bankroll.ts → settle).
+    const final = resultado(a);
+    if (!final) continue;
     const profit = final.status === 'won' ? Math.round(a.stake * (a.odds - 1) * 100) / 100 : final.status === 'lost' ? -a.stake : 0;
     const banco = (bancos.get(a.strategy_id) ?? bancoDe(a.strategy_id)) + profit;
     bancos.set(a.strategy_id, banco);

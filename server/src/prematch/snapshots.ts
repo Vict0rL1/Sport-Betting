@@ -26,6 +26,7 @@ import { devig } from '../market/devig.ts';
 import type { SportId } from '../sports.ts';
 import { emitirAlerta } from '../alerts/engine.ts';
 import { deInstantanea } from '../alerts/detectors.ts';
+import { prepartidoSql } from './tiempo.ts';
 
 /** Una entrada del modelo con nombre legible, para poder decir QUÉ cambió. */
 export interface Entrada {
@@ -277,6 +278,10 @@ const LOGS: { sport: SportId; tabla: string; clave: string; outcomes: string; pr
  * Congela la final pre-partido de todo partido que ya empezó y aún no la tiene. Primero
  * desde las instantáneas; si el servidor no tomó ninguna, desde el registro de
  * predicciones (que también es anterior al partido y tampoco se reescribe).
+ *
+ * Con instantes, no con texto (auditoría del 17 de octubre, punto 2): una fila del registro escrita
+ * en o después del inicio no es pre-partido y no se congela; ese partido se queda sin final, que es
+ * la verdad (el caso EDM–ANA).
  */
 export function freezeFinals(now = new Date()): { congeladas: number } {
   const db = getDb();
@@ -286,7 +291,7 @@ export function freezeFinals(now = new Date()): { congeladas: number } {
       `INSERT OR IGNORE INTO prematch_final (sport, match_key, commence_time, frozen_at, source, snapshot_id, captured_at, outcomes, probs, market_probs, model_version)
        SELECT s.sport, s.match_key, s.commence_time, ?, 'snapshot', s.id, s.captured_at, s.outcomes, s.probs, s.market_probs, s.model_version
          FROM prediction_snapshots s
-        WHERE s.commence_time <= ?
+        WHERE julianday(s.commence_time) <= julianday(?) AND ${prepartidoSql('s.captured_at', 's.commence_time')}
           AND s.id = (SELECT id FROM prediction_snapshots x WHERE x.sport = s.sport AND x.match_key = s.match_key
                        ORDER BY x.captured_at DESC, x.id DESC LIMIT 1)`,
     )
@@ -299,7 +304,7 @@ export function freezeFinals(now = new Date()): { congeladas: number } {
           `INSERT OR IGNORE INTO prematch_final (sport, match_key, commence_time, frozen_at, source, snapshot_id, captured_at, outcomes, probs, market_probs, model_version)
            SELECT '${l.sport}', ${l.clave}, commence_time, ?, 'prediction_log', NULL, predicted_at, ${l.outcomes}, ${l.probs}, ${l.mercado}, model_version
              FROM ${l.tabla}
-            WHERE commence_time IS NOT NULL AND commence_time <= ? AND predicted_at < commence_time`,
+            WHERE commence_time IS NOT NULL AND julianday(commence_time) <= julianday(?) AND ${prepartidoSql()}`,
         )
         .run(ahora, ahora);
       congeladas += Number(r.changes);

@@ -5,6 +5,7 @@ import { relativeTime, shortTime } from '../../lib/format';
 import { StatusMark } from '../icons';
 import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../../i18n';
 import { lineasEnIdioma, pct as pctF, num as numF } from '../../lib/formato';
+import { MOVIL, useMediaQuery } from '../../lib/useMediaQuery';
 
 // Los nombres de mercado y selección son también claves de lib/picks (tasas base, orden): se
 // traducen al pintarlos, no en los datos.
@@ -90,7 +91,7 @@ function CaveatNote({ text }: { text: string }) {
           )}
           <button
             onClick={() => setOpen((o) => !o)}
-            className="mt-1.5 text-[12px] font-medium text-amber-200/60 underline-offset-2 hover:text-amber-200 hover:underline"
+            className="toque mt-1.5 text-[12px] font-medium text-amber-200/60 underline-offset-2 hover:text-amber-200 hover:underline"
           >
             {open ? t('discrepancias.ocultar') : t('discrepancias.verMedido')}
           </button>
@@ -148,6 +149,9 @@ export function PicksPanel({
 }) {
   const [open, setOpen] = useState(true);
   const { t, idioma } = useI18n();
+  // En el móvil, una lista: la tabla mide 736 px y, en una caja de 356, la probabilidad del
+  // modelo empezaba en el borde y el resto quedaba fuera (K4, lote K).
+  const movil = useMediaQuery(MOVIL);
   // Nothing on the slate: say nothing. The message below is a claim ABOUT a model's
   // agreement with prices, and with no matches there is neither. The tab renders its
   // own explanation of why it is empty.
@@ -164,6 +168,46 @@ export function PicksPanel({
   }
 
   const pct = (p: number) => `${pctF(p, 1)}`;
+  type Pick = (typeof picks)[number];
+  // Una diferencia que REDONDEA A CERO no es una discrepancia, y pintarla de rojo la anuncia
+  // como un problema. La NFL enseñaba filas con «-0.0 pp» en rojo: el modelo y el precio
+  // coincidían hasta la décima, que es justo lo contrario de lo que el color grita. Por debajo
+  // de media décima, tinta neutra.
+  const colorDif = (p: Pick) =>
+    p.edge == null ? INK.muted : Math.abs(p.edge) < 0.005 ? INK.muted : p.edge > 0 ? PROFIT_TEXT : LOSS_TEXT;
+  const dif = (p: Pick) =>
+    p.edge == null ? '—' : Math.abs(p.edge) < 0.005 ? '0,0 pp' : `${p.edge > 0 ? '+' : ''}${numF(p.edge * 100, 1)} pp`;
+  const cuota = (p: Pick) => (
+    <>
+      {numF(p.fairOdds, 2)}
+      {p.odds != null && (
+        <span
+          className="ml-1.5 text-[12px]"
+          // Green means "the offered price is above what the model
+          // thinks it is worth". With demo odds — generated FROM the
+          // model — that comparison is circular, so the colour is
+          // withheld rather than flattering our own arithmetic.
+          style={{
+            color: !demoOdds && p.odds > p.fairOdds ? PROFIT_TEXT : INK.muted,
+          }}
+          title={t('discrepancias.cuotaOfrecida', { c: numF(p.odds, 2) })}
+        >
+          ({numF(p.odds, 2)})
+        </span>
+      )}
+    </>
+  );
+  // Only at a REAL price. At the fair odds the return is stake ÷ probability, which is
+  // break-even BY DEFINITION — so printing it would be arithmetic dressed up as a forecast.
+  // What is useful with no price is the minimum odds to look for, and that is already in the
+  // column to the left.
+  const devolveria = (p: Pick) =>
+    p.odds == null ? (
+      <span className="text-[13px] text-(--ink-muted)">{t('discrepancias.busca', { c: numF(p.fairOdds, 2) })}</span>
+    ) : (
+      (stake * p.odds).toLocaleString(localeDe(idioma), { maximumFractionDigits: 0 })
+    );
+  const clave = (p: Pick, i: number) => `${p.id}-${p.market}-${p.selection}-${i}`;
 
   return (
     <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
@@ -193,9 +237,51 @@ export function PicksPanel({
         <div className="border-t border-(--line)">
           <CaveatNote text={caveat} />
 
-          {/* Horizontal scroll on the table only, never the page — a wide row must
-              not be able to push the whole layout sideways on a phone. */}
-          <div className="overflow-x-auto" tabIndex={0}>
+          {movil ? (
+            <ul>
+              {picks.map((p, i) => (
+                <li key={clave(p, i)} className="border-b border-(--line) px-4 py-3 last:border-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="break-words text-[14px] text-(--ink-body)">{p.match}</p>
+                      <p className="text-[12px] text-(--ink-muted)">
+                        {shortTime(p.when, idioma)} · {relativeTime(p.when, new Date(), idioma)}
+                      </p>
+                      <p className="mt-1 text-[14px]">
+                        <span className="font-semibold text-(--ink-strong)">{seleccionPick(t, p.selection)}</span>{' '}
+                        <span className="text-[12px] text-(--ink-muted)">{mercadoPick(t, p.market)}</span>
+                      </p>
+                    </div>
+                    <p className="shrink-0 text-right">
+                      <span className="block text-[12px] text-(--ink-muted)">{t('discrepancias.modelo')}</span>
+                      <span className="block text-[18px] font-semibold tabular-nums text-(--ink-strong)">{pct(p.modelProb)}</span>
+                    </p>
+                  </div>
+                  <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] tabular-nums">
+                    <div className="flex gap-1.5">
+                      <dt className="text-(--ink-muted)">{t('discrepancias.mercado')}</dt>
+                      <dd className="text-(--ink-soft)">{p.marketProb == null ? '—' : pct(p.marketProb)}</dd>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <dt className="text-(--ink-muted)">{t('discrepancias.dif')}</dt>
+                      <dd className="font-semibold" style={{ color: colorDif(p) }}>{dif(p)}</dd>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <dt className="text-(--ink-muted)" title={t('discrepancias.cuotaMinimaNota')}>{t('discrepancias.cuotaMinima')}</dt>
+                      <dd className="text-(--ink-body)">{cuota(p)}</dd>
+                    </div>
+                    <div className="flex gap-1.5">
+                      <dt className="text-(--ink-muted)">{t('discrepancias.devolveria')}</dt>
+                      <dd className="text-(--ink-body)">{devolveria(p)}</dd>
+                    </div>
+                  </dl>
+                </li>
+              ))}
+            </ul>
+          ) : (
+          /* Horizontal scroll on the table only, never the page — a wide row must
+              not be able to push the whole layout sideways on a phone. */
+          <div className="desliza-x overflow-x-auto" tabIndex={0}>
             <table className="w-full min-w-[46rem] border-collapse text-[14px]">
               <thead>
                 <tr className="border-y border-(--line) text-left text-[12px] uppercase tracking-[0.05em] text-(--ink-muted)">
@@ -212,10 +298,7 @@ export function PicksPanel({
               </thead>
               <tbody>
                 {picks.map((p, i) => (
-                  <tr
-                    key={`${p.id}-${p.market}-${p.selection}-${i}`}
-                    className="border-b border-(--line) last:border-0"
-                  >
+                  <tr key={clave(p, i)} className="border-b border-(--line) last:border-0">
                     <td className="max-w-[14rem] px-4 py-2.5">
                       <span className="block break-words text-(--ink-body)">{p.match}</span>
                       <span className="block text-[12px] text-(--ink-muted)">
@@ -232,67 +315,17 @@ export function PicksPanel({
                     <td className="px-3 py-2.5 text-right tabular-nums text-(--ink-soft)">
                       {p.marketProb == null ? '—' : pct(p.marketProb)}
                     </td>
-                    <td
-                      className="px-3 py-2.5 text-right font-semibold tabular-nums"
-                      // Una diferencia que REDONDEA A CERO no es una discrepancia, y
-                      // pintarla de rojo la anuncia como un problema. La NFL enseñaba
-                      // filas con «-0.0 pp» en rojo: el modelo y el precio coincidían
-                      // hasta la décima, que es justo lo contrario de lo que el color
-                      // grita. Por debajo de media décima, tinta neutra.
-                      style={{
-                        color:
-                          p.edge == null
-                            ? INK.muted
-                            : Math.abs(p.edge) < 0.005
-                              ? INK.muted
-                              : p.edge > 0
-                                ? PROFIT_TEXT
-                                : LOSS_TEXT,
-                      }}
-                    >
-                      {p.edge == null
-                        ? '—'
-                        : Math.abs(p.edge) < 0.005
-                          ? '0,0 pp'
-                          : `${p.edge > 0 ? '+' : ''}${numF(p.edge * 100, 1)} pp`}
+                    <td className="px-3 py-2.5 text-right font-semibold tabular-nums" style={{ color: colorDif(p) }}>
+                      {dif(p)}
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-(--ink-body)">
-                      {numF(p.fairOdds, 2)}
-                      {p.odds != null && (
-                        <span
-                          className="ml-1.5 text-[12px]"
-                          // Green means "the offered price is above what the model
-                          // thinks it is worth". With demo odds — generated FROM the
-                          // model — that comparison is circular, so the colour is
-                          // withheld rather than flattering our own arithmetic.
-                          style={{
-                            color: !demoOdds && p.odds > p.fairOdds ? PROFIT_TEXT : INK.muted,
-                          }}
-                          title={t('discrepancias.cuotaOfrecida', { c: numF(p.odds, 2) })}
-                        >
-                          ({numF(p.odds, 2)})
-                        </span>
-                      )}
-                    </td>
-                    {/* Only at a REAL price. At the fair odds the return is
-                        stake ÷ probability, which is break-even BY DEFINITION — so
-                        printing it would be arithmetic dressed up as a forecast.
-                        What is useful with no price is the minimum odds to look for,
-                        and that is already in the column to the left. */}
-                    <td className="px-4 py-2.5 text-right tabular-nums text-(--ink-body)">
-                      {p.odds == null ? (
-                        <span className="text-[13px] text-(--ink-muted)">
-                          {t('discrepancias.busca', { c: numF(p.fairOdds, 2) })}
-                        </span>
-                      ) : (
-                        (stake * p.odds).toLocaleString(localeDe(idioma), { maximumFractionDigits: 0 })
-                      )}
-                    </td>
+                    <td className="px-3 py-2.5 text-right tabular-nums text-(--ink-body)">{cuota(p)}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-(--ink-body)">{devolveria(p)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-2 border-t border-(--line) px-4 py-3">
             <label htmlFor="picks-stake" className="text-[13px] text-(--ink-soft)">

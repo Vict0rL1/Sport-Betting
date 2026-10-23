@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { rutaLuchador } from '../../rutas';
 import { useFiltroQuery } from '../../lib/rutas';
-import { SkeletonList, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader, EmptySlate, SlateTable } from '../ui';
+import { SkeletonList, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader, EmptySlate, SlateTable, SeccionDia } from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, ufcPicks } from '../../lib/picks';
 import { ufcSlate } from '../../lib/slate';
@@ -122,14 +122,14 @@ export default function UfcDashboard() {
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
           {shownGroups.map((group) => (
-            <section key={group.key} className="seccion-dia mb-6">
+            <SeccionDia key={group.key} clave={group.key} className="mb-6">
               <DayHeading label={group.label} count={group.items.length} />
               <div className="grid gap-4 grid-cols-[minmax(0,1fr)] xl:grid-cols-[repeat(2,minmax(0,1fr))] xl:items-start">
                 {group.items.map((g) => (
                   <FightCard key={g.fight.id} item={g} onOpenFighter={abrirLuchador} />
                 ))}
               </div>
-            </section>
+            </SeccionDia>
           ))}
         </>
       )}

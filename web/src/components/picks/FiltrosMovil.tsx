@@ -21,7 +21,7 @@ export default function FiltrosMovil({ activos, children }: { activos: number; c
       </button>
       {abierto && (
         <div ref={dialogo} className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label={t('fm.filtros')}>
-          <button aria-label={t('fm.cerrar')} className="absolute inset-0 bg-black/50" onClick={() => setAbierto(false)} />
+          <button aria-label={t('fm.cerrar')} data-sin-pulsado className="absolute inset-0 bg-black/50" onClick={() => setAbierto(false)} />
           <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-(--line) bg-(--surface-card) p-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-[15px] font-semibold text-(--ink-strong)">{t('fm.filtros')}</p>

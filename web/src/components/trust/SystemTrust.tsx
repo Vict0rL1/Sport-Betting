@@ -278,7 +278,7 @@ export default function SystemTrust() {
         <ul className="space-y-1">{s.noSabemos.map((x) => <li key={x}><StatusMark estado="aviso" color={AMBAR} />{x}</li>)}</ul>
       </Bloque>
       <Bloque titulo={t('st.historico')}>
-        <div className="overflow-x-auto" tabIndex={0}>
+        <div className="desliza-x overflow-x-auto" tabIndex={0}>
           <table className="w-full whitespace-nowrap text-[12px] sm:text-[13px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">

@@ -113,3 +113,13 @@ test('destacados, página no encontrada y panel de preguntas en inglés', async 
   await expect(page.getByRole('heading', { name: 'Ask the data' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ask', exact: true })).toBeVisible();
 });
+
+test('N8: en inglés, las ingestas de Diagnóstico no dicen «añadidas» ni «actualizadas»', async ({ page }) => {
+  // Una ingesta con filas añadidas y actualizadas: en la base del e2e la primera llega a los minutos
+  // de arrancar el servidor (el trabajo «clima»), y la prueba no puede depender de la hora.
+  const ingesta = { id: 1, source: 'tennis', started_at: '2026-10-19T08:00:00.000Z', finished_at: '2026-10-19T08:00:05.000Z', status: 'ok', rows_added: 12, rows_updated: 3, error: null, detail: null };
+  await page.route('**/api/ingestion-runs', (r) => r.fulfill({ json: { ultimas: [ingesta], historial: [ingesta] } }));
+  await page.goto('/confianza/diagnostico');
+  await expect(page.getByText('· 12 added, 3 updated')).toBeVisible();
+  await expect(page.getByText(/añadidas|actualizadas/)).toHaveCount(0);
+});

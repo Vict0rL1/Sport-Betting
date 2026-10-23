@@ -24,6 +24,7 @@
 import { env } from './config.ts';
 import { assertCanSpend, creditCost, recordQuota, setOddsError } from './oddsQuota.ts';
 import { recordOddsResponse } from './odds/snapshots.ts';
+import { anotarCuotas } from './odds/metricas.ts';
 
 export const ODDS_API_BASE = 'https://api.the-odds-api.com/v4';
 
@@ -171,7 +172,12 @@ export async function requestOdds(
     throw new OddsApiError('sin_clave', 'No hay ODDS_API_KEY: no se puede pedir ninguna cuota.');
   }
   const credits = creditCost(markets);
-  assertCanSpend(credits, opts.manual ?? false);
+  try {
+    assertCanSpend(credits, opts.manual ?? false);
+  } catch (e) {
+    anotarCuotas({ fallidas: 1, ultimoFallo: `${sportKey}: freno de presupuesto` });
+    throw e;
+  }
 
   const url =
     `${ODDS_API_BASE}/sports/${encodeURIComponent(sportKey)}/odds/` +
@@ -184,6 +190,7 @@ export async function requestOdds(
   try {
     res = await fetch(url);
   } catch (e) {
+    anotarCuotas({ fallidas: 1, ultimoFallo: `${sportKey}: sin red` });
     throw new OddsApiError('sin_red', `Sin conexión con The Odds API: ${(e as Error).message}`);
   }
   recordQuota(res);
@@ -191,6 +198,7 @@ export async function requestOdds(
   if (!res.ok) {
     const body = await res.text().catch(() => '');
     const f = classifyFailure(res.status, body);
+    anotarCuotas({ fallidas: 1, ultimoFallo: `${sportKey}: ${f.kind}` });
     // Los fallos de la CLAVE valen para todos los deportes y se enseñan en la cabecera;
     // los de una competición concreta, no.
     if (f.kind === 'clave_invalida' || f.kind === 'sin_creditos') setOddsError(f.message);
@@ -204,6 +212,7 @@ export async function requestOdds(
     throw new OddsApiError('respuesta_invalida', `${sportKey}: la respuesta no es JSON (${(e as Error).message})`, res.status);
   }
   if (!Array.isArray(data)) {
+    anotarCuotas({ fallidas: 1, ultimoFallo: `${sportKey}: respuesta_invalida` });
     throw new OddsApiError('respuesta_invalida', `${sportKey}: se esperaba una lista de eventos`, res.status);
   }
   const events = data.filter(isEvent).map((e) => ({ ...e, bookmakers: e.bookmakers ?? [] }));
@@ -218,10 +227,15 @@ export async function requestOdds(
   // Cada respuesta real queda en el histórico de mercado (odds/snapshots.ts), sea cual
   // sea el deporte y quien la pidiera — también el sondeo del doctor. Guardarla nunca
   // puede tumbar la descarga, pero tampoco se calla.
+  // Y lo que pasó queda en la ejecución en curso (odds/metricas.ts): un fallo al guardar la
+  // convierte en error en ingestion_runs, en vez de quedarse en stderr.
+  anotarCuotas({ peticiones: 1, eventos: events.length, malformados: out.malformed });
   try {
-    recordOddsResponse(sportKey, markets, out);
+    const g = recordOddsResponse(sportKey, markets, out);
+    anotarCuotas({ cotizaciones: g.cotizaciones, cambiadas: g.snapshots, snapshots: g.snapshots, retiradas: g.retiradas, observaciones: g.observaciones, fuenteMasNueva: g.fuenteMasNueva });
   } catch (e) {
     process.stderr.write(`  aviso: no se pudo guardar el snapshot de ${sportKey}: ${(e as Error).message}\n`);
+    anotarCuotas({ errorGuardando: (e as Error).message });
   }
   return out;
 }

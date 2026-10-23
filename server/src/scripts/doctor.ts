@@ -48,6 +48,7 @@ import {
   type EstadoAnalitica,
   comprobarProducto,
   comprobarOperacion,
+  comprobarVencidas,
   type EstadoOperacion,
   type EstadoProducto,
   type EstadoAlmacenamiento,
@@ -70,7 +71,7 @@ import { configAuth } from '../auth/mode.ts';
 import { LAYOUT, ficherosDe } from '../db/layout.ts';
 import { filasDelLegadoQueFaltan, legadoSinPartir } from '../db/split.ts';
 import { estadoPorVersion } from '../db/migrations.ts';
-import { copiasLocales, directorioCopias, ultimaCopia } from '../db/backup.ts';
+import { CLAVE_ULTIMA_VERIFICACION, copiasLocales, directorioCopias, ultimaCopia } from '../db/backup.ts';
 import { configS3 } from '../db/s3.ts';
 import { marcarMuertas, ultimasEjecuciones } from '../ingest/runs.ts';
 import { sesionesActivas } from '../auth/sessions.ts';
@@ -81,6 +82,10 @@ import { eventosRecientes } from '../odds/intel.ts';
 import { origenesPermitidos } from '../security/cors.ts';
 import { monitorizacion as monitorizacionDe } from '../monitoring/series.ts';
 import { predicciones as prediccionesEnVivo } from '../evaluation/live.ts';
+import { HORAS_GRACIA, vencidas } from '../monitoring/vencidas.ts';
+import { horasArchivoAtrasado } from '../trust/decision.ts';
+import { bancoActual } from '../paper/bankroll.ts';
+import { politica } from '../staking/policyStore.ts';
 import { leerDiagramasBacktest } from '../evaluation/reliability.ts';
 import { CLAVE_ANULACIONES } from '../features.ts';
 import { SPORT_IDS } from '../sports.ts';
@@ -417,6 +422,10 @@ if (baseAbre) {
     backup: copia ? { cuando: copia.cuando, fichero: copia.fichero, existe: !!copia.fichero && fs.existsSync(copia.fichero) } : null,
     copiasLocales: uno(() => copiasLocales().length, 0),
     backupHoras: process.env.BACKUP_HOURS?.trim() ? Number(process.env.BACKUP_HOURS) || 0 : 24,
+    verificacion: uno(() => {
+      const v = getMeta(CLAVE_ULTIMA_VERIFICACION);
+      return v ? (JSON.parse(v) as EstadoAlmacenamiento['verificacion']) : null;
+    }, null),
     s3: !!configS3(),
     apuestasRegistradas: uno(() => (db.prepare('SELECT COUNT(*) AS n FROM paper_bets').get() as { n: number }).n, 0),
     retencion: retAt ? { cuando: retAt, borradas: Number(getMeta('retention:last_removed')) || 0 } : null,
@@ -511,6 +520,12 @@ if (baseAbre) {
     );
   }
   hallazgos.push(...comprobarOperacion(estadoO, new Date()));
+  hallazgos.push(
+    ...uno(() => {
+      const horas = horasArchivoAtrasado();
+      return comprobarVencidas(vencidas(new Date(), { horas: horas || HORAS_GRACIA, freno: horas > 0 }), { saldo: bancoActual(), topeTotal: politica().staking.maxTotalExposure });
+    }, [] as ReturnType<typeof comprobarVencidas>),
+  );
 }
 
 // ---------------------------------------------------------------------------

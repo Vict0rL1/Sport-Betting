@@ -16,6 +16,7 @@ import { stampPredictionVersions } from '../versions.ts';
 import { getDb } from '../db.ts';
 import type { GamePrediction } from './predict.ts';
 import type { UpcomingGameRow } from './types.ts';
+import { prepartidoSql } from '../prematch/tiempo.ts';
 
 /** Scheduled tip-off can slip a day across time zones; allow a small window. */
 const RESOLVE_WINDOW_DAYS = 3;
@@ -212,7 +213,7 @@ export function getBasketballTrackRecord(league?: string): BasketballTrackRecord
       `SELECT league, commence_time, home_name, away_name, prob_home, market_prob_home,
               predicted_margin, reliability, home_pts, away_pts
        FROM bb_prediction_log
-       WHERE resolved_at IS NOT NULL ${where}
+       WHERE resolved_at IS NOT NULL AND ${prepartidoSql()} ${where}
        ORDER BY commence_time DESC`,
     )
     .all(...params) as unknown as ScoredRow[];

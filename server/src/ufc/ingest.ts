@@ -60,6 +60,8 @@ export interface Archivo {
     asalto: number | null;
     tiempo: string | null;
     ambigua: boolean;
+    /** Algún nombre no está en la lista de luchadores de la fuente (auditoría del 17 de octubre, punto 6). */
+    sin_ficha: boolean;
   }[];
   descartadas: { sinFecha: number; ilegibles: number };
 }
@@ -88,10 +90,13 @@ export function leerArchivo(textos: Record<(typeof FICHEROS_UFC)[number], string
     porNombre.set(nombre, [...(porNombre.get(nombre) ?? []), id]);
   }
   for (const l of luchadores) l.ambiguo = (porNombre.get(l.nombre)?.length ?? 0) > 1;
-  const idUnico = (nombre: string): { id: string | null; ambiguo: boolean } => {
+  // Sin id hay dos motivos y se guardan los dos: el nombre lo comparten varios (ambiguo) o no está en
+  // la lista de luchadores (sin ficha: la fuente escribe el nombre de otra forma en cada fichero,
+  // «Kai Kamaka» / «Kai Kamaka III»). No se empareja por parecido: sería adivinar quién peleó.
+  const idUnico = (nombre: string): { id: string | null; ambiguo: boolean; sinFicha: boolean } => {
     const ids = porNombre.get(nombre);
-    if (!ids) return { id: null, ambiguo: false };
-    return ids.length === 1 ? { id: ids[0], ambiguo: false } : { id: null, ambiguo: true };
+    if (!ids) return { id: null, ambiguo: false, sinFicha: true };
+    return ids.length === 1 ? { id: ids[0], ambiguo: false, sinFicha: false } : { id: null, ambiguo: true, sinFicha: false };
   };
 
   const peleas: Archivo['peleas'] = [];
@@ -131,6 +136,7 @@ export function leerArchivo(textos: Record<(typeof FICHEROS_UFC)[number], string
       asalto: Number.isInteger(Number(r.ROUND)) && r.ROUND !== '' ? Number(r.ROUND) : null,
       tiempo: r.TIME || null,
       ambigua: a.ambiguo || b.ambiguo,
+      sin_ficha: a.sinFicha || b.sinFicha,
     });
   }
   return { eventos, luchadores, peleas, descartadas: { sinFecha, ilegibles } };
@@ -147,10 +153,10 @@ export function guardarArchivo(x: Archivo, ahora = new Date()): void {
     const l = d.prepare('INSERT INTO ufc_fighters (id, nombre, apodo, altura_cm, alcance_cm, guardia, nacimiento, ambiguo) VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING');
     for (const v of x.luchadores) l.run(v.id, v.nombre, v.apodo, v.altura_cm, v.alcance_cm, v.guardia, v.nacimiento, v.ambiguo ? 1 : 0);
     const p = d.prepare(
-      `INSERT INTO ufc_fights (id, evento_id, fecha, orden, luchador_a, luchador_b, nombre_a, nombre_b, resultado, categoria, metodo, asalto, tiempo, ambigua, ingested_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
+      `INSERT INTO ufc_fights (id, evento_id, fecha, orden, luchador_a, luchador_b, nombre_a, nombre_b, resultado, categoria, metodo, asalto, tiempo, ambigua, sin_ficha, ingested_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING`,
     );
-    for (const v of x.peleas) p.run(v.id, v.evento_id, v.fecha, v.orden, v.luchador_a, v.luchador_b, v.nombre_a, v.nombre_b, v.resultado, v.categoria, v.metodo, v.asalto, v.tiempo, v.ambigua ? 1 : 0, ahora.toISOString());
+    for (const v of x.peleas) p.run(v.id, v.evento_id, v.fecha, v.orden, v.luchador_a, v.luchador_b, v.nombre_a, v.nombre_b, v.resultado, v.categoria, v.metodo, v.asalto, v.tiempo, v.ambigua ? 1 : 0, v.sin_ficha ? 1 : 0, ahora.toISOString());
     d.exec('COMMIT');
   } catch (err) {
     d.exec('ROLLBACK');

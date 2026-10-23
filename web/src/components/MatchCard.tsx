@@ -116,7 +116,9 @@ export default function MatchCard({
                 <span className="text-(--ink-soft)">{t('tt.parejo')}</span>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            {/* Las dos fichas bajan de línea si no caben juntas (M2, lote M): sin eso, a 320 px
+                «Posible value: Alexander Zverev» acababa 11 px fuera de la pantalla, y a 280, 51. */}
+            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
               <ReliabilityBadge reliability={prediction.reliability} />
               {valuePlayer && (
                 <Badge tone="good">{t('tt.posibleValue', { nombre: valuePlayer })}</Badge>
@@ -370,7 +372,7 @@ function Bullets({ items }: { items: string[] }) {
       {ocultos > 0 && (
         <button
           onClick={() => setOpen((o) => !o)}
-          className="mt-1.5 text-[13px] text-(--ink-muted) underline-offset-2 hover:text-(--ink-body) hover:underline"
+          className="toque mt-1.5 text-[13px] [--toque-y:4px] text-(--ink-muted) underline-offset-2 hover:text-(--ink-body) hover:underline"
         >
           {open ? t('tt.verMenos') : t(ocultos === 1 ? 'tt.verMas1' : 'tt.verMasN', { n: ocultos })}
         </button>

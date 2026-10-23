@@ -118,6 +118,17 @@ test('se liquida una vez con el resultado real, y el banco de la estrategia se m
   assert.ok(p.semana > 0, 'lo realizado esta semana cuenta para los límites de esta estrategia');
 });
 
+test('una apuesta sin resultado sigue pendiente aunque hayan pasado semanas (el tiempo no es un resultado)', () => {
+  const inicio = ahora - 20 * 24 * H;
+  db.prepare(
+    `INSERT INTO strategy_bets (strategy_id, placed_at, sport, match_key, event_id, label, selection, commence_time, p_model, p_market, odds, edge, stake, bankroll_at)
+     VALUES (?, ?, 'football', 'nadie|y', 'fantasma-lab', 'A vs B', 'A', ?, 0.5, 0.4, 2.0, 0.1, 10, 1000)`,
+  ).run(exigente, iso(inicio - H), iso(inicio));
+  liquidarEstrategias(new Date(ahora + 74 * H));
+  const a = db.prepare("SELECT status, profit, settled_at FROM strategy_bets WHERE event_id = 'fantasma-lab'").get() as Record<string, unknown>;
+  assert.deepEqual({ ...a }, { status: 'pending', profit: null, settled_at: null });
+});
+
 test('comparar: el banco principal como referencia y ninguna conclusión con menos de 30 apuestas', () => {
   const { filas } = compararEstrategias();
   assert.equal(filas[0].id, null);
@@ -135,4 +146,32 @@ test('archivar: una vez, y deja de apostar', () => {
   assert.throws(() => archivarEstrategia(id), /ya está archivada/);
   assert.ok(!listarEstrategias(false).some((e) => e.id === id));
   assert.ok(colocarEstrategias(new Date(ahora)).every((p) => p.id !== id));
+});
+
+test('una estrategia sin capa de confianza tampoco apuesta donde la fuente de resultados va atrasada (revisión quant)', async () => {
+  const { olvidarArchivoAtrasado } = await import('../monitoring/vencidas.ts');
+  const nueva = crearEstrategia({ nombre: 'Sin confianza', deportes: ['football'], confianza: false, calibracion: false, staking: { minEdge: 0.02 } }).id;
+  // Dos partidos de «lab» de días distintos, empezados hace días y sin resultado; la historia no tiene ninguno de «lab».
+  const viejo = db.prepare(
+    `INSERT INTO fb_prediction_log (match_key, league, commence_time, home_id, away_id, home_name, away_name, prob_home, prob_draw, prob_away, reliability, predicted_at)
+     VALUES (?, 'lab', ?, 'a', 'b', 'A', 'B', 0.5, 0.25, 0.25, 'high', ?)`,
+  );
+  viejo.run('lab|a|b|1', iso(ahora - 5 * 24 * H), iso(ahora - 6 * 24 * H));
+  viejo.run('lab|a|b|2', iso(ahora - 4 * 24 * H), iso(ahora - 5 * 24 * H));
+  // Un partido nuevo de «lab», con cuotas reales y predicción, que la estrategia apostaría.
+  db.prepare(
+    `INSERT INTO fb_upcoming (id, league, commence_time, home_name, away_name, home_id, away_id, odds_home, odds_draw, odds_away, books, source, updated_at)
+     VALUES ('lab-tottenham-liverpool', 'epl', ?, 'Tottenham', 'Liverpool', 'tot', 'liv', 2.5, 3.4, 3.0, 6, 'live', ?)`,
+  ).run(INICIO, iso(ahora - 30 * 60_000));
+  db.prepare(
+    `INSERT INTO fb_prediction_log (match_key, league, upcoming_id, commence_time, home_id, away_id, home_name, away_name,
+       prob_home, prob_draw, prob_away, shown_home, shown_draw, shown_away,
+       market_prob_home, market_prob_draw, market_prob_away, reliability, predicted_at)
+     VALUES ('lab|tot|liv', 'epl', 'lab-tottenham-liverpool', ?, 'tot', 'liv', 'Tottenham', 'Liverpool',
+       0.54, 0.24, 0.22, 0.52, 0.25, 0.23, 0.385, 0.283, 0.332, 'high', ?)`,
+  ).run(INICIO, iso(ahora - 1 * H));
+  olvidarArchivoAtrasado();
+  const p = colocarEstrategias(new Date(ahora)).find((x) => x.id === nueva)!;
+  assert.equal(p.colocadas, 0);
+  assert.equal(p.rechazos['archivo de resultados atrasado'], 1, JSON.stringify(p.rechazos));
 });

@@ -9,11 +9,11 @@ import { COLOR_BENEFICIO, COLOR_PERDIDA } from '../components/charts';
 import { useSubnavConfianza } from './subnav';
 
 interface Fila {
-  sport: string; matchKey: string; liga: string | null; cuando: string | null; registrada: string; partido: string; favorito: string; probabilidad: number;
+  sport: string; matchKey: string; liga: string | null; cuando: string | null; registrada: string; momento: 'prepartido' | 'tardia' | 'sin_hora'; partido: string; favorito: string; probabilidad: number;
   mercado: number | null; banda: string; resultado: 'acierto' | 'fallo' | 'nulo' | 'pendiente'; marcador: string | null; confianza: 'ALTA' | 'MEDIA' | 'BAJA' | null;
   decision: string | null; clv: number | null; clvDe: 'papel' | 'señal' | null; politica: number | null; version: string | null; url: string;
 }
-interface Respuesta { filas: Fila[]; total: number; pagina: number; porPagina: number; resumen: { resueltas: number; aciertos: number; pendientes: number; aviso: { nivel: string; texto: string | null } }; ligas: { sport: string; liga: string }[] }
+interface Respuesta { filas: Fila[]; total: number; pagina: number; porPagina: number; resumen: { resueltas: number; aciertos: number; pendientes: number; aviso: { nivel: string; texto: string | null }; noPrepartido: number }; ligas: { sport: string; liga: string }[] }
 
 const DEPORTES = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'ufc', 'tennis'];
 const FILTROS = ['q', 'sport', 'liga', 'confianza', 'banda', 'resultado', 'desde', 'hasta'] as const;
@@ -96,6 +96,7 @@ export default function Archivo() {
         <p className="mb-3 text-[13px] text-(--ink-body)" data-testid="resumen-archivo">
           {t('archivo.resumen', { total: f.numero(datos.total), aciertos: datos.resumen.aciertos, resueltas: datos.resumen.resueltas, pendientes: datos.resumen.pendientes })}
           {datos.resumen.aviso.texto && <span className="block text-[12px] text-(--ink-muted)">{datos.resumen.aviso.texto}</span>}
+          {datos.resumen.noPrepartido > 0 && <span className="block text-[12px] text-(--ink-muted)">{t('archivo.noPrepartido', { n: datos.resumen.noPrepartido })}</span>}
         </p>
       )}
       {datos && datos.filas.length === 0 && <p className="text-[14px] text-(--ink-muted)">{t('archivo.vacio')}</p>}
@@ -118,6 +119,7 @@ export default function Archivo() {
               {x.clv != null && <span style={{ color: x.clv >= 0 ? COLOR_BENEFICIO : COLOR_PERDIDA }}> · CLV {f.porcentaje(x.clv, 1)} ({x.clvDe})</span>}
               {x.politica != null && ` · ${t('archivo.politica', { v: x.politica })}`}
               {x.version && ` · ${x.version}`}
+              {x.momento !== 'prepartido' && <span className="text-(--ink-strong)"> · {t(`archivo.momento.${x.momento}`)}</span>}
             </p>
           </li>
         ))}

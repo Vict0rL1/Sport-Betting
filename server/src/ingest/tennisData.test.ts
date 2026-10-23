@@ -48,3 +48,20 @@ test('ingestTennisData con la fuente caída no borra ni añade nada, y conRegist
   assert.match(e.error ?? '', /tennis-data\.co\.uk no sirvió/);
   simularFetch(null);
 });
+
+test('si SQLite ya deshizo la transacción, se ve el error de verdad y no «no transaction is active» (revisión data-guardian, tercera vuelta)', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const { MANUAL_DIR } = await import('./tennisData.ts');
+  fs.mkdirSync(MANUAL_DIR, { recursive: true });
+  const fichero = path.join(MANUAL_DIR, 'atp-2093.csv');
+  fs.writeFileSync(fichero, ['Location,Tournament,Date,Series,Court,Surface,Round,Best of,Winner,Loser,WRank,LRank', 'Doha,Qatar Open,2093-01-05,ATP250,Outdoor,Hard,1st Round,3,Uno A.,Dos B.,10,20'].join('\n'));
+  const db = getDb();
+  db.exec("CREATE TEMP TRIGGER deshace_partidos BEFORE INSERT ON matches BEGIN SELECT RAISE(ROLLBACK, 'fallo con rollback'); END;");
+  try {
+    await assert.rejects(ingestTennisData('atp', { fromYear: 2093, toYear: 2093 }), /fallo con rollback/);
+  } finally {
+    db.exec('DROP TRIGGER deshace_partidos');
+    fs.rmSync(fichero);
+  }
+});

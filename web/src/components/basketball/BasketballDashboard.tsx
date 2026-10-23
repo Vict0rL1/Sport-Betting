@@ -4,7 +4,7 @@ import { rutaEquipo } from '../../rutas';
 import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../../lib/rutas';
 import {
   pillClass, SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader,
-  EmptySlate, LeagueFlag, SlateTable, VacioPorqueNoHayCuotas} from '../ui';
+  EmptySlate, LeagueFlag, SlateTable, VacioPorqueNoHayCuotas, SeccionDia} from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, basketballPicks } from '../../lib/picks';
 import { basketballSlate } from '../../lib/slate';
@@ -31,8 +31,15 @@ export default function BasketballDashboard() {
   const [games, setGames] = useState<BbGameWithPrediction[]>([]);
   const [power, setPower] = useState<BbPowerTeam[]>([]);
   const [loading, setLoading] = useState(false);
+  // Si hay partidos no se sabe hasta que contesta la primera petición (N3, lote N). Antes, mientras
+  // llegaban las ligas, salía «No hay partidos próximos para esta liga».
+  const [partidosCargados, setPartidosCargados] = useState(false);
   const [peticiones] = useState(contadorDePeticiones);
-  const [error, setError] = useState<string | null>(null);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  // El de los partidos va aparte (N16, lote N): es de esa liga, y se borra al pedir otra. Antes se
+  // quedaba encima de la liga nueva y tapaba que no tenía partidos.
+  const [errorLiga, setErrorLiga] = useState<string | null>(null);
+  const error = errorCarga ?? errorLiga;
   const navigate = useNavigate();
   // Un equipo abre su página (Fase 5.12): una URL, no un modal.
   const setTeam = (t: { league: string; id: string }) => navigate(rutaEquipo('basketball', t.league, t.id));
@@ -48,7 +55,7 @@ export default function BasketballDashboard() {
         setLeagues(l);
       })
       .catch((e) =>
-        setError(
+        setErrorCarga(
           tr('bk.errorCargar', { error: String(e) }),
         ),
       );
@@ -59,6 +66,9 @@ export default function BasketballDashboard() {
     () => leagues.filter((l) => l.hasUpcoming || l.games > 0),
     [leagues],
   );
+  // Sin ninguna liga con datos lo dice «No hay datos de baloncesto todavía»: «el modelo está listo,
+  // pero no hay nada en el calendario» no sería verdad (N3).
+  const sinLigas = meta != null && selectable.length === 0;
   useEffect(() => {
     if (leagues.length === 0) return;
     if (league && selectable.some((l) => l.id === league)) return;
@@ -80,19 +90,25 @@ export default function BasketballDashboard() {
     // D8: cambiar dos veces de liga no deja los partidos de la que contestó tarde.
     const n = peticiones.nueva();
     setLoading(true);
+    setErrorLiga(null);
     Promise.all([bbApi.upcoming(league), bbApi.power(league, 40)])
       .then(([g, p]) => {
         if (!peticiones.esUltima(n)) return;
         setGames(g);
         setPower(p.teams);
       })
-      .catch((e) => peticiones.esUltima(n) && setError(String(e)))
-      .finally(() => peticiones.esUltima(n) && setLoading(false));
+      .catch((e) => peticiones.esUltima(n) && setErrorLiga(String(e)))
+      .finally(() => {
+        if (!peticiones.esUltima(n)) return;
+        setLoading(false);
+        setPartidosCargados(true);
+      });
   }, [league]);
 
   async function handleRefresh() {
     setRefreshing(true);
-    setError(null);
+    setErrorCarga(null);
+    setErrorLiga(null);
     try {
       await bbApi.refresh();
       const [m, l, g] = await Promise.all([
@@ -104,7 +120,7 @@ export default function BasketballDashboard() {
       setLeagues(l);
       setGames(g);
     } catch (e) {
-      setError(tr('comun.errorActualizar', { error: String(e) }));
+      setErrorCarga(tr('comun.errorActualizar', { error: String(e) }));
     } finally {
       setRefreshing(false);
     }
@@ -148,6 +164,7 @@ export default function BasketballDashboard() {
         refreshTitle={tr('eq.refrescarTitulo')}
         chips={meta && (<>{tr('eq.chipsEquipos', { partidos: meta.counts.games.toLocaleString(localeDe(idioma)), equipos: meta.counts.teams })}</>)}
         alert={staleLabel(stale, idioma)}
+        avisoPendiente={league == null && !sinLigas && error == null}
       >
           <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
             {tr('bk.lema')}
@@ -183,7 +200,14 @@ export default function BasketballDashboard() {
       )}
 
       {/* League selector */}
-      {selectable.length > 0 ? (
+      {/* Mientras no han llegado las ligas (llegan con `meta`), su sitio y nada más (L1, lote L): antes
+          salía «No hay datos de …» en cada carga, que es decir que no hay datos cuando aún no se sabe,
+          y al llegar saltaba 100 px. Si la petición falla, lo dice el aviso de error. El hueco es una
+          pastilla invisible, para medir lo mismo que la fila (N17, lote N): con un alto a mano medía
+          1 px más, y la lista subía ese píxel al llegar. */}
+      {meta == null ? (
+        <div aria-hidden className="invisible mb-4 flex"><span className={pillClass(false)}>&nbsp;</span></div>
+      ) : selectable.length > 0 ? (
         <div className="mb-4 flex flex-wrap gap-2">
           {selectable.map((l) => (
             <button
@@ -216,15 +240,15 @@ export default function BasketballDashboard() {
       )}
 
       {/* Games */}
-      {loading ? (
+      {loading || (!partidosCargados && !sinLigas && error == null) ? (
         <SkeletonList />
       ) : games.length === 0 ? (
-        <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
+        !sinLigas && error == null && <EmptySlate what={activeLeague?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
           {shownGroups.map((group) => (
-            <section key={group.key} className="seccion-dia mb-6">
+            <SeccionDia key={group.key} clave={group.key} className="mb-6">
               <DayHeading label={group.label} count={group.items.length} />
               {/* Two-up from 1280px. The shell got wider (see SHELL_WIDTH in
                   App.tsx) and a card does not want to BE wider — it wants a
@@ -243,7 +267,7 @@ export default function BasketballDashboard() {
                   <GameCard key={g.game.id} item={g} onOpenTeam={(lg, id) => setTeam({ league: lg, id })} />
                 ))}
               </div>
-            </section>
+            </SeccionDia>
           ))}
         </>
       )}

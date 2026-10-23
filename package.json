@@ -88,6 +88,8 @@
     "db:explain": "npm run db:explain --workspace server --",
     "backup": "npm run backup --workspace server --",
     "restore": "npm run restore --workspace server --",
+    "copia:consolidar": "npm run copia:consolidar --workspace server --",
+    "auditoria:copia": "npm run auditoria:copia --workspace server --",
     "odds:retention": "npm run odds:retention --workspace server --",
     "clubelo": "npm run clubelo --workspace server --",
     "bullpen": "npm run bullpen --workspace server --",

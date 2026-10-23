@@ -72,6 +72,10 @@ test('leerArchivo: resultado por pelea, orden de la cartelera, nombres ambiguos 
   assert.equal(p.get('cccccccccccc0004')!.resultado, 'EMPATE');
   assert.equal(p.get('cccccccccccc0004')!.luchador_b, null, 'un nombre que no está en la lista de luchadores no se inventa');
   assert.equal(p.get('cccccccccccc0004')!.ambigua, false);
+  // Auditoría del 17 de octubre, punto 6: sin id y sin «ambigua» no decía por qué. Ahora lo dice.
+  assert.equal(p.get('cccccccccccc0004')!.sin_ficha, true, 'Nadie Conocido no está en la lista de luchadores');
+  assert.equal(p.get('cccccccccccc0002')!.sin_ficha, false, 'Bruno Silva sí está (dos veces): es ambigua, no sin ficha');
+  assert.equal(p.get('cccccccccccc0001')!.sin_ficha, false);
   assert.equal(p.get('cccccccccccc0005')!.resultado, 'NC');
   const pereira = x.luchadores.find((l) => l.id === 'bbbbbbbbbbbb0001')!;
   assert.deepEqual([pereira.altura_cm, pereira.alcance_cm, pereira.nacimiento], [193, 200.7, '1987-07-07']);
