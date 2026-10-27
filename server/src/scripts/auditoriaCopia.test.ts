@@ -66,4 +66,10 @@ test('la auditoría de una copia en caliente cuenta lo del -wal, lo tardío y lo
   assert.deepEqual(informe.apuestasVencidas.map((a: { match_key: string }) => a.match_key), ['nhl|2026-10-11|EDM|CGY']);
   assert.equal(informe.vencidas.total.predicciones, 2);
   assert.match(fs.readFileSync(path.join(salida, 'resumen.md'), 'utf8'), /Filas del registro escritas en o después del inicio: 1/);
+  // Sin ninguna versión de política en la copia: la de fábrica se siembra en la copia de trabajo,
+  // como haría la app al arrancar, y el informe lo dice (revisión data-guardian).
+  assert.equal(informe.frenoFuenteAtrasada.politica.versionesGuardadas, 0);
+  assert.equal(informe.frenoFuenteAtrasada.politica.sembradaEnLaCopiaDeTrabajo, true);
+  assert.ok(informe.tablasVacias.some((t: { tabla: string }) => t.tabla === 'policy_versions'), 'policy_versions estaba vacía en la copia');
+  assert.match(fs.readFileSync(path.join(salida, 'resumen.md'), 'utf8'), /se sembró en la copia de trabajo/);
 });

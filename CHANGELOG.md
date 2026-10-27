@@ -4,6 +4,33 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Auditoría del 22 de octubre · freno en la auditoría de copias, surebets de hándicap y fallos de cuotas (2026-10-27)
+
+Lo que encontró la revisión de `0655c8c`: `docs/plans/auditoria-22-octubre.md`. Cada punto con su
+prueba que falla antes.
+
+- **El informe de `auditoria:copia` dice el freno que de verdad se aplica.** Antes listaba como
+  frenadas, con 48 h, todas las competiciones con algo vencido, aunque la política de la copia no
+  tuviera el freno, y algunas sin motivo. Ahora dice la política y el umbral efectivos, y separa
+  las restricciones activas (con motivo), los avisos (frenaría si se encendiera) y lo que no tiene
+  prueba suficiente. No cambia ninguna política.
+- **Una surebet de hándicap pide líneas de signo contrario.** A −3,5 y B −3,5 salía como surebet
+  del 4,8 % y las dos pierden si A gana por uno. Ahora la cobertura depende del mercado:
+  - hándicap: −h con +h;
+  - total: Over y Under con el mismo umbral;
+  - sin línea: todas las selecciones;
+  - cualquier otro: ninguna.
+  Cada pata lleva su línea con signo, en la API y en Destacados.
+- **Los fallos de cuotas no se pierden:**
+  - una respuesta que no es JSON, de las cuotas o de `/sports`, cuenta como fallida, aunque el
+    refresco caiga a la demostración (antes: «ninguna petición a la API»);
+  - si el refresco lanza, la ejecución guarda el error con lo recogido hasta entonces (antes,
+    `metrics = NULL`).
+- **Revisiones:**
+  - la auditoría lee las anulaciones de Ajustes, como el servidor;
+  - `/sports` con algo que no es una lista es un fallo y no va a la caché;
+  - cada competición del freno lleva sus horas.
+
 ## Auditoría del 17 de octubre · copias, pre-partido, liquidación, ingesta y cobertura (2026-10-20)
 
 Hallazgos, causas, lo que falta confirmar en la copia del 12 de octubre y las acciones que

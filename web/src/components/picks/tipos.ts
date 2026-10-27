@@ -1,4 +1,4 @@
-import { pct as pctFormato, num } from '../../lib/formato';
+import { pct as pctFormato, num, cifra } from '../../lib/formato';
 // Tipos y utilidades de Destacados (partido de TopPicks.tsx en la Fase 5).
 import type { SportId } from '../../lib/theme';
 
@@ -56,7 +56,7 @@ export interface Inteligencia {
   ventanaHoras: number;
   eventos: number;
   steam: { eventId: string; partido: string; market: string; seleccion: string; desde: number; hasta: number; movimientoPp: number; minutos: number; casas: number }[];
-  surebets: { eventId: string; partido: string; market: string; margenPct: number; patas: { seleccion: string; cuota: number; casa: string }[] }[];
+  surebets: { eventId: string; partido: string; market: string; margenPct: number; patas: { seleccion: string; cuota: number; casa: string; linea: number | null }[] }[];
   referencia: { eventId: string; partido: string; market: string; casa: string; selecciones: { seleccion: string; referencia: number; consenso: number; desviacionPp: number }[] }[];
   etiqueta: string;
 }
@@ -95,4 +95,15 @@ export function guardar(k: string, v: unknown): void {
   } catch {
     // No poder recordarlo no impide usarlo ahora.
   }
+}
+
+/**
+ * La selección de una pata de surebet con su línea (auditoría del 22 de octubre, hallazgo 2): en
+ * un hándicap con signo («Chiefs −3,5», «Bills +3,5»), en un total el umbral («Over 2,5»); sin
+ * línea, tal cual.
+ */
+export function seleccionConLinea(seleccion: string, linea: number | null, market: string): string {
+  if (linea === null) return seleccion;
+  const signo = /spreads/.test(market) && linea > 0 ? '+' : '';
+  return `${seleccion} ${signo}${cifra(linea)}`;
 }

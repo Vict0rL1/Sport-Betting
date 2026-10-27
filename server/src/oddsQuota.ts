@@ -44,6 +44,7 @@
 import { classifyFailure, OddsApiError, ODDS_API_BASE } from './oddsApi.ts';
 import { getMeta, setMeta } from './db.ts';
 import { env } from './config.ts';
+import { anotarCuotas } from './odds/metricas.ts';
 
 // Una sola URL del proveedor, en oddsApi.ts. Se reexporta por compatibilidad.
 export { ODDS_API_BASE };
@@ -345,10 +346,14 @@ const CACHE_MS = 10 * 60_000;
  */
 export async function listSports(): Promise<SportListing[]> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache.sports;
+  // Cada fallo queda en la ejecución en curso, como los de las cuotas (auditoría del 22 de octubre,
+  // hallazgo 3): el tenis lo captura y cae a la demostración, y sin anotarlo la ejecución decía
+  // «ninguna petición a la API».
   let res: Response;
   try {
     res = await fetch(`${ODDS_API_BASE}/sports/?apiKey=${encodeURIComponent(env.oddsApiKey)}`);
   } catch (e) {
+    anotarCuotas({ fallidas: 1, ultimoFallo: '/sports: sin_red' });
     throw new OddsApiError('sin_red', `Sin conexión con The Odds API: ${(e as Error).message}`);
   }
   recordQuota(res);
@@ -358,13 +363,31 @@ export async function listSports(): Promise<SportListing[]> {
     // llega como 401 OUT_OF_USAGE_CREDITS.
     const body = await res.text().catch(() => '');
     const f = classifyFailure(res.status, body);
+    anotarCuotas({ fallidas: 1, ultimoFallo: `/sports: ${f.kind}` });
     if (f.kind === 'clave_invalida' || f.kind === 'sin_creditos') setOddsError(f.message);
     throw new OddsApiError(f.kind, `/sports: ${f.message}`, res.status, body.slice(0, 500));
   }
-  const sports = (await res.json()) as SportListing[];
+  let sports: SportListing[];
+  try {
+    sports = (await res.json()) as SportListing[];
+  } catch (e) {
+    anotarCuotas({ fallidas: 1, ultimoFallo: '/sports: respuesta_invalida (no es JSON)' });
+    throw new OddsApiError('respuesta_invalida', `/sports: la respuesta no es JSON (${(e as Error).message})`, res.status);
+  }
+  // JSON que no es una lista (la página de un proxy, un error con 200): un fallo, como en las
+  // cuotas (oddsApi.ts), y nunca a la caché (revisión data-guardian del 27 de octubre).
+  if (!Array.isArray(sports)) {
+    anotarCuotas({ fallidas: 1, ultimoFallo: '/sports: respuesta_invalida' });
+    throw new OddsApiError('respuesta_invalida', '/sports: se esperaba una lista de competiciones', res.status);
+  }
   setOddsError(null);
   cache = { at: Date.now(), sports };
   return sports;
+}
+
+/** Para los tests: olvidar la lista de competiciones guardada. */
+export function olvidarListaDeportes(): void {
+  cache = null;
 }
 
 /** The subset of `wanted` that is actually in season. */

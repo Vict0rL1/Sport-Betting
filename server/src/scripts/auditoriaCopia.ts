@@ -70,12 +70,19 @@ process.env.BACKUP_DIR = path.join(app, 'backups');
 for (const k of ['BACKUP_S3_BUCKET', 'BACKUP_S3_ACCESS_KEY', 'BACKUP_S3_SECRET_KEY', 'BACKUP_S3_ENDPOINT', 'ODDS_API_KEY', 'THE_ODDS_API_KEY']) process.env[k] = '';
 process.env.AUTO_REFRESH_MINUTES = '0';
 
-const { getDb } = await import('../db.ts');
+const { getDb, getMeta } = await import('../db.ts');
 const { prepartidoSql } = await import('../prematch/tiempo.ts');
-const { vencidas, FUENTES, olvidarArchivoAtrasado, motivoArchivoAtrasado } = await import('../monitoring/vencidas.ts');
+const { vencidas, FUENTES, olvidarArchivoAtrasado, motivoArchivoAtrasado, MIN_DIAS_PRUEBA, VENTANA_PRUEBA_DIAS } = await import('../monitoring/vencidas.ts');
+const { politica, idPoliticaVigente, politicaPorDefecto } = await import('../staking/policyStore.ts');
+const { horasArchivoAtrasado } = await import('../trust/decision.ts');
+const { featureEncendida, conLectorDeAnulaciones, CLAVE_ANULACIONES } = await import('../features.ts');
 const { liquidador } = await import('../paper/bankroll.ts');
 const { leerTml } = await import('../ingest/tmlLectura.ts');
 const db = getDb();
+// Las anulaciones de Ajustes (meta `features.anulaciones`, en la copia) cuentan como en el servidor,
+// que las instala al arrancar (app.ts): sin esto, la política versionada apagada desde Ajustes se
+// leía como encendida (revisión data-guardian y quant del 27 de octubre).
+conLectorDeAnulaciones(getMeta);
 type Fila = Record<string, unknown>;
 const todas = (sql: string, ...p: (string | number | null)[]) => db.prepare(sql).all(...p) as Fila[];
 const una = (sql: string, ...p: (string | number | null)[]) => db.prepare(sql).get(...p) as Fila | undefined;
@@ -128,11 +135,87 @@ for (const f of FUENTES) {
 
 // --- Punto 3: vencidas, fuentes y liquidación ----------------------------------------------------
 olvidarArchivoAtrasado();
+// El freno por fuente atrasada con la política que de verdad se aplica (auditoría del 22 de octubre,
+// hallazgo 1). Antes se listaban como frenadas, con el umbral de fábrica, todas las competiciones con
+// algo vencido, aunque la política de la copia no tuviera el freno (una v1 anterior a la clave da 0
+// en trust/decision.ts y assess.ts no lo calcula) y aunque no hubiera prueba (motivo null). La
+// política se lee por el mismo camino que el banco, las estrategias y la confianza; si la copia no
+// tiene ninguna versión, `politica()` siembra la de fábrica en la copia de trabajo, como haría la app
+// al arrancar, y el informe lo dice. La copia original no se toca.
+const versionesGuardadas = Number(una('SELECT COUNT(*) AS n FROM policy_versions')?.n ?? 0);
+/** El valor de la anulación de Ajustes, si la hay; null si manda config/features.json. */
+const interruptorAnulado = ((): boolean | null => {
+  try {
+    const v = (JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}') as Record<string, unknown>)['politica.versionada'];
+    return typeof v === 'boolean' ? v : null;
+  } catch {
+    return null;
+  }
+})();
+const interruptorVersionada = featureEncendida('politica.versionada');
+const politicaAplicada = politica();
+const versionPolitica = idPoliticaVigente();
+const horasFreno = horasArchivoAtrasado();
+const frenoActivo = horasFreno > 0;
+const claveGuardada = politicaAplicada.abstencion.archivoAtrasadoHoras ?? null;
+/**
+ * Con el freno apagado, el umbral de referencia de los avisos: el de fábrica. Es el que toma la
+ * primera versión nueva si la vigente no tiene la clave; si la tiene a 0, encenderlo pide poner un
+ * valor a mano, y el de fábrica es solo una referencia.
+ */
+const horasDeFabrica = politicaPorDefecto().abstencion.archivoAtrasadoHoras ?? 0;
+const umbralFreno = frenoActivo ? horasFreno : horasDeFabrica;
+// Las vencidas del informe, a las horas de gracia de siempre (48): el umbral del freno va aparte y
+// en cada competición frenada, avisada o sin prueba (revisión quant: no mezclar las dos cuentas).
 const venc = vencidas(ahora);
-const frenadas = [...new Set(venc.competiciones.filter((c) => c.fuenteAtrasada > 0).map((c) => `${c.sport}|${c.competicion}`))].map((k) => {
-  const [sport, comp] = k.split('|');
-  return { sport, competicion: comp, motivo: motivoArchivoAtrasado(sport as never, `${comp}|x`, ahora) };
-});
+type CompeticionFreno = { sport: string; competicion: string; horas: number; fuenteAtrasada: number; diasConPrueba: number; ultimoResultado: string | null; motivo: string | null };
+const candidatasFreno: CompeticionFreno[] =
+  umbralFreno > 0
+    ? vencidas(ahora, { horas: umbralFreno })
+        .competiciones.filter((c) => c.fuenteAtrasada > 0)
+        .map((c) => ({ sport: c.sport, competicion: c.competicion, horas: umbralFreno, fuenteAtrasada: c.fuenteAtrasada, diasConPrueba: c.diasConPrueba, ultimoResultado: c.ultimoResultado, motivo: motivoArchivoAtrasado(c.sport, `${c.competicion}|x`, ahora, umbralFreno) }))
+    : [];
+const conMotivo = candidatasFreno.filter((c) => c.motivo !== null);
+/** Versionada y sin versión leída: la guardada no se puede leer y `politica()` cae a la de fábrica, como en el servidor. */
+const politicaIlegible = interruptorVersionada && versionPolitica === null;
+const frenoFuenteAtrasada = {
+  politica: {
+    interruptorVersionada,
+    /** El valor puesto desde Ajustes (meta features.anulaciones), o null si manda config/features.json. */
+    interruptorAnulado,
+    /** null: interruptor apagado, o la versión guardada no se puede leer; en los dos casos, las constantes de fábrica. */
+    version: versionPolitica,
+    versionesGuardadas,
+    sembradaEnLaCopiaDeTrabajo: versionesGuardadas === 0 && versionPolitica !== null,
+    /** null: la versión no tiene la clave (es anterior al freno). */
+    archivoAtrasadoHoras: claveGuardada,
+  },
+  horasEfectivas: horasFreno,
+  activo: frenoActivo,
+  /** Competiciones donde no se apuesta ahora: freno encendido y prueba suficiente. */
+  restricciones: frenoActivo ? conMotivo : [],
+  /** Con el freno apagado: dónde frenaría con `horas` (las de fábrica). */
+  avisos: {
+    horas: frenoActivo ? null : horasDeFabrica || null,
+    nota: frenoActivo
+      ? null
+      : claveGuardada === null
+        ? `${horasDeFabrica} h es lo que tomará la primera versión de política nueva, que añade la clave con su valor de fábrica.`
+        : `La política vigente tiene la clave a 0: encender el freno pide poner un valor en una versión nueva; ${horasDeFabrica} h es solo el de fábrica.`,
+    competiciones: frenoActivo ? [] : conMotivo,
+  },
+  /** Fuente atrasada, pero con pruebas de menos de MIN_DIAS_PRUEBA días distintos: no frena. */
+  sinPruebaSuficiente: candidatasFreno.filter((c) => c.motivo === null),
+  lectura: !interruptorVersionada
+    ? `Política sin versionar (interruptor politica.versionada apagado${interruptorAnulado === false ? ' desde Ajustes' : ''}): se aplican las constantes de fábrica, con el freno a ${horasFreno} h.`
+    : politicaIlegible
+      ? `No se puede leer la política guardada: como en el servidor, se aplican las constantes de fábrica, con el freno a ${horasFreno} h.`
+      : frenoActivo
+        ? `Freno encendido: la política v${versionPolitica} pone abstencion.archivoAtrasadoHoras = ${horasFreno} h.`
+        : claveGuardada === null
+          ? `Freno apagado: la política vigente (v${versionPolitica}) es anterior a abstencion.archivoAtrasadoHoras y no la tiene, así que no frena (trust/decision.ts da 0). Empezará con la primera versión que la diga.`
+          : `Freno apagado: la política vigente (v${versionPolitica}) pone abstencion.archivoAtrasadoHoras = 0.`,
+};
 const apuestasVencidas = todas(
   `SELECT 'papel' AS banco, id, sport, match_key, label, selection, commence_time, placed_at, stake, odds FROM paper_bets
     WHERE status = 'pending' AND julianday(commence_time) <= julianday(?) - ?
@@ -246,6 +329,8 @@ for (const esquema of [...new Set(['main', ...(todas('PRAGMA database_list') as 
   for (const { name } of todas(`SELECT name FROM ${esquema}.sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name`) as { name: string }[]) {
     const n = Number(una(`SELECT COUNT(*) AS n FROM ${esquema}."${name}"`)?.n ?? 0);
     if (n === 0) vacias.push({ esquema, tabla: name });
+    // La sembrada por `politica()` en la copia de trabajo no estaba en la copia.
+    else if (name === 'policy_versions' && versionesGuardadas === 0) vacias.push({ esquema, tabla: name, nota: 'vacía en la copia; la auditoría sembró la de fábrica en la copia de trabajo' });
   }
 }
 
@@ -259,7 +344,7 @@ const informe = {
   prepartido: { tardias, sinFinal },
   vencidas: venc,
   apuestasVencidas,
-  competicionesFrenadas: frenadas,
+  frenoFuenteAtrasada,
   liquidacionMal,
   duplicadosTenis,
   anomaliasCsv,
@@ -295,7 +380,14 @@ const md = [
   `- Predicciones sin resultado más de ${venc.horasGracia} h después del inicio: ${venc.total.predicciones}; apuestas: ${venc.total.apuestas}`,
   ...venc.competiciones.map((c) => `  - ${c.sport} · ${c.competicion}: ${c.vencidas} (fuente atrasada ${c.fuenteAtrasada}, sin emparejar ${c.sinEmparejar}, sin hora ${c.sinHora}); último resultado de la fuente ${c.ultimoResultado ?? '—'}`),
   ...apuestasVencidas.map((a) => `  - apuesta ${a.banco} #${a.id} ${a.sport} ${a.match_key} «${a.selection}» (inicio ${a.commence_time}): sigue pendiente`),
-  `- Competiciones donde ya no se apostaría (fuente atrasada): ${frenadas.map((f) => `${f.sport}·${f.competicion}`).join(', ') || 'ninguna'}`,
+  `- Freno por fuente atrasada: ${frenoFuenteAtrasada.lectura}${frenoFuenteAtrasada.politica.sembradaEnLaCopiaDeTrabajo ? ' La copia no tenía ninguna versión de política: la de fábrica se sembró en la copia de trabajo, como haría la app al arrancar.' : ''}`,
+  frenoActivo
+    ? `- Restricciones activas (${horasFreno} h): ${frenoFuenteAtrasada.restricciones.map((c) => `${c.sport}·${c.competicion}`).join(', ') || 'ninguna'}`
+    : '- Restricciones activas: ninguna (el freno está apagado)',
+  ...frenoFuenteAtrasada.restricciones.map((c) => `  - ${c.sport}·${c.competicion}: ${c.motivo}`),
+  ...(frenoActivo ? [] : [`- Avisos, no restricciones (frenarían con ${horasDeFabrica} h): ${conMotivo.map((c) => `${c.sport}·${c.competicion}`).join(', ') || 'ninguno'}. ${frenoFuenteAtrasada.avisos.nota}`]),
+  ...frenoFuenteAtrasada.avisos.competiciones.map((c) => `  - ${c.sport}·${c.competicion}: ${c.motivo}`),
+  `- Fuente atrasada a más de ${umbralFreno} h sin prueba suficiente (menos de ${MIN_DIAS_PRUEBA} días distintos en ${VENTANA_PRUEBA_DIAS}; no frena): ${frenoFuenteAtrasada.sinPruebaSuficiente.map((c) => `${c.sport}·${c.competicion} (${c.diasConPrueba} día${c.diasConPrueba === 1 ? '' : 's'})`).join(', ') || 'ninguna'}`,
   `- Apuestas liquidadas con aritmética o resultado que no cuadra: ${liquidacionMal.length}`,
   ...liquidacionMal.slice(0, 50).map((l) => `  - ${l.tabla} #${l.id} ${l.sport} ${l.match_key}: ${(l.motivos as string[]).join('; ')}`),
   '',

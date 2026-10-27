@@ -209,6 +209,9 @@ export async function requestOdds(
   try {
     data = await res.json();
   } catch (e) {
+    // Se anota como cualquier otro fallo (auditoría del 22 de octubre, hallazgo 3): sin esto, un
+    // refresco que lo capturaba y caía a la demostración dejaba «0 fallidas, ninguna petición».
+    anotarCuotas({ fallidas: 1, ultimoFallo: `${sportKey}: respuesta_invalida (no es JSON)` });
     throw new OddsApiError('respuesta_invalida', `${sportKey}: la respuesta no es JSON (${(e as Error).message})`, res.status);
   }
   if (!Array.isArray(data)) {

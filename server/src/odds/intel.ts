@@ -46,7 +46,8 @@ export interface Surebet extends EventoMercado {
   /** Σ 1/mejor: por debajo de 1 hay hueco. */
   suma: number;
   margenPct: number;
-  patas: { seleccion: string; cuota: number; casa: string }[];
+  /** Cada pata con su línea tal cual la cotiza la casa: −3,5 y +3,5 en un hándicap, 2,5 en un total; null sin línea. */
+  patas: { seleccion: string; cuota: number; casa: string; linea: number | null }[];
   /** La |línea| de la surebet (totales, hándicap); null sin línea (lote C, C2). */
   linea: number | null;
 }
@@ -122,27 +123,64 @@ export function steamDe(puntos: { at: string; consensus: number; books: number; 
 }
 
 /**
- * La surebet de un mercado con las mejores cuotas actuales de cada selección. Con líneas, solo
- * entre líneas COMPLEMENTARIAS (lote C, C2): Más 2,5 se cubre con Menos 2,5, y el hándicap −3,5
- * con el +3,5 (misma |línea|). Más 2,5 con Menos 3,0 «suma menos de 1» y no cubre nada.
+ * Cómo se cubren entre sí las selecciones de un mercado (claves de The Odds API):
+ *   · sin línea (h2h, h2h_3_way, btts, draw_no_bet, y sus periodos): todas las selecciones, sin línea;
+ *   · hándicap (spreads, alternate_spreads…): las dos, con líneas de signo contrario (−3,5 y +3,5);
+ *   · total (totals, alternate_totals…): un Más y un Menos con el mismo umbral.
+ * Cualquier otro (lay, team_totals, que guarda «Over» sin decir de qué equipo, futuros…) no se sabe
+ * cubrir con lo que se guarda: no da surebet.
  */
-export function surebetDe(porSeleccion: { seleccion: string; cuotas: BookQuote[] }[]): Omit<Surebet, keyof EventoMercado> | null {
+export type TipoMercado = 'sin-linea' | 'handicap' | 'total' | 'desconocido';
+
+export function tipoMercado(market: string): TipoMercado {
+  if (/^(h2h|h2h_3_way|btts|draw_no_bet)(_[a-z]\d+)?$/.test(market)) return 'sin-linea';
+  if (/^(alternate_)?spreads(_[a-z]\d+)?$/.test(market)) return 'handicap';
+  if (/^(alternate_)?totals(_[a-z]\d+)?$/.test(market)) return 'total';
+  return 'desconocido';
+}
+
+const mismaLinea = (a: number | null, b: number | null) => (a === null || b === null ? a === b : Math.abs(a - b) < 1e-9);
+
+/**
+ * La surebet de un mercado con las mejores cuotas actuales de cada selección, solo entre patas que
+ * de verdad se cubren (auditoría del 22 de octubre, hallazgo 2). Antes las líneas se agrupaban por
+ * su valor absoluto: A −3,5 a 2,10 y B −3,5 a 2,10 salía como surebet del 4,8 % y las dos pierden si
+ * A gana por uno. Ahora, según el mercado (`tipoMercado`): el hándicap −3,5 se cubre con el +3,5 de
+ * la otra selección, Más 2,5 con Menos 2,5 (lote C, C2: Más 2,5 con Menos 3,0 no), y un mercado sin
+ * línea con todas sus selecciones sin línea.
+ */
+export function surebetDe(market: string, porSeleccion: { seleccion: string; cuotas: BookQuote[] }[]): Omit<Surebet, keyof EventoMercado> | null {
   if (porSeleccion.length < 2 || porSeleccion.some((s) => s.cuotas.length === 0)) return null;
-  const claveDe = (q: BookQuote) => (q.line == null ? 'sin-linea' : String(Math.abs(q.line)));
-  const claves = new Set(porSeleccion[0].cuotas.map(claveDe));
+  const tipo = tipoMercado(market);
+  const lineasDe = (s: { cuotas: BookQuote[] }) => [...new Set(s.cuotas.map((q) => q.line).filter((l): l is number => l !== null))];
+  /** Las líneas de cada selección que se cubren entre sí, una combinación por línea. */
+  let combinaciones: (number | null)[][];
+  if (tipo === 'sin-linea') {
+    combinaciones = [porSeleccion.map(() => null)];
+  } else if (tipo === 'handicap') {
+    if (porSeleccion.length !== 2) return null;
+    combinaciones = lineasDe(porSeleccion[0]).map((h) => [h, h === 0 ? 0 : -h]);
+  } else if (tipo === 'total') {
+    if (porSeleccion.length !== 2) return null;
+    const lados = porSeleccion.map((s) => s.seleccion.trim().toLowerCase());
+    if (!(lados.includes('over') && lados.includes('under'))) return null;
+    combinaciones = lineasDe(porSeleccion[0]).map((t) => [t, t]);
+  } else {
+    return null;
+  }
   let mejorSurebet: Omit<Surebet, keyof EventoMercado> | null = null;
-  for (const clave of claves) {
-    const patas: { seleccion: string; cuota: number; casa: string }[] = [];
-    for (const s of porSeleccion) {
-      const enLinea = s.cuotas.filter((q) => claveDe(q) === clave);
+  for (const lineas of combinaciones) {
+    const patas: Surebet['patas'] = [];
+    for (const [i, s] of porSeleccion.entries()) {
+      const enLinea = s.cuotas.filter((q) => mismaLinea(q.line, lineas[i]));
       if (enLinea.length === 0) break;
       const mejor = enLinea.reduce((a, b) => (b.odds > a.odds ? b : a));
-      patas.push({ seleccion: s.seleccion, cuota: mejor.odds, casa: mejor.bookmaker });
+      patas.push({ seleccion: s.seleccion, cuota: mejor.odds, casa: mejor.bookmaker, linea: mejor.line });
     }
     if (patas.length !== porSeleccion.length) continue;
     const suma = patas.reduce((a, p) => a + implicita(p.cuota), 0);
     if (suma >= 1) continue;
-    const candidata = { suma: Math.round(suma * 10000) / 10000, margenPct: Math.round((1 - suma) * 1000) / 10, patas, linea: clave === 'sin-linea' ? null : Number(clave) };
+    const candidata = { suma: Math.round(suma * 10000) / 10000, margenPct: Math.round((1 - suma) * 1000) / 10, patas, linea: lineas[0] === null ? null : Math.abs(lineas[0]) };
     if (!mejorSurebet || candidata.suma < mejorSurebet.suma) mejorSurebet = candidata;
   }
   return mejorSurebet;
@@ -189,7 +227,7 @@ export function inteligenciaMercado(now = new Date()): Inteligencia {
       const st = steamDe(history(e.eventId, e.market, s));
       if (st) steam.push({ ...e, seleccion: s, ...st });
     }
-    const sb = surebetDe(porSeleccion);
+    const sb = surebetDe(e.market, porSeleccion);
     if (sb) surebets.push({ ...e, ...sb });
     const ref = referenciaDe(porSeleccion);
     if (ref) referencia.push({ ...e, ...ref });

@@ -73,3 +73,123 @@ test('5: sin ninguna petición (demostración, o el freno de presupuesto), se di
   await registrarCuotas('odds:prueba', async () => ({ count: 4, source: 'fixture' }));
   assert.match(String(ultima().detail), /fixture: 4 próximos · ninguna petición a la API/);
 });
+
+// ---------------------------------------------------------------------------
+// Auditoría del 22 de octubre, hallazgo 3: una respuesta que no es JSON lanzaba sin anotar el fallo,
+// y si el refresco la capturaba y caía a la demostración, la ejecución decía «0 fallidas, ninguna
+// petición a la API». Y si el refresco lanzaba, lo ya recogido se perdía: metrics = NULL.
+// ---------------------------------------------------------------------------
+const NO_JSON = () => new Response('<html>502 Bad Gateway</html>', { status: 200, headers: { 'x-requests-remaining': '479', 'x-requests-used': '21' } });
+const UN_EVENTO = () =>
+  new Response(
+    JSON.stringify([{ id: 'ev-bien', sport_key: 'soccer_epl', commence_time: '2026-10-25T14:00:00Z', home_team: 'Arsenal', away_team: 'Chelsea', bookmakers: [{ key: 'pinnacle', title: 'P', last_update: '2026-10-20T09:00:00Z', markets: [{ key: 'h2h', outcomes: [{ name: 'Arsenal', price: 2.05 }, { name: 'Draw', price: 3.4 }, { name: 'Chelsea', price: 3.8 }] }] }] }]),
+    { status: 200 },
+  );
+
+test('22 oct, 3: una respuesta que no es JSON cuenta como fallida aunque el refresco caiga a la demostración', async () => {
+  const { refreshOdds } = await import('../ingest/odds.ts');
+  simularFetch((url) =>
+    url.includes('/odds/') ? NO_JSON() : new Response(JSON.stringify([{ key: 'tennis_atp_paris', group: 'Tennis', title: 'ATP Paris Masters', active: true, has_outrights: false }])),
+  );
+  const r = await registrarCuotas('odds:prueba', () => refreshOdds(true));
+  assert.equal(r.source, 'fixture', 'el refresco captura el fallo y sigue con la demostración');
+  const fila = ultima();
+  assert.equal(fila.status, 'ok');
+  const m = JSON.parse(String(fila.metrics));
+  assert.equal(m.fallidas, 1, 'la petición se hizo y falló');
+  assert.match(String(m.ultimoFallo), /tennis_atp_paris: respuesta_invalida/);
+  assert.doesNotMatch(String(fila.detail), /ninguna petición/);
+  assert.match(String(fila.detail), /1 fallida\(s\) \(tennis_atp_paris: respuesta_invalida/);
+});
+
+test('22 oct, 3: si el refresco lanza, la ejecución guarda el error Y lo recogido hasta entonces', async () => {
+  const { OddsApiError } = await import('../oddsApi.ts');
+  // Una petición buena y luego una que no es JSON, sin capturar.
+  let n = 0;
+  simularFetch(() => (n++ === 0 ? UN_EVENTO() : NO_JSON()));
+  await assert.rejects(
+    registrarCuotas('odds:prueba', async () => {
+      await requestOdds('soccer_epl', { manual: true });
+      await requestOdds('soccer_spain_la_liga', { manual: true });
+      return { count: 2, source: 'live' };
+    }),
+    (e: unknown) => e instanceof OddsApiError && e.kind === 'respuesta_invalida' && /soccer_spain_la_liga: la respuesta no es JSON/.test(e.message),
+    'el error de siempre, con su tipo y su mensaje',
+  );
+  let fila = ultima();
+  assert.equal(fila.status, 'error');
+  assert.match(String(fila.error), /soccer_spain_la_liga: la respuesta no es JSON/);
+  assert.ok(fila.metrics, 'metrics no se queda en NULL');
+  let m = JSON.parse(String(fila.metrics));
+  assert.deepEqual({ peticiones: m.peticiones, fallidas: m.fallidas, eventos: m.eventos, cotizaciones: m.cotizaciones }, { peticiones: 1, fallidas: 1, eventos: 1, cotizaciones: 3 });
+  assert.match(String(m.ultimoFallo), /soccer_spain_la_liga: respuesta_invalida/);
+
+  // Un fallo que no es de la API, después de una petición buena: tampoco se pierde lo recogido.
+  simularFetch(UN_EVENTO);
+  await assert.rejects(
+    registrarCuotas('odds:prueba', async () => {
+      await requestOdds('soccer_epl', { manual: true });
+      throw new Error('el refresco se cayó al guardar los próximos');
+    }),
+    /el refresco se cayó al guardar los próximos/,
+  );
+  fila = ultima();
+  assert.equal(fila.status, 'error');
+  m = JSON.parse(String(fila.metrics));
+  assert.equal(m.peticiones, 1);
+
+  // Y algo lanzado que ni siquiera es un Error: su texto llega al registro.
+  await assert.rejects(registrarCuotas('odds:prueba', async () => Promise.reject('cadena lanzada')), /cadena lanzada/);
+  fila = ultima();
+  assert.match(String(fila.error), /cadena lanzada/);
+  assert.ok(fila.metrics);
+});
+
+test('22 oct, 3: si falla la lista de competiciones (/sports), también se anota, y el refresco cae igual a la demostración', async () => {
+  const { refreshOdds } = await import('../ingest/odds.ts');
+  const quota = (await import('../oddsQuota.ts')) as { olvidarListaDeportes?: () => void };
+  quota.olvidarListaDeportes?.();
+  for (const [respuesta, fallo] of [
+    [NO_JSON, /\/sports: respuesta_invalida/],
+    [() => new Response('{"message":"boom"}', { status: 500 }), /\/sports: /],
+    [() => Promise.reject(new TypeError('fetch failed')), /\/sports: sin_red/],
+  ] as [() => Response | Promise<Response>, RegExp][]) {
+    quota.olvidarListaDeportes?.();
+    simularFetch(respuesta);
+    const r = await registrarCuotas('odds:prueba', () => refreshOdds(true));
+    assert.equal(r.source, 'fixture');
+    const fila = ultima();
+    const m = JSON.parse(String(fila.metrics));
+    assert.equal(m.fallidas, 1, String(fila.detail));
+    assert.match(String(m.ultimoFallo), fallo);
+    assert.doesNotMatch(String(fila.detail), /ninguna petición/);
+  }
+  quota.olvidarListaDeportes?.();
+});
+
+test('27 oct (data-guardian): /sports con JSON que no es una lista es un fallo, se anota y no se guarda en la caché', async () => {
+  const { refreshOdds } = await import('../ingest/odds.ts');
+  const { olvidarListaDeportes } = await import('../oddsQuota.ts');
+  olvidarListaDeportes();
+  let pedidasSports = 0;
+  simularFetch((url) => {
+    if (!url.includes('/odds/')) pedidasSports++;
+    return new Response('{"message":"respuesta de un proxy"}', { status: 200 });
+  });
+  for (let i = 0; i < 2; i++) {
+    await registrarCuotas('odds:prueba', () => refreshOdds(true));
+    const m = JSON.parse(String(ultima().metrics));
+    assert.equal(m.fallidas, 1);
+    assert.match(String(m.ultimoFallo), /\/sports: respuesta_invalida/);
+  }
+  assert.equal(pedidasSports, 2, 'la segunda vez se vuelve a pedir: el fallo no quedó en la caché');
+  olvidarListaDeportes();
+});
+
+test('27 oct (data-guardian): algo lanzado que ni se deja convertir en texto no tira las métricas', async () => {
+  await assert.rejects(registrarCuotas('odds:prueba', async () => Promise.reject(Object.create(null))), Error);
+  const fila = ultima();
+  assert.equal(fila.status, 'error');
+  assert.match(String(fila.error), /\[object Object\]/);
+  assert.ok(fila.metrics, 'metrics no se queda en NULL');
+});

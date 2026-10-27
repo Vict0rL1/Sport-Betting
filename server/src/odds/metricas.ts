@@ -75,6 +75,35 @@ export function detalleCuotas(m: MetricasCuotas): string {
 }
 
 /**
+ * El error de un refresco que lanzó, con lo recogido hasta entonces (auditoría del 22 de octubre,
+ * hallazgo 3): conRegistro guarda `metricas` del error, y sin ellas quedaba metrics = NULL. Se
+ * conserva el mismo error (su clase, su mensaje, su `kind`); lo que no es un Error se envuelve con
+ * su texto y queda en `cause`.
+ */
+function conMetricas(e: unknown, m: MetricasCuotas): unknown {
+  if (e instanceof Error) {
+    if ((e as { metricas?: unknown }).metricas === undefined) {
+      try {
+        Object.assign(e, { metricas: m });
+      } catch {
+        return Object.assign(new Error(e.message, { cause: e }), { metricas: m });
+      }
+    }
+    return e;
+  }
+  return Object.assign(new Error(textoDe(e), { cause: e }), { metricas: m });
+}
+
+/** El texto de algo lanzado; `String()` lanza con un objeto sin prototipo (revisión data-guardian). */
+function textoDe(e: unknown): string {
+  try {
+    return String(e);
+  } catch {
+    return Object.prototype.toString.call(e);
+  }
+}
+
+/**
  * Un refresco de cuotas con su registro: conRegistro + las métricas. `fn` devuelve lo de siempre
  * (count y source, si los tiene); el registro guarda lo que de verdad pasó.
  */
@@ -82,7 +111,11 @@ export async function registrarCuotas<T extends { count?: number; source?: strin
   const m = vacias();
   let r!: T;
   await conRegistro(source, async () => {
-    r = await actual.run(m, fn);
+    try {
+      r = await actual.run(m, fn);
+    } catch (e) {
+      throw conMetricas(e, m);
+    }
     if (typeof r === 'number') m.proximos = r;
     else {
       m.proximos = r.count;

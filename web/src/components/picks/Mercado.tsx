@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { PROFIT_COLOR } from '../../lib/theme';
 import { StatusMark } from '../icons';
-import { type Inteligencia, AMBAR, num } from './tipos';
+import { type Inteligencia, AMBAR, num, seleccionConLinea } from './tipos';
 import { useI18n } from '../../i18n';
 import { num as numF } from '../../lib/formato';
 
@@ -52,7 +52,7 @@ export function Mercado() {
               {t('mi.surebet', {
                 partido: s.partido,
                 m: dec(s.margenPct),
-                patas: s.patas.map((p) => t('mi.pata', { sel: p.seleccion, cuota: num(p.cuota), casa: p.casa })).join(', '),
+                patas: s.patas.map((p) => t('mi.pata', { sel: seleccionConLinea(p.seleccion, p.linea, s.market), cuota: num(p.cuota), casa: p.casa })).join(', '),
               })}
             </p>
           ))}
