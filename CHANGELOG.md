@@ -4,6 +4,30 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento de la auditoría del 22 de octubre · referencia, push, 1X2 e interruptores en los scripts (2026-10-29)
+
+Lo que dejaron las revisiones del 27 de octubre como pendiente (`docs/plans/auditoria-22-octubre.md`,
+«Seguimiento»). Cada punto con su prueba que falla antes.
+
+- **La referencia afilada compara con Pinnacle en su misma línea.**
+  - Con Pinnacle en 44,5 y otras casas en 47,5, Destacados enseñaba ±13,4 pp que eran solo la
+    línea. Ahora no hay referencia (DESCONOCIDA) mientras ninguna otra casa cotice esa línea.
+  - Un 1X2 sin el empate guardado tampoco da referencia.
+- **El margen de una surebet con push.**
+  - En líneas enteras y de cuarto se dice el margen garantizado: ±3 a 2,10 es «4,8 %, 0,0 % si hay
+    push».
+  - En un h2h de la UFC, la NFL o el béisbol, el empate devuelve las dos patas.
+- **Un 1X2 sin el empate guardado no es una surebet.** El distintivo del comparador de líneas usa
+  ahora la misma regla que Destacados, y la fila dice la surebet que hay, con sus líneas y lo
+  garantizado.
+- **Los interruptores apagados desde Ajustes valen también en los scripts.**
+  - `npm run paper` colocaba apuestas con la política guardada y el laboratorio de estrategias
+    aunque estuvieran apagados. `doctor` y los informes de `jobs` tampoco los veían.
+  - Esos interruptores y los ajustes del usuario se guardan ahora en el libro mayor (migración
+    27): una historia nueva (`fetch-data --force`) ya no los borra. Restaurar un libro mayor de
+    antes de la migración tampoco.
+- **Con el laboratorio de estrategias apagado, lo pendiente se sigue liquidando.**
+
 ## Auditoría del 22 de octubre · freno en la auditoría de copias, surebets de hándicap y fallos de cuotas (2026-10-27)
 
 Lo que encontró la revisión de `0655c8c`: `docs/plans/auditoria-22-octubre.md`. Cada punto con su

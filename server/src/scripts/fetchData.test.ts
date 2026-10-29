@@ -101,7 +101,7 @@ const { otraConexionAbierta } = (await import(path.join(ROOT, 'scripts', 'datos-
 
 const ESQUEMA_MIO =
   'CREATE TABLE bets (id INTEGER PRIMARY KEY, stake REAL); CREATE TABLE fb_news (id TEXT PRIMARY KEY, quote TEXT); CREATE TABLE fb_lineups (fixture_id TEXT, team_id TEXT, player_id TEXT, kind TEXT, recorded_at TEXT); ' +
-  'CREATE TABLE fb_odds_history (id INTEGER PRIMARY KEY, fixture_id TEXT, observed_at TEXT); CREATE TABLE latency_samples (id INTEGER PRIMARY KEY, stage TEXT, ms REAL); CREATE TABLE player_ids (tour TEXT, name TEXT, id INTEGER, PRIMARY KEY (tour, name));';
+  'CREATE TABLE fb_odds_history (id INTEGER PRIMARY KEY, fixture_id TEXT, observed_at TEXT); CREATE TABLE latency_samples (id INTEGER PRIMARY KEY, stage TEXT, ms REAL); CREATE TABLE player_ids (tour TEXT, name TEXT, id INTEGER, PRIMARY KEY (tour, name)); CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);';
 
 async function servidorConRelease(filasPublicadas: number) {
   const publicada = fs.mkdtempSync(path.join(os.tmpdir(), 'release-'));
@@ -144,6 +144,9 @@ test('B1: fetch-data --force se niega con la base abierta; cerrada, la copia de 
     v.exec(ESQUEMA_MIO);
     v.exec("INSERT INTO bets (stake) VALUES (25); INSERT INTO fb_news VALUES ('n1', 'lesión'); INSERT INTO fb_lineups VALUES ('f1', 't1', 'p1', 'confirmada', '2026-10-08T10:00:00Z'); INSERT INTO fb_odds_history (fixture_id, observed_at) VALUES ('f1', '2026-10-08T09:00:00Z'); INSERT INTO latency_samples (stage, ms) VALUES ('servidor', 12); INSERT INTO player_ids VALUES ('atp', 'Nadie', 999);");
     v.exec("INSERT INTO matches (winner_id) VALUES ('en-el-wal')");
+    // Lo del dueño que aún esté en la meta de la historia (una instalación que todavía no pasó por la
+    // migración 27) y procedencia de la descarga anterior, que no tiene que pasar.
+    v.exec(`INSERT INTO meta VALUES ('features.anulaciones', '{"estrategias.laboratorio":false}'), ('ajustes.usuario', '{"idioma":"en"}'), ('fb_updated_at', 'vieja')`);
     for (const suf of ['', '-wal', '-shm']) if (fs.existsSync(path.join(vivo, 'history.db') + suf)) fs.copyFileSync(path.join(vivo, 'history.db') + suf, history + suf);
     v.close();
     assert.ok(fs.statSync(`${history}-wal`).size > 0, 'la instalación tiene páginas en el WAL');
@@ -174,6 +177,10 @@ test('B1: fetch-data --force se niega con la base abierta; cerrada, la copia de 
     for (const t of ['fb_news', 'fb_lineups', 'fb_odds_history', 'latency_samples', 'player_ids']) {
       assert.equal((nueva.prepare(`SELECT COUNT(*) n FROM ${t}`).get() as { n: number }).n, 1, `${t} sobrevive al --force (B3)`);
     }
+    // Los interruptores de Ajustes y los ajustes del usuario pasan, para que la migración 27 los lleve
+    // al libro mayor (revisión data-guardian del 29 de octubre); la procedencia de la descarga, no.
+    const meta = Object.fromEntries((nueva.prepare('SELECT key, value FROM meta').all() as { key: string; value: string }[]).map((r) => [r.key, r.value]));
+    assert.deepEqual(meta, { 'features.anulaciones': '{"estrategias.laboratorio":false}', 'ajustes.usuario': '{"idioma":"en"}' });
     nueva.close();
   } finally {
     await s.cerrar();

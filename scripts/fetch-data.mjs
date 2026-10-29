@@ -138,6 +138,14 @@ function carryOver(fromFile, toFile) {
       console.log(`  · ${t}: ${n} fila(s) conservadas`);
       moved += n;
     }
+    // Los interruptores de Ajustes y los ajustes del usuario, si aún están en la meta de la historia
+    // (una instalación que todavía no abrió la base con la migración 27, que los lleva al libro
+    // mayor): pasan a la nueva para que la migración los recoja (revisión data-guardian del 29 de
+    // octubre). Nada más de meta: el resto es procedencia de la descarga, y manda la nueva.
+    if (oldTables.has('meta') && newTables.has('meta')) {
+      const r = db.prepare("INSERT OR IGNORE INTO main.meta (key, value) SELECT key, value FROM old.meta WHERE key IN ('features.anulaciones', 'ajustes.usuario')").run();
+      if (r.changes) console.log(`  · ajustes del dueño: ${r.changes} clave(s) conservadas`);
+    }
     db.exec('DETACH DATABASE old');
   } finally {
     db.close();

@@ -56,7 +56,7 @@ export interface Inteligencia {
   ventanaHoras: number;
   eventos: number;
   steam: { eventId: string; partido: string; market: string; seleccion: string; desde: number; hasta: number; movimientoPp: number; minutos: number; casas: number }[];
-  surebets: { eventId: string; partido: string; market: string; margenPct: number; patas: { seleccion: string; cuota: number; casa: string; linea: number | null }[] }[];
+  surebets: { eventId: string; partido: string; market: string; margenPct: number; margenMinimoPct: number; patas: { seleccion: string; cuota: number; casa: string; linea: number | null }[] }[];
   referencia: { eventId: string; partido: string; market: string; casa: string; selecciones: { seleccion: string; referencia: number; consenso: number; desviacionPp: number }[] }[];
   etiqueta: string;
 }

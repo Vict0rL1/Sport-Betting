@@ -24,3 +24,20 @@ test('anulaciones: cambian el interruptor, se persisten por el guardador y null 
   reiniciarFeatures();
   conLectorDeAnulaciones(() => null);
 });
+
+test('una lectura de anulaciones que falla no se queda para siempre: al abrir la base otra vez, se vuelve a leer (revisión data-guardian)', async () => {
+  const { lectorPorDefecto } = await import('./features.ts');
+  reiniciarFeatures({ 'x.c': { on: true, descripcion: 'c' } });
+  let falla = true;
+  conLectorDeAnulaciones(() => {
+    if (falla) throw new Error('database is locked');
+    return JSON.stringify({ 'x.c': false });
+  });
+  assert.equal(featureEncendida('x.c'), true, 'sin poder leer, manda el fichero');
+  falla = false;
+  // Lo que hace getDb() al abrir una conexión: no cambia el lector puesto, pero lo que falló se relee.
+  lectorPorDefecto(() => null);
+  assert.equal(featureEncendida('x.c'), false);
+  reiniciarFeatures();
+  conLectorDeAnulaciones(() => null);
+});

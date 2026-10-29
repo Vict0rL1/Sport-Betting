@@ -36,13 +36,20 @@ export function soloArranque(nombre: string): boolean {
   return nombre.startsWith('auth.') || nombre.startsWith('seguridad.');
 }
 let anulaciones: Record<string, boolean> | null = null;
+/** Las anulaciones en memoria se cargaron sin lector (vacías, porque no había de dónde leerlas). */
+let cargadasSinLector = false;
+/** …o el lector falló (base ocupada, un error de disco): vacías hasta que la base vuelva a abrirse. */
+let lecturaFallida = false;
 
 function cargarAnulaciones(): Record<string, boolean> {
   if (anulaciones) return anulaciones;
+  cargadasSinLector = !lector;
+  lecturaFallida = false;
   try {
     anulaciones = lector ? (JSON.parse(lector(CLAVE_ANULACIONES) ?? '{}') as Record<string, boolean>) : {};
   } catch {
     anulaciones = {};
+    lecturaFallida = true;
   }
   return anulaciones;
 }
@@ -57,6 +64,19 @@ export function conLectorDeAnulaciones(f: (clave: string) => string | null): voi
   anulaciones = null;
 }
 
+/**
+ * El lector que pone db.ts al abrir la base, si nadie ha puesto otro (revisión quant del 27 de
+ * octubre): sin él, los scripts (`npm run paper`, `npm run doctor`, los informes) no veían los
+ * interruptores apagados desde Ajustes que el servidor sí aplica, y `paper` colocaba apuestas con
+ * otra política. Un script que no abre la base no tiene de dónde leerlas: manda el fichero.
+ */
+export function lectorPorDefecto(f: (clave: string) => string | null): void {
+  if (!lector) lector = f;
+  // Se vuelven a leer si se cargaron vacías por no tener lector, o porque el lector falló (revisión
+  // data-guardian): una anulación fijada a mano (fijarAnulacion) no se pierde por abrir la base.
+  if (cargadasSinLector || lecturaFallida) anulaciones = null;
+}
+
 /** Fija (o quita, con null) la anulación de un interruptor. Devuelve el estado resultante. */
 export function fijarAnulacion(nombre: string, on: boolean | null, guardar: (json: string) => void): Record<string, boolean> {
   if (soloArranque(nombre)) throw new Error(`${nombre} solo se cambia al arrancar (config/features.json)`);
@@ -64,6 +84,8 @@ export function fijarAnulacion(nombre: string, on: boolean | null, guardar: (jso
   if (on == null) delete a[nombre];
   else a[nombre] = on;
   anulaciones = a;
+  cargadasSinLector = false;
+  lecturaFallida = false;
   guardar(JSON.stringify(a));
   return a;
 }
@@ -85,6 +107,8 @@ export function leerFeatures(): Record<string, Feature> {
 export function reiniciarFeatures(forzar?: Record<string, Feature>, anuladas?: Record<string, boolean>): void {
   cache = forzar ?? null;
   anulaciones = anuladas ?? null;
+  cargadasSinLector = false;
+  lecturaFallida = false;
 }
 
 /** ¿Está la función encendida? Una función que no está en el fichero cuenta como encendida. */

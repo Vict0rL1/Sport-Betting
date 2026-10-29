@@ -105,7 +105,7 @@ const EVENTO_MERCADO = { eventId: str, sport: str, league: str, market: str, par
 export const ESQUEMA_INTEL = o({
   generado: str, ventanaHoras: int, eventos: int,
   steam: { type: 'array', items: o({ ...EVENTO_MERCADO, seleccion: str, desde: num, hasta: num, movimientoPp: num, minutos: int, casas: int, observadoEn: str }) },
-  surebets: { type: 'array', items: o({ ...EVENTO_MERCADO, suma: num, margenPct: num, patas: { type: 'array', items: o({ seleccion: str, cuota: num, casa: str, linea: nullable('number') }) }, linea: nullable('number') }) },
+  surebets: { type: 'array', items: o({ ...EVENTO_MERCADO, suma: num, margenPct: num, margenMinimoPct: num, patas: { type: 'array', items: o({ seleccion: str, cuota: num, casa: str, linea: nullable('number') }) }, linea: nullable('number') }) },
   referencia: { type: 'array', items: o({ ...EVENTO_MERCADO, casa: str, selecciones: { type: 'array', items: o({ seleccion: str, referencia: num, consenso: num, desviacionPp: num }) }, observadoEn: str }) },
   etiqueta: str,
 });
@@ -197,6 +197,7 @@ export const ESQUEMA_LINEAS = o({
     items: o({
       eventId: str, sport: str, league: str, market: str, partido: str, cuando: nullable('string'), eventoId: nullable('string'),
       selecciones: { type: 'array', items: ESQUEMA_LINEA }, margenMejor: nullable('number'), margenConsenso: nullable('number'), surebet: bool, observado: nullable('string'),
+      detalleSurebet: { ...o({ margenPct: num, margenMinimoPct: num, patas: { type: 'array', items: o({ seleccion: str, cuota: num, casa: str, linea: nullable('number') }) } }), nullable: true },
     }),
   },
 });

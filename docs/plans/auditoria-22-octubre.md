@@ -128,6 +128,68 @@ Ni desbordes ni errores en la consola.
   guardado, un 1X2 saldría como surebet. No se conoce ningún camino que lo pierda (bajo).
 - `doctor.ts` y `scripts/paper.ts` tampoco instalan las anulaciones de Ajustes.
 
+## Seguimiento (29 de octubre)
+
+Lo pendiente de arriba, cada punto con su prueba que falla antes.
+
+- **La referencia afilada compara en la misma línea.** `referenciaDe(market, sport, …)`:
+  - el consenso de cada selección cuenta solo las cuotas en la línea de Pinnacle;
+  - sus líneas tienen que cubrirse entre sí como en una surebet;
+  - el mercado tiene que tener todas sus salidas (`salidasDe`);
+  - un mercado que no se sabe leer no da referencia;
+  - sin otra casa en la línea de Pinnacle no hay referencia: es DESCONOCIDA, no un 0 inventado
+    (revisión quant del 29 de octubre).
+  El ejemplo de 44,5 contra 47,5 pasa de ±13,4 pp a «sin referencia». Una desviación de 0 se
+  escribe sin signo («0,0 pp», no «−0,0 pp»).
+- **El margen con push.** Cada surebet lleva `margenMinimoPct`, en las mismas unidades que
+  `margenPct`. Es el margen en el peor resultado: prueba todas las diferencias o totales enteros
+  alrededor de las líneas y reparte la apuesta en las de cuarto.
+  - Con ±3,5 a 2,10, los dos son 4,8.
+  - Con ±3, 4,8 y 0.
+  - Con ±0,25, 4,8 y 2,4.
+  Entre dos líneas se queda la que más garantiza, y la lista se ordena por eso. Destacados lo
+  dice cuando es menor: «surebet 4,8 %, 0,0 % si hay push». Un h2h de dos salidas en la UFC, la
+  NFL o el béisbol (donde un empate o un nulo devuelve las dos), y un `draw_no_bet`, garantizan 0.
+  En baloncesto, NHL y tenis solo queda exento el h2h del partido entero: un cuarto o un periodo sí
+  pueden empatar.
+- **El distintivo de surebet del comparador de líneas** (`/api/odds/lineas`) usa ahora la misma
+  regla que Destacados (`surebetDe`). Antes tomaba la línea más cotizada de cada selección, sin
+  mirar si se cubrían: un Over 45,5 con un Under 44,5, o un 1X2 sin el empate, salían como surebet.
+  Y la fila dice la surebet que hay (`detalleSurebet`: patas con su línea y casa, margen y
+  garantizado), que puede estar en otras líneas que las más cotizadas de la tabla: «Surebet 9,1 %,
+  0,0 % si hay push, en estas cuotas: Team A −3 2,20 en c, Team B +3 2,20 en d».
+- **Un h2h tiene que tener todas sus salidas** (`salidasDe`): tres en el 1X2 del fútbol y en
+  cualquier `h2h_3_way`, dos en el resto. Si no coinciden con las guardadas, no hay surebet. La
+  referencia no lo pide todavía.
+- **Los interruptores de Ajustes valen en cualquier proceso que abra la base.** `getDb()` instala
+  el lector de `features.anulaciones` si nadie ha puesto otro (`lectorPorDefecto`).
+  - Antes solo lo instalaba el servidor (app.ts). `npm run paper` colocaba apuestas con la
+    política guardada y el laboratorio de estrategias aunque el dueño los hubiera apagado.
+    `npm run doctor` describía otro freno, y `jobs -- ejecutar resumen-diario|informe-semanal`
+    enviaba avisos con los canales apagados. `verify:data` no lee ningún interruptor: no cambia.
+  - Una anulación fijada a mano antes de abrir la base no se pierde: solo se releen las que se
+    cargaron vacías por no tener lector, o cuya lectura falló.
+- **Las anulaciones y los ajustes del usuario, en el libro mayor** (migración 27,
+  `ajustes-al-ledger`). Vivían en la `meta` de history.db: un `fetch-data -- --force` los borraba
+  sin decirlo, y desde ahí el banco y las estrategias volvían a apostar con interruptores que el
+  dueño había apagado. Ahora son estado del libro mayor (`CLAVES_LEDGER`), y la migración copia los
+  que hubiera sin pisar lo que el libro mayor ya tenga (revisión data-guardian del 29 de octubre).
+  - La copia de `meta` se queda, dormida. Si se restaura un libro mayor de antes de la migración, la
+    migración vuelve a correr y los recupera; borrarla los perdía.
+  - `fetch-data -- --force` pasa esas dos claves de la historia vieja a la nueva, por si la base no
+    se ha abierto todavía con este código.
+- **Con el laboratorio de estrategias apagado, lo pendiente se liquida igual.** El interruptor deja
+  de colocar apuestas, no de liquidarlas. Antes, al encenderlo, todo el atraso caía el mismo día en
+  los límites de pérdida (revisión quant del 29 de octubre).
+
+**Para el dueño (no se ha tocado):** apagar `politica.versionada` en Ajustes no solo «deja de
+versionar». Sustituye la política guardada por las constantes de fábrica, que pueden ser más
+laxas: con una v1 de tope por evento 0,005 y diario 0,02, apagado da 0,02 y 0,06. Además, las
+apuestas quedan con `policy_version_id` NULL. Esto ya pasaba en el servidor; ahora `npm run paper`
+hace lo mismo. Opciones:
+- que el interruptor solo se cambie al arrancar, como `auth.*`;
+- o que, apagado, se guarde la versión de fábrica y ningún tope pase del de la versión guardada.
+
 ## Límites y lo que no se arregla aquí
 
 - Las ejecuciones de antes de este cambio no se reescriben: siguen diciendo lo que dijeron.

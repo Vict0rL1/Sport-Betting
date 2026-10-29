@@ -79,7 +79,7 @@ const { featureEncendida, conLectorDeAnulaciones, CLAVE_ANULACIONES } = await im
 const { liquidador } = await import('../paper/bankroll.ts');
 const { leerTml } = await import('../ingest/tmlLectura.ts');
 const db = getDb();
-// Las anulaciones de Ajustes (meta `features.anulaciones`, en la copia) cuentan como en el servidor,
+// Las anulaciones de Ajustes (`features.anulaciones`, en la copia) cuentan como en el servidor,
 // que las instala al arrancar (app.ts): sin esto, la política versionada apagada desde Ajustes se
 // leía como encendida (revisión data-guardian y quant del 27 de octubre).
 conLectorDeAnulaciones(getMeta);
@@ -181,7 +181,7 @@ const politicaIlegible = interruptorVersionada && versionPolitica === null;
 const frenoFuenteAtrasada = {
   politica: {
     interruptorVersionada,
-    /** El valor puesto desde Ajustes (meta features.anulaciones), o null si manda config/features.json. */
+    /** El valor puesto desde Ajustes (features.anulaciones), o null si manda config/features.json. */
     interruptorAnulado,
     /** null: interruptor apagado, o la versión guardada no se puede leer; en los dos casos, las constantes de fábrica. */
     version: versionPolitica,

@@ -8,9 +8,10 @@ import { SubNav } from '../components/nav/SubNav';
 import { pillClass } from '../components/ui';
 import { COLOR_BENEFICIO } from '../components/charts';
 import { useSubnavApuestas } from './subnav';
+import { seleccionConLinea } from '../components/picks/tipos';
 
 interface Linea { seleccion: string; linea: number | null; mejor: { cuota: number; casa: string }; peor: { cuota: number; casa: string }; consenso: number; casas: number; dispersionPp: number; mejorSobreConsenso: number }
-interface Mercado { eventId: string; sport: string; league: string; market: string; partido: string; cuando: string | null; eventoId: string | null; selecciones: Linea[]; margenMejor: number | null; margenConsenso: number | null; surebet: boolean; observado: string | null }
+interface Mercado { eventId: string; sport: string; league: string; market: string; partido: string; cuando: string | null; eventoId: string | null; selecciones: Linea[]; margenMejor: number | null; margenConsenso: number | null; surebet: boolean; observado: string | null; detalleSurebet: { margenPct: number; margenMinimoPct: number; patas: { seleccion: string; cuota: number; casa: string; linea: number | null }[] } | null }
 interface Respuesta { generado: string; ventanaHoras: number; mercados: Mercado[]; eventos: number; nota: string }
 
 const DEPORTES = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'ufc', 'tennis'];
@@ -68,6 +69,17 @@ export default function Lineas() {
               {m.margenConsenso != null ? ` · ${t('lineas.margenConsenso', { v: f.porcentaje(m.margenConsenso, 1) })}` : ''}
               {m.margenMejor != null ? ` · ${t('lineas.margenMejor', { v: f.porcentaje(m.margenMejor, 1) })}` : ''}
             </p>
+            {/* La surebet que hay, con sus líneas: puede no ser la línea más cotizada de la tabla, y con push
+                (línea entera o de cuarto) se dice lo garantizado (revisión quant). */}
+            {m.detalleSurebet && (
+              <p className="mb-2 text-[12px] font-medium" style={{ color: COLOR_BENEFICIO }} data-testid="detalle-surebet">
+                {t(m.detalleSurebet.margenMinimoPct < m.detalleSurebet.margenPct ? 'lineas.surebetPush' : 'lineas.surebet', {
+                  m: f.numero(m.detalleSurebet.margenPct, 1),
+                  min: f.numero(m.detalleSurebet.margenMinimoPct, 1),
+                  patas: m.detalleSurebet.patas.map((p) => t('mi.pata', { sel: seleccionConLinea(p.seleccion, p.linea, m.market), cuota: cuota(p.cuota), casa: p.casa })).join(', '),
+                })}
+              </p>
+            )}
             <div className="desliza-x overflow-x-auto" tabIndex={0}>
               <table className="w-full min-w-[20rem] text-[13px] tabular-nums">
                 <thead>

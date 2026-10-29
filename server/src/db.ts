@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { DATA_DIR } from './config.ts';
+import { lectorPorDefecto } from './features.ts';
 import { ODDS_SNAPSHOT_SCHEMA } from './odds/schema.ts';
 import { PREMATCH_SCHEMA } from './prematch/schema.ts';
 import { ASSESSMENT_SCHEMA } from './trust/schema.ts';
@@ -339,6 +340,26 @@ export const MIGRACIONES: Migracion[] = [
       d.exec('UPDATE ufc_fights SET sin_ficha = 1 WHERE (luchador_a IS NULL OR luchador_b IS NULL) AND ambigua = 0');
     },
   },
+  // Los interruptores de Ajustes y los ajustes del usuario, al libro mayor (revisión data-guardian del
+  // 29 de octubre; db/tables.ts, CLAVES_LEDGER). Lo que ya hubiera en la meta de la historia pasa a
+  // settings sin pisar lo que el libro mayor tenga. La copia de meta se queda, dormida (getMeta ya lee
+  // el libro mayor): si se restaura un libro mayor de antes de esta migración, vuelve a correr y la
+  // recupera. Borrarla la perdía, y en la disposición partida el borrado y la copia van en ficheros
+  // distintos. Repetirla no cambia nada.
+  {
+    version: 27,
+    nombre: 'ajustes-al-ledger',
+    destino: 'ledger',
+    up: (d, ctx) => {
+      const settings = ctx.ledger === 'main' ? 'settings' : `${ctx.ledger}.settings`;
+      const hayMeta = (d.prepare("SELECT COUNT(*) AS n FROM main.sqlite_master WHERE type = 'table' AND name = 'meta'").get() as { n: number }).n;
+      if (!hayMeta) return;
+      const ahora = new Date().toISOString();
+      for (const clave of ['features.anulaciones', 'ajustes.usuario']) {
+        d.prepare(`INSERT OR IGNORE INTO ${settings} (key, value, updated_at) SELECT key, value, ? FROM main.meta WHERE key = ?`).run(ahora, clave);
+      }
+    },
+  },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {
@@ -496,6 +517,9 @@ function huellasDeLibroMayor(): string[] {
 export function getDb(): DatabaseSync {
   if (db) return db;
   db = abrirBase({ log: (m) => process.stdout.write(`${m}\n`) });
+  // Los interruptores apagados desde Ajustes se guardan en la base (features.anulaciones, en el libro
+  // mayor): con la base abierta, cualquier proceso los ve, no solo el servidor (features.ts, lectorPorDefecto).
+  lectorPorDefecto(getMeta);
   return db;
 }
 

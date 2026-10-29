@@ -67,7 +67,15 @@ export function esLedger(tabla: string): boolean {
  * `ledger.settings` para que sobrevivan a una base de historia nueva (`fetch-data`) y no
  * viajen a la base publicada.
  */
-export const CLAVES_LEDGER: readonly string[] = ['paper:startedAt', 'paper:lastRun', 'prematch_cycle_at'];
+export const CLAVES_LEDGER: readonly string[] = [
+  'paper:startedAt',
+  'paper:lastRun',
+  'prematch_cycle_at',
+  // Los interruptores apagados desde Ajustes y los ajustes del usuario (revisión data-guardian del 29
+  // de octubre): en la historia, una nueva (fetch-data --force) los borraba sin decirlo.
+  'features.anulaciones',
+  'ajustes.usuario',
+];
 const PREFIJOS_LEDGER = ['backup:', 'retention:', 'policy:', 'scheduler:', 'telegram:'];
 
 export function claveEsLedger(clave: string): boolean {

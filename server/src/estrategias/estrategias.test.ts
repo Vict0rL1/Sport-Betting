@@ -129,6 +129,31 @@ test('una apuesta sin resultado sigue pendiente aunque hayan pasado semanas (el 
   assert.deepEqual({ ...a }, { status: 'pending', profit: null, settled_at: null });
 });
 
+test('con el laboratorio apagado no se apuesta, pero lo pendiente se liquida con su resultado (revisión quant del 29 de octubre)', async () => {
+  const { fijarAnulacion } = await import('../features.ts');
+  // Antes, apagado también dejaba de liquidar: al encenderlo, todo el atraso caía el mismo día en los
+  // límites de pérdida diaria y semanal (que cuentan por fecha de liquidación).
+  const inicio = ahora - 3 * 24 * H;
+  db.prepare(
+    `INSERT INTO fb_prediction_log (match_key, league, commence_time, home_id, away_id, home_name, away_name, prob_home, prob_draw, prob_away, predicted_at, home_goals, away_goals, resolved_at)
+     VALUES ('lab|bri|whu', 'epl', ?, 'bri', 'whu', 'Brighton', 'West Ham', 0.3, 0.25, 0.45, ?, 0, 1, ?)`,
+  ).run(iso(inicio), iso(inicio - H), iso(inicio + 3 * H));
+  db.prepare(
+    `INSERT INTO strategy_bets (strategy_id, placed_at, sport, match_key, event_id, label, selection, commence_time, p_model, p_market, odds, edge, stake, bankroll_at)
+     VALUES (?, ?, 'football', 'lab|bri|whu', 'lab-bri-whu', 'Brighton vs West Ham', 'West Ham', ?, 0.45, 0.4, 2.4, 0.05, 10, 1000)`,
+  ).run(exigente, iso(inicio - H), iso(inicio));
+  fijarAnulacion('estrategias.laboratorio', false, () => {});
+  try {
+    assert.deepEqual(colocarEstrategias(new Date(ahora)), [], 'apagado: ninguna apuesta nueva');
+    liquidarEstrategias(new Date(ahora + 75 * H));
+    const a = db.prepare("SELECT status, profit FROM strategy_bets WHERE event_id = 'lab-bri-whu'").get() as { status: string; profit: number };
+    assert.equal(a.status, 'won', 'lo que ya tenía resultado se liquida');
+    assert.ok(a.profit > 0);
+  } finally {
+    fijarAnulacion('estrategias.laboratorio', null, () => {});
+  }
+});
+
 test('comparar: el banco principal como referencia y ninguna conclusión con menos de 30 apuestas', () => {
   const { filas } = compararEstrategias();
   assert.equal(filas[0].id, null);

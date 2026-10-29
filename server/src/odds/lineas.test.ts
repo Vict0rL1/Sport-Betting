@@ -58,3 +58,42 @@ test('comparadorDeLineas: con la base vacía no inventa; con snapshots, surebet 
   assert.equal(r.bancoApuestaA, 'consenso');
   assert.equal(comparadorDeLineas(ahora, { sport: 'football' }).mercados.length, 0);
 });
+
+test('el distintivo de surebet usa la misma regla que Destacados: líneas que se cubren y todas las salidas (revisión quant del 29 de octubre)', () => {
+  const ahora = new Date('2026-10-07T10:00:00Z');
+  const db = getDb();
+  const ins = db.prepare(
+    `INSERT INTO odds_snapshots (event_id, sport, league, market, selection, bookmaker, odds_decimal, line, home_team, away_team, commence_time, observed_at, source, is_live)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Casa', 'Fuera', '2026-10-08T17:00:00Z', '2026-10-07T09:00:00Z', 'test', 0)`,
+  );
+  // NFL, totales: el Over más cotizado en 45,5 y el Under en 44,5. Con un total de 45 pierden las dos.
+  for (const [sel, casa, cuota, linea] of [['Over', 'a', 2.2, 45.5], ['Over', 'b', 2.1, 45.5], ['Over', 'c', 1.7, 44.5], ['Under', 'a', 2.2, 44.5], ['Under', 'b', 2.1, 44.5], ['Under', 'c', 1.7, 45.5]] as [string, string, number, number][]) {
+    ins.run('e-totales', 'nfl', 'americanfootball_nfl', 'totals', sel, casa, cuota, linea);
+  }
+  // Premier, 1X2 con solo los dos equipos guardados.
+  ins.run('e-sin-empate', 'football', 'soccer_epl', 'h2h', 'Casa', 'a', 2.9, null);
+  ins.run('e-sin-empate', 'football', 'soccer_epl', 'h2h', 'Fuera', 'b', 2.9, null);
+  const r = comparadorDeLineas(ahora);
+  for (const ev of ['e-totales', 'e-sin-empate']) {
+    const m = r.mercados.find((x) => x.eventId === ev);
+    assert.ok(m, ev);
+    assert.equal(m?.surebet, false, `${ev}: no se cubren`);
+  }
+});
+
+test('la fila dice la surebet que hay, con sus líneas y el margen garantizado, aunque no sea la línea más cotizada (revisión quant)', () => {
+  const ahora = new Date('2026-10-07T10:00:00Z');
+  const ins = getDb().prepare(
+    `INSERT INTO odds_snapshots (event_id, sport, league, market, selection, bookmaker, odds_decimal, line, home_team, away_team, commence_time, observed_at, source, is_live)
+     VALUES ('e-push', 'nfl', 'americanfootball_nfl', 'spreads', ?, ?, ?, ?, 'Team A', 'Team B', '2026-10-08T17:00:00Z', '2026-10-07T09:00:00Z', 'test', 0)`,
+  );
+  // La más cotizada, ±3,5 a 1,9: sin hueco. La surebet está en ±3, a 2,2, en otras dos casas.
+  for (const [sel, casa, cuota, linea] of [['Team A', 'a', 1.9, -3.5], ['Team A', 'b', 1.9, -3.5], ['Team A', 'c', 2.2, -3], ['Team B', 'a', 1.9, 3.5], ['Team B', 'b', 1.9, 3.5], ['Team B', 'd', 2.2, 3]] as [string, string, number, number][]) {
+    ins.run(sel, casa, cuota, linea);
+  }
+  const m = comparadorDeLineas(ahora).mercados.find((x) => x.eventId === 'e-push');
+  assert.equal(m?.surebet, true);
+  assert.deepEqual(m?.detalleSurebet?.patas.map((p) => [p.seleccion, p.linea, p.casa]), [['Team A', -3, 'c'], ['Team B', 3, 'd']]);
+  assert.equal(m?.detalleSurebet?.margenMinimoPct, 0, 'con 3 justos se devuelve todo');
+  assert.equal(comparadorDeLineas(ahora).mercados.find((x) => x.eventId === 'e1')?.detalleSurebet, null, 'sin surebet, nada');
+});

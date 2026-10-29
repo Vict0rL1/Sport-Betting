@@ -4,7 +4,7 @@ import { PROFIT_COLOR } from '../../lib/theme';
 import { StatusMark } from '../icons';
 import { type Inteligencia, AMBAR, num, seleccionConLinea } from './tipos';
 import { useI18n } from '../../i18n';
-import { num as numF } from '../../lib/formato';
+import { num as numF, pp } from '../../lib/formato';
 
 export function Mercado() {
   const { t, idioma } = useI18n();
@@ -49,9 +49,11 @@ export function Mercado() {
           {d.surebets.slice(0, 3).map((s) => (
             <p key={`${s.eventId}|${s.market}`}>
               <StatusMark estado="ok" color={PROFIT_COLOR} />
-              {t('mi.surebet', {
+              {/* Con push (línea entera o de cuarto) el margen garantizado es menor: se dice (revisión quant). */}
+              {t(s.margenMinimoPct < s.margenPct ? 'mi.surebetPush' : 'mi.surebet', {
                 partido: s.partido,
                 m: dec(s.margenPct),
+                min: dec(s.margenMinimoPct),
                 patas: s.patas.map((p) => t('mi.pata', { sel: seleccionConLinea(p.seleccion, p.linea, s.market), cuota: num(p.cuota), casa: p.casa })).join(', '),
               })}
             </p>
@@ -61,7 +63,7 @@ export function Mercado() {
               {t('mi.referencia', {
                 partido: r.partido,
                 casa: r.casa,
-                lista: r.selecciones.map((s) => `${s.seleccion} ${s.desviacionPp > 0 ? '+' : '−'}${dec(Math.abs(s.desviacionPp))} pp`).join(' · '),
+                lista: r.selecciones.map((s) => `${s.seleccion} ${pp(s.desviacionPp)}`).join(' · '),
               })}
             </p>
           ))}
