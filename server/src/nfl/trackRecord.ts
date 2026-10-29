@@ -17,6 +17,7 @@ import { getDb } from '../db.ts';
 import { postprocess } from '../postprocess/apply.ts';
 import type { NafPrediction } from './predict.ts';
 import type { NafUpcomingRow } from './types.ts';
+import { prepartidoSql } from '../prematch/tiempo.ts';
 
 /** Kick-off can slip across time zones and weeks; allow a window. */
 const RESOLVE_WINDOW_DAYS = 4;
@@ -190,7 +191,7 @@ export function getNflTrackRecord(league?: string): NflTrackRecord {
     .prepare(
       `SELECT league, commence_time, home_name, away_name, prob_home, market_prob_home,
               expected_margin, expected_total, reliability, home_points, away_points
-       FROM naf_prediction_log ${where}${where ? ' AND' : 'WHERE'} resolved_at IS NOT NULL
+       FROM naf_prediction_log ${where}${where ? ' AND' : 'WHERE'} resolved_at IS NOT NULL AND ${prepartidoSql()}
        ORDER BY commence_time DESC`,
     )
     .all(...params) as unknown as {

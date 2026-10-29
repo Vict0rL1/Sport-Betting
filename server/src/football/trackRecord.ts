@@ -11,6 +11,7 @@ import { postprocess } from '../postprocess/apply.ts';
 import { rankedProbabilityScore, impliedFrom1X2 } from './model.ts';
 import type { FbPrediction } from './predict.ts';
 import type { FbUpcomingRow } from './types.ts';
+import { prepartidoSql } from '../prematch/tiempo.ts';
 
 const RESOLVE_WINDOW_DAYS = 3;
 
@@ -184,7 +185,7 @@ export function getFootballTrackRecord(league?: string): FootballTrackRecord {
       `SELECT league, commence_time, home_name, away_name, prob_home, prob_draw, prob_away,
               market_prob_home, market_prob_draw, market_prob_away, reliability,
               home_goals, away_goals
-       FROM fb_prediction_log WHERE resolved_at IS NOT NULL ${where}
+       FROM fb_prediction_log WHERE resolved_at IS NOT NULL AND ${prepartidoSql()} ${where}
        ORDER BY commence_time DESC`,
     )
     .all(...params) as unknown as Row[];

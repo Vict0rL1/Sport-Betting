@@ -13,6 +13,7 @@
 import { getDb } from '../db.ts';
 import { normalizar } from '../buscar/index.ts';
 import { avisoMuestra, type AvisoMuestra } from '../evaluation/sample.ts';
+import { clasePrepartido, type ClasePrepartido } from '../prematch/tiempo.ts';
 
 /** «nulo»: empate en la NFL, el moneyline se devuelve; ni acierto ni fallo. */
 export type Resultado = 'acierto' | 'fallo' | 'nulo' | 'pendiente';
@@ -25,6 +26,11 @@ export interface FilaArchivo {
   liga: string | null;
   cuando: string | null;
   registrada: string;
+  /**
+   * Si se registró antes del inicio (auditoría del 17 de octubre, punto 2). Una «tardía» se enseña,
+   * marcada, pero no cuenta en el resumen: no es una predicción pre-partido.
+   */
+  momento: ClasePrepartido;
   partido: string;
   casa: string;
   fuera: string;
@@ -67,7 +73,7 @@ export interface Archivo {
   pagina: number;
   porPagina: number;
   /** Resueltas = aciertos + fallos (los nulos no cuentan). */
-  resumen: { resueltas: number; aciertos: number; pendientes: number; aviso: AvisoMuestra };
+  resumen: { resueltas: number; aciertos: number; pendientes: number; aviso: AvisoMuestra; noPrepartido: number };
   ligas: { sport: string; liga: string }[];
 }
 
@@ -142,6 +148,7 @@ export function normalizarFila(r: Cruda): Omit<FilaArchivo, 'confianza' | 'decis
     liga: r.liga,
     cuando: r.cuando,
     registrada: r.reg,
+    momento: clasePrepartido(r.reg, r.cuando),
     partido,
     casa: r.casa,
     fuera: r.fuera,
@@ -222,7 +229,9 @@ export function buscarEnArchivo(f: FiltroArchivo = {}): Archivo {
   const desde = (pagina - 1) * porPagina;
   const pag = f.confianza ? completas.slice(desde, desde + porPagina) : filas.slice(desde, desde + porPagina).map(cruzar);
 
-  const base = f.confianza ? completas : filas;
+  const todas = f.confianza ? completas : filas;
+  // El resumen cuenta solo lo pre-partido; lo escrito después se enseña aparte.
+  const base = todas.filter((x) => x.momento === 'prepartido');
   const resueltas = base.filter((x) => x.resultado === 'acierto' || x.resultado === 'fallo');
   return {
     filas: pag,
@@ -234,6 +243,7 @@ export function buscarEnArchivo(f: FiltroArchivo = {}): Archivo {
       aciertos: resueltas.filter((x) => x.resultado === 'acierto').length,
       pendientes: base.filter((x) => x.resultado === 'pendiente').length,
       aviso: avisoMuestra(resueltas.length, 'predicciones'),
+      noPrepartido: todas.length - base.length,
     },
     ligas,
   };

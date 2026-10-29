@@ -156,7 +156,7 @@ export default function AskPanel() {
           )}
 
           {(!x.r.pasos || x.r.pasos.length <= 1) && x.r.filas && x.r.filas.length > 0 && (
-            <div className="mt-2 overflow-x-auto">
+            <div className="mt-2 desliza-x overflow-x-auto">
               <table className="w-full border-collapse text-[14px]">
                 <tbody>
                   {x.r.filas.map((f, j) => (

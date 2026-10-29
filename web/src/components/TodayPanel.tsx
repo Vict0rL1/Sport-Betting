@@ -18,6 +18,7 @@ import RecentResults, { DeporteIcono, lineaResumen, useHistorial } from './Recen
 import { deporteInicial, panelAbierto } from '../lib/hoy';
 import { localeDe, useI18n } from '../i18n';
 import { pct as pctF } from '../lib/formato';
+import { MOVIL } from '../lib/useMediaQuery';
 
 interface Partido {
   deporte: string;
@@ -35,17 +36,42 @@ const CLAVE_VISTA = 'predictor.today.view';
 const CLAVE_ALTO = 'predictor.hoy.alto';
 
 /**
+ * En el móvil (por debajo de 640 px), cuántos partidos se ven antes de «Ver los N partidos» (K2,
+ * lote K). Con la lista entera, «Hoy» llenaba la primera pantalla de cada deporte: en Fútbol se
+ * veían siete partidos de hockey y lo de fútbol empezaba debajo.
+ */
+const FILAS_MOVIL = 3;
+
+/**
  * El alto con el que se pintó la última vez. Sin recuerdo (primera visita), el habitual: plegado,
  * la cabecera (46 px); desplegado, cabecera, pestañas y la lista a su alto máximo de 22 rem, que es
- * lo que ocupa en cuanto hay más de ocho partidos.
+ * lo que ocupa en cuanto hay más de ocho partidos (en el móvil, tres filas de dos líneas y el botón).
+ *
+ * Solo si se midió con lo mismo pedido al cargar, la vista guardada y si nace abierto (N2, lote N).
+ * Medido con «¿Acertó?» abierto y usado al nacer plegado, reservaba un hueco que luego se cerraba.
+ * Lo pedido y no lo pintado: sin partidos hoy se pinta «¿Acertó?» aunque se pidiera «Hoy», y antes
+ * de que lleguen los partidos solo se sabe lo pedido. Y hasta
+ * 6.000 px: la semana de resultados abierta pasa de los 1.200 de antes, que eran de cuando el panel
+ * abierto medía 439 como mucho. Lo guardado sin estado (antes del lote N) vale como entonces.
  */
-function altoRecordado(abierto: boolean): number {
-  const porDefecto = abierto ? 46 + 41 + 352 : 46;
+function altoRecordado(abierto: boolean, vista: 'hoy' | 'resultados'): number {
+  const movil = typeof window !== 'undefined' && window.matchMedia?.(MOVIL).matches;
+  return recordado(abierto, vista) ?? (abierto ? 46 + 41 + (movil ? FILAS_MOVIL * 64 + 45 : 352) : 46);
+}
+
+/**
+ * Solo lo medido, sin el habitual (N11, lote N). Para lo que se ve: con el habitual de «Hoy»
+ * abierto, la primera vez y sin partidos hoy, «¿Acertó?» se pintaba plegado dentro de una tarjeta
+ * vacía de 324 px que luego se cerraba.
+ */
+function recordado(abierto: boolean, vista: 'hoy' | 'resultados'): number | undefined {
   try {
-    const n = Number(localStorage.getItem(CLAVE_ALTO));
-    return Number.isFinite(n) && n > 0 && n < 1200 ? n : porDefecto;
+    const [estado, valor] = (localStorage.getItem(CLAVE_ALTO) ?? '').split('|');
+    const n = Number(valor ?? estado);
+    const mismo = valor == null || estado === `${vista}:${abierto ? 1 : 0}`;
+    return mismo && Number.isFinite(n) && n > 0 && n < 6000 ? n : undefined;
   } catch {
-    return porDefecto;
+    return undefined;
   }
 }
 
@@ -53,8 +79,14 @@ function altoRecordado(abierto: boolean): number {
 function medir(el: HTMLElement | null): (() => void) | void {
   if (!el) return;
   const guardar = () => {
+    // Desplegado del todo en el móvil no es como nace: la próxima vez salen FILAS_MOVIL filas, así
+    // que se guarda el alto sin las demás. Antes no se guardaba nada mientras estaba desplegado, y
+    // plegarlo así dejaba reservado el alto abierto: la carga siguiente saltaba unos 300 px (K12).
+    let alto = el.getBoundingClientRect().height;
+    if (el.dataset.todos) for (const f of el.querySelectorAll('[data-extra]')) alto -= f.getBoundingClientRect().height;
     try {
-      localStorage.setItem(CLAVE_ALTO, String(Math.round(el.getBoundingClientRect().height)));
+      // Con lo pedido al cargar (N2): la sección lo lleva en data-vista y data-abierto.
+      localStorage.setItem(CLAVE_ALTO, `${el.dataset.vista}:${el.dataset.abierto}|${Math.round(alto * 10) / 10}`);
     } catch {
       // Sin almacenamiento, la próxima vez se reserva solo la cabecera.
     }
@@ -68,6 +100,8 @@ function medir(el: HTMLElement | null): (() => void) | void {
 
 export default function TodayPanel({ pestana = null }: { pestana?: string | null }) {
   const [datos, setDatos] = useState<{ partidos: Partido[]; nota: string | null } | null>(null);
+  // En el móvil, la lista entera o solo las primeras FILAS_MOVIL.
+  const [todos, setTodos] = useState(false);
   // Los resultados recientes (registro en vivo + reconstruidos), con su ventana.
   const historial = useHistorial();
   const { t, idioma } = useI18n();
@@ -109,6 +143,12 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
     } catch {
       // No poder recordarlo no impide aplicarlo ahora.
     }
+    // Los botones de las vistas solo están con el panel abierto, y cambiar de vista lo deja
+    // abierto (M1, lote M). Sin preferencia guardada, «¿Acertó?» nace plegado (panelAbierto), y
+    // tocarlo con un perfil nuevo plegaba el panel entero. Abierto en esta visita, sin guardarlo
+    // (N2, lote N): guardado, cada carga siguiente abría la tabla de la semana encima de cada
+    // pestaña. La próxima vez nace plegado, como siempre.
+    if (guardado == null) setGuardado('1');
   }
 
   function alternar(abiertoAhora: boolean) {
@@ -126,19 +166,35 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
   // faltan (el archivo sin actualizar). Esconderlos con la lista vacía era justo lo que
   // hacía parecer que el historial de la semana no existía.
   const hayHoy = (datos?.partidos.length ?? 0) > 0;
-  const hayRes = historial.h != null;
+  // Los resultados cuentan desde que se piden (K3, lote K): el interruptor «Qué hay hoy /
+  // ¿Acertó?» salía al llegar y empujaba la lista 45 px hacia abajo en cada deporte. Mientras
+  // cargan, «¿Acertó?» lleva a su propio «cargando…», que no es una lista vacía.
+  const hayRes = historial.h != null || historial.cargando;
   // Mientras carga, el hueco que ocupó la última vez (Fase 7.8): aparecer de la nada empujaba
   // la página entera hacia abajo, que es el desplazamiento que más mide Lighthouse.
-  if (datos == null) return <div aria-hidden className="mb-5" style={{ height: altoRecordado(panelAbierto(guardado, vista)) }} />;
+  // Lo pedido al cargar (N2): con eso se guarda el alto y con eso se busca.
+  const abiertoPedido = panelAbierto(guardado, vista);
+  if (datos == null) return <div aria-hidden data-testid="hoy-hueco" className="mb-5" style={{ height: altoRecordado(abiertoPedido, vista) }} />;
   if (!hayHoy && !hayRes) return null;
   const activa: 'hoy' | 'resultados' = vista === 'resultados' && hayRes ? 'resultados' : hayHoy ? 'hoy' : 'resultados';
   const abierto = panelAbierto(guardado, activa);
+  // En «¿Acertó?», mientras llegan los resultados, el alto que tenía (N2, lote N). «Hoy» llega antes:
+  // abierto, el panel medía 136 px hasta que llegaban y luego más de 1.000; plegado, en el móvil
+  // crecía 24 px cuando el resumen ocupaba dos líneas. Todo lo de debajo saltaba.
+  const reservaResultados = activa === 'resultados' && historial.cargando ? recordado(abiertoPedido, vista) : undefined;
 
   const porJugar = datos?.partidos.filter((p) => !p.empezado) ?? [];
   const conPrecio = datos?.partidos.filter((p) => p.precioReal).length ?? 0;
 
   return (
-    <section ref={medir} className="mb-5 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
+    <section
+      ref={medir}
+      data-todos={todos || undefined}
+      data-vista={vista}
+      data-abierto={abiertoPedido ? 1 : 0}
+      className="mb-5 overflow-hidden rounded-xl border border-(--line) bg-(--tint)"
+      style={reservaResultados ? { minHeight: reservaResultados } : undefined}
+    >
       <button
         onClick={() => alternar(abierto)}
         aria-expanded={abierto}
@@ -190,13 +246,16 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
             <RecentResults estado={historial} deporteInicial={deporteInicial(pestana)} />
           ) : (
             <>
-              <div className="max-h-[22rem] overflow-y-auto">
+              {/* El desplazamiento propio, solo desde 640 px: en el móvil el dedo movía la caja
+                  y no la página. Allí se cortan las filas y el resto va detrás de un botón. */}
+              <div className="sm:max-h-[22rem] sm:overflow-y-auto">
                 <table className="w-full border-collapse text-[14px]">
                   <tbody>
                     {(datos?.partidos ?? []).map((p, i) => (
                       <tr
                         key={i}
-                        className="border-t border-(--line) first:border-t-0"
+                        className={`border-t border-(--line) first:border-t-0 ${i >= FILAS_MOVIL && !todos ? 'max-sm:hidden' : ''}`}
+                        data-extra={i >= FILAS_MOVIL || undefined}
                         // Un partido empezado no se esconde —sigue siendo lo de hoy— pero
                         // se atenúa: verlo igual que uno por jugar invita a apostarlo. Con la
                         // tinta tenue y no con `opacity` (G6: al 45 % quedaba en 2,1:1).
@@ -226,6 +285,15 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
                   </tbody>
                 </table>
               </div>
+              {(datos?.partidos.length ?? 0) > FILAS_MOVIL && (
+                <button
+                  onClick={() => setTodos((v) => !v)}
+                  aria-expanded={todos}
+                  className="w-full border-t border-(--line) px-4 py-3 text-left text-[14px] font-medium text-(--ink-soft) sm:hidden"
+                >
+                  {todos ? t('hoy.verMenos') : t('hoy.verTodos', { n: datos?.partidos.length ?? 0 })}
+                </button>
+              )}
               {datos?.nota && (
                 <p className="border-t border-(--line) px-4 py-2 text-[12px] text-(--ink-muted)">
                   {datos.nota}

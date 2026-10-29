@@ -34,7 +34,21 @@ export const ABSTENCION = {
   calidadDatosMin: 60,
   desapareceMax: 0.5,
   precioViejoHoras: 6,
+  /**
+   * Freno por fuente de resultados atrasada (auditoría del 17 de octubre): horas tras el inicio a
+   * partir de las que un partido sin resultado cuenta como prueba (monitoring/vencidas.ts). 0 lo
+   * apaga.
+   */
+  archivoAtrasadoHoras: 48,
 };
+
+/**
+ * Las horas del freno según la política vigente. Una política guardada antes de que existiera la
+ * clave NO frena (0): la regla empieza con la primera versión que la dice, y así cada apuesta lleva
+ * la versión de política que la aplicó (revisión quant del 20 de octubre, F8). Con la política sin
+ * versionar, las constantes de fábrica (48).
+ */
+export const horasArchivoAtrasado = (): number => politica().abstencion.archivoAtrasadoHoras ?? 0;
 
 /** Recortes del importe por señal. Multiplican; nunca suben de 1. */
 export const RECORTES = {
@@ -71,6 +85,7 @@ export const FAMILIAS_MOTIVO: { familia: string; re: RegExp; tuberia: boolean }[
   { familia: 'sin mercado', re: /^(partido de demostración|sin cuotas para este partido)/, tuberia: false },
   { familia: 'recorte a cero', re: /^el recorte de confianza deja el importe en cero/, tuberia: false },
   { familia: 'precio viejo', re: /^precio de hace \d+ h/, tuberia: true },
+  { familia: 'archivo atrasado', re: /^archivo de resultados atrasado/, tuberia: true },
   { familia: 'sin evaluación', re: /^sin evaluación de confianza registrada/, tuberia: true },
   { familia: 'evaluación anterior a las cuotas', re: /evaluación de confianza es anterior a las cuotas/, tuberia: true },
   { familia: 'evaluación con otra cuota', re: /evaluación de confianza se hizo con otra selección o con otra cuota/, tuberia: true },
@@ -120,6 +135,8 @@ export interface Contexto {
   pRegistrada?: number[] | null;
   /** ¿El deporte muestra deriva reciente en vivo? */
   deriva?: string | null;
+  /** Si la fuente de resultados de la competición va atrasada, el motivo (monitoring/vencidas.ts). */
+  archivoAtrasado?: string | null;
   now?: Date;
 }
 
@@ -208,6 +225,13 @@ export function decidir(c: Contexto): Decision {
       razones.push(`precio de hace ${h.toFixed(0)} h (máximo ${politica().abstencion.precioViejoHoras} h)`);
       falta.push('un precio observado en las últimas 6 h');
     }
+  }
+  // Con partidos ya jugados que la fuente de esta competición no tiene, sus ratings no saben lo que
+  // pasó en ellos y la apuesta no se podría liquidar con esa fuente (auditoría del 17 de octubre).
+  // La política lo apaga con abstencion.archivoAtrasadoHoras = 0: entonces assess.ts no lo calcula.
+  if (c.archivoAtrasado) {
+    razones.push(`archivo de resultados atrasado: ${c.archivoAtrasado}`);
+    falta.push('que la fuente de resultados de esta competición se ponga al día (npm run doctor, sección OPERACIÓN)');
   }
   if (c.pRegistrada && Math.abs(c.pRegistrada[indice] - p) > Math.max(u, 0.01)) {
     razones.push(`la predicción registrada (${pct(c.pRegistrada[indice])}) está desfasada de la actual (${pct(p)})`);

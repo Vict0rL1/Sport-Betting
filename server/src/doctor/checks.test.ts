@@ -11,6 +11,7 @@ const {
   comprobarServidor,
   comprobarAlmacenamiento,
   comprobarAperturaBase,
+  comprobarVencidas,
   resultado,
   enmascarar,
 } = await import('./checks.ts');
@@ -248,6 +249,11 @@ test('confianza: el banco descartando por evaluación desfasada es un aviso; por
   assert.ok(a.accion!.some((l) => l.startsWith('npm run paper')));
   const prudente = comprobarConfianza(estado({ banco7d: { total: 6, familias: [{ familia: 'calidad de datos', tuberia: false, n: 6 }] } }), AHORA);
   assert.equal(buscar(prudente, /El banco descartó 6 partido/)?.nivel, 'info');
+  // Revisión quant: por fuente atrasada no se aconseja arrancar el servidor, sino traer resultados.
+  const atrasado = comprobarConfianza(estado({ banco7d: { total: 6, familias: [{ familia: 'archivo atrasado', tuberia: true, n: 6 }] } }), AHORA);
+  const b = buscar(atrasado, /El banco descartó 6 de 6 partido/)!;
+  assert.ok(b.accion!.some((l) => l.startsWith('npm run update-results')), JSON.stringify(b.accion));
+  assert.match(b.detalle!.join(' '), /fuente de resultados no tiene partidos ya jugados/);
 });
 
 test('confianza: una deriva reciente se avisa y remite al informe del modelo', () => {
@@ -511,7 +517,7 @@ test('apertura de la base: sin error, nada; con la negativa de comprobarLibroMay
   const mensaje =
     'Falta /d/ledger.db y hay huellas de que aquí hubo un libro mayor (ledger.db.existe): apuestas, registro de predicciones, precios observados.\n' +
     '  No se arranca con uno vacío.\n' +
-    '  · Para recuperarlo:  npm run restore   (lista las copias; npm run restore -- <fichero>)\n' +
+    '  · Para recuperarlo:  npm run restore   (lista las copias; npm run restore -- <fichero> --confirmar)\n' +
     '  · Para empezar uno nuevo A SABIENDAS:  LEDGER_NUEVO=si npm run dev';
   const [h, ...resto] = comprobarAperturaBase(mensaje);
   assert.equal(resto.length, 0);
@@ -519,7 +525,7 @@ test('apertura de la base: sin error, nada; con la negativa de comprobarLibroMay
   assert.equal(h.nivel, 'error');
   assert.match(h.texto, /^La base no se abre: Falta \/d\/ledger\.db/);
   assert.deepEqual(h.detalle, ['No se arranca con uno vacío.']);
-  assert.deepEqual(h.accion, ['Para recuperarlo:  npm run restore   (lista las copias; npm run restore -- <fichero>)', 'Para empezar uno nuevo A SABIENDAS:  LEDGER_NUEVO=si npm run dev']);
+  assert.deepEqual(h.accion, ['Para recuperarlo:  npm run restore   (lista las copias; npm run restore -- <fichero> --confirmar)', 'Para empezar uno nuevo A SABIENDAS:  LEDGER_NUEVO=si npm run dev']);
   // Las líneas de continuación (el comando bajo «Para partirlo…») van con su acción.
   const partir = comprobarAperturaBase('Falta x\n  · Para partirlo, con el servidor parado:\n      npm run db:migrate -- --partir-legado\n      (aparta history.db)')[0];
   assert.deepEqual(partir.accion, ['Para partirlo, con el servidor parado:', '  npm run db:migrate -- --partir-legado', '  (aparta history.db)']);
@@ -565,4 +571,85 @@ test('J2: los restos de copias cortadas a medias (.parcial) se dicen, con lo que
   assert.match(conRestos.texto, /52/);
   assert.ok((conRestos.detalle ?? []).some((d) => d.includes('.parcial-journal')));
   assert.equal((conRestos.detalle ?? []).some((d) => d.includes('456-cd')), false, 'la que se está escribiendo no se lista');
+});
+
+test('almacenamiento: la última copia restaurada de prueba (auditoría del 17 de octubre, punto 1)', () => {
+  const ahora = new Date('2026-10-12T10:00:00Z');
+  const base = {
+    layout: 'split' as const,
+    history: { ruta: '/d/history.db', mb: 10 },
+    ledger: { ruta: '/d/ledger.db', mb: 1 },
+    preSplit: [],
+    legacySinPartir: null,
+    legadoFaltan: [],
+    migracionesFallidas: [],
+    backup: { cuando: '2026-10-12T09:00:00Z', fichero: '/d/backups/ledger-a.db', existe: true },
+    copiasLocales: 1,
+    backupHoras: 24,
+    s3: true,
+    apuestasRegistradas: 3,
+    retencion: null,
+    snapshots: 0,
+    ejecuciones: [],
+    muertas: 0,
+  };
+  const de = (verificacion: unknown) => comprobarAlmacenamiento({ ...base, verificacion } as never, ahora).find((x) => /de prueba|se restaura igual|se apartó/.test(x.texto));
+  assert.equal(de(null)?.nivel, 'aviso', 'sin restauración de prueba');
+  assert.equal(de({ cuando: '2026-10-11T09:00:00Z', fichero: '/d/backups/ledger-vieja.db', tablas: 30, filas: 900, diferencias: [] })?.nivel, 'aviso', 'la de prueba era de otra copia');
+  const mala = de({ cuando: '2026-10-12T09:00:00Z', fichero: '/d/backups/ledger-a.db', tablas: 30, filas: 900, diferencias: [{ tabla: 'prediction_log', a: 900, b: 767, contenidoDistinto: false }] });
+  assert.equal(mala?.nivel, 'error');
+  assert.match((mala?.accion ?? []).join(' '), /restore -- --verificar/);
+  const apartada = de({ cuando: '2026-10-12T09:30:00Z', fichero: '/d/backups/ledger-b.db.sin-verificar', tablas: 0, filas: 0, diferencias: [], error: 'ENOSPC' });
+  assert.equal(apartada?.nivel, 'error', 'la última comprobación falló después de la última copia buena');
+  assert.match(apartada!.texto, /no se pudo restaurar de prueba \(ENOSPC\) y se apartó/);
+  // Revisión data-guardian: si la PRIMERA copia de todas no pasa el simulacro, no es «nunca se ha hecho».
+  const primera = comprobarAlmacenamiento({ ...base, backup: null, verificacion: { cuando: '2026-10-12T09:30:00Z', fichero: '/d/backups/ledger-a.db.sin-verificar', tablas: 0, filas: 0, diferencias: [], error: 'ENOSPC' } } as never, ahora);
+  assert.equal(primera.find((x) => /Nunca se ha hecho/.test(x.texto)), undefined);
+  assert.equal(primera.find((x) => /No hay ninguna copia buena/.test(x.texto))?.nivel, 'error');
+  const buena = de({ cuando: '2026-10-12T09:00:00Z', fichero: '/d/backups/ledger-a.db', tablas: 30, filas: 900, diferencias: [] });
+  assert.equal(buena?.nivel, 'ok');
+  assert.match(buena!.texto, /30 tablas y 900 filas/);
+});
+
+test('vencidas: lo que lleva más de 48 h sin resultado, por competición y con su causa (auditoría del 17 de octubre, punto 3)', () => {
+  const vacio = { ahora: '2026-10-20T12:00:00Z', horasGracia: 48, competiciones: [], apuestas: [], total: { predicciones: 0, apuestas: 0 } };
+  const ok = comprobarVencidas(vacio);
+  assert.deepEqual(ok.map((x) => x.nivel), ['ok']);
+  const hs = comprobarVencidas({
+    ...vacio,
+    competiciones: [
+      { sport: 'tennis', competicion: 'atp', ultimoResultado: '2026-01-17', vencidas: 120, fuenteAtrasada: 118, sinEmparejar: 2, sinHora: 0, masAntigua: '2026-01-20T10:00:00Z', diasConPrueba: 30 },
+      { sport: 'nhl', competicion: 'nhl', ultimoResultado: '2026-10-18', vencidas: 1, fuenteAtrasada: 0, sinEmparejar: 1, sinHora: 0, masAntigua: '2026-10-08T23:00:00Z', diasConPrueba: 0 },
+    ],
+    apuestas: [{ banco: 'papel', sport: 'tennis', competicion: 'atp', n: 5, fuenteAtrasada: 5, sinEmparejar: 0, sinHora: 0, sinRegistro: 0, porLiquidar: 0, masAntigua: '2026-09-30T10:00:00Z', importe: 100 }],
+    total: { predicciones: 121, apuestas: 5 },
+  });
+  const tenis = hs.find((x) => /tennis · atp/.test(x.texto))!;
+  assert.equal(tenis.nivel, 'aviso');
+  assert.match(tenis.texto, /120 predicción\(es\).*118 posteriores al último resultado de su fuente \(2026-01-17\).*2 que la fuente cubre y no aparecen/);
+  assert.match((tenis.accion ?? []).join(' '), /npm run update-data/);
+  assert.match(hs.find((x) => /nhl · nhl/.test(x.texto))!.texto, /1 que la fuente cubre y no aparecen/);
+  // Revisión quant: el doctor dice lo mismo que el freno.
+  const dosCompeticiones = (freno: boolean) =>
+    comprobarVencidas({
+      ...vacio,
+      freno,
+      competiciones: [
+        { sport: 'tennis', competicion: 'atp', ultimoResultado: '2026-01-17', vencidas: 120, fuenteAtrasada: 118, sinEmparejar: 2, sinHora: 0, masAntigua: '2026-01-20T10:00:00Z', diasConPrueba: 30 },
+        { sport: 'football', competicion: 'epl', ultimoResultado: '2026-10-17', vencidas: 1, fuenteAtrasada: 1, sinEmparejar: 0, sinHora: 0, masAntigua: '2026-10-19T19:00:00Z', diasConPrueba: 1 },
+      ],
+      total: { predicciones: 121, apuestas: 0 },
+    });
+  const [atp, epl] = dosCompeticiones(true);
+  assert.match(atp.texto, /el banco ya no apuesta en esta competición/);
+  assert.match(epl.texto, /aún no frena: hacen falta pruebas de 2 días distintos de los últimos 30 \(hay 1\)/);
+  assert.match(dosCompeticiones(false)[0].texto, /el freno de la política está apagado/);
+  const banco = hs.find((x) => /papel/.test(x.texto))!;
+  assert.equal(banco.nivel, 'aviso');
+  assert.match(banco.texto, /5 apuesta\(s\) pendiente\(s\).*Siguen pendientes \(100\.00 que cuentan en los topes\): no se dan por jugadas ni por canceladas/);
+  // Revisión quant: 100 vencidos con un tope de 10 % de 1000 = todo el tope. Eso es un error.
+  const conBanco = comprobarVencidas({ ...vacio, apuestas: [{ banco: 'papel', sport: 'baseball', competicion: 'mlb', n: 5, fuenteAtrasada: 5, sinEmparejar: 0, sinHora: 0, sinRegistro: 0, porLiquidar: 0, masAntigua: '2026-09-30T23:00:00Z', importe: 100 }], total: { predicciones: 0, apuestas: 5 } }, { saldo: 1000, topeTotal: 0.1 });
+  const e = conBanco.find((x) => x.nivel === 'error')!;
+  assert.match(e.texto, /100\.00 en apuestas vencidas sin resultado: 100 % de su tope de exposición/);
+  assert.equal(comprobarVencidas({ ...vacio, apuestas: [{ banco: 'papel', sport: 'baseball', competicion: 'mlb', n: 1, fuenteAtrasada: 1, sinEmparejar: 0, sinHora: 0, sinRegistro: 0, porLiquidar: 0, masAntigua: '2026-09-30T23:00:00Z', importe: 10 }], total: { predicciones: 0, apuestas: 1 } }, { saldo: 1000, topeTotal: 0.1 }).some((x) => x.nivel === 'error'), false, '10 de 100: aviso, no error');
 });

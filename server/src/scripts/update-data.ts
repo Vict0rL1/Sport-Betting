@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getDb, resetData, setMeta } from '../db.ts';
 import { RAW_DIR, toursConfig } from '../config.ts';
-import { ingestRankings, ingestTour, preflight, tourConfigs } from '../ingest/sackmann.ts';
+import { DescargaRechazada, ingestRankings, ingestTour, precargarTemporadasVivas, preflight, sinLimpiar, tourConfigs } from '../ingest/sackmann.ts';
 import { recomputeRatings } from '../ingest/ratings.ts';
 import { refitAndSave } from '../points/repo.ts';
 import { refreshOdds } from '../ingest/odds.ts';
@@ -119,6 +119,11 @@ async function main() {
       console.log(`  OK — ${found} jugadores disponibles.`);
       gitHubOk = true;
     } catch (e) {
+      // Un fichero roto sin copia que lo sustituya no es una fuente caída: se para aquí, como en la
+      // precarga, y no se prueba la reserva (revisión data-guardian, tercera vuelta).
+      if (e instanceof DescargaRechazada) {
+        throw new Error(`${e.message} No se ha borrado nada: la base sigue como estaba. Para actualizar solo desde tennis-data.co.uk mientras tanto: npm run update-data -- --source tennis-data`);
+      }
       if (source === 'tml') throw e;
       console.warn(`  ⚠️  GitHub no responde (${(e as Error).message}). Se probará tennis-data.co.uk.`);
     }
@@ -132,16 +137,27 @@ async function main() {
     console.log(`  OK — ${pf.fichero}`);
   }
 
+  // Las temporadas vivas se bajan y se comprueban AHORA, con la base intacta: una fuente colgada o
+  // un fichero roto no puede dejar el tenis a medias después de vaciarlo (revisión data-guardian del
+  // 20 de octubre). Si no hay nada usable, se para aquí.
+  if (gitHubOk) {
+    console.log('\n▸ Bajando y comprobando las temporadas en curso…');
+    for (const t of tours) await precargarTemporadasVivas(t, toYear);
+  }
+
   // Full rebuild keeps ratings correct and avoids duplicate matches.
   resetData();
 
   // One unreachable tour shouldn't lose the other: ingest what we can and warn.
   let totalMatches = 0;
   const failed: string[] = [];
+  /** Circuitos cuya ingesta falló y no pudo borrar lo suyo: por qué, con los dos errores. */
+  const sinLimpiarMotivos: string[] = [];
   for (const tour of tours) {
     console.log(`\n▸ ${tour.label}`);
     let got = 0;
     let gitHubError: string | null = null;
+    let gitHubFallo: unknown = null;
 
     if (source !== 'tennis-data') {
       try {
@@ -153,6 +169,7 @@ async function main() {
         const ranked = await ingestRankings(tour);
         if (ranked) console.log(`  rankings oficiales: ${ranked} filas procesadas`);
       } catch (e) {
+        gitHubFallo = e;
         gitHubError = (e as Error).message;
         if (source === 'tml') console.warn(`  ⚠️  No se pudo descargar ${tour.id}: ${gitHubError}`);
       }
@@ -160,7 +177,13 @@ async function main() {
 
     // tennis-data.co.uk: either asked for explicitly, or as the fallback for a
     // tour GitHub couldn't serve. This is what gives the WTA any data at all.
-    if (source === 'tennis-data' || (source === 'auto' && got === 0)) {
+    // Si la ingesta fallida no pudo borrar lo suyo, la reserva lo duplicaría con otros ids.
+    const sinLimpiarMotivo = source === 'auto' && got === 0 ? sinLimpiar(tour.id, gitHubFallo) : null;
+    if (sinLimpiarMotivo) {
+      console.warn(`  ⚠️  ${sinLimpiarMotivo}.`);
+      sinLimpiarMotivos.push(sinLimpiarMotivo);
+    }
+    if (source === 'tennis-data' || (source === 'auto' && got === 0 && !sinLimpiarMotivo)) {
       if (gitHubError) {
         console.warn(`  ⚠️  GitHub no sirvió ${tour.id} (${gitHubError}).`);
         console.log(`  ↳ Probando tennis-data.co.uk (incluye cuotas históricas)…`);
@@ -183,6 +206,10 @@ async function main() {
   }
 
   if (totalMatches === 0) {
+    // No fue la red: que el error lo diga (revisión data-guardian, tercera vuelta, N3).
+    if (sinLimpiarMotivos.length) {
+      throw new Error(`${sinLimpiarMotivos.join('; ')}. Vuelve a ejecutar npm run update-data: empieza vaciando el tenis, así que lo que quedó no se duplica.`);
+    }
     throw new Error(
       'No se descargó ningún partido. Puede ser un bloqueo de red a GitHub — ' +
         'prueba con otra red y vuelve a ejecutar `npm run update-data`. ' +

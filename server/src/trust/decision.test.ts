@@ -153,6 +153,55 @@ test('integración: evaluación → refresco sin movimiento → el banco sigue p
   assert.equal(j.factor, 1);
 });
 
+// Auditoría del 17 de octubre, punto 3: la WTA tiene un partido de hace tres días sin resultado y
+// su fuente no tiene ninguno. Sus ratings no saben qué pasó: no se apuesta en ella. La ATP, sin
+// pruebas de retraso, sigue igual.
+test('una competición cuya fuente va atrasada: NO BET, como fallo de la tubería; las demás no cambian', async () => {
+  const { olvidarArchivoAtrasado } = await import('../monitoring/vencidas.ts');
+  getDb()
+    .prepare(
+      `INSERT INTO prediction_log (match_key, tour, commence_time, p1_id, p2_id, p1_name, p2_name, prob1, reliability, predicted_at)
+       VALUES ('wta|1|2|vieja', 'wta', ?, 1, 2, 'A', 'B', 0.6, 'high', ?)`,
+    )
+    .run(enHoras(-72), enHoras(-80));
+  getDb()
+    .prepare(
+      `INSERT INTO prediction_log (match_key, tour, commence_time, p1_id, p2_id, p1_name, p2_name, prob1, reliability, predicted_at)
+       VALUES ('wta|3|4|vieja', 'wta', ?, 3, 4, 'C', 'D', 0.6, 'high', ?)`,
+    )
+    .run(enHoras(-100), enHoras(-110));
+  olvidarArchivoAtrasado();
+  const ev = evaluar(bueno({ matchKey: 'wta|atrasada|1|x' }), { now: ahora });
+  assert.equal(ev.decision.decision, 'NO BET');
+  const r = ev.decision.razones.find((x) => x.startsWith('archivo de resultados atrasado'));
+  assert.match(r ?? '', /2 partido\(s\) de wta .*no tiene ninguno/);
+  assert.deepEqual(familiaDeMotivo(r!), { familia: 'archivo atrasado', tuberia: true });
+  assert.equal(evaluar(bueno(), { now: ahora }).decision.decision, 'BET', 'la ATP no tiene partidos vencidos que su fuente no tenga');
+
+  // Es una regla de la política versionada: con abstencion.archivoAtrasadoHoras = 0 no frena.
+  const { nuevaVersion, politicaVigente } = await import('../staking/policyStore.ts');
+  const antes = politicaVigente().config.abstencion;
+  nuevaVersion({ abstencion: { archivoAtrasadoHoras: 0 } }, 'prueba: freno apagado', 'cli');
+  olvidarArchivoAtrasado();
+  assert.equal(evaluar(bueno({ matchKey: 'wta|atrasada|1|x' }), { now: ahora }).decision.decision, 'BET');
+  nuevaVersion({ abstencion: { ...antes, archivoAtrasadoHoras: 48 } }, 'prueba: de vuelta', 'cli');
+
+  // Revisión quant (F8): una política guardada antes de que existiera la clave no frena. La regla
+  // empieza con la primera versión que la dice, para que cada apuesta lleve la versión que la aplicó.
+  const { olvidarPolitica } = await import('../staking/policyStore.ts');
+  const { horasArchivoAtrasado } = await import('./decision.ts');
+  const vieja = { ...politicaVigente().config, abstencion: { ...politicaVigente().config.abstencion } } as { abstencion: Record<string, number> };
+  delete vieja.abstencion.archivoAtrasadoHoras;
+  getDb().prepare("INSERT INTO policy_versions (created_at, parent_id, config, hash, nota, origen) VALUES (?, NULL, ?, 'legado', 'antes de la clave', 'cli')").run(new Date().toISOString(), JSON.stringify(vieja));
+  olvidarPolitica();
+  olvidarArchivoAtrasado();
+  assert.equal(horasArchivoAtrasado(), 0);
+  assert.equal(evaluar(bueno({ matchKey: 'wta|atrasada|1|x' }), { now: ahora }).decision.decision, 'BET', 'sin versión que lo diga, no frena');
+  nuevaVersion({ abstencion: { archivoAtrasadoHoras: 48 } }, 'prueba: la versión que lo dice', 'cli');
+  olvidarArchivoAtrasado();
+  assert.equal(evaluar(bueno({ matchKey: 'wta|atrasada|1|x' }), { now: ahora }).decision.decision, 'NO BET');
+});
+
 // El doctor agrupa los motivos por familia (FAMILIAS_MOTIVO). Si una regla cambia su texto y
 // deja de caer en una familia, saldría como «otro» y el diagnóstico de «el banco está ciego
 // por cuotas viejas» dejaría de dispararse sin que nada fallara. Aquí se generan los textos
@@ -174,6 +223,7 @@ test('todo motivo de abstención que generan las reglas cae en una familia', asy
   ];
   const razones = casos.flatMap((e) => evaluar(e, { now: ahora }).decision.razones);
   razones.push(...evaluar(bueno(), { now: ahora, pRegistrada: [0.75, 0.25] }).decision.razones);
+  razones.push(...evaluar(bueno({ matchKey: 'wta|atrasada|1|x' }), { now: ahora }).decision.razones);
   // Las del banco: sin evaluación, evaluación anterior a las cuotas y con otra cuota.
   const cand = (k: string, oddsAt: string | null, cuota = 1.8) => ({ sport: 'tennis', match_key: k, oddsAt, salidas: [{ label: 'A', p: p0, odds: cuota }, { label: 'B', p: 1 - p0, odds: 2.1 }] });
   razones.push(juicioDeConfianza(cand('nunca|evaluado', null), 'A').razon!);
@@ -185,7 +235,7 @@ test('todo motivo de abstención que generan las reglas cae en una familia', asy
 
   const familias = new Set(razones.map((r) => familiaDeMotivo(r).familia));
   for (const r of razones) assert.notEqual(familiaDeMotivo(r).familia, 'otro', `sin familia: «${r}»`);
-  for (const f of ['sin ventaja mínima', 'precio viejo', 'sin mercado', 'calidad de datos', 'fuera de distribución', 'predicción desfasada', 'sin evaluación', 'evaluación anterior a las cuotas', 'evaluación con otra cuota']) {
+  for (const f of ['sin ventaja mínima', 'precio viejo', 'sin mercado', 'calidad de datos', 'fuera de distribución', 'predicción desfasada', 'sin evaluación', 'evaluación anterior a las cuotas', 'evaluación con otra cuota', 'archivo atrasado']) {
     assert.ok(familias.has(f), `ningún caso genera «${f}»`);
   }
   assert.equal(familiaDeMotivo('abstención: precio de hace 9 h (máximo 6 h)').tuberia, true, 'el prefijo del banco no cambia la familia');

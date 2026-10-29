@@ -124,6 +124,107 @@ body {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+  /* El difuminado de abajo no se mueve: sigue al desplazamiento. Con 0,01 ms acabaría al
+     principio y difuminaría el lado equivocado. */
+  .desliza-x {
+    animation-duration: auto !important;
+  }
+}
+
+/* Tocar se nota (K6, lote K). En una pantalla táctil no hay hover, y el destello del navegador lo
+   quita Tailwind: tocar un botón no daba ninguna respuesta hasta que cambiaba la pantalla.
+   Mientras el dedo está encima, lo que se toca se atenúa. Solo lo más interno: una tarjeta que es
+   un enlace y lleva botones dentro no se atenúa entera al tocar uno de ellos. */
+@media (hover: none) {
+  :is(a[href], button, [role='button'], [role='tab'], summary):not(:disabled):not([data-sin-pulsado]):not(:has(a[href], button, [role='button'])):active {
+    opacity: 0.6;
+  }
+}
+
+/* Más área de toque sin cambiar lo que se ve (K8, lote K): con puntero grueso, una capa invisible
+   alrededor que también cuenta como el botón. A los lados 4 px, la mitad del hueco habitual entre
+   dos botones juntos; arriba y abajo 10 (`--toque-y`), y menos donde los controles van apilados
+   (en las tarjetas, 4): la capa de uno nunca puede tapar lo que se ve del de al lado. Solo en lo
+   que no está ya posicionado. */
+@media (pointer: coarse) {
+  .toque {
+    position: relative;
+  }
+  .toque::after {
+    content: '';
+    position: absolute;
+    inset: calc(-1 * var(--toque-y, 10px)) -4px;
+  }
+}
+
+/* La hoja de abajo (K7, lote K): sube desde el borde y el fondo se oscurece, en lugar de aparecer
+   de golpe. Con movimiento reducido, la regla de arriba la deja quieta. */
+@keyframes sube {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes aparece {
+  from {
+    opacity: 0;
+  }
+}
+.anim-sube {
+  animation: sube 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.anim-aparece {
+  animation: aparece 200ms ease-out;
+}
+
+/* Lo que se desplaza de lado (K4, lote K): se difumina por el lado donde hay más, para que se
+   vea que sigue. Va con una línea de tiempo de desplazamiento, sin JavaScript: sin nada que
+   desplazar la línea está inactiva y no hay difuminado; un navegador sin `animation-timeline`
+   se queda como antes. Con máscara y no con un degradado del color del fondo, que cambia según
+   la tarjeta y el tema.
+   Cada lado crece con los primeros 2 rem de desplazamiento que le quedan (K12): con una sola
+   animación de 0 a 100 %, una tabla que sobraba 2 px salía con la última columna atenuada entera.
+   Solo por debajo de 1024 px: en el escritorio las tablas caben, y la máscara le quitaba al texto
+   su suavizado de subpíxel. Y con el foco del teclado, sin máscara: el anillo se ve entero. */
+@property --desliza-izq {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --desliza-der {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@keyframes desliza-izq {
+  from {
+    --desliza-izq: 0px;
+  }
+  to {
+    --desliza-izq: 2rem;
+  }
+}
+@keyframes desliza-der {
+  from {
+    --desliza-der: 2rem;
+  }
+  to {
+    --desliza-der: 0px;
+  }
+}
+@media (max-width: 1023.98px) {
+  @supports (animation-timeline: scroll()) {
+    .desliza-x {
+      mask-image: linear-gradient(to right, transparent, #000 var(--desliza-izq), #000 calc(100% - var(--desliza-der)), transparent);
+      animation: desliza-izq linear both, desliza-der linear both;
+      animation-duration: auto, auto;
+      animation-timeline: scroll(self inline), scroll(self inline);
+      animation-range: 0 2rem, calc(100% - 2rem) 100%;
+    }
+    .desliza-x:focus-visible {
+      mask-image: none;
+      outline-offset: -2px;
+    }
+  }
 }
 
 .sr-only {

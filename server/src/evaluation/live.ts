@@ -10,6 +10,14 @@ import { getDb } from '../db.ts';
 import { evaluate, type Informe, type Prediccion } from './metrics.ts';
 import { SPORT_IDS, type SportId } from '../sports.ts';
 import { avisoMuestra, type AvisoMuestra } from './sample.ts';
+import { prepartidoSql } from '../prematch/tiempo.ts';
+
+/**
+ * Solo lo escrito ANTES del inicio (auditoría del 17 de octubre, punto 2): una fila registrada
+ * después no es una predicción pre-partido, aunque esté en el registro. Se queda allí, con su
+ * procedencia; aquí no cuenta.
+ */
+const PREPARTIDO = prepartidoSql();
 
 type Fila = Record<string, number | string | null>;
 
@@ -49,7 +57,7 @@ export function predicciones(deporte: SportId): PrediccionEnVivo[] {
     case 'tennis':
       return leer(
         `SELECT prob1 AS p, prob1 AS pm, market_prob1 AS m, CASE WHEN winner_id = p1_id THEN 0 ELSE 1 END AS y, model_version AS v, commence_time AS t, tour AS l
-           FROM prediction_log WHERE resolved_at IS NOT NULL AND winner_id IS NOT NULL ORDER BY rowid`,
+           FROM prediction_log WHERE resolved_at IS NOT NULL AND winner_id IS NOT NULL AND ${PREPARTIDO} ORDER BY rowid`,
       ).map(dos);
     case 'football':
       return leer(
@@ -57,7 +65,7 @@ export function predicciones(deporte: SportId): PrediccionEnVivo[] {
                 prob_home AS mh0, prob_draw AS md0, prob_away AS ma0,
                 market_prob_home AS mh, market_prob_draw AS md, market_prob_away AS ma, home_goals AS g1, away_goals AS g2,
                 model_version AS v, commence_time AS t, league AS l
-           FROM fb_prediction_log WHERE resolved_at IS NOT NULL AND home_goals IS NOT NULL ORDER BY rowid`,
+           FROM fb_prediction_log WHERE resolved_at IS NOT NULL AND home_goals IS NOT NULL AND ${PREPARTIDO} ORDER BY rowid`,
       ).map((r) => {
         // Renormalizado: el log guarda cinco decimales y las tres pueden sumar 0,99999.
         const s = (r.h as number) + (r.d as number) + (r.a as number);
@@ -76,33 +84,33 @@ export function predicciones(deporte: SportId): PrediccionEnVivo[] {
     case 'basketball':
       return leer(
         `SELECT prob_home AS p, prob_home AS pm, market_prob_home AS m, CASE WHEN home_pts > away_pts THEN 0 ELSE 1 END AS y, model_version AS v, commence_time AS t, league AS l
-           FROM bb_prediction_log WHERE home_pts IS NOT NULL AND home_pts <> away_pts ORDER BY rowid`,
+           FROM bb_prediction_log WHERE home_pts IS NOT NULL AND home_pts <> away_pts AND ${PREPARTIDO} ORDER BY rowid`,
       ).map(dos);
     case 'baseball':
       return leer(
         `SELECT prob_home AS p, prob_home AS pm, market_prob_home AS m, CASE WHEN home_runs > away_runs THEN 0 ELSE 1 END AS y, model_version AS v, commence_time AS t, league AS l
-           FROM bsb_prediction_log WHERE home_runs IS NOT NULL AND home_runs <> away_runs ORDER BY rowid`,
+           FROM bsb_prediction_log WHERE home_runs IS NOT NULL AND home_runs <> away_runs AND ${PREPARTIDO} ORDER BY rowid`,
       ).map(dos);
     case 'nfl':
       // Los empates se excluyen: el moneyline se devuelve y no hay resultado que puntuar.
       return leer(
         `SELECT COALESCE(shown_home, prob_home) AS p, prob_home AS pm, market_prob_home AS m, CASE WHEN home_points > away_points THEN 0 ELSE 1 END AS y,
                 model_version AS v, commence_time AS t, league AS l
-           FROM naf_prediction_log WHERE home_points IS NOT NULL AND home_points <> away_points ORDER BY rowid`,
+           FROM naf_prediction_log WHERE home_points IS NOT NULL AND home_points <> away_points AND ${PREPARTIDO} ORDER BY rowid`,
       ).map(dos);
     case 'nhl':
       // El moneyline incluye prórroga y tanda: siempre hay ganador.
       return leer(
         `SELECT COALESCE(shown_home, prob_home) AS p, prob_home AS pm, market_prob_home AS m, CASE WHEN home_goals > away_goals THEN 0 ELSE 1 END AS y,
                 model_version AS v, commence_time AS t, league AS l
-           FROM nhl_prediction_log WHERE home_goals IS NOT NULL AND home_goals <> away_goals ORDER BY rowid`,
+           FROM nhl_prediction_log WHERE home_goals IS NOT NULL AND home_goals <> away_goals AND ${PREPARTIDO} ORDER BY rowid`,
       ).map(dos);
     case 'ufc':
       // Solo las peleas con ganador: el empate y el «sin resultado» no se puntúan (A es home_*).
       return leer(
         `SELECT COALESCE(shown_home, prob_home) AS p, prob_home AS pm, market_prob_home AS m, CASE WHEN outcome = 'A' THEN 0 ELSE 1 END AS y,
                 model_version AS v, commence_time AS t, league AS l
-           FROM ufc_prediction_log WHERE outcome IN ('A', 'B') ORDER BY rowid`,
+           FROM ufc_prediction_log WHERE outcome IN ('A', 'B') AND ${PREPARTIDO} ORDER BY rowid`,
       ).map(dos);
   }
 }

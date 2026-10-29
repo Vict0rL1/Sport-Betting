@@ -16,8 +16,9 @@ import {
   incertidumbre, estabilidad, desacuerdo, sensibilidad, edgeDesaparece,
   type Incertidumbre, type Estabilidad, type Desacuerdo, type Sensibilidad, type BandaCalibracion,
 } from './perturbation.ts';
-import { confianza, decidir, type Confianza, type Decision } from './decision.ts';
+import { confianza, decidir, horasArchivoAtrasado, type Confianza, type Decision } from './decision.ts';
 import { derivaReciente } from './drift.ts';
+import { motivoArchivoAtrasado } from '../monitoring/vencidas.ts';
 import { politica } from '../staking/policyStore.ts';
 import type { EventoConfianza } from './types.ts';
 import { registrarSombras } from '../shadow/shadows.ts';
@@ -93,7 +94,7 @@ export function evaluar(e: EventoConfianza, opts: { pRegistrada?: number[] | nul
   const des = desacuerdo(e);
   const mercado = calidadMercado(e.demo ? null : e.providerEventId, e.providerSelections, e.commence, now);
   const d = deriva(e.sport);
-  const ctx = { evento: e, calidad, incertidumbre: inc, estabilidad: est, desacuerdo: des, mercado, pRegistrada: opts.pRegistrada ?? null, deriva: d.deriva ? d.texto : null, now };
+  const ctx = { evento: e, calidad, incertidumbre: inc, estabilidad: est, desacuerdo: des, mercado, pRegistrada: opts.pRegistrada ?? null, deriva: d.deriva ? d.texto : null, archivoAtrasado: horasArchivoAtrasado() > 0 ? motivoArchivoAtrasado(e.sport, e.matchKey, now, horasArchivoAtrasado()) : null, now };
   return {
     sport: e.sport,
     matchKey: e.matchKey,

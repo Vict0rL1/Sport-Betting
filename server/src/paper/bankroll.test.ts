@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import '../test/setup.ts';
 
 const { getDb } = await import('../db.ts');
-const { place, settle, captureClosing, resumen, DIAS_CANCELACION } = await import('./bankroll.ts');
+const { place, settle, captureClosing, resumen } = await import('./bankroll.ts');
 const { recordOddsResponse } = await import('../odds/snapshots.ts');
 
 const db = getDb();
@@ -165,15 +165,18 @@ test('se liquida UNA vez, aunque pierda sigue constando la buena línea', () => 
   assert.ok(s.clvMedio != null && s.clvMedio > 0);
 });
 
-test('sin resultado mucho después del inicio: cancelada y se devuelve el importe', () => {
-  const inicio = iso(ahora - (DIAS_CANCELACION + 2) * 24 * H);
+test('sin resultado mucho después del inicio: sigue pendiente (que pase el tiempo no es un resultado)', () => {
+  // Auditoría del 17 de octubre, punto 3: a los 14 días se cancelaba y se devolvía el importe. Con
+  // la fuente atrasada (el tenis, meses) eso cancelaba para siempre apuestas de partidos que sí se
+  // jugaron: una apuesta liquidada no se vuelve a liquidar. Sigue pendiente hasta tener resultado.
+  const inicio = iso(ahora - 16 * 24 * H);
   db.prepare(
     `INSERT INTO paper_bets (placed_at, sport, match_key, event_id, label, selection, p_model, p_market, odds, stake, bankroll_at, commence_time)
      VALUES (?, 'football', 'nadie|x', 'fantasma', 'A vs B', 'A', 0.5, 0.4, 2.0, 10, 1000, ?)`,
   ).run(iso(Date.parse(inicio) - H), inicio);
   settle(new Date(ahora));
-  const a = db.prepare("SELECT status, profit FROM paper_bets WHERE event_id = 'fantasma'").get() as { status: string; profit: number };
-  assert.deepEqual({ ...a }, { status: 'cancelled', profit: 0 });
+  const a = db.prepare("SELECT status, profit, settled_at, event_result FROM paper_bets WHERE event_id = 'fantasma'").get() as Record<string, unknown>;
+  assert.deepEqual({ ...a }, { status: 'pending', profit: null, settled_at: null, event_result: null });
 });
 
 test('un estado que no existe se rechaza', () => {

@@ -31,3 +31,16 @@ test('de data/ solo se versiona data/raw/.gitkeep: todo lo demás (copias, desca
   // --no-index: sin él, git nunca da por ignorado un fichero que ya versiona y esto no probaría nada.
   assert.throws(() => git('check-ignore', '--no-index', 'data/raw/.gitkeep'), 'data/raw/.gitkeep se versiona');
 });
+
+// Revisión de data-guardian (20 de octubre): las salidas de copia:consolidar y auditoria:copia llevan
+// libros mayores enteros. Por defecto van fuera del repositorio y se niegan a escribir dentro (salvo
+// en data/); y si alguien las mueve aquí, git las ignora.
+test('las salidas de copia:consolidar y auditoria:copia no se versionan, y no se escriben en el repositorio', { skip: !hayGit && 'sin .git (no es un checkout)' }, async () => {
+  const restos = ['copia-consolidada-2026-10-20T10-00-00/ledger.consolidada.db', 'auditoria-copia-2026-10-20T10-00-00/app/ledger.db', 'server/copia-consolidada-x/trabajo/con-wal/ledger.db'];
+  assert.deepEqual(execFileSync('git', ['check-ignore', ...restos], { cwd: RAIZ, encoding: 'utf8' }).trim().split('\n'), restos);
+  const { comprobarSalidaFueraDelRepo } = await import('./consolidar.ts');
+  assert.throws(() => comprobarSalidaFueraDelRepo(path.join(RAIZ, 'informe')), /dentro del repositorio/);
+  assert.throws(() => comprobarSalidaFueraDelRepo(path.join(RAIZ, 'server', 'x')), /dentro del repositorio/);
+  comprobarSalidaFueraDelRepo(path.join(RAIZ, 'data', 'auditoria'));
+  comprobarSalidaFueraDelRepo(path.join(path.dirname(RAIZ), 'fuera-del-repo'));
+});

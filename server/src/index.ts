@@ -14,6 +14,7 @@ import { getDb } from './db.ts';
 import { countRows } from './repo.ts';
 import { refreshOdds } from './ingest/odds.ts';
 import { conRegistro, marcarMuertas } from './ingest/runs.ts';
+import { registrarCuotas } from './odds/metricas.ts';
 import { horasDesdeEntorno, cicloResultados, PRIMERA_PASADA_MIN } from './ingest/scheduler.ts';
 import { registrar, arrancar } from './scheduler/registry.ts';
 import { horasDesdeEntorno as horasDeCadencia } from './scheduler/horas.ts';
@@ -225,10 +226,7 @@ function startAutoRefresh(log: (msg: string) => void): void {
     const estado: { nombre: string; vivo: boolean; prefijo: SportPrefix }[] = [];
     if (countRows('players') > 0) {
       try {
-        const r = await conRegistro('odds:tenis', async () => {
-          const x = await refreshOdds();
-          return { ...x, rowsAdded: x.count, detail: x.source };
-        });
+        const r = await registrarCuotas('odds:tenis', () => refreshOdds());
         log(`Tennis odds refreshed: ${r.count} upcoming matches (${r.source}).`);
         estado.push({ nombre: 'Tenis', vivo: r.source === 'live', prefijo: '' });
       } catch (e) {
@@ -240,10 +238,7 @@ function startAutoRefresh(log: (msg: string) => void): void {
     // other from updating.
     if (countRows('bb_teams') > 0) {
       try {
-        const r = await conRegistro('odds:baloncesto', async () => {
-          const x = await refreshBasketballOdds();
-          return { ...x, rowsAdded: x.count, detail: x.source };
-        });
+        const r = await registrarCuotas('odds:baloncesto', () => refreshBasketballOdds());
         log(`Basketball odds refreshed: ${r.count} games (${r.source}).`);
         estado.push({ nombre: 'Baloncesto', vivo: r.source === 'live', prefijo: 'bb_' });
       } catch (e) {
@@ -253,10 +248,7 @@ function startAutoRefresh(log: (msg: string) => void): void {
     }
     if (countRows('fb_teams') > 0) {
       try {
-        const r = await conRegistro('odds:futbol', async () => {
-          const x = await refreshFootballOdds();
-          return { ...x, rowsAdded: x.count, detail: x.source };
-        });
+        const r = await registrarCuotas('odds:futbol', () => refreshFootballOdds());
         log(`Football odds refreshed: ${r.count} fixtures (${r.source}).`);
         estado.push({ nombre: 'Fútbol', vivo: r.source === 'live', prefijo: 'fb_' });
       } catch (e) {
@@ -270,10 +262,7 @@ function startAutoRefresh(log: (msg: string) => void): void {
     // decides, and in February neither MLB nor the NFL spends a credit.
     if (countRows('bsb_teams') > 0) {
       try {
-        const r = await conRegistro('odds:beisbol', async () => {
-          const x = await refreshBaseballOdds();
-          return { ...x, rowsAdded: x.count, detail: x.source };
-        });
+        const r = await registrarCuotas('odds:beisbol', () => refreshBaseballOdds());
         log(`Baseball odds refreshed: ${r.count} games (${r.source}).`);
         estado.push({ nombre: 'Béisbol', vivo: r.source === 'live', prefijo: 'bsb_' });
       } catch (e) {
@@ -283,10 +272,7 @@ function startAutoRefresh(log: (msg: string) => void): void {
     }
     if (countRows('naf_teams') > 0) {
       try {
-        const { n } = await conRegistro('odds:nfl', async () => {
-          const x = await refreshNflOdds();
-          return { n: x, rowsAdded: x };
-        });
+        const n = await registrarCuotas('odds:nfl', () => refreshNflOdds());
         log(`NFL odds refreshed: ${n} games.`);
       } catch (e) {
         log(`NFL odds refresh failed: ${(e as Error).message}`);
@@ -295,10 +281,7 @@ function startAutoRefresh(log: (msg: string) => void): void {
     // La NHL: fuera de temporada no gasta (el listado de /sports, gratis, lo decide).
     if (countRows('nhl_games') > 0) {
       try {
-        const { n } = await conRegistro('odds:nhl', async () => {
-          const x = await refreshNhlOdds();
-          return { n: x, rowsAdded: x };
-        });
+        const n = await registrarCuotas('odds:nhl', () => refreshNhlOdds());
         log(`NHL odds refreshed: ${n} games.`);
       } catch (e) {
         log(`NHL odds refresh failed: ${(e as Error).message}`);
@@ -307,10 +290,7 @@ function startAutoRefresh(log: (msg: string) => void): void {
     // La UFC: solo con el archivo (sin él no se sabe quién es quién ni qué cartelera es de la UFC).
     if (countRows('ufc_fights') > 0) {
       try {
-        const { n } = await conRegistro('odds:ufc', async () => {
-          const x = await refreshUfcOdds();
-          return { n: x, rowsAdded: x };
-        });
+        const n = await registrarCuotas('odds:ufc', () => refreshUfcOdds());
         log(`UFC odds refreshed: ${n} fights.`);
       } catch (e) {
         log(`UFC odds refresh failed: ${(e as Error).message}`);

@@ -19,13 +19,13 @@ test('steamDe: solo movimientos rápidos, con casas suficientes', () => {
 });
 
 test('surebetDe y referenciaDe', () => {
-  const sb = surebetDe([
+  const sb = surebetDe('h2h', [
     { seleccion: 'A', cuotas: [q('x', 2.1), q('y', 2.0)] },
     { seleccion: 'B', cuotas: [q('x', 1.9), q('y', 2.1)] },
   ]);
   assert.ok(sb && sb.suma < 1);
   assert.deepEqual(sb?.patas.map((p) => p.casa), ['x', 'y']);
-  assert.equal(surebetDe([{ seleccion: 'A', cuotas: [q('x', 1.9)] }, { seleccion: 'B', cuotas: [q('x', 1.9)] }]), null);
+  assert.equal(surebetDe('h2h', [{ seleccion: 'A', cuotas: [q('x', 1.9)] }, { seleccion: 'B', cuotas: [q('x', 1.9)] }]), null);
   const ref = referenciaDe([
     { seleccion: 'A', cuotas: [q('pinnacle', 1.95), q('y', 1.8)] },
     { seleccion: 'B', cuotas: [q('pinnacle', 1.95), q('y', 2.1)] },
@@ -73,14 +73,14 @@ test('C2: el steam no compara puntos de líneas distintas; una surebet exige lí
   assert.ok(steamDe([p('2026-10-07T09:00:00Z', 2.2, 2.5), p('2026-10-07T09:30:00Z', 1.8, 2.5)]), 'misma línea sí');
   const ql = (bookmaker: string, odds: number, line: number) => ({ bookmaker, odds, line, observedAt: '2026-10-07T10:00:00Z' });
   assert.equal(
-    surebetDe([
+    surebetDe('totals', [
       { seleccion: 'Over', cuotas: [ql('x', 2.1, 2.5)] },
       { seleccion: 'Under', cuotas: [ql('y', 2.1, 3.0)] },
     ]),
     null,
     'Más 2,5 y Menos 3,0 no se cubren',
   );
-  const sb = surebetDe([
+  const sb = surebetDe('totals', [
     { seleccion: 'Over', cuotas: [ql('x', 2.1, 2.5), ql('z', 1.7, 3.0)] },
     { seleccion: 'Under', cuotas: [ql('y', 2.1, 2.5), ql('z', 2.4, 3.0)] },
   ]);
@@ -101,4 +101,94 @@ test('C2: marketAt con cuotas en dos líneas devuelve el consenso de la línea m
   assert.equal(m?.line, 2.5);
   assert.equal(m?.consensus, 1.9, 'mediana de a, b, c; la cuota de 3,0 no entra');
   assert.equal(m?.books, 3);
+});
+
+// ---------------------------------------------------------------------------
+// Auditoría del 22 de octubre, hallazgo 2: las líneas se agrupaban por su valor absoluto, y A −3,5
+// a 2,10 con B −3,5 a 2,10 salía como surebet del 4,8 % aunque las dos pierden si A gana por uno.
+// ---------------------------------------------------------------------------
+const ql = (bookmaker: string, odds: number, line: number | null) => ({ bookmaker, odds, line, observedAt: '2026-10-07T10:00:00Z' });
+
+test('hándicap: dos líneas del mismo signo no se cubren', () => {
+  assert.equal(
+    surebetDe('spreads', [
+      { seleccion: 'Team A', cuotas: [ql('x', 2.1, -3.5)] },
+      { seleccion: 'Team B', cuotas: [ql('y', 2.1, -3.5)] },
+    ]),
+    null,
+    'si A gana por uno, pierden las dos',
+  );
+  // Tampoco empareja líneas que no son la complementaria aunque haya otra que sí lo sea en otra casa.
+  assert.equal(
+    surebetDe('spreads', [
+      { seleccion: 'Team A', cuotas: [ql('x', 2.5, -4.5)] },
+      { seleccion: 'Team B', cuotas: [ql('y', 2.1, 3.5)] },
+    ]),
+    null,
+    'A −4,5 y B +3,5: si A gana por 4, pierden las dos',
+  );
+});
+
+test('hándicap: líneas complementarias de signo contrario sí, y cada pata guarda su línea con signo', () => {
+  const sb = surebetDe('spreads', [
+    { seleccion: 'Team A', cuotas: [ql('x', 2.1, -3.5), ql('z', 2.5, -4.5)] },
+    { seleccion: 'Team B', cuotas: [ql('y', 2.1, 3.5), ql('w', 1.5, 4.5)] },
+  ]);
+  assert.ok(sb);
+  assert.equal(sb?.margenPct, 4.8);
+  assert.deepEqual(sb?.patas, [
+    { seleccion: 'Team A', cuota: 2.1, casa: 'x', linea: -3.5 },
+    { seleccion: 'Team B', cuota: 2.1, casa: 'y', linea: 3.5 },
+  ]);
+  assert.equal(sb?.linea, 3.5);
+  // Con el favorito al revés (B −3,5 / A +3,5), igual.
+  const otra = surebetDe('spreads', [
+    { seleccion: 'Team A', cuotas: [ql('x', 2.1, 3.5)] },
+    { seleccion: 'Team B', cuotas: [ql('y', 2.1, -3.5)] },
+  ]);
+  assert.deepEqual(otra?.patas.map((p) => p.linea), [3.5, -3.5]);
+});
+
+test('totales: el mismo umbral y un Más con un Menos', () => {
+  const sb = surebetDe('totals', [
+    { seleccion: 'Over', cuotas: [ql('x', 2.1, 2.5)] },
+    { seleccion: 'Under', cuotas: [ql('y', 2.1, 2.5)] },
+  ]);
+  assert.deepEqual(sb?.patas.map((p) => [p.seleccion, p.linea]), [['Over', 2.5], ['Under', 2.5]]);
+  assert.equal(surebetDe('totals', [{ seleccion: 'Over', cuotas: [ql('x', 2.1, 2.5)] }, { seleccion: 'Under', cuotas: [ql('y', 2.1, 3.0)] }]), null, 'umbrales distintos');
+  assert.equal(surebetDe('totals', [{ seleccion: 'Over', cuotas: [ql('x', 2.1, 2.5)] }, { seleccion: 'Over ', cuotas: [ql('y', 2.1, 2.5)] }]), null, 'dos Más no se cubren');
+  assert.equal(surebetDe('totals', [{ seleccion: 'Over', cuotas: [ql('x', 2.1, 2.5)] }, { seleccion: 'Team B', cuotas: [ql('y', 2.1, 2.5)] }]), null, 'sin un Menos no hay cobertura');
+});
+
+test('mercados sin línea: solo cuotas sin línea, todas las selecciones; y un mercado que no se sabe cubrir, nunca', () => {
+  const sb = surebetDe('h2h', [
+    { seleccion: 'Casa', cuotas: [ql('x', 3.2, null)] },
+    { seleccion: 'Empate', cuotas: [ql('y', 3.6, null)] },
+    { seleccion: 'Fuera', cuotas: [ql('z', 3.4, null)] },
+  ]);
+  assert.ok(sb && sb.suma < 1);
+  assert.deepEqual(sb?.patas.map((p) => p.linea), [null, null, null]);
+  assert.equal(sb?.linea, null);
+  assert.equal(
+    surebetDe('h2h', [{ seleccion: 'Casa', cuotas: [ql('x', 2.1, -0.5)] }, { seleccion: 'Fuera', cuotas: [ql('y', 2.1, null)] }]),
+    null,
+    'una cuota con línea en un mercado sin línea no cuenta',
+  );
+  assert.equal(surebetDe('team_totals', [{ seleccion: 'Over', cuotas: [ql('x', 2.1, 110.5)] }, { seleccion: 'Under', cuotas: [ql('y', 2.1, 110.5)] }]), null, 'Más/Menos sin saber de qué equipo');
+  assert.equal(surebetDe('h2h_lay', [{ seleccion: 'A', cuotas: [ql('x', 2.1, null)] }, { seleccion: 'B', cuotas: [ql('y', 2.1, null)] }]), null, 'una cuota de «lay» no se cubre así');
+});
+
+test('inteligenciaMercado: un hándicap del mismo signo en dos casas no sale como surebet; el complementario sí, con su signo', () => {
+  const db = getDb();
+  const ins = db.prepare(
+    `INSERT INTO odds_snapshots (event_id, sport, league, market, selection, bookmaker, odds_decimal, line, home_team, away_team, commence_time, observed_at, source, is_live)
+     VALUES (?, 'nfl', 'americanfootball_nfl', 'spreads', ?, ?, 2.1, ?, 'Team A', 'Team B', '2026-10-30T17:00:00Z', '2026-10-29T10:00:00Z', 'test', 0)`,
+  );
+  ins.run('ev-mismo-signo', 'Team A', 'x', -3.5);
+  ins.run('ev-mismo-signo', 'Team B', 'y', -3.5);
+  ins.run('ev-complementario', 'Team A', 'x', -3.5);
+  ins.run('ev-complementario', 'Team B', 'y', 3.5);
+  const r = inteligenciaMercado(new Date('2026-10-29T12:00:00Z'));
+  assert.deepEqual(r.surebets.map((s) => s.eventId), ['ev-complementario']);
+  assert.deepEqual(r.surebets[0].patas.map((p) => [p.seleccion, p.linea]), [['Team A', -3.5], ['Team B', 3.5]]);
 });

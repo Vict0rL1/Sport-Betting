@@ -86,6 +86,8 @@ test('T-24h NO ve la información que llegó después (el abridor de T-2h)', () 
 });
 
 test('la base rechaza instantáneas con datos o cuotas del futuro, o tomadas tras el inicio', () => {
+  // El CHECK de texto de la tabla, o el trigger con instantes de la migración 23 (el que salte antes).
+  const RECHAZO = /CHECK|posteriores a la captura|después del inicio/;
   const ins = (captured: string, oddsAt: string | null, dataAsOf: string | null) => () =>
     db
       .prepare(
@@ -93,9 +95,9 @@ test('la base rechaza instantáneas con datos o cuotas del futuro, o tomadas tra
          VALUES ('baseball', 'x', ?, ?, '[]', '[]', ?, ?, '{}')`,
       )
       .run(INICIO, captured, oddsAt, dataAsOf);
-  assert.throws(ins(a(5).toISOString(), a(1).toISOString(), null), /CHECK/, 'cuotas de T-1h en una captura de T-5h');
-  assert.throws(ins(a(5).toISOString(), null, a(1).toISOString()), /CHECK/, 'datos de T-1h en una captura de T-5h');
-  assert.throws(ins(INICIO, null, null), /CHECK/, 'captura a la hora del inicio');
+  assert.throws(ins(a(5).toISOString(), a(1).toISOString(), null), RECHAZO, 'cuotas de T-1h en una captura de T-5h');
+  assert.throws(ins(a(5).toISOString(), null, a(1).toISOString()), RECHAZO, 'datos de T-1h en una captura de T-5h');
+  assert.throws(ins(INICIO, null, null), RECHAZO, 'captura a la hora del inicio');
   assert.equal(recordSnapshot(snap(), new Date(Date.parse(INICIO) + 60_000)), 'empezado');
 });
 

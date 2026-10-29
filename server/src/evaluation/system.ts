@@ -13,9 +13,12 @@ import { rendimientoEnVivo } from './betting.ts';
 import { leerWalkForward } from './walkforward.ts';
 import { UMBRALES_MUESTRA } from './sample.ts';
 import { SPORT_IDS } from '../sports.ts';
+import { prepartidoSql, REGISTROS } from '../prematch/tiempo.ts';
 
 const NOMBRE: Record<string, string> = { tennis: 'tenis', football: 'fútbol', basketball: 'NBA', baseball: 'MLB', nfl: 'NFL', nhl: 'NHL', ufc: 'UFC' };
-const LOGS = ['prediction_log', 'fb_prediction_log', 'bb_prediction_log', 'bsb_prediction_log', 'naf_prediction_log'];
+// Los siete registros; y de cada uno, solo lo escrito antes del partido (auditoría del 17 de octubre).
+const LOGS = REGISTROS;
+const PREPARTIDO = prepartidoSql();
 
 export interface ConfianzaSistema {
   prediccionesEnVivo: number;
@@ -40,7 +43,7 @@ export function confianzaDelSistema(): ConfianzaSistema {
   let primera: string | null = null;
   for (const t of LOGS) {
     try {
-      const r = db.prepare(`SELECT COUNT(*) AS n, SUM(CASE WHEN resolved_at IS NOT NULL THEN 1 ELSE 0 END) AS r, MIN(predicted_at) AS p FROM ${t}`).get() as { n: number; r: number | null; p: string | null };
+      const r = db.prepare(`SELECT COUNT(*) AS n, SUM(CASE WHEN resolved_at IS NOT NULL THEN 1 ELSE 0 END) AS r, MIN(predicted_at) AS p FROM ${t} WHERE ${PREPARTIDO}`).get() as { n: number; r: number | null; p: string | null };
       total += r.n;
       resueltas += r.r ?? 0;
       if (r.p && (!primera || r.p < primera)) primera = r.p;

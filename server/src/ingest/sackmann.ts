@@ -19,6 +19,7 @@ import { execFileSync } from 'node:child_process';
 import { parse } from 'csv-parse/sync';
 import { getDb } from '../db.ts';
 import { RAW_DIR, toursConfig } from '../config.ts';
+import { leerTml } from './tmlLectura.ts';
 import type { TourConfig, TourId } from '../types.ts';
 
 function rawUrls(repo: string, file: string): string[] {
@@ -39,6 +40,42 @@ function hostOf(url: string): string {
 // Remembers which HTTP source worked, so we don't re-probe blocked hosts for
 // every one of the ~12 season files.
 let workingBaseIndex: number | null = null;
+
+/**
+ * El progreso de la ingesta, a la terminal. Los tests lo callan: el proceso de cada fichero de test
+ * informa al padre por su stdout con mensajes binarios, y una línea escrita mientras tanto los podía
+ * partir («Unable to deserialize cloned data»).
+ */
+let progreso = (m: string): void => {
+  process.stdout.write(m);
+};
+
+/**
+ * Una temporada en una transacción: o entra entera o no entra. Si algo falla a mitad (una fila que
+ * un CHECK rechaza), se deshace y la base no se queda con una transacción abierta, que dejaría
+ * fallar también la reserva de tennis-data.co.uk (revisión data-guardian del 20 de octubre).
+ */
+function enTransaccion(db: ReturnType<typeof getDb>, fn: () => void): void {
+  db.exec('BEGIN');
+  try {
+    fn();
+    db.exec('COMMIT');
+  } catch (e) {
+    // Si SQLite ya deshizo la transacción (SQLITE_FULL, por ejemplo), ROLLBACK lanza «no transaction
+    // is active» y taparía el error que importa (revisión data-guardian, tercera vuelta).
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // ya no había transacción
+    }
+    throw e;
+  }
+}
+
+/** Para los tests: el progreso de la ingesta no se escribe (o va a `f`). */
+export function silenciarProgreso(f: (m: string) => void = () => {}): void {
+  progreso = f;
+}
 
 // Repos we've switched to the git-clone source (because HTTP was unreachable).
 const gitRepoDir = new Map<string, string>();
@@ -86,7 +123,7 @@ function findLocalCopy(name: string): string | null {
     if (!zip) continue;
     const dest = path.join(RAW_DIR, 'repos', `${name}-unzipped`);
     try {
-      process.stdout.write(`  descomprimiendo ${zip}…\n`);
+      progreso(`  descomprimiendo ${zip}…\n`);
       fs.mkdirSync(dest, { recursive: true });
       execFileSync('unzip', ['-o', '-q', path.join(root, zip), '-d', dest], { stdio: 'pipe' });
       if (hasCsvs(dest)) return dest;
@@ -128,7 +165,7 @@ function cloneRepo(repo: string): string {
   // ZIP from GitHub by hand is a complete alternative to git.
   const local = findLocalCopy(name);
   if (local) {
-    process.stdout.write(`  usando la copia local: ${path.relative(RAW_DIR, local) || '.'}\n`);
+    progreso(`  usando la copia local: ${path.relative(RAW_DIR, local) || '.'}\n`);
     return local;
   }
 
@@ -140,7 +177,7 @@ function cloneRepo(repo: string): string {
         env: noPrompt,
       });
     } catch {
-      process.stdout.write(`  (no se pudo actualizar ${name}; usando la copia local)\n`);
+      progreso(`  (no se pudo actualizar ${name}; usando la copia local)\n`);
     }
     return dir;
   }
@@ -150,7 +187,7 @@ function cloneRepo(repo: string): string {
   for (const candidate of candidates) {
     try {
       fs.mkdirSync(path.dirname(dir), { recursive: true });
-      process.stdout.write(`  clonando ${candidate} vía git…\n`);
+      progreso(`  clonando ${candidate} vía git…\n`);
       execFileSync(
         'git',
         [...anonymous, 'clone', '--depth', '1', `https://github.com/${candidate}.git`, dir],
@@ -195,7 +232,15 @@ function cloneRepo(repo: string): string {
  * Read a repo file as text (null if it legitimately doesn't exist). Tries HTTP
  * first (cached in data/raw); on failure/filtered-404 switches to a git clone.
  */
-async function readRepoFile(repo: string, file: string): Promise<string | null> {
+async function readRepoFile(
+  repo: string,
+  file: string,
+  opts: { fresco?: boolean; /** Por qué una descarga no vale (null: vale). Se mira ANTES de guardarla. */ aceptar?: (texto: string) => string | null } = {},
+): Promise<string | null> {
+  // Ya bajada y comprobada en esta pasada, antes de vaciar las tablas (precargarTemporadasVivas).
+  const precargada = precargadas.get(`${repo}/${file}`);
+  if (precargada !== undefined) return precargada;
+
   // Already switched this repo to git → read from the clone.
   const switched = gitRepoDir.get(repo);
   if (switched) {
@@ -203,8 +248,19 @@ async function readRepoFile(repo: string, file: string): Promise<string | null> 
     return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
   }
 
+  // La copia de data/raw sirve para siempre a una temporada cerrada. A la que está en curso (y a la
+  // anterior, que recibe correcciones al empezar el año) se la vuelve a pedir en cada ingesta
+  // (auditoría del 17 de octubre, punto 3: antes se bajaba una vez y la temporada en curso se
+  // quedaba como estaba ese día aunque la fuente avanzara). Con copia, cualquier fallo —sin red, una
+  // respuesta cortada, un 404, o una descarga que no se parece a la copia— deja la copia y lo dice
+  // (revisión data-guardian del 20 de octubre, hallazgo 3).
   const cachePath = path.join(RAW_DIR, file);
-  if (fs.existsSync(cachePath)) return fs.readFileSync(cachePath, 'utf8');
+  const enCache = fs.existsSync(cachePath);
+  if (enCache && !opts.fresco) return fs.readFileSync(cachePath, 'utf8');
+  const copia = () => {
+    progreso(`  ⚠️  ${file}: se usa la copia de data/raw (puede ir atrasada)\n`);
+    return fs.readFileSync(cachePath, 'utf8');
+  };
 
   const useGitFor = (): string | null => {
     const dir = cloneRepo(repo);
@@ -213,9 +269,11 @@ async function readRepoFile(repo: string, file: string): Promise<string | null> 
     return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null;
   };
 
+  // A un temporal y renombrado: una escritura a medias no deja una copia rota.
   const save = (text: string): string => {
     fs.mkdirSync(RAW_DIR, { recursive: true });
-    fs.writeFileSync(cachePath, text);
+    fs.writeFileSync(cachePath + '.descarga', text);
+    fs.renameSync(cachePath + '.descarga', cachePath);
     return text;
   };
 
@@ -229,17 +287,37 @@ async function readRepoFile(repo: string, file: string): Promise<string | null> 
   let sawRealNotFound = false;
   for (const i of order) {
     let res: Response;
+    let texto: string;
     try {
       res = await fetch(urls[i], { signal: AbortSignal.timeout(45_000) });
+      // Leer el cuerpo también puede fallar (corte, tiempo agotado a media descarga).
+      texto = res.ok ? await res.text() : '';
     } catch {
       continue; // this host is unreachable → try the next one
     }
     if (res.ok) {
       if (workingBaseIndex !== i) {
         workingBaseIndex = i;
-        process.stdout.write(`  (descargando vía ${hostOf(urls[i])})\n`);
+        progreso(`  (descargando vía ${hostOf(urls[i])})\n`);
       }
-      return save(await res.text());
+      // Se comprueba antes de guardar: una descarga rota no puede pisar la única copia buena
+      // (revisión data-guardian del 20 de octubre).
+      // Una descarga que ni se deja leer (una comilla sin cerrar) tampoco vale: si `aceptar` lanza,
+      // es un motivo más, no una excepción que salte la copia (revisión data-guardian, tercera vuelta).
+      let motivo = enCache ? noSeParece(texto, fs.readFileSync(cachePath, 'utf8')) : null;
+      try {
+        motivo ??= opts.aceptar?.(texto) ?? null;
+      } catch (e) {
+        motivo = `no se puede leer: ${(e as Error).message}`;
+      }
+      if (motivo) {
+        if (enCache) {
+          progreso(`  ⚠️  ${file}: la descarga no vale (${motivo})\n`);
+          return copia();
+        }
+        throw new DescargaRechazada(`${file}: ${motivo}; no se usa, y no hay una copia anterior.`);
+      }
+      return save(texto);
     }
     // A 404 for the always-present players file means this host is filtering
     // (some networks answer 404 instead of blocking); try the next source.
@@ -251,9 +329,77 @@ async function readRepoFile(repo: string, file: string): Promise<string | null> 
     }
   }
 
+  // Un 404 de algo que ya se tenía no lo borra: se queda la copia.
+  if (enCache) return copia();
   if (sawRealNotFound) return null; // season genuinely not published yet
   return useGitFor(); // every HTTP source failed → git clone
 }
+
+/**
+ * Por qué una descarga nueva no puede sustituir a la copia, o null si puede: otra cabecera, o
+ * bastantes menos filas (la fuente corrige y quita repetidos, pero no pierde una temporada).
+ */
+function noSeParece(nuevo: string, copia: string): string | null {
+  const lineas = (t: string) => t.split('\n').filter((l) => l.trim()).length;
+  const cabecera = (t: string) => t.slice(0, t.indexOf('\n')).trim();
+  if (cabecera(nuevo) !== cabecera(copia)) return 'otra cabecera';
+  if (lineas(nuevo) < lineas(copia) * 0.98) return `${lineas(nuevo)} líneas y la copia tiene ${lineas(copia)}`;
+  return null;
+}
+
+/** Una descarga que no vale y no tiene copia que la sustituya: no se guarda ni se usa. */
+export class DescargaRechazada extends Error {}
+
+/**
+ * Por qué un fichero de TML no vale, o null si vale: más del 5 % de sus filas se descartaría. Más de
+ * una: en un fichero de dos filas, un repetido es la mitad y no dice nada del fichero. Si ni se deja
+ * leer, `leerTml` lanza y readRepoFile lo toma como motivo.
+ */
+function ficheroTmlNoVale(file: string) {
+  return (texto: string): string | null => {
+    const { filas, anomalias } = leerTml(texto, file);
+    const descartadas = anomalias.filter((a) => a.accion === 'descartada').length;
+    return descartadas > 1 && descartadas > (filas.length + descartadas) * MAX_DESCARTADAS ? `se descartarían ${descartadas} de ${filas.length + descartadas} filas` : null;
+  };
+}
+
+/** Lo bajado y comprobado antes de vaciar las tablas, por `repo/fichero`. */
+const precargadas = new Map<string, string | null>();
+
+/** Si más de esta fracción de filas de un fichero se descarta, el fichero no se usa. */
+export const MAX_DESCARTADAS = 0.05;
+
+/**
+ * Baja y comprueba las temporadas vivas de un circuito ANTES de vaciar las tablas del tenis, para
+ * que una fuente colgada o un fichero raro no deje la base a medias (revisión data-guardian del 20
+ * de octubre, hallazgo 3d y 7). En TML, además, un fichero en que se descarta más del 5 % de las
+ * filas no se usa: se queda la copia; sin copia, se lanza y la ingesta para sin tocar la base.
+ */
+export async function precargarTemporadasVivas(tour: TourConfig, toYear: number): Promise<void> {
+  for (let year = Math.max(toYear - 1, new Date().getUTCFullYear() - 1); year <= toYear; year++) {
+    const file = tour.sackmann.matchesFile.replace('{year}', String(year));
+    const aceptar = tour.sackmann.format === 'tml' ? ficheroTmlNoVale(file) : undefined;
+    let csv: string | null;
+    try {
+      csv = await readRepoFile(tour.sackmann.repo, file, { fresco: true, aceptar });
+    } catch (e) {
+      // Un fichero roto sin copia que lo sustituya: se para aquí, sin tocar la base.
+      if (e instanceof DescargaRechazada) throw new Error(`${e.message} No se ha borrado nada.`);
+      // La fuente no contesta (o el repo ya no existe, como el de la WTA): la ingesta lo intentará y
+      // caerá a tennis-data.co.uk como siempre.
+      continue;
+    }
+    precargadas.set(`${tour.sackmann.repo}/${file}`, csv);
+  }
+}
+
+/** Para los tests: olvidar lo precargado. */
+export function olvidarPrecargadas(): void {
+  precargadas.clear();
+}
+
+/** ¿Se vuelve a pedir esta temporada aunque haya copia? La en curso y la anterior. */
+const temporadaViva = (year: number) => year >= new Date().getUTCFullYear() - 1;
 
 /**
  * Check we can actually reach the data source before wiping anything. Returns
@@ -266,10 +412,11 @@ export async function preflight(tour: TourConfig): Promise<number> {
     // also confirms the source is up to date.
     const year = new Date().getUTCFullYear();
     for (const y of [year, year - 1]) {
-      const csv = await readRepoFile(
-        tour.sackmann.repo,
-        tour.sackmann.matchesFile.replace('{year}', String(y)),
-      );
+      const file = tour.sackmann.matchesFile.replace('{year}', String(y));
+      // Lo que baja el preflight se queda en data/raw: sin comprobarlo, la precarga lo tomaría por
+      // una copia buena y la parada del 5 % no saltaría (revisión data-guardian, tercera vuelta).
+      // Si no vale y no hay copia, lanza DescargaRechazada y update-data para sin tocar la base.
+      const csv = await readRepoFile(tour.sackmann.repo, file, { aceptar: ficheroTmlNoVale(file) });
       if (csv) {
         const rows = parse(csv, { columns: true, skip_empty_lines: true, relax_column_count: true });
         return (rows as any[]).length;
@@ -387,71 +534,89 @@ async function ingestTml(tour: TourConfig, opts: IngestOptions) {
   /** Sides whose serve stats were arithmetically impossible — reported, not hidden. */
   let droppedStats = 0;
 
+  // Por circuito: dos con los mismos nombres de fichero ({year}.csv) no se borran las anomalías.
+  const fuente = `tml:${tour.id}`;
+  const borrarAnomalias = db.prepare('DELETE FROM ingest_anomalias WHERE fuente = ? AND fichero = ?');
+  const insertarAnomalia = db.prepare(
+    `INSERT INTO ingest_anomalias (fuente, fichero, linea, tipo, accion, id_fuente, detalle, detectada_en)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+  let anomalias = 0;
+
   for (let year = opts.fromYear; year <= opts.toYear; year++) {
     const file = tour.sackmann.matchesFile.replace('{year}', String(year));
-    const csv = await readRepoFile(tour.sackmann.repo, file);
+    // Si la precarga no llegó a la fuente, aquí se vuelve a pedir: con la misma comprobación, para
+    // que una descarga rota no pise la copia (revisión data-guardian, tercera vuelta).
+    const csv = await readRepoFile(tour.sackmann.repo, file, temporadaViva(year) ? { fresco: true, aceptar: ficheroTmlNoVale(file) } : {});
     if (!csv) continue;
-    const rows = parse(csv, {
-      columns: true,
-      skip_empty_lines: true,
-      relax_column_count: true,
-    }) as any[];
+    // Filas cortadas, columnas corridas y partidos repetidos: ver tmlLectura.ts.
+    const { filas: rows, anomalias: an } = leerTml(csv, file);
 
-    db.exec('BEGIN');
-    for (const r of rows) {
-      const wExt = String(r.winner_id ?? '').trim();
-      const lExt = String(r.loser_id ?? '').trim();
-      if (!wExt || !lExt) continue;
-      const wId = stableId(wExt);
-      const lId = stableId(lExt);
-      const date = String(r.tourney_date || `${year}0101`);
+    enTransaccion(db, () => {
+      borrarAnomalias.run(fuente, file);
+      const ahora = new Date().toISOString();
+      for (const a of an) insertarAnomalia.run(fuente, a.fichero, a.linea, a.tipo, a.accion, a.idFuente, a.detalle, ahora);
+      anomalias += an.length;
+      if (an.length) {
+        const por = an.reduce<Record<string, number>>((m, a) => ((m[`${a.tipo} (${a.accion})`] = (m[`${a.tipo} (${a.accion})`] ?? 0) + 1), m), {});
+        progreso(`  ⚠️  ${file}: ${Object.entries(por).map(([k, v]) => `${v} ${k}`).join(', ')} — ingest_anomalias\n`);
+      }
+      for (const r of rows as any[]) {
+        const wExt = String(r.winner_id ?? '').trim();
+        const lExt = String(r.loser_id ?? '').trim();
+        if (!wExt || !lExt) continue;
+        const wId = stableId(wExt);
+        const lId = stableId(lExt);
+        // leerTml ya apartó las filas sin fecha: aquí no se inventa una (antes, el 1 de enero).
+        const date = String(r.tourney_date ?? '');
+        if (!date) continue;
 
-      playerUpsert.run(wId, tour.id, r.winner_name || wExt, r.winner_hand || null, r.winner_ioc || null);
-      playerUpsert.run(lId, tour.id, r.loser_name || lExt, r.loser_hand || null, r.loser_ioc || null);
-      seenPlayers.add(wId).add(lId);
+        playerUpsert.run(wId, tour.id, r.winner_name || wExt, r.winner_hand || null, r.winner_ioc || null);
+        playerUpsert.run(lId, tour.id, r.loser_name || lExt, r.loser_hand || null, r.loser_ioc || null);
+        seenPlayers.add(wId).add(lId);
 
-      // Ranking as of this match — the newest one per player wins (see the
-      // conditional UPDATE above), giving each player their latest known rank.
-      const wRank = num(r.winner_rank);
-      if (wRank !== null) rankUpsert.run(wId, tour.id, wRank, num(r.winner_rank_points), date);
-      const lRank = num(r.loser_rank);
-      if (lRank !== null) rankUpsert.run(lId, tour.id, lRank, num(r.loser_rank_points), date);
+        // Ranking as of this match — the newest one per player wins (see the
+        // conditional UPDATE above), giving each player their latest known rank.
+        const wRank = num(r.winner_rank);
+        if (wRank !== null) rankUpsert.run(wId, tour.id, wRank, num(r.winner_rank_points), date);
+        const lRank = num(r.loser_rank);
+        if (lRank !== null) rankUpsert.run(lId, tour.id, lRank, num(r.loser_rank_points), date);
 
-      const wStats = serveStats(r, 'w');
-      const lStats = serveStats(r, 'l');
-      if (wStats[2] === null && num(r.w_svpt) !== null) droppedStats++;
-      if (lStats[2] === null && num(r.l_svpt) !== null) droppedStats++;
+        const wStats = serveStats(r, 'w');
+        const lStats = serveStats(r, 'l');
+        if (wStats[2] === null && num(r.w_svpt) !== null) droppedStats++;
+        if (lStats[2] === null && num(r.l_svpt) !== null) droppedStats++;
 
-      matchInsert.run(
-        tour.id,
-        r.tourney_id || null,
-        r.tourney_name || null,
-        date,
-        r.surface || null,
-        r.tourney_level || null,
-        r.round || null,
-        num(r.best_of),
-        wId,
-        lId,
-        r.score || null,
-        wRank,
-        lRank,
-        ...wStats,
-        ...lStats,
-      );
-      matchCount++;
-    }
-    db.exec('COMMIT');
-    process.stdout.write(`  ${tour.id} ${year}: ${rows.length} matches\n`);
+        matchInsert.run(
+          tour.id,
+          r.tourney_id || null,
+          r.tourney_name || null,
+          date,
+          r.surface || null,
+          r.tourney_level || null,
+          r.round || null,
+          num(r.best_of),
+          wId,
+          lId,
+          r.score || null,
+          wRank,
+          lRank,
+          ...wStats,
+          ...lStats,
+        );
+        matchCount++;
+      }
+    });
+    progreso(`  ${tour.id} ${year}: ${rows.length} matches\n`);
   }
 
   if (droppedStats > 0) {
-    process.stdout.write(
+    progreso(
       `  ⚠️  ${droppedStats} bloques de estadísticas de saque imposibles ` +
         `(descartados; el resultado del partido se conserva)\n`,
     );
   }
-  return { players: seenPlayers.size, matches: matchCount, droppedStats };
+  return { players: seenPlayers.size, matches: matchCount, droppedStats, anomalias };
 }
 
 // Column order of the players file in older snapshots, which ship WITHOUT a
@@ -481,7 +646,7 @@ export async function ingestRankings(tour: TourConfig): Promise<number> {
 
   let count = 0;
   for (const file of files) {
-    const csv = await readRepoFile(tour.sackmann.repo, file);
+    const csv = await readRepoFile(tour.sackmann.repo, file, { fresco: true });
     if (!csv) continue;
     const hasHeader = /^\s*ranking_date/i.test(csv);
     const rows = parse(csv, {
@@ -490,17 +655,17 @@ export async function ingestRankings(tour: TourConfig): Promise<number> {
       relax_column_count: true,
     }) as any[];
 
-    db.exec('BEGIN');
-    for (const r of rows) {
-      const id = num(r.player_id);
-      const rank = num(r.rank);
-      const date = String(r.ranking_date ?? '');
-      if (id === null || rank === null || !date) continue;
-      upsert.run(id, tour.id, rank, num(r.points), date);
-      count++;
-    }
-    db.exec('COMMIT');
-    process.stdout.write(`  ${file}: ${rows.length} filas de ranking\n`);
+    enTransaccion(db, () => {
+      for (const r of rows) {
+        const id = num(r.player_id);
+        const rank = num(r.rank);
+        const date = String(r.ranking_date ?? '');
+        if (id === null || rank === null || !date) continue;
+        upsert.run(id, tour.id, rank, num(r.points), date);
+        count++;
+      }
+    });
+    progreso(`  ${file}: ${rows.length} filas de ranking\n`);
   }
   return count;
 }
@@ -515,17 +680,65 @@ function parsePlayers(csv: string): any[] {
   }) as any[];
 }
 
-/** Download + parse + store one tour's players and matches for a year range. */
+/**
+ * Download + parse + store one tour's players and matches for a year range. Se llama con las tablas
+ * del tenis recién vaciadas (update-data, tras resetData): si falla a mitad, se borra lo que ya había
+ * entrado del circuito, porque la reserva de tennis-data.co.uk vuelve a meter todo el rango con otros
+ * ids de jugador y quedaría cada partido dos veces (revisión data-guardian, tercera vuelta).
+ */
 export async function ingestTour(tour: TourConfig, opts: IngestOptions): Promise<{
   players: number;
   matches: number;
 }> {
-  if (tour.sackmann.format === 'tml') return ingestTml(tour, opts);
+  try {
+    return tour.sackmann.format === 'tml' ? await ingestTml(tour, opts) : await ingestSackmann(tour, opts);
+  } catch (e) {
+    const db = getDb();
+    try {
+      enTransaccion(db, () => {
+        for (const t of ['matches', 'player_rankings', 'players']) db.prepare(`DELETE FROM ${t} WHERE tour = ?`).run(tour.id);
+        db.prepare('DELETE FROM ingest_anomalias WHERE fuente = ?').run(`tml:${tour.id}`);
+      });
+    } catch (fallo) {
+      // Si el borrado también falla (base bloqueada), el error que cuenta sigue siendo el primero; el
+      // del borrado va en `cause`, y update-data no prueba la reserva (partidosQueQuedan).
+      if (e instanceof Error && e.cause === undefined) e.cause = fallo;
+    }
+    throw e;
+  }
+}
+
+/**
+ * Partidos de un circuito en la base. Tras una ingesta fallida debería ser 0; si no (el borrado de
+ * ingestTour también falló), la reserva de tennis-data.co.uk no se prueba: los metería otra vez.
+ */
+export function partidosQueQuedan(tourId: string): number {
+  return Number((getDb().prepare('SELECT COUNT(*) AS n FROM matches WHERE tour = ?').get(tourId) as { n: number }).n);
+}
+
+/**
+ * Si la ingesta de un circuito falló y no pudo borrar lo suyo, por qué, con los dos errores (el de la
+ * ingesta y, en `cause`, el del borrado); null si no quedó nada y la reserva puede probarse. Para que
+ * update-data no lo cuente como un bloqueo de red (revisión data-guardian, tercera vuelta, N3).
+ */
+export function sinLimpiar(tourId: string, error: unknown): string | null {
+  const quedan = partidosQueQuedan(tourId);
+  if (quedan === 0) return null;
+  const e = error instanceof Error ? error : null;
+  const borrado = e?.cause instanceof Error ? e.cause.message : null;
+  return (
+    `la ingesta de ${tourId} falló (${e?.message.replace(/\.\s*$/, '') ?? 'motivo DESCONOCIDO'}) y no se pudieron borrar ` +
+    `${quedan} ${quedan === 1 ? 'partido que ya había entrado' : 'partidos que ya habían entrado'}` +
+    `${borrado ? ` (${borrado})` : ''}: no se prueba tennis-data.co.uk, que los duplicaría`
+  );
+}
+
+async function ingestSackmann(tour: TourConfig, opts: IngestOptions): Promise<{ players: number; matches: number }> {
 
   const db = getDb();
 
   // --- Players (biographical info) ---
-  const playersCsv = await readRepoFile(tour.sackmann.repo, tour.sackmann.playersFile);
+  const playersCsv = await readRepoFile(tour.sackmann.repo, tour.sackmann.playersFile, { fresco: true });
   const playerUpsert = db.prepare(
     `INSERT INTO players (id, tour, name, hand, country, birthdate)
      VALUES (?, ?, ?, ?, ?, ?)
@@ -535,15 +748,15 @@ export async function ingestTour(tour: TourConfig, opts: IngestOptions): Promise
   let playerCount = 0;
   if (playersCsv) {
     const rows = parsePlayers(playersCsv);
-    db.exec('BEGIN');
-    for (const r of rows) {
-      const id = num(r.player_id);
-      if (id === null) continue;
-      const name = `${r.name_first ?? ''} ${r.name_last ?? ''}`.trim() || `#${id}`;
-      playerUpsert.run(id, tour.id, name, r.hand || null, r.ioc || null, r.dob || null);
-      playerCount++;
-    }
-    db.exec('COMMIT');
+    enTransaccion(db, () => {
+      for (const r of rows) {
+        const id = num(r.player_id);
+        if (id === null) continue;
+        const name = `${r.name_first ?? ''} ${r.name_last ?? ''}`.trim() || `#${id}`;
+        playerUpsert.run(id, tour.id, name, r.hand || null, r.ioc || null, r.dob || null);
+        playerCount++;
+      }
+    });
   }
 
   // --- Matches (one CSV per season) ---
@@ -565,40 +778,40 @@ export async function ingestTour(tour: TourConfig, opts: IngestOptions): Promise
   let matchCount = 0;
   for (let year = opts.fromYear; year <= opts.toYear; year++) {
     const file = tour.sackmann.matchesFile.replace('{year}', String(year));
-    const csv = await readRepoFile(tour.sackmann.repo, file);
+    const csv = await readRepoFile(tour.sackmann.repo, file, { fresco: temporadaViva(year) });
     if (!csv) continue;
     const rows = parse(csv, { columns: true, skip_empty_lines: true, relax_column_count: true }) as any[];
-    db.exec('BEGIN');
-    for (const r of rows) {
-      const wId = num(r.winner_id);
-      const lId = num(r.loser_id);
-      if (wId === null || lId === null) continue;
+    enTransaccion(db, () => {
+      for (const r of rows) {
+        const wId = num(r.winner_id);
+        const lId = num(r.loser_id);
+        if (wId === null || lId === null) continue;
 
-      // Make sure both players exist (some appear only in match rows).
-      ensurePlayer(playerIgnore, tour.id, wId, r.winner_name);
-      ensurePlayer(playerIgnore, tour.id, lId, r.loser_name);
+        // Make sure both players exist (some appear only in match rows).
+        ensurePlayer(playerIgnore, tour.id, wId, r.winner_name);
+        ensurePlayer(playerIgnore, tour.id, lId, r.loser_name);
 
-      matchInsert.run(
-        tour.id,
-        r.tourney_id || null,
-        r.tourney_name || null,
-        String(r.tourney_date || `${year}0101`),
-        r.surface || null,
-        r.tourney_level || null,
-        r.round || null,
-        num(r.best_of),
-        wId,
-        lId,
-        r.score || null,
-        num(r.w_ace), num(r.w_df), num(r.w_svpt), num(r.w_1stIn),
-        num(r.w_1stWon), num(r.w_2ndWon), num(r.w_bpSaved), num(r.w_bpFaced),
-        num(r.l_ace), num(r.l_df), num(r.l_svpt), num(r.l_1stIn),
-        num(r.l_1stWon), num(r.l_2ndWon), num(r.l_bpSaved), num(r.l_bpFaced),
-      );
-      matchCount++;
-    }
-    db.exec('COMMIT');
-    process.stdout.write(`  ${tour.id} ${year}: ${rows.length} matches\n`);
+        matchInsert.run(
+          tour.id,
+          r.tourney_id || null,
+          r.tourney_name || null,
+          String(r.tourney_date || `${year}0101`),
+          r.surface || null,
+          r.tourney_level || null,
+          r.round || null,
+          num(r.best_of),
+          wId,
+          lId,
+          r.score || null,
+          num(r.w_ace), num(r.w_df), num(r.w_svpt), num(r.w_1stIn),
+          num(r.w_1stWon), num(r.w_2ndWon), num(r.w_bpSaved), num(r.w_bpFaced),
+          num(r.l_ace), num(r.l_df), num(r.l_svpt), num(r.l_1stIn),
+          num(r.l_1stWon), num(r.l_2ndWon), num(r.l_bpSaved), num(r.l_bpFaced),
+        );
+        matchCount++;
+      }
+    });
+    progreso(`  ${tour.id} ${year}: ${rows.length} matches\n`);
   }
 
   return { players: playerCount, matches: matchCount };

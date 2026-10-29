@@ -18,9 +18,21 @@ const DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'predictor-e2e-'));
 // .env, la copia programada a los 2 minutos metía libros de demostración entre tus copias reales
 // (y la rotación borraba las más viejas de verdad) o los subía a tu bucket.
 const SIN_S3 = { BACKUP_S3_BUCKET: '', BACKUP_S3_ACCESS_KEY: '', BACKUP_S3_SECRET_KEY: '', BACKUP_S3_ENDPOINT: '' };
+// Y sin canales de aviso ni clave de Anthropic (lote K, K11): dotenv rellena con el .env de quien
+// corre los tests lo que aquí falta, y «Generar el de hoy» avisa por todos los canales
+// configurados. En una máquina con Telegram en el .env, cada pasada de los e2e mandaba un resumen
+// de demostración al Telegram de verdad. Vacías y no ausentes: dotenv no pisa una que ya existe.
+const SIN_AVISOS = Object.fromEntries(
+  [
+    'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID', 'TELEGRAM_ASISTENTE_CHATS', 'WEBHOOK_URL',
+    'SMTP_HOST', 'SMTP_PORT', 'SMTP_TLS', 'SMTP_USER', 'SMTP_PASS', 'SMTP_FROM', 'SMTP_TO',
+    'VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT', 'ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN',
+  ].map((k) => [k, '']),
+);
 const env = {
   ...process.env,
   ...SIN_S3,
+  ...SIN_AVISOS,
   DATA_DIR,
   BACKUP_DIR: path.join(DATA_DIR, 'backups'),
   PORT: '7390',
@@ -28,6 +40,10 @@ const env = {
   ODDS_API_KEY: '',
   THE_ODDS_API_KEY: '',
   AUTO_REFRESH_MINUTES: '0',
+  // Sin el trabajo «resultados» (lote K, K9): a los 5 minutos bajaba resultados de internet, y la
+  // batería dura más; lo que llegaba cambiaba los datos debajo de las pruebas. Los tests nunca
+  // usan la red.
+  RESULTS_REFRESH_HOURS: '0',
   DEMO_FIXTURES: 'on',
   NODE_ENV: 'test',
   NODE_OPTIONS: '--experimental-sqlite --disable-warning=ExperimentalWarning',

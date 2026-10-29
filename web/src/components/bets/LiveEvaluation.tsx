@@ -137,7 +137,7 @@ export default function LiveEvaluation() {
           {t('eval.vacio')}
         </p>
       ) : (
-        <div className="overflow-x-auto border-t border-(--line)" tabIndex={0}>
+        <div className="desliza-x overflow-x-auto border-t border-(--line)" tabIndex={0}>
           <table className="w-full min-w-[620px] border-collapse text-[14px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">
@@ -234,7 +234,7 @@ export default function LiveEvaluation() {
                   {rend.total.aviso.texto}
                 </p>
               )}
-              <div className="mt-2 overflow-x-auto" tabIndex={0}>
+              <div className="mt-2 desliza-x overflow-x-auto" tabIndex={0}>
                 <table className="w-full border-collapse whitespace-nowrap text-[12px] sm:text-[13px]">
                   <thead>
                     <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">

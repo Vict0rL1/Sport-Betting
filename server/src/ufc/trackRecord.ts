@@ -9,6 +9,7 @@ import { stampPredictionVersions } from '../versions.ts';
 import { getDb } from '../db.ts';
 import type { UfcPrediction } from './predict.ts';
 import type { UfcUpcomingRow } from './repo.ts';
+import { prepartidoSql } from '../prematch/tiempo.ts';
 
 /** Un evento se busca desde el día anterior (husos: Abu Dabi, Australia…) hasta dos días después. */
 const ANTES_DIAS = 1;
@@ -114,7 +115,7 @@ export function getUfcTrackRecord(): UfcTrackRecord {
   const filas = d
     .prepare(
       `SELECT commence_time, home_name, away_name, prob_home, shown_home, market_prob_home, outcome, metodo
-       FROM ufc_prediction_log WHERE outcome IN ('A', 'B') ORDER BY commence_time DESC`,
+       FROM ufc_prediction_log WHERE outcome IN ('A', 'B') AND ${prepartidoSql()} ORDER BY commence_time DESC`,
     )
     .all() as { commence_time: string | null; home_name: string | null; away_name: string | null; prob_home: number; shown_home: number | null; market_prob_home: number | null; outcome: 'A' | 'B'; metodo: string | null }[];
   if (!filas.length) return { resolved: sinGanador, sinGanador, pending, accuracy: null, brier: null, logLoss: null, calibration: [], vsMarket: null, recent: [] };

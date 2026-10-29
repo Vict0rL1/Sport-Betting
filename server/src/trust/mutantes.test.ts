@@ -86,6 +86,8 @@ const CASOS: [string, Contexto, string, string[], number][] = [
   ['registrada desfasada justo en la incertidumbre', contexto({ incertidumbre: inc(12.5), pRegistrada: [0.75, 0.25] }), 'BET', [], 1],
   ['registrada desfasada de más', contexto({ incertidumbre: inc(12.5), pRegistrada: [0.76, 0.24] }), 'NO BET', ['predicción desfasada'], 0],
   ['deriva recorta', contexto({ deriva: 'log loss +0,05' }), 'BET', [], 0.5],
+  ['fuente de resultados atrasada', contexto({ archivoAtrasado: '3 partido(s) de atp empezados hace más de 48 h que la fuente no tiene' }), 'NO BET', ['archivo atrasado'], 0],
+  ['sin pruebas de retraso', contexto({ archivoAtrasado: null }), 'BET', [], 1],
   ['recortes se multiplican', contexto({ estabilidad: est('MEDIA'), mercado: mer('MEDIA', 'ALTA') }), 'BET', [], 0.375],
   ['partido de demostración', contexto({ evento: { demo: true } }), 'SIN MERCADO', ['sin mercado'], 0],
   ['sin cuotas', contexto({ evento: { odds: null } as never }), 'SIN MERCADO', ['sin mercado'], 0],

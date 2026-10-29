@@ -68,7 +68,7 @@ export default function Buscador() {
   };
   return (
     <>
-      <button onClick={() => setAbierto(true)} aria-label={t('nav.buscar')} title={`${t('nav.buscar')} (Ctrl/Cmd+K)`} className="inline-flex items-center gap-1.5 rounded-full border border-(--line) px-2.5 py-1 text-[12px] text-(--ink-soft) hover:bg-(--raised)">
+      <button onClick={() => setAbierto(true)} aria-label={t('nav.buscar')} title={`${t('nav.buscar')} (Ctrl/Cmd+K)`} className="toque inline-flex items-center gap-1.5 rounded-full border border-(--line) px-2.5 py-1 text-[12px] text-(--ink-soft) hover:bg-(--raised)">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
         <span className="hidden sm:inline">{t('nav.buscar')}</span>
         <kbd className="hidden rounded border border-(--line) px-1 text-[10px] text-(--ink-muted) lg:inline">⌘K</kbd>

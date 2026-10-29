@@ -105,7 +105,7 @@ const EVENTO_MERCADO = { eventId: str, sport: str, league: str, market: str, par
 export const ESQUEMA_INTEL = o({
   generado: str, ventanaHoras: int, eventos: int,
   steam: { type: 'array', items: o({ ...EVENTO_MERCADO, seleccion: str, desde: num, hasta: num, movimientoPp: num, minutos: int, casas: int, observadoEn: str }) },
-  surebets: { type: 'array', items: o({ ...EVENTO_MERCADO, suma: num, margenPct: num, patas: { type: 'array', items: o({ seleccion: str, cuota: num, casa: str }) }, linea: nullable('number') }) },
+  surebets: { type: 'array', items: o({ ...EVENTO_MERCADO, suma: num, margenPct: num, patas: { type: 'array', items: o({ seleccion: str, cuota: num, casa: str, linea: nullable('number') }) }, linea: nullable('number') }) },
   referencia: { type: 'array', items: o({ ...EVENTO_MERCADO, casa: str, selecciones: { type: 'array', items: o({ seleccion: str, referencia: num, consenso: num, desviacionPp: num }) }, observadoEn: str }) },
   etiqueta: str,
 });
@@ -201,7 +201,8 @@ export const ESQUEMA_LINEAS = o({
   },
 });
 export const ESQUEMA_FILA_ARCHIVO = o({
-  sport: str, matchKey: str, eventoId: nullable('string'), liga: nullable('string'), cuando: nullable('string'), registrada: str, partido: str, casa: str, fuera: str,
+  sport: str, matchKey: str, eventoId: nullable('string'), liga: nullable('string'), cuando: nullable('string'), registrada: str,
+  momento: { type: 'string', enum: ['prepartido', 'tardia', 'sin_hora'] }, partido: str, casa: str, fuera: str,
   probabilidades: { type: 'array', items: num }, salidas: { type: 'array', items: str }, favorito: str, probabilidad: num, mercado: nullable('number'),
   banda: str, resultado: { type: 'string', enum: ['acierto', 'fallo', 'nulo', 'pendiente'] }, marcador: nullable('string'),
   confianza: { type: 'string', nullable: true, enum: ['ALTA', 'MEDIA', 'BAJA', null] }, decision: nullable('string'), clv: nullable('number'),
@@ -212,7 +213,7 @@ export const ESQUEMA_ARCHIVO = o({
   total: int,
   pagina: int,
   porPagina: int,
-  resumen: o({ resueltas: int, aciertos: int, pendientes: int, aviso: ESQUEMA_AVISO }),
+  resumen: o({ resueltas: int, aciertos: int, pendientes: int, aviso: ESQUEMA_AVISO, noPrepartido: int }),
   ligas: { type: 'array', items: o({ sport: str, liga: str }) },
 });
 

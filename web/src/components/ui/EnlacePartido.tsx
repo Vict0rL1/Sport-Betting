@@ -8,7 +8,7 @@ export function EnlacePartido({ sport, id, clave }: { sport: string; id: string;
   const { t } = useI18n();
   if (pathname.startsWith('/partido/')) return null;
   return (
-    <Link to={`${rutaPartido(sport, id)}${clave ? `?clave=${encodeURIComponent(clave)}` : ''}`} className="text-[13px] text-(--ink-soft) underline-offset-2 hover:text-(--ink-strong) hover:underline">
+    <Link to={`${rutaPartido(sport, id)}${clave ? `?clave=${encodeURIComponent(clave)}` : ''}`} className="toque text-[13px] [--toque-y:4px] text-(--ink-soft) underline-offset-2 hover:text-(--ink-strong) hover:underline">
       {t('enlace.abrirPartido')}
     </Link>
   );

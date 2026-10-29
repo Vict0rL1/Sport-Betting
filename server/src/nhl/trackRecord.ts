@@ -8,6 +8,7 @@ import { stampPredictionVersions } from '../versions.ts';
 import { getDb } from '../db.ts';
 import type { NhlPrediction } from './predict.ts';
 import type { NhlUpcomingRow } from './repo.ts';
+import { prepartidoSql } from '../prematch/tiempo.ts';
 
 /** Un partido aplazado se busca hasta dos días después de su hora. */
 const VENTANA_DIAS = 2;
@@ -111,7 +112,7 @@ export function getNhlTrackRecord(): NhlTrackRecord {
   const filas = d
     .prepare(
       `SELECT commence_time, home_name, away_name, prob_home, prob_draw60, shown_home, market_prob_home, expected_home_goals, expected_away_goals, home_goals, away_goals
-       FROM nhl_prediction_log WHERE resolved_at IS NOT NULL ORDER BY commence_time DESC`,
+       FROM nhl_prediction_log WHERE resolved_at IS NOT NULL AND ${prepartidoSql()} ORDER BY commence_time DESC`,
     )
     .all() as {
     commence_time: string | null;

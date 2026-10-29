@@ -62,10 +62,15 @@ const ESTADOS = new Set(['pending', 'won', 'lost', 'push', 'void', 'cancelled'])
 // Sin símbolo de moneda (D5): el proyecto no inventa una (ver lib/bets.ts).
 const dinero = (n: number) => dineroF(n);
 
-export default function PaperBankroll() {
+export default function PaperBankroll({ onListo }: { onListo?: () => void } = {}) {
   const [r, setR] = useState<Resumen | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { t, idioma } = useI18n();
+  // Avisa cuando ya se sabe qué pintar (L5, lote L): ver ExposurePanel.
+  const cargado = r != null || error != null;
+  useEffect(() => {
+    if (cargado) onListo?.();
+  }, [cargado, onListo]);
   const loc = idioma === 'en' ? 'en-GB' : 'es';
   const plural = (n: number, uno: Clave, varios: Clave) => t(n === 1 ? uno : varios, { n });
   const estado = (s: string) => (ESTADOS.has(s) ? t(`apuesta.${s}` as Clave) : s);
@@ -191,7 +196,7 @@ export default function PaperBankroll() {
       )}
 
       {r.apuestas.length > 0 && (
-        <div className="overflow-x-auto border-t border-(--line)" tabIndex={0}>
+        <div className="desliza-x overflow-x-auto border-t border-(--line)" tabIndex={0}>
           <table className="w-full min-w-[560px] border-collapse text-[14px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wide text-(--ink-muted)">

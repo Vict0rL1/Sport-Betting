@@ -4,6 +4,214 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Auditoría del 22 de octubre · freno en la auditoría de copias, surebets de hándicap y fallos de cuotas (2026-10-27)
+
+Lo que encontró la revisión de `0655c8c`: `docs/plans/auditoria-22-octubre.md`. Cada punto con su
+prueba que falla antes.
+
+- **El informe de `auditoria:copia` dice el freno que de verdad se aplica.** Antes listaba como
+  frenadas, con 48 h, todas las competiciones con algo vencido, aunque la política de la copia no
+  tuviera el freno, y algunas sin motivo. Ahora dice la política y el umbral efectivos, y separa
+  las restricciones activas (con motivo), los avisos (frenaría si se encendiera) y lo que no tiene
+  prueba suficiente. No cambia ninguna política.
+- **Una surebet de hándicap pide líneas de signo contrario.** A −3,5 y B −3,5 salía como surebet
+  del 4,8 % y las dos pierden si A gana por uno. Ahora la cobertura depende del mercado:
+  - hándicap: −h con +h;
+  - total: Over y Under con el mismo umbral;
+  - sin línea: todas las selecciones;
+  - cualquier otro: ninguna.
+  Cada pata lleva su línea con signo, en la API y en Destacados.
+- **Los fallos de cuotas no se pierden:**
+  - una respuesta que no es JSON, de las cuotas o de `/sports`, cuenta como fallida, aunque el
+    refresco caiga a la demostración (antes: «ninguna petición a la API»);
+  - si el refresco lanza, la ejecución guarda el error con lo recogido hasta entonces (antes,
+    `metrics = NULL`).
+- **Revisiones:**
+  - la auditoría lee las anulaciones de Ajustes, como el servidor;
+  - `/sports` con algo que no es una lista es un fallo y no va a la caché;
+  - cada competición del freno lleva sus horas.
+
+## Auditoría del 17 de octubre · copias, pre-partido, liquidación, ingesta y cobertura (2026-10-20)
+
+Hallazgos, causas, lo que falta confirmar en la copia del 12 de octubre y las acciones que
+necesitan aprobación: `docs/plans/auditoria-17-octubre.md`. Se comprueba sobre una copia, sin
+tocarla, con `npm run auditoria:copia`.
+
+- **1 · Copias.** Nuevo `npm run copia:consolidar`: de una carpeta con `-wal` a copias autónomas,
+  contando lo que se perdería restaurando solo el fichero principal. Cada `npm run backup`
+  restaura su copia de prueba y compara, tabla a tabla, con un manifiesto independiente del orden.
+  Nuevo `restore -- --verificar`. El doctor enseña el último simulacro.
+- **2 · Pre-partido con instantes, no con texto** (migración 23):
+  - Ningún registro, instantánea, final ni apuesta se escribe en o después del inicio.
+  - La evaluación y los track records no cuentan las filas tardías que ya había. Siguen en el
+    libro mayor y el archivo las marca.
+- **3 · Liquidación y frescura:**
+  - Se retira la cancelación automática a los 14 días: una apuesta sin resultado sigue pendiente.
+  - Nuevo `monitoring/vencidas.ts`: lo vencido por competición y causa, en el doctor.
+  - Freno por competición: no se apuesta donde hay partidos jugados que la fuente no tiene.
+  - La temporada en curso de TML se vuelve a pedir en cada ingesta.
+- **4 · TML validado fila a fila** (migración 24, `ingest_anomalias`):
+  - la fila cortada de `2025.csv:2945` entra sin estadísticas;
+  - 8 partidos repetidos con otro número y 2 con estadísticas distintas entran una vez;
+  - todo queda apuntado con fichero, línea y número de partido.
+- **5 · Cuotas observables** (migración 25, `ingestion_runs.metrics`):
+  - cada ejecución dice qué pidió, qué llegó, qué cambió y qué guardó;
+  - `rows_added` = snapshots guardados;
+  - un fallo al guardar es un error.
+- **6 · UFC:** las peleas sin id dicen por qué (migración 26, `sin_ficha`). La NFL sin empate es
+  a propósito.
+- **Revisiones (data-guardian y quant):**
+  - `restore --verificar` ya no toca la copia que comprueba.
+  - Las salidas con libros mayores van fuera del repositorio.
+  - Las temporadas vivas se comprueban antes de vaciar el tenis.
+  - Una copia que no pasa el simulacro se aparta y el doctor lo da como error.
+  - El freno pide dos días de pruebas, mira la NFL por liga, vale para todas las estrategias y es
+    `abstencion.archivoAtrasadoHoras` en la política.
+  - «¿Acertó?» y la confianza del sistema tampoco cuentan filas tardías.
+  - El doctor da error si lo vencido se come el tope de exposición.
+  - Quedan para el dueño: cómo liquidar lo que la fuente no traerá (F1), y si los límites de
+    pérdida cuentan por fecha de liquidación o del partido (F2).
+  - Segunda pasada:
+    - una descarga rota ya no pisa la copia buena;
+    - un fallo a mitad de temporada deshace su transacción;
+    - `restore` pide `--confirmar`;
+    - el freno empieza con la versión de política que lo dice.
+  - Tercera pasada:
+    - una descarga que ni se deja leer tampoco pisa la copia;
+    - el preflight ya no guarda la temporada en curso sin comprobarla, que se saltaba la parada;
+    - un circuito que falla a medias se vacía antes de la reserva, que si no lo duplicaba; si ni
+      eso se puede, no se prueba la reserva y el error lo dice (no un «bloqueo de red»);
+    - ROLLBACK ya no tapa el error de verdad;
+    - los tests no pueden salir a la red por `git clone`.
+
+
+## Lote N · lo que encontró la revisión en el navegador de L y M (2026-10-19)
+
+Plan, medición y verificación en `docs/plans/fixes-N.md`. Pruebas nuevas en `web/e2e/saltos.spec.ts`,
+`movil.spec.ts` e `idioma.spec.ts`.
+
+- **N1 · «Atrás» vuelve al mismo partido en las listas de muchos días.** Volvía a la altura, pero
+  los días de encima medían distinto al volver y caía en otro partido (hasta 7.800 px). NHL con
+  datos de verdad: 24 de 24 en su sitio a 390 px, y 13 de 13 a 1280.
+- **N2 · «¿Acertó?» ya no hace saltar la carga siguiente.** Tocarlo lo deja abierto solo en esa
+  visita. Abierto a propósito, reserva su alto mientras llegan los resultados. La carga siguiente
+  saltaba 0,87–0,96. Ahora salta 0,02 como mucho, salvo la primera visita tras tocarlo (0,07 en
+  Destacados).
+- **N3 · Fútbol, baloncesto y béisbol ya no dicen «No hay partidos próximos para esta liga»**
+  mientras llegan las ligas, ni cuando no hay datos del deporte.
+- **N4 · La fila de los contadores no crece al llegar** (36 px en el móvil, 63 a 320).
+- **N5 · El formulario de apuesta ya no baja 500 px** si se abre mientras cargan los paneles del
+  banco, ni al llegar con un borrador desde «Mi selección».
+- **N6 · A 359 px sale un solo veredicto.**
+- **N7 · «ganó» recupera su alto y su separación.** Su e2e fallaba en CI desde que entró: allí el
+  hinting de la fuente redondea el espacio a 3 px y la separación es de 7 justos, no de 7,3. La
+  prueba vigila ahora que no vuelva a los 5 px de antes (> 6,5).
+- **N8 · Detalles:**
+  - Los esqueletos de Apuestas y Diagnóstico dicen «Cargando…».
+  - Si las apuestas no cargan, se dice.
+  - En inglés, Diagnóstico ya no dice «añadidas».
+- **N9–N13 · Lo que encontró la revisión en el navegador de N:**
+  - **N9:** en fútbol, baloncesto, béisbol y NFL, la fila de los contadores ya no se encoge y
+    vuelve a crecer cuando llega el aviso de la liga. Béisbol, con los datos de verdad: 0,027 →
+    0,001.
+  - **N10:** «atrás» desde el glosario devuelve Confianza a su sitio aunque las secciones de
+    encima lleguen tarde. Antes la dejaba 1.500 px más abajo.
+  - **N11:** la primera vez, sin partidos hoy, «¿Acertó?» ya no es una tarjeta vacía de 324 px.
+  - **N12:** «No hay partidos próximos para esta liga» ya no sale junto a un error de carga, ni en
+    la NFL sin datos.
+  - **N13:** «@» vuelve a quedar a 4 px del visitante.
+- **N14–N17 · Lo que encontró la revisión en el navegador de N9–N13:**
+  - **N14:** de 280 a 316 px, el nombre de la app ya no baja de línea cuando llegan la campana y
+    la píldora de estado: su sitio se guarda mientras llegan. La cabecera crecía 8–10 px (CLS
+    0,047), y 2 desde 320.
+  - **N15:** al volver a Confianza, el enlace que se tocó está en su sitio desde el principio,
+    aunque lo de encima tarde. Antes se veía otra sección 4 s y luego la página saltaba 1.000 px.
+    Y salir en esos segundos ya no estropea la vuelta siguiente.
+  - **N16:** un error al cargar una liga ya no se queda al pasar a otra.
+  - **N17:** en fútbol con el historial viejo, el aviso ya no baja la lista 209 px al llegar: sale
+    en «Detalles», una vez, como en los demás deportes (0,132 → 0,002). Y la lista ya no sube 1 px
+    cuando llegan las ligas.
+
+## Lote M · pantallas estrechas: nada se sale ni se parte por la mitad (2026-10-19)
+
+Plan y verificación en `docs/plans/fixes-M.md`. Pruebas nuevas en `web/e2e/movil.spec.ts`.
+
+- **M1 · Tocar «¿Acertó?» ya no pliega el panel.** Con un perfil nuevo, el panel se cerraba entero
+  en vez de enseñar los resultados.
+- **M2 · La ficha «Posible value» cabe en su tarjeta** a 360, 320 y 280 px. Antes acababa hasta
+  51 px fuera de la pantalla.
+- **M3 · Los nombres largos se parten entre palabras.** «Wolverhampton» salía en dos líneas a
+  360 px y en tres a 320. Por debajo de 360 px, el veredicto va debajo del nombre.
+
+## Lote L · en el móvil nada salta al cargar, y «atrás» vuelve donde se estaba (2026-10-19)
+
+Plan, medición y verificación en `docs/plans/fixes-L.md`. Pruebas nuevas en
+`web/e2e/saltos.spec.ts`, `web/e2e/movil.spec.ts` y `web/src/lib/desplazamiento.test.ts`.
+Saltos de diseño (CLS) de quien vuelve, con la red y la CPU de un móvil: Tenis 0,55 → 0,03,
+Diagnóstico 0,32 → 0,00, Destacados 0,28 → 0,00, Apuestas 0,20 → 0,00, NFL 0,15 → 0,00, NHL
+0,08 → 0,00, y Baloncesto, Béisbol y Fútbol 0,02–0,03 → 0,01 como mucho.
+
+- **L1 · Ya no dice «No hay datos» mientras cargan las ligas.** En fútbol, baloncesto, béisbol y
+  NFL salía en cada carga, aunque los datos estaban de camino.
+- **L2 · «Detalles» no baja de línea** cuando llegan los contadores de la cabecera.
+- **L3 · Tenis, NFL y NHL ya no saltan cuando llegan los partidos.** Lo de debajo de las listas
+  espera, con el esqueleto en su sitio; en Tenis, las listas lo empujaban más de 500 px. La NHL ya
+  no dice que falta la clave de cuotas antes de saberlo.
+- **L4 · Destacados:** el esqueleto en lugar de «Cargando partidos…», y «Mi selección» ya no se
+  va de la pantalla cuando llega la lista.
+- **L5 · Apuestas:** los dos paneles del banco y el historial salen a la vez; antes, los paneles
+  llegaban encima y lo empujaban todo.
+- **L6 · Diagnóstico:** las secciones esperan a sus seis comprobaciones en vez de crecer una a
+  una.
+- **L7 · «Atrás» vuelve a la altura a la que se dejó la lista.** Volvía casi arriba, porque cuando
+  el navegador lo intentaba la lista aún no había cargado. Ahora se reintenta hasta que hay sitio,
+  y se deja de intentar en cuanto la persona toca, desplaza o teclea.
+
+## Lote K · la app en el móvil: que se vea bien y que responda (2026-10-17)
+
+Plan, auditoría a 390 y 360 px y verificación en `docs/plans/fixes-K.md`. Pruebas nuevas en
+`web/e2e/movil.spec.ts` (a 390 px con pantalla táctil) y `web/src/lib/precarga.test.ts`.
+
+- **K1 · La hoja «Deportes» ya no se cierra sola.** Abierta justo después de entrar en fútbol, se
+  cerraba cuando la página añadía la liga a la dirección. Ahora solo se cierra al navegar o al
+  elegir.
+- **K2 · Al entrar en un deporte se ve el deporte.** En el móvil, «Hoy» enseña tres partidos y
+  «Ver los N partidos». Antes eran siete, en una caja con su propio desplazamiento, y llenaban la
+  primera pantalla de cada pestaña. En el escritorio no cambia.
+- **K3 · «Hoy» ya no empuja la página** 45 px cuando llegan los resultados.
+- **K4 · Las tablas de partidos se leen en el teléfono.** «Lo que el modelo ve más probable» y «Los
+  partidos» pasan a lista por debajo de 640 px, con la probabilidad del modelo a la vista; antes
+  quedaba en el borde, con el resto fuera. Lo que se desplaza de lado (clasificaciones, la fila de
+  deportes) se difumina por donde hay más.
+- **K5 · Cambiar de deporte no espera.** Las pestañas se precargan con la app ociosa, salvo con
+  «ahorro de datos». Sin red, un deporte que no se había abierto se abre igual; antes la app
+  acababa en la pantalla «No internet» del navegador. Mientras carga una pantalla se ve su
+  esqueleto, no «Cargando…».
+- **K6 · Tocar se nota:** lo que se pulsa se atenúa mientras el dedo está encima.
+- **K7 · La hoja y la barra con movimiento.** La hoja sube desde abajo, en 4 columnas con
+  iconos de 44 px, y se cierra deslizándola. La pestaña activa lleva una píldora, y tocarla otra
+  vez vuelve arriba. Con movimiento reducido, sin animaciones.
+- **K8 · Botones pequeños más fáciles de acertar**: más área de toque invisible en la cabecera (44
+  px) y en las tarjetas (24 px como mínimo, sin pisar el control de al lado).
+- **K9 · El servidor de los e2e ya no baja resultados de internet.** A los 5 minutos de arrancar
+  descargaba los de los seis deportes con archivo propio, y cambiaba los datos debajo de las
+  pruebas («NHL sin datos» fallaba según el minuto). `RESULTS_REFRESH_HOURS=0` en
+  `scripts/e2e-server.mjs`.
+- **K10 · Una pantalla nueva empieza arriba**, no a la altura a la que se dejó la anterior.
+- **K12 · Lo que encontró la revisión en el navegador** (`ui-tester`, nada bloqueante):
+  - Desplegar «Hoy», plegarlo y recargar ya no deja un hueco de 300 px.
+  - El difuminado nunca tapa más de lo que queda por desplazar.
+  - Con el foco del teclado se ve el anillo entero, y en el escritorio las tablas conservan el
+    suavizado del texto.
+  - El fondo de las hojas no se aclara al pulsarlo.
+  - Más controles pequeños llegan a 24 px.
+  - En inglés, «See all 7 matches».
+- **K11 · Los e2e ya no avisan por tus canales de verdad ni gastan tu clave de Anthropic.** El
+  servidor de las pruebas heredaba del `.env` Telegram, webhook, correo, push y la clave de
+  Anthropic. En una máquina con Telegram configurado, cada pasada mandaba un resumen de
+  demostración; con la clave, «Preguntar a los datos» llamaría al modelo. Ahora vacía esas
+  variables (lo encontró `data-guardian`).
+
 ## Lote J · ninguna web ajena toca la app, y los restos de copias se ven (2026-10-16)
 
 Plan y verificación en `docs/plans/fixes-J.md`.

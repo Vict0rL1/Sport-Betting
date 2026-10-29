@@ -766,7 +766,7 @@ probar ese caso concreto, no leyendo el código.
 | `npm run fetch-data` | **Descarga la historia ya construida** (`history.db`, 9 MB) en vez de reconstruirla. `-- --force` reemplaza la que haya; tu `ledger.db` (apuestas, predicciones registradas) no se toca |
 | `npm run db:migrate` | Parte el `tennis.db` antiguo en `history.db` + `ledger.db` (sin perder nada), aplica las migraciones pendientes y enseña el estado. `-- --reintentar` tras arreglar una fallida |
 | `npm run backup` | **Copia del libro mayor** (`ledger.db`) ahora: local (últimas 14) y, con `BACKUP_S3_*`, también a S3/R2/B2. El servidor la hace solo cada `BACKUP_HOURS` h |
-| `npm run restore -- <fichero>` | Restaura una copia como libro mayor (con el servidor parado; la actual se aparta). Sin argumento, lista las copias |
+| `npm run restore -- <fichero> --confirmar` | Restaura una copia como libro mayor (con el servidor parado; la actual se aparta). Sin `--confirmar` no toca nada; sin argumento, lista las copias; `-- --verificar <fichero>` la restaura de prueba sin tocar nada |
 | `npm run odds:retention -- --dias N` | Enseña qué snapshots de cuotas de más de N días sobrarían (se conservan apertura, T-24h, T-6h, T-1h y cierre por casa). `--confirmar` los exporta a `data/archive/` y los quita. Nunca corre sola |
 | `npm run db:explain` | `EXPLAIN QUERY PLAN` de las consultas calientes: ninguna puede recorrer su tabla entera |
 | `npm run fetch-flags` | Baja al repo los SVG de las banderas (211, ~1,4 MB). **Solo hace falta una vez**: ya están commiteadas. Se vuelve a correr al añadir un país a `config/countries.json` |

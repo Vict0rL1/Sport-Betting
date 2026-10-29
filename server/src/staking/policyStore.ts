@@ -71,6 +71,7 @@ export function validarPolitica(p: Politica): void {
   fraccion('abstencion.calidadDatosMin', p.abstencion.calidadDatosMin, 0, 100);
   fraccion('abstencion.desapareceMax', p.abstencion.desapareceMax, 0, 1);
   fraccion('abstencion.precioViejoHoras', p.abstencion.precioViejoHoras, 0, 168);
+  fraccion('abstencion.archivoAtrasadoHoras', p.abstencion.archivoAtrasadoHoras, 0, 720);
   for (const [k, v] of Object.entries(p.recortes)) fraccion(`recortes.${k}`, v, 0, 1);
   fraccion('grupos.maxSameTeamExposure', p.grupos.maxSameTeamExposure, 0.001, 0.5);
   fraccion('grupos.maxSamePlayerExposure', p.grupos.maxSamePlayerExposure, 0.001, 0.5);
@@ -127,15 +128,20 @@ export function historial(limite = 50): VersionPolitica[] {
 /** Una versión nueva a partir de la vigente con los cambios; valida; nunca reescribe. */
 export function nuevaVersion(cambios: CambiosPolitica, nota: string | null, origen: 'api' | 'cli' | 'seed' = 'api', ahora = new Date()): VersionPolitica {
   const base = politicaVigente();
+  // Las claves nuevas de fábrica (abstencion.archivoAtrasadoHoras, auditoría del 17 de octubre) entran
+  // con su valor por defecto en la primera versión nueva: una política guardada antes no las tiene, y
+  // sin esto ni se podrían cambiar («clave desconocida») ni la versión nueva las diría.
+  const fabrica = politicaPorDefecto();
   const p: Politica = {
-    staking: { ...base.config.staking, ...cambios.staking },
-    abstencion: { ...base.config.abstencion, ...cambios.abstencion },
-    recortes: { ...base.config.recortes, ...cambios.recortes },
-    grupos: { ...base.config.grupos, ...cambios.grupos },
+    staking: { ...fabrica.staking, ...base.config.staking, ...cambios.staking },
+    abstencion: { ...fabrica.abstencion, ...base.config.abstencion, ...cambios.abstencion },
+    recortes: { ...fabrica.recortes, ...base.config.recortes, ...cambios.recortes },
+    grupos: { ...fabrica.grupos, ...base.config.grupos, ...cambios.grupos },
   };
   for (const [grupo, valores] of Object.entries(cambios)) {
     if (!(grupo in p)) throw new Error(`grupo desconocido: ${grupo} (usa staking, abstencion, recortes o grupos)`);
-    for (const k of Object.keys(valores ?? {})) if (!(k in (base.config as unknown as Record<string, Record<string, unknown>>)[grupo])) throw new Error(`${grupo}.${k}: clave desconocida`);
+    const conocidas = { ...(fabrica as unknown as Record<string, Record<string, unknown>>)[grupo], ...(base.config as unknown as Record<string, Record<string, unknown>>)[grupo] };
+    for (const k of Object.keys(valores ?? {})) if (!(k in conocidas)) throw new Error(`${grupo}.${k}: clave desconocida`);
   }
   validarPolitica(p);
   const hash = hashDe(p);

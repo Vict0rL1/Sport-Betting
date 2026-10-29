@@ -105,10 +105,11 @@ export function CardSkeleton() {
   );
 }
 
-export function SkeletonList({ count = 3 }: { count?: number }) {
+/** `etiqueta`: lo que oye un lector de pantalla mientras carga, si no son partidos (N8, lote N). */
+export function SkeletonList({ count = 3, etiqueta }: { count?: number; etiqueta?: string }) {
   const { t } = useI18n();
   return (
-    <div className="space-y-4" aria-busy="true" aria-label={t('skeleton.cargando')}>
+    <div className="space-y-4" aria-busy="true" aria-label={etiqueta ?? t('skeleton.cargando')}>
       {Array.from({ length: count }, (_, i) => (
         <CardSkeleton key={i} />
       ))}

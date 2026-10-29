@@ -31,6 +31,14 @@ import { backfillShownNfl } from './nfl/trackRecord.ts';
 import { getDb } from './db.ts';
 import { freshSince } from './freshness.ts';
 import { reconstruirDesde } from './recent/reconstruct.ts';
+import { prepartidoSql } from './prematch/tiempo.ts';
+
+/**
+ * «En vivo» es lo registrado ANTES del partido (auditoría del 17 de octubre, revisión quant): una
+ * fila del registro escrita después no cuenta como predicción en vivo, y ese partido sale como
+ * reconstruido, igual que si no estuviera en el registro.
+ */
+const PREPARTIDO = prepartidoSql('l.predicted_at', 'l.commence_time');
 
 export interface PartidoDeHoy {
   deporte: 'Fútbol' | 'Baloncesto' | 'Béisbol' | 'NFL' | 'NHL' | 'UFC' | 'Tenis';
@@ -305,7 +313,7 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
                       g.${f.enlace!.fecha} AS gFecha, ${f.enlace!.casa ?? 'g.home_id'} AS gCasa, ${f.enlace!.fuera ?? 'g.away_id'} AS gFuera
                  FROM ${f.log} l
                  LEFT JOIN ${f.enlace!.tabla} g ON g.id = l.${f.enlace!.col}
-                WHERE l.${f.marcador[0]} IS NOT NULL AND l.commence_time >= ?
+                WHERE l.${f.marcador[0]} IS NOT NULL AND l.commence_time >= ? AND ${PREPARTIDO}
                 ORDER BY l.commence_time DESC`,
             )
             .all(desde) as unknown as {
@@ -318,7 +326,7 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
                       CAST(l.p1_id AS TEXT) AS casaId, CAST(l.p2_id AS TEXT) AS fueraId,
                       l.prob1 AS p, l.winner_id, l.p1_id
                  FROM prediction_log l
-                WHERE l.winner_id IS NOT NULL AND l.commence_time >= ?
+                WHERE l.winner_id IS NOT NULL AND l.commence_time >= ? AND ${PREPARTIDO}
                 ORDER BY l.commence_time DESC`,
             )
             .all(desde) as unknown as {

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { reportClientLatency } from '../../lib/liveOdds';
 import {
   pillClass, SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader,
-  EmptySlate, LeagueFlag, SlateTable, VacioPorqueNoHayCuotas} from '../ui';
+  EmptySlate, LeagueFlag, SlateTable, VacioPorqueNoHayCuotas, SeccionDia} from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, footballPicks } from '../../lib/picks';
 import { footballSlate } from '../../lib/slate';
@@ -46,8 +46,15 @@ export default function FootballDashboard() {
   const fixtures = useMemo(() => filasDeLaLiga(fixturesTodas, (f) => f.fixture.league, league), [fixturesTodas, league]);
   const [power, setPower] = useState<FbPowerTeam[]>([]);
   const [loading, setLoading] = useState(false);
+  // Si hay partidos no se sabe hasta que contesta la primera petición (N3, lote N). Antes, mientras
+  // llegaban las ligas, salía «No hay partidos próximos para esta liga».
+  const [partidosCargados, setPartidosCargados] = useState(false);
   const [peticiones] = useState(contadorDePeticiones);
-  const [error, setError] = useState<string | null>(null);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  // El de los partidos va aparte (N16, lote N): es de esa liga, y se borra al pedir otra. Antes se
+  // quedaba encima de la liga nueva y tapaba que no tenía partidos.
+  const [errorLiga, setErrorLiga] = useState<string | null>(null);
+  const error = errorCarga ?? errorLiga;
   const navigate = useNavigate();
   // Un equipo abre su página (Fase 5.12): una URL, no un modal.
   const setTeam = (t: { league: string; id: string }) => navigate(rutaEquipo('football', t.league, t.id));
@@ -69,7 +76,7 @@ export default function FootballDashboard() {
         setMeta(m);
         setLeagues(l);
       })
-      .catch((e) => setError(tr('fb.errorCargar', { error: String(e) })));
+      .catch((e) => setErrorCarga(tr('fb.errorCargar', { error: String(e) })));
   }, [tr]);
 
   // Only offer leagues that have something to show.
@@ -77,6 +84,9 @@ export default function FootballDashboard() {
     () => leagues.filter((l) => l.hasUpcoming || l.matches > 0),
     [leagues],
   );
+  // Sin ninguna liga con datos lo dice «No hay datos de fútbol todavía»: «el modelo está listo,
+  // pero no hay nada en el calendario» no sería verdad (N3).
+  const sinLigas = meta != null && selectable.length === 0;
 
   useEffect(() => {
     // Hasta que no llegan las ligas no se toca la URL: un enlace profundo no puede perderse
@@ -96,6 +106,7 @@ export default function FootballDashboard() {
     // D8: cambiar dos veces de liga no deja los partidos de la que contestó tarde.
     const n = peticiones.nueva();
     setLoading(true);
+    setErrorLiga(null);
     Promise.all([fbApi.upcoming(league), fbApi.power(league, 40)])
       .then(([f, p]) => {
         if (!peticiones.esUltima(n)) return;
@@ -106,8 +117,12 @@ export default function FootballDashboard() {
         setFixtures(f);
         setPower(p.teams);
       })
-      .catch((e) => peticiones.esUltima(n) && setError(String(e)))
-      .finally(() => peticiones.esUltima(n) && setLoading(false));
+      .catch((e) => peticiones.esUltima(n) && setErrorLiga(String(e)))
+      .finally(() => {
+        if (!peticiones.esUltima(n)) return;
+        setLoading(false);
+        setPartidosCargados(true);
+      });
   }, [league]);
 
   /**
@@ -134,7 +149,8 @@ export default function FootballDashboard() {
 
   async function handleRefresh() {
     setRefreshing(true);
-    setError(null);
+    setErrorCarga(null);
+    setErrorLiga(null);
     try {
       await fbApi.refresh();
       const [m, l, f] = await Promise.all([
@@ -146,7 +162,7 @@ export default function FootballDashboard() {
       setLeagues(l);
       setFixtures(f);
     } catch (e) {
-      setError(tr('comun.errorActualizar', { error: String(e) }));
+      setErrorCarga(tr('comun.errorActualizar', { error: String(e) }));
     } finally {
       setRefreshing(false);
     }
@@ -193,6 +209,7 @@ export default function FootballDashboard() {
         refreshTitle={tr('eq.refrescarTitulo')}
         chips={meta && (<>{tr('eq.chipsEquipos', { partidos: meta.counts.matches.toLocaleString(localeDe(idioma)), equipos: meta.counts.teams })}</>)}
         alert={staleLabel(stale, idioma)}
+        avisoPendiente={league == null && !sinLigas && error == null}
       >
           <p className="max-w-prose text-[15px] leading-relaxed text-(--ink-soft)">
             {tr('fb.lema')}
@@ -212,7 +229,14 @@ export default function FootballDashboard() {
       )}
 
       {/* ---- LEAGUE SUB-TABS ---- */}
-      {selectable.length > 0 ? (
+      {/* Mientras no han llegado las ligas (llegan con `meta`), su sitio y nada más (L1, lote L): antes
+          salía «No hay datos de …» en cada carga, que es decir que no hay datos cuando aún no se sabe,
+          y al llegar saltaba 100 px. Si la petición falla, lo dice el aviso de error. El hueco es una
+          pastilla invisible, para medir lo mismo que la fila (N17, lote N): con un alto a mano medía
+          1 px más, y la lista subía ese píxel al llegar. */}
+      {meta == null ? (
+        <div aria-hidden className="invisible mb-4 flex pb-1"><span className={pillClass(false)}>&nbsp;</span></div>
+      ) : selectable.length > 0 ? (
         <nav
           // UNA FILA QUE SE DESLIZA EN EL MÓVIL, no nueve que se apilan.
           //
@@ -224,7 +248,7 @@ export default function FootballDashboard() {
           // horizontal; desde `sm` vuelve a envolver, porque ahí caben en dos filas y
           // verlas todas de golpe sí ayuda a elegir. `snap` para que al soltar el dedo
           // quede una pastilla entera a la vista y no cortada por la mitad.
-          className="mb-4 flex snap-x gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]"
+          className="mb-4 flex snap-x gap-2 desliza-x overflow-x-auto pb-1 [scrollbar-width:thin]"
           role="tablist" aria-label={tr('eq.ligas')}>
           {selectable.map((l) => {
             const on = league === l.id;
@@ -265,12 +289,10 @@ export default function FootballDashboard() {
         </div>
       )}
 
-      <StaleHistoryWarning
-        info={staleness('football', activeMeta?.historyThrough, meta?.dataSource === 'seed')}
-        what={tr('fb.elosGoles')}
-        fix="npm run update-data:fb"
-      />
-      {league && <TrackRecordPanel league={league} />}
+      {/* El aviso de datos viejos y el historial de la liga están en «Detalles», como en los demás
+          deportes (N17, lote N): aquí se quedó otra copia al plegar la cabecera. Con el historial
+          viejo salía el aviso entero debajo de las ligas aunque la cabecera estuviera plegada, y
+          dos veces al abrirla; y al llegar bajaba 209 px la lista (en el móvil). */}
 
       {/* The ranked-markets panel. Built from the SAME rows the cards below render,
           so the two can never disagree about a number. */}
@@ -287,15 +309,15 @@ export default function FootballDashboard() {
         />
       )}
 
-      {loading ? (
+      {loading || (!partidosCargados && !sinLigas && error == null) ? (
         <SkeletonList />
       ) : fixtures.length === 0 ? (
-        <EmptySlate what={active?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
+        !sinLigas && error == null && <EmptySlate what={active?.name ?? tr('eq.estaLiga')} reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />
           {shownGroups.map((group) => (
-            <section key={group.key} className="seccion-dia mb-6">
+            <SeccionDia key={group.key} clave={group.key} className="mb-6">
               <DayHeading label={group.label} count={group.items.length} />
               {/* Two-up from 1280px. The shell got wider (see SHELL_WIDTH in
                   App.tsx) and a card does not want to BE wider — it wants a
@@ -318,7 +340,7 @@ export default function FootballDashboard() {
                   />
                 ))}
               </div>
-            </section>
+            </SeccionDia>
           ))}
         </>
       )}
