@@ -256,7 +256,7 @@ export const es = {
   'nav.resumenConfianza': 'Resumen',
   'nav.subConfianza': 'Secciones de Confianza',
   'lineas.titulo': 'Comparador de líneas',
-  'lineas.intro': 'Para cada mercado abierto con cuotas de las últimas 48 horas: la mejor cuota de cada selección y en qué casa, el consenso (la mediana), la peor, cuánto discrepan las casas y el margen que queda tomando la mejor de cada lado. Si ese margen es negativo, hay surebet.',
+  'lineas.intro': 'Para cada mercado abierto con cuotas de las últimas 48 horas: la mejor cuota de cada selección y en qué casa, el consenso (la mediana), la peor, cuánto discrepan las casas y el margen que queda tomando la mejor de cada lado. Un margen negativo solo es una surebet si esas cuotas se cubren entre sí (líneas complementarias y todas las salidas del mercado): la marca «surebet» lo comprueba y dice en qué cuotas está.',
   'lineas.mercado': 'Mercado',
   'lineas.todosMercados': 'Todos los mercados',
   'lineas.mercado.h2h': 'Ganador',

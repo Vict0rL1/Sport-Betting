@@ -27,6 +27,8 @@ Lo que dejaron las revisiones del 27 de octubre como pendiente (`docs/plans/audi
     27): una historia nueva (`fetch-data --force`) ya no los borra. Restaurar un libro mayor de
     antes de la migración tampoco.
 - **Con el laboratorio de estrategias apagado, lo pendiente se sigue liquidando.**
+- **Líneas, legible:** la introducción ya no llama surebet a cualquier margen negativo, la línea de
+  la surebet tiene contraste de texto, y la tabla escribe las líneas en el idioma («−3,5», «45,5»).
 
 ## Auditoría del 22 de octubre · freno en la auditoría de copias, surebets de hándicap y fallos de cuotas (2026-10-27)
 

@@ -8,7 +8,8 @@ import { SubNav } from '../components/nav/SubNav';
 import { pillClass } from '../components/ui';
 import { COLOR_BENEFICIO } from '../components/charts';
 import { useSubnavApuestas } from './subnav';
-import { seleccionConLinea } from '../components/picks/tipos';
+import { lineaConSigno, seleccionConLinea } from '../components/picks/tipos';
+import { PROFIT_TEXT } from '../lib/theme';
 
 interface Linea { seleccion: string; linea: number | null; mejor: { cuota: number; casa: string }; peor: { cuota: number; casa: string }; consenso: number; casas: number; dispersionPp: number; mejorSobreConsenso: number }
 interface Mercado { eventId: string; sport: string; league: string; market: string; partido: string; cuando: string | null; eventoId: string | null; selecciones: Linea[]; margenMejor: number | null; margenConsenso: number | null; surebet: boolean; observado: string | null; detalleSurebet: { margenPct: number; margenMinimoPct: number; patas: { seleccion: string; cuota: number; casa: string; linea: number | null }[] } | null }
@@ -61,7 +62,7 @@ export default function Lineas() {
               <h3 className="min-w-0 flex-1 break-words text-[15px] font-semibold text-(--ink-strong)">
                 {m.eventoId ? <Link to={`/partido/${m.sport}/${encodeURIComponent(m.eventoId)}`} className="hover:underline">{m.partido}</Link> : m.partido}
               </h3>
-              {m.surebet && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1" style={{ color: COLOR_BENEFICIO, borderColor: COLOR_BENEFICIO }}>surebet</span>}
+              {m.surebet && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1" style={{ color: PROFIT_TEXT, borderColor: COLOR_BENEFICIO }}>surebet</span>}
             </div>
             <p className="mb-2 text-[12px] text-(--ink-muted)">
               {t(`deporte.${m.sport}` as never)} · {t(`lineas.mercado.${m.market}` as never)}
@@ -72,7 +73,7 @@ export default function Lineas() {
             {/* La surebet que hay, con sus líneas: puede no ser la línea más cotizada de la tabla, y con push
                 (línea entera o de cuarto) se dice lo garantizado (revisión quant). */}
             {m.detalleSurebet && (
-              <p className="mb-2 text-[12px] font-medium" style={{ color: COLOR_BENEFICIO }} data-testid="detalle-surebet">
+              <p className="mb-2 text-[12px] font-medium" style={{ color: PROFIT_TEXT }} data-testid="detalle-surebet">
                 {t(m.detalleSurebet.margenMinimoPct < m.detalleSurebet.margenPct ? 'lineas.surebetPush' : 'lineas.surebet', {
                   m: f.numero(m.detalleSurebet.margenPct, 1),
                   min: f.numero(m.detalleSurebet.margenMinimoPct, 1),
@@ -96,7 +97,8 @@ export default function Lineas() {
                     <tr key={s.seleccion} className="border-t border-(--line) align-top">
                       <td className="py-1 pr-2 text-(--ink-body)">
                         {s.seleccion}
-                        {s.linea != null && <span className="text-(--ink-muted)"> {s.linea > 0 ? `+${s.linea}` : s.linea}</span>}
+                        {/* Como en la línea de la surebet: «−3,5», «+3,5», «45,5» (revisión ui-tester). */}
+                        {s.linea != null && <span className="text-(--ink-muted)"> {lineaConSigno(s.linea, m.market)}</span>}
                       </td>
                       <td className="py-1 pr-2">
                         <span className="font-semibold text-(--ink-strong)">{cuota(s.mejor.cuota)}</span>

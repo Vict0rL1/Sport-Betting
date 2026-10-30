@@ -182,6 +182,22 @@ Lo pendiente de arriba, cada punto con su prueba que falla antes.
   de colocar apuestas, no de liquidarlas. Antes, al encenderlo, todo el atraso caía el mismo día en
   los límites de pérdida (revisión quant del 29 de octubre).
 
+**ui-tester (30 de octubre).** El detalle de la surebet en Líneas y el «0,0 pp» de Destacados,
+bien en las 8 y 16 combinaciones (1280 y 390 px, claro y oscuro, español e inglés). Arreglado, con
+su prueba en `web/e2e/lineas.spec.ts`:
+- la introducción de Líneas decía que un margen negativo es una surebet; ahora, solo si esas cuotas
+  se cubren entre sí;
+- la línea nueva y la marca «surebet» tenían un contraste de 3,41:1 en el tema claro; ahora usan el
+  color de texto de beneficio (`PROFIT_TEXT`);
+- la tabla escribía las líneas tal cual («-3.5», «+45.5»); ahora como la surebet («−3,5», «45,5»).
+
+Pendiente, de antes de este lote, y visto en la misma tarjeta:
+- el margen de la cabecera sale con guion ASCII («-4,8 %»);
+- en inglés, «2.6%» junto a «9.1 %»;
+- la nota del comparador y la etiqueta de Destacados vienen del servidor en español;
+- «1 casas» y «pinnacle» en minúscula;
+- en el móvil, una pata puede partirse en dos líneas.
+
 **Para el dueño (no se ha tocado):** apagar `politica.versionada` en Ajustes no solo «deja de
 versionar». Sustituye la política guardada por las constantes de fábrica, que pueden ser más
 laxas: con una v1 de tope por evento 0,005 y diario 0,02, apagado da 0,02 y 0,06. Además, las

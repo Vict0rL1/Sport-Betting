@@ -103,7 +103,10 @@ export function guardar(k: string, v: unknown): void {
  * línea, tal cual.
  */
 export function seleccionConLinea(seleccion: string, linea: number | null, market: string): string {
-  if (linea === null) return seleccion;
-  const signo = /spreads/.test(market) && linea > 0 ? '+' : '';
-  return `${seleccion} ${signo}${cifra(linea)}`;
+  return linea === null ? seleccion : `${seleccion} ${lineaConSigno(linea, market)}`;
+}
+
+/** Una línea en el idioma: con signo en un hándicap («−3,5», «+3,5»), el umbral en un total («45,5»). */
+export function lineaConSigno(linea: number, market: string): string {
+  return `${/spreads/.test(market) && linea > 0 ? '+' : ''}${cifra(linea)}`;
 }

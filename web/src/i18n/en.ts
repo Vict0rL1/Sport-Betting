@@ -256,7 +256,7 @@ export const en: Partial<Record<Clave, string>> = {
   'nav.resumenConfianza': 'Overview',
   'nav.subConfianza': 'Trust sections',
   'lineas.titulo': 'Line shopping',
-  'lineas.intro': 'For each open market with odds from the last 48 hours: the best price for each selection and where, the consensus (median), the worst, how much books disagree, and the margin left by taking the best of each side. A negative margin is a surebet.',
+  'lineas.intro': 'For each open market with odds from the last 48 hours: the best price for each selection and where, the consensus (median), the worst, how much books disagree, and the margin left by taking the best of each side. A negative margin is only a surebet if those prices cover each other (complementary lines and every outcome of the market): the «surebet» mark checks that and says which prices it uses.',
   'lineas.mercado': 'Market',
   'lineas.todosMercados': 'All markets',
   'lineas.mercado.h2h': 'Moneyline',
