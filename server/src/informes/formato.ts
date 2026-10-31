@@ -2,8 +2,18 @@
 // los avisos de muestra. Sin HTML: la página lo pinta con su propio lector y el PDF lo escribe
 // como texto.
 
-export const pct = (x: number | null | undefined, d = 1): string =>
-  x == null || !Number.isFinite(x) ? '—' : `${(x * 100).toFixed(d).replace('.', ',')} %`;
+/**
+ * x en %, con `d` decimales y el signo menos (U+2212), como `pp()` y `dinero()`; lo que redondea a 0
+ * no lleva signo. Con coma o, para los textos que ya escriben las cuotas con punto, con punto
+ * (revisión ui-tester del 31 de octubre: «CLV -1,25 %» junto a «−151,25»).
+ */
+export function porcentaje(x: number, d = 1, coma = true): string {
+  const r = (x * 100).toFixed(d);
+  const abs = r.replace('-', '');
+  return `${r.startsWith('-') && Number(r) !== 0 ? '−' : ''}${coma ? abs.replace('.', ',') : abs}`;
+}
+
+export const pct = (x: number | null | undefined, d = 1): string => (x == null || !Number.isFinite(x) ? '—' : `${porcentaje(x, d)} %`);
 
 export const pp = (x: number | null | undefined, d = 1): string =>
   x == null || !Number.isFinite(x) ? '—' : `${x >= 0 ? '+' : '−'}${Math.abs(x * 100).toFixed(d).replace('.', ',')} pp`;

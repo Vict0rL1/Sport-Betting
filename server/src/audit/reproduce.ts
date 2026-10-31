@@ -15,6 +15,7 @@ import { getDb } from '../db.ts';
 import { versionsFor } from '../versions.ts';
 import { aFecha } from '../prematch/snapshots.ts';
 import { isSportId, type SportId } from '../sports.ts';
+import { porcentaje } from '../informes/formato.ts';
 
 export interface Reproduccion {
   encontrado: boolean;
@@ -23,7 +24,7 @@ export interface Reproduccion {
 }
 
 const NO = 'no guardado';
-const pc = (x: unknown) => (x == null ? NO : `${(Number(x) * 100).toFixed(2)} %`);
+const pc = (x: unknown) => (x == null ? NO : `${porcentaje(Number(x), 2, false)} %`);
 const v = (x: unknown) => (x == null || x === '' ? NO : String(x));
 
 /** Las entradas del modelo guardadas EN o ANTES de `at` (nunca posteriores). */
@@ -148,7 +149,7 @@ export function reproducir(id: string): Reproduccion {
         ['Raw prediction', pc(raw)],
         ['Calibrated prediction', pc(cal)],
         ['Market probability', pc(mk)],
-        ['Edge', mk == null ? NO : `${((Number(cal) - Number(mk)) * 100).toFixed(2)} pp sobre el mercado`],
+        ['Edge', mk == null ? NO : `${porcentaje(Number(cal) - Number(mk), 2, false)} pp sobre el mercado`],
         ['Risk decision', 'ver evaluacion:<id> o apuesta:<id> de este partido'],
         ['Bet/no bet', (db.prepare('SELECT COUNT(*) AS n FROM paper_bets WHERE match_key = ?').get(valor) as { n: number }).n ? 'BET (hay apuesta de papel)' : 'sin apuesta de papel'],
       ],

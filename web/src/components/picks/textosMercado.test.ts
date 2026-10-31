@@ -22,7 +22,11 @@ test('en inglés, el porcentaje de una surebet va pegado («4.8%»), como el res
   assert.equal(tr('es', 'mi.surebet', { partido: 'A vs B', m: '4,8', patas: 'x' }), 'A vs B: surebet 4,8 % (x)', 'en español, con el espacio duro');
 });
 
-test('«1 casa», no «1 casas»', () => {
+test('«1 casa», no «1 casas», también en el steam', () => {
+  const steam = { partido: 'A vs B', sel: 'A', desde: '2,00', hasta: '1,90', min: 30, pp: '+2,1' };
+  assert.match(tr('es', 'mi.steam', { ...steam, casas: 1 }), /\(1 casa, /);
+  assert.match(tr('es', 'mi.steam', { ...steam, casas: 4 }), /\(4 casas, /);
+  assert.match(tr('en', 'mi.steam', { ...steam, casas: 1 }), /\(1 book, /);
   assert.equal(tr('es', 'lineas.casas', { n: 1 }), '1 casa');
   assert.equal(tr('es', 'lineas.casas', { n: 3 }), '3 casas');
   assert.equal(tr('en', 'lineas.casas', { n: 1 }), '1 book');

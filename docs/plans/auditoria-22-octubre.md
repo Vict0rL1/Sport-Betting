@@ -200,8 +200,21 @@ Visto en la misma tarjeta y de antes de este lote; arreglado el 31 de octubre, c
   catálogo, en el idioma de la interfaz;
 - «1 casas» → «1 casa» / «1 book», y «pinnacle» → «Pinnacle».
 
-Queda: en el móvil, una pata puede partirse en dos líneas («Team A −3» / «2,20 en c»). Hacerla
-irrompible desbordaría con nombres largos de equipo.
+Segunda pasada de ui-tester (31 de octubre): ningún porcentaje negativo de la interfaz sale ya con
+guion ASCII, sin regresiones en 88 cargas de página. Arreglado también, con su prueba:
+- el `pct()` de los informes y los textos de la línea temporal y de la reproducción, en el
+  servidor, también ponían «-1,25 %» (el resto del informe ya usaba «−»);
+- «1 casas» en el aviso de steam;
+- los nombres de las casas en Líneas y en las patas de Destacados, con mayúscula, como «Pinnacle»;
+- un «+» fijo delante de un porcentaje con signo, que habría salido «+−1,2 %».
+
+Queda, de antes y fuera de esto:
+- en el móvil, una pata puede partirse en dos líneas («Team A −3» / «2,20 en C»): hacerla
+  irrompible desbordaría con nombres largos de equipo;
+- en inglés hay porcentajes con espacio en otras partes (los chips «≥ 60 %», los ejes de los
+  gráficos, las franjas del archivo);
+- algunos textos que genera el servidor (la frase de la predicción del tenis, las franjas del
+  archivo) siguen en español con la interfaz en inglés.
 
 **Para el dueño (no se ha tocado):** apagar `politica.versionada` en Ajustes no solo «deja de
 versionar». Sustituye la política guardada por las constantes de fábrica, que pueden ser más

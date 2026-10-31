@@ -1636,7 +1636,7 @@ export const en: Partial<Record<Clave, string>> = {
   'mi.leyendo': 'Reading the observed prices…',
   'mi.sinCuotas': 'No odds observed in the last {h} h: there is nothing to read from the market.',
   'mi.resumen': '{e} priced {e|market|markets} · {s} fast {s|move|moves} · {b} {b|surebet|surebets} · {r} with a sharp reference',
-  'mi.steam': '{partido}: {sel} {desde} → {hasta} in {min} min ({casas} books, {pp} pp)',
+  'mi.steam': '{partido}: {sel} {desde} → {hasta} in {min} min ({casas} {casas|book|books}, {pp} pp)',
   'mi.surebet': '{partido}: surebet {m}% ({patas})',
   'mi.surebetPush': '{partido}: surebet {m}%, {min}% on a push ({patas})',
   'mi.pata': '{sel} {cuota} at {casa}',

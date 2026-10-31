@@ -39,7 +39,7 @@ test('líneas: la surebet se lee con su línea y buen contraste, y un margen neg
   await page.goto('/apuestas/lineas');
   const detalle = page.getByTestId('detalle-surebet');
   await expect(detalle).toHaveCount(1);
-  await expect(detalle).toContainText('Team A −3 2,20 en c');
+  await expect(detalle).toContainText('Team A −3 2,20 en C');
   // La introducción ya no dice que cualquier margen negativo sea una surebet: ese de −9,1 % no lo es.
   await expect(page.getByText('Si ese margen es negativo, hay surebet.')).toHaveCount(0);
   // La línea de la surebet, legible en el tema claro (texto, no un adorno).
@@ -53,6 +53,20 @@ test('líneas: la surebet se lee con su línea y buen contraste, y un margen neg
   await expect(tabla).toContainText('Over 45,5');
   await expect(tabla).not.toContainText('-3.5');
   await expect(tabla).not.toContainText('+45.5');
+  // Las casas con mayúscula, como «Pinnacle» en Destacados (revisión ui-tester del 31 de octubre).
+  await expect(tabla).toContainText('A · ');
+  await expect(tabla).not.toContainText('a · ');
+});
+
+test('líneas: una diferencia con el consenso negativa no sale «+−»', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('predictor.recorrido', '1'));
+  const negativo = structuredClone(SB);
+  negativo.mercados[0].selecciones[0].mejorSobreConsenso = -0.012;
+  await page.route('**/api/odds/lineas*', (r) => r.fulfill({ json: negativo }));
+  await page.goto('/apuestas/lineas');
+  const tabla = page.getByTestId('lista-lineas');
+  await expect(tabla).toContainText('−1,2');
+  await expect(tabla).not.toContainText('+−');
 });
 
 test('líneas en inglés: la nota en inglés, «1 book», el menos en los márgenes y el porcentaje pegado', async ({ page }) => {
@@ -64,7 +78,7 @@ test('líneas en inglés: la nota en inglés, «1 book», el menos en los márge
   unaCasa.mercados[1].selecciones[0].casas = 1;
   await page.route('**/api/odds/lineas*', (r) => r.fulfill({ json: unaCasa }));
   await page.goto('/apuestas/lineas');
-  await expect(page.getByTestId('detalle-surebet')).toContainText('Surebet 9.1%, 0.0% on a push, at these prices: Team A −3 2.20 at c');
+  await expect(page.getByTestId('detalle-surebet')).toContainText('Surebet 9.1%, 0.0% on a push, at these prices: Team A −3 2.20 at C');
   await expect(page.getByText(/^Read-only\. The paper bank/)).toBeVisible();
   await expect(page.getByText('Solo lectura')).toHaveCount(0);
   const tabla = page.getByTestId('lista-lineas');

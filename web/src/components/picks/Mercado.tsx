@@ -54,7 +54,7 @@ export function Mercado() {
                 partido: s.partido,
                 m: dec(s.margenPct),
                 min: dec(s.margenMinimoPct),
-                patas: s.patas.map((p) => t('mi.pata', { sel: seleccionConLinea(p.seleccion, p.linea, s.market), cuota: num(p.cuota), casa: p.casa })).join(', '),
+                patas: s.patas.map((p) => t('mi.pata', { sel: seleccionConLinea(p.seleccion, p.linea, s.market), cuota: num(p.cuota), casa: nombreCasa(p.casa) })).join(', '),
               })}
             </p>
           ))}

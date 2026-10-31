@@ -8,7 +8,7 @@ import { SubNav } from '../components/nav/SubNav';
 import { pillClass } from '../components/ui';
 import { COLOR_BENEFICIO } from '../components/charts';
 import { useSubnavApuestas } from './subnav';
-import { lineaConSigno, seleccionConLinea } from '../components/picks/tipos';
+import { lineaConSigno, nombreCasa, seleccionConLinea } from '../components/picks/tipos';
 import { PROFIT_TEXT } from '../lib/theme';
 
 interface Linea { seleccion: string; linea: number | null; mejor: { cuota: number; casa: string }; peor: { cuota: number; casa: string }; consenso: number; casas: number; dispersionPp: number; mejorSobreConsenso: number }
@@ -78,7 +78,7 @@ export default function Lineas() {
                 {t(m.detalleSurebet.margenMinimoPct < m.detalleSurebet.margenPct ? 'lineas.surebetPush' : 'lineas.surebet', {
                   m: f.numero(m.detalleSurebet.margenPct, 1),
                   min: f.numero(m.detalleSurebet.margenMinimoPct, 1),
-                  patas: m.detalleSurebet.patas.map((p) => t('mi.pata', { sel: seleccionConLinea(p.seleccion, p.linea, m.market), cuota: cuota(p.cuota), casa: p.casa })).join(', '),
+                  patas: m.detalleSurebet.patas.map((p) => t('mi.pata', { sel: seleccionConLinea(p.seleccion, p.linea, m.market), cuota: cuota(p.cuota), casa: nombreCasa(p.casa) })).join(', '),
                 })}
               </p>
             )}
@@ -103,10 +103,10 @@ export default function Lineas() {
                       </td>
                       <td className="py-1 pr-2">
                         <span className="font-semibold text-(--ink-strong)">{cuota(s.mejor.cuota)}</span>
-                        <span className="block text-[11px] text-(--ink-muted)">{s.mejor.casa} · +{f.porcentaje(s.mejorSobreConsenso, 1)}</span>
+                        <span className="block text-[11px] text-(--ink-muted)">{nombreCasa(s.mejor.casa)} · {s.mejorSobreConsenso > 0 ? '+' : ''}{f.porcentaje(s.mejorSobreConsenso, 1)}</span>
                       </td>
                       <td className="py-1 pr-2 text-(--ink-body)">{cuota(s.consenso)}<span className="block text-[11px] text-(--ink-muted)">{t('lineas.casas', { n: s.casas })}</span></td>
-                      <td className="py-1 pr-2 text-(--ink-soft)">{cuota(s.peor.cuota)}<span className="block text-[11px] text-(--ink-muted)">{s.peor.casa}</span></td>
+                      <td className="py-1 pr-2 text-(--ink-soft)">{cuota(s.peor.cuota)}<span className="block text-[11px] text-(--ink-muted)">{nombreCasa(s.peor.casa)}</span></td>
                       <td className="py-1 text-(--ink-body)">{f.numero(s.dispersionPp, 1)} pp</td>
                     </tr>
                   ))}

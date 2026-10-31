@@ -1636,7 +1636,7 @@ export const es = {
   'mi.leyendo': 'Leyendo los precios observados…',
   'mi.sinCuotas': 'Sin cuotas observadas en las últimas {h} h: no hay nada que leer del mercado.',
   'mi.resumen': '{e} {e|mercado|mercados} con precio · {s} {s|movimiento rápido|movimientos rápidos} · {b} {b|surebet|surebets} · {r} con referencia afilada',
-  'mi.steam': '{partido}: {sel} {desde} → {hasta} en {min} min ({casas} casas, {pp} pp)',
+  'mi.steam': '{partido}: {sel} {desde} → {hasta} en {min} min ({casas} {casas|casa|casas}, {pp} pp)',
   'mi.surebet': '{partido}: surebet {m} % ({patas})',
   'mi.surebetPush': '{partido}: surebet {m} %, {min} % si hay push ({patas})',
   'mi.pata': '{sel} {cuota} en {casa}',
