@@ -110,3 +110,8 @@ export function seleccionConLinea(seleccion: string, linea: number | null, marke
 export function lineaConSigno(linea: number, market: string): string {
   return `${/spreads/.test(market) && linea > 0 ? '+' : ''}${cifra(linea)}`;
 }
+
+/** El nombre de una casa a partir de su clave del proveedor, con mayúscula: «pinnacle» → «Pinnacle». */
+export function nombreCasa(clave: string): string {
+  return clave.charAt(0).toUpperCase() + clave.slice(1);
+}

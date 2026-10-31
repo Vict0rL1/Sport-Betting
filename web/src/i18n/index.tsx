@@ -129,7 +129,8 @@ export function formato(idioma: Idioma) {
   const loc = idioma === 'en' ? 'en-GB' : 'es-ES';
   return {
     numero: (n: number, digitos = 0) => new Intl.NumberFormat(loc, { minimumFractionDigits: digitos, maximumFractionDigits: digitos }).format(n),
-    porcentaje: (p: number, digitos = 0) => new Intl.NumberFormat(loc, { style: 'percent', minimumFractionDigits: digitos, maximumFractionDigits: digitos }).format(p),
+    // Con el signo menos (U+2212), como pct() en lib/formato.ts: Intl pone el guion ASCII.
+    porcentaje: (p: number, digitos = 0) => new Intl.NumberFormat(loc, { style: 'percent', minimumFractionDigits: digitos, maximumFractionDigits: digitos }).format(p).replace('-', '−'),
     moneda: (n: number, moneda = 'EUR') => new Intl.NumberFormat(loc, { style: 'currency', currency: moneda }).format(n),
     fecha: (iso: string, opciones: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) => new Intl.DateTimeFormat(loc, opciones).format(new Date(iso)),
   };

@@ -29,6 +29,11 @@ Lo que dejaron las revisiones del 27 de octubre como pendiente (`docs/plans/audi
 - **Con el laboratorio de estrategias apagado, lo pendiente se sigue liquidando.**
 - **Líneas, legible:** la introducción ya no llama surebet a cualquier margen negativo, la línea de
   la surebet tiene contraste de texto, y la tabla escribe las líneas en el idioma («−3,5», «45,5»).
+- **Detalles de formato en Líneas y Destacados:**
+  - los porcentajes negativos llevan el signo menos («−4,8 %»), en toda la interfaz;
+  - en inglés, los porcentajes de las surebets van pegados («9.1%»);
+  - la nota del comparador y la etiqueta del mercado salen en el idioma de la interfaz;
+  - «1 casa» / «1 book», y «Pinnacle».
 
 ## Auditoría del 22 de octubre · freno en la auditoría de copias, surebets de hándicap y fallos de cuotas (2026-10-27)
 

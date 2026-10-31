@@ -39,7 +39,8 @@ export default function Lineas() {
       <SubNav etiqueta={t('nav.subApuestas')} enlaces={subnav} />
       <h2 className="mb-1 text-[20px] font-semibold text-(--ink-strong)">{t('lineas.titulo')}</h2>
       <p className="mb-2 max-w-3xl text-[14px] leading-relaxed text-(--ink-soft)">{t('lineas.intro')}</p>
-      {datos && <p className="mb-4 max-w-3xl text-[12px] text-(--ink-muted)">{datos.nota}</p>}
+      {/* Del catálogo, no del servidor (que la manda en español): así sale en el idioma de la interfaz. */}
+      {datos && <p className="mb-4 max-w-3xl text-[12px] text-(--ink-muted)">{t('lineas.nota')}</p>}
       <div className="mb-4 flex flex-wrap gap-1.5">
         <button className={pillClass(sport === '')} onClick={() => setSport('')}>{t('bandeja.todosDeportes')}</button>
         {DEPORTES.map((d) => (

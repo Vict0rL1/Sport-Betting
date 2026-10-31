@@ -191,12 +191,17 @@ su prueba en `web/e2e/lineas.spec.ts`:
   color de texto de beneficio (`PROFIT_TEXT`);
 - la tabla escribía las líneas tal cual («-3.5», «+45.5»); ahora como la surebet («−3,5», «45,5»).
 
-Pendiente, de antes de este lote, y visto en la misma tarjeta:
-- el margen de la cabecera sale con guion ASCII («-4,8 %»);
-- en inglés, «2.6%» junto a «9.1 %»;
-- la nota del comparador y la etiqueta de Destacados vienen del servidor en español;
-- «1 casas» y «pinnacle» en minúscula;
-- en el móvil, una pata puede partirse en dos líneas.
+Visto en la misma tarjeta y de antes de este lote; arreglado el 31 de octubre, con su prueba
+(`web/src/components/picks/textosMercado.test.ts` y el caso en inglés de `web/e2e/lineas.spec.ts`):
+- los porcentajes negativos salían con guion ASCII («-4,8 %»): `formato().porcentaje` pone el
+  signo menos (U+2212), como `pct()`, en toda la interfaz;
+- en inglés, «9.1 %» junto a «2.6%»: los textos de surebet van ahora pegados en inglés;
+- la nota del comparador y la etiqueta de Destacados venían del servidor en español: salen del
+  catálogo, en el idioma de la interfaz;
+- «1 casas» → «1 casa» / «1 book», y «pinnacle» → «Pinnacle».
+
+Queda: en el móvil, una pata puede partirse en dos líneas («Team A −3» / «2,20 en c»). Hacerla
+irrompible desbordaría con nombres largos de equipo.
 
 **Para el dueño (no se ha tocado):** apagar `politica.versionada` en Ajustes no solo «deja de
 versionar». Sustituye la política guardada por las constantes de fábrica, que pueden ser más

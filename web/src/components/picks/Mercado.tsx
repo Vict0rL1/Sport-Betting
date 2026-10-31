@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { PROFIT_COLOR } from '../../lib/theme';
 import { StatusMark } from '../icons';
-import { type Inteligencia, AMBAR, num, seleccionConLinea } from './tipos';
+import { type Inteligencia, AMBAR, num, nombreCasa, seleccionConLinea } from './tipos';
 import { useI18n } from '../../i18n';
 import { num as numF, pp } from '../../lib/formato';
 
@@ -62,12 +62,13 @@ export function Mercado() {
             <p key={`${r.eventId}|${r.market}`}>
               {t('mi.referencia', {
                 partido: r.partido,
-                casa: r.casa,
+                casa: nombreCasa(r.casa),
                 lista: r.selecciones.map((s) => `${s.seleccion} ${pp(s.desviacionPp)}`).join(' · '),
               })}
             </p>
           ))}
-          <p className="mt-1 text-(--ink-faint)">{d.etiqueta}</p>
+          {/* Del catálogo, no del servidor (que la manda en español): así sale en el idioma de la interfaz. */}
+          <p className="mt-1 text-(--ink-faint)">{t('mi.etiqueta')}</p>
         </>
       )}
     </div>

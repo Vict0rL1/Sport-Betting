@@ -54,3 +54,22 @@ test('líneas: la surebet se lee con su línea y buen contraste, y un margen neg
   await expect(tabla).not.toContainText('-3.5');
   await expect(tabla).not.toContainText('+45.5');
 });
+
+test('líneas en inglés: la nota en inglés, «1 book», el menos en los márgenes y el porcentaje pegado', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('predictor.recorrido', '1');
+    localStorage.setItem('predictor.idioma', 'en');
+  });
+  const unaCasa = structuredClone(SB);
+  unaCasa.mercados[1].selecciones[0].casas = 1;
+  await page.route('**/api/odds/lineas*', (r) => r.fulfill({ json: unaCasa }));
+  await page.goto('/apuestas/lineas');
+  await expect(page.getByTestId('detalle-surebet')).toContainText('Surebet 9.1%, 0.0% on a push, at these prices: Team A −3 2.20 at c');
+  await expect(page.getByText(/^Read-only\. The paper bank/)).toBeVisible();
+  await expect(page.getByText('Solo lectura')).toHaveCount(0);
+  const tabla = page.getByTestId('lista-lineas');
+  await expect(tabla).toContainText('with the best −9.1%');
+  await expect(tabla).not.toContainText('-9.1');
+  await expect(tabla).toContainText('1 book');
+  await expect(tabla).not.toContainText('1 books');
+});
