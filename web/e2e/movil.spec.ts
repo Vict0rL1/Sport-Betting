@@ -113,7 +113,9 @@ test('K3: el interruptor «Qué hay hoy / ¿Acertó?» no empuja la lista al lle
   await llegan;
   await expect(page.getByRole('button', { name: '¿Acertó?' })).toBeVisible();
   await espera(200);
-  expect((await primera.boundingBox())!.y).toBe(antes);
+  // Menos de un píxel, no igual: en CI la misma fila salió en 198 y 198,5 en una máquina y en 198
+  // las dos veces en otra, con el mismo commit (3 de noviembre). El defecto que vigila empujaba 45 px.
+  expect(Math.abs((await primera.boundingBox())!.y - antes)).toBeLessThan(1);
 });
 
 test.describe('en el escritorio', () => {
