@@ -88,9 +88,13 @@ También, por la misma revisión:
   clave nueva pide una migración nueva.
 - **La prueba del bloqueo de Ajustes usa `PUT /api/ajustes`** (security): `GET` no mira el interruptor.
 
+- **`check-publishable` y el `-wal`** (data-guardian, baja): mira por SQL la base con su `-wal`, pero se
+  publica solo el fichero. Ahora rechaza una base con un `-wal` con cambios (`[integridad]`); la
+  exportación nunca lo tiene.
+
 Lo que se deja, de la misma revisión:
-- `check-publishable` mira por SQL la base con su `-wal`, y por bytes solo el fichero (que es lo que se
-  publica). Una base con un `-wal` lleno podría diferir; la exportación nunca lo tiene.
+- Una negativa de `fetch-data` sobre una historia local en modo WAL puede dejar al lado un `-wal`
+  vacío y un `-shm`, de la apertura en solo lectura. No llevan cambios, y el fichero queda idéntico.
 - La búsqueda por bytes falla cerrada: un texto corriente con `policy:` o `backup:` pararía la
   publicación. Si pasa, se estrecha la búsqueda, no se quita.
 
@@ -173,7 +177,14 @@ error interno.
   visto) sigue con ellas en su meta hasta la próxima descarga, y la migración 27 solo las lee si se
   restaura un libro mayor de antes de esa migración.
 - No cambia nada de modelos, liquidación ni cuotas.
-- En las pruebas del exportador, tras otras exportaciones en el mismo proceso, un proceso hijo no
-  siempre veía lo que la conexión de la prueba acababa de escribir. Con un checkpoint antes de lanzarlo
-  lo ve siempre. No se reproduce aislado y no se encontró la causa. No afecta a la privacidad: el
-  exportador quita lo que ve y solo escribe eso.
+- **Una regla que salió de las pruebas:** nunca abrir con `fs` el fichero de una base viva en un proceso
+  que tiene una conexión abierta a ella.
+  - **Qué pasaba:** las pruebas del exportador sacaban la huella de los ficheros con `fs` y la conexión
+    de la prueba abierta. Al cerrar ese descriptor, el proceso suelta sus bloqueos POSIX (el caso
+    documentado de «cómo corromper» de SQLite). El siguiente hijo que cerraba se creía la última
+    conexión, hacía checkpoint y borraba el WAL que la prueba seguía usando. Los hijos de después no
+    veían lo que la prueba escribía.
+  - **Diagnóstico:** lo explicó y reprodujo data-guardian.
+  - **Ahora:** las pruebas cierran la conexión antes de mirar los ficheros.
+  - **Exportaciones reales:** no les pasa, porque ningún proceso de producción hace las dos cosas a la
+    vez.

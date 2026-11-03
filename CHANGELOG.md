@@ -15,7 +15,8 @@ con su prueba que falla antes.
   - `db:export-history` quita de la copia exportada toda clave de meta del libro mayor
     (`claveEsLedger`, nombres y prefijos), sin dejar sus bytes. La base original no cambia.
   - `check-publishable` rechaza esas claves, no solo las tablas, sin enseñar los valores.
-  - `check-publishable` también mira los bytes del fichero: una fila borrada sin `VACUUM` sigue dentro.
+  - `check-publishable` también mira los bytes del fichero (una fila borrada sin `VACUUM` sigue dentro) y
+    rechaza una base con un `-wal` con cambios: se publica el fichero, no lo que se comprobó.
   - `fetch-data` descarta esas claves de toda descarga, y conserva las locales: antes mandaban las
     descargadas. Solo pasa las dos que recoge la migración 27. Corre con `tsx`, como
     `check-publishable`.

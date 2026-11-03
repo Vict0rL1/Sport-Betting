@@ -145,6 +145,14 @@ for (const s of restos) {
   problems.push(`[privacidad] el fichero contiene restos de «${s}» fuera de la meta viva (filas borradas sin VACUUM, u otra tabla). Publica la exportación de npm run db:export-history.`);
 }
 
+// Lo que se publica es el fichero (gzip), no lo que ve una conexión: con un -wal con cambios, lo
+// comprobado por SQL (fichero + WAL) no es lo publicado (revisión data-guardian del 3 de noviembre).
+const wal = `${DB_PATH}-wal`;
+if (fs.existsSync(wal) && fs.statSync(wal).size > 0) {
+  console.log(`  ✗ ${path.basename(wal)} con cambios sin pasar al fichero`);
+  problems.push(`[integridad] hay un ${path.basename(wal)} con cambios sin pasar al fichero: lo que se publica no es lo que se ha comprobado. Publica la exportación de npm run db:export-history.`);
+}
+
 console.log('\nDatos que SÍ tiene que traer:');
 for (const { table, min } of REQUIRED) {
   const n = count(table);

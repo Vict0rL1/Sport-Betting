@@ -13,7 +13,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import '../test/setup.ts';
 
-const { getDb, MIGRACIONES } = await import('../db.ts');
+const { getDb, cerrarDb, MIGRACIONES } = await import('../db.ts');
 const { LEDGER_SCHEMA, ficherosDe } = await import('../db/layout.ts');
 const { claveEsLedger } = await import('../db/tables.ts');
 
@@ -43,6 +43,12 @@ function rellenar(db: DatabaseSync, tabla: string, n: number): void {
   );
 }
 
+/**
+ * Huella de un fichero de la base. Solo con la conexión de este proceso CERRADA (revisión data-guardian
+ * del 3 de noviembre): leer con fs el fichero de una base que este proceso tiene abierta suelta sus
+ * bloqueos POSIX; el siguiente hijo que cierra se cree la última conexión, hace checkpoint y borra el
+ * WAL que esta conexión sigue usando, y los hijos de después ya no ven lo que escribe.
+ */
 const sha = (f: string) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
 const correr = (script: string, args: string[], cwd: string) =>
   spawnSync(process.execPath, ['--import', 'tsx', script, ...args], { cwd, env: { ...process.env, NODE_OPTIONS }, encoding: 'utf8', timeout: 120_000 });
@@ -65,9 +71,9 @@ test('migración 27 y exportación real: la exportación no lleva la meta privad
 
   // La original, antes de exportar: lo que tiene que seguir igual.
   const historia = ficherosDe().history;
-  db.exec('PRAGMA main.wal_checkpoint(TRUNCATE)');
-  const filasMeta = () => db.prepare('SELECT key, value FROM main.meta ORDER BY key').all();
+  const filasMeta = () => getDb().prepare('SELECT key, value FROM main.meta ORDER BY key').all();
   const metaAntes = filasMeta();
+  cerrarDb();
   const huellaAntes = sha(historia);
 
   const destino = path.join(fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'export-')), 'history.export.db');
@@ -88,10 +94,10 @@ test('migración 27 y exportación real: la exportación no lleva la meta privad
   // Se construye aparte y se renombra al final (revisión data-guardian): ningún temporal se queda.
   assert.deepEqual(fs.readdirSync(path.dirname(destino)), ['history.export.db'], 'ni temporales ni ficheros laterales');
 
-  // La original no cambia: ni su meta (la copia de recuperación sigue) ni un byte del fichero.
-  db.exec('PRAGMA main.wal_checkpoint(TRUNCATE)');
-  assert.deepEqual(filasMeta(), metaAntes);
+  // La original no cambia: ni un byte del fichero (aún sin conexión aquí) ni su meta (la copia de
+  // recuperación sigue).
   assert.equal(sha(historia), huellaAntes, 'ni un byte de la base original');
+  assert.deepEqual(filasMeta(), metaAntes);
 
   // check-publishable: la original (con la copia de recuperación) no se publica; la exportada, sí.
   const original = correr('scripts/check-publishable.mjs', [historia], RAIZ);
@@ -147,8 +153,8 @@ test('el exportador no pisa la base viva, el libro mayor, sus laterales ni una b
   const { history, ledger: libroMayor } = ficherosDe();
   assert.ok(libroMayor, 'las pruebas corren con la base partida');
   const ledger = libroMayor!;
-  const db = getDb();
-  db.exec('PRAGMA main.wal_checkpoint(TRUNCATE)');
+  // Sin conexión en este proceso mientras se miran los ficheros con fs (ver `sha`).
+  cerrarDb();
   // El fichero y su WAL (el -shm es el índice compartido: cambia con cualquier lectura).
   const huellas = () => Object.fromEntries([history, ledger].flatMap((f) => ['', '-wal'].map((s) => f + s)).filter((f) => fs.existsSync(f)).map((f) => [f, sha(f)]));
   const ajena = path.join(fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'ajena-')), 'copia-ledger.db');
@@ -163,7 +169,6 @@ test('el exportador no pisa la base viva, el libro mayor, sus laterales ni una b
     assert.equal(r.status, 1, `${destino}: ${r.stdout}${r.stderr}`);
     assert.match(r.stderr, /no se exporta encima/i);
   }
-  db.exec('PRAGMA main.wal_checkpoint(TRUNCATE)');
   assert.deepEqual(huellas(), antes, 'ni la historia ni el libro mayor cambian');
   assert.equal(fs.readFileSync(texto, 'utf8'), 'no es una base');
   const b = new DatabaseSync(ajena, { readOnly: true });
@@ -180,10 +185,6 @@ test('si la exportación falla a medias, no queda ningún temporal con la meta p
   db.prepare('INSERT OR REPLACE INTO main.meta (key, value) VALUES (?, ?)').run('ajustes.usuario', JSON.stringify({ bancoPersonal: 7531.25 }));
   // Un fallo después de copiar: el DELETE de la copia lo rechaza un trigger que viaja con ella.
   db.exec("CREATE TRIGGER main.prueba_falla BEFORE DELETE ON meta BEGIN SELECT RAISE(ABORT, 'fallo simulado'); END");
-  // Al fichero antes de lanzar el exportador, como en la primera prueba: tras otras exportaciones en
-  // este mismo proceso, el hijo no siempre veía lo recién escrito por esta conexión (no se reproduce
-  // aislado; con el checkpoint, siempre lo ve).
-  db.exec('PRAGMA main.wal_checkpoint(TRUNCATE)');
   try {
     const dir = fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'falla-'));
     const r = correr('src/scripts/dbExport.ts', [path.join(dir, 'history.export.db')], SERVIDOR);
@@ -193,4 +194,21 @@ test('si la exportación falla a medias, no queda ningún temporal con la meta p
   } finally {
     db.exec('DROP TRIGGER main.prueba_falla');
   }
+});
+
+test('check-publishable rechaza una base con un -wal con cambios: se publica el fichero, no lo que se comprobó (revisión data-guardian)', () => {
+  const f = historiaSintetica({ fb_updated_at: '2026-11-01' });
+  const d = new DatabaseSync(f);
+  d.exec('PRAGMA journal_mode = WAL; PRAGMA wal_autocheckpoint = 0;');
+  d.exec("INSERT INTO meta (key, value) VALUES ('fb_otra', 'x')");
+  try {
+    assert.ok(fs.statSync(`${f}-wal`).size > 0, 'cambios en el -wal, sin pasar al fichero');
+    const r = correr('scripts/check-publishable.mjs', [f], RAIZ);
+    assert.equal(r.status, 1, r.stdout);
+    assert.match(r.stdout, /\[integridad\][^\n]*-wal/);
+  } finally {
+    d.close();
+  }
+  // Cerrada (el checkpoint pasa todo al fichero y el -wal desaparece), se puede publicar.
+  assert.equal(correr('scripts/check-publishable.mjs', [f], RAIZ).status, 0);
 });
