@@ -227,6 +227,63 @@ test('con features.anulaciones ilegible, un PATCH responde 409 y no pisa lo guar
   }
 });
 
+test('si SQLite rechaza guardar una anulación, el PATCH falla y ni lo guardado ni lo que aplica la app cambian (auditoría paralela del 3 de noviembre)', async () => {
+  const { getDb } = await import('../db.ts');
+  const { LEDGER_SCHEMA } = await import('../db/layout.ts');
+  setMeta(CLAVE_ANULACIONES, JSON.stringify({ 'estrategias.laboratorio': false, 'api.docs': false }));
+  reiniciarFeatures();
+  const app = await appConAuth();
+  const h = { authorization: basic() };
+  const db = getDb();
+  // Un rechazo de verdad de SQLite (como un disco lleno o una base de solo lectura), en la misma
+  // conexión que usa la app: un trigger temporal sobre los ajustes del libro mayor.
+  const rechazar = () => {
+    for (const ev of ['INSERT', 'UPDATE']) db.exec(`CREATE TEMP TRIGGER rechaza_${ev.toLowerCase()} BEFORE ${ev} ON ${LEDGER_SCHEMA}.settings WHEN NEW.key = '${CLAVE_ANULACIONES}' BEGIN SELECT RAISE(ABORT, 'escritura rechazada (prueba)'); END`);
+  };
+  const aceptar = () => db.exec('DROP TRIGGER IF EXISTS temp.rechaza_insert; DROP TRIGGER IF EXISTS temp.rechaza_update;');
+  const enMarcha = async () => (await app.inject({ method: 'GET', url: '/api/features', headers: h })).json().features as Record<string, { on: boolean; anulada: boolean }>;
+  try {
+    rechazar();
+    // Encender, rechazado.
+    const enc = await app.inject({ method: 'PATCH', url: '/api/features/estrategias.laboratorio', payload: { on: true }, headers: h });
+    assert.equal(enc.statusCode, 500, enc.body);
+    assert.doesNotMatch(enc.body, /escritura rechazada|SQLITE/, 'el detalle interno no sale en la respuesta');
+    assert.deepEqual(JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}'), { 'estrategias.laboratorio': false, 'api.docs': false }, 'guardado: igual');
+    assert.equal(featureEncendida('estrategias.laboratorio'), false, 'en marcha: sigue apagado');
+    assert.equal((await enMarcha())['estrategias.laboratorio'].on, false);
+    assert.equal(featureEncendida('api.docs'), false, 'la otra anulación, igual');
+    // Un PATCH de otro interruptor que sí se guarda no guarda de rebote el cambio rechazado (revisión
+    // security del 3 de noviembre: antes se volvía permanente sin que nadie lo pidiera).
+    aceptar();
+    assert.equal((await app.inject({ method: 'PATCH', url: '/api/features/api.docs', payload: { on: null }, headers: h })).statusCode, 200);
+    assert.deepEqual(JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}'), { 'estrategias.laboratorio': false }, 'el rechazado no se cuela');
+    // Con la escritura aceptada, cambian las dos cosas.
+    assert.equal((await app.inject({ method: 'PATCH', url: '/api/features/estrategias.laboratorio', payload: { on: true }, headers: h })).statusCode, 200);
+    assert.equal(JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}')['estrategias.laboratorio'], true);
+    assert.equal(featureEncendida('estrategias.laboratorio'), true);
+    // Apagar, rechazado.
+    rechazar();
+    const apa = await app.inject({ method: 'PATCH', url: '/api/features/estrategias.laboratorio', payload: { on: false }, headers: h });
+    assert.equal(apa.statusCode, 500, apa.body);
+    assert.equal(JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}')['estrategias.laboratorio'], true, 'guardado: sigue encendido');
+    assert.equal(featureEncendida('estrategias.laboratorio'), true, 'en marcha: sigue encendido');
+    assert.equal((await enMarcha())['estrategias.laboratorio'].on, true);
+    // Apagar Ajustes con la escritura rechazada no deja al dueño fuera de la API de Ajustes (antes:
+    // en marcha apagado, y el siguiente PATCH o PUT /api/ajustes daba 404 hasta reiniciar).
+    assert.equal((await app.inject({ method: 'PATCH', url: '/api/features/interfaz.ajustes', payload: { on: false }, headers: h })).statusCode, 500);
+    assert.equal(featureEncendida('interfaz.ajustes'), true);
+    aceptar();
+    assert.equal((await app.inject({ method: 'PATCH', url: '/api/features/interfaz.ajustes', payload: { on: null }, headers: h })).statusCode, 200, 'Ajustes sigue respondiendo');
+    // PUT, que sí mira el interruptor (GET no).
+    assert.equal((await app.inject({ method: 'PUT', url: '/api/ajustes', payload: { tema: 'oscuro' }, headers: h })).statusCode, 200);
+  } finally {
+    aceptar();
+    await app.close();
+    setMeta(CLAVE_ANULACIONES, '{}');
+    reiniciarFeatures();
+  }
+});
+
 test('un nombre heredado de Object.prototype no es un interruptor: 404 y nada guardado (revisión security del 3 de noviembre)', async () => {
   setMeta(CLAVE_ANULACIONES, '{}');
   reiniciarFeatures();

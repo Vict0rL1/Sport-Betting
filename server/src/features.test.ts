@@ -84,3 +84,38 @@ test('arreglado lo guardado a mano, fijar una anulación vuelve a funcionar sin 
   conLectorDeAnulaciones(() => null);
   reiniciarFeatures();
 });
+
+// Auditoría paralela del 3 de noviembre: fijarAnulacion publicaba el mapa nuevo en memoria ANTES de
+// guardarlo. Si la escritura fallaba, la llamada lanzaba pero la app aplicaba el cambio sin guardar
+// (guardado false, en marcha true).
+test('si guardar falla, nada cambia: ni lo guardado, ni lo que aplica la app, ni las demás anulaciones (al encender, al apagar y al quitar)', () => {
+  let guardado = JSON.stringify({ 'estrategias.laboratorio': false, 'api.docs': false });
+  reiniciarFeatures();
+  conLectorDeAnulaciones((k) => (k === CLAVE_ANULACIONES ? guardado : null));
+  const rechaza = () => {
+    throw new Error('SQLITE_FULL: escritura rechazada (simulada)');
+  };
+  const foto = () => ({ guardado, lab: featureEncendida('estrategias.laboratorio'), docs: featureEncendida('api.docs'), anuladas: Object.entries(estadoFeatures()).filter(([, f]) => f.anulada).map(([k]) => k).sort() });
+  try {
+    // Encender con la escritura rechazada.
+    const antes = foto();
+    assert.equal(antes.lab, false);
+    assert.throws(() => fijarAnulacion('estrategias.laboratorio', true, rechaza), /SQLITE_FULL/);
+    assert.deepEqual(foto(), antes, 'encender: guardado false y en marcha false');
+    // Quitar (null) con la escritura rechazada.
+    assert.throws(() => fijarAnulacion('api.docs', null, rechaza), /SQLITE_FULL/);
+    assert.deepEqual(foto(), antes, 'quitar: la anulación sigue');
+    // Con éxito, cambian las dos cosas.
+    const ok = fijarAnulacion('estrategias.laboratorio', true, (j) => (guardado = j));
+    assert.deepEqual(ok, { 'estrategias.laboratorio': true, 'api.docs': false });
+    assert.deepEqual(JSON.parse(guardado), { 'estrategias.laboratorio': true, 'api.docs': false });
+    assert.equal(featureEncendida('estrategias.laboratorio'), true);
+    // Apagar con la escritura rechazada.
+    const encendido = foto();
+    assert.throws(() => fijarAnulacion('estrategias.laboratorio', false, rechaza), /SQLITE_FULL/);
+    assert.deepEqual(foto(), encendido, 'apagar: guardado true y en marcha true');
+  } finally {
+    conLectorDeAnulaciones(() => null);
+    reiniciarFeatures();
+  }
+});

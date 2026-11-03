@@ -102,10 +102,13 @@ export function fijarAnulacion(nombre: string, on: boolean | null, guardar: (jso
   const a = { ...actuales };
   if (on == null) delete a[nombre];
   else a[nombre] = on;
+  // Primero se guarda y solo después lo aplica la app (auditoría paralela del 3 de noviembre): si
+  // la escritura falla, `guardar` lanza y la memoria se queda como lo guardado. Antes se publicaba
+  // el mapa nuevo antes de guardarlo, y un fallo dejaba la app aplicando un cambio sin guardar.
+  guardar(JSON.stringify(a));
   anulaciones = a;
   cargadasSinLector = false;
   lecturaFallida = false;
-  guardar(JSON.stringify(a));
   return a;
 }
 
