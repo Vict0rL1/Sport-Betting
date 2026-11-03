@@ -41,3 +41,46 @@ test('una lectura de anulaciones que falla no se queda para siempre: al abrir la
   reiniciarFeatures();
   conLectorDeAnulaciones(() => null);
 });
+
+// Revisión data-guardian del 3 de noviembre: con lo guardado ilegible, un PATCH reescribía el mapa
+// desde la memoria (vacía) y perdía las demás anulaciones; y un valor que no es un objeto (null, 5,
+// "x") hacía fallar cada consulta de un interruptor.
+test('anulaciones guardadas que no son un objeto: los interruptores siguen respondiendo, con config/features.json', () => {
+  for (const guardado of ['null', '5', '"x"', '[true]']) {
+    reiniciarFeatures();
+    conLectorDeAnulaciones((k) => (k === CLAVE_ANULACIONES ? guardado : null));
+    assert.doesNotThrow(() => featureEncendida('api.docs'), guardado);
+    assert.equal(featureEncendida('api.docs'), true, `${guardado}: manda el fichero`);
+    assert.equal(estadoFeatures()['api.docs'].anulada, false);
+  }
+  conLectorDeAnulaciones(() => null);
+  reiniciarFeatures();
+});
+
+test('con lo guardado ilegible, fijar o quitar una anulación no reescribe el mapa (se perderían las demás)', () => {
+  for (const guardado of ['{roto', 'null']) {
+    reiniciarFeatures();
+    conLectorDeAnulaciones((k) => (k === CLAVE_ANULACIONES ? guardado : null));
+    featureEncendida('api.docs');
+    let escrito: string | null = null;
+    assert.throws(() => fijarAnulacion('api.docs', false, (j) => (escrito = j)), /no se puede leer/);
+    assert.throws(() => fijarAnulacion('politica.versionada', null, (j) => (escrito = j)), /no se puede leer/);
+    assert.equal(escrito, null, `${guardado}: nada escrito`);
+  }
+  conLectorDeAnulaciones(() => null);
+  reiniciarFeatures();
+});
+
+test('arreglado lo guardado a mano, fijar una anulación vuelve a funcionar sin reiniciar (revisión data-guardian del 3 de noviembre)', () => {
+  let guardado = '{roto';
+  reiniciarFeatures();
+  conLectorDeAnulaciones((k) => (k === CLAVE_ANULACIONES ? guardado : null));
+  featureEncendida('api.docs');
+  assert.throws(() => fijarAnulacion('api.docs', false, () => undefined), /no se puede leer/);
+  guardado = JSON.stringify({ 'estrategias.laboratorio': false });
+  let escrito: string | null = null;
+  fijarAnulacion('api.docs', false, (j) => (escrito = j));
+  assert.deepEqual(JSON.parse(escrito ?? '{}'), { 'estrategias.laboratorio': false, 'api.docs': false }, 'con lo que ya había');
+  conLectorDeAnulaciones(() => null);
+  reiniciarFeatures();
+});

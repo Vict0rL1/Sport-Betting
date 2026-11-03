@@ -557,7 +557,12 @@ if (baseAbre) {
     }, { ultimoDia: null, ligas: 0 }),
     calendarioPendiente: uno(() => (db.prepare('SELECT COUNT(*) AS n FROM remaining_fixtures').get() as { n: number }).n, 0),
     fiabilidadBacktest: uno(() => Object.keys(leerDiagramasBacktest()).length, 0),
-    anulaciones: uno(() => Object.keys(JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}') as Record<string, boolean>), [] as string[]),
+    // null: lo guardado no es un objeto JSON (el doctor lo avisa; el servidor manda el fichero).
+    anulaciones: uno((): Record<string, boolean> | null => {
+      const v: unknown = JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}');
+      if (v === null || typeof v !== 'object' || Array.isArray(v)) return null;
+      return Object.fromEntries(Object.entries(v).filter((x): x is [string, boolean] => typeof x[1] === 'boolean'));
+    }, null),
     seguidos: uno(() => (db.prepare('SELECT COUNT(*) AS n FROM watchlist').get() as { n: number }).n, 0),
   };
   hallazgos.push(...comprobarAnalitica(estadoA, ahora));

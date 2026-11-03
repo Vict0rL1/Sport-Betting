@@ -18,8 +18,9 @@ const SRC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 test('un script que abre la base aplica los interruptores apagados desde Ajustes, como el servidor', () => {
   const db = getDb();
-  // Una política guardada que apaga el freno, y el dueño que apaga desde Ajustes la política
-  // versionada y el laboratorio. El servidor aplica entonces las constantes de fábrica (freno a 48 h).
+  // Una política guardada que apaga el freno, y el dueño que apaga desde Ajustes el laboratorio.
+  // Y una anulación de la política versionada guardada de antes: desde el 3 de noviembre es de
+  // arranque (decisión del dueño) y no cuenta, ni en el servidor ni en los scripts: manda la v1.
   const v1 = politicaPorDefecto();
   v1.abstencion.archivoAtrasadoHoras = 0;
   db.prepare("INSERT INTO policy_versions (created_at, parent_id, config, hash, nota, origen) VALUES ('2026-10-01T00:00:00.000Z', NULL, ?, 'v1', 'v1', 'seed')").run(JSON.stringify(v1));
@@ -49,7 +50,7 @@ test('un script que abre la base aplica los interruptores apagados desde Ajustes
   assert.equal(r.status, 0, r.stderr);
   const visto = JSON.parse(r.stdout.trim().split('\n').at(-1)!);
   assert.equal(visto.antes, true, 'sin abrir la base no hay de dónde leerlas: manda config/features.json');
-  assert.equal(visto.versionada, false, 'con la base abierta, la anulación de Ajustes');
-  assert.equal(visto.laboratorio, false);
-  assert.equal(visto.horas, 48, 'política sin versionar → constantes de fábrica, como el servidor');
+  assert.equal(visto.laboratorio, false, 'con la base abierta, la anulación de Ajustes');
+  assert.equal(visto.versionada, true, 'la de la política versionada no cuenta: es de arranque');
+  assert.equal(visto.horas, 0, 'la política guardada (v1, freno a 0), como el servidor');
 });

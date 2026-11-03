@@ -16,7 +16,8 @@ const { buildApp } = await import('../app.ts');
 const { configAuth } = await import('./mode.ts');
 const { LimiteDeIntentos } = await import('./rateLimit.ts');
 const { totp, base32Encode } = await import('./totp.ts');
-const { featureEncendida, reiniciarFeatures, estadoFeatures } = await import('../features.ts');
+const { featureEncendida, reiniciarFeatures, estadoFeatures, CLAVE_ANULACIONES } = await import('../features.ts');
+const { getMeta, setMeta } = await import('../db.ts');
 
 const PASSWORD = 'una-frase-larga-y-propia';
 const ENTORNO = { APP_AUTH: 'on', APP_PASSWORD: PASSWORD, NODE_ENV: 'test' } as NodeJS.ProcessEnv;
@@ -153,10 +154,12 @@ test('A3: con TOTP configurado, Basic Auth exige además el código en X-TOTP-Co
   await app.close();
 });
 
-test('A3: los interruptores auth.* y seguridad.* son de arranque: la API no los cambia y la base no los anula', async () => {
+test('A3: los interruptores auth.*, seguridad.* y politica.versionada son de arranque: la API no los cambia y la base no los anula', async () => {
   const app = await appConAuth();
   const h = { authorization: basic() };
-  for (const nombre of ['auth.totp', 'auth.sesiones', 'seguridad.cabeceras', 'seguridad.errorLog']) {
+  // politica.versionada también (decisión del dueño, 3 de noviembre): apagarla cambiaba la política
+  // guardada por las constantes de fábrica y dejaba las apuestas sin versión de política.
+  for (const nombre of ['auth.totp', 'auth.sesiones', 'seguridad.cabeceras', 'seguridad.errorLog', 'politica.versionada']) {
     const res = await app.inject({ method: 'PATCH', url: `/api/features/${nombre}`, payload: { on: false }, headers: h });
     assert.equal(res.statusCode, 403, `${nombre}: ${res.statusCode} ${res.body}`);
   }
@@ -167,16 +170,76 @@ test('A3: los interruptores auth.* y seguridad.* son de arranque: la API no los 
   assert.equal(f['auth.totp'].soloArranque, true);
   assert.equal(f['seguridad.cabeceras'].soloArranque, true);
   assert.equal(f['api.docs'].soloArranque, false);
+  assert.equal(f['politica.versionada'].soloArranque, true);
   await app.close();
 
   // Una anulación guardada en la base (de antes de este arreglo) para esos nombres se ignora.
-  reiniciarFeatures(undefined, { 'auth.totp': false, 'auth.sesiones': false, 'api.docs': false });
+  reiniciarFeatures(undefined, { 'auth.totp': false, 'auth.sesiones': false, 'api.docs': false, 'politica.versionada': false });
   try {
     assert.equal(featureEncendida('auth.totp'), true);
+    assert.equal(featureEncendida('politica.versionada'), true, 'una anulación guardada de antes no cambia la política');
     assert.equal(featureEncendida('auth.sesiones'), true);
     assert.equal(featureEncendida('api.docs'), false, 'las demás anulaciones siguen valiendo');
     assert.equal(estadoFeatures()['auth.totp'].anulada, false);
+    assert.equal(estadoFeatures()['politica.versionada'].anulada, false);
+    assert.equal(estadoFeatures()['politica.versionada'].on, true);
   } finally {
+    reiniciarFeatures();
+  }
+});
+
+test('A3: una anulación guardada de antes para un interruptor de arranque se puede quitar (on: null), y nada más (revisión security del 3 de noviembre)', async () => {
+  // Guardada por el código de antes: no cuenta, pero sin esto se quedaba para siempre en el libro mayor.
+  setMeta(CLAVE_ANULACIONES, JSON.stringify({ 'politica.versionada': false, 'api.docs': false }));
+  reiniciarFeatures();
+  const app = await appConAuth();
+  const h = { authorization: basic() };
+  try {
+    for (const on of [true, false]) {
+      const res = await app.inject({ method: 'PATCH', url: '/api/features/politica.versionada', payload: { on }, headers: h });
+      assert.equal(res.statusCode, 403, `on: ${on}`);
+    }
+    const quitar = await app.inject({ method: 'PATCH', url: '/api/features/politica.versionada', payload: { on: null }, headers: h });
+    assert.equal(quitar.statusCode, 200, quitar.body);
+    assert.equal(quitar.json().on, true);
+    assert.deepEqual(JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}'), { 'api.docs': false }, 'se va la de arranque; las demás se quedan');
+  } finally {
+    await app.close();
+    setMeta(CLAVE_ANULACIONES, '{}');
+    reiniciarFeatures();
+  }
+});
+
+test('con features.anulaciones ilegible, un PATCH responde 409 y no pisa lo guardado (revisión data-guardian del 3 de noviembre)', async () => {
+  setMeta(CLAVE_ANULACIONES, '{roto');
+  reiniciarFeatures();
+  const app = await appConAuth();
+  const h = { authorization: basic() };
+  try {
+    const res = await app.inject({ method: 'PATCH', url: '/api/features/api.docs', payload: { on: false }, headers: h });
+    assert.equal(res.statusCode, 409, res.body);
+    assert.match(res.json().error, /no se puede leer/);
+    assert.equal(getMeta(CLAVE_ANULACIONES), '{roto', 'lo guardado, intacto');
+  } finally {
+    await app.close();
+    setMeta(CLAVE_ANULACIONES, '{}');
+    reiniciarFeatures();
+  }
+});
+
+test('un nombre heredado de Object.prototype no es un interruptor: 404 y nada guardado (revisión security del 3 de noviembre)', async () => {
+  setMeta(CLAVE_ANULACIONES, '{}');
+  reiniciarFeatures();
+  const app = await appConAuth();
+  const h = { authorization: basic() };
+  try {
+    for (const nombre of ['constructor', 'toString', 'hasOwnProperty', '__proto__']) {
+      const res = await app.inject({ method: 'PATCH', url: `/api/features/${nombre}`, payload: { on: false }, headers: h });
+      assert.equal(res.statusCode, 404, `${nombre}: ${res.statusCode} ${res.body}`);
+    }
+    assert.deepEqual(JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}'), {}, 'ninguna clave basura en el libro mayor');
+  } finally {
+    await app.close();
     reiniciarFeatures();
   }
 });

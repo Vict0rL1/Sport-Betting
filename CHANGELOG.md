@@ -4,6 +4,35 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## La política versionada solo se cambia al arrancar (2026-11-03)
+
+Decisión del dueño (`docs/plans/auditoria-22-octubre.md`, «Decisión del dueño»). Apagar
+`politica.versionada` desde Ajustes cambiaba la política guardada por las constantes de fábrica,
+que pueden ser más laxas, y dejaba las apuestas sin versión de política.
+
+- **Ya no se cambia desde la API ni desde Ajustes.** `PATCH /api/features/politica.versionada`
+  responde 403, como `auth.*` y `seguridad.*`. Se cambia en `config/features.json` y al arrancar.
+- **Una anulación guardada de antes no cuenta**, ni en el servidor ni en los scripts. No se borra.
+- **`doctor` y `auditoria:copia` la dicen como ignorada**, no como si mandara. Se quita con
+  `{"on": null}`, lo único que la API acepta para un interruptor de arranque.
+- **Al desplegar:** si estaba apagada desde Ajustes, el banco vuelve a la versión de política
+  guardada, con sus topes y su freno. Las apuestas de antes no se reescriben. `npm run doctor` lo
+  avisa antes; después, quitar la anulación con `{"on": null}`: un código de antes la volvería a
+  aplicar.
+- **`auditoria:copia` cuenta lo colocado sin versión de política** (banco, estrategias, señales)
+  desde que podía llevarla; lo de antes, aparte y como DESCONOCIDO. En una copia de antes del
+  despliegue dice lo que aplicaba el servidor de entonces.
+- **Anulaciones guardadas ilegibles:** un PATCH ya no las pisa (409), los interruptores siguen
+  respondiendo con `config/features.json`, y el doctor lo avisa.
+- **E2E «K3», tolerante a medio píxel:** en CI la fila salió en 198 y 198,5 con el mismo commit en
+  una máquina, y en 198 en otra. El defecto que vigila empujaba 45 px, y lo sigue viendo.
+- **Un nombre heredado de `Object.prototype` ya no pasa por interruptor** (`constructor`,
+  `__proto__`): 404, sin guardar nada. Antes guardaba la clave y respondía 500.
+- **CI, en verde otra vez.** Fallaba desde el 29 de octubre con el mismo árbol que pasó el 27: la
+  Node 22 nueva trae un SQLite que escribe `1 − 0,58` exacto (0.42000000000000004) en
+  `json_array`. La prueba comparaba el texto de una versión de SQLite; ahora, con tolerancia. Y si
+  un test falla, CI imprime lo que falló al final del registro.
+
 ## Seguimiento de la auditoría del 22 de octubre · referencia, push, 1X2 e interruptores en los scripts (2026-10-29)
 
 Lo que dejaron las revisiones del 27 de octubre como pendiente (`docs/plans/auditoria-22-octubre.md`,

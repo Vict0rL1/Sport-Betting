@@ -132,7 +132,7 @@ function Interruptores() {
     setError(e ? t('aj.noAplico', { error: e }) : null);
     void cargar();
   };
-  // La puerta y las cabeceras de seguridad (auth.*, seguridad.*) solo cambian al arrancar: la API
+  // La puerta, las cabeceras de seguridad (auth.*, seguridad.*) y la política versionada solo cambian al arrancar: la API
   // las rechaza y aquí no hay interruptor que pulsar, solo se dice dónde están.
   const deArranque = Object.keys(f).filter((k) => f[k].soloArranque);
   return (

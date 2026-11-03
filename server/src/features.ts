@@ -31,9 +31,14 @@ export const CLAVE_ANULACIONES = 'features.anulaciones';
  * seguridad. Antes `PATCH /api/features/auth.totp {on:false}` apagaba el segundo factor desde
  * la propia API, y `auth.sesiones` en false dejaba el login en 404. Ahora la API los rechaza,
  * una anulación guardada para ellos se ignora, y Ajustes no los enseña.
+ *
+ * Y la política versionada (decisión del dueño, 3 de noviembre): apagarla desde Ajustes cambiaba
+ * la política guardada por las constantes de fábrica (otros topes y otro freno: unos más laxos,
+ * otros más estrictos) y dejaba las apuestas sin versión de política. Se cambia en
+ * config/features.json y al arrancar.
  */
 export function soloArranque(nombre: string): boolean {
-  return nombre.startsWith('auth.') || nombre.startsWith('seguridad.');
+  return nombre.startsWith('auth.') || nombre.startsWith('seguridad.') || nombre === 'politica.versionada';
 }
 let anulaciones: Record<string, boolean> | null = null;
 /** Las anulaciones en memoria se cargaron sin lector (vacías, porque no había de dónde leerlas). */
@@ -46,7 +51,11 @@ function cargarAnulaciones(): Record<string, boolean> {
   cargadasSinLector = !lector;
   lecturaFallida = false;
   try {
-    anulaciones = lector ? (JSON.parse(lector(CLAVE_ANULACIONES) ?? '{}') as Record<string, boolean>) : {};
+    const leido: unknown = lector ? JSON.parse(lector(CLAVE_ANULACIONES) ?? '{}') : {};
+    // Lo que no es un objeto (null, 5, "x", una lista) no son anulaciones: lectura fallida, y manda
+    // el fichero (revisión data-guardian del 3 de noviembre: antes, cada consulta lanzaba).
+    if (leido === null || typeof leido !== 'object' || Array.isArray(leido)) throw new Error('features.anulaciones no es un objeto');
+    anulaciones = leido as Record<string, boolean>;
   } catch {
     anulaciones = {};
     lecturaFallida = true;
@@ -77,10 +86,20 @@ export function lectorPorDefecto(f: (clave: string) => string | null): void {
   if (cargadasSinLector || lecturaFallida) anulaciones = null;
 }
 
-/** Fija (o quita, con null) la anulación de un interruptor. Devuelve el estado resultante. */
+/**
+ * Fija (o quita, con null) la anulación de un interruptor. Devuelve el estado resultante. Uno de
+ * arranque no se fija nunca, pero una anulación suya guardada de antes sí se puede quitar: no cuenta,
+ * y sin esto se quedaba para siempre en el libro mayor (revisión security del 3 de noviembre).
+ */
 export function fijarAnulacion(nombre: string, on: boolean | null, guardar: (json: string) => void): Record<string, boolean> {
-  if (soloArranque(nombre)) throw new Error(`${nombre} solo se cambia al arrancar (config/features.json)`);
-  const a = { ...cargarAnulaciones() };
+  if (soloArranque(nombre) && on != null) throw new Error(`${nombre} solo se cambia al arrancar (config/features.json)`);
+  // Si la última lectura falló, se vuelve a leer: arreglado a mano, funciona sin reiniciar.
+  if (lecturaFallida) anulaciones = null;
+  const actuales = cargarAnulaciones();
+  // Con lo guardado ilegible, lo que hay en memoria está vacío: escribirlo borraría las demás
+  // anulaciones (revisión data-guardian del 3 de noviembre). Se arregla a mano, no se pisa.
+  if (lecturaFallida) throw new Error(`${CLAVE_ANULACIONES} no se puede leer: no se reescribe; revísalo con npm run doctor`);
+  const a = { ...actuales };
   if (on == null) delete a[nombre];
   else a[nombre] = on;
   anulaciones = a;
@@ -134,7 +153,7 @@ export interface EstadoFeature {
   descripcion: string;
   falta: string | null;
   anulada: boolean;
-  /** Solo cambia al arrancar (auth.*, seguridad.*): la API lo rechaza y Ajustes no lo enseña. */
+  /** Solo cambia al arrancar (auth.*, seguridad.*, politica.versionada): la API lo rechaza y Ajustes no lo enseña. */
   soloArranque: boolean;
 }
 

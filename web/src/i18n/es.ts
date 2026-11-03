@@ -1803,7 +1803,7 @@ export const es = {
   'aj.encendido': 'encendido',
   'aj.apagado': 'apagado',
   'aj.quitar': 'quitar',
-  'aj.deArranque': 'La puerta y las cabeceras de seguridad ({lista}) solo se cambian al arrancar, en config/features.json.',
+  'aj.deArranque': 'La puerta, las cabeceras de seguridad y la política versionada ({lista}) solo se cambian al arrancar, en config/features.json.',
   'aj.apagadoParen': '(apagado)',
   'aj.cada': 'cada',
   'aj.cadenciaDe': 'Cadencia de {nombre} en minutos',

@@ -40,3 +40,23 @@ test('append-only: ni UPDATE ni DELETE en policy_versions', () => {
   assert.throws(() => db.exec('UPDATE policy_versions SET nota = \'x\' WHERE id = 1'), /no se reescribe/);
   assert.throws(() => db.exec('DELETE FROM policy_versions WHERE id = 2'), /no se borra/);
 });
+
+// Revisión quant del 3 de noviembre: desde que politica.versionada es de arranque, la única forma de
+// apagarla es config/features.json; esta rama se probaba antes con una anulación de Ajustes, que ya
+// no cuenta. Con el interruptor apagado en el fichero: las constantes de fábrica y ninguna versión.
+test('con politica.versionada apagada en config/features.json: constantes de fábrica y sin versión, aunque haya una guardada más estricta', async () => {
+  const { leerFeatures, reiniciarFeatures } = await import('../features.ts');
+  nuevaVersion({ staking: { maxPerEvent: 0.004 } }, 'más estricta', 'cli', new Date('2026-11-03T00:00:00.000Z'));
+  assert.equal(politica().staking.maxPerEvent, 0.004, 'encendida: la guardada');
+  assert.notEqual(idPoliticaVigente(), null);
+  const fichero = leerFeatures();
+  reiniciarFeatures({ ...fichero, 'politica.versionada': { ...fichero['politica.versionada'], on: false } });
+  try {
+    assert.deepEqual(politica(), politicaPorDefecto());
+    assert.equal(politica().staking.maxPerEvent, DEFAULT_CONFIG.maxPerEvent);
+    assert.equal(idPoliticaVigente(), null);
+  } finally {
+    reiniciarFeatures();
+  }
+  assert.equal(politica().staking.maxPerEvent, 0.004, 'y al volver a encenderla, otra vez la guardada');
+});

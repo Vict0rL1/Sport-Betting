@@ -216,13 +216,92 @@ Queda, de antes y fuera de esto:
 - algunos textos que genera el servidor (la frase de la predicción del tenis, las franjas del
   archivo) siguen en español con la interfaz en inglés.
 
-**Para el dueño (no se ha tocado):** apagar `politica.versionada` en Ajustes no solo «deja de
-versionar». Sustituye la política guardada por las constantes de fábrica, que pueden ser más
-laxas: con una v1 de tope por evento 0,005 y diario 0,02, apagado da 0,02 y 0,06. Además, las
-apuestas quedan con `policy_version_id` NULL. Esto ya pasaba en el servidor; ahora `npm run paper`
-hace lo mismo. Opciones:
+**Para el dueño:** apagar `politica.versionada` en Ajustes no solo «deja de versionar».
+Sustituye la política guardada por las constantes de fábrica, que pueden ser más laxas: con una
+v1 de tope por evento 0,005 y diario 0,02, apagado da 0,02 y 0,06. Además, las apuestas quedan con
+`policy_version_id` NULL. Esto ya pasaba en el servidor; ahora `npm run paper` hace lo mismo.
+Opciones:
 - que el interruptor solo se cambie al arrancar, como `auth.*`;
 - o que, apagado, se guarde la versión de fábrica y ningún tope pase del de la versión guardada.
+
+## Decisión del dueño (3 de noviembre): la política versionada, de arranque
+
+El dueño eligió la primera opción. `politica.versionada` solo se cambia en `config/features.json`
+y al arrancar, como la puerta y las cabeceras de seguridad:
+- `PATCH /api/features/politica.versionada` responde 403, y Ajustes ya no lo enseña como
+  interruptor: lo nombra en la frase de los que solo cambian al arrancar.
+- Una anulación guardada de antes (`{"politica.versionada": false}` en `features.anulaciones`) no
+  cuenta, ni en el servidor ni en los scripts (`npm run paper`, `doctor`, `jobs`). No se borra: el
+  libro mayor la guarda tal cual.
+- `npm run doctor` la dice como «anulación guardada que no cuenta», no como si mandara.
+- `npm run auditoria:copia` la dice igual: `interruptorAnulado` null (manda
+  `config/features.json`), `anulacionIgnorada` con el valor guardado, y una frase en la lectura del
+  freno.
+
+Lo que cambia al desplegar: si en producción estaba apagada desde Ajustes, al arrancar el banco
+pasa de las constantes de fábrica a la versión de política guardada (con sus topes y su freno), y
+las apuestas nuevas vuelven a llevar `policy_version_id`. Las apuestas ya colocadas con la política
+de fábrica y `policy_version_id` NULL se quedan como están: no se reescriben, y NULL sigue queriendo
+decir «constantes de fábrica». Las constantes de fábrica no son más laxas en todo: el freno por
+fuente atrasada de fábrica (48 h) puede ser más estricto que el de la versión guardada.
+
+Pasos al desplegar:
+1. Antes, `npm run doctor` contra la base de producción: si sale «Anulación guardada que no
+   cuenta: politica.versionada = false», el banco va a cambiar de régimen al arrancar.
+2. Después, quitar esa anulación con `PATCH /api/features/politica.versionada` y `{"on": null}`.
+   Si no se quita y se vuelve a un código de antes, ese código la vuelve a aplicar.
+
+Revisión quant-reviewer (3 de noviembre): todo lo que coloca o dimensiona una apuesta (banco,
+estrategias, confianza, sugerencias, `auditoria:copia`, doctor) lee la misma política que el
+servidor, y el libro mayor es coherente a través del cambio. Arreglado, con su prueba:
+- el doctor dice la anulación ignorada como aviso, con su valor, lo que manda, en plural si son
+  varias, y cómo quitarla;
+- `auditoria:copia`, en una copia de antes del despliegue, dice lo que aplicaba el servidor de
+  entonces y cuenta lo colocado sin versión de política (`sinVersion`: banco, estrategias y
+  señales, con la última fecha);
+- la rama «interruptor apagado» de la política vuelve a tener prueba (`policyStore.test.ts`,
+  apagándolo en `config/features.json`): antes solo se probaba a través de la anulación.
+
+Revisión data-guardian (3 de noviembre): lo nuevo de `auditoria:copia` solo lee (la copia sigue
+idéntica byte a byte). Arreglado, con su prueba que falla antes:
+- `sinVersion` contaba como «constantes de fábrica» toda fila con `policy_version_id` NULL. NULL solo
+  dice eso desde que la fila podía llevar versión: la primera versión de política de la copia y, en
+  `strategy_bets`, la migración 21 que añadió la columna. Lo de antes se cuenta aparte, como
+  DESCONOCIDO. En las estrategias, NULL es «freno y confianza de fábrica»: su importe sale de la
+  configuración congelada de cada una. Las señales son «evaluadas», no «colocadas».
+- La frase de la copia de antes del despliegue ya no dice «freno a 48 h»: en las copias de antes
+  del freno no lo había.
+- Con `features.anulaciones` ilegible, un PATCH reescribía el mapa desde la memoria, vacía, y
+  perdía las demás anulaciones: ahora responde 409 y no escribe, y en cuanto se arregla a mano vuelve
+  a funcionar sin reiniciar. Un valor que no es un objeto
+  (`null`, `5`, `"x"`) hacía fallar cada consulta de un interruptor: ahora cuenta como ilegible
+  (manda el fichero), y el doctor lo avisa en vez de decir «ninguna».
+
+De antes de este cambio, y fuera de él (encontrado por la revisión quant; tarea aparte): el panel
+de Cartera (`/api/staking/book`), `npm run staking` y los `limites` de `/api/risk` usan los topes de
+fábrica aunque la política versionada diga otros; `verify:data` mira el tope por evento de fábrica
+y no el de la versión con la que se colocó cada apuesta; la fila «Banco principal (política
+vigente)» del laboratorio suma apuestas de los dos regímenes; las estrategias sin `grupos`
+congelados toman los topes de la política viva; y la caché de la política es por proceso (una
+versión nueva desde la CLI no la ve el servidor hasta reiniciar).
+
+Revisión security-reviewer (3 de noviembre): nada salta el 403 (codificaciones, mayúsculas,
+`PUT /api/ajustes`, restauraciones: todo lo que lee el interruptor pasa por `featureEncendida`, que
+ignora la anulación). Arreglado, con su prueba que falla antes:
+- una anulación guardada de antes no se podía quitar por ningún camino: ahora `{"on": null}` la
+  quita (solo devuelve el mando a `config/features.json`); `true` y `false` siguen en 403, y el
+  doctor dice cómo quitarla;
+- de antes, no de este cambio: `PATCH /api/features/constructor` (o `toString`, `__proto__`)
+  pasaba por interruptor con `in`, guardaba la clave y respondía 500. Ahora `Object.hasOwn`: 404 y
+  nada guardado.
+
+Pruebas que fallaban antes del cambio: `auth/puerta.test.ts` (el 403, la anulación guardada
+ignorada, quitarla con `null` y los nombres heredados) y `doctor/checks.test.ts` (no decir «mandan
+sobre»). Y de punta a punta, `web/e2e/producto.spec.ts`: la API responde 403 y Ajustes no tiene
+interruptor para la política. Se actualizan, porque decían el
+comportamiento de antes, `scripts/anulaciones.test.ts` (un script ve la v1 aunque haya una
+anulación guardada) y `scripts/auditoriaFreno.test.ts` (la auditoría aplica la v3 y dice que la
+anulación no cuenta).
 
 ## Límites y lo que no se arregla aquí
 

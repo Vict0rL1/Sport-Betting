@@ -1803,7 +1803,7 @@ export const en: Partial<Record<Clave, string>> = {
   'aj.encendido': 'on',
   'aj.apagado': 'off',
   'aj.quitar': 'remove',
-  'aj.deArranque': 'The login gate and the security headers ({lista}) only change at startup, in config/features.json.',
+  'aj.deArranque': 'The login gate, the security headers and the versioned policy ({lista}) only change at startup, in config/features.json.',
   'aj.apagadoParen': '(off)',
   'aj.cada': 'every',
   'aj.cadenciaDe': 'Cadence of {nombre} in minutes',

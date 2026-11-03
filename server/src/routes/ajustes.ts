@@ -77,12 +77,19 @@ export async function registerAjustesRoutes(app: FastifyInstance): Promise<void>
 
   app.patch<{ Params: { nombre: string }; Body: { on?: boolean | null } }>(
     '/api/features/:nombre',
-    { schema: { tags: ['interfaz'], summary: 'Anular un interruptor desde Ajustes (on: true/false; null quita la anulación). Los de arranque (auth.*, seguridad.*) se rechazan con 403', body: { type: 'object', properties: { on: { type: ['boolean', 'null'] } }, required: ['on'] }, response: { 200: ESQUEMA_FEATURE, 403: ESQUEMA_ERROR, 404: ESQUEMA_ERROR } } },
+    { schema: { tags: ['interfaz'], summary: 'Anular un interruptor desde Ajustes (on: true/false; null quita la anulación). En los de arranque (auth.*, seguridad.*, politica.versionada), true/false se rechazan con 403 y null solo quita una anulación guardada de antes', body: { type: 'object', properties: { on: { type: ['boolean', 'null'] } }, required: ['on'] }, response: { 200: ESQUEMA_FEATURE, 403: ESQUEMA_ERROR, 404: ESQUEMA_ERROR, 409: ESQUEMA_ERROR } } },
     async (req, reply) => {
       if (!featureEncendida('interfaz.ajustes')) return reply.code(404).send({ error: 'apagado (features.json: interfaz.ajustes)' });
-      if (!(req.params.nombre in leerFeatures())) return reply.code(404).send({ error: 'interruptor desconocido' });
-      if (soloArranque(req.params.nombre)) return reply.code(403).send({ error: `${req.params.nombre} solo se cambia al arrancar (config/features.json): la puerta y las cabeceras de seguridad no se apagan desde la API` });
-      fijarAnulacion(req.params.nombre, req.body.on ?? null, (json) => setMeta(CLAVE_ANULACIONES, json));
+      // Object.hasOwn: con `in`, «constructor» o «__proto__» pasaban por interruptores y se guardaban.
+      if (!Object.hasOwn(leerFeatures(), req.params.nombre)) return reply.code(404).send({ error: 'interruptor desconocido' });
+      if (soloArranque(req.params.nombre) && req.body.on != null) return reply.code(403).send({ error: `${req.params.nombre} solo se cambia al arrancar (config/features.json): la puerta, las cabeceras de seguridad y la política versionada no se cambian desde la API` });
+      try {
+        fijarAnulacion(req.params.nombre, req.body.on ?? null, (json) => setMeta(CLAVE_ANULACIONES, json));
+      } catch (e) {
+        // Lo guardado no se puede leer: no se reescribe (se perderían las demás anulaciones).
+        if (/no se puede leer/.test((e as Error).message)) return reply.code(409).send({ error: (e as Error).message });
+        throw e;
+      }
       return estadoFeatures()[req.params.nombre];
     },
   );

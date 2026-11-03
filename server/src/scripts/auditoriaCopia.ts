@@ -75,9 +75,11 @@ const { prepartidoSql } = await import('../prematch/tiempo.ts');
 const { vencidas, FUENTES, olvidarArchivoAtrasado, motivoArchivoAtrasado, MIN_DIAS_PRUEBA, VENTANA_PRUEBA_DIAS } = await import('../monitoring/vencidas.ts');
 const { politica, idPoliticaVigente, politicaPorDefecto } = await import('../staking/policyStore.ts');
 const { horasArchivoAtrasado } = await import('../trust/decision.ts');
-const { featureEncendida, conLectorDeAnulaciones, CLAVE_ANULACIONES } = await import('../features.ts');
+const { featureEncendida, conLectorDeAnulaciones, soloArranque, CLAVE_ANULACIONES } = await import('../features.ts');
 const { liquidador } = await import('../paper/bankroll.ts');
 const { leerTml } = await import('../ingest/tmlLectura.ts');
+const { LEDGER_SCHEMA } = await import('../db/layout.ts');
+const { versionesAplicadas } = await import('../db/migrations.ts');
 const db = getDb();
 // Las anulaciones de Ajustes (`features.anulaciones`, en la copia) cuentan como en el servidor,
 // que las instala al arrancar (app.ts): sin esto, la política versionada apagada desde Ajustes se
@@ -143,8 +145,8 @@ olvidarArchivoAtrasado();
 // tiene ninguna versión, `politica()` siembra la de fábrica en la copia de trabajo, como haría la app
 // al arrancar, y el informe lo dice. La copia original no se toca.
 const versionesGuardadas = Number(una('SELECT COUNT(*) AS n FROM policy_versions')?.n ?? 0);
-/** El valor de la anulación de Ajustes, si la hay; null si manda config/features.json. */
-const interruptorAnulado = ((): boolean | null => {
+/** El valor guardado desde Ajustes para la política versionada, si lo hay; null si no hay ninguno. */
+const anulacionGuardada = ((): boolean | null => {
   try {
     const v = (JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}') as Record<string, unknown>)['politica.versionada'];
     return typeof v === 'boolean' ? v : null;
@@ -152,6 +154,53 @@ const interruptorAnulado = ((): boolean | null => {
     return null;
   }
 })();
+// Desde el 3 de noviembre la política versionada es de arranque (decisión del dueño): una anulación
+// guardada de antes no cuenta, ni aquí ni en el servidor. Se dice que está, sin aplicarla.
+const deArranque = soloArranque('politica.versionada');
+/** El valor de la anulación de Ajustes que manda; null si manda config/features.json (siempre, mientras sea de arranque). */
+const interruptorAnulado = deArranque ? null : anulacionGuardada;
+/** La anulación guardada que no cuenta (el interruptor es de arranque); null si no hay ninguna. */
+const anulacionIgnorada = deArranque ? anulacionGuardada : null;
+/**
+ * Filas sin versión de política (policy_version_id NULL). NULL solo dice «constantes de fábrica»
+ * desde que una fila PODÍA llevar versión: la primera versión guardada en la copia y, en
+ * strategy_bets, la migración 21 que añadió la columna. Lo de antes va aparte, como DESCONOCIDO
+ * (revisión data-guardian del 3 de noviembre). Se cuenta antes de `politica()`, que en una copia
+ * sin versiones siembra la de fábrica en la copia de trabajo. null: no se pudo leer.
+ */
+type SinVersion = { desde: string | null; n: number; ultima: string | null; anteriores: number };
+const primeraVersion = versionesGuardadas > 0 ? ((una('SELECT MIN(created_at) AS t FROM policy_versions')?.t as string | null) ?? null) : null;
+const columnaEstrategias = (() => {
+  try {
+    const v = versionesAplicadas(db, LEDGER_SCHEMA).filter((x) => x.version === 21 && x.estado === 'ok');
+    return v.length ? v[0].applied_at : null;
+  } catch {
+    return null;
+  }
+})();
+const masTarde = (a: string | null, b: string | null) => (a === null || b === null ? null : Date.parse(a) >= Date.parse(b) ? a : b);
+const sinVersion = Object.fromEntries(
+  (
+    [
+      ['paper_bets', 'placed_at', primeraVersion],
+      ['strategy_bets', 'placed_at', masTarde(primeraVersion, columnaEstrategias)],
+      ['edge_signals', 'created_at', primeraVersion],
+    ] as const
+  ).map(([tabla, cuando, desde]): [string, SinVersion | null] => {
+    try {
+      const r = una(
+        `SELECT SUM(CASE WHEN ? IS NOT NULL AND julianday(${cuando}) >= julianday(?) THEN 1 ELSE 0 END) AS n,
+                MAX(CASE WHEN ? IS NOT NULL AND julianday(${cuando}) >= julianday(?) THEN ${cuando} END) AS ultima,
+                SUM(CASE WHEN ? IS NOT NULL AND julianday(${cuando}) >= julianday(?) THEN 0 ELSE 1 END) AS anteriores
+           FROM ${tabla} WHERE policy_version_id IS NULL`,
+        desde, desde, desde, desde, desde, desde,
+      );
+      return [tabla, { desde, n: Number(r?.n ?? 0), ultima: (r?.ultima as string | null) ?? null, anteriores: Number(r?.anteriores ?? 0) }];
+    } catch {
+      return [tabla, null];
+    }
+  }),
+) as Record<'paper_bets' | 'strategy_bets' | 'edge_signals', SinVersion | null>;
 const interruptorVersionada = featureEncendida('politica.versionada');
 const politicaAplicada = politica();
 const versionPolitica = idPoliticaVigente();
@@ -183,6 +232,10 @@ const frenoFuenteAtrasada = {
     interruptorVersionada,
     /** El valor puesto desde Ajustes (features.anulaciones), o null si manda config/features.json. */
     interruptorAnulado,
+    /** Una anulación guardada que no cuenta porque el interruptor es de arranque; null si no hay. */
+    anulacionIgnorada,
+    /** Filas colocadas sin versión de política (con las constantes de fábrica), por tabla. */
+    sinVersion,
     /** null: interruptor apagado, o la versión guardada no se puede leer; en los dos casos, las constantes de fábrica. */
     version: versionPolitica,
     versionesGuardadas,
@@ -206,15 +259,18 @@ const frenoFuenteAtrasada = {
   },
   /** Fuente atrasada, pero con pruebas de menos de MIN_DIAS_PRUEBA días distintos: no frena. */
   sinPruebaSuficiente: candidatasFreno.filter((c) => c.motivo === null),
-  lectura: !interruptorVersionada
-    ? `Política sin versionar (interruptor politica.versionada apagado${interruptorAnulado === false ? ' desde Ajustes' : ''}): se aplican las constantes de fábrica, con el freno a ${horasFreno} h.`
-    : politicaIlegible
-      ? `No se puede leer la política guardada: como en el servidor, se aplican las constantes de fábrica, con el freno a ${horasFreno} h.`
-      : frenoActivo
-        ? `Freno encendido: la política v${versionPolitica} pone abstencion.archivoAtrasadoHoras = ${horasFreno} h.`
-        : claveGuardada === null
-          ? `Freno apagado: la política vigente (v${versionPolitica}) es anterior a abstencion.archivoAtrasadoHoras y no la tiene, así que no frena (trust/decision.ts da 0). Empezará con la primera versión que la diga.`
-          : `Freno apagado: la política vigente (v${versionPolitica}) pone abstencion.archivoAtrasadoHoras = 0.`,
+  lectura:
+    (!interruptorVersionada
+      ? `Política sin versionar (interruptor politica.versionada apagado${interruptorAnulado === false ? ' desde Ajustes' : ''}): se aplican las constantes de fábrica, con el freno a ${horasFreno} h.`
+      : politicaIlegible
+        ? `No se puede leer la política guardada: como en el servidor, se aplican las constantes de fábrica, con el freno a ${horasFreno} h.`
+        : frenoActivo
+          ? `Freno encendido: la política v${versionPolitica} pone abstencion.archivoAtrasadoHoras = ${horasFreno} h.`
+          : claveGuardada === null
+            ? `Freno apagado: la política vigente (v${versionPolitica}) es anterior a abstencion.archivoAtrasadoHoras y no la tiene, así que no frena (trust/decision.ts da 0). Empezará con la primera versión que la diga.`
+            : `Freno apagado: la política vigente (v${versionPolitica}) pone abstencion.archivoAtrasadoHoras = 0.`) +
+    (anulacionIgnorada === null ? '' : ` Hay una anulación guardada desde Ajustes (politica.versionada = ${anulacionIgnorada}) que no cuenta: el interruptor solo se cambia al arrancar, en config/features.json.`) +
+    (anulacionIgnorada === false ? ' Un servidor de antes del 3 de noviembre sí la aplicaba: las constantes de fábrica del código de entonces, no la versión guardada.' : ''),
 };
 const apuestasVencidas = todas(
   `SELECT 'papel' AS banco, id, sport, match_key, label, selection, commence_time, placed_at, stake, odds FROM paper_bets
@@ -381,6 +437,17 @@ const md = [
   ...venc.competiciones.map((c) => `  - ${c.sport} · ${c.competicion}: ${c.vencidas} (fuente atrasada ${c.fuenteAtrasada}, sin emparejar ${c.sinEmparejar}, sin hora ${c.sinHora}); último resultado de la fuente ${c.ultimoResultado ?? '—'}`),
   ...apuestasVencidas.map((a) => `  - apuesta ${a.banco} #${a.id} ${a.sport} ${a.match_key} «${a.selection}» (inicio ${a.commence_time}): sigue pendiente`),
   `- Freno por fuente atrasada: ${frenoFuenteAtrasada.lectura}${frenoFuenteAtrasada.politica.sembradaEnLaCopiaDeTrabajo ? ' La copia no tenía ninguna versión de política: la de fábrica se sembró en la copia de trabajo, como haría la app al arrancar.' : ''}`,
+  ...(() => {
+    // Desde que podían llevar versión, NULL es «constantes de fábrica»; antes, DESCONOCIDO.
+    const p = (r: SinVersion | null, singular: string, plural: string, que: string) =>
+      r === null ? `${plural}: DESCONOCIDO (no se pudo leer)` : r.n === 0 && r.anteriores === 0 ? null : `${r.n} ${r.n === 1 ? singular : plural}${r.n ? ` (la última, ${r.ultima})` : ''} ${que}${r.anteriores ? `, y ${r.anteriores} ${r.anteriores === 1 ? 'anterior' : 'anteriores'} a que pudieran llevarla (DESCONOCIDO con qué política)` : ''}`;
+    const partes = [
+      p(sinVersion.paper_bets, 'apuesta del banco', 'apuestas del banco', 'con las constantes de fábrica'),
+      p(sinVersion.strategy_bets, 'apuesta de estrategias', 'apuestas de estrategias', 'con freno y confianza de fábrica (el importe sale de la configuración congelada de cada estrategia)'),
+      p(sinVersion.edge_signals, 'señal evaluada', 'señales evaluadas', 'con las constantes de fábrica'),
+    ].filter((x): x is string => x !== null);
+    return partes.length ? [`- Sin versión de política: ${partes.join('; ')}.`] : [];
+  })(),
   frenoActivo
     ? `- Restricciones activas (${horasFreno} h): ${frenoFuenteAtrasada.restricciones.map((c) => `${c.sport}·${c.competicion}`).join(', ') || 'ninguna'}`
     : '- Restricciones activas: ninguna (el freno está apagado)',
