@@ -355,6 +355,8 @@ export const MIGRACIONES: Migracion[] = [
       const hayMeta = (d.prepare("SELECT COUNT(*) AS n FROM main.sqlite_master WHERE type = 'table' AND name = 'meta'").get() as { n: number }).n;
       if (!hayMeta) return;
       const ahora = new Date().toISOString();
+      // Lista fija, como toda migración: CLAVES_RECUPERABLES (db/tables.ts) tiene que decir lo mismo, y una
+      // clave nueva pide una migración nueva (anulacionesLedger.test.ts lo comprueba).
       for (const clave of ['features.anulaciones', 'ajustes.usuario']) {
         d.prepare(`INSERT OR IGNORE INTO ${settings} (key, value, updated_at) SELECT key, value, ? FROM main.meta WHERE key = ?`).run(ahora, clave);
       }

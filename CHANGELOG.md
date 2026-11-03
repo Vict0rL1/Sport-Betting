@@ -4,6 +4,31 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Auditoría paralela del 3 de noviembre · ajustes privados y guardado de interruptores (2026-11-03)
+
+Dos hallazgos verificados sobre `05a8e12` (`docs/plans/auditoria-paralela-3-noviembre.md`). Cada uno,
+con su prueba que falla antes.
+
+- **Los ajustes privados del dueño ya no salen ni entran con la historia.** La migración 27 deja en
+  `main.meta` una copia de `ajustes.usuario` (el banco personal) y `features.anulaciones` para
+  recuperarlas, y esa copia viajaba en la exportación.
+  - `db:export-history` quita de la copia exportada toda clave de meta del libro mayor
+    (`claveEsLedger`, nombres y prefijos), sin dejar sus bytes. La base original no cambia.
+  - `check-publishable` rechaza esas claves, no solo las tablas, sin enseñar los valores.
+  - `check-publishable` también mira los bytes del fichero: una fila borrada sin `VACUUM` sigue dentro.
+  - `fetch-data` descarta esas claves de toda descarga, y conserva las locales: antes mandaban las
+    descargadas. Solo pasa las dos que recoge la migración 27. Corre con `tsx`, como
+    `check-publishable`.
+  - `fetch-data` no instala una descarga que traiga tablas (o vistas) del libro mayor: en la historia
+    tapaban las del libro mayor adjunto.
+  - `fetch-data` no reemplaza ni aparta una historia local con filas en tablas del libro mayor: antes
+    se quedaban, sin aviso, solo en la copia con fecha.
+  - `db:export-history` no exporta encima de la base viva, del libro mayor ni de una base con sus
+    tablas: antes `-- data/ledger.db` reemplazaba el libro mayor. Si falla a medias, no deja
+    temporales.
+- **Un interruptor que no se pudo guardar ya no se aplica.** Antes, si SQLite rechazaba la escritura,
+  la app aplicaba el cambio sin guardar. Ahora se guarda primero y solo después se aplica.
+
 ## La política versionada solo se cambia al arrancar (2026-11-03)
 
 Decisión del dueño (`docs/plans/auditoria-22-octubre.md`, «Decisión del dueño»). Apagar

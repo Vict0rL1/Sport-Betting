@@ -76,7 +76,16 @@ export const CLAVES_LEDGER: readonly string[] = [
   'features.anulaciones',
   'ajustes.usuario',
 ];
-const PREFIJOS_LEDGER = ['backup:', 'retention:', 'policy:', 'scheduler:', 'telegram:'];
+export const PREFIJOS_LEDGER: readonly string[] = ['backup:', 'retention:', 'policy:', 'scheduler:', 'telegram:'];
+
+/**
+ * Las claves del dueño que la migración 27 recoge de `main.meta` (y que su copia en la historia
+ * recupera si se restaura un libro mayor de antes). `fetch-data` conserva solo estas de la historia
+ * local: el resto del estado del libro mayor no tiene quién lo lea en la historia. La migración lleva
+ * su propia lista fija; añadir una clave aquí no la importa en los libros mayores que ya pasaron la 27:
+ * hace falta una migración nueva.
+ */
+export const CLAVES_RECUPERABLES: readonly string[] = ['features.anulaciones', 'ajustes.usuario'];
 
 export function claveEsLedger(clave: string): boolean {
   return CLAVES_LEDGER.includes(clave) || PREFIJOS_LEDGER.some((p) => clave.startsWith(p));

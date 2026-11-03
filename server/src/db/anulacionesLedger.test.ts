@@ -52,3 +52,15 @@ test('la migración lleva al libro mayor lo que ya estaba en meta, no pisa lo qu
   m!.up(db, ctx);
   assert.deepEqual(JSON.parse(getMeta(CLAVE_ANULACIONES) ?? '{}'), { 'politica.versionada': false }, 'y vuelve');
 });
+
+test('la migración 27 importa exactamente CLAVES_RECUPERABLES, y nada más del libro mayor (las dos listas no se separan)', async () => {
+  const { CLAVES_RECUPERABLES, CLAVES_LEDGER } = await import('./tables.ts');
+  const m = MIGRACIONES.find((x) => x.nombre === 'ajustes-al-ledger')!;
+  const todas = [...new Set([...CLAVES_LEDGER, 'backup:last_file', 'telegram:offset'])];
+  db.exec(`DELETE FROM ${settings} WHERE key IN (${todas.map((k) => `'${k}'`).join(', ')})`);
+  const ins = db.prepare('INSERT OR REPLACE INTO main.meta (key, value) VALUES (?, ?)');
+  for (const k of todas) ins.run(k, `"${k}"`);
+  m.up(db, { ledger: LEDGER_SCHEMA, fichero: 'ledger' as const });
+  const importadas = todas.filter((k) => enLedger(k)).sort();
+  assert.deepEqual(importadas, [...CLAVES_RECUPERABLES].sort());
+});

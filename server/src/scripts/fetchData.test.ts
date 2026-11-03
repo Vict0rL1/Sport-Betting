@@ -23,7 +23,8 @@ const { hayHistoria } = (await import(path.join(ROOT, 'scripts', 'datos-estado.m
  */
 function correFetchData(env: NodeJS.ProcessEnv, args: string[] = []): Promise<{ status: number | null; stdout: string; stderr: string }> {
   return new Promise((ok, mal) => {
-    const h = spawn(process.execPath, [path.join(ROOT, 'scripts', 'fetch-data.mjs'), ...args], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
+    // Con tsx, como `npm run fetch-data`: importa la clasificación de claves del servidor (tables.ts).
+    const h = spawn(process.execPath, ['--import', 'tsx', path.join(ROOT, 'scripts', 'fetch-data.mjs'), ...args], { cwd: ROOT, env, stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
     h.stdout.setEncoding('utf8').on('data', (c: string) => (stdout += c));
@@ -103,11 +104,15 @@ const ESQUEMA_MIO =
   'CREATE TABLE bets (id INTEGER PRIMARY KEY, stake REAL); CREATE TABLE fb_news (id TEXT PRIMARY KEY, quote TEXT); CREATE TABLE fb_lineups (fixture_id TEXT, team_id TEXT, player_id TEXT, kind TEXT, recorded_at TEXT); ' +
   'CREATE TABLE fb_odds_history (id INTEGER PRIMARY KEY, fixture_id TEXT, observed_at TEXT); CREATE TABLE latency_samples (id INTEGER PRIMARY KEY, stage TEXT, ms REAL); CREATE TABLE player_ids (tour TEXT, name TEXT, id INTEGER, PRIMARY KEY (tour, name)); CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);';
 
-async function servidorConRelease(filasPublicadas: number) {
+async function servidorConRelease(filasPublicadas: number, metaPublicada: Record<string, string> = {}, tablasExtra: string[] = []) {
   const publicada = fs.mkdtempSync(path.join(os.tmpdir(), 'release-'));
   baseCon(filasPublicadas, path.join(publicada, 'history.db'));
   const d = new DatabaseSync(path.join(publicada, 'history.db'));
-  d.exec(ESQUEMA_MIO);
+  // Como una release oficial: sin tablas del libro mayor (la exportación las rechaza desde la Fase 2).
+  d.exec(ESQUEMA_MIO.replace('CREATE TABLE bets (id INTEGER PRIMARY KEY, stake REAL); ', ''));
+  for (const sql of tablasExtra) d.exec(sql);
+  const ins = d.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
+  for (const [k, v] of Object.entries(metaPublicada)) ins.run(k, v);
   d.close();
   const gz = zlib.gzipSync(fs.readFileSync(path.join(publicada, 'history.db')));
   const sha = crypto.createHash('sha256').update(gz).digest('hex');
@@ -142,7 +147,7 @@ test('B1: fetch-data --force se niega con la base abierta; cerrada, la copia de 
     const v = new DatabaseSync(path.join(vivo, 'history.db'));
     v.exec('PRAGMA journal_mode = WAL;');
     v.exec(ESQUEMA_MIO);
-    v.exec("INSERT INTO bets (stake) VALUES (25); INSERT INTO fb_news VALUES ('n1', 'lesión'); INSERT INTO fb_lineups VALUES ('f1', 't1', 'p1', 'confirmada', '2026-10-08T10:00:00Z'); INSERT INTO fb_odds_history (fixture_id, observed_at) VALUES ('f1', '2026-10-08T09:00:00Z'); INSERT INTO latency_samples (stage, ms) VALUES ('servidor', 12); INSERT INTO player_ids VALUES ('atp', 'Nadie', 999);");
+    v.exec("INSERT INTO fb_news VALUES ('n1', 'lesión'); INSERT INTO fb_lineups VALUES ('f1', 't1', 'p1', 'confirmada', '2026-10-08T10:00:00Z'); INSERT INTO fb_odds_history (fixture_id, observed_at) VALUES ('f1', '2026-10-08T09:00:00Z'); INSERT INTO latency_samples (stage, ms) VALUES ('servidor', 12); INSERT INTO player_ids VALUES ('atp', 'Nadie', 999);");
     v.exec("INSERT INTO matches (winner_id) VALUES ('en-el-wal')");
     // Lo del dueño que aún esté en la meta de la historia (una instalación que todavía no pasó por la
     // migración 27) y procedencia de la descarga anterior, que no tiene que pasar.
@@ -173,7 +178,9 @@ test('B1: fetch-data --force se niega con la base abierta; cerrada, la copia de 
     copia.close();
     const nueva = new DatabaseSync(history, { readOnly: true });
     assert.equal((nueva.prepare('SELECT COUNT(*) n FROM matches').get() as { n: number }).n, 10_500);
-    assert.equal((nueva.prepare('SELECT COUNT(*) n FROM bets').get() as { n: number }).n, 1, 'bets sobrevive (ya lo hacía)');
+    // `bets` es del libro mayor: una historia oficial no la trae, y la nueva tampoco la tiene (taparía la
+    // del libro mayor). Con filas en la local, fetch-data no reemplaza nada (prueba de más abajo).
+    assert.equal((nueva.prepare("SELECT COUNT(*) n FROM sqlite_master WHERE name = 'bets'").get() as { n: number }).n, 0, 'ninguna tabla del libro mayor en la historia');
     for (const t of ['fb_news', 'fb_lineups', 'fb_odds_history', 'latency_samples', 'player_ids']) {
       assert.equal((nueva.prepare(`SELECT COUNT(*) n FROM ${t}`).get() as { n: number }).n, 1, `${t} sobrevive al --force (B3)`);
     }
@@ -182,6 +189,120 @@ test('B1: fetch-data --force se niega con la base abierta; cerrada, la copia de 
     const meta = Object.fromEntries((nueva.prepare('SELECT key, value FROM meta').all() as { key: string; value: string }[]).map((r) => [r.key, r.value]));
     assert.deepEqual(meta, { 'features.anulaciones': '{"estrategias.laboratorio":false}', 'ajustes.usuario': '{"idioma":"en"}' });
     nueva.close();
+  } finally {
+    await s.cerrar();
+  }
+});
+
+// Auditoría paralela del 3 de noviembre: carryOver conservaba lo del dueño con INSERT OR IGNORE, así
+// que si la historia descargada traía esas claves, mandaban las descargadas; y en una instalación
+// nueva (sin historia local) la migración 27 las habría llevado tal cual al libro mayor. Una
+// descarga nunca trae estado del dueño: lo que traiga con una clave del libro mayor se descarta.
+const CONTAMINADA = {
+  'ajustes.usuario': '{"bancoPersonal":99999,"idioma":"de"}',
+  'features.anulaciones': '{"estrategias.laboratorio":true}',
+  'telegram:chat_id': 'chat-ajeno-777',
+  fb_updated_at: 'de-la-release',
+};
+const metaDe = (f: string) => {
+  const d = new DatabaseSync(f, { readOnly: true });
+  try {
+    return Object.fromEntries((d.prepare('SELECT key, value FROM meta').all() as { key: string; value: string }[]).map((r) => [r.key, r.value]));
+  } finally {
+    d.close();
+  }
+};
+
+test('una descarga con claves del libro mayor en su meta: en una instalación nueva se descartan (no las recoge la migración 27), con aviso y sin enseñar los valores', async () => {
+  const s = await servidorConRelease(10_500, CONTAMINADA);
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'instalacion-nueva-'));
+  try {
+    const entorno = { ...process.env, DATA_DIR: dataDir, DATA_BASE_URL: `http://127.0.0.1:${s.puerto}`, NODE_OPTIONS: '--experimental-sqlite --disable-warning=ExperimentalWarning' };
+    const r = await correFetchData(entorno);
+    assert.equal(r.status, 0, `${r.stdout}\n${r.stderr}`);
+    assert.deepEqual(metaDe(path.join(dataDir, 'history.db')), { fb_updated_at: 'de-la-release' }, 'solo la procedencia de la descarga');
+    assert.match(r.stdout + r.stderr, /3 clave\(s\) del libro mayor/);
+    assert.doesNotMatch(r.stdout + r.stderr, /99999|chat-ajeno/, 'sin los valores');
+  } finally {
+    await s.cerrar();
+  }
+});
+
+test('--force sobre una instalación de antes de la migración 27: mandan los ajustes locales del dueño, no los de la descarga', async () => {
+  const s = await servidorConRelease(10_500, CONTAMINADA);
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'instalacion-local-'));
+  const history = path.join(dataDir, 'history.db');
+  try {
+    baseCon(12, history);
+    const v = new DatabaseSync(history);
+    v.exec(ESQUEMA_MIO);
+    v.exec(`INSERT INTO meta VALUES ('features.anulaciones', '{"estrategias.laboratorio":false}'), ('ajustes.usuario', '{"bancoPersonal":250,"idioma":"en"}'), ('fb_updated_at', 'local-vieja'), ('backup:last_file', '/home/dueno/copias/ledger.db')`);
+    v.close();
+    const entorno = { ...process.env, DATA_DIR: dataDir, DATA_BASE_URL: `http://127.0.0.1:${s.puerto}`, NODE_OPTIONS: '--experimental-sqlite --disable-warning=ExperimentalWarning' };
+    const r = await correFetchData(entorno, ['--force']);
+    assert.equal(r.status, 0, `${r.stdout}\n${r.stderr}`);
+    assert.deepEqual(
+      metaDe(history),
+      { 'features.anulaciones': '{"estrategias.laboratorio":false}', 'ajustes.usuario': '{"bancoPersonal":250,"idioma":"en"}', fb_updated_at: 'de-la-release' },
+      'lo del dueño que recoge la migración 27, el local; la procedencia, la de la descarga; nada ajeno del libro mayor, ni más estado local (rutas de copias) del que hace falta',
+    );
+    // La copia de la anterior sigue con lo que tenía (es la recuperación de --force).
+    const backup = fs.readdirSync(dataDir).find((f) => f.startsWith('history.db.backup-'));
+    assert.ok(backup);
+    assert.equal(metaDe(path.join(dataDir, backup!))['ajustes.usuario'], '{"bancoPersonal":250,"idioma":"en"}');
+  } finally {
+    await s.cerrar();
+  }
+});
+
+test('una descarga con tablas del libro mayor no se instala: en la instalación taparían las tuyas (revisión data-guardian)', async () => {
+  // Una release que no sale del workflow oficial (DATA_REPO, DATA_TAG o DATA_BASE_URL apuntan a otra):
+  // su SHA-256 prueba que llegó entera, no de dónde viene. Con `watchlist` en la historia, la app la
+  // leería y escribiría ahí en vez de en el libro mayor.
+  const s = await servidorConRelease(10_500, {}, ["CREATE TABLE watchlist (id INTEGER PRIMARY KEY, kind TEXT); INSERT INTO watchlist (kind) VALUES ('plantada')", "CREATE VIEW paper_bets AS SELECT 1 AS id"]);
+  const nuevaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'instalacion-tablas-'));
+  const localDir = fs.mkdtempSync(path.join(os.tmpdir(), 'instalacion-tablas-local-'));
+  try {
+    const entorno = (dir: string) => ({ ...process.env, DATA_DIR: dir, DATA_BASE_URL: `http://127.0.0.1:${s.puerto}`, NODE_OPTIONS: '--experimental-sqlite --disable-warning=ExperimentalWarning' });
+    const nueva = await correFetchData(entorno(nuevaDir));
+    assert.equal(nueva.status, 1, `${nueva.stdout}\n${nueva.stderr}`);
+    assert.match(nueva.stdout + nueva.stderr, /tablas del libro mayor.*watchlist/);
+    // Una vista con el nombre de una tabla del libro mayor también la tapa (y la deja sin escritura).
+    assert.match(nueva.stdout + nueva.stderr, /tablas del libro mayor.*paper_bets/);
+    assert.equal(fs.existsSync(path.join(nuevaDir, 'history.db')), false, 'instalación nueva: no se instala nada');
+    baseCon(12, path.join(localDir, 'history.db'));
+    const huella = crypto.createHash('sha256').update(fs.readFileSync(path.join(localDir, 'history.db'))).digest('hex');
+    const force = await correFetchData(entorno(localDir), ['--force']);
+    assert.equal(force.status, 1, `${force.stdout}\n${force.stderr}`);
+    assert.equal(crypto.createHash('sha256').update(fs.readFileSync(path.join(localDir, 'history.db'))).digest('hex'), huella, '--force: la tuya, intacta');
+    assert.deepEqual(fs.readdirSync(localDir).filter((f) => f !== 'history.db'), [], 'ni copia ni temporales');
+  } finally {
+    await s.cerrar();
+  }
+});
+
+test('una historia local con filas en tablas del libro mayor no se reemplaza ni se aparta: son registros que no se recuperan (revisión data-guardian)', async () => {
+  // Una instalación anómala: `bets` en la historia tapó la del libro mayor y guardó ahí apuestas de
+  // verdad. Antes, --force las dejaba solo en la copia con fecha sin decir nada.
+  const s = await servidorConRelease(10_500);
+  try {
+    for (const [nombre, filas] of [['con-historia', 12], ['solo-esquema', 0]] as const) {
+      const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), `instalacion-${nombre}-`));
+      const history = path.join(dataDir, 'history.db');
+      baseCon(filas, history);
+      const v = new DatabaseSync(history);
+      v.exec(ESQUEMA_MIO);
+      v.exec('INSERT INTO bets (stake) VALUES (25.5), (40)');
+      v.close();
+      const huella = crypto.createHash('sha256').update(fs.readFileSync(history)).digest('hex');
+      const entorno = { ...process.env, DATA_DIR: dataDir, DATA_BASE_URL: `http://127.0.0.1:${s.puerto}`, NODE_OPTIONS: '--experimental-sqlite --disable-warning=ExperimentalWarning' };
+      const r = await correFetchData(entorno, ['--force']);
+      assert.equal(r.status, 1, `${nombre}: ${r.stdout}\n${r.stderr}`);
+      assert.match(r.stdout + r.stderr, /bets: 2/);
+      assert.doesNotMatch(r.stdout + r.stderr, /25\.5/, 'sin los valores');
+      assert.equal(crypto.createHash('sha256').update(fs.readFileSync(history)).digest('hex'), huella, `${nombre}: intacta`);
+      assert.deepEqual(fs.readdirSync(dataDir), ['history.db'], `${nombre}: ni apartada, ni copia, ni temporales`);
+    }
   } finally {
     await s.cerrar();
   }
