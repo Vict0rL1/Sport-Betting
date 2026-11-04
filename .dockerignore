@@ -24,6 +24,8 @@ data/*.sin-filas-*
 data/*.antes-de-restaurar-*
 data/*.pre-split-*
 data/*.export.db
+# Los temporales del exportador (llevan la meta privada mientras se limpia).
+data/*.export.db.*
 data/backups
 data/archive
 *.log

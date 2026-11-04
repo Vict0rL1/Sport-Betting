@@ -42,7 +42,17 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      # La salida TAP del servidor son unas 4000 líneas: si algo falla, el resumen de lo que falló
+      # va al final del registro, donde se ve sin bajar el registro entero.
+      - name: npm test
+        shell: bash
+        run: npm test 2>&1 | tee test.log
+      - name: Tests que fallan
+        if: failure()
+        shell: bash
+        run: |
+          grep -n -A 40 '^not ok' test.log > fallos.txt || true
+          if [ -s fallos.txt ]; then head -n 300 fallos.txt; else echo 'Ningún «not ok» en test.log: el fallo es de otro paso.'; fi
       - run: npm run build
       - name: Cada script tiene línea de ayuda
         run: npm run help > /dev/null

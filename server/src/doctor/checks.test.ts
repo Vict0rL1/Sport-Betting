@@ -307,7 +307,7 @@ const { comprobarAnalitica } = await import('./checks.ts');
 
 test('comprobarAnalitica: deriva avisa; serie vieja avisa; sin datos solo informa; anulaciones y seguimiento se dicen', () => {
   const ahora = new Date('2026-10-07T10:00:00Z');
-  const base = { monitorizacion: [], ultimaSerie: null, predichasConResultado: 0, simulacion: { ultimoDia: null, ligas: 0 }, calendarioPendiente: 0, fiabilidadBacktest: 0, anulaciones: [], seguidos: 0 };
+  const base = { monitorizacion: [], ultimaSerie: null, predichasConResultado: 0, simulacion: { ultimoDia: null, ligas: 0 }, calendarioPendiente: 0, fiabilidadBacktest: 0, anulaciones: {}, seguidos: 0 };
   const vacio = comprobarAnalitica(base, ahora);
   assert.ok(vacio.every((x) => x.nivel === 'info' || x.nivel === 'ok'), 'sin estado no hay avisos');
   const deriva = comprobarAnalitica({ ...base, monitorizacion: [{ deporte: 'nfl', n: 150, deriva: true, motivos: ['PSI 0,31 > 0,25'] }] }, ahora);
@@ -316,8 +316,26 @@ test('comprobarAnalitica: deriva avisa; serie vieja avisa; sin datos solo inform
   assert.ok(sinSerie.some((x) => x.nivel === 'aviso' && /nunca se ha guardado/.test(x.texto)));
   const vieja = comprobarAnalitica({ ...base, ultimaSerie: '2026-09-30', simulacion: { ultimoDia: '2026-09-30', ligas: 3 } }, ahora);
   assert.equal(vieja.filter((x) => x.nivel === 'aviso').length, 2, 'serie y simulación de hace una semana');
-  const ui = comprobarAnalitica({ ...base, anulaciones: ['api.docs'], seguidos: 2, calendarioPendiente: 300, fiabilidadBacktest: 5 }, ahora);
+  const ui = comprobarAnalitica({ ...base, anulaciones: { 'api.docs': false }, seguidos: 2, calendarioPendiente: 300, fiabilidadBacktest: 5 }, ahora);
   assert.ok(ui.some((x) => /api\.docs/.test(x.texto)));
+  // Una anulación guardada para un interruptor de arranque no cuenta: no se dice como si mandara.
+  const ignorada = comprobarAnalitica({ ...base, anulaciones: { 'api.docs': false, 'politica.versionada': false } }, ahora);
+  assert.ok(!ignorada.some((x) => /mandan sobre/.test(x.texto) && /politica\.versionada/.test(x.texto)), 'no como si mandara');
+  // Un aviso, con el valor guardado, lo que manda y cómo quitarla (revisiones quant y security del 3
+  // de noviembre): si se vuelve a un código de antes, esa anulación vuelve a mandar.
+  const linea = ignorada.find((x) => /politica\.versionada/.test(x.texto) && /no cuenta/.test(x.texto));
+  assert.ok(linea, 'se dice que no cuenta');
+  assert.equal(linea?.nivel, 'aviso');
+  assert.match(linea?.texto ?? '', /politica\.versionada = false/);
+  assert.match(linea?.texto ?? '', /manda config\/features\.json/);
+  assert.ok(linea?.accion?.some((a) => /\{"on": null\}/.test(a)), 'cómo quitarla');
+  // Varias: en plural, cada una con su valor.
+  const varias = comprobarAnalitica({ ...base, anulaciones: { 'auth.totp': false, 'politica.versionada': true } }, ahora);
+  assert.ok(varias.some((x) => x.texto.startsWith('Anulaciones guardadas que no cuentan: auth.totp = false, politica.versionada = true')));
+  assert.ok(!varias.some((x) => /mandan sobre/.test(x.texto)));
+  // Ilegible (null): un aviso, no «ninguna anulación» (revisión data-guardian del 3 de noviembre).
+  const ilegible = comprobarAnalitica({ ...base, anulaciones: null }, ahora);
+  assert.ok(ilegible.some((x) => x.nivel === 'aviso' && /features\.anulaciones no se puede leer/.test(x.texto)));
   assert.ok(ui.some((x) => /Seguimiento: 2/.test(x.texto)));
   assert.ok(ui.some((x) => x.nivel === 'ok' && /300 partidos/.test(x.texto)));
 });

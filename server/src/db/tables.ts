@@ -67,8 +67,25 @@ export function esLedger(tabla: string): boolean {
  * `ledger.settings` para que sobrevivan a una base de historia nueva (`fetch-data`) y no
  * viajen a la base publicada.
  */
-export const CLAVES_LEDGER: readonly string[] = ['paper:startedAt', 'paper:lastRun', 'prematch_cycle_at'];
-const PREFIJOS_LEDGER = ['backup:', 'retention:', 'policy:', 'scheduler:', 'telegram:'];
+export const CLAVES_LEDGER: readonly string[] = [
+  'paper:startedAt',
+  'paper:lastRun',
+  'prematch_cycle_at',
+  // Los interruptores apagados desde Ajustes y los ajustes del usuario (revisión data-guardian del 29
+  // de octubre): en la historia, una nueva (fetch-data --force) los borraba sin decirlo.
+  'features.anulaciones',
+  'ajustes.usuario',
+];
+export const PREFIJOS_LEDGER: readonly string[] = ['backup:', 'retention:', 'policy:', 'scheduler:', 'telegram:'];
+
+/**
+ * Las claves del dueño que la migración 27 recoge de `main.meta` (y que su copia en la historia
+ * recupera si se restaura un libro mayor de antes). `fetch-data` conserva solo estas de la historia
+ * local: el resto del estado del libro mayor no tiene quién lo lea en la historia. La migración lleva
+ * su propia lista fija; añadir una clave aquí no la importa en los libros mayores que ya pasaron la 27:
+ * hace falta una migración nueva.
+ */
+export const CLAVES_RECUPERABLES: readonly string[] = ['features.anulaciones', 'ajustes.usuario'];
 
 export function claveEsLedger(clave: string): boolean {
   return CLAVES_LEDGER.includes(clave) || PREFIJOS_LEDGER.some((p) => clave.startsWith(p));

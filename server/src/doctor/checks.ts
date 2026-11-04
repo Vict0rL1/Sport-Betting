@@ -11,6 +11,7 @@
 
 import { ACCION_POR_FALLO, classifyFailure, type KeyOutcome, type OddsApiFailure } from '../oddsApi.ts';
 import { MIN_DIAS_PRUEBA, VENTANA_PRUEBA_DIAS, type Vencidas } from '../monitoring/vencidas.ts';
+import { featureEncendida, soloArranque } from '../features.ts';
 
 export type Nivel = 'ok' | 'aviso' | 'error' | 'info';
 export type Seccion =
@@ -928,7 +929,8 @@ export interface EstadoAnalitica {
   simulacion: { ultimoDia: string | null; ligas: number };
   calendarioPendiente: number;
   fiabilidadBacktest: number;
-  anulaciones: string[];
+  /** features.anulaciones tal como están guardadas: nombre → valor; null si no se pueden leer. */
+  anulaciones: Record<string, boolean> | null;
   seguidos: number;
 }
 
@@ -960,7 +962,27 @@ export function comprobarAnalitica(e: EstadoAnalitica, ahora: Date): Hallazgo[] 
   if (e.calendarioPendiente === 0) out.push(h(S, 'info', 'Calendario pendiente vacío: se llena con la próxima update-data (openfootball, nflverse, MLB). Hasta entonces el fútbol se simula con la doble vuelta reconstruida'));
   else out.push(h(S, 'ok', `Calendario pendiente: ${e.calendarioPendiente.toLocaleString('es')} partidos guardados para simular`));
   // Interfaz.
-  if (e.anulaciones.length) out.push(h(S, 'info', `Interruptores anulados desde Ajustes: ${e.anulaciones.join(', ')} (mandan sobre config/features.json)`));
+  // Una anulación guardada para un interruptor de arranque (de antes de que lo fuera) se ignora: no
+  // se dice como si mandara (decisión del dueño del 3 de noviembre sobre politica.versionada). Es un
+  // aviso, con cómo quitarla: un código de antes de ese día la volvería a aplicar (revisiones quant
+  // y security del 3 de noviembre).
+  if (e.anulaciones === null) out.push(h(S, 'aviso', 'features.anulaciones no se puede leer (no es un objeto JSON, o la base no responde): mandan config/features.json y nadie puede cambiar un interruptor desde Ajustes hasta arreglarlo', { accion: ['Mira el valor guardado en ledger.settings (clave features.anulaciones) y déjalo en {} o en el objeto que era'] }));
+  const anulaciones = e.anulaciones ?? {};
+  const nombres = Object.keys(anulaciones);
+  const validas = nombres.filter((k) => !soloArranque(k));
+  const ignoradas = nombres.filter((k) => soloArranque(k));
+  if (validas.length) out.push(h(S, 'info', `Interruptores anulados desde Ajustes: ${validas.join(', ')} (mandan sobre config/features.json)`));
+  if (ignoradas.length) {
+    const una = ignoradas.length === 1;
+    out.push(
+      h(
+        S,
+        'aviso',
+        `${una ? 'Anulación guardada que no cuenta' : 'Anulaciones guardadas que no cuentan'}: ${ignoradas.map((k) => `${k} = ${anulaciones[k]}`).join(', ')}. ${una ? 'Solo se cambia' : 'Solo se cambian'} al arrancar: manda config/features.json (${ignoradas.map((k) => `${k} ${featureEncendida(k) ? 'encendido' : 'apagado'}`).join(', ')}). Un código de antes del 3 de noviembre la volvería a aplicar`,
+        { accion: ignoradas.map((k) => `PATCH /api/features/${k} con {"on": null}: la quita (Ajustes no la enseña)`) },
+      ),
+    );
+  }
   out.push(h(S, 'info', e.seguidos ? `Seguimiento: ${e.seguidos} equipo(s), jugador(es) o partido(s); las notificaciones de línea movida solo salen para ellos` : 'Seguimiento vacío: con la estrella ☆ en tarjetas y fichas se sigue un equipo, jugador o partido'));
   return out;
 }

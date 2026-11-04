@@ -45,7 +45,14 @@ export interface Steam extends EventoMercado {
 export interface Surebet extends EventoMercado {
   /** Σ 1/mejor: por debajo de 1 hay hueco. */
   suma: number;
+  /** (1 − suma) en %: lo que queda si gana cualquiera de las patas. */
   margenPct: number;
+  /**
+   * El margen en el peor resultado, en las mismas unidades: igual a `margenPct` en líneas medias y
+   * sin línea; menor si una línea entera o de cuarto puede quedar en push (revisión quant del 27 de
+   * octubre: ±3 a 2,10 decía 4,8 % y, si A gana por 3, se devuelve todo).
+   */
+  margenMinimoPct: number;
   /** Cada pata con su línea tal cual la cotiza la casa: −3,5 y +3,5 en un hándicap, 2,5 en un total; null sin línea. */
   patas: { seleccion: string; cuota: number; casa: string; linea: number | null }[];
   /** La |línea| de la surebet (totales, hándicap); null sin línea (lote C, C2). */
@@ -142,6 +149,67 @@ export function tipoMercado(market: string): TipoMercado {
 const mismaLinea = (a: number | null, b: number | null) => (a === null || b === null ? a === b : Math.abs(a - b) < 1e-9);
 
 /**
+ * Cuántas salidas tiene el mercado: dos en un hándicap, un total o un h2h de dos, tres en un 1X2
+ * (el h2h del fútbol y cualquier h2h_3_way). Una surebet tiene que cubrirlas todas: si falta una
+ * guardada (el empate), no hay cobertura (revisión quant del 27 de octubre). null: no se sabe.
+ */
+export function salidasDe(market: string, sport: string): number | null {
+  const tipo = tipoMercado(market);
+  if (tipo === 'handicap' || tipo === 'total') return 2;
+  if (tipo !== 'sin-linea') return null;
+  if (market.startsWith('h2h_3_way')) return 3;
+  if (market.startsWith('h2h')) return sport === 'football' ? 3 : 2;
+  return 2;
+}
+
+/**
+ * ¿Un empate (o un combate nulo) devuelve las dos patas de un mercado sin línea de dos salidas?
+ * draw_no_bet por definición; el h2h de dos salidas en deportes donde el empate existe y se anula
+ * (UFC, NFL, béisbol: la NPB y la KBO empatan) y en los que no se conocen. Entonces el peor
+ * resultado devuelve lo apostado y el margen garantizado es 0 (revisión quant del 29 de octubre).
+ */
+function empateDevuelve(market: string, sport: string): boolean {
+  if (market.startsWith('draw_no_bet')) return true;
+  if (!market.startsWith('h2h') || salidasDe(market, sport) !== 2) return false;
+  // Sin empate solo el partido entero de baloncesto, NHL (con prórroga) y tenis: un cuarto o un periodo
+  // sí pueden empatar (revisión quant del 29 de octubre).
+  return !(market === 'h2h' && ['basketball', 'nhl', 'tennis'].includes(sport));
+}
+
+/**
+ * Lo que devuelve en el peor resultado una surebet de hándicap o de total, por unidad apostada en
+ * total, con importes proporcionales a 1/cuota. Cada pata gana si su resultado (la diferencia o el
+ * total, con su línea) es positivo, se devuelve si es 0 y pierde si es negativo; una línea de cuarto
+ * es media apuesta en cada media línea vecina. Se prueban todos los resultados enteros alrededor de
+ * las líneas: más allá, ninguna pata cambia.
+ */
+function peorDevolucion(tipo: 'handicap' | 'total', patas: { seleccion: string; cuota: number; linea: number | null }[], suma: number): number {
+  // Resultado de cada pata: coef · x + desplazamiento, con x la diferencia (A − B) o el total.
+  const formas = patas.map((p, i) => {
+    const l = p.linea ?? 0;
+    const over = p.seleccion.trim().toLowerCase() === 'over';
+    const [coef, desp] = tipo === 'handicap' ? [i === 0 ? 1 : -1, l] : over ? [1, -l] : [-1, l];
+    const cuarto = Math.abs(Math.round(desp * 4) % 2) === 1;
+    return { coef, desps: cuarto ? [desp - 0.25, desp + 0.25] : [desp], cuota: p.cuota, importe: 1 / p.cuota / suma };
+  });
+  const criticos = formas.flatMap((f) => f.desps.map((d) => -d / f.coef));
+  const desde = Math.floor(Math.min(...criticos)) - 2;
+  const hasta = Math.ceil(Math.max(...criticos)) + 2;
+  let peor = Infinity;
+  for (let x = tipo === 'total' ? Math.max(0, desde) : desde; x <= hasta; x++) {
+    let devuelve = 0;
+    for (const f of formas) {
+      for (const d of f.desps) {
+        const r = f.coef * x + d;
+        devuelve += (f.importe / f.desps.length) * (r > 1e-9 ? f.cuota : r < -1e-9 ? 0 : 1);
+      }
+    }
+    peor = Math.min(peor, devuelve);
+  }
+  return peor;
+}
+
+/**
  * La surebet de un mercado con las mejores cuotas actuales de cada selección, solo entre patas que
  * de verdad se cubren (auditoría del 22 de octubre, hallazgo 2). Antes las líneas se agrupaban por
  * su valor absoluto: A −3,5 a 2,10 y B −3,5 a 2,10 salía como surebet del 4,8 % y las dos pierden si
@@ -149,8 +217,9 @@ const mismaLinea = (a: number | null, b: number | null) => (a === null || b === 
  * la otra selección, Más 2,5 con Menos 2,5 (lote C, C2: Más 2,5 con Menos 3,0 no), y un mercado sin
  * línea con todas sus selecciones sin línea.
  */
-export function surebetDe(market: string, porSeleccion: { seleccion: string; cuotas: BookQuote[] }[]): Omit<Surebet, keyof EventoMercado> | null {
+export function surebetDe(market: string, sport: string, porSeleccion: { seleccion: string; cuotas: BookQuote[] }[]): Omit<Surebet, keyof EventoMercado> | null {
   if (porSeleccion.length < 2 || porSeleccion.some((s) => s.cuotas.length === 0)) return null;
+  if (porSeleccion.length !== salidasDe(market, sport)) return null;
   const tipo = tipoMercado(market);
   const lineasDe = (s: { cuotas: BookQuote[] }) => [...new Set(s.cuotas.map((q) => q.line).filter((l): l is number => l !== null))];
   /** Las líneas de cada selección que se cubren entre sí, una combinación por línea. */
@@ -180,8 +249,17 @@ export function surebetDe(market: string, porSeleccion: { seleccion: string; cuo
     if (patas.length !== porSeleccion.length) continue;
     const suma = patas.reduce((a, p) => a + implicita(p.cuota), 0);
     if (suma >= 1) continue;
-    const candidata = { suma: Math.round(suma * 10000) / 10000, margenPct: Math.round((1 - suma) * 1000) / 10, patas, linea: lineas[0] === null ? null : Math.abs(lineas[0]) };
-    if (!mejorSurebet || candidata.suma < mejorSurebet.suma) mejorSurebet = candidata;
+    // En el peor resultado: con push, menos que 1 − suma. En las mismas unidades: 1 − 1/devuelto.
+    const peor = tipo === 'handicap' || tipo === 'total' ? peorDevolucion(tipo, patas, suma) : empateDevuelve(market, sport) ? Math.min(1 / suma, 1) : 1 / suma;
+    const candidata = {
+      suma: Math.round(suma * 10000) / 10000,
+      margenPct: Math.round((1 - suma) * 1000) / 10,
+      margenMinimoPct: Math.round((1 - 1 / peor) * 1000) / 10,
+      patas,
+      linea: lineas[0] === null ? null : Math.abs(lineas[0]),
+    };
+    // La que más garantiza; a igualdad, la de menor suma.
+    if (!mejorSurebet || candidata.margenMinimoPct > mejorSurebet.margenMinimoPct || (candidata.margenMinimoPct === mejorSurebet.margenMinimoPct && candidata.suma < mejorSurebet.suma)) mejorSurebet = candidata;
   }
   return mejorSurebet;
 }
@@ -191,11 +269,29 @@ const sinMargen = (xs: number[]) => {
   return xs.map((x) => x / s);
 };
 
-export function referenciaDe(porSeleccion: { seleccion: string; cuotas: BookQuote[] }[], casa = REFERENCIA): Omit<Referencia, keyof EventoMercado> | null {
-  const ref = porSeleccion.map((s) => s.cuotas.find((q) => q.bookmaker.toLowerCase() === casa));
-  if (porSeleccion.length < 2 || ref.some((r) => !r)) return null;
+/**
+ * La casa de referencia (Pinnacle) frente al consenso, en la MISMA línea (revisión quant del 27 de
+ * octubre): antes el consenso era la mediana de todas las cuotas de la selección, en cualquier línea,
+ * y con Pinnacle en Más 44,5 y otras casas en Más 47,5 salían ±13,4 pp que eran solo la línea. Ahora
+ * el consenso de cada selección cuenta solo las cuotas en la línea de Pinnacle, y las líneas de
+ * Pinnacle tienen que cubrirse entre sí como en `surebetDe` (hándicap −h/+h, total con el mismo
+ * umbral, sin línea). Un mercado que no se sabe leer (`tipoMercado` desconocido) no da referencia.
+ */
+export function referenciaDe(market: string, sport: string, porSeleccion: { seleccion: string; cuotas: BookQuote[] }[], casa = REFERENCIA): Omit<Referencia, keyof EventoMercado> | null {
+  // Sin todas las salidas del mercado (un 1X2 sin el empate guardado) no se puede quitar el margen.
+  if (porSeleccion.length < 2 || porSeleccion.length !== salidasDe(market, sport)) return null;
+  const tipo = tipoMercado(market);
+  if (tipo === 'desconocido') return null;
+  const ref = porSeleccion.map((s) => s.cuotas.find((q) => q.bookmaker.toLowerCase() === casa && (tipo === 'sin-linea' ? q.line === null : q.line !== null)));
+  if (ref.some((r) => !r)) return null;
+  const lineas = (ref as BookQuote[]).map((r) => r.line);
+  if (tipo === 'handicap' && (porSeleccion.length !== 2 || !mismaLinea(lineas[0], lineas[1] === null ? null : -lineas[1]))) return null;
+  if (tipo === 'total' && (porSeleccion.length !== 2 || !mismaLinea(lineas[0], lineas[1]))) return null;
+  // Con Pinnacle sola en su línea, el «consenso» sería ella misma y la desviación un 0 inventado: sin
+  // otra casa en esa línea en cada selección, no hay referencia (DESCONOCIDA; revisión quant).
+  if (porSeleccion.some((s, i) => !s.cuotas.some((q) => q.bookmaker.toLowerCase() !== casa && mismaLinea(q.line, lineas[i])))) return null;
   const pRef = sinMargen(ref.map((r) => implicita((r as BookQuote).odds)));
-  const pCons = sinMargen(porSeleccion.map((s) => implicita(mediana(s.cuotas.map((q) => q.odds)))));
+  const pCons = sinMargen(porSeleccion.map((s, i) => implicita(mediana(s.cuotas.filter((q) => mismaLinea(q.line, lineas[i])).map((q) => q.odds)))));
   return {
     casa,
     selecciones: porSeleccion.map((s, i) => ({ seleccion: s.seleccion, referencia: pRef[i], consenso: pCons[i], desviacionPp: Math.round((pCons[i] - pRef[i]) * 1000) / 10 })),
@@ -227,12 +323,12 @@ export function inteligenciaMercado(now = new Date()): Inteligencia {
       const st = steamDe(history(e.eventId, e.market, s));
       if (st) steam.push({ ...e, seleccion: s, ...st });
     }
-    const sb = surebetDe(e.market, porSeleccion);
+    const sb = surebetDe(e.market, e.sport, porSeleccion);
     if (sb) surebets.push({ ...e, ...sb });
-    const ref = referenciaDe(porSeleccion);
+    const ref = referenciaDe(e.market, e.sport, porSeleccion);
     if (ref) referencia.push({ ...e, ...ref });
   }
   steam.sort((a, b) => Math.abs(b.movimientoPp) - Math.abs(a.movimientoPp));
-  surebets.sort((a, b) => b.margenPct - a.margenPct);
+  surebets.sort((a, b) => b.margenMinimoPct - a.margenMinimoPct || b.margenPct - a.margenPct);
   return { generado: at, ventanaHoras: VENTANA_HORAS, eventos: eventos.length, steam, surebets, referencia, etiqueta: ETIQUETA_INTEL };
 }

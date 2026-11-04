@@ -5,6 +5,7 @@
 import { getDb } from '../db.ts';
 import { alertas } from '../alerts/engine.ts';
 import type { SportId } from '../sports.ts';
+import { porcentaje } from '../informes/formato.ts';
 
 export interface Hito {
   at: string;
@@ -52,12 +53,12 @@ export function lineaTemporal(sport: SportId, matchKey: string): { hitos: Hito[]
   }
   if (eventId) {
     for (const s of db.prepare('SELECT created_at, selection, odds, edge, decision, reason, closing_observed_at, closing_odds, clv FROM edge_signals WHERE provider_event_id = ? OR event_id = ? ORDER BY id').all(eventId, String(log?.upcoming_id ?? eventId)) as Record<string, unknown>[]) {
-      h.push({ at: String(s.created_at), tipo: 'señal', texto: `Señal: ${s.selection} a ${Number(s.odds).toFixed(2)}, ventaja ${(Number(s.edge) * 100).toFixed(1)} % → ${s.decision}${s.reason ? ` (${s.reason})` : ''}` });
+      h.push({ at: String(s.created_at), tipo: 'señal', texto: `Señal: ${s.selection} a ${Number(s.odds).toFixed(2)}, ventaja ${porcentaje(Number(s.edge), 1, false)} % → ${s.decision}${s.reason ? ` (${s.reason})` : ''}` });
     }
   }
   for (const b of db.prepare('SELECT * FROM paper_bets WHERE match_key = ? AND sport = ?').all(matchKey, sport) as Record<string, unknown>[]) {
     h.push({ at: String(b.placed_at), tipo: 'apuesta', texto: `Apuesta de papel: ${b.selection} @ ${Number(b.odds).toFixed(2)}, ${Number(b.stake).toFixed(2)} (${b.confidence ? `confianza ${b.confidence}` : 'sin evaluación'})` });
-    if (b.closing_observed_at) h.push({ at: String(b.closing_observed_at), tipo: 'cierre', texto: `Cuota de cierre: ${Number(b.closing_odds).toFixed(2)} · CLV ${(Number(b.clv) * 100).toFixed(1)} %` });
+    if (b.closing_observed_at) h.push({ at: String(b.closing_observed_at), tipo: 'cierre', texto: `Cuota de cierre: ${Number(b.closing_odds).toFixed(2)} · CLV ${porcentaje(Number(b.clv), 1, false)} %` });
     if (b.settled_at) h.push({ at: String(b.settled_at), tipo: 'liquidación', texto: `Liquidada: ${b.status}, ${Number(b.profit) >= 0 ? '+' : ''}${Number(b.profit).toFixed(2)}` });
   }
   const f = db.prepare('SELECT frozen_at, source, probs FROM prematch_final WHERE sport = ? AND match_key = ?').get(sport, matchKey) as { frozen_at: string; source: string; probs: string } | undefined;

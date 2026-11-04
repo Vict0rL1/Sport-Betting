@@ -344,7 +344,10 @@ export function cierreEstrategias(now = new Date()): { fijados: number } {
 }
 
 export function liquidarEstrategias(now = new Date()): { liquidadas: number } {
-  if (!featureEncendida('estrategias.laboratorio')) return { liquidadas: 0 };
+  // El interruptor del laboratorio para las apuestas NUEVAS (colocarEstrategias), no la liquidación de
+  // las que ya hay (revisión quant del 29 de octubre): si no, con el laboratorio apagado lo pendiente se
+  // quedaba sin liquidar y, al encenderlo, todo el atraso caía el mismo día en los límites de pérdida.
+  // Como las estrategias archivadas, que también se liquidan.
   cierreEstrategias(now);
   const db = getDb();
   const pend = db.prepare("SELECT * FROM strategy_bets WHERE status = 'pending' ORDER BY strategy_id, id").all() as {

@@ -31,7 +31,7 @@ import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TABLAS_LEDGER } from '../server/src/db/tables.ts';
+import { CLAVES_LEDGER, PREFIJOS_LEDGER, TABLAS_LEDGER, claveEsLedger } from '../server/src/db/tables.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 // Desde la Fase 2 la base publicable es history.db (o la exportación limpia que produce
@@ -88,7 +88,7 @@ if (!fs.existsSync(DB_PATH)) {
   process.exit(1);
 }
 
-const db = new DatabaseSync(DB_PATH);
+const db = new DatabaseSync(DB_PATH, { readOnly: true });
 const tables = new Set(
   (db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all()).map((r) => r.name),
 );
@@ -119,6 +119,40 @@ for (const t of TABLAS_LEDGER) {
   console.log(`  ✗ ${t.padEnd(22)} presente (${n} filas)`);
   if (!FORBIDDEN.some((f) => f.table === t)) problems.push(`[libro mayor] ${t} está en la base de historia: esta base no se ha partido (npm run db:migrate) o no es history.db.`);
 }
+// ---- Ni estado del dueño en la meta ----
+// Auditoría paralela del 3 de noviembre: la migración 27 deja en `main.meta` de la base original una
+// copia de `ajustes.usuario` (el banco personal) y `features.anulaciones` para recuperarlas, y antes
+// esto solo miraba tablas. Cualquier clave que el servidor clasifica como estado del libro mayor
+// (nombres y prefijos de server/src/db/tables.ts) es privada: no se publica. Se dice la clave, nunca
+// su valor.
+console.log('\nClaves de meta del libro mayor (no deben estar en una base publicable):');
+if (tables.has('meta')) {
+  const privadas = db.prepare('SELECT key FROM meta ORDER BY key').all().map((r) => r.key).filter(claveEsLedger);
+  if (privadas.length === 0) console.log('  ✓ ninguna');
+  for (const k of privadas) {
+    console.log(`  ✗ ${k}`);
+    problems.push(`[privacidad] meta tiene la clave «${k}», estado del dueño (libro mayor). Publica la exportación de npm run db:export-history, que la deja fuera.`);
+  }
+} else console.log('  · la tabla meta no existe');
+// Y en los bytes del fichero, que es lo que se publica (revisión data-guardian del 3 de noviembre): una
+// fila borrada sin `secure_delete` ni VACUUM sigue dentro, aunque la meta viva ya no la tenga. Ninguna
+// de estas cadenas está en el esquema de la historia; si aparece, se para.
+const vivas = new Set(tables.has('meta') ? db.prepare('SELECT key FROM meta').all().map((r) => r.key) : []);
+const bytes = fs.readFileSync(DB_PATH);
+const restos = [...CLAVES_LEDGER, ...PREFIJOS_LEDGER].filter((s) => bytes.includes(Buffer.from(s)) && ![...vivas].some((k) => k === s || (s.endsWith(':') && k.startsWith(s))));
+for (const s of restos) {
+  console.log(`  ✗ restos de «${s}» en los bytes del fichero`);
+  problems.push(`[privacidad] el fichero contiene restos de «${s}» fuera de la meta viva (filas borradas sin VACUUM, u otra tabla). Publica la exportación de npm run db:export-history.`);
+}
+
+// Lo que se publica es el fichero (gzip), no lo que ve una conexión: con un -wal con cambios, lo
+// comprobado por SQL (fichero + WAL) no es lo publicado (revisión data-guardian del 3 de noviembre).
+const wal = `${DB_PATH}-wal`;
+if (fs.existsSync(wal) && fs.statSync(wal).size > 0) {
+  console.log(`  ✗ ${path.basename(wal)} con cambios sin pasar al fichero`);
+  problems.push(`[integridad] hay un ${path.basename(wal)} con cambios sin pasar al fichero: lo que se publica no es lo que se ha comprobado. Publica la exportación de npm run db:export-history.`);
+}
+
 console.log('\nDatos que SÍ tiene que traer:');
 for (const { table, min } of REQUIRED) {
   const n = count(table);

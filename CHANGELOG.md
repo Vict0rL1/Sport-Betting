@@ -4,6 +4,93 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Auditoría paralela del 3 de noviembre · ajustes privados y guardado de interruptores (2026-11-03)
+
+Dos hallazgos verificados sobre `05a8e12` (`docs/plans/auditoria-paralela-3-noviembre.md`). Cada uno,
+con su prueba que falla antes.
+
+- **Los ajustes privados del dueño ya no salen ni entran con la historia.** La migración 27 deja en
+  `main.meta` una copia de `ajustes.usuario` (el banco personal) y `features.anulaciones` para
+  recuperarlas, y esa copia viajaba en la exportación.
+  - `db:export-history` quita de la copia exportada toda clave de meta del libro mayor
+    (`claveEsLedger`, nombres y prefijos), sin dejar sus bytes. La base original no cambia.
+  - `check-publishable` rechaza esas claves, no solo las tablas, sin enseñar los valores.
+  - `check-publishable` también mira los bytes del fichero (una fila borrada sin `VACUUM` sigue dentro) y
+    rechaza una base con un `-wal` con cambios: se publica el fichero, no lo que se comprobó.
+  - `fetch-data` descarta esas claves de toda descarga, y conserva las locales: antes mandaban las
+    descargadas. Solo pasa las dos que recoge la migración 27. Corre con `tsx`, como
+    `check-publishable`.
+  - `fetch-data` no instala una descarga que traiga tablas (o vistas) del libro mayor: en la historia
+    tapaban las del libro mayor adjunto.
+  - `fetch-data` no reemplaza ni aparta una historia local con filas en tablas del libro mayor: antes
+    se quedaban, sin aviso, solo en la copia con fecha.
+  - `db:export-history` no exporta encima de la base viva, del libro mayor ni de una base con sus
+    tablas: antes `-- data/ledger.db` reemplazaba el libro mayor. Si falla a medias, no deja
+    temporales.
+- **Un interruptor que no se pudo guardar ya no se aplica.** Antes, si SQLite rechazaba la escritura,
+  la app aplicaba el cambio sin guardar. Ahora se guarda primero y solo después se aplica.
+
+## La política versionada solo se cambia al arrancar (2026-11-03)
+
+Decisión del dueño (`docs/plans/auditoria-22-octubre.md`, «Decisión del dueño»). Apagar
+`politica.versionada` desde Ajustes cambiaba la política guardada por las constantes de fábrica,
+que pueden ser más laxas, y dejaba las apuestas sin versión de política.
+
+- **Ya no se cambia desde la API ni desde Ajustes.** `PATCH /api/features/politica.versionada`
+  responde 403, como `auth.*` y `seguridad.*`. Se cambia en `config/features.json` y al arrancar.
+- **Una anulación guardada de antes no cuenta**, ni en el servidor ni en los scripts. No se borra.
+- **`doctor` y `auditoria:copia` la dicen como ignorada**, no como si mandara. Se quita con
+  `{"on": null}`, lo único que la API acepta para un interruptor de arranque.
+- **Al desplegar:** si estaba apagada desde Ajustes, el banco vuelve a la versión de política
+  guardada, con sus topes y su freno. Las apuestas de antes no se reescriben. `npm run doctor` lo
+  avisa antes; después, quitar la anulación con `{"on": null}`: un código de antes la volvería a
+  aplicar.
+- **`auditoria:copia` cuenta lo colocado sin versión de política** (banco, estrategias, señales)
+  desde que podía llevarla; lo de antes, aparte y como DESCONOCIDO. En una copia de antes del
+  despliegue dice lo que aplicaba el servidor de entonces.
+- **Anulaciones guardadas ilegibles:** un PATCH ya no las pisa (409), los interruptores siguen
+  respondiendo con `config/features.json`, y el doctor lo avisa.
+- **E2E «K3», tolerante a medio píxel:** en CI la fila salió en 198 y 198,5 con el mismo commit en
+  una máquina, y en 198 en otra. El defecto que vigila empujaba 45 px, y lo sigue viendo.
+- **Un nombre heredado de `Object.prototype` ya no pasa por interruptor** (`constructor`,
+  `__proto__`): 404, sin guardar nada. Antes guardaba la clave y respondía 500.
+- **CI, en verde otra vez.** Fallaba desde el 29 de octubre con el mismo árbol que pasó el 27: la
+  Node 22 nueva trae un SQLite que escribe `1 − 0,58` exacto (0.42000000000000004) en
+  `json_array`. La prueba comparaba el texto de una versión de SQLite; ahora, con tolerancia. Y si
+  un test falla, CI imprime lo que falló al final del registro.
+
+## Seguimiento de la auditoría del 22 de octubre · referencia, push, 1X2 e interruptores en los scripts (2026-10-29)
+
+Lo que dejaron las revisiones del 27 de octubre como pendiente (`docs/plans/auditoria-22-octubre.md`,
+«Seguimiento»). Cada punto con su prueba que falla antes.
+
+- **La referencia afilada compara con Pinnacle en su misma línea.**
+  - Con Pinnacle en 44,5 y otras casas en 47,5, Destacados enseñaba ±13,4 pp que eran solo la
+    línea. Ahora no hay referencia (DESCONOCIDA) mientras ninguna otra casa cotice esa línea.
+  - Un 1X2 sin el empate guardado tampoco da referencia.
+- **El margen de una surebet con push.**
+  - En líneas enteras y de cuarto se dice el margen garantizado: ±3 a 2,10 es «4,8 %, 0,0 % si hay
+    push».
+  - En un h2h de la UFC, la NFL o el béisbol, el empate devuelve las dos patas.
+- **Un 1X2 sin el empate guardado no es una surebet.** El distintivo del comparador de líneas usa
+  ahora la misma regla que Destacados, y la fila dice la surebet que hay, con sus líneas y lo
+  garantizado.
+- **Los interruptores apagados desde Ajustes valen también en los scripts.**
+  - `npm run paper` colocaba apuestas con la política guardada y el laboratorio de estrategias
+    aunque estuvieran apagados. `doctor` y los informes de `jobs` tampoco los veían.
+  - Esos interruptores y los ajustes del usuario se guardan ahora en el libro mayor (migración
+    27): una historia nueva (`fetch-data --force`) ya no los borra. Restaurar un libro mayor de
+    antes de la migración tampoco.
+- **Con el laboratorio de estrategias apagado, lo pendiente se sigue liquidando.**
+- **Líneas, legible:** la introducción ya no llama surebet a cualquier margen negativo, la línea de
+  la surebet tiene contraste de texto, y la tabla escribe las líneas en el idioma («−3,5», «45,5»).
+- **Detalles de formato en Líneas y Destacados:**
+  - los porcentajes negativos llevan el signo menos («−4,8 %»), en toda la interfaz;
+  - en inglés, los porcentajes de las surebets van pegados («9.1%»);
+  - la nota del comparador y la etiqueta del mercado salen en el idioma de la interfaz;
+  - «1 casa» / «1 book», y «Pinnacle»; las casas con mayúscula también en Líneas;
+  - los informes y la línea temporal del partido escriben los porcentajes negativos con «−».
+
 ## Auditoría del 22 de octubre · freno en la auditoría de copias, surebets de hándicap y fallos de cuotas (2026-10-27)
 
 Lo que encontró la revisión de `0655c8c`: `docs/plans/auditoria-22-octubre.md`. Cada punto con su

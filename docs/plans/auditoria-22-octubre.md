@@ -128,6 +128,181 @@ Ni desbordes ni errores en la consola.
   guardado, un 1X2 saldría como surebet. No se conoce ningún camino que lo pierda (bajo).
 - `doctor.ts` y `scripts/paper.ts` tampoco instalan las anulaciones de Ajustes.
 
+## Seguimiento (29 de octubre)
+
+Lo pendiente de arriba, cada punto con su prueba que falla antes.
+
+- **La referencia afilada compara en la misma línea.** `referenciaDe(market, sport, …)`:
+  - el consenso de cada selección cuenta solo las cuotas en la línea de Pinnacle;
+  - sus líneas tienen que cubrirse entre sí como en una surebet;
+  - el mercado tiene que tener todas sus salidas (`salidasDe`);
+  - un mercado que no se sabe leer no da referencia;
+  - sin otra casa en la línea de Pinnacle no hay referencia: es DESCONOCIDA, no un 0 inventado
+    (revisión quant del 29 de octubre).
+  El ejemplo de 44,5 contra 47,5 pasa de ±13,4 pp a «sin referencia». Una desviación de 0 se
+  escribe sin signo («0,0 pp», no «−0,0 pp»).
+- **El margen con push.** Cada surebet lleva `margenMinimoPct`, en las mismas unidades que
+  `margenPct`. Es el margen en el peor resultado: prueba todas las diferencias o totales enteros
+  alrededor de las líneas y reparte la apuesta en las de cuarto.
+  - Con ±3,5 a 2,10, los dos son 4,8.
+  - Con ±3, 4,8 y 0.
+  - Con ±0,25, 4,8 y 2,4.
+  Entre dos líneas se queda la que más garantiza, y la lista se ordena por eso. Destacados lo
+  dice cuando es menor: «surebet 4,8 %, 0,0 % si hay push». Un h2h de dos salidas en la UFC, la
+  NFL o el béisbol (donde un empate o un nulo devuelve las dos), y un `draw_no_bet`, garantizan 0.
+  En baloncesto, NHL y tenis solo queda exento el h2h del partido entero: un cuarto o un periodo sí
+  pueden empatar.
+- **El distintivo de surebet del comparador de líneas** (`/api/odds/lineas`) usa ahora la misma
+  regla que Destacados (`surebetDe`). Antes tomaba la línea más cotizada de cada selección, sin
+  mirar si se cubrían: un Over 45,5 con un Under 44,5, o un 1X2 sin el empate, salían como surebet.
+  Y la fila dice la surebet que hay (`detalleSurebet`: patas con su línea y casa, margen y
+  garantizado), que puede estar en otras líneas que las más cotizadas de la tabla: «Surebet 9,1 %,
+  0,0 % si hay push, en estas cuotas: Team A −3 2,20 en c, Team B +3 2,20 en d».
+- **Un h2h tiene que tener todas sus salidas** (`salidasDe`): tres en el 1X2 del fútbol y en
+  cualquier `h2h_3_way`, dos en el resto. Si no coinciden con las guardadas, no hay surebet. La
+  referencia no lo pide todavía.
+- **Los interruptores de Ajustes valen en cualquier proceso que abra la base.** `getDb()` instala
+  el lector de `features.anulaciones` si nadie ha puesto otro (`lectorPorDefecto`).
+  - Antes solo lo instalaba el servidor (app.ts). `npm run paper` colocaba apuestas con la
+    política guardada y el laboratorio de estrategias aunque el dueño los hubiera apagado.
+    `npm run doctor` describía otro freno, y `jobs -- ejecutar resumen-diario|informe-semanal`
+    enviaba avisos con los canales apagados. `verify:data` no lee ningún interruptor: no cambia.
+  - Una anulación fijada a mano antes de abrir la base no se pierde: solo se releen las que se
+    cargaron vacías por no tener lector, o cuya lectura falló.
+- **Las anulaciones y los ajustes del usuario, en el libro mayor** (migración 27,
+  `ajustes-al-ledger`). Vivían en la `meta` de history.db: un `fetch-data -- --force` los borraba
+  sin decirlo, y desde ahí el banco y las estrategias volvían a apostar con interruptores que el
+  dueño había apagado. Ahora son estado del libro mayor (`CLAVES_LEDGER`), y la migración copia los
+  que hubiera sin pisar lo que el libro mayor ya tenga (revisión data-guardian del 29 de octubre).
+  - La copia de `meta` se queda, dormida. Si se restaura un libro mayor de antes de la migración, la
+    migración vuelve a correr y los recupera; borrarla los perdía.
+  - `fetch-data -- --force` pasa esas dos claves de la historia vieja a la nueva, por si la base no
+    se ha abierto todavía con este código.
+- **Con el laboratorio de estrategias apagado, lo pendiente se liquida igual.** El interruptor deja
+  de colocar apuestas, no de liquidarlas. Antes, al encenderlo, todo el atraso caía el mismo día en
+  los límites de pérdida (revisión quant del 29 de octubre).
+
+**ui-tester (30 de octubre).** El detalle de la surebet en Líneas y el «0,0 pp» de Destacados,
+bien en las 8 y 16 combinaciones (1280 y 390 px, claro y oscuro, español e inglés). Arreglado, con
+su prueba en `web/e2e/lineas.spec.ts`:
+- la introducción de Líneas decía que un margen negativo es una surebet; ahora, solo si esas cuotas
+  se cubren entre sí;
+- la línea nueva y la marca «surebet» tenían un contraste de 3,41:1 en el tema claro; ahora usan el
+  color de texto de beneficio (`PROFIT_TEXT`);
+- la tabla escribía las líneas tal cual («-3.5», «+45.5»); ahora como la surebet («−3,5», «45,5»).
+
+Visto en la misma tarjeta y de antes de este lote; arreglado el 31 de octubre, con su prueba
+(`web/src/components/picks/textosMercado.test.ts` y el caso en inglés de `web/e2e/lineas.spec.ts`):
+- los porcentajes negativos salían con guion ASCII («-4,8 %»): `formato().porcentaje` pone el
+  signo menos (U+2212), como `pct()`, en toda la interfaz;
+- en inglés, «9.1 %» junto a «2.6%»: los textos de surebet van ahora pegados en inglés;
+- la nota del comparador y la etiqueta de Destacados venían del servidor en español: salen del
+  catálogo, en el idioma de la interfaz;
+- «1 casas» → «1 casa» / «1 book», y «pinnacle» → «Pinnacle».
+
+Segunda pasada de ui-tester (31 de octubre): ningún porcentaje negativo de la interfaz sale ya con
+guion ASCII, sin regresiones en 88 cargas de página. Arreglado también, con su prueba:
+- el `pct()` de los informes y los textos de la línea temporal y de la reproducción, en el
+  servidor, también ponían «-1,25 %» (el resto del informe ya usaba «−»);
+- «1 casas» en el aviso de steam;
+- los nombres de las casas en Líneas y en las patas de Destacados, con mayúscula, como «Pinnacle»;
+- un «+» fijo delante de un porcentaje con signo, que habría salido «+−1,2 %».
+
+Queda, de antes y fuera de esto:
+- en el móvil, una pata puede partirse en dos líneas («Team A −3» / «2,20 en C»): hacerla
+  irrompible desbordaría con nombres largos de equipo;
+- en inglés hay porcentajes con espacio en otras partes (los chips «≥ 60 %», los ejes de los
+  gráficos, las franjas del archivo);
+- algunos textos que genera el servidor (la frase de la predicción del tenis, las franjas del
+  archivo) siguen en español con la interfaz en inglés.
+
+**Para el dueño:** apagar `politica.versionada` en Ajustes no solo «deja de versionar».
+Sustituye la política guardada por las constantes de fábrica, que pueden ser más laxas: con una
+v1 de tope por evento 0,005 y diario 0,02, apagado da 0,02 y 0,06. Además, las apuestas quedan con
+`policy_version_id` NULL. Esto ya pasaba en el servidor; ahora `npm run paper` hace lo mismo.
+Opciones:
+- que el interruptor solo se cambie al arrancar, como `auth.*`;
+- o que, apagado, se guarde la versión de fábrica y ningún tope pase del de la versión guardada.
+
+## Decisión del dueño (3 de noviembre): la política versionada, de arranque
+
+El dueño eligió la primera opción. `politica.versionada` solo se cambia en `config/features.json`
+y al arrancar, como la puerta y las cabeceras de seguridad:
+- `PATCH /api/features/politica.versionada` responde 403, y Ajustes ya no lo enseña como
+  interruptor: lo nombra en la frase de los que solo cambian al arrancar.
+- Una anulación guardada de antes (`{"politica.versionada": false}` en `features.anulaciones`) no
+  cuenta, ni en el servidor ni en los scripts (`npm run paper`, `doctor`, `jobs`). No se borra: el
+  libro mayor la guarda tal cual.
+- `npm run doctor` la dice como «anulación guardada que no cuenta», no como si mandara.
+- `npm run auditoria:copia` la dice igual: `interruptorAnulado` null (manda
+  `config/features.json`), `anulacionIgnorada` con el valor guardado, y una frase en la lectura del
+  freno.
+
+Lo que cambia al desplegar: si en producción estaba apagada desde Ajustes, al arrancar el banco
+pasa de las constantes de fábrica a la versión de política guardada (con sus topes y su freno), y
+las apuestas nuevas vuelven a llevar `policy_version_id`. Las apuestas ya colocadas con la política
+de fábrica y `policy_version_id` NULL se quedan como están: no se reescriben, y NULL sigue queriendo
+decir «constantes de fábrica». Las constantes de fábrica no son más laxas en todo: el freno por
+fuente atrasada de fábrica (48 h) puede ser más estricto que el de la versión guardada.
+
+Pasos al desplegar:
+1. Antes, `npm run doctor` contra la base de producción: si sale «Anulación guardada que no
+   cuenta: politica.versionada = false», el banco va a cambiar de régimen al arrancar.
+2. Después, quitar esa anulación con `PATCH /api/features/politica.versionada` y `{"on": null}`.
+   Si no se quita y se vuelve a un código de antes, ese código la vuelve a aplicar.
+
+Revisión quant-reviewer (3 de noviembre): todo lo que coloca o dimensiona una apuesta (banco,
+estrategias, confianza, sugerencias, `auditoria:copia`, doctor) lee la misma política que el
+servidor, y el libro mayor es coherente a través del cambio. Arreglado, con su prueba:
+- el doctor dice la anulación ignorada como aviso, con su valor, lo que manda, en plural si son
+  varias, y cómo quitarla;
+- `auditoria:copia`, en una copia de antes del despliegue, dice lo que aplicaba el servidor de
+  entonces y cuenta lo colocado sin versión de política (`sinVersion`: banco, estrategias y
+  señales, con la última fecha);
+- la rama «interruptor apagado» de la política vuelve a tener prueba (`policyStore.test.ts`,
+  apagándolo en `config/features.json`): antes solo se probaba a través de la anulación.
+
+Revisión data-guardian (3 de noviembre): lo nuevo de `auditoria:copia` solo lee (la copia sigue
+idéntica byte a byte). Arreglado, con su prueba que falla antes:
+- `sinVersion` contaba como «constantes de fábrica» toda fila con `policy_version_id` NULL. NULL solo
+  dice eso desde que la fila podía llevar versión: la primera versión de política de la copia y, en
+  `strategy_bets`, la migración 21 que añadió la columna. Lo de antes se cuenta aparte, como
+  DESCONOCIDO. En las estrategias, NULL es «freno y confianza de fábrica»: su importe sale de la
+  configuración congelada de cada una. Las señales son «evaluadas», no «colocadas».
+- La frase de la copia de antes del despliegue ya no dice «freno a 48 h»: en las copias de antes
+  del freno no lo había.
+- Con `features.anulaciones` ilegible, un PATCH reescribía el mapa desde la memoria, vacía, y
+  perdía las demás anulaciones: ahora responde 409 y no escribe, y en cuanto se arregla a mano vuelve
+  a funcionar sin reiniciar. Un valor que no es un objeto
+  (`null`, `5`, `"x"`) hacía fallar cada consulta de un interruptor: ahora cuenta como ilegible
+  (manda el fichero), y el doctor lo avisa en vez de decir «ninguna».
+
+De antes de este cambio, y fuera de él (encontrado por la revisión quant; tarea aparte): el panel
+de Cartera (`/api/staking/book`), `npm run staking` y los `limites` de `/api/risk` usan los topes de
+fábrica aunque la política versionada diga otros; `verify:data` mira el tope por evento de fábrica
+y no el de la versión con la que se colocó cada apuesta; la fila «Banco principal (política
+vigente)» del laboratorio suma apuestas de los dos regímenes; las estrategias sin `grupos`
+congelados toman los topes de la política viva; y la caché de la política es por proceso (una
+versión nueva desde la CLI no la ve el servidor hasta reiniciar).
+
+Revisión security-reviewer (3 de noviembre): nada salta el 403 (codificaciones, mayúsculas,
+`PUT /api/ajustes`, restauraciones: todo lo que lee el interruptor pasa por `featureEncendida`, que
+ignora la anulación). Arreglado, con su prueba que falla antes:
+- una anulación guardada de antes no se podía quitar por ningún camino: ahora `{"on": null}` la
+  quita (solo devuelve el mando a `config/features.json`); `true` y `false` siguen en 403, y el
+  doctor dice cómo quitarla;
+- de antes, no de este cambio: `PATCH /api/features/constructor` (o `toString`, `__proto__`)
+  pasaba por interruptor con `in`, guardaba la clave y respondía 500. Ahora `Object.hasOwn`: 404 y
+  nada guardado.
+
+Pruebas que fallaban antes del cambio: `auth/puerta.test.ts` (el 403, la anulación guardada
+ignorada, quitarla con `null` y los nombres heredados) y `doctor/checks.test.ts` (no decir «mandan
+sobre»). Y de punta a punta, `web/e2e/producto.spec.ts`: la API responde 403 y Ajustes no tiene
+interruptor para la política. Se actualizan, porque decían el
+comportamiento de antes, `scripts/anulaciones.test.ts` (un script ve la v1 aunque haya una
+anulación guardada) y `scripts/auditoriaFreno.test.ts` (la auditoría aplica la v3 y dice que la
+anulación no cuenta).
+
 ## Límites y lo que no se arregla aquí
 
 - Las ejecuciones de antes de este cambio no se reescriben: siguen diciendo lo que dijeron.

@@ -41,6 +41,9 @@ import { Readable } from 'node:stream';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { copiaConsistente, hayHistoria, integridadDe, otraConexionAbierta, quitarLaterales } from './datos-estado.mjs';
+// La misma clasificación que usa el servidor para saber qué claves de meta son estado del dueño (corre
+// con tsx, como check-publishable).
+import { CLAVES_RECUPERABLES, TABLAS_LEDGER, claveEsLedger } from '../server/src/db/tables.ts';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, '..');
@@ -69,15 +72,10 @@ const force = argv.includes('--force');
  * app, que también es tuyo — mide cuánto ha acertado en TUS partidos vistos, y
  * reiniciarlo a cero cada vez que se refresca la base haría que nunca acumulara nada.
  */
+// Las tablas del libro mayor (bets, los registros de predicciones…) ya no están aquí (auditoría paralela
+// del 3 de noviembre): una descarga con ellas no se instala, y una historia local con filas en ellas no
+// se reemplaza (ver tablasDelLibroMayor), así que copiarlas ya no podía pasar.
 const MINE = [
-  'bets',
-  'prediction_log',
-  'fb_prediction_log',
-  'bb_prediction_log',
-  'bsb_prediction_log',
-  'naf_prediction_log',
-  'nhl_prediction_log',
-  'ufc_prediction_log',
   // Lo que se MIDIÓ en tu instalación y no se puede volver a conseguir (lote B, B3): precios
   // observados por el refresco de fútbol, noticias con su fecha, alineaciones esperada y
   // confirmada, latencias, y los ids de tenis que la ingesta asigna y nunca reinicia.
@@ -115,6 +113,53 @@ function rowCounts(file) {
   return counts;
 }
 
+/** Tablas Y vistas: una vista con el nombre de una tabla del libro mayor la tapa igual (revisión data-guardian). */
+function tablasDe(file) {
+  const db = new DatabaseSync(file, { readOnly: true });
+  try {
+    return db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table', 'view')").all().map((r) => r.name);
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Las tablas del libro mayor con filas en una historia (`bets: 2`…). En una instalación partida no
+ * debería haber ninguna; si las hay, una tabla de la historia tapó la del libro mayor y guardó ahí
+ * registros que no se pueden volver a conseguir (revisión data-guardian del 3 de noviembre). Solo
+ * nombres y cuántas filas, nunca su contenido.
+ */
+function tablasDelLibroMayor(file) {
+  const db = new DatabaseSync(file, { readOnly: true });
+  try {
+    const tablas = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((r) => r.name).filter((t) => TABLAS_LEDGER.includes(t));
+    return tablas.map((t) => ({ t, n: db.prepare(`SELECT COUNT(*) AS n FROM "${t}"`).get().n })).filter((x) => x.n > 0);
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Una descarga nunca trae estado del dueño (auditoría paralela del 3 de noviembre): si la meta de la
+ * historia descargada tiene claves del libro mayor (`ajustes.usuario`, `features.anulaciones`,
+ * `telegram:`…), son de otra persona. Se quitan antes de instalarla, en todos los caminos: en una
+ * instalación nueva la migración 27 las habría llevado tal cual al libro mayor. Devuelve las claves
+ * quitadas (nunca los valores).
+ */
+function descartarClavesAjenas(file) {
+  const db = new DatabaseSync(file);
+  try {
+    const hayMeta = db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'meta'").get().n > 0;
+    if (!hayMeta) return [];
+    const ajenas = db.prepare('SELECT key FROM meta').all().map((r) => r.key).filter(claveEsLedger);
+    const borrar = db.prepare('DELETE FROM meta WHERE key = ?');
+    for (const k of ajenas) borrar.run(k);
+    return ajenas;
+  } finally {
+    db.close();
+  }
+}
+
 /** Copia tus tablas de una base a otra. Devuelve cuántas filas se salvaron. */
 function carryOver(fromFile, toFile) {
   const db = new DatabaseSync(toFile);
@@ -137,6 +182,19 @@ function carryOver(fromFile, toFile) {
       db.exec(`INSERT OR REPLACE INTO main."${t}" SELECT * FROM old."${t}"`);
       console.log(`  · ${t}: ${n} fila(s) conservadas`);
       moved += n;
+    }
+    // Los interruptores de Ajustes y los ajustes del usuario, si aún están en la meta de la historia
+    // (una instalación que todavía no abrió la base con la migración 27, que los lleva al libro
+    // mayor): pasan a la nueva para que la migración los recoja (revisión data-guardian del 29 de
+    // octubre). Mandan los locales (auditoría paralela del 3 de noviembre: con INSERT OR IGNORE
+    // mandaban los de la descarga). Solo las que recoge la migración 27 (CLAVES_RECUPERABLES): el
+    // resto del estado del libro mayor (rutas de copias, el offset de Telegram) no tiene quién lo lea
+    // aquí. Nada más de meta: el resto es procedencia de la descarga.
+    if (oldTables.has('meta') && newTables.has('meta')) {
+      const mias = db.prepare('SELECT key, value FROM old.meta').all().filter((r) => CLAVES_RECUPERABLES.includes(r.key));
+      const poner = db.prepare('INSERT OR REPLACE INTO main.meta (key, value) VALUES (?, ?)');
+      for (const r of mias) poner.run(r.key, r.value);
+      if (mias.length) console.log(`  · ajustes del dueño: ${mias.length} clave(s) conservadas`);
     }
     db.exec('DETACH DATABASE old');
   } finally {
@@ -168,6 +226,20 @@ async function main() {
       `${path.relative(ROOT, DB_PATH)} está abierta por otro proceso (el servidor en marcha, o npm run dev).\n` +
         '  Párala y vuelve a intentarlo: reemplazar la base bajo una conexión abierta la corrompe.',
     );
+  }
+
+  // Con filas en tablas del libro mayor, la historia local no se reemplaza (--force) ni se aparta (solo
+  // esquema): antes acababan solo en una copia con fecha, sin decir nada. Pasarlas al libro mayor es
+  // cosa del dueño: fetch-data nunca escribe en él.
+  if (fs.existsSync(DB_PATH) && (force || !hayHistoria(DB_PATH))) {
+    const filas = tablasDelLibroMayor(DB_PATH);
+    if (filas.length) {
+      throw new Error(
+        `${path.relative(ROOT, DB_PATH)} tiene filas en tablas del libro mayor (${filas.map((x) => `${x.t}: ${x.n}`).join(', ')}). ` +
+          'Son registros tuyos que no se pueden volver a conseguir: no se reemplaza ni se aparta nada.\n' +
+          '  Revisa con npm run verify:data y pásalas al libro mayor antes de descargar.',
+      );
+    }
   }
 
   // Una base SIN FILAS (solo esquema: lo que deja db:migrate antes de bajar datos) cuenta como
@@ -258,6 +330,23 @@ async function main() {
         .join(' · '),
   );
 
+  // Ni tablas del libro mayor (revisión data-guardian del 3 de noviembre): en la historia taparían las
+  // del libro mayor adjunto (la app resuelve primero en main), y lo tuyo se escribiría donde un
+  // --force lo borra. Una historia oficial no las lleva nunca: una que las traiga no sale del workflow
+  // (DATA_REPO, DATA_TAG o DATA_BASE_URL apuntan a otra; su SHA-256 prueba que llegó entera, no de
+  // dónde viene). No se instala nada.
+  const delLibroMayor = tablasDe(tmpDb).filter((t) => TABLAS_LEDGER.includes(t));
+  if (delLibroMayor.length) {
+    throw new Error(
+      `La base descargada trae tablas del libro mayor (${delLibroMayor.join(', ')}). Una historia publicada no las lleva nunca, ` +
+        'y en tu instalación taparían las tuyas. No se instala nada: revisa DATA_REPO, DATA_TAG o DATA_BASE_URL.',
+    );
+  }
+  const ajenas = descartarClavesAjenas(tmpDb);
+  if (ajenas.length) {
+    console.warn(`  ⚠ La descarga traía ${ajenas.length} clave(s) del libro mayor en su meta (${ajenas.join(', ')}): son estado de otra persona y se descartan. Una release no debería llevarlas nunca.`);
+  }
+
   if (exists) {
     // Copia con fecha ANTES de tocar nada. Es lo que hace que --force sea reversible. Con
     // `VACUUM INTO` y no con una copia del fichero: así lleva también lo que estuviera en el WAL.
@@ -267,8 +356,7 @@ async function main() {
     const integridad = copiaConsistente(DB_PATH, backup);
     if (integridad !== 'ok') throw new Error(`La base actual no pasa integrity_check (${integridad}); no se reemplaza. La copia está en ${path.basename(backup)}.`);
     console.log(`\n  Copia de la anterior en ${path.basename(backup)} (completa, con lo que hubiera en el WAL)`);
-    // Lo tuyo se conserva desde esa copia consistente. Si la base vieja aún tuviera tablas del
-    // libro mayor (una instalación anterior a la Fase 2 partida a mano), igual.
+    // Lo tuyo se conserva desde esa copia consistente.
     const moved = carryOver(backup, tmpDb);
     if (moved > 0) console.log(`  · ${moved} fila(s) de tus tablas conservadas`);
   }

@@ -131,7 +131,13 @@ test('sin instantáneas, la final sale del registro de predicciones (también an
   freezeFinals(new Date(Date.parse(INICIO) + 60_000));
   const f = finalPrePartido('nfl', 'nfl|2026|10|buf|kc');
   assert.equal(f?.source, 'prediction_log');
-  assert.deepEqual(f?.probs, [0.58, 0.42]);
+  // El complemento lo calcula SQLite (1 − 0,58) y lo escribe con json_array. El SQLite de la Node 22
+  // que instala CI desde el 29 de octubre lo escribe exacto, 0.42000000000000004; el 3.50.4 de la
+  // Node 22.22 lo redondeaba a 15 cifras, 0.42. Para quien lo lee (JSON.parse y el formato) es el
+  // mismo número: se compara con tolerancia, no con el texto de una versión de SQLite.
+  assert.equal(f?.probs.length, 2);
+  assert.equal(f?.probs[0], 0.58);
+  assert.ok(Math.abs((f?.probs[1] ?? Number.NaN) - 0.42) < 1e-12, `complemento ${f?.probs[1]}`);
 });
 
 test('un movimiento sin cambio de entradas dice «causa exacta no disponible»', () => {

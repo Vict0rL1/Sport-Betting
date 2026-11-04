@@ -86,6 +86,7 @@ test('con una política anterior al freno (sin archivoAtrasadoHoras) no hay rest
   assert.equal(f.politica.versionesGuardadas, 1);
   assert.equal(versionesTrabajo, 1, 'después de auditar, la copia de trabajo sigue con una');
   assert.equal(f.politica.interruptorAnulado, null, 'sin anulación desde Ajustes');
+  assert.equal(f.politica.anulacionIgnorada, null);
 });
 
 test('con una versión que enciende el freno, la NHL sale como restricción activa con su umbral', () => {
@@ -106,9 +107,10 @@ test('con una versión que enciende el freno, la NHL sale como restricción acti
   assert.equal(f.politica.versionesGuardadas, 2);
 });
 
-test('con el interruptor de la política versionada apagado desde Ajustes, manda lo de fábrica, como en el servidor (revisión data-guardian)', () => {
-  // Una v3 que apaga el freno, y el dueño que apaga desde Ajustes la política versionada: el servidor
-  // aplica entonces las constantes de fábrica (48 h) y frena; la auditoría tiene que decir lo mismo.
+test('una anulación de la política versionada guardada desde Ajustes no cuenta, como en el servidor (decisión del dueño, 3 de noviembre)', () => {
+  // Una v3 que apaga el freno, y una anulación de la política versionada guardada de antes. Desde el
+  // 3 de noviembre el interruptor es de arranque: el servidor la ignora y aplica la v3 (sin freno);
+  // la auditoría tiene que decir lo mismo, y decir que hay una anulación que no cuenta.
   nuevaVersion({ abstencion: { archivoAtrasadoHoras: 0 } }, 'apaga el freno', 'cli', new Date('2026-10-13T12:00:00.000Z'));
   // Primero sin anulación: la clave a 0 no se enciende sola con el valor de fábrica (revisión quant),
   // cada competición dice con qué horas se contó, y las vencidas de 48 h no llevan la marca del freno.
@@ -123,16 +125,41 @@ test('con el interruptor de la política versionada apagado desde Ajustes, manda
   assert.match(apagado.resumen, /Fuente atrasada a más de 48 h sin prueba suficiente/);
 
   setMeta(CLAVE_ANULACIONES, JSON.stringify({ 'politica.versionada': false }));
+  // Una apuesta colocada mientras la anulación mandaba (código de antes): sin versión de política.
+  // El partido es después de «ahora»: no cambia las vencidas de los otros casos.
+  db.prepare(
+    `INSERT INTO paper_bets (placed_at, sport, match_key, event_id, label, selection, p_model, p_market, odds, stake, bankroll_at, commence_time)
+     VALUES ('2026-10-13T10:00:00.000Z', 'nhl', 'nhl|2026-10-20|EDM|VAN', 'ev-1020', 'EDM vs VAN', 'Edmonton Oilers', 0.6, 0.5, 2.0, 10, 1000, '2026-10-20T02:00:00Z')`,
+  ).run();
+  // Y una de antes de la primera versión de política (la v1 es del 1 de septiembre): sin versión
+  // porque no había ninguna, no porque se apagara (revisión data-guardian del 3 de noviembre).
+  db.prepare(
+    `INSERT INTO paper_bets (placed_at, sport, match_key, event_id, label, selection, p_model, p_market, odds, stake, bankroll_at, commence_time)
+     VALUES ('2026-08-15T10:00:00.000Z', 'nhl', 'nhl|2026-10-21|EDM|SEA', 'ev-1021', 'EDM vs SEA', 'Edmonton Oilers', 0.6, 0.5, 2.0, 10, 1000, '2026-10-21T02:00:00Z')`,
+  ).run();
   try {
     const { informe, resumen } = auditar();
     const f = informe.frenoFuenteAtrasada;
-    assert.equal(f.politica.interruptorVersionada, false);
-    assert.equal(f.politica.interruptorAnulado, false, 'apagado desde Ajustes, no en config/features.json');
-    assert.equal(f.politica.version, null);
-    assert.equal(f.horasEfectivas, 48);
-    assert.equal(f.activo, true);
-    assert.deepEqual(f.restricciones.map((c: { competicion: string }) => c.competicion), ['nhl']);
-    assert.match(resumen, /sin versionar/);
+    assert.equal(f.politica.interruptorVersionada, true, 'manda config/features.json');
+    assert.equal(f.politica.interruptorAnulado, null, 'la anulación no manda');
+    assert.equal(f.politica.anulacionIgnorada, false, 'pero se dice que está guardada y no cuenta');
+    assert.equal(f.politica.version, 3);
+    assert.equal(f.horasEfectivas, 0);
+    assert.equal(f.activo, false);
+    assert.deepEqual(f.restricciones, []);
+    assert.doesNotMatch(resumen, /sin versionar/);
+    assert.match(f.lectura, /no cuenta/);
+    assert.match(resumen, /politica\.versionada = false.*no cuenta/);
+    // Revisión quant del 3 de noviembre: en una copia de antes del despliegue, lo que aplicaba el
+    // servidor de entonces, y cuántas filas se colocaron sin versión (con las constantes de fábrica).
+    assert.match(f.lectura, /antes del 3 de noviembre.*constantes de fábrica/);
+    // El freno no existía en todas las copias de antes: no se dice con qué horas (revisión data-guardian).
+    assert.doesNotMatch(f.lectura, /48 h/);
+    assert.deepEqual(f.politica.sinVersion.paper_bets, { desde: '2026-09-01T00:00:00.000Z', n: 1, ultima: '2026-10-13T10:00:00.000Z', anteriores: 1 });
+    assert.equal(f.politica.sinVersion.strategy_bets.n, 0);
+    assert.equal(f.politica.sinVersion.edge_signals.n, 0);
+    assert.match(resumen, /Sin versión de política.*1 apuesta del banco.*constantes de fábrica/);
+    assert.match(resumen, /1 anterior.*DESCONOCIDO/);
   } finally {
     setMeta(CLAVE_ANULACIONES, '{}');
   }

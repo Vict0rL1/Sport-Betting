@@ -8,9 +8,11 @@ import { SubNav } from '../components/nav/SubNav';
 import { pillClass } from '../components/ui';
 import { COLOR_BENEFICIO } from '../components/charts';
 import { useSubnavApuestas } from './subnav';
+import { lineaConSigno, nombreCasa, seleccionConLinea } from '../components/picks/tipos';
+import { PROFIT_TEXT } from '../lib/theme';
 
 interface Linea { seleccion: string; linea: number | null; mejor: { cuota: number; casa: string }; peor: { cuota: number; casa: string }; consenso: number; casas: number; dispersionPp: number; mejorSobreConsenso: number }
-interface Mercado { eventId: string; sport: string; league: string; market: string; partido: string; cuando: string | null; eventoId: string | null; selecciones: Linea[]; margenMejor: number | null; margenConsenso: number | null; surebet: boolean; observado: string | null }
+interface Mercado { eventId: string; sport: string; league: string; market: string; partido: string; cuando: string | null; eventoId: string | null; selecciones: Linea[]; margenMejor: number | null; margenConsenso: number | null; surebet: boolean; observado: string | null; detalleSurebet: { margenPct: number; margenMinimoPct: number; patas: { seleccion: string; cuota: number; casa: string; linea: number | null }[] } | null }
 interface Respuesta { generado: string; ventanaHoras: number; mercados: Mercado[]; eventos: number; nota: string }
 
 const DEPORTES = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'ufc', 'tennis'];
@@ -37,7 +39,8 @@ export default function Lineas() {
       <SubNav etiqueta={t('nav.subApuestas')} enlaces={subnav} />
       <h2 className="mb-1 text-[20px] font-semibold text-(--ink-strong)">{t('lineas.titulo')}</h2>
       <p className="mb-2 max-w-3xl text-[14px] leading-relaxed text-(--ink-soft)">{t('lineas.intro')}</p>
-      {datos && <p className="mb-4 max-w-3xl text-[12px] text-(--ink-muted)">{datos.nota}</p>}
+      {/* Del catálogo, no del servidor (que la manda en español): así sale en el idioma de la interfaz. */}
+      {datos && <p className="mb-4 max-w-3xl text-[12px] text-(--ink-muted)">{t('lineas.nota')}</p>}
       <div className="mb-4 flex flex-wrap gap-1.5">
         <button className={pillClass(sport === '')} onClick={() => setSport('')}>{t('bandeja.todosDeportes')}</button>
         {DEPORTES.map((d) => (
@@ -60,7 +63,7 @@ export default function Lineas() {
               <h3 className="min-w-0 flex-1 break-words text-[15px] font-semibold text-(--ink-strong)">
                 {m.eventoId ? <Link to={`/partido/${m.sport}/${encodeURIComponent(m.eventoId)}`} className="hover:underline">{m.partido}</Link> : m.partido}
               </h3>
-              {m.surebet && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1" style={{ color: COLOR_BENEFICIO, borderColor: COLOR_BENEFICIO }}>surebet</span>}
+              {m.surebet && <span className="rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1" style={{ color: PROFIT_TEXT, borderColor: COLOR_BENEFICIO }}>surebet</span>}
             </div>
             <p className="mb-2 text-[12px] text-(--ink-muted)">
               {t(`deporte.${m.sport}` as never)} · {t(`lineas.mercado.${m.market}` as never)}
@@ -68,6 +71,17 @@ export default function Lineas() {
               {m.margenConsenso != null ? ` · ${t('lineas.margenConsenso', { v: f.porcentaje(m.margenConsenso, 1) })}` : ''}
               {m.margenMejor != null ? ` · ${t('lineas.margenMejor', { v: f.porcentaje(m.margenMejor, 1) })}` : ''}
             </p>
+            {/* La surebet que hay, con sus líneas: puede no ser la línea más cotizada de la tabla, y con push
+                (línea entera o de cuarto) se dice lo garantizado (revisión quant). */}
+            {m.detalleSurebet && (
+              <p className="mb-2 text-[12px] font-medium" style={{ color: PROFIT_TEXT }} data-testid="detalle-surebet">
+                {t(m.detalleSurebet.margenMinimoPct < m.detalleSurebet.margenPct ? 'lineas.surebetPush' : 'lineas.surebet', {
+                  m: f.numero(m.detalleSurebet.margenPct, 1),
+                  min: f.numero(m.detalleSurebet.margenMinimoPct, 1),
+                  patas: m.detalleSurebet.patas.map((p) => t('mi.pata', { sel: seleccionConLinea(p.seleccion, p.linea, m.market), cuota: cuota(p.cuota), casa: nombreCasa(p.casa) })).join(', '),
+                })}
+              </p>
+            )}
             <div className="desliza-x overflow-x-auto" tabIndex={0}>
               <table className="w-full min-w-[20rem] text-[13px] tabular-nums">
                 <thead>
@@ -84,14 +98,15 @@ export default function Lineas() {
                     <tr key={s.seleccion} className="border-t border-(--line) align-top">
                       <td className="py-1 pr-2 text-(--ink-body)">
                         {s.seleccion}
-                        {s.linea != null && <span className="text-(--ink-muted)"> {s.linea > 0 ? `+${s.linea}` : s.linea}</span>}
+                        {/* Como en la línea de la surebet: «−3,5», «+3,5», «45,5» (revisión ui-tester). */}
+                        {s.linea != null && <span className="text-(--ink-muted)"> {lineaConSigno(s.linea, m.market)}</span>}
                       </td>
                       <td className="py-1 pr-2">
                         <span className="font-semibold text-(--ink-strong)">{cuota(s.mejor.cuota)}</span>
-                        <span className="block text-[11px] text-(--ink-muted)">{s.mejor.casa} · +{f.porcentaje(s.mejorSobreConsenso, 1)}</span>
+                        <span className="block text-[11px] text-(--ink-muted)">{nombreCasa(s.mejor.casa)} · {s.mejorSobreConsenso > 0 ? '+' : ''}{f.porcentaje(s.mejorSobreConsenso, 1)}</span>
                       </td>
                       <td className="py-1 pr-2 text-(--ink-body)">{cuota(s.consenso)}<span className="block text-[11px] text-(--ink-muted)">{t('lineas.casas', { n: s.casas })}</span></td>
-                      <td className="py-1 pr-2 text-(--ink-soft)">{cuota(s.peor.cuota)}<span className="block text-[11px] text-(--ink-muted)">{s.peor.casa}</span></td>
+                      <td className="py-1 pr-2 text-(--ink-soft)">{cuota(s.peor.cuota)}<span className="block text-[11px] text-(--ink-muted)">{nombreCasa(s.peor.casa)}</span></td>
                       <td className="py-1 text-(--ink-body)">{f.numero(s.dispersionPp, 1)} pp</td>
                     </tr>
                   ))}

@@ -56,7 +56,7 @@ export interface Inteligencia {
   ventanaHoras: number;
   eventos: number;
   steam: { eventId: string; partido: string; market: string; seleccion: string; desde: number; hasta: number; movimientoPp: number; minutos: number; casas: number }[];
-  surebets: { eventId: string; partido: string; market: string; margenPct: number; patas: { seleccion: string; cuota: number; casa: string; linea: number | null }[] }[];
+  surebets: { eventId: string; partido: string; market: string; margenPct: number; margenMinimoPct: number; patas: { seleccion: string; cuota: number; casa: string; linea: number | null }[] }[];
   referencia: { eventId: string; partido: string; market: string; casa: string; selecciones: { seleccion: string; referencia: number; consenso: number; desviacionPp: number }[] }[];
   etiqueta: string;
 }
@@ -103,7 +103,15 @@ export function guardar(k: string, v: unknown): void {
  * línea, tal cual.
  */
 export function seleccionConLinea(seleccion: string, linea: number | null, market: string): string {
-  if (linea === null) return seleccion;
-  const signo = /spreads/.test(market) && linea > 0 ? '+' : '';
-  return `${seleccion} ${signo}${cifra(linea)}`;
+  return linea === null ? seleccion : `${seleccion} ${lineaConSigno(linea, market)}`;
+}
+
+/** Una línea en el idioma: con signo en un hándicap («−3,5», «+3,5»), el umbral en un total («45,5»). */
+export function lineaConSigno(linea: number, market: string): string {
+  return `${/spreads/.test(market) && linea > 0 ? '+' : ''}${cifra(linea)}`;
+}
+
+/** El nombre de una casa a partir de su clave del proveedor, con mayúscula: «pinnacle» → «Pinnacle». */
+export function nombreCasa(clave: string): string {
+  return clave.charAt(0).toUpperCase() + clave.slice(1);
 }

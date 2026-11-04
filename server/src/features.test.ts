@@ -24,3 +24,98 @@ test('anulaciones: cambian el interruptor, se persisten por el guardador y null 
   reiniciarFeatures();
   conLectorDeAnulaciones(() => null);
 });
+
+test('una lectura de anulaciones que falla no se queda para siempre: al abrir la base otra vez, se vuelve a leer (revisión data-guardian)', async () => {
+  const { lectorPorDefecto } = await import('./features.ts');
+  reiniciarFeatures({ 'x.c': { on: true, descripcion: 'c' } });
+  let falla = true;
+  conLectorDeAnulaciones(() => {
+    if (falla) throw new Error('database is locked');
+    return JSON.stringify({ 'x.c': false });
+  });
+  assert.equal(featureEncendida('x.c'), true, 'sin poder leer, manda el fichero');
+  falla = false;
+  // Lo que hace getDb() al abrir una conexión: no cambia el lector puesto, pero lo que falló se relee.
+  lectorPorDefecto(() => null);
+  assert.equal(featureEncendida('x.c'), false);
+  reiniciarFeatures();
+  conLectorDeAnulaciones(() => null);
+});
+
+// Revisión data-guardian del 3 de noviembre: con lo guardado ilegible, un PATCH reescribía el mapa
+// desde la memoria (vacía) y perdía las demás anulaciones; y un valor que no es un objeto (null, 5,
+// "x") hacía fallar cada consulta de un interruptor.
+test('anulaciones guardadas que no son un objeto: los interruptores siguen respondiendo, con config/features.json', () => {
+  for (const guardado of ['null', '5', '"x"', '[true]']) {
+    reiniciarFeatures();
+    conLectorDeAnulaciones((k) => (k === CLAVE_ANULACIONES ? guardado : null));
+    assert.doesNotThrow(() => featureEncendida('api.docs'), guardado);
+    assert.equal(featureEncendida('api.docs'), true, `${guardado}: manda el fichero`);
+    assert.equal(estadoFeatures()['api.docs'].anulada, false);
+  }
+  conLectorDeAnulaciones(() => null);
+  reiniciarFeatures();
+});
+
+test('con lo guardado ilegible, fijar o quitar una anulación no reescribe el mapa (se perderían las demás)', () => {
+  for (const guardado of ['{roto', 'null']) {
+    reiniciarFeatures();
+    conLectorDeAnulaciones((k) => (k === CLAVE_ANULACIONES ? guardado : null));
+    featureEncendida('api.docs');
+    let escrito: string | null = null;
+    assert.throws(() => fijarAnulacion('api.docs', false, (j) => (escrito = j)), /no se puede leer/);
+    assert.throws(() => fijarAnulacion('politica.versionada', null, (j) => (escrito = j)), /no se puede leer/);
+    assert.equal(escrito, null, `${guardado}: nada escrito`);
+  }
+  conLectorDeAnulaciones(() => null);
+  reiniciarFeatures();
+});
+
+test('arreglado lo guardado a mano, fijar una anulación vuelve a funcionar sin reiniciar (revisión data-guardian del 3 de noviembre)', () => {
+  let guardado = '{roto';
+  reiniciarFeatures();
+  conLectorDeAnulaciones((k) => (k === CLAVE_ANULACIONES ? guardado : null));
+  featureEncendida('api.docs');
+  assert.throws(() => fijarAnulacion('api.docs', false, () => undefined), /no se puede leer/);
+  guardado = JSON.stringify({ 'estrategias.laboratorio': false });
+  let escrito: string | null = null;
+  fijarAnulacion('api.docs', false, (j) => (escrito = j));
+  assert.deepEqual(JSON.parse(escrito ?? '{}'), { 'estrategias.laboratorio': false, 'api.docs': false }, 'con lo que ya había');
+  conLectorDeAnulaciones(() => null);
+  reiniciarFeatures();
+});
+
+// Auditoría paralela del 3 de noviembre: fijarAnulacion publicaba el mapa nuevo en memoria ANTES de
+// guardarlo. Si la escritura fallaba, la llamada lanzaba pero la app aplicaba el cambio sin guardar
+// (guardado false, en marcha true).
+test('si guardar falla, nada cambia: ni lo guardado, ni lo que aplica la app, ni las demás anulaciones (al encender, al apagar y al quitar)', () => {
+  let guardado = JSON.stringify({ 'estrategias.laboratorio': false, 'api.docs': false });
+  reiniciarFeatures();
+  conLectorDeAnulaciones((k) => (k === CLAVE_ANULACIONES ? guardado : null));
+  const rechaza = () => {
+    throw new Error('SQLITE_FULL: escritura rechazada (simulada)');
+  };
+  const foto = () => ({ guardado, lab: featureEncendida('estrategias.laboratorio'), docs: featureEncendida('api.docs'), anuladas: Object.entries(estadoFeatures()).filter(([, f]) => f.anulada).map(([k]) => k).sort() });
+  try {
+    // Encender con la escritura rechazada.
+    const antes = foto();
+    assert.equal(antes.lab, false);
+    assert.throws(() => fijarAnulacion('estrategias.laboratorio', true, rechaza), /SQLITE_FULL/);
+    assert.deepEqual(foto(), antes, 'encender: guardado false y en marcha false');
+    // Quitar (null) con la escritura rechazada.
+    assert.throws(() => fijarAnulacion('api.docs', null, rechaza), /SQLITE_FULL/);
+    assert.deepEqual(foto(), antes, 'quitar: la anulación sigue');
+    // Con éxito, cambian las dos cosas.
+    const ok = fijarAnulacion('estrategias.laboratorio', true, (j) => (guardado = j));
+    assert.deepEqual(ok, { 'estrategias.laboratorio': true, 'api.docs': false });
+    assert.deepEqual(JSON.parse(guardado), { 'estrategias.laboratorio': true, 'api.docs': false });
+    assert.equal(featureEncendida('estrategias.laboratorio'), true);
+    // Apagar con la escritura rechazada.
+    const encendido = foto();
+    assert.throws(() => fijarAnulacion('estrategias.laboratorio', false, rechaza), /SQLITE_FULL/);
+    assert.deepEqual(foto(), encendido, 'apagar: guardado true y en marcha true');
+  } finally {
+    conLectorDeAnulaciones(() => null);
+    reiniciarFeatures();
+  }
+});

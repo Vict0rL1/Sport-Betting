@@ -20,7 +20,7 @@
 
 import { getDb } from '../db.ts';
 import { quotesAt, selectionsOf, type BookQuote, deLaLineaMasCotizada } from './snapshots.ts';
-import { eventosRecientes, VENTANA_HORAS } from './intel.ts';
+import { eventosRecientes, surebetDe, VENTANA_HORAS, type Surebet } from './intel.ts';
 
 export interface LineaSeleccion {
   seleccion: string;
@@ -46,11 +46,19 @@ export interface MercadoLinea {
   /** El id de la fila de próximos (la ficha /partido/:sport/:id), si la hay. */
   eventoId: string | null;
   selecciones: LineaSeleccion[];
-  /** Σ 1/mejor − 1: el margen que queda tomando la mejor de cada selección. Negativo = surebet. */
+  /**
+   * Σ 1/mejor − 1 en la línea más cotizada de cada selección. Negativo no basta para una surebet: esas
+   * líneas pueden no cubrirse entre sí; eso lo dice `surebet`.
+   */
   margenMejor: number | null;
   /** Σ 1/consenso − 1: el margen del precio de consenso. */
   margenConsenso: number | null;
   surebet: boolean;
+  /**
+   * La surebet que hay (intel.ts, surebetDe): sus patas con su línea y casa, el margen y el garantizado
+   * con push. Puede estar en otras líneas que las más cotizadas de la tabla (revisión quant).
+   */
+  detalleSurebet: Pick<Surebet, 'patas' | 'margenPct' | 'margenMinimoPct'> | null;
   observado: string | null;
 }
 
@@ -129,20 +137,26 @@ export function comparadorDeLineas(now = new Date(), opts: { sport?: string; mar
     } catch {
       continue;
     }
-    const lineas = selecciones.map((s) => lineaDe(s, quotesAt(e.eventId, e.market, s, at))).filter((x): x is LineaSeleccion => x != null);
+    const cuotas = selecciones.map((s) => ({ seleccion: s, cuotas: quotesAt(e.eventId, e.market, s, at) }));
+    const lineas = cuotas.map((c) => lineaDe(c.seleccion, c.cuotas)).filter((x): x is LineaSeleccion => x != null);
     if (lineas.length === 0) continue;
     // Las casas cotizan todas las selecciones de un mercado; si falta alguna, el margen no se puede calcular.
     const completo = lineas.length === selecciones.length;
     const margenMejor = completo ? margen(lineas.map((l) => l.mejor.cuota)) : null;
+    const sb = surebetDe(e.market, e.sport, cuotas);
     let observado: string | null = null;
-    for (const s of selecciones) for (const q of quotesAt(e.eventId, e.market, s, at)) if (!observado || q.observedAt > observado) observado = q.observedAt;
+    for (const c of cuotas) for (const q of c.cuotas) if (!observado || q.observedAt > observado) observado = q.observedAt;
     mercados.push({
       ...e,
       eventoId: idProximo(e.sport, e.eventId),
       selecciones: lineas,
       margenMejor: margenMejor == null ? null : Math.round(margenMejor * 10000) / 10000,
       margenConsenso: completo ? margen(lineas.map((l) => l.consenso)) : null,
-      surebet: margenMejor != null && margenMejor < 0,
+      // La misma regla que Destacados (intel.ts, surebetDe): líneas que se cubren y todas las salidas del
+      // mercado. La línea más cotizada de cada selección no tiene por qué cubrir la de la otra: un Over
+      // 45,5 con un Under 44,5 pierde las dos con 45 (revisión quant del 29 de octubre).
+      surebet: sb !== null,
+      detalleSurebet: sb ? { patas: sb.patas, margenPct: sb.margenPct, margenMinimoPct: sb.margenMinimoPct } : null,
       observado,
     });
   }

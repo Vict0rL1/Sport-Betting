@@ -100,6 +100,17 @@ test('tenis punto a punto: cuatro puntos son un juego, con el saque y el break; 
   }
 });
 
+// Decisión del dueño (3 de noviembre): la política versionada solo cambia al arrancar, como la puerta.
+test('la política versionada solo se cambia al arrancar: la API la rechaza y Ajustes no tiene interruptor para ella', async ({ page, request }) => {
+  const r = await request.patch('/api/features/politica.versionada', { data: { on: false } });
+  expect(r.status()).toBe(403);
+  expect(((await r.json()) as { error: string }).error).toContain('config/features.json');
+  await page.goto('/ajustes');
+  await expect(page.getByRole('switch', { name: /^tenis\.enVivo:/ })).toBeVisible();
+  await expect(page.getByRole('switch', { name: /^politica\.versionada:/ })).toHaveCount(0);
+  await expect(page.getByText(/solo se cambian al arrancar/)).toContainText('politica.versionada');
+});
+
 test('NHL publicada: su pestaña y la prueba con la que se publicó, sin inventar métricas sin datos', async ({ page }) => {
   await page.goto('/nhl');
   await expect(page.getByRole('tab', { name: 'NHL' }).first()).toHaveAttribute('aria-selected', 'true');

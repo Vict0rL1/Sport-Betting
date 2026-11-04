@@ -7,7 +7,7 @@ const { getDb } = await import('../db.ts');
 const { generarDiario, generarSemanal, cicloResumenDiario, cicloInformeSemanal, listarInformes, informe } = await import('./index.ts');
 const { semanaIso, local, lunesDe } = await import('./tiempo.ts');
 const { semanaAnterior } = await import('./semanal.ts');
-const { tabla, pct, dinero } = await import('./formato.ts');
+const { tabla, pct, dinero, porcentaje } = await import('./formato.ts');
 const { listarBandeja } = await import('../bandeja/index.ts');
 
 const db = getDb();
@@ -28,6 +28,10 @@ test('formato: tabla, porcentaje y dinero en español', () => {
   assert.equal(tabla(['a'], []), '');
   assert.equal(pct(0.1234), '12,3 %');
   assert.equal(pct(null), '—');
+  // Con el signo menos, como pp() y dinero() (revisión ui-tester del 31 de octubre: «CLV -1,25 %»).
+  assert.equal(pct(-0.0125, 2), '−1,25 %');
+  assert.equal(pct(-0.00001), '0,0 %', 'lo que redondea a 0 no lleva signo');
+  assert.equal(porcentaje(-0.025, 1, false), '−2.5', 'con punto, para los textos que ya lo usan');
   assert.equal(dinero(-1234.5), '−1.234,50');
 });
 
