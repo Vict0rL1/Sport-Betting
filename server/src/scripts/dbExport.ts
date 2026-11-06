@@ -63,17 +63,28 @@ if (motivo) {
 // Todo se construye aparte y se renombra al final (revisión data-guardian del 3 de noviembre): si el
 // proceso muere a medias, en `destino` no queda una copia sin limpiar; y si algo falla, los temporales
 // (que llevan la meta privada) se borran (revisiones security y data-guardian).
-const parcial = `${destino}.parcial`;
-const limpia = `${destino}.limpia`;
-const quitar = (f: string) => {
-  for (const suf of ['', '-journal', '-wal', '-shm']) fs.rmSync(f + suf, { force: true });
-};
+//
+// En un directorio PROPIO de esta exportación, creado con mkdtemp junto al destino (mismo sistema de
+// ficheros, así el rename final es atómico), y solo ese directorio se borra (auditoría del 5 de
+// noviembre): con nombres fijos (`<destino>.parcial`, `<destino>.limpia`), una base ajena con ese
+// nombre se borraba sin aviso, y dos exportaciones a la vez se pisaban los temporales.
+const dirDestino = path.dirname(destino);
+const prefijo = `${path.basename(destino)}.tmp-`;
+// Restos de exportaciones interrumpidas (o de otra en marcha): se avisa, no se tocan.
+const ajenos = fs.readdirSync(dirDestino).filter((f) => f.startsWith(prefijo));
+if (ajenos.length) {
+  console.warn(
+    `⚠ Junto al destino hay ${ajenos.length} directorio(s) temporal(es) de otra exportación (${ajenos.join(', ')}). No se tocan: si no hay ninguna en marcha, ` +
+      'son restos de una interrumpida y pueden llevar meta privada; bórralos a mano.',
+  );
+}
+let propio: string | null = null;
 let copia: DatabaseSync | null = null;
-let instalada = false;
 try {
+  propio = fs.mkdtempSync(path.join(dirDestino, prefijo));
+  const parcial = path.join(propio, 'parcial.db');
+  const limpia = path.join(propio, 'limpia.db');
   const db = getDb();
-  quitar(parcial);
-  quitar(limpia);
   db.exec(`VACUUM main INTO '${parcial.replace(/'/g, "''")}'`);
   // Solo en la COPIA: la original conserva su copia de recuperación.
   copia = new DatabaseSync(parcial);
@@ -87,7 +98,6 @@ try {
   copia.exec(`VACUUM INTO '${limpia.replace(/'/g, "''")}'`);
   copia.close();
   copia = null;
-  quitar(parcial);
   const final = new DatabaseSync(limpia, { readOnly: true });
   const integridad = (final.prepare('PRAGMA integrity_check').get() as { integrity_check: string }).integrity_check;
   const tablas = tablasDe(final);
@@ -97,16 +107,22 @@ try {
   // Y ni sus nombres en los bytes (los valores nunca se imprimen ni se buscan a ciegas: pueden ser cortos).
   const bytes = fs.readFileSync(limpia);
   const restos = privadas.filter((k) => bytes.includes(Buffer.from(k)));
+  // Lo que haya en el destino se vuelve a mirar justo antes de reemplazarlo: pudo cambiar mientras se exportaba.
+  const motivoAhora = motivoParaNoPisar();
   if (integridad !== 'ok' || coladas.length || quedan.length || restos.length) {
     console.error(
       `✗ Exportación descartada: integridad «${integridad}»${coladas.length ? `, tablas del libro mayor dentro: ${coladas.join(', ')}` : ''}` +
         `${quedan.length || restos.length ? `, claves privadas de meta que no se pudieron quitar: ${[...new Set([...quedan, ...restos])].join(', ')}` : ''}`,
     );
     process.exitCode = 1;
+  } else if (motivoAhora) {
+    console.error(`✗ No se exporta encima de ${destino}: ${motivoAhora}. Elige otro destino.`);
+    process.exitCode = 1;
   } else {
-    quitar(destino);
+    // Los laterales del fichero que se reemplaza (un WAL viejo junto al nuevo se aplicaría encima), y el
+    // rename, que reemplaza el destino de una vez.
+    for (const suf of ['-journal', '-wal', '-shm']) fs.rmSync(destino + suf, { force: true });
     fs.renameSync(limpia, destino);
-    instalada = true;
     console.log(
       `✓ ${destino} (${(fs.statSync(destino).size / 1048576).toFixed(0)} MB, ${tablas.length} tablas, integridad ok, sin tablas del libro mayor` +
         `${privadas.length ? `; ${privadas.length} clave(s) privada(s) de meta fuera (${privadas.join(', ')}): siguen en la base original para recuperarlas` : ''})`,
@@ -118,6 +134,6 @@ try {
   } catch {
     // ya cerrada
   }
-  quitar(parcial);
-  if (!instalada) quitar(limpia);
+  // Solo lo que creó esta exportación.
+  if (propio) fs.rmSync(propio, { recursive: true, force: true });
 }

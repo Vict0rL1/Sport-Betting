@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import '../test/setup.ts';
@@ -211,4 +211,88 @@ test('check-publishable rechaza una base con un -wal con cambios: se publica el 
   }
   // Cerrada (el checkpoint pasa todo al fichero y el -wal desaparece), se puede publicar.
   assert.equal(correr('scripts/check-publishable.mjs', [f], RAIZ).status, 0);
+});
+
+// ---- Auditoría del 5 de noviembre: el exportador borraba ficheros que no eran suyos ----
+// Los temporales tenían nombre fijo (`<destino>.parcial`, `<destino>.limpia`) y se borraban, con sus
+// laterales, al empezar y al terminar: una base ajena con ese nombre desaparecía sin aviso, y dos
+// exportaciones a la vez compartían los mismos temporales.
+
+/** Ficheros con los nombres de antes junto al destino: una base con una apuesta, su WAL y un texto. */
+function senuelos(dir: string): Record<string, string> {
+  const destino = path.join(dir, 'history.export.db');
+  const parcial = `${destino}.parcial`;
+  const d = new DatabaseSync(parcial);
+  d.exec("CREATE TABLE paper_bets (id INTEGER PRIMARY KEY, nota TEXT); INSERT INTO paper_bets (nota) VALUES ('apuesta de otra base')");
+  d.close();
+  fs.writeFileSync(`${parcial}-wal`, 'wal ajeno');
+  fs.writeFileSync(`${destino}.limpia`, 'notas de otra persona');
+  fs.writeFileSync(`${destino}.limpia-journal`, 'diario ajeno');
+  return Object.fromEntries([parcial, `${parcial}-wal`, `${destino}.limpia`, `${destino}.limpia-journal`].map((f) => [f, sha(f)]));
+}
+const siguenIgual = (huellas: Record<string, string>) => {
+  for (const [f, h] of Object.entries(huellas)) {
+    assert.ok(fs.existsSync(f), `${path.basename(f)} sigue ahí`);
+    assert.equal(sha(f), h, `${path.basename(f)} sin cambiar`);
+  }
+};
+
+test('los ficheros ajenos con los nombres de los temporales de antes sobreviven a una exportación que sale bien, y no queda ningún temporal propio', () => {
+  const dir = fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'senuelos-ok-'));
+  const huellas = senuelos(dir);
+  const r = correr('src/scripts/dbExport.ts', [path.join(dir, 'history.export.db')], SERVIDOR);
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+  siguenIgual(huellas);
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['history.export.db', ...Object.keys(huellas).map((f) => path.basename(f))].sort(), 'ni temporales ni restos propios');
+  // (Después de listar: abrirla aquí crea su -shm, por el -wal de mentira que tiene al lado.)
+  const b = new DatabaseSync(path.join(dir, 'history.export.db.parcial'), { readOnly: true });
+  assert.equal((b.prepare('SELECT COUNT(*) n FROM paper_bets').get() as { n: number }).n, 1, 'la base ajena, con su apuesta');
+  b.close();
+});
+
+test('y a una exportación que falla a medias: se borra solo lo que creó esa exportación', () => {
+  const db = getDb();
+  db.prepare('INSERT OR REPLACE INTO main.meta (key, value) VALUES (?, ?)').run('ajustes.usuario', JSON.stringify({ bancoPersonal: 7531.25 }));
+  db.exec("CREATE TRIGGER main.prueba_falla_senuelos BEFORE DELETE ON meta BEGIN SELECT RAISE(ABORT, 'fallo simulado'); END");
+  try {
+    const dir = fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'senuelos-falla-'));
+    const huellas = senuelos(dir);
+    const r = correr('src/scripts/dbExport.ts', [path.join(dir, 'history.export.db')], SERVIDOR);
+    assert.notEqual(r.status, 0, r.stdout);
+    assert.match(r.stderr, /fallo simulado/);
+    siguenIgual(huellas);
+    assert.deepEqual(fs.readdirSync(dir).sort(), Object.keys(huellas).map((f) => path.basename(f)).sort(), 'ni destino ni temporales propios');
+  } finally {
+    db.exec('DROP TRIGGER main.prueba_falla_senuelos');
+  }
+});
+
+function correrAsync(script: string, args: string[], cwd: string): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  return new Promise((ok, mal) => {
+    const h = spawn(process.execPath, ['--import', 'tsx', script, ...args], { cwd, env: { ...process.env, NODE_OPTIONS }, stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    h.stdout.setEncoding('utf8').on('data', (c: string) => (stdout += c));
+    h.stderr.setEncoding('utf8').on('data', (c: string) => (stderr += c));
+    h.on('error', mal);
+    h.on('close', (status) => ok({ status, stdout, stderr }));
+  });
+}
+
+test('exportaciones a la vez (al mismo destino y a otro del mismo directorio): ninguna borra ni usa los temporales de otra; cada destino queda completo y limpio', async () => {
+  const dir = fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'a-la-vez-'));
+  const huellas = senuelos(dir);
+  const mismo = path.join(dir, 'history.export.db');
+  const otro = path.join(dir, 'otra.export.db');
+  const rs = await Promise.all([correrAsync('src/scripts/dbExport.ts', [mismo], SERVIDOR), correrAsync('src/scripts/dbExport.ts', [mismo], SERVIDOR), correrAsync('src/scripts/dbExport.ts', [otro], SERVIDOR), correrAsync('src/scripts/dbExport.ts', [mismo], SERVIDOR)]);
+  for (const r of rs) assert.equal(r.status, 0, r.stderr || r.stdout);
+  siguenIgual(huellas);
+  for (const f of [mismo, otro]) {
+    const e = new DatabaseSync(f, { readOnly: true });
+    assert.equal((e.prepare('PRAGMA integrity_check').get() as { integrity_check: string }).integrity_check, 'ok', path.basename(f));
+    assert.deepEqual((e.prepare('SELECT key FROM meta').all() as { key: string }[]).map((x) => x.key).filter(claveEsLedger), [], `${path.basename(f)}: sin meta privada`);
+    e.close();
+    assert.equal(fs.readFileSync(f).includes(Buffer.from('ajustes.usuario')), false, `${path.basename(f)}: ni sus bytes`);
+  }
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['history.export.db', 'otra.export.db', ...Object.keys(huellas).map((f) => path.basename(f))].sort(), 'ni temporales ni laterales');
 });
