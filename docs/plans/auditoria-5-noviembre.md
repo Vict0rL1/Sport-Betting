@@ -38,7 +38,7 @@ Se mantiene lo de antes:
 - limpia lo suyo si falla;
 - reemplaza una exportación anterior válida.
 
-**Pruebas, en `server/src/scripts/exportPrivado.test.ts`.** Ficheros ajenos con los nombres de antes (una
+**Pruebas, en `server/src/scripts/exportPrivado.test.ts`** (más las de la revisión, abajo). Ficheros ajenos con los nombres de antes (una
 base con una apuesta y su `-wal`, un texto y su `-journal`) sobreviven idénticos (SHA-256):
 - a una exportación que sale bien;
 - a una que falla a medias;
@@ -78,6 +78,70 @@ falla, la historia sigue en su sitio, idéntica, sin copias ni temporales. `ledg
 - historia con filas y ajustes (`--force`);
 - descargas que fallan (casi vacía, o con tablas del libro mayor), sin y con `--force`: `history.db` en su
   sitio e idéntica, sin copias ni temporales, y `ledger.db` igual.
+
+## Revisiones en paralelo (data-guardian, una por hallazgo)
+
+Las dos revisiones, en solo lectura, verificaron el hallazgo que les tocaba sobre `91c4c04`. La de la
+descarga confirmó además que el arreglo lo cierra. Lo que encontraron en el mismo código se arregló aquí,
+cada punto con su prueba que falla antes.
+
+**Exportador:**
+- **Concurrencia.** Con pausas deterministas, dos exportaciones a la vez acababan las dos con error y sin
+  la exportación anterior. Ya no comparten temporales, y el destino se reemplaza con un `rename`, sin
+  borrarlo antes.
+- **Destinos que no son una exportación anterior.** Antes se aceptaban; ahora se rechazan:
+  - un destino vacío (0 bytes), o ausente, con un `-wal` o `-journal` con contenido al lado. Ejemplo: un
+    `ledger.db` a 0 bytes con sus apuestas en el `-wal` perdía el WAL y quedaba reemplazado;
+  - una base abierta por otro proceso;
+  - una base con meta privada;
+  - una copia con fecha de la instalación (`.backup-`, `.sin-filas-`, `.ilegible-`, `.pre-split-`,
+    `.antes-de-restaurar-`).
+- **Rutas relativas.** Un destino relativo se resolvía desde `server/`, no desde donde se llama a npm
+  (`INIT_CWD`, como `restore.ts`). `npm run db:export-history -- data/history.export.db`, el paso del
+  workflow de datos, apuntaba a `server/data`.
+  - Observación: ese workflow («Datos») lleva fallando desde antes, pero en `verify:data` («timber» lo
+    llevan 2 jugadores), un paso anterior a la exportación. Eso es de datos, no de este cambio, y sigue
+    pendiente.
+- **Restos de exportaciones interrumpidas.** Avisar sin borrar los dejaba para siempre, con meta privada.
+  Ahora cada directorio temporal lleva una marca (proceso, máquina, inicio). Se borran solo los de esta
+  máquina cuyo proceso ya no existe; los demás (otra en marcha, otra máquina, sin marca) se avisan y no se
+  tocan. `mkdtemp` crea el directorio en modo 0700.
+- `.dockerignore` excluye `data/*.tmp-*`.
+
+**Descarga:**
+- **Historia ilegible.** Una historia que no se puede leer ya no cuenta como «sin filas». Con el código
+  anterior se reemplazaba sin `--force`. Con la primera versión del arreglo, fallaba con un error crudo y
+  dejaba un fichero vacío. Ahora:
+  - sin `--force` no se toca;
+  - con `--force` se aparta tal cual (`history.db.ilegible-<fecha>`, byte a byte, con sus laterales) y no
+    pasa nada a la nueva.
+- **Copias con fecha (`copiaConsistente` de `scripts/datos-estado.mjs`).** Ya no pisan nunca una que
+  exista: antes, dos `--force` en el mismo segundo perdían la primera copia. Se escriben en un temporal y
+  pasan a su nombre con un enlace, que no reemplaza nada, así que un fallo ya no deja un fichero vacío que
+  pase `integrity_check`. El sello lleva milisegundos y proceso.
+- **Antes de reemplazar:** si `history.db` apareció durante la descarga (el servidor arrancado en una
+  instalación nueva) o alguien la abrió después de la copia, no se toca. Y sobre la copia se vuelve a
+  mirar que no haya recibido datos (sin `--force`) ni filas del libro mayor.
+- **Temporales propios.** Los temporales de `fetch-data` (`history.db.download`, `.new`) también tenían
+  nombre fijo, y cualquier pasada, aunque no hiciera nada, borraba los de otra. Ahora van en un directorio
+  propio (`history.db.tmp-XXXXXX`) y se borra solo ese.
+
+**Pendiente** (de las mismas revisiones; de antes y fuera de estos hallazgos):
+- `fetch-data --force` pasa `player_ids` de la historia local con `INSERT OR REPLACE`. Si los ids locales
+  y los de la release no coinciden, dos jugadores pueden acabar con el mismo id. Necesita su propio
+  hallazgo.
+- `odds_freshness` se mide en local y no está en `MINE`: un `--force` la pierde.
+- El exportador, con un `DATA_DIR` vacío, crea bases vacías y exporta una sin filas, y dice ✓. Eso
+  contradice el comentario de `.dockerignore`, según el cual la imagen «fallará en la exportación».
+- `backup.ts`:
+  - la rotación borra cualquier `ledger-*.db` del directorio de copias, también uno dejado a mano;
+  - `ledger.db.restaurando` tiene nombre fijo;
+  - no vuelve a mirar si la base se abrió justo antes de reemplazar al restaurar;
+  - los `.sin-verificar` viejos se borran.
+- `consolidar.ts` pisa nombres fijos dentro de su salida; la protegen las comprobaciones de quien la
+  llama.
+- `copiaConsistente` de `server/src/db/sqliteSeguro.ts` (la de `backup.ts`) sigue borrando un destino que
+  exista; las de `fetch-data` ya no.
 
 ## Límites
 

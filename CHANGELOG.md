@@ -14,11 +14,19 @@ que falla antes.
   exportaciones a la vez se pisaban. Ahora:
   - cada exportación usa su propio directorio temporal junto al destino y borra solo ese directorio;
   - los restos de otras exportaciones se avisan, no se borran;
-  - lo que haya en el destino se vuelve a mirar antes de reemplazarlo.
+  - lo que haya en el destino se vuelve a mirar antes de reemplazarlo;
+  - no exporta encima de un destino vacío o ausente con un `-wal` o `-journal` con contenido al lado, ni
+    de una base abierta, con meta privada o que sea una copia con fecha;
+  - un destino relativo se resuelve desde donde se llama a npm (`INIT_CWD`), no desde `server/`;
+  - los restos de una exportación interrumpida en esta máquina se borran, y los demás se avisan.
 - **Una historia sin filas ya no pierde los ajustes del dueño al descargar.** Antes se apartaba antes de
   descargar, y sus ajustes de antes de la migración 27 no pasaban a la nueva. Ahora se aparta después, como
   copia consistente, y lo del dueño pasa a la nueva como con `--force`. Si la descarga falla, sigue en su
-  sitio.
+  sitio. Además:
+  - una historia ilegible no se toma por «sin filas»;
+  - las copias con fecha no se pisan nunca ni quedan vacías;
+  - nada se reemplaza si `history.db` apareció o se abrió durante la descarga;
+  - `fetch-data` solo borra sus propios temporales.
 
 ## Auditoría paralela del 3 de noviembre · ajustes privados y guardado de interruptores (2026-11-03)
 

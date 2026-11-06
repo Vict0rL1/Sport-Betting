@@ -40,7 +40,7 @@ import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-import { copiaConsistente, hayHistoria, integridadDe, otraConexionAbierta, quitarLaterales } from './datos-estado.mjs';
+import { copiaConsistente, filasDeHistoria, hayHistoria, integridadDe, otraConexionAbierta, quitarLaterales, sello } from './datos-estado.mjs';
 // La misma clasificación que usa el servidor para saber qué claves de meta son estado del dueño (corre
 // con tsx, como check-publishable).
 import { CLAVES_RECUPERABLES, TABLAS_LEDGER, claveEsLedger } from '../server/src/db/tables.ts';
@@ -228,10 +228,22 @@ async function main() {
     );
   }
 
+  // Una historia que no se puede leer (dañada, o que no es una base) no es una base «sin filas»
+  // (revisión data-guardian del 5 de noviembre): sin --force no se toca; con --force se aparta tal cual,
+  // byte a byte y con sus laterales, y nada de dentro puede pasar a la nueva.
+  const ilegible = fs.existsSync(DB_PATH) && filasDeHistoria(DB_PATH) === null;
+  if (ilegible && !force) {
+    throw new Error(
+      `${path.relative(ROOT, DB_PATH)} existe pero no se puede leer (¿dañada, o no es una base?). No se toca.\n` +
+        '  Con  npm run fetch-data -- --force  se aparta tal cual (history.db.ilegible-<fecha>) y se instala la publicada;\n' +
+        '  lo que tuviera dentro se queda solo en la apartada.',
+    );
+  }
+
   // Con filas en tablas del libro mayor, la historia local no se reemplaza (--force) ni se aparta (solo
   // esquema): antes acababan solo en una copia con fecha, sin decir nada. Pasarlas al libro mayor es
   // cosa del dueño: fetch-data nunca escribe en él.
-  if (fs.existsSync(DB_PATH) && (force || !hayHistoria(DB_PATH))) {
+  if (fs.existsSync(DB_PATH) && !ilegible && (force || !hayHistoria(DB_PATH))) {
     const filas = tablasDelLibroMayor(DB_PATH);
     if (filas.length) {
       throw new Error(
@@ -247,10 +259,10 @@ async function main() {
   // 5 de noviembre): así, si la descarga falla, sigue en su sitio, y lo del dueño que tenga (sus ajustes
   // de antes de la migración 27, lo medido en MINE) pasa a la nueva como con --force. Se aparta con
   // fecha después, como copia consistente: nunca se destruye un fichero de data/.
-  const vacia = fs.existsSync(DB_PATH) && !hayHistoria(DB_PATH);
+  const vacia = fs.existsSync(DB_PATH) && !ilegible && !hayHistoria(DB_PATH);
   if (vacia) console.log('Hay un history.db sin filas (solo esquema): se descarga la publicada, y la actual se aparta con fecha al instalarla.');
 
-  const exists = fs.existsSync(DB_PATH) && !vacia;
+  const exists = fs.existsSync(DB_PATH) && !vacia && !ilegible;
   if (exists && !force) {
     const mb = (fs.statSync(DB_PATH).size / 1048576).toFixed(0);
     console.log(
@@ -273,7 +285,12 @@ async function main() {
   }
 
   const gz = await download(`${BASE}/history.db.gz`);
-  const tmpGz = `${DB_PATH}.download`;
+  // Los temporales, en un directorio PROPIO de esta pasada junto a history.db (mismo sistema de
+  // ficheros: el rename final es atómico), y al terminar se borra solo ese directorio (auditoría del 5
+  // de noviembre): con nombres fijos (`history.db.download`, `.new`), cualquier pasada, aunque no
+  // hiciera nada, borraba los de otra.
+  temporales = fs.mkdtempSync(`${DB_PATH}.tmp-`);
+  const tmpGz = path.join(temporales, 'history.db.gz');
   await pipeline(Readable.fromWeb(gz.body), fs.createWriteStream(tmpGz));
 
   const size = fs.statSync(tmpGz).size;
@@ -293,7 +310,7 @@ async function main() {
 
   // A un temporal, no al sitio definitivo: si la validación falla, la base que había
   // sigue intacta.
-  const tmpDb = `${DB_PATH}.new`;
+  const tmpDb = path.join(temporales, 'history.db.new');
   try {
     await pipeline(fs.createReadStream(tmpGz), zlib.createGunzip(), fs.createWriteStream(tmpDb));
   } catch (e) {
@@ -345,20 +362,44 @@ async function main() {
     console.warn(`  ⚠ La descarga traía ${ajenas.length} clave(s) del libro mayor en su meta (${ajenas.join(', ')}): son estado de otra persona y se descartan. Una release no debería llevarlas nunca.`);
   }
 
-  if (exists || vacia) {
+  if (ilegible) {
+    // --force con una historia que no se puede leer: se aparta tal cual (no hay copia consistente que
+    // hacer de lo que no se lee), con sus laterales, y no pasa nada a la nueva.
+    if (otraConexionAbierta(DB_PATH)) throw new Error(`${path.relative(ROOT, DB_PATH)} se abrió por otro proceso mientras se descargaba. No se toca nada.`);
+    const apartada = `${DB_PATH}.ilegible-${sello()}`;
+    for (const suf of ['', '-wal', '-shm']) if (fs.existsSync(DB_PATH + suf)) fs.renameSync(DB_PATH + suf, apartada + suf);
+    console.log(`\n  La anterior no se podía leer: apartada tal cual en ${path.basename(apartada)}. No se pasa nada de ella a la nueva.`);
+  } else if (exists || vacia) {
     // Copia con fecha ANTES de tocar nada. Es lo que hace que --force sea reversible. Con
     // `VACUUM INTO` y no con una copia del fichero: así lleva también lo que estuviera en el WAL. La de
     // una base sin filas se llama como siempre se ha apartado (`.sin-filas-`), y es la fuente de lo que
-    // pasa a la nueva igual que la de --force.
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const backup = vacia ? `${DB_PATH}.sin-filas-${stamp}` : `${DB_PATH}.backup-${stamp}`;
+    // pasa a la nueva igual que la de --force. El sello lleva milisegundos y proceso, y una copia no se
+    // pisa nunca (copiaConsistente).
+    const backup = vacia ? `${DB_PATH}.sin-filas-${sello()}` : `${DB_PATH}.backup-${sello()}`;
     if (otraConexionAbierta(DB_PATH)) throw new Error(`${path.relative(ROOT, DB_PATH)} se abrió por otro proceso mientras se descargaba. No se toca nada.`);
     const integridad = copiaConsistente(DB_PATH, backup);
     if (integridad !== 'ok') throw new Error(`La base actual no pasa integrity_check (${integridad}); no se reemplaza. La copia está en ${path.basename(backup)}.`);
     console.log(`\n  Copia de la anterior en ${path.basename(backup)} (completa, con lo que hubiera en el WAL)`);
+    // Lo que se comprobó al empezar, otra vez sobre la copia: pudo cambiar mientras se descargaba.
+    if (vacia && !force && hayHistoria(backup)) {
+      throw new Error(`${path.relative(ROOT, DB_PATH)} recibió datos mientras se descargaba: ya no está vacía, y sin --force no se reemplaza. La copia está en ${path.basename(backup)}.`);
+    }
+    const filasLibroMayor = tablasDelLibroMayor(backup);
+    if (filasLibroMayor.length) {
+      throw new Error(`${path.relative(ROOT, DB_PATH)} tiene ahora filas en tablas del libro mayor (${filasLibroMayor.map((x) => `${x.t}: ${x.n}`).join(', ')}): no se reemplaza. La copia está en ${path.basename(backup)}.`);
+    }
     // Lo tuyo se conserva desde esa copia consistente.
     const moved = carryOver(backup, tmpDb);
     if (moved > 0) console.log(`  · ${moved} fila(s) de tus tablas conservadas`);
+  }
+
+  // Justo antes de reemplazar (revisión data-guardian del 5 de noviembre): si history.db apareció
+  // mientras se descargaba (el servidor arrancado en una instalación nueva), o alguien la abrió después
+  // de la copia, no se toca: borrar su WAL y renombrar encima lo dejaría escribiendo en un fichero que
+  // ya no está.
+  if (fs.existsSync(DB_PATH)) {
+    if (!(exists || vacia)) throw new Error(`${path.relative(ROOT, DB_PATH)} apareció mientras se descargaba (¿arrancaste el servidor o npm run dev?). No se toca nada: párala y vuelve a intentarlo.`);
+    if (otraConexionAbierta(DB_PATH)) throw new Error(`${path.relative(ROOT, DB_PATH)} está abierta por otro proceso. No se toca nada: párala y vuelve a intentarlo.`);
   }
 
   // Un -wal o -shm de la base anterior junto a la nueva sería un WAL ajeno: fuera antes del rename.
@@ -380,13 +421,13 @@ async function main() {
  * el `.new` a medio descomprimir se parece lo bastante a una base como para confundir a
  * quien la encuentre.
  */
+let temporales = null;
 function cleanup() {
-  for (const f of [`${DB_PATH}.download`, `${DB_PATH}.new`]) {
-    try {
-      fs.rmSync(f, { force: true });
-    } catch {
-      // Si no se puede borrar, no es motivo para fallar por encima del error real.
-    }
+  if (!temporales) return;
+  try {
+    fs.rmSync(temporales, { recursive: true, force: true });
+  } catch {
+    // Si no se puede borrar, no es motivo para fallar por encima del error real.
   }
 }
 

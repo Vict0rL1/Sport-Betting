@@ -15,7 +15,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const { hayHistoria } = (await import(path.join(ROOT, 'scripts', 'datos-estado.mjs'))) as { hayHistoria: (fichero: string) => boolean };
+const { hayHistoria, filasDeHistoria } = (await import(path.join(ROOT, 'scripts', 'datos-estado.mjs'))) as { hayHistoria: (fichero: string) => boolean; filasDeHistoria: (fichero: string) => Record<string, number> | null };
 
 /**
  * El script en un proceso hijo, SIN bloquear: el servidor que le sirve la release vive en este
@@ -315,7 +315,7 @@ test('una historia local con filas en tablas del libro mayor no se reemplaza ni 
 // estaba en su sitio.
 
 /** Una instalación: history.db con `filas` partidos y la meta dada, y un ledger.db que no se debe tocar. */
-function instalacion(nombre: string, filas: number, meta: Record<string, string>): { dataDir: string; history: string; huellaLedger: string } {
+function instalacion(nombre: string, filas: number, meta: Record<string, string>, extra = ''): { dataDir: string; history: string; huellaLedger: string } {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), `instalacion-${nombre}-`));
   const history = path.join(dataDir, 'history.db');
   baseCon(filas, history);
@@ -323,6 +323,7 @@ function instalacion(nombre: string, filas: number, meta: Record<string, string>
   v.exec(ESQUEMA_MIO.replace('CREATE TABLE bets (id INTEGER PRIMARY KEY, stake REAL); ', ''));
   const ins = v.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
   for (const [k, val] of Object.entries(meta)) ins.run(k, val);
+  if (extra) v.exec(extra);
   v.close();
   const l = new DatabaseSync(path.join(dataDir, 'ledger.db'));
   l.exec("CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL); INSERT INTO settings VALUES ('ajustes.usuario', '{\"bancoPersonal\":321}', '2026-11-01T00:00:00.000Z'); CREATE TABLE paper_bets (id INTEGER PRIMARY KEY, stake REAL); INSERT INTO paper_bets (stake) VALUES (10);");
@@ -330,6 +331,16 @@ function instalacion(nombre: string, filas: number, meta: Record<string, string>
   return { dataDir, history, huellaLedger: crypto.createHash('sha256').update(fs.readFileSync(path.join(dataDir, 'ledger.db'))).digest('hex') };
 }
 const huellaDe = (f: string) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+/** Lo medido en la instalación (MINE, lote B3): tampoco se pierde con una historia sin filas. */
+const MEDIDO = "INSERT INTO fb_news VALUES ('n1', 'lesión'); INSERT INTO fb_lineups VALUES ('f1', 't1', 'p1', 'confirmada', '2026-10-08T10:00:00Z'); INSERT INTO fb_odds_history (fixture_id, observed_at) VALUES ('f1', '2026-10-08T09:00:00Z'); INSERT INTO latency_samples (stage, ms) VALUES ('servidor', 12); INSERT INTO player_ids VALUES ('atp', 'Nadie', 999);";
+const medidoSigue = (f: string, etq: string) => {
+  const d = new DatabaseSync(f, { readOnly: true });
+  try {
+    for (const t of ['fb_news', 'fb_lineups', 'fb_odds_history', 'latency_samples', 'player_ids']) assert.equal((d.prepare(`SELECT COUNT(*) n FROM ${t}`).get() as { n: number }).n, 1, `${etq}: ${t} pasa a la nueva`);
+  } finally {
+    d.close();
+  }
+};
 const DEL_DUENO = { 'features.anulaciones': '{"estrategias.laboratorio":false}', 'ajustes.usuario': '{"idioma":"en","bancoPersonal":250}' };
 const entornoDe = (dataDir: string, puerto: number) => ({ ...process.env, DATA_DIR: dataDir, DATA_BASE_URL: `http://127.0.0.1:${puerto}`, NODE_OPTIONS: '--experimental-sqlite --disable-warning=ExperimentalWarning' });
 
@@ -337,11 +348,12 @@ test('historia sin filas con ajustes del dueño, sin y con --force: los ajustes 
   const s = await servidorConRelease(10_500, CONTAMINADA);
   try {
     for (const args of [[], ['--force']]) {
-      const { dataDir, history, huellaLedger } = instalacion(`vacia${args.join('')}`, 0, { ...DEL_DUENO, fb_updated_at: 'local-vieja' });
+      const { dataDir, history, huellaLedger } = instalacion(`vacia${args.join('')}`, 0, { ...DEL_DUENO, fb_updated_at: 'local-vieja' }, MEDIDO);
       const r = await correFetchData(entornoDe(dataDir, s.puerto), args);
       assert.equal(r.status, 0, `${args}: ${r.stdout}\n${r.stderr}`);
       assert.deepEqual(metaDe(history), { ...DEL_DUENO, fb_updated_at: 'de-la-release' }, `${args}: lo del dueño, el local; la procedencia, la de la descarga; nada ajeno`);
       assert.match(r.stdout, /sin filas/i);
+      medidoSigue(history, `${args}`);
       const apartada = fs.readdirSync(dataDir).find((f) => /^history\.db\.sin-filas-[^-]+.*\d$/.test(f) && !/-(wal|shm)$/.test(f));
       assert.ok(apartada, `${args}: la anterior queda apartada con fecha: ${fs.readdirSync(dataDir).join(', ')}`);
       assert.equal(metaDe(path.join(dataDir, apartada!))['ajustes.usuario'], DEL_DUENO['ajustes.usuario'], `${args}: y con lo que tenía`);
@@ -389,5 +401,163 @@ test('si la descarga falla, una historia sin filas se queda en su sitio, idénti
   } finally {
     await casiVacia.cerrar();
     await conLibroMayor.cerrar();
+  }
+});
+
+// ---- Revisión data-guardian (5 de noviembre) del mismo flujo ----
+
+/** Una release que falla antes de descomprimir: checksum que no cuadra, gz cortado, o nada (404). */
+async function servidorRoto(modo: 'checksum' | 'cortado' | '404') {
+  const publicada = fs.mkdtempSync(path.join(os.tmpdir(), 'release-rota-'));
+  baseCon(10_500, path.join(publicada, 'history.db'));
+  const gz = zlib.gzipSync(fs.readFileSync(path.join(publicada, 'history.db')));
+  const servidor = http.createServer((req, res) => {
+    if (modo === '404') return res.writeHead(404).end('no');
+    if (req.url === '/history.db.gz') return res.writeHead(200, { 'content-type': 'application/gzip' }).end(modo === 'cortado' ? gz.subarray(0, Math.floor(gz.length / 2)) : gz);
+    if (req.url === '/history.db.gz.sha256' && modo === 'checksum') return res.writeHead(200, { 'content-type': 'text/plain' }).end(`${'0'.repeat(64)}  history.db.gz\n`);
+    res.writeHead(404).end('no');
+  });
+  await new Promise<void>((ok) => servidor.listen(0, '127.0.0.1', ok));
+  return { puerto: (servidor.address() as AddressInfo).port, cerrar: () => new Promise<void>((ok) => servidor.close(() => ok())) };
+}
+
+test('fallos antes de descomprimir (checksum, gz cortado, 404), sin y con --force: la historia sin filas sigue en su sitio, sin copias ni ficheros vacíos', async () => {
+  for (const modo of ['checksum', 'cortado', '404'] as const) {
+    const s = await servidorRoto(modo);
+    try {
+      for (const args of [[], ['--force']]) {
+        const { dataDir, history, huellaLedger } = instalacion(`roto-${modo}${args.join('')}`, 0, DEL_DUENO);
+        const antes = huellaDe(history);
+        const r = await correFetchData(entornoDe(dataDir, s.puerto), args);
+        assert.equal(r.status, 1, `${modo} ${args}: ${r.stdout}\n${r.stderr}`);
+        assert.equal(huellaDe(history), antes, `${modo} ${args}: idéntica`);
+        assert.deepEqual(fs.readdirSync(dataDir).sort(), ['history.db', 'ledger.db'], `${modo} ${args}: ni copias ni temporales`);
+        assert.equal(huellaDe(path.join(dataDir, 'ledger.db')), huellaLedger);
+      }
+    } finally {
+      await s.cerrar();
+    }
+  }
+});
+
+test('si mientras se descarga aparece un history.db abierto (el servidor arrancado), no se le pisa: no se instala nada', async () => {
+  // La release tarda en llegar; mientras, «el servidor» crea history.db en WAL y escribe.
+  const publicada = fs.mkdtempSync(path.join(os.tmpdir(), 'release-lenta-'));
+  baseCon(10_500, path.join(publicada, 'history.db'));
+  const gz = zlib.gzipSync(fs.readFileSync(path.join(publicada, 'history.db')));
+  let pedida: () => void = () => {};
+  const llegoLaPeticion = new Promise<void>((ok) => (pedida = ok));
+  const servidor = http.createServer((req, res) => {
+    if (req.url !== '/history.db.gz') return res.writeHead(404).end('no');
+    pedida();
+    setTimeout(() => res.writeHead(200, { 'content-type': 'application/gzip' }).end(gz), 1500);
+  });
+  await new Promise<void>((ok) => servidor.listen(0, '127.0.0.1', ok));
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'instalacion-carrera-'));
+  const history = path.join(dataDir, 'history.db');
+  try {
+    const corre = correFetchData(entornoDe(dataDir, (servidor.address() as AddressInfo).port));
+    await llegoLaPeticion;
+    const vivo = new DatabaseSync(history);
+    vivo.exec("PRAGMA journal_mode = WAL; CREATE TABLE apuntes (x TEXT); INSERT INTO apuntes VALUES ('del servidor');");
+    const r = await corre;
+    assert.equal(r.status, 1, `${r.stdout}\n${r.stderr}`);
+    assert.match(r.stdout + r.stderr, /apareció|abierta/);
+    assert.equal((vivo.prepare('SELECT COUNT(*) n FROM apuntes').get() as { n: number }).n, 1);
+    vivo.close();
+    const d = new DatabaseSync(history, { readOnly: true });
+    assert.equal((d.prepare('SELECT x FROM apuntes').get() as { x: string }).x, 'del servidor', 'el fichero sigue siendo el del servidor');
+    d.close();
+    assert.equal(fs.readdirSync(dataDir).filter((f) => /\.(new|download)$/.test(f)).length, 0, 'sin temporales');
+  } finally {
+    await new Promise<void>((ok) => servidor.close(() => ok()));
+  }
+});
+
+test('una historia que no se puede leer no se toma por «sin filas»: sin --force no se toca; con --force se aparta tal cual y se instala la publicada', async () => {
+  const s = await servidorConRelease(10_500);
+  try {
+    for (const args of [[], ['--force']]) {
+      const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), `instalacion-ilegible${args.join('')}-`));
+      const history = path.join(dataDir, 'history.db');
+      baseCon(5000, history);
+      // Basura en mitad de las páginas de `matches`.
+      const fd = fs.openSync(history, 'r+');
+      fs.writeSync(fd, Buffer.alloc(4096 * 3, 0xff), 0, 4096 * 3, 4096 * 2);
+      fs.closeSync(fd);
+      assert.equal(filasDeHistoria(history), null, 'precondición: no se puede leer');
+      const antes = huellaDe(history);
+      const r = await correFetchData(entornoDe(dataDir, s.puerto), args);
+      assert.doesNotMatch(r.stdout, /sin filas/i, `${args}: no es una base sin filas`);
+      if (args.length === 0) {
+        assert.equal(r.status, 1, `${r.stdout}\n${r.stderr}`);
+        assert.match(r.stdout + r.stderr, /no se puede leer/);
+        assert.equal(huellaDe(history), antes);
+        assert.deepEqual(fs.readdirSync(dataDir), ['history.db'], 'ni copias ni ficheros vacíos');
+      } else {
+        assert.equal(r.status, 0, `${r.stdout}\n${r.stderr}`);
+        assert.equal(hayHistoria(history), true, 'la publicada, instalada');
+        const apartada = fs.readdirSync(dataDir).find((f) => f.startsWith('history.db.ilegible-'));
+        assert.ok(apartada, fs.readdirSync(dataDir).join(', '));
+        assert.equal(huellaDe(path.join(dataDir, apartada!)), antes, 'apartada tal cual, byte a byte');
+      }
+    }
+  } finally {
+    await s.cerrar();
+  }
+});
+
+test('copiaConsistente nunca pisa una copia que ya existe, y si falla no deja un fichero vacío que pase por copia', async () => {
+  const { copiaConsistente } = (await import(path.join(ROOT, 'scripts', 'datos-estado.mjs'))) as { copiaConsistente: (o: string, d: string) => string };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'copias-'));
+  const origen = path.join(dir, 'history.db');
+  baseCon(12, origen);
+  const previa = path.join(dir, 'history.db.backup-2026-11-05T10-00-00');
+  baseCon(3, previa);
+  const huella = huellaDe(previa);
+  assert.throws(() => copiaConsistente(origen, previa), /existe/);
+  assert.equal(huellaDe(previa), huella, 'la copia de antes, intacta');
+  const rota = path.join(dir, 'rota.db');
+  fs.writeFileSync(rota, 'esto no es una base');
+  const destino = path.join(dir, 'history.db.backup-2026-11-05T10-00-01');
+  assert.throws(() => copiaConsistente(rota, destino));
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['history.db', 'history.db.backup-2026-11-05T10-00-00', 'rota.db'], 'ni el destino vacío ni temporales');
+});
+
+test('las copias con fecha llevan milisegundos y proceso: dos --force seguidos dejan dos copias, la primera con lo que había', async () => {
+  const s = await servidorConRelease(10_500);
+  try {
+    const { dataDir, history } = instalacion('dos-force', 12, {}, MEDIDO);
+    const r1 = await correFetchData(entornoDe(dataDir, s.puerto), ['--force']);
+    const r2 = await correFetchData(entornoDe(dataDir, s.puerto), ['--force']);
+    assert.equal(r1.status, 0, r1.stdout + r1.stderr);
+    assert.equal(r2.status, 0, r2.stdout + r2.stderr);
+    const copias = fs.readdirSync(dataDir).filter((f) => f.startsWith('history.db.backup-')).sort();
+    assert.equal(copias.length, 2, copias.join(', '));
+    for (const c of copias) assert.match(c, /^history\.db\.backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z?-\d+$/, c);
+    const primera = new DatabaseSync(path.join(dataDir, copias[0]), { readOnly: true });
+    assert.equal((primera.prepare('SELECT COUNT(*) n FROM matches').get() as { n: number }).n, 12, 'la primera copia es la instalación de antes');
+    primera.close();
+    medidoSigue(history, 'tras dos --force');
+  } finally {
+    await s.cerrar();
+  }
+});
+
+test('fetch-data solo borra sus temporales: un history.db.download o .new ajenos sobreviven a una pasada que no hace nada y a una descarga', async () => {
+  const s = await servidorConRelease(10_500);
+  try {
+    const { dataDir, history } = instalacion('temporales-ajenos', 12, {});
+    const ajenos = { [`${history}.download`]: 'descarga de otra pasada', [`${history}.new`]: 'base a medias de otra pasada' };
+    for (const [f, t] of Object.entries(ajenos)) fs.writeFileSync(f, t);
+    const nada = await correFetchData(entornoDe(dataDir, s.puerto));
+    assert.equal(nada.status, 0, nada.stdout + nada.stderr);
+    assert.match(nada.stdout, /No se toca/);
+    const force = await correFetchData(entornoDe(dataDir, s.puerto), ['--force']);
+    assert.equal(force.status, 0, force.stdout + force.stderr);
+    for (const [f, t] of Object.entries(ajenos)) assert.equal(fs.readFileSync(f, 'utf8'), t, `${path.basename(f)}: intacto`);
+    assert.equal(fs.readdirSync(dataDir).filter((f) => f.includes('.tmp-')).length, 0, 'ningún temporal propio');
+  } finally {
+    await s.cerrar();
   }
 });

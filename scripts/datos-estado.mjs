@@ -4,6 +4,8 @@
 // con esquema. Antes fetch-data veía que el fichero existía y no descargaba, y setup decía
 // «Listo» con la base vacía (lote A, A7). Esto lo usan los dos.
 import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
 /** Las tablas que dicen si hay historia; basta con que una tenga filas. */
@@ -37,7 +39,8 @@ export function hayHistoria(fichero) {
 
 // ---------------------------------------------------------------------------
 // Tocar la base desde FUERA sin romperla (lote B, B1). Lo mismo que server/src/db/sqliteSeguro.ts,
-// para los scripts que no corren con tsx.
+// para los scripts que no corren con tsx; salvo copiaConsistente, que aquí además nunca pisa una copia
+// que ya exista (las copias de fetch-data llevan nombre con fecha; las de backup.ts los genera él).
 // ---------------------------------------------------------------------------
 
 /** ¿Hay otra conexión con el fichero abierto (el servidor en marcha, npm run dev)? */
@@ -69,16 +72,35 @@ export function integridadDe(fichero) {
   }
 }
 
-/** Copia consistente (VACUUM INTO: con lo que haya en el WAL), comprobada. Devuelve el integrity_check. */
+/**
+ * Copia consistente (VACUUM INTO: con lo que haya en el WAL), comprobada. Devuelve el integrity_check.
+ *
+ * Nunca pisa una copia que ya exista, y se escribe en un temporal que solo pasa a `destino` si VACUUM
+ * INTO termina (revisión data-guardian del 5 de noviembre: antes borraba un `destino` con el mismo
+ * nombre, y dos --force en el mismo segundo perdían la primera copia; y si fallaba a medias dejaba un
+ * fichero vacío que pasa integrity_check). El enlace duro no reemplaza nada: si `destino` apareció
+ * entretanto, falla.
+ */
 export function copiaConsistente(origen, destino) {
-  fs.rmSync(destino, { force: true });
-  const db = new DatabaseSync(origen);
+  if (fs.existsSync(destino)) throw new Error(`${path.basename(destino)} ya existe: una copia no se pisa nunca`);
+  const temporal = `${destino}.tmp-${process.pid}-${crypto.randomBytes(4).toString('hex')}`;
   try {
-    db.exec(`VACUUM INTO '${destino.replace(/'/g, "''")}'`);
+    const db = new DatabaseSync(origen);
+    try {
+      db.exec(`VACUUM INTO '${temporal.replace(/'/g, "''")}'`);
+    } finally {
+      db.close();
+    }
+    fs.linkSync(temporal, destino);
   } finally {
-    db.close();
+    fs.rmSync(temporal, { force: true });
   }
   return integridadDe(destino);
+}
+
+/** Sello para copias con fecha: milisegundos y proceso, para que dos seguidas no se llamen igual. */
+export function sello(fecha = new Date()) {
+  return `${fecha.toISOString().replace(/[:.]/g, '-')}-${process.pid}`;
 }
 
 export function quitarLaterales(fichero) {
