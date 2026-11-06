@@ -230,7 +230,7 @@ async function main() {
 
   // Una historia que no se puede leer (dañada, o que no es una base) no es una base «sin filas»
   // (revisión data-guardian del 5 de noviembre): sin --force no se toca; con --force se aparta tal cual,
-  // byte a byte y con sus laterales, y nada de dentro puede pasar a la nueva.
+  // el fichero byte a byte con los laterales que queden, y nada de dentro puede pasar a la nueva.
   const ilegible = fs.existsSync(DB_PATH) && filasDeHistoria(DB_PATH) === null;
   if (ilegible && !force) {
     throw new Error(
@@ -364,10 +364,12 @@ async function main() {
 
   if (ilegible) {
     // --force con una historia que no se puede leer: se aparta tal cual (no hay copia consistente que
-    // hacer de lo que no se lee), con sus laterales, y no pasa nada a la nueva.
+    // hacer de lo que no se lee), con los laterales que queden, y no pasa nada a la nueva. Al probar si
+    // se lee, SQLite abre el fichero y puede deshacer o quitar un -journal (revisión data-guardian del 5
+    // de noviembre): el fichero sí va byte a byte.
     if (otraConexionAbierta(DB_PATH)) throw new Error(`${path.relative(ROOT, DB_PATH)} se abrió por otro proceso mientras se descargaba. No se toca nada.`);
     const apartada = `${DB_PATH}.ilegible-${sello()}`;
-    for (const suf of ['', '-wal', '-shm']) if (fs.existsSync(DB_PATH + suf)) fs.renameSync(DB_PATH + suf, apartada + suf);
+    for (const suf of ['', '-wal', '-shm', '-journal']) if (fs.existsSync(DB_PATH + suf)) fs.renameSync(DB_PATH + suf, apartada + suf);
     console.log(`\n  La anterior no se podía leer: apartada tal cual en ${path.basename(apartada)}. No se pasa nada de ella a la nueva.`);
   } else if (exists || vacia) {
     // Copia con fecha ANTES de tocar nada. Es lo que hace que --force sea reversible. Con

@@ -142,6 +142,28 @@ cada punto con su prueba que falla antes.
   llama.
 - `copiaConsistente` de `server/src/db/sqliteSeguro.ts` (la de `backup.ts`) sigue borrando un destino que
   exista; las de `fetch-data` ya no.
+- Notas de la segunda vuelta de la revisión de la descarga (nada bloqueante):
+  - `copiaConsistente` usa un enlace duro: en un sistema de ficheros sin enlaces (FAT/exFAT, algunos
+    montajes de red), `--force` falla, cerrado y sin perder nada. Falta un respaldo con
+    `copyFileSync(..., COPYFILE_EXCL)`, y no se pudo reproducir aquí.
+  - Una historia que se lee pero no se puede copiar (una página dañada fuera de las tablas principales)
+    falla con el error de SQLite, sin pista de qué hacer.
+  - Las comprobaciones abren la historia en lectura y escritura. «No se toca» vale para su contenido, no
+    para sus bytes: un WAL válido se pasa al fichero sin perder nada, y un `-journal` o `-wal` basura junto
+    a un fichero que no es una base desaparece. Por eso la apartada `.ilegible-` va byte a byte en el
+    fichero, pero no siempre con su `-journal`.
+  - Un Ctrl-C durante la descarga deja `history.db.tmp-XXXXXX/`.
+- Notas de la segunda vuelta de la revisión del exportador (nada bloqueante; ~90 rondas de 3 a 8
+  exportaciones a la vez sin borrar nada ajeno ni dejar temporales):
+  - **Arreglado:** la sonda de «¿está abierta?» de dos exportaciones al mismo destino podía verse una a la
+    otra y la segunda se negaba. Ahora se reintenta un poco antes de rendirse.
+  - **Arreglado:** la marca de un resto solo vale para borrarlo si además tiene más de una hora. Un
+    contenedor con el mismo nombre de máquina y otros pids podría ver muerto un proceso vivo.
+  - **Pendiente, de `getDb()` y de antes:** abrir por primera vez una base sin migrar desde varios
+    procesos a la vez corre las migraciones a la vez y alguno falla («database is locked»). Además, en
+    una ronda de cada ~90 una exportación a la vez se negó con «database is locked» sin dejar nada.
+    Posible causa: `journal_mode` antes de `busy_timeout` en `aplicarPragmas`. La prueba de concurrencia
+    lo acepta como negativa limpia y parte de una base ya migrada, como cualquier exportación de verdad.
 
 ## Límites
 

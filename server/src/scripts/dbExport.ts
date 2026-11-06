@@ -70,7 +70,13 @@ function motivoParaNoPisar(): string | null {
   } catch {
     return 'ya existe y no es una base SQLite';
   }
-  return otraConexionAbierta(destino) ? 'está abierta por otro proceso' : null;
+  // Una conexión de verdad (un servidor, otra herramienta) sigue abierta; la sonda de otra exportación
+  // al mismo destino dura un instante: se reintenta un poco antes de rendirse (revisión data-guardian).
+  for (let intento = 0; intento < 5; intento++) {
+    if (!otraConexionAbierta(destino)) return null;
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100);
+  }
+  return 'está abierta por otro proceso';
 }
 
 const motivo = motivoParaNoPisar();
@@ -100,17 +106,21 @@ const vivo = (pid: number) => {
 };
 // Restos de otras exportaciones (revisión data-guardian del 5 de noviembre: llevan meta privada, y
 // dejarlos para siempre era peor que antes). Se borran solo los que su marca dice que son de una
-// exportación de ESTA máquina cuyo proceso ya no existe; los demás (otra en marcha, otra máquina con
-// el directorio compartido, o sin marca) se avisan y no se tocan.
+// exportación de ESTA máquina cuyo proceso ya no existe y que empezó hace más de una hora (un
+// contenedor con el mismo nombre de máquina y otros pids podría ver muerto un proceso vivo); los demás
+// (otra en marcha, otra máquina con el directorio compartido, recientes o sin marca) se avisan y no se
+// tocan.
+const UNA_HORA = 3_600_000;
 const avisar: string[] = [];
 for (const f of fs.readdirSync(dirDestino).filter((x) => x.startsWith(prefijo))) {
-  let marca: { pid?: unknown; host?: unknown } | null = null;
+  let marca: { pid?: unknown; host?: unknown; inicio?: unknown } | null = null;
   try {
-    marca = JSON.parse(fs.readFileSync(path.join(dirDestino, f, MARCA), 'utf8')) as { pid?: unknown; host?: unknown };
+    marca = JSON.parse(fs.readFileSync(path.join(dirDestino, f, MARCA), 'utf8')) as { pid?: unknown; host?: unknown; inicio?: unknown };
   } catch {
     marca = null;
   }
-  if (marca && marca.host === os.hostname() && typeof marca.pid === 'number' && !vivo(marca.pid)) {
+  const antigua = marca && typeof marca.inicio === 'string' && Date.now() - Date.parse(marca.inicio) > UNA_HORA;
+  if (marca && antigua && marca.host === os.hostname() && typeof marca.pid === 'number' && !vivo(marca.pid)) {
     fs.rmSync(path.join(dirDestino, f), { recursive: true, force: true });
     console.warn(`⚠ Restos de una exportación interrumpida (proceso ${marca.pid}, ya terminado) borrados: ${f}`);
   } else avisar.push(f);

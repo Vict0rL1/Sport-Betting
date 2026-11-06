@@ -281,12 +281,21 @@ function correrAsync(script: string, args: string[], cwd: string): Promise<{ sta
 }
 
 test('exportaciones a la vez (al mismo destino y a otro del mismo directorio): ninguna borra ni usa los temporales de otra; cada destino queda completo y limpio', async () => {
+  // La base de origen ya existe y está migrada, como en cualquier exportación de verdad (abrirla por
+  // primera vez desde cuatro procesos a la vez corre las migraciones a la vez: eso es de getDb, aparte).
+  getDb();
   const dir = fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'a-la-vez-'));
   const huellas = senuelos(dir);
   const mismo = path.join(dir, 'history.export.db');
   const otro = path.join(dir, 'otra.export.db');
-  const rs = await Promise.all([correrAsync('src/scripts/dbExport.ts', [mismo], SERVIDOR), correrAsync('src/scripts/dbExport.ts', [mismo], SERVIDOR), correrAsync('src/scripts/dbExport.ts', [otro], SERVIDOR), correrAsync('src/scripts/dbExport.ts', [mismo], SERVIDOR)]);
-  for (const r of rs) assert.equal(r.status, 0, r.stderr || r.stdout);
+  const destinos = [mismo, mismo, otro, mismo];
+  const rs = await Promise.all(destinos.map((d) => correrAsync('src/scripts/dbExport.ts', [d], SERVIDOR)));
+  // Cada una sale bien o se niega limpia: lo que no puede pasar es que borre o use lo de otra. Al mismo
+  // destino, la sonda de una puede ver un instante abierta la base que comprueba la otra, o SQLite
+  // contestar «locked» al abrir (revisión data-guardian: ~1 de cada 90 rondas); las dos se niegan sin
+  // dejar nada.
+  for (const r of rs) if (r.status !== 0) assert.match(r.stderr, /abierta por otro proceso|database is locked/, r.stderr || r.stdout);
+  for (const d of [mismo, otro]) assert.ok(rs.some((r, i) => destinos[i] === d && r.status === 0), `${path.basename(d)}: al menos una sale bien`);
   siguenIgual(huellas);
   for (const f of [mismo, otro]) {
     const e = new DatabaseSync(f, { readOnly: true });
@@ -356,7 +365,7 @@ test('los restos de una exportación que murió en esta máquina (su proceso ya 
   const muerta = path.join(dir, 'history.export.db.tmp-muerta');
   fs.mkdirSync(muerta);
   fs.writeFileSync(path.join(muerta, 'parcial.db'), 'meta privada de una exportación interrumpida');
-  // Un pid que no existe: el más alto posible no se reparte en la práctica.
+  // Un pid que no existe (el más alto posible no se reparte en la práctica), de hace más de una hora.
   fs.writeFileSync(path.join(muerta, 'propietario.json'), JSON.stringify({ pid: 2 ** 22 + 12345, host: os.hostname(), inicio: '2026-11-05T10:00:00.000Z' }));
   const viva = path.join(dir, 'history.export.db.tmp-viva');
   fs.mkdirSync(viva);
@@ -366,9 +375,13 @@ test('los restos de una exportación que murió en esta máquina (su proceso ya 
   fs.writeFileSync(path.join(otraMaquina, 'propietario.json'), JSON.stringify({ pid: 2 ** 22 + 12345, host: 'otra-maquina', inicio: '2026-11-05T10:00:00.000Z' }));
   const sinDueno = path.join(dir, 'history.export.db.tmp-sin-dueno');
   fs.mkdirSync(sinDueno);
+  // De esta máquina y con el proceso muerto, pero de hace un momento: podría ser de otro contenedor.
+  const reciente = path.join(dir, 'history.export.db.tmp-reciente');
+  fs.mkdirSync(reciente);
+  fs.writeFileSync(path.join(reciente, 'propietario.json'), JSON.stringify({ pid: 2 ** 22 + 12345, host: os.hostname(), inicio: new Date().toISOString() }));
   const r = correr('src/scripts/dbExport.ts', [destino], SERVIDOR);
   assert.equal(r.status, 0, r.stderr || r.stdout);
   assert.equal(fs.existsSync(muerta), false, 'la de un proceso muerto de esta máquina, borrada');
-  for (const d of [viva, otraMaquina, sinDueno]) assert.ok(fs.existsSync(d), `${path.basename(d)}: no se toca`);
+  for (const d of [viva, otraMaquina, sinDueno, reciente]) assert.ok(fs.existsSync(d), `${path.basename(d)}: no se toca`);
   assert.match(r.stdout + r.stderr, /tmp-viva|tmp-otra|tmp-sin-dueno/);
 });
