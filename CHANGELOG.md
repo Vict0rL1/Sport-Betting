@@ -4,6 +4,22 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Auditoría del 5 de noviembre · temporales del exportador y ajustes de una historia sin filas (2026-11-06)
+
+Dos hallazgos verificados sobre `91c4c04` (`docs/plans/auditoria-5-noviembre.md`). Cada uno, con su prueba
+que falla antes.
+
+- **El exportador ya no borra ficheros que no son suyos.** Sus temporales tenían nombre fijo
+  (`<destino>.parcial`, `.limpia`) y se borraban sin mirar: una base ajena con ese nombre desaparecía, y dos
+  exportaciones a la vez se pisaban. Ahora:
+  - cada exportación usa su propio directorio temporal junto al destino y borra solo ese directorio;
+  - los restos de otras exportaciones se avisan, no se borran;
+  - lo que haya en el destino se vuelve a mirar antes de reemplazarlo.
+- **Una historia sin filas ya no pierde los ajustes del dueño al descargar.** Antes se apartaba antes de
+  descargar, y sus ajustes de antes de la migración 27 no pasaban a la nueva. Ahora se aparta después, como
+  copia consistente, y lo del dueño pasa a la nueva como con `--force`. Si la descarga falla, sigue en su
+  sitio.
+
 ## Auditoría paralela del 3 de noviembre · ajustes privados y guardado de interruptores (2026-11-03)
 
 Dos hallazgos verificados sobre `05a8e12` (`docs/plans/auditoria-paralela-3-noviembre.md`). Cada uno,

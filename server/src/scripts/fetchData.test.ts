@@ -307,3 +307,87 @@ test('una historia local con filas en tablas del libro mayor no se reemplaza ni 
     await s.cerrar();
   }
 });
+
+// ---- Auditoría del 5 de noviembre: una historia sin filas perdía los ajustes del dueño ----
+// La historia sin filas (solo esquema) se apartaba como history.db.sin-filas-* ANTES de calcular
+// `exists`, y como carryOver solo corría con `exists`, sus ajustes (de antes de la migración 27) no
+// pasaban a la nueva: se quedaban solo en la copia apartada. Y si la descarga fallaba, history.db ya no
+// estaba en su sitio.
+
+/** Una instalación: history.db con `filas` partidos y la meta dada, y un ledger.db que no se debe tocar. */
+function instalacion(nombre: string, filas: number, meta: Record<string, string>): { dataDir: string; history: string; huellaLedger: string } {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), `instalacion-${nombre}-`));
+  const history = path.join(dataDir, 'history.db');
+  baseCon(filas, history);
+  const v = new DatabaseSync(history);
+  v.exec(ESQUEMA_MIO.replace('CREATE TABLE bets (id INTEGER PRIMARY KEY, stake REAL); ', ''));
+  const ins = v.prepare('INSERT INTO meta (key, value) VALUES (?, ?)');
+  for (const [k, val] of Object.entries(meta)) ins.run(k, val);
+  v.close();
+  const l = new DatabaseSync(path.join(dataDir, 'ledger.db'));
+  l.exec("CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL); INSERT INTO settings VALUES ('ajustes.usuario', '{\"bancoPersonal\":321}', '2026-11-01T00:00:00.000Z'); CREATE TABLE paper_bets (id INTEGER PRIMARY KEY, stake REAL); INSERT INTO paper_bets (stake) VALUES (10);");
+  l.close();
+  return { dataDir, history, huellaLedger: crypto.createHash('sha256').update(fs.readFileSync(path.join(dataDir, 'ledger.db'))).digest('hex') };
+}
+const huellaDe = (f: string) => crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex');
+const DEL_DUENO = { 'features.anulaciones': '{"estrategias.laboratorio":false}', 'ajustes.usuario': '{"idioma":"en","bancoPersonal":250}' };
+const entornoDe = (dataDir: string, puerto: number) => ({ ...process.env, DATA_DIR: dataDir, DATA_BASE_URL: `http://127.0.0.1:${puerto}`, NODE_OPTIONS: '--experimental-sqlite --disable-warning=ExperimentalWarning' });
+
+test('historia sin filas con ajustes del dueño, sin y con --force: los ajustes pasan a la nueva (mandan los locales, los privados de la descarga se descartan, su procedencia se queda) y el libro mayor no se toca', async () => {
+  const s = await servidorConRelease(10_500, CONTAMINADA);
+  try {
+    for (const args of [[], ['--force']]) {
+      const { dataDir, history, huellaLedger } = instalacion(`vacia${args.join('')}`, 0, { ...DEL_DUENO, fb_updated_at: 'local-vieja' });
+      const r = await correFetchData(entornoDe(dataDir, s.puerto), args);
+      assert.equal(r.status, 0, `${args}: ${r.stdout}\n${r.stderr}`);
+      assert.deepEqual(metaDe(history), { ...DEL_DUENO, fb_updated_at: 'de-la-release' }, `${args}: lo del dueño, el local; la procedencia, la de la descarga; nada ajeno`);
+      assert.match(r.stdout, /sin filas/i);
+      const apartada = fs.readdirSync(dataDir).find((f) => /^history\.db\.sin-filas-[^-]+.*\d$/.test(f) && !/-(wal|shm)$/.test(f));
+      assert.ok(apartada, `${args}: la anterior queda apartada con fecha: ${fs.readdirSync(dataDir).join(', ')}`);
+      assert.equal(metaDe(path.join(dataDir, apartada!))['ajustes.usuario'], DEL_DUENO['ajustes.usuario'], `${args}: y con lo que tenía`);
+      assert.equal(huellaDe(path.join(dataDir, 'ledger.db')), huellaLedger, `${args}: ledger.db, ni un byte`);
+    }
+  } finally {
+    await s.cerrar();
+  }
+});
+
+test('historia sin filas y sin ajustes: solo la procedencia de la descarga; con filas y ajustes (--force): mandan los locales; el libro mayor, igual', async () => {
+  const s = await servidorConRelease(10_500, CONTAMINADA);
+  try {
+    const vacia = instalacion('vacia-sin-ajustes', 0, {});
+    const r1 = await correFetchData(entornoDe(vacia.dataDir, s.puerto));
+    assert.equal(r1.status, 0, `${r1.stdout}\n${r1.stderr}`);
+    assert.deepEqual(metaDe(vacia.history), { fb_updated_at: 'de-la-release' });
+    assert.equal(huellaDe(path.join(vacia.dataDir, 'ledger.db')), vacia.huellaLedger);
+    const llena = instalacion('llena-con-ajustes', 12, { ...DEL_DUENO, fb_updated_at: 'local-vieja' });
+    const r2 = await correFetchData(entornoDe(llena.dataDir, s.puerto), ['--force']);
+    assert.equal(r2.status, 0, `${r2.stdout}\n${r2.stderr}`);
+    assert.deepEqual(metaDe(llena.history), { ...DEL_DUENO, fb_updated_at: 'de-la-release' });
+    assert.equal(huellaDe(path.join(llena.dataDir, 'ledger.db')), llena.huellaLedger);
+  } finally {
+    await s.cerrar();
+  }
+});
+
+test('si la descarga falla, una historia sin filas se queda en su sitio, idéntica, sin copias ni temporales (antes se apartaba antes de descargar)', async () => {
+  // Una casi vacía (no pasa la validación) y otra con tablas del libro mayor (se rechaza).
+  const casiVacia = await servidorConRelease(40);
+  const conLibroMayor = await servidorConRelease(10_500, {}, ['CREATE TABLE watchlist (id INTEGER PRIMARY KEY)']);
+  try {
+    for (const [nombre, srv] of [['casi-vacia', casiVacia], ['con-libro-mayor', conLibroMayor]] as const) {
+      for (const args of [[], ['--force']]) {
+        const { dataDir, history, huellaLedger } = instalacion(`falla-${nombre}${args.join('')}`, 0, DEL_DUENO);
+        const antes = huellaDe(history);
+        const r = await correFetchData(entornoDe(dataDir, srv.puerto), args);
+        assert.equal(r.status, 1, `${nombre} ${args}: ${r.stdout}\n${r.stderr}`);
+        assert.equal(huellaDe(history), antes, `${nombre} ${args}: history.db en su sitio e idéntica`);
+        assert.deepEqual(fs.readdirSync(dataDir).sort(), ['history.db', 'ledger.db'], `${nombre} ${args}: ni copias ni temporales`);
+        assert.equal(huellaDe(path.join(dataDir, 'ledger.db')), huellaLedger);
+      }
+    }
+  } finally {
+    await casiVacia.cerrar();
+    await conLibroMayor.cerrar();
+  }
+});

@@ -243,16 +243,14 @@ async function main() {
   }
 
   // Una base SIN FILAS (solo esquema: lo que deja db:migrate antes de bajar datos) cuenta como
-  // ausente (A7). Se aparta con fecha, no se borra: nunca se destruye un fichero de data/.
-  if (fs.existsSync(DB_PATH) && !hayHistoria(DB_PATH)) {
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    for (const sufijo of ['', '-wal', '-shm']) {
-      if (fs.existsSync(DB_PATH + sufijo)) fs.renameSync(DB_PATH + sufijo, `${DB_PATH}.sin-filas-${stamp}${sufijo}`);
-    }
-    console.log(`Hay un history.db sin filas (solo esquema): se aparta como history.db.sin-filas-${stamp} y se descarga la publicada.`);
-  }
+  // ausente (A7): se descarga aunque no haya --force. Ya no se aparta ANTES de descargar (auditoría del
+  // 5 de noviembre): así, si la descarga falla, sigue en su sitio, y lo del dueño que tenga (sus ajustes
+  // de antes de la migración 27, lo medido en MINE) pasa a la nueva como con --force. Se aparta con
+  // fecha después, como copia consistente: nunca se destruye un fichero de data/.
+  const vacia = fs.existsSync(DB_PATH) && !hayHistoria(DB_PATH);
+  if (vacia) console.log('Hay un history.db sin filas (solo esquema): se descarga la publicada, y la actual se aparta con fecha al instalarla.');
 
-  const exists = fs.existsSync(DB_PATH);
+  const exists = fs.existsSync(DB_PATH) && !vacia;
   if (exists && !force) {
     const mb = (fs.statSync(DB_PATH).size / 1048576).toFixed(0);
     console.log(
@@ -347,11 +345,13 @@ async function main() {
     console.warn(`  ⚠ La descarga traía ${ajenas.length} clave(s) del libro mayor en su meta (${ajenas.join(', ')}): son estado de otra persona y se descartan. Una release no debería llevarlas nunca.`);
   }
 
-  if (exists) {
+  if (exists || vacia) {
     // Copia con fecha ANTES de tocar nada. Es lo que hace que --force sea reversible. Con
-    // `VACUUM INTO` y no con una copia del fichero: así lleva también lo que estuviera en el WAL.
+    // `VACUUM INTO` y no con una copia del fichero: así lleva también lo que estuviera en el WAL. La de
+    // una base sin filas se llama como siempre se ha apartado (`.sin-filas-`), y es la fuente de lo que
+    // pasa a la nueva igual que la de --force.
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const backup = `${DB_PATH}.backup-${stamp}`;
+    const backup = vacia ? `${DB_PATH}.sin-filas-${stamp}` : `${DB_PATH}.backup-${stamp}`;
     if (otraConexionAbierta(DB_PATH)) throw new Error(`${path.relative(ROOT, DB_PATH)} se abrió por otro proceso mientras se descargaba. No se toca nada.`);
     const integridad = copiaConsistente(DB_PATH, backup);
     if (integridad !== 'ok') throw new Error(`La base actual no pasa integrity_check (${integridad}); no se reemplaza. La copia está en ${path.basename(backup)}.`);
