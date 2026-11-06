@@ -11,13 +11,19 @@
 // copia ya limpia, así que no quedan ni sus bytes.
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { getDb } from '../db.ts';
 import { ficherosDe } from '../db/layout.ts';
 import { TABLAS_LEDGER, claveEsLedger } from '../db/tables.ts';
+import { otraConexionAbierta } from '../db/sqliteSeguro.ts';
 
-const destino = process.argv[2] && !process.argv[2].startsWith('--') ? path.resolve(process.argv[2]) : path.join(path.dirname(ficherosDe().history), 'history.export.db');
+// Un destino relativo se resuelve desde donde se llamó a npm (INIT_CWD), como restore.ts: `npm run
+// db:export-history -- data/history.export.db` (el workflow) corre en server/ y apuntaba a server/data
+// (revisión data-guardian del 5 de noviembre).
+const destino =
+  process.argv[2] && !process.argv[2].startsWith('--') ? path.resolve(process.env.INIT_CWD ?? process.cwd(), process.argv[2]) : path.join(path.dirname(ficherosDe().history), 'history.export.db');
 const tablasDe = (d: DatabaseSync) => (d.prepare("SELECT name FROM sqlite_master WHERE type IN ('table', 'view')").all() as { name: string }[]).map((r) => r.name);
 const clavesDe = (d: DatabaseSync) => (tablasDe(d).includes('meta') ? (d.prepare('SELECT key FROM meta').all() as { key: string }[]).map((r) => r.key) : []);
 
@@ -39,19 +45,32 @@ function motivoParaNoPisar(): string | null {
   const vivas = [history, ledger, path.join(path.dirname(history), 'tennis.db')].filter((f): f is string => f !== null);
   const destinoReal = real(destino);
   for (const f of vivas) for (const suf of ['', '-wal', '-shm', '-journal']) if (destinoReal === real(f + suf)) return `es ${path.basename(f + suf)}, una base de la instalación`;
+  // Un -wal o -journal con algo junto al destino es de otra base, o de él mismo con cambios sin pasar
+  // (revisión data-guardian del 5 de noviembre: un ledger.db a 0 bytes con sus apuestas en el -wal
+  // perdía el WAL y quedaba reemplazado). Ni se borra ni se exporta encima.
+  for (const suf of ['-wal', '-journal']) {
+    const f = destino + suf;
+    if (fs.existsSync(f) && fs.statSync(f).size > 0) return `tiene al lado un ${path.basename(f)} con contenido`;
+  }
   if (!fs.existsSync(destino)) return null;
   if (!fs.statSync(destino).isFile()) return 'no es un fichero';
+  if (fs.statSync(destino).size === 0) return 'está vacío (0 bytes): no es una exportación anterior';
+  // Las copias con fecha de la instalación (fetch-data, restaurar, partir) no son exportaciones.
+  if (/\.(backup|sin-filas|ilegible|pre-split|antes-de-restaurar)-/.test(path.basename(destino))) return 'es una copia con fecha de la instalación';
   try {
     const d = new DatabaseSync(destino, { readOnly: true });
     try {
       const delLibroMayor = tablasDe(d).filter((t) => TABLAS_LEDGER.includes(t));
-      return delLibroMayor.length ? `tiene tablas del libro mayor (${delLibroMayor.join(', ')})` : null;
+      if (delLibroMayor.length) return `tiene tablas del libro mayor (${delLibroMayor.join(', ')})`;
+      // Una exportación nunca lleva meta privada: si la tiene, es otra cosa (una historia viva o copiada).
+      if (clavesDe(d).some(claveEsLedger)) return 'lleva meta privada: no es una exportación';
     } finally {
       d.close();
     }
   } catch {
     return 'ya existe y no es una base SQLite';
   }
+  return otraConexionAbierta(destino) ? 'está abierta por otro proceso' : null;
 }
 
 const motivo = motivoParaNoPisar();
@@ -70,18 +89,46 @@ if (motivo) {
 // nombre se borraba sin aviso, y dos exportaciones a la vez se pisaban los temporales.
 const dirDestino = path.dirname(destino);
 const prefijo = `${path.basename(destino)}.tmp-`;
-// Restos de exportaciones interrumpidas (o de otra en marcha): se avisa, no se tocan.
-const ajenos = fs.readdirSync(dirDestino).filter((f) => f.startsWith(prefijo));
-if (ajenos.length) {
+const MARCA = 'propietario.json';
+const vivo = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === 'EPERM';
+  }
+};
+// Restos de otras exportaciones (revisión data-guardian del 5 de noviembre: llevan meta privada, y
+// dejarlos para siempre era peor que antes). Se borran solo los que su marca dice que son de una
+// exportación de ESTA máquina cuyo proceso ya no existe; los demás (otra en marcha, otra máquina con
+// el directorio compartido, o sin marca) se avisan y no se tocan.
+const avisar: string[] = [];
+for (const f of fs.readdirSync(dirDestino).filter((x) => x.startsWith(prefijo))) {
+  let marca: { pid?: unknown; host?: unknown } | null = null;
+  try {
+    marca = JSON.parse(fs.readFileSync(path.join(dirDestino, f, MARCA), 'utf8')) as { pid?: unknown; host?: unknown };
+  } catch {
+    marca = null;
+  }
+  if (marca && marca.host === os.hostname() && typeof marca.pid === 'number' && !vivo(marca.pid)) {
+    fs.rmSync(path.join(dirDestino, f), { recursive: true, force: true });
+    console.warn(`⚠ Restos de una exportación interrumpida (proceso ${marca.pid}, ya terminado) borrados: ${f}`);
+  } else avisar.push(f);
+}
+// Los temporales de antes de este cambio, con nombre fijo: tampoco se sabe de quién son.
+for (const suf of ['.parcial', '.limpia']) if (fs.existsSync(destino + suf)) avisar.push(path.basename(destino + suf));
+if (avisar.length) {
   console.warn(
-    `⚠ Junto al destino hay ${ajenos.length} directorio(s) temporal(es) de otra exportación (${ajenos.join(', ')}). No se tocan: si no hay ninguna en marcha, ` +
+    `⚠ Junto al destino hay temporales de otra exportación (${avisar.join(', ')}). No se tocan: si no hay ninguna en marcha, ` +
       'son restos de una interrumpida y pueden llevar meta privada; bórralos a mano.',
   );
 }
 let propio: string | null = null;
 let copia: DatabaseSync | null = null;
 try {
+  // mkdtemp lo crea solo para este proceso (0700), y la marca dice de quién es por si muere a medias.
   propio = fs.mkdtempSync(path.join(dirDestino, prefijo));
+  fs.writeFileSync(path.join(propio, MARCA), JSON.stringify({ pid: process.pid, host: os.hostname(), inicio: new Date().toISOString() }));
   const parcial = path.join(propio, 'parcial.db');
   const limpia = path.join(propio, 'limpia.db');
   const db = getDb();
@@ -119,8 +166,9 @@ try {
     console.error(`✗ No se exporta encima de ${destino}: ${motivoAhora}. Elige otro destino.`);
     process.exitCode = 1;
   } else {
-    // Los laterales del fichero que se reemplaza (un WAL viejo junto al nuevo se aplicaría encima), y el
-    // rename, que reemplaza el destino de una vez.
+    // Los laterales del fichero que se reemplaza (un WAL viejo junto al nuevo se aplicaría encima; la
+    // comprobación de arriba ya garantiza que no llevan nada), y el rename, que reemplaza el destino de
+    // una vez.
     for (const suf of ['-journal', '-wal', '-shm']) fs.rmSync(destino + suf, { force: true });
     fs.renameSync(limpia, destino);
     console.log(
