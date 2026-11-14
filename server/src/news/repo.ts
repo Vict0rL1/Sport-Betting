@@ -49,18 +49,19 @@ export function matchPlayer(
   }[];
   if (rows.length === 0) return null;
 
+  // El punto separa (la inicial de «J.Timber» es otra palabra): quitarlo sin más dejaba «jtimber»,
+  // y ese jugador no emparejaba nunca por el apellido.
   const norm = (s: string): string =>
     s
       .toLowerCase()
       .normalize('NFD')
       .replace(/[̀-ͯ]/g, '')
+      .replace(/\./g, ' ')
       .replace(/[^a-z ]/g, '')
+      .replace(/\s+/g, ' ')
       .trim();
   const target = norm(name);
   if (!target) return null;
-
-  const exact = rows.filter((r) => norm(r.name) === target);
-  if (exact.length === 1) return exact[0];
 
   // El feed abrevia («J.Timber», «Bruno G.»), así que el apellido es lo que casi siempre
   // coincide. Se exige que sea el ÚLTIMO token por los dos lados para no emparejar
@@ -70,12 +71,19 @@ export function matchPlayer(
     return parts[parts.length - 1] ?? '';
   };
   const targetLast = lastOf(name);
-  if (targetLast.length >= 3) {
-    const bySurname = rows.filter((r) => lastOf(r.name) === targetLast);
-    // Exactamente uno. Dos «Timber» en la misma liga son un empate, y un empate se
-    // resuelve NO eligiendo.
-    if (bySurname.length === 1) return bySurname[0];
+  const bySurname = targetLast.length >= 3 ? rows.filter((r) => lastOf(r.name) === targetLast) : [];
+
+  const exact = rows.filter((r) => norm(r.name) === target);
+  if (exact.length === 1) {
+    // Un nombre de una sola palabra («Timber») también es un apellido: si otro jugador lo lleva
+    // («J.Timber»), es un empate aunque uno lo tenga escrito tal cual (nocturno «Datos», 2026-27).
+    const otros = target.includes(' ') ? [] : bySurname.filter((r) => r.id !== exact[0].id);
+    return otros.length === 0 ? exact[0] : null;
   }
+
+  // Exactamente uno. Dos «Timber» en la misma liga son un empate, y un empate se
+  // resuelve NO eligiendo.
+  if (bySurname.length === 1) return bySurname[0];
   return null;
 }
 

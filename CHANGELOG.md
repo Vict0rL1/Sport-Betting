@@ -4,6 +4,28 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Noticias: «Timber» ya no se adjudica a ciegas (2026-11-14)
+
+Uno de los 7 fallos del nocturno «Datos» (`docs/plans/nocturno-datos.md`), que nunca ha pasado
+`verify:data` ni publicado una release.
+
+- **El fallo.** Con los datos de FPL de 2026-27 hay un «J.Timber» (Arsenal) y un «Timber» (Crystal
+  Palace). `matchPlayer('timber')` devolvía el del Palace, aunque la función ya decía que dos «Timber» en
+  la misma liga son un empate y no se elige. Dos defectos:
+  - una coincidencia exacta con un nombre de una sola palabra ganaba aunque otro jugador llevara ese
+    apellido;
+  - el punto se borraba sin dejar espacio: «J.Timber» quedaba «jtimber» y no emparejaba nunca por el
+    apellido. Pasaba con los 36 de 667 jugadores de la Premier con punto en el nombre («J.Timber»,
+    «B.Fernandes»…).
+- **Ahora:**
+  - el punto separa palabras;
+  - un nombre de una sola palabra que es el apellido de otro jugador es un empate y no empareja;
+  - con el equipo, o con el nombre completo, sí empareja.
+- **Pruebas:** `server/src/news/repo.test.ts`, la primera del módulo de noticias. Fallaban 2 de 3 antes
+  del arreglo.
+- **Con datos reales**, reconstruidos aquí desde las fuentes en una carpeta temporal: `verify:data` pasa
+  528 de 528. Las fuentes que esta sesión no alcanza (football-data.co.uk, ESPN) no entran en esa cuenta.
+
 ## Las pruebas K10 y N15 ya no dependen de la suerte (2026-11-14)
 
 Visto al comprobar la rama de la auditoría del 5 de noviembre. Solo cambian las pruebas
