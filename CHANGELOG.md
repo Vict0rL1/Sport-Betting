@@ -4,6 +4,41 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Las pruebas K10 y N15 ya no dependen de la suerte (2026-11-14)
+
+Visto al comprobar la rama de la auditoría del 5 de noviembre. Solo cambian las pruebas
+(`web/e2e/movil.spec.ts`); la app no cambia. Las dos tenían la misma causa: React Router navega en una
+transición, así que la URL cambia al tocar, pero la pantalla anterior se queda hasta que llega el trozo de
+la nueva. En CI lo tapaba el reintento.
+
+- **K10** («al cambiar de pantalla, la nueva empieza arriba») fallaba 1 de cada 8 en local.
+  - Medido: la app hace lo que debe. En 16 de 16 vueltas, Tenis acaba arriba en cuanto llega.
+  - La prueba leía la altura una sola vez, tras `waitForLoadState('networkidle')`, que en una SPA no espera
+    a nada después de navegar. Si la precarga ociosa del trozo de Tenis no había terminado, aún se veía la
+    pantalla anterior.
+  - Reproducido de forma determinista: con «ahorro de datos» (sin precarga) y el trozo de Tenis con
+    retraso, la lectura única fallaba 6 de 6.
+  - Ahora espera a que llegue el trozo y a que la altura llegue a 0, y conserva ese caso: pasa 30 de 30.
+  - Sigue cazando el fallo de verdad: sin el `scrollTo(0, 0)` de `App.tsx`, falla 4 de 4 (Tenis se abría a
+    301 px).
+- **N15** («si se sale de Confianza mientras llega lo de encima…») fallaba 2 de cada 8 en local.
+  - Volvía con «atrás» justo al cambiar la URL. Si el trozo de la otra pantalla no había llegado (el
+    glosario no se precarga), Confianza no llegaba a irse. Al volver no se pedía nada y la cuenta de
+    peticiones no llegaba a 8.
+  - Reproducido de forma determinista: con el trozo del glosario 300 ms más lento, fallaba 4 de 4.
+  - Ahora espera a que Confianza se haya ido de verdad antes de volver: pasa 6 de 6 con ese retraso y 30
+    de 30 sin él.
+  - Sigue cazando el fallo de verdad: sin la guarda de `guardar` en `App.tsx` (no guardar la altura
+    mientras se vuelve), falla 4 de 4 (el enlace a 413 px antes, a 1.622 después).
+- **N10** («atrás» desde el glosario…) da el mismo paso al glosario.
+  - Pasó 10 de 10 sola, y por eso al principio no se tocó. Luego falló en una vuelta entera, con la misma
+    causa (0 peticiones).
+  - Reproducido: con el trozo del glosario 300 ms más lento, fallaba 4 de 4.
+  - Mismo arreglo: pasa 6 de 6 con el retraso y 30 de 30 sin él.
+  - Sigue cazando el fallo de verdad: sin la vuelta a la altura de `App.tsx`, falla 4 de 4 (el enlace a
+    413 px antes, a 1.869 mientras llega lo de encima).
+- Ninguna otra prueba lee una sola vez tras esperar a «networkidle» después de navegar dentro de la app.
+
 ## Auditoría del 5 de noviembre · temporales del exportador y ajustes de una historia sin filas (2026-11-06)
 
 Dos hallazgos verificados sobre `91c4c04` (`docs/plans/auditoria-5-noviembre.md`). Cada uno, con su prueba
