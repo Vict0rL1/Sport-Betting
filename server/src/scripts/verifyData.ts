@@ -2850,14 +2850,22 @@ function auditDixonColes(): void {
  * comprobación falla pidiendo que se borre la excepción. Una lista así no puede
  * pudrirse en silencio, que es la única forma en que estas listas hacen daño.
  */
-const KNOWN_SEASON_GAPS: Record<string, { seasons: number[]; why: string }> = {
+//
+// `soloSinFootballData` (nocturno «Datos», docs/plans/nocturno-datos.md): openfootball no publica esas
+// temporadas, pero football-data.co.uk sí, y desde que su ingesta cae sobre los ids de openfootball
+// las trae bien. La excepción vale solo si football-data no ha llegado a esa liga (ninguna fila con
+// `odds_source`, que solo escribe esa ingesta). Si ha llegado, esas temporadas tienen que estar, y un
+// hueco falla como cualquier otro.
+const KNOWN_SEASON_GAPS: Record<string, { seasons: number[]; why: string; soloSinFootballData?: boolean }> = {
   ligamx: {
     seasons: [2022, 2023, 2024],
-    why: 'el mirror JSON no las publica y el repo de texto de México va por submódulos, que raw.githubusercontent no sirve',
+    why: 'openfootball no las publica (el mirror JSON no las tiene y el repo de texto de México va por submódulos); las trae football-data',
+    soloSinFootballData: true,
   },
   ligue2: {
     seasons: [2022, 2023, 2024],
-    why: 'igual que Liga MX: sin fr.2 en el mirror JSON esas temporadas y sin repo de texto alcanzable',
+    why: 'openfootball no las publica (sin fr.2 en el mirror JSON esas temporadas); las trae football-data',
+    soloSinFootballData: true,
   },
 };
 
@@ -2905,7 +2913,11 @@ function auditSeasonGaps(): void {
     const missing: number[] = [];
     for (let y = first; y <= last; y++) if (!have.has(y)) missing.push(y);
 
-    const known = KNOWN_SEASON_GAPS[league];
+    const conocida = KNOWN_SEASON_GAPS[league];
+    const conFootballData =
+      (getDb().prepare('SELECT COUNT(*) AS n FROM fb_matches WHERE league = ? AND odds_source IS NOT NULL').get(league) as { n: number }).n > 0;
+    // Con football-data en la liga, una excepción «solo sin football-data» no aplica.
+    const known = conocida && !(conocida.soloSinFootballData && conFootballData) ? conocida : undefined;
     const exempt = new Set(known?.seasons ?? []);
     const unexplained = missing.filter((y) => !exempt.has(y));
     check(

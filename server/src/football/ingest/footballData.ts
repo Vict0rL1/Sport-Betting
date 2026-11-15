@@ -25,6 +25,7 @@ import { parse } from 'csv-parse/sync';
 import { getDb } from '../../db.ts';
 import { RAW_DIR, footballConfig } from '../../config.ts';
 import { slugify } from './footballcsv.ts';
+import { buildTeamIndex, normalizeTeamName } from './teamNames.ts';
 import type { LeagueConfig } from '../types.ts';
 
 export const MANUAL_DIR = path.join(RAW_DIR, 'football', 'football-data');
@@ -220,6 +221,134 @@ export interface FootballDataResult {
   matches: number;
   withOdds: number;
   seasons: number[];
+  /** Nombres de football-data que cayeron sobre un id de openfootball por los partidos en común. */
+  aprendidos?: number;
+  /** Nombres sin partido en común ni nombre igual: se dan de alta como equipo nuevo. */
+  creados?: string[];
+  /** Partidos que quedaban de un club contra sí mismo tras emparejar: no se guardan. */
+  descartados?: number;
+}
+
+/** Un partido de football-data con su temporada, lo justo para emparejar nombres. */
+export interface FilaParaEmparejar {
+  season: number;
+  date: string;
+  homeName: string;
+  awayName: string;
+  homeGoals: number;
+  awayGoals: number;
+}
+
+/**
+ * Qué id lleva cada nombre de football-data en cada temporada (nocturno «Datos»,
+ * docs/plans/nocturno-datos.md).
+ *
+ * Antes, cada club se daba de alta como `slugify(nombre)` («Man United» → man-united), y solo
+ * los clubes cuyo slug coincidía con el de openfootball se fundían: el resto entraba dos veces, con
+ * ids distintos (con las CSV reales, 208 de 421 nombres). Una tabla de alias escrita a mano
+ * sería adivinar; aquí lo dicen los PARTIDOS. El mismo partido está en las dos fuentes (misma liga,
+ * mismo día, mismo marcador), así que cada partido de football-data que tiene exactamente un
+ * gemelo en openfootball vota que «Man United» es manchester-united.
+ *
+ * - Por TEMPORADA. openfootball cambia a veces la grafía de un club entre temporadas («Bayer
+ *   Leverkusen» en 2019-20, «Bayer 04 Leverkusen» después) y con ella el id. Cada temporada de
+ *   football-data cae sobre el id que openfootball usó ese año, así que no añade partidos dobles.
+ * - Solo con evidencia clara: al menos 3 votos y el 90 % para el mismo id. Si dos nombres eligen el
+ *   mismo id en la misma temporada, ninguno de los dos se queda con él.
+ * - Una temporada que openfootball no tiene (Ligue 2 de 2022 a 2024) toma el id de la temporada
+ *   más cercana en la que ese nombre sí quedó emparejado.
+ * - Si no hay nada de eso, el nombre: un id existente con el mismo slug, o el mismo nombre
+ *   normalizado (sin prefijos: «Paris FC» no es el PSG; ver openfootball.ts).
+ * - Y si tampoco, se da de alta como antes (`slugify`). Se devuelve en `creados` para que se vea.
+ */
+export function emparejarNombres(
+  league: string,
+  filas: FilaParaEmparejar[],
+): { idDe: (nombre: string, season: number) => string; aprendidos: number; creados: string[]; alias: { alias: string; teamId: string; season: number }[] } {
+  const db = getDb();
+  const existentes = new Set((db.prepare('SELECT id FROM fb_teams WHERE league = ?').all(league) as { id: string }[]).map((r) => r.id));
+  const indice = buildTeamIndex(league as never);
+  const porNombre = (n: string): string | null => (existentes.has(slugify(n)) ? slugify(n) : (indice.get(normalizeTeamName(n)) ?? null));
+
+  const buscar = db.prepare('SELECT home_id h, away_id a FROM fb_matches WHERE league = ? AND match_date = ? AND home_goals = ? AND away_goals = ?');
+  const clave = (n: string, s: number) => `${s}\u0000${n}`;
+  const votos = new Map<string, Map<string, number>>();
+  const votar = (n: string, s: number, id: string) => {
+    const v = votos.get(clave(n, s)) ?? new Map<string, number>();
+    v.set(id, (v.get(id) ?? 0) + 1);
+    votos.set(clave(n, s), v);
+  };
+  for (const f of filas) {
+    let gemelos = buscar.all(league, f.date, f.homeGoals, f.awayGoals) as { h: string; a: string }[];
+    if (gemelos.length > 1) {
+      // Dos partidos el mismo día con el mismo marcador: solo si el nombre de un lado los separa.
+      const h = porNombre(f.homeName);
+      const a = porNombre(f.awayName);
+      gemelos = gemelos.filter((g) => (!h || g.h === h) && (!a || g.a === a));
+    }
+    if (gemelos.length !== 1) continue;
+    votar(f.homeName, f.season, gemelos[0].h);
+    votar(f.awayName, f.season, gemelos[0].a);
+  }
+
+  const decidido = new Map<string, string>();
+  for (const [k, v] of votos) {
+    const orden = [...v.entries()].sort((x, y) => y[1] - x[1]);
+    const total = orden.reduce((t, [, n]) => t + n, 0);
+    if (orden[0][1] >= 3 && orden[0][1] >= 0.9 * total) decidido.set(k, orden[0][0]);
+  }
+  // Dos nombres al mismo id en la misma temporada: alguno está mal, y no se sabe cuál.
+  const porTemporadaEId = new Map<string, string[]>();
+  for (const [k, id] of decidido) {
+    const s = k.slice(0, k.indexOf('\u0000'));
+    porTemporadaEId.set(`${s}|${id}`, [...(porTemporadaEId.get(`${s}|${id}`) ?? []), k]);
+  }
+  for (const ks of porTemporadaEId.values()) if (ks.length > 1) for (const k of ks) decidido.delete(k);
+
+  const temporadasDe = new Map<string, [number, string][]>();
+  for (const [k, id] of decidido) {
+    const i = k.indexOf('\u0000');
+    const n = k.slice(i + 1);
+    temporadasDe.set(n, [...(temporadasDe.get(n) ?? []), [Number(k.slice(0, i)), id]]);
+  }
+  const resolver = (n: string, s: number): { id: string; voto: boolean } => {
+    const aqui = decidido.get(clave(n, s));
+    if (aqui) return { id: aqui, voto: true };
+    const otras = temporadasDe.get(n);
+    if (otras?.length) {
+      // La más cercana; a igual distancia, la más reciente.
+      return { id: [...otras].sort((x, y) => Math.abs(x[0] - s) - Math.abs(y[0] - s) || y[0] - x[0])[0][1], voto: false };
+    }
+    const nombre = porNombre(n);
+    return { id: nombre ?? slugify(n), voto: false };
+  };
+  // El resultado final de cada (nombre, temporada), y la misma guarda que con los votos, ahora también
+  // para lo que sale de la temporada cercana o del nombre (revisión data-guardian, F7): dos nombres al
+  // mismo id en una temporada juntarían a dos clubes. El que no salió de un voto se da de alta aparte.
+  const final = new Map<string, string>();
+  const enTemporada = new Map<string, { k: string; n: string; voto: boolean }[]>();
+  for (const f of filas) {
+    for (const n of [f.homeName, f.awayName]) {
+      const k = clave(n, f.season);
+      if (final.has(k)) continue;
+      const r = resolver(n, f.season);
+      final.set(k, r.id);
+      const g = `${f.season}|${r.id}`;
+      enTemporada.set(g, [...(enTemporada.get(g) ?? []), { k, n, voto: r.voto }]);
+    }
+  }
+  for (const grupo of enTemporada.values()) {
+    if (grupo.length < 2) continue;
+    for (const x of grupo) if (!x.voto) final.set(x.k, slugify(x.n));
+  }
+  // Lo que se da de alta: los nombres cuyo id final no es de ningún equipo que ya exista.
+  const creados = [...new Set([...final].filter(([, id]) => !existentes.has(id)).map(([k]) => k.slice(k.indexOf('\u0000') + 1)))].sort();
+  const idDe = (n: string, s: number): string => final.get(clave(n, s)) ?? resolver(n, s).id;
+  // Para los alias: el id de cada nombre en su temporada más reciente.
+  const ultima = new Map<string, number>();
+  for (const f of filas) for (const n of [f.homeName, f.awayName]) ultima.set(n, Math.max(ultima.get(n) ?? -Infinity, f.season));
+  const alias = [...ultima].map(([n, s]) => ({ alias: n, teamId: idDe(n, s), season: s }));
+  return { idDe, aprendidos: temporadasDe.size, creados, alias };
 }
 
 /** Ingest seasons for one league from football-data.co.uk. */
@@ -231,9 +360,11 @@ export async function ingestFootballData(
   const db = getDb();
   const cacheDir = path.join(RAW_DIR, 'football', 'football-data-cache');
 
+  // Solo para los equipos que se dan de alta: el nombre de un equipo que ya existe (el formal de
+  // openfootball, «Brighton & Hove Albion FC») no se pisa con el corto de aquí («Brighton»).
   const insertTeam = db.prepare(
     `INSERT INTO fb_teams (id, league, name) VALUES (?, ?, ?)
-     ON CONFLICT(league, id) DO UPDATE SET name = excluded.name`,
+     ON CONFLICT(league, id) DO NOTHING`,
   );
   const insertMatch = db.prepare(
     `INSERT INTO fb_matches
@@ -285,27 +416,51 @@ export async function ingestFootballData(
     if (f) files.push({ file: f, season: null });
   }
 
+  // Todo leído antes de escribir nada: los ids salen de todas las temporadas a la vez.
+  const leidos: { m: ParsedFdMatch; s: number }[][] = [];
   for (const { file, season } of files) {
     const parsed = parseFootballData(
       fs.readFileSync(file, 'utf8'),
       path.basename(file),
       league.footballData.kind === 'extra' ? league.footballData.league : undefined,
     );
-    if (parsed.length === 0) continue;
+    const filas: { m: ParsedFdMatch; s: number }[] = [];
+    for (const m of parsed) {
+      // For the multi-season files, derive the season from the match date:
+      // a match in July or later belongs to the season ending next year.
+      const y = Number(m.date.slice(0, 4));
+      const mo = Number(m.date.slice(4, 6));
+      const s = season ?? (mo >= 7 ? y + 1 : y);
+      if (seasons.length && !seasons.includes(s)) continue;
+      filas.push({ m, s });
+    }
+    if (filas.length) leidos.push(filas);
+  }
+  const ids = emparejarNombres(
+    league.id,
+    leidos.flat().map(({ m, s }) => ({ season: s, date: m.date, homeName: m.homeName, awayName: m.awayName, homeGoals: m.homeGoals, awayGoals: m.awayGoals })),
+  );
+  const yaExiste = db.prepare('SELECT 1 FROM fb_teams WHERE league = ? AND id = ?');
+  const guardarAlias = db.prepare(
+    `INSERT INTO fb_team_aliases (league, alias, team_id, fuente, season, updated_at) VALUES (?, ?, ?, 'football-data', ?, ?)
+     ON CONFLICT(league, alias) DO UPDATE SET team_id = excluded.team_id, fuente = excluded.fuente, season = excluded.season, updated_at = excluded.updated_at`,
+  );
+  const ahora = new Date().toISOString();
+  let descartados = 0;
 
+  for (const filas of leidos) {
     db.exec('BEGIN');
     try {
-      for (const m of parsed) {
-        // For the multi-season files, derive the season from the match date:
-        // a match in July or later belongs to the season ending next year.
-        const y = Number(m.date.slice(0, 4));
-        const mo = Number(m.date.slice(4, 6));
-        const s = season ?? (mo >= 7 ? y + 1 : y);
-        if (seasons.length && !seasons.includes(s)) continue;
-        const homeId = slugify(m.homeName);
-        const awayId = slugify(m.awayName);
-        insertTeam.run(homeId, league.id, m.homeName);
-        insertTeam.run(awayId, league.id, m.awayName);
+      for (const { m, s } of filas) {
+        const homeId = ids.idDe(m.homeName, s);
+        const awayId = ids.idDe(m.awayName, s);
+        // Un club contra sí mismo es un emparejado roto: mejor sin el partido que con él, y se cuenta.
+        if (homeId === awayId) {
+          descartados++;
+          continue;
+        }
+        if (!yaExiste.get(league.id, homeId)) insertTeam.run(homeId, league.id, m.homeName);
+        if (!yaExiste.get(league.id, awayId)) insertTeam.run(awayId, league.id, m.awayName);
         insertMatch.run(
           league.id,
           s,
@@ -336,6 +491,10 @@ export async function ingestFootballData(
         if (m.oddsHome && m.oddsDraw && m.oddsAway) withOdds++;
         if (!used.includes(s)) used.push(s);
       }
+      // Lo aprendido, en la misma transacción que los partidos de los que sale: lo usan las casas y
+      // ClubElo vía buildTeamIndex (revisión data-guardian, F1). Gana la temporada más reciente.
+      const enEste = new Set(filas.flatMap(({ m }) => [m.homeName, m.awayName]));
+      for (const a of ids.alias) if (enEste.has(a.alias) && yaExiste.get(league.id, a.teamId)) guardarAlias.run(league.id, a.alias, a.teamId, a.season, ahora);
       db.exec('COMMIT');
     } catch (e) {
       db.exec('ROLLBACK');
@@ -343,5 +502,5 @@ export async function ingestFootballData(
     }
   }
 
-  return { league: league.id, matches, withOdds, seasons: used.sort() };
+  return { league: league.id, matches, withOdds, seasons: used.sort(), aprendidos: ids.aprendidos, creados: ids.creados, descartados };
 }

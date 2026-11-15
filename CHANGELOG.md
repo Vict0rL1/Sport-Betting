@@ -4,6 +4,62 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Fútbol: football-data.co.uk ya no duplica equipos ni partidos (2026-11-14)
+
+Los fallos 2 a 5 del nocturno «Datos» (`docs/plans/nocturno-datos.md`), con la revisión de data-guardian
+aplicada.
+
+- **El fallo.** `ingestFootballData` daba a cada club el id `slugify(nombre de football-data)`
+  («Man United» → `man-united`, «Brighton» → `brighton`) y no lo resolvía contra los ids que ya había
+  creado openfootball. Solo se fundían los clubes cuyo slug coincidía por casualidad; el resto entraba dos
+  veces, con ids distintos. Medido con las CSV reales de las 12 divisiones (2019-20 a 2026-27):
+  - 208 de 421 nombres no casaban;
+  - 55.022 partidos en vez de 32.593 y 652 equipos en vez de 449;
+  - `verify:data` fallaba con «equipos que nunca se cruzan» y «clubes con dos ids», como en CI.
+- **Ahora lo dicen los partidos.** El mismo partido está en las dos fuentes (misma liga, día y marcador):
+  - cada partido de football-data con un solo gemelo en openfootball vota qué id es cada nombre;
+  - se vota por temporada (openfootball cambia de id entre temporadas para algunos clubes);
+  - solo cuenta con 3 votos o más y el 90 %;
+  - una temporada que openfootball no tiene toma el id de la más cercana;
+  - si no hay nada, se da de alta como antes, y el log dice cuáles (Celta B, Cottbus, Verona…).
+
+  Sin tabla de alias escrita a mano. El nombre formal de un equipo que ya existe no se pisa con el corto
+  de football-data. Dos nombres nunca acaban en el mismo id en una temporada, tampoco por las vías de
+  respaldo.
+- **Lo aprendido se guarda** en `fb_team_aliases` (migración 28, en la historia), y `buildTeamIndex` lo usa
+  sin tapar ningún nombre que ya resolvía.
+  - Revisión data-guardian, F1: sin esto, las casas de apuestas y ClubElo dejaban de encontrar a «Napoli»,
+    «Lyon» o «Bayern Munich» en una base nueva, y sin `home_id` no se registra la predicción del partido.
+  - Con nombres al estilo de las casas, resuelven 97 de 99, y al id de openfootball. Antes resolvían 94, y
+    al duplicado.
+  - `--rebuild` borra también los alias de la liga.
+- **Resultado con datos reales:** 32.593 partidos, las 32.312 cuotas puestas, 449 equipos y 421 alias;
+  `verify:data`, 527 de 527.
+- **Liga MX y Ligue 2 2022–2024** (`KNOWN_SEASON_GAPS`): la excepción vale ahora solo si football-data no ha
+  llegado a esa liga. Si ha llegado, esas temporadas tienen que estar. Antes, el nocturno pedía borrarla.
+- **Cambio de comportamiento:** las CSV de una liga se leen todas antes de escribir. Una mal formada deja la
+  liga sin tocar; antes entraban las temporadas anteriores a ella. Un partido que quedara de un club contra
+  sí mismo no se guarda, y se cuenta en el log (0 con los datos reales).
+- **Si tu base ya tiene los duplicados** (corriste `update-data:fb` con football-data alcanzable), el
+  arreglo no los quita solo, y las pasadas incrementales los arrastran (revisión data-guardian, F2;
+  pendiente, en el plan). Rehacerla tiene consecuencias en el libro mayor:
+  - las predicciones de fútbol pendientes guardadas con un id duplicado («napoli») ya no se liquidan;
+  - un partido que se vuelva a predecir con el id nuevo deja una segunda fila.
+
+  Si se rehace: con el servidor parado, sin predicciones de fútbol pendientes y con las fuentes
+  alcanzables. `npm run update-data:fb -- --rebuild` borra la liga antes de descargar nada.
+- **Pruebas:** `server/src/football/ingest/footballData.test.ts`, las primeras de esta ingesta. Fallaban
+  las 5 antes de su arreglo.
+- **Pendiente**, con números en el plan:
+  - las pasadas incrementales sobre una base con duplicados (F2). También empieza en una base limpia,
+    incluida la release publicada, cuando football-data va por delante de openfootball. Hoy se dan de alta
+    Verona, Cottbus, Angers, Bordeaux o Dijon en las segundas divisiones. Quien baje esa release y
+    actualice en incremental los verá partidos en dos cuando openfootball publique esas temporadas;
+  - Liga MX, sin ver aquí (F5);
+  - openfootball parte algunos clubes entre temporadas (Leverkusen, Benfica, Rennes…);
+  - fecha un año antes los partidos de julio de 2020;
+  - unos 51 partidos tienen fecha distinta en cada fuente.
+
 ## Noticias: «Timber» ya no se adjudica a ciegas (2026-11-14)
 
 Uno de los 7 fallos del nocturno «Datos» (`docs/plans/nocturno-datos.md`), que nunca ha pasado
