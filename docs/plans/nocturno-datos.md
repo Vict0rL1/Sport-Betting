@@ -12,11 +12,11 @@ La última ejecución (13 de noviembre, sobre `main` `5c8b828`) falla 7 de 530 c
 |---|---|---|---|
 | 1 | noticias: un apellido ambiguo no se resuelve a ciegas («timber») | `matchPlayer` (`server/src/news/repo.ts`) | **Arreglado** |
 | 2 | fútbol: todos los equipos de una temporada se cruzan (+982 parejas) | football-data.co.uk crea sus propios ids | **Arreglado** (datos reales) |
-| 3 | fútbol: ningún club aparece con dos ids distintos (Mallorca, América, Necaxa) | la misma | **Arreglado**; Liga MX sin comprobar aquí |
+| 3 | fútbol: ningún club aparece con dos ids distintos (Mallorca, América, Necaxa) | la misma | **Arreglado**, Liga MX incluida (visto en GitHub) |
 | 4 | ligamx: la excepción documentada sigue haciendo falta (2022–2024) | football-data rellena esas temporadas | **Excepción quitada** |
 | 5 | ligue2: la excepción documentada sigue haciendo falta (2022–2024) | la misma | **Excepción quitada** |
-| 6 | Baloncesto: sin partidos duplicados (199 claves) | hipótesis: la comprobación no lleva la liga en la clave | Pendiente de datos de ESPN |
-| 7 | Baloncesto: marcadores dentro de lo posible (13 partidos) | sin saber | Pendiente de datos de ESPN |
+| 6 | Baloncesto: sin partidos duplicados (199 claves) | la comprobación no llevaba la liga en la clave (NCAA masculina y femenina) | **Arreglado** |
+| 7 | Baloncesto: marcadores dentro de lo posible (13 partidos) | forfaits 2–0 de la NCAA femenina guardados como partidos | **Arreglado** |
 
 ## Cómo se reprodujo
 
@@ -123,7 +123,7 @@ segundas divisiones de 2025-26, la temporada en curso).
   Consejo: hacerlo con el servidor parado, sin predicciones de fútbol pendientes y con las fuentes
   alcanzables. Arreglo propuesto: resolver las predicciones viejas a través de los alias.
 - **F4: resuelto** con la excepción condicional. Sin football-data, `verify:data` vuelve a pasar en local.
-- **F5, pendiente: Liga MX sin ver.** Si `MEX.csv` fecha distinto los partidos de noche (fecha británica
+- **F5: visto en GitHub el 16 de noviembre, sin clubes con dos ids.** Liga MX sin ver aquí. Si `MEX.csv` fecha distinto los partidos de noche (fecha británica
   frente a local), habrá menos votos y América o Necaxa pueden seguir con dos ids. No sería en silencio: lo
   caza la comprobación de clubes con dos ids. Hay que mirarlo en el entorno «s (fuentes de datos)».
 - **F6 y F7: aplicados.** Partidos de un club contra sí mismo, contados. La guarda de «dos nombres, un id»
@@ -150,18 +150,45 @@ segundas divisiones de 2025-26, la temporada en curso).
   Para el modelo son dos equipos y el Elo se reinicia. Ninguna comprobación lo ve: dentro de una
   temporada solo hay un id, y los nombres normalizados no coinciden. football-data, que escribe igual
   todas las temporadas, es el puente para unirlos.
-- **B. openfootball fecha un año antes los partidos de julio de 2020.** Son los de la vuelta tras el
+- **B. (arreglado el 16 de noviembre) openfootball fecha un año antes los partidos de julio de 2020.** Son los de la vuelta tras el
   COVID de la temporada 2019-20: 66 de la Premier y 77 de la Championship, fechados en julio de 2019,
   antes de que empezara la temporada.
   - Causa: `openfootballTxt.ts:172` usa julio como corte fijo entre temporadas.
   - Además, el partido de football-data, bien fechado, no casa con el suyo: 143 parejas repetidas.
   - Los partidos de julio de 2019 de Liga MX, Ligue 2, 2. Bundesliga y Argentina son legítimos: esas
     ligas empezaron en julio.
-- **C. Fechas que no coinciden entre fuentes.** Unos 51 partidos tienen 1–3 días de diferencia, o uno
+- **C. (arreglado el 16 de noviembre) Fechas que no coinciden entre fuentes.** Unos 51 partidos tienen 1–3 días de diferencia, o uno
   aplazado: entran dos veces. `verify:data` no lo ve, porque la pareja y la temporada son las mismas
   pero la fecha no.
 
-## 6 y 7. Baloncesto
+## Lo que se vio en GitHub (16 de noviembre)
+
+Ejecución de «Datos» en la rama (`workflow_dispatch`, sin publicar), con las fuentes reales y los fallos con
+ejemplos. Fallaban solo 2 de 528, los de baloncesto: los fallos 2 a 5 desaparecieron, Liga MX incluida
+(F5).
+
+- **6:** todos los ejemplos eran la NCAA masculina y la femenina el mismo día, con marcadores distintos
+  (Villanova–Notre Dame: ncaab 72-74, ncaaw 75-99). Era un falso positivo de la comprobación.
+- **7:** los 13 eran 2–0 en la NCAA femenina (USC 2–0 Northwestern, UCLA 2–0 Northwestern…): forfaits.
+- **B y C:** arreglados en la ingesta. Reconstruido el fútbol desde cero, las parejas repetidas bajan de
+  271 a 77, las eliminatorias de ascenso de openfootball.
+
+### Revisión data-guardian de estos arreglos (16 de noviembre)
+
+- **B1, bloqueante: arreglado.** En una base que ya existe, el partido movido de año dejaba su fila en la
+  fecha vieja: una pasada incremental lo guardaba dos veces. Ahora se mueve o se borra en la misma
+  transacción.
+- **Jornadas tempranas:** solo se mueve una jornada por encima de la mediana del fichero. La propuesta de
+  la revisión, «no más tarde que el último partido del fichero», habría impedido justo la corrección buena:
+  el último partido bien fechado de 2019-20 es del 30 de junio de 2020.
+- **NCAA en la comprobación de «dos ligas»:** la masculina y la femenina no cuentan entre sí, porque
+  comparten ids.
+- **Sin cambiar:**
+  - `parseOpenFootballPendientes` (partidos por jugar) no lleva la corrección de año, que solo afecta al
+    pasado;
+  - en una base de antes, los ~51 partidos en dos fechas siguen así hasta `--rebuild`.
+
+## 6 y 7. Baloncesto (antes de verlo)
 
 Vienen de ESPN (`server/src/basketball/ingest/espn.ts`), que esta sesión no alcanza, y no se han visto
 con datos.

@@ -123,7 +123,7 @@ function isoToYmd(iso: string): string | null {
  * Unfinished games are skipped: a scheduled fixture has no score, and storing it
  * as 0–0 would poison every rating that touched it.
  */
-export function parseSchedule(payload: unknown, season: number): ParsedGame[] {
+export function parseSchedule(payload: unknown, season: number, forfaits?: Set<string>): ParsedGame[] {
   const root = payload as { events?: Record<string, unknown>[] };
   const events = root?.events;
   if (!Array.isArray(events)) return [];
@@ -172,6 +172,13 @@ export function parseSchedule(payload: unknown, season: number): ParsedGame[] {
     if (!Number.isFinite(homePts) || !Number.isFinite(awayPts)) continue;
     // A tie is impossible in basketball; a 0–0 "completed" game is bad data.
     if (homePts === awayPts) continue;
+    // Un forfait no es un partido (nocturno «Datos», fallo 7): ESPN lo da por acabado con 2–0 (NCAA
+    // femenina: USC 2–0 Northwestern, 16/1/2025), y entraba en los ratings como una victoria por 2. En
+    // un partido jugado nadie acaba con 0 puntos. Se salta, y quien pasa `forfaits` sabe cuáles.
+    if (Math.min(homePts, awayPts) === 0) {
+      forfaits?.add(`${date}|${slugify(homeName)}|${slugify(awayName)}`);
+      continue;
+    }
 
     const seasonType = (ev.seasonType ?? comp.seasonType) as
       | { type?: number; name?: string }
@@ -216,6 +223,8 @@ export interface DescargaEspn {
   teams: ParsedTeam[];
   games: ParsedGame[];
   seasons: number[];
+  /** Forfaits que ESPN daba por partidos acabados (un equipo con 0 puntos): no se guardan. */
+  forfaits?: number;
 }
 
 export interface OpcionesDescarga {
@@ -242,13 +251,14 @@ export async function descargarEspn(league: LeagueConfig, seasons: number[], opt
 
   const games: ParsedGame[] = [];
   const done = new Set<string>();
+  const forfaits = new Set<string>();
   for (const season of seasons) {
     for (const team of teams) {
       const payload =
         manualPayload(`${league.id}-schedule-${team.espnId}-${season}`) ??
         (await getJson(`${root}/teams/${team.espnId}/schedule?season=${season}`, f).catch(() => null));
       if (!payload) continue;
-      for (const g of parseSchedule(payload, season)) {
+      for (const g of parseSchedule(payload, season, forfaits)) {
         const key = `${g.date}|${slugify(g.homeName)}|${slugify(g.awayName)}`;
         if (done.has(key)) continue; // same game seen from the other team
         done.add(key);
@@ -257,7 +267,8 @@ export async function descargarEspn(league: LeagueConfig, seasons: number[], opt
     }
     log(`  ${league.name} ${season}: ${games.length} partidos acumulados`);
   }
-  return { teams, games, seasons };
+  if (forfaits.size) log(`  ${league.name}: ${forfaits.size} forfait(s) (un equipo con 0 puntos): no se guardan como partidos`);
+  return { teams, games, seasons, forfaits: forfaits.size };
 }
 
 /**

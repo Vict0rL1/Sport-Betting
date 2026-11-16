@@ -227,6 +227,8 @@ export interface FootballDataResult {
   creados?: string[];
   /** Partidos que quedaban de un club contra sí mismo tras emparejar: no se guardan. */
   descartados?: number;
+  /** Partidos que openfootball tiene en otra fecha (1–3 días, o aplazado): se juntan con ese, no se duplican. */
+  porFecha?: number;
 }
 
 /** Un partido de football-data con su temporada, lo justo para emparejar nombres. */
@@ -447,6 +449,21 @@ export async function ingestFootballData(
   );
   const ahora = new Date().toISOString();
   let descartados = 0;
+  // El mismo partido con otra fecha en openfootball (hallazgo C del nocturno: 1–3 días de diferencia, o
+  // uno aplazado). Si en su fecha no está, pero hay exactamente un partido de la misma pareja, temporada
+  // y marcador a 45 días o menos, y la pareja sale una sola vez en football-data esa temporada, es el
+  // mismo: se le añaden las cuotas y se queda la fecha de openfootball.
+  const enSuFecha = db.prepare('SELECT 1 FROM fb_matches WHERE league = ? AND match_date = ? AND home_id = ? AND away_id = ?');
+  const mismaPareja = db.prepare(
+    'SELECT match_date AS d FROM fb_matches WHERE league = ? AND season = ? AND home_id = ? AND away_id = ? AND home_goals = ? AND away_goals = ? AND match_date != ?',
+  );
+  const dia = (d: string) => Date.UTC(Number(d.slice(0, 4)), Number(d.slice(4, 6)) - 1, Number(d.slice(6, 8))) / 86_400_000;
+  const vecesPareja = new Map<string, number>();
+  for (const { m, s } of leidos.flat()) {
+    const k = `${s}|${ids.idDe(m.homeName, s)}|${ids.idDe(m.awayName, s)}`;
+    vecesPareja.set(k, (vecesPareja.get(k) ?? 0) + 1);
+  }
+  let porFecha = 0;
 
   for (const filas of leidos) {
     db.exec('BEGIN');
@@ -461,10 +478,20 @@ export async function ingestFootballData(
         }
         if (!yaExiste.get(league.id, homeId)) insertTeam.run(homeId, league.id, m.homeName);
         if (!yaExiste.get(league.id, awayId)) insertTeam.run(awayId, league.id, m.awayName);
+        let fecha = m.date;
+        if (!enSuFecha.get(league.id, m.date, homeId, awayId) && vecesPareja.get(`${s}|${homeId}|${awayId}`) === 1) {
+          const cerca = (mismaPareja.all(league.id, s, homeId, awayId, m.homeGoals, m.awayGoals, m.date) as { d: string }[]).filter(
+            (x) => Math.abs(dia(x.d) - dia(m.date)) <= 45,
+          );
+          if (cerca.length === 1) {
+            fecha = cerca[0].d;
+            porFecha++;
+          }
+        }
         insertMatch.run(
           league.id,
           s,
-          m.date,
+          fecha,
           homeId,
           awayId,
           m.homeGoals,
@@ -502,5 +529,5 @@ export async function ingestFootballData(
     }
   }
 
-  return { league: league.id, matches, withOdds, seasons: used.sort(), aprendidos: ids.aprendidos, creados: ids.creados, descartados };
+  return { league: league.id, matches, withOdds, seasons: used.sort(), aprendidos: ids.aprendidos, creados: ids.creados, descartados, porFecha };
 }

@@ -4,6 +4,56 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## El nocturno «Datos», sin fallos: forfaits, fechas de openfootball y la NCAA (2026-11-16)
+
+Los dos fallos que quedaban (6 y 7, baloncesto) y dos hallazgos de fútbol (B y C) que salieron al medir
+(`docs/plans/nocturno-datos.md`). Los de baloncesto se vieron con los ejemplos de la entrada anterior, en
+una ejecución de «Datos» en la rama, sin publicar, con las fuentes reales. Esa misma ejecución dio por
+buenos los fallos 2 a 5 en GitHub, Liga MX incluida.
+
+- **Forfaits de la NCAA femenina (fallo 7).** Los 13 «marcadores fuera de rango» eran todos 2–0 (USC 2–0
+  Northwestern, 16/1/2025…): forfaits que ESPN da por partidos acabados. Entraban en los ratings como
+  victorias por 2. Ahora `parseSchedule` (`basketball/ingest/espn.ts`) los salta, porque en un partido
+  jugado nadie acaba con 0 puntos, y el log los cuenta. Pruebas: `basketball/ingest/espn.test.ts`,
+  fallaban las 2.
+- **«200 partidos duplicados» que no lo eran (fallo 6).** La NCAA masculina y la femenina dan el mismo id a
+  una universidad, y la comprobación buscaba duplicados sin la liga en la clave. Todos los ejemplos eran el
+  partido masculino y el femenino del mismo día (Villanova–Notre Dame: ncaab 72-74, ncaaw 75-99).
+  - Ahora la clave lleva la liga, como el `UNIQUE` de las tablas.
+  - Una comprobación nueva busca lo que sí sería un duplicado: el mismo partido, con el mismo marcador, en
+    dos ligas. La NCAA masculina y la femenina no cuentan entre sí, porque comparten ids por diseño y un
+    marcador igual el mismo día sería casualidad.
+  - Probado en copias desechables: el mismo enfrentamiento con otro marcador pasa, y el mismo partido en
+    dos ligas falla.
+- **openfootball fecha un año antes 143 partidos de julio de 2020 (hallazgo B).** El error viene del JSON
+  que publica openfootball: las jornadas 32 a 38 de la Premier 2019-20 salen en julio de 2019, antes de la
+  jornada 1 (9 de agosto de 2019). Lo mismo con 77 partidos de la Championship.
+  - Ahora `parseOpenFootball` mueve un año un partido de jornada numerada mayor que 1 fechado antes del
+    primero de la jornada 1, y lo dice.
+  - No toca las ligas que empiezan en julio (Liga MX, Ligue 2) ni lo que no lleva jornada numerada.
+  - Solo mueve jornadas tardías, con número por encima de la mediana del fichero: la vuelta de una
+    eliminatoria colada antes de la jornada 1 no se lleva un año hacia delante.
+  - En una base que ya existe, la fila de la fecha vieja se mueve a la nueva, o se borra si ahí ya está la
+    de football-data. Antes, una pasada incremental dejaba el partido dos veces (revisión data-guardian,
+    B1). Con datos reales, una base vieja solo con openfootball se queda en 380 + 552 partidos, con 0 antes
+    de su temporada. Una con football-data pasa de 446 + 629 a 380 + 552, con 0 parejas repetidas y las
+    cuotas intactas.
+  - Con datos reales mueve exactamente esos 143. Pruebas: `football/ingest/openfootball.test.ts`, fallaban
+    la primera y las dos de la revisión.
+- **El mismo partido con fecha distinta en cada fuente (hallazgo C).** 51 partidos tenían en football-data
+  la fecha a 1–3 días de la de openfootball, o la del aplazamiento (Juve Stabia–Bari, 29/10 y 4/12/2025), y
+  entraban dos veces. Ahora se juntan si se cumple todo esto:
+  - en su fecha no hay gemelo;
+  - hay exactamente un partido de la misma pareja, temporada y marcador a 45 días o menos;
+  - la pareja sale una sola vez en football-data esa temporada.
+
+  Se quedan la fecha de openfootball y las cuotas de football-data. Prueba nueva en
+  `footballData.test.ts`, que fallaba. En una base hecha antes de este cambio, esos partidos siguen en dos
+  fechas hasta `npm run update-data:fb -- --rebuild` (ver las precauciones de la entrada del 14 de
+  noviembre).
+- **Con datos reales**, reconstruido el fútbol desde cero: de 271 parejas repetidas en una temporada quedan
+  77, que son las eliminatorias de ascenso de openfootball. 32.399 partidos, con las 32.312 cuotas puestas.
+
 ## verify:data dice qué partidos fallan, no solo cuántos (2026-11-16)
 
 Para diagnosticar los fallos 6 y 7 del nocturno «Datos» (`docs/plans/nocturno-datos.md`). Hasta ahora solo

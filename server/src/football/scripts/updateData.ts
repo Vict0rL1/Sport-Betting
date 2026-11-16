@@ -114,6 +114,8 @@ async function main() {
               ` — hasta ${r.through}` +
               (r.withHalfTime > 0 ? ` · ${r.withHalfTime} con marcador al descanso` : ''),
           );
+          // openfootball fecha a veces una jornada tardía un año antes (julio de 2020 → julio de 2019).
+          if (r.fechasCorregidas) console.log(`    ${r.fechasCorregidas} partido(s) fechados antes del inicio de su temporada: movidos un año`);
           got += r.matches;
         } else {
           console.log('  openfootball: sin partidos para esta liga');
@@ -135,6 +137,7 @@ async function main() {
           // Lo que se da de alta sin partido en común ni nombre igual: casi siempre un club que
           // openfootball no tiene en esta liga; si es uno que sí tiene, aquí se ve el doble id.
           if (r.creados?.length) console.log(`    equipos nuevos de football-data (${r.creados.length}): ${r.creados.join(', ')}`);
+          if (r.porFecha) console.log(`    ${r.porFecha} partido(s) con otra fecha en openfootball (1–3 días, o aplazado): juntados con el suyo`);
           if (r.descartados) console.warn(`    ⚠️  ${r.descartados} partido(s) de football-data quedaban de un club contra sí mismo y no se guardan`);
           got += r.matches;
         }

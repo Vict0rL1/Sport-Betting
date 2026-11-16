@@ -248,14 +248,20 @@ function auditSport(s: SportSpec): void {
     return;
   }
 
-  // --- 1. Duplicates. One (date, home, away) is one game. -------------------
+  // --- 1. Duplicates. One (league, date, home, away) is one game. -----------
   // Baseball is the exception and it is a real one: doubleheaders mean two games
   // between the same clubs on the same day, which is why bsb_games carries a
   // game_number and why it joins the key here.
+  //
+  // La liga va en la clave, como en el UNIQUE de las tablas (nocturno «Datos», fallo 6): la NCAA
+  // masculina y la femenina dan el mismo id a una universidad, y el día que juegan los dos equipos de
+  // las mismas dos universidades eran «200 claves repetidas» que no eran el mismo partido (Villanova–
+  // Notre Dame, 1/11/2026: ncaab 72-74, ncaaw 75-99). Lo que sí sería un duplicado, el mismo partido
+  // metido en dos ligas, lo mira la comprobación de después: misma clave Y mismo marcador.
   const key =
     s.games === 'bsb_games'
-      ? `${s.date}, home_id, away_id, game_number`
-      : `${s.date}, home_id, away_id`;
+      ? `league, ${s.date}, home_id, away_id, game_number`
+      : `league, ${s.date}, home_id, away_id`;
   const dupes = db
     .prepare(
       `SELECT COUNT(*) AS c FROM (
@@ -277,6 +283,31 @@ function auditSport(s: SportSpec): void {
       ).map((r) => `${r.d} ${r.h}–${r.a}: ${r.filas}`)
     : [];
   check(`${s.label}: sin partidos duplicados`, dupes.c === 0, `${dupes.c} claves repetidas${ejemplosDup.length ? ` · p. ej. ${ejemplosDup.join(' · ')}` : ''}`);
+
+  // El mismo partido en dos ligas: misma fecha, mismos equipos y mismo marcador. La NCAA masculina y la
+  // femenina no cuentan entre sí: dan el mismo id a una universidad por diseño (slug del nombre), y el
+  // día que juegan los dos equipos de las mismas dos universidades, un mismo marcador es casualidad, no
+  // un partido repetido (revisión data-guardian: con ~200 días así por temporada, acabaría pasando).
+  const IDS_COMPARTIDOS = [new Set(['ncaab', 'ncaaw'])];
+  const enDosLigasTodas = db
+    .prepare(
+      `SELECT ${s.date} AS d, home_id AS h, away_id AS a, ${s.homeScore} AS hs, ${s.awayScore} AS as_, GROUP_CONCAT(league, ' / ') AS ligas
+         FROM ${s.games} GROUP BY ${s.date}, home_id, away_id, ${s.homeScore}, ${s.awayScore}
+        HAVING COUNT(DISTINCT league) > 1 ORDER BY ${s.date} DESC`,
+    )
+    .all() as unknown as { d: string; h: string; a: string; hs: number; as_: number; ligas: string }[];
+  const enDosLigas = enDosLigasTodas.filter((r) => {
+    const ligas = new Set(r.ligas.split(' / '));
+    return !IDS_COMPARTIDOS.some((familia) => [...ligas].every((l) => familia.has(l)));
+  });
+  check(
+    `${s.label}: ningún partido está en dos ligas`,
+    enDosLigas.length === 0,
+    `${enDosLigas.length} · p. ej. ${enDosLigas
+      .slice(0, 6)
+      .map((r) => `${r.d} ${r.h} ${r.hs}–${r.as_} ${r.a}: ${r.ligas}`)
+      .join(' · ')}`,
+  );
 
   // --- 2. Every game points at teams that exist. ---------------------------
   const orphans = db

@@ -193,3 +193,34 @@ test('lo aprendido se guarda: un feed que escribe como football-data («Napoli»
   // Un alias nunca tapa un nombre que ya resolvía: «SSC Napoli» sigue siendo el suyo.
   assert.equal(resolveTeam(idx, 'SSC Napoli'), 'ssc-napoli');
 });
+
+test('el mismo partido con fecha distinta en cada fuente (1–3 días, o aplazado) entra una vez', async () => {
+  // Hallazgo C del nocturno: unos 51 partidos con la fecha de football-data a 1–3 días de la de
+  // openfootball, o con una la original y otra la del aplazamiento (Juve Stabia–Bari, 29/10 y 4/12/2025),
+  // entraban dos veces. Mismo marcador, misma temporada, la pareja una sola vez: es el mismo partido, y
+  // se queda la fecha de openfootball. Dos candidatos, o un marcador distinto, no se tocan.
+  const L = 't_fd_fecha';
+  const clubes: [string, string][] = [['aa-uno', 'Aa Uno'], ['bb-dos', 'Bb Dos'], ['cc-tres', 'Cc Tres'], ['dd-cuatro', 'Dd Cuatro']];
+  const of: [number, string, string, string, number, number][] = [];
+  const fd: [string, string, string, number, number][] = [];
+  let dia = 0;
+  for (const [h] of clubes) for (const [a] of clubes) {
+    if (h === a) continue;
+    dia++;
+    const fecha = `202509${String(dia).padStart(2, '0')}`;
+    of.push([2026, fecha, h, a, dia % 4, (dia + 1) % 3]);
+    fd.push([fecha, h.split('-')[1], a.split('-')[1], dia % 4, (dia + 1) % 3]);
+  }
+  // Tres desacuerdos: un día después, un aplazado (36 días) y uno con otro marcador (no es el mismo).
+  fd[0] = ['20250902', fd[0][1], fd[0][2], fd[0][3], fd[0][4]];
+  fd[1] = ['20251008', fd[1][1], fd[1][2], fd[1][3], fd[1][4]];
+  fd[2] = ['20250904', fd[2][1], fd[2][2], 9, 9];
+  openfootball(L, clubes, of);
+  csv(L, 2026, fd);
+  const r = await ingestFootballData(liga(L), [2026]);
+  const p = partidosDe(L);
+  assert.equal(p.length, 13, '12 partidos y el de otro marcador aparte');
+  assert.equal(r.porFecha, 2, 'dos se juntan con su gemelo de otra fecha');
+  const deUnoADos = p.filter((x) => x.h === 'aa-uno' && x.a === 'bb-dos');
+  assert.deepEqual(deUnoADos.map((x) => [x.d, x.o]), [['20250901', 2.1]], 'la fecha de openfootball, con las cuotas');
+});
