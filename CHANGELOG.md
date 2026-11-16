@@ -4,6 +4,13 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## verify:data dice qué partidos fallan, no solo cuántos (2026-11-16)
+
+Para diagnosticar los fallos 6 y 7 del nocturno «Datos» (`docs/plans/nocturno-datos.md`). Hasta ahora solo
+decían «199 claves repetidas» y «13 partidos fuera de rango». Ahora dan hasta 6 y 8 ejemplos, con liga,
+fecha, equipos, marcador y temporada. Así se ve si una clave repetida es el mismo partido metido dos veces o
+dos partidos de ligas distintas. Lo que se comprueba no cambia.
+
 ## Fútbol: football-data.co.uk ya no duplica equipos ni partidos (2026-11-14)
 
 Los fallos 2 a 5 del nocturno «Datos» (`docs/plans/nocturno-datos.md`), con la revisión de data-guardian

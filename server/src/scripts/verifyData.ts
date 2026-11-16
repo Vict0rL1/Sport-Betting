@@ -263,7 +263,20 @@ function auditSport(s: SportSpec): void {
        )`,
     )
     .get() as unknown as { c: number };
-  check(`${s.label}: sin partidos duplicados`, dupes.c === 0, `${dupes.c} claves repetidas`);
+  // Con ejemplos (nocturno «Datos»: «199 claves repetidas» no decía si eran el mismo partido metido dos
+  // veces o dos partidos distintos con la misma clave): liga, marcador y temporada de cada fila.
+  const ejemplosDup = dupes.c
+    ? (
+        db
+          .prepare(
+            `SELECT ${s.date} AS d, home_id AS h, away_id AS a,
+                    GROUP_CONCAT(league || ' ' || ${s.homeScore} || '-' || ${s.awayScore} || ' (' || season || ')', ' / ') AS filas
+               FROM ${s.games} GROUP BY ${key} HAVING COUNT(*) > 1 ORDER BY ${s.date} DESC LIMIT 6`,
+          )
+          .all() as unknown as { d: string; h: string; a: string; filas: string }[]
+      ).map((r) => `${r.d} ${r.h}–${r.a}: ${r.filas}`)
+    : [];
+  check(`${s.label}: sin partidos duplicados`, dupes.c === 0, `${dupes.c} claves repetidas${ejemplosDup.length ? ` · p. ej. ${ejemplosDup.join(' · ')}` : ''}`);
 
   // --- 2. Every game points at teams that exist. ---------------------------
   const orphans = db
@@ -288,10 +301,22 @@ function auditSport(s: SportSpec): void {
         WHERE ${s.homeScore} < ? OR ${s.homeScore} > ? OR ${s.awayScore} < ? OR ${s.awayScore} > ?`,
     )
     .get(lo, hi, lo, hi) as unknown as { c: number };
+  const ejemplosRango = wild.c
+    ? (
+        db
+          .prepare(
+            `SELECT league, season, ${s.date} AS d, home_id AS h, away_id AS a, ${s.homeScore} AS hs, ${s.awayScore} AS as_
+               FROM ${s.games}
+              WHERE ${s.homeScore} < ? OR ${s.homeScore} > ? OR ${s.awayScore} < ? OR ${s.awayScore} > ?
+              ORDER BY ${s.date} DESC LIMIT 8`,
+          )
+          .all(lo, hi, lo, hi) as unknown as { league: string; season: number; d: string; h: string; a: string; hs: number; as_: number }[]
+      ).map((r) => `${r.league} ${r.d} ${r.h} ${r.hs}–${r.as_} ${r.a}`)
+    : [];
   check(
     `${s.label}: marcadores dentro de lo posible (${lo}–${hi})`,
     wild.c === 0,
-    `${wild.c} partidos fuera de rango`,
+    `${wild.c} partidos fuera de rango${ejemplosRango.length ? ` · p. ej. ${ejemplosRango.join(' · ')}` : ''}`,
   );
 
   const nulls = db
