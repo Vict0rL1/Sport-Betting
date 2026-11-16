@@ -4,6 +4,24 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Primera release de datos publicada, y la auditoría con datos de verdad (2026-11-16)
+
+- **«Datos» pasa por primera vez** (ejecución 39, lanzada a mano en la rama con `0cf7d00`), y publica
+  `data-latest`: `history.db.gz`, 9,2 MB, SHA-256 `c0689cf2…`. Hasta ahora `npm run fetch-data` no tenía
+  nada que bajar.
+- **Comprobado de punta a punta:** `npm run fetch-data` en una carpeta vacía baja, verifica e instala la
+  release (39 MB: 42.262 partidos de fútbol, 30.842 de tenis, 7.424 de la NFL…), y `verify:data` sobre ella
+  pasa 532 de 532.
+- **`npm run audit` con datos de verdad** pasa de 4 comprobaciones a 6.047, y destapó una:
+  - «El margen y la probabilidad apuntan igual» fallaba en Alabama A&M–Alabama (NCAA), con p = 0,50158 y
+    margen 0. No había contradicción en el modelo: el margen se redondea a una décima, y con un Elo casi
+    empatado sale 0,0, que no tiene signo.
+  - Ahora un margen 0 solo es coherente con una probabilidad a menos de un punto del 50 %.
+  - Sigue cazando el fallo de verdad: con el signo del margen invertido a propósito en `predict.ts`, fallan
+    45 comprobaciones.
+- El nocturno programado corre en `main` con el código de antes y seguirá fallando, sin tocar la release,
+  hasta que estos cambios lleguen a `main`.
+
 ## El nocturno «Datos», sin fallos: forfaits, fechas de openfootball y la NCAA (2026-11-16)
 
 Los dos fallos que quedaban (6 y 7, baloncesto) y dos hallazgos de fútbol (B y C) que salieron al medir
