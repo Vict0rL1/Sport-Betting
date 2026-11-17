@@ -31,6 +31,20 @@ export function buildTeamIndex(league: LeagueId): Map<string, string> {
     const s = normalizeTeamName(r.id.replace(/-/g, ' '));
     if (s && !idx.has(s)) idx.set(s, r.id);
   }
+  // Lo que aprendió football-data por los partidos en común («Napoli» → ssc-napoli; ver
+  // footballData.ts). Después de los nombres y los ids, y sin tapar ninguno: un alias solo añade
+  // grafías. Solo si el equipo sigue existiendo (tras un --rebuild, lo vuelve a escribir la ingesta).
+  const alias = getDb()
+    .prepare(
+      `SELECT a.alias, a.team_id FROM fb_team_aliases a
+         JOIN fb_teams t ON t.league = a.league AND t.id = a.team_id
+        WHERE a.league = ?`,
+    )
+    .all(league) as unknown as { alias: string; team_id: string }[];
+  for (const a of alias) {
+    const k = normalizeTeamName(a.alias);
+    if (k && !idx.has(k)) idx.set(k, a.team_id);
+  }
   return idx;
 }
 

@@ -121,6 +121,43 @@ export interface OpenFootballMatch {
   /** Half-time, when present. Null is common in the older seasons. */
   htHome: number | null;
   htAway: number | null;
+  /** La fecha tal como venía, si se movió un año (ver `corregirAnio`). */
+  fechaOriginal?: string;
+}
+
+/**
+ * Una jornada posterior a la primera no se juega antes de que empiece la temporada.
+ *
+ * openfootball fecha un año antes los partidos de julio de 2020 (la vuelta tras el COVID de 2019-20): en
+ * su JSON publicado, las jornadas 32 a 38 de la Premier salen en julio de 2019 y la jornada 1 es del 9
+ * de agosto de 2019 (nocturno «Datos», docs/plans/nocturno-datos.md, hallazgo B). Así que un partido de
+ * una jornada numerada mayor que 1, fechado antes del primer partido de la jornada 1, se mueve un año, y
+ * se dice (`fechaOriginal`). Nada más se toca:
+ * - una liga que empieza en julio (Liga MX, Ligue 2) tiene ahí su jornada 1;
+ * - lo que no lleva número de jornada («Final», sin jornada) se queda como está;
+ * - sin jornada 1 en el fichero, no hay con qué comparar;
+ * - solo se mueve una jornada TARDÍA, con número por encima de la mediana del fichero (en julio de 2020,
+ *   las 32 a 38, con mediana 20). La vuelta de una eliminatoria de la temporada anterior colada antes de
+ *   la jornada 1 («Leg 2») no se lleva un año hacia delante (revisión data-guardian).
+ */
+function corregirAnio(ms: { m: OpenFootballMatch; round?: string }[]): void {
+  const numero = (r?: string) => {
+    const n = Number((r ?? '').match(/\d+/)?.[0]);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  const primeras = ms.filter((x) => numero(x.round) === 1).map((x) => x.m.date);
+  if (!primeras.length) return;
+  const inicio = primeras.sort()[0];
+  const numeros = ms.map((x) => numero(x.round)).filter((n): n is number => n !== null).sort((a, b) => a - b);
+  const mediana = numeros[Math.floor(numeros.length / 2)];
+  for (const x of ms) {
+    const n = numero(x.round);
+    if (n === null || n <= 1 || n <= mediana || x.m.date >= inicio) continue;
+    const movida = `${Number(x.m.date.slice(0, 4)) + 1}${x.m.date.slice(4)}`;
+    if (movida < inicio) continue;
+    x.m.fechaOriginal = x.m.date;
+    x.m.date = movida;
+  }
 }
 
 /**
@@ -137,7 +174,7 @@ export function parseOpenFootball(json: string, source: string): OpenFootballMat
   } catch (e) {
     throw new Error(`${source}: JSON ilegible — ${(e as Error).message}`);
   }
-  const out: OpenFootballMatch[] = [];
+  const out: { m: OpenFootballMatch; round?: string }[] = [];
   for (const m of data.matches ?? []) {
     const { ft, ht } = readScore(m.score);
     if (!ft) continue;
@@ -146,17 +183,21 @@ export function parseOpenFootball(json: string, source: string): OpenFootballMat
     const away = (m.team2 ?? '').trim();
     if (!d || !home || !away) continue;
     out.push({
-      date: `${d[1]}${d[2]}${d[3]}`,
-      time: /^\d{1,2}:\d{2}$/.test(m.time ?? '') ? (m.time as string) : null,
-      homeName: home,
-      awayName: away,
-      homeGoals: ft[0],
-      awayGoals: ft[1],
-      htHome: ht ? ht[0] : null,
-      htAway: ht ? ht[1] : null,
+      round: m.round,
+      m: {
+        date: `${d[1]}${d[2]}${d[3]}`,
+        time: /^\d{1,2}:\d{2}$/.test(m.time ?? '') ? (m.time as string) : null,
+        homeName: home,
+        awayName: away,
+        homeGoals: ft[0],
+        awayGoals: ft[1],
+        htHome: ht ? ht[0] : null,
+        htAway: ht ? ht[1] : null,
+      },
     });
   }
-  return out;
+  corregirAnio(out);
+  return out.map((x) => x.m);
 }
 
 /** Los partidos SIN resultado del fichero: el calendario pendiente (Fase 4.6). */
@@ -283,6 +324,8 @@ export interface OpenFootballResult {
   /** Newest match ingested, YYYYMMDD — what the staleness banner reads. */
   through: string | null;
   withHalfTime: number;
+  /** Partidos que el fichero fechaba antes de empezar la temporada y se movieron un año (`corregirAnio`). */
+  fechasCorregidas?: number;
 }
 
 export async function ingestOpenFootball(
@@ -332,6 +375,11 @@ export async function ingestOpenFootball(
   const teams = new Map<string, string>();
   let matches = 0;
   let withHalfTime = 0;
+  let fechasCorregidas = 0;
+  const moverFila = db.prepare(
+    'UPDATE OR IGNORE fb_matches SET match_date = ? WHERE league = ? AND season = ? AND match_date = ? AND home_id = ? AND away_id = ?',
+  );
+  const borrarFila = db.prepare('DELETE FROM fb_matches WHERE league = ? AND season = ? AND match_date = ? AND home_id = ? AND away_id = ?');
   let through: string | null = null;
   const used: string[] = [];
 
@@ -408,6 +456,13 @@ export async function ingestOpenFootball(
         teams.set(awayId, m.awayName);
         insertTeam.run(homeId, league.id, m.homeName);
         insertTeam.run(awayId, league.id, m.awayName);
+        // Un partido movido de año (corregirAnio) no deja atrás la fila que una ingesta anterior guardó en
+        // la fecha vieja (revisión data-guardian, B1): se lleva a la nueva, y si ahí ya hay una (la de
+        // football-data), la vieja sobra y el upsert de abajo completa la de la fecha buena.
+        if (m.fechaOriginal) {
+          moverFila.run(m.date, league.id, season, m.fechaOriginal, homeId, awayId);
+          borrarFila.run(league.id, season, m.fechaOriginal, homeId, awayId);
+        }
         insertMatch.run(
           league.id,
           season,
@@ -422,6 +477,7 @@ export async function ingestOpenFootball(
         );
         matches++;
         if (m.htHome != null) withHalfTime++;
+        if (m.fechaOriginal) fechasCorregidas++;
         if (!through || m.date > through) through = m.date;
       }
       db.exec('COMMIT');
@@ -442,5 +498,6 @@ export async function ingestOpenFootball(
     seasons: used,
     through,
     withHalfTime,
+    fechasCorregidas,
   };
 }

@@ -469,10 +469,13 @@ function auditBasketball(): void {
           `${tag}: el favorito coincide con la probabilidad`,
           (p.verdict.favored === 'home') === favHome,
         );
-        // And the margin must point the same way as the probability.
+        // And the margin must point the same way as the probability. El margen va redondeado a una
+        // décima: con un Elo casi empatado sale 0,0 y no tiene signo (Alabama A&M–Alabama, p=0.50158,
+        // visto con la primera release publicada, 16 de noviembre). Un 0 solo es coherente con una
+        // probabilidad a menos de un punto del 50 %; un 0 con un 60 % sigue fallando.
         check(
           `${tag}: el margen y la probabilidad apuntan igual`,
-          favHome === p.projection.margin > 0,
+          p.projection.margin === 0 ? Math.abs(p.model.probHome - 0.5) < 0.01 : favHome === p.projection.margin > 0,
           `p=${p.model.probHome} margen=${p.projection.margin}`,
         );
       }

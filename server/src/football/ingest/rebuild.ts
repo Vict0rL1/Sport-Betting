@@ -34,6 +34,8 @@ export function borrarLigas(ligas: string[]): Record<string, EstadoLiga> {
       db.prepare('DELETE FROM fb_matches WHERE league = ?').run(l);
       db.prepare('DELETE FROM fb_teams WHERE league = ?').run(l);
       db.prepare('DELETE FROM fb_team_ratings WHERE league = ?').run(l);
+      // Los alias apuntan a los equipos que se borran: los vuelve a escribir la ingesta.
+      db.prepare('DELETE FROM fb_team_aliases WHERE league = ?').run(l);
     }
     db.exec('COMMIT');
   } catch (e) {

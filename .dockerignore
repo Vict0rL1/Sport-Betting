@@ -26,6 +26,8 @@ data/*.pre-split-*
 data/*.export.db
 # Los temporales del exportador (llevan la meta privada mientras se limpia).
 data/*.export.db.*
+# Y los directorios temporales de cualquier script (exportador, fetch-data): <nombre>.tmp-XXXXXX.
+data/*.tmp-*
 data/backups
 data/archive
 *.log

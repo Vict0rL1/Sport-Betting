@@ -99,6 +99,25 @@ export const INGEST_ANOMALIAS_SCHEMA = `
   CREATE INDEX IF NOT EXISTS idx_ingest_anomalias ON ingest_anomalias (fuente, fichero);
 `;
 
+/**
+ * Cómo escribe una fuente a un club que ya está en fb_teams («Napoli» → ssc-napoli). Lo aprende la
+ * ingesta de football-data por los partidos en común con openfootball (footballData.ts,
+ * emparejarNombres), y buildTeamIndex lo usa, sin tapar nunca un nombre que ya resolvía: así las casas
+ * (odds.ts) y ClubElo, que escriben parecido, siguen encontrando al club (revisión data-guardian del 14
+ * de noviembre, F1). En la historia: se reconstruye desde las fuentes.
+ */
+export const FB_TEAM_ALIASES_SCHEMA = `
+  CREATE TABLE IF NOT EXISTS fb_team_aliases (
+    league     TEXT NOT NULL,
+    alias      TEXT NOT NULL,     -- la grafía de la fuente, tal cual
+    team_id    TEXT NOT NULL,
+    fuente     TEXT NOT NULL,
+    season     INTEGER,           -- la temporada más reciente de la que sale
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (league, alias)
+  );
+`;
+
 /** Los índices de la Fase 2 (migración 2). Los nombres van sin prefijo: ledgerize lo pone. */
 export const INDICES_FASE_2 = `
   CREATE INDEX IF NOT EXISTS idx_snap_sport_book ON odds_snapshots (sport, event_id, bookmaker, observed_at);
@@ -362,6 +381,9 @@ export const MIGRACIONES: Migracion[] = [
       }
     },
   },
+  // Los alias de los clubes de fútbol (nocturno «Datos», docs/plans/nocturno-datos.md): en la historia,
+  // se llenan en la próxima ingesta de football-data. IF NOT EXISTS: repetirla no cambia nada.
+  { version: 28, nombre: 'fb-team-aliases', destino: 'history', up: (d) => d.exec(FB_TEAM_ALIASES_SCHEMA) },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {

@@ -358,16 +358,28 @@ test('K8: los controles pequeños se aciertan aunque el dedo caiga al lado, sin 
   }
 });
 
+// La prueba leía la altura una vez, tras `waitForLoadState('networkidle')`, que en una SPA no espera a
+// nada después de navegar. React Router navega en una transición y, si el trozo de Tenis no ha llegado,
+// la pantalla anterior se queda (con su altura) hasta que llega: fallaba 1 de cada 8, según si la
+// precarga ociosa había terminado. Con «ahorro de datos» no se precarga nada (lib/precarga.ts) y Tenis
+// se pide al tocarla, aquí con retraso: ese camino, que es el de verdad para quien lo tiene activado,
+// fallaba siempre con la lectura única. Se mira dónde EMPIEZA la nueva cuando ya está.
 test('K10: al cambiar de pantalla, la nueva empieza arriba, no a la altura de la anterior', async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, 'connection', { value: { saveData: true }, configurable: true }));
+  await page.route('**/assets/TennisDashboard-*.js', async (r) => {
+    await espera(1500);
+    await r.continue();
+  });
   await page.goto('/confianza');
   await page.waitForLoadState('networkidle');
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
+  const tenis = page.waitForResponse('**/assets/TennisDashboard-*.js');
   await page.getByTestId('barra-inferior').getByRole('button', { name: 'Deportes' }).click();
   await page.getByRole('dialog', { name: 'Deportes' }).getByRole('button', { name: 'Tenis' }).click();
   await expect(page).toHaveURL(/\/tenis/);
-  await page.waitForLoadState('networkidle');
-  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await tenis;
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 });
 
 // ---------------------------------------------------------------------------------------------
@@ -665,6 +677,9 @@ test('N10: «atrás» desde el glosario vuelve a Confianza donde se dejó, aunqu
   const antes = (await enlace.boundingBox())!.y;
   await enlace.click();
   await expect(page).toHaveURL(/\/glosario/);
+  // Hasta que se ha salido de verdad, como en N15: con «atrás» al instante, Confianza podía no llegar a
+  // irse (el trozo del glosario sin llegar) y entonces no se volvía a pedir nada.
+  await expect(enlace).toHaveCount(0);
   // Al volver, las secciones de encima (la evaluación y la analítica) tardan, como con los datos de
   // verdad y la red de un móvil: más de los 3 s que hay para llegar a la altura, y la página ya
   // tiene alto para la altura guardada antes de que lleguen.
@@ -705,6 +720,11 @@ test('N15: si se sale de Confianza mientras llega lo de encima, la vuelta siguie
   const antes = (await enlace.boundingBox())!.y;
   await enlace.click();
   await expect(page).toHaveURL(/\/glosario/);
+  // Hasta que se ha salido de verdad. La URL cambia al tocar, pero React Router navega en una
+  // transición, y el trozo del glosario (no se precarga) puede no haber llegado: con «atrás» al
+  // instante, Confianza no llegaba a irse, no se volvía a pedir nada y la cuenta de abajo no llegaba
+  // a 8 (fallaba 2 de cada 8). Lo mismo al ir a Destacados.
+  await expect(enlace).toHaveCount(0);
   let llegadas = 0;
   await page.route(/\/api\/(evaluation|monitoring)/, async (r) => {
     await espera(4000);
@@ -717,6 +737,7 @@ test('N15: si se sale de Confianza mientras llega lo de encima, la vuelta siguie
   // Se va antes de que llegue lo de encima, con la barra de abajo, y vuelve.
   await page.getByTestId('barra-inferior').getByRole('button', { name: 'Destacados' }).click();
   await expect(page).toHaveURL(/\/destacados/);
+  await expect(enlace).toHaveCount(0);
   await page.goBack();
   await expect(page).toHaveURL(/\/confianza$/);
   await page.waitForTimeout(1500);

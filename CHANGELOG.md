@@ -4,6 +4,218 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Primera release de datos publicada, y la auditoría con datos de verdad (2026-11-16)
+
+- **«Datos» pasa por primera vez** (ejecución 39, lanzada a mano en la rama con `0cf7d00`), y publica
+  `data-latest`: `history.db.gz`, 9,2 MB, SHA-256 `c0689cf2…`. Hasta ahora `npm run fetch-data` no tenía
+  nada que bajar.
+- **Comprobado de punta a punta:** `npm run fetch-data` en una carpeta vacía baja, verifica e instala la
+  release (39 MB: 42.262 partidos de fútbol, 30.842 de tenis, 7.424 de la NFL…), y `verify:data` sobre ella
+  pasa 532 de 532.
+- **`npm run audit` con datos de verdad** pasa de 4 comprobaciones a 6.047, y destapó una:
+  - «El margen y la probabilidad apuntan igual» fallaba en Alabama A&M–Alabama (NCAA), con p = 0,50158 y
+    margen 0. No había contradicción en el modelo: el margen se redondea a una décima, y con un Elo casi
+    empatado sale 0,0, que no tiene signo.
+  - Ahora un margen 0 solo es coherente con una probabilidad a menos de un punto del 50 %.
+  - Sigue cazando el fallo de verdad: con el signo del margen invertido a propósito en `predict.ts`, fallan
+    45 comprobaciones.
+- El nocturno programado corre en `main` con el código de antes y seguirá fallando, sin tocar la release,
+  hasta que estos cambios lleguen a `main`.
+
+## El nocturno «Datos», sin fallos: forfaits, fechas de openfootball y la NCAA (2026-11-16)
+
+Los dos fallos que quedaban (6 y 7, baloncesto) y dos hallazgos de fútbol (B y C) que salieron al medir
+(`docs/plans/nocturno-datos.md`). Los de baloncesto se vieron con los ejemplos de la entrada anterior, en
+una ejecución de «Datos» en la rama, sin publicar, con las fuentes reales. Esa misma ejecución dio por
+buenos los fallos 2 a 5 en GitHub, Liga MX incluida.
+
+- **Forfaits de la NCAA femenina (fallo 7).** Los 13 «marcadores fuera de rango» eran todos 2–0 (USC 2–0
+  Northwestern, 16/1/2025…): forfaits que ESPN da por partidos acabados. Entraban en los ratings como
+  victorias por 2. Ahora `parseSchedule` (`basketball/ingest/espn.ts`) los salta, porque en un partido
+  jugado nadie acaba con 0 puntos, y el log los cuenta. Pruebas: `basketball/ingest/espn.test.ts`,
+  fallaban las 2.
+- **«200 partidos duplicados» que no lo eran (fallo 6).** La NCAA masculina y la femenina dan el mismo id a
+  una universidad, y la comprobación buscaba duplicados sin la liga en la clave. Todos los ejemplos eran el
+  partido masculino y el femenino del mismo día (Villanova–Notre Dame: ncaab 72-74, ncaaw 75-99).
+  - Ahora la clave lleva la liga, como el `UNIQUE` de las tablas.
+  - Una comprobación nueva busca lo que sí sería un duplicado: el mismo partido, con el mismo marcador, en
+    dos ligas. La NCAA masculina y la femenina no cuentan entre sí, porque comparten ids por diseño y un
+    marcador igual el mismo día sería casualidad.
+  - Probado en copias desechables: el mismo enfrentamiento con otro marcador pasa, y el mismo partido en
+    dos ligas falla.
+- **openfootball fecha un año antes 143 partidos de julio de 2020 (hallazgo B).** El error viene del JSON
+  que publica openfootball: las jornadas 32 a 38 de la Premier 2019-20 salen en julio de 2019, antes de la
+  jornada 1 (9 de agosto de 2019). Lo mismo con 77 partidos de la Championship.
+  - Ahora `parseOpenFootball` mueve un año un partido de jornada numerada mayor que 1 fechado antes del
+    primero de la jornada 1, y lo dice.
+  - No toca las ligas que empiezan en julio (Liga MX, Ligue 2) ni lo que no lleva jornada numerada.
+  - Solo mueve jornadas tardías, con número por encima de la mediana del fichero: la vuelta de una
+    eliminatoria colada antes de la jornada 1 no se lleva un año hacia delante.
+  - En una base que ya existe, la fila de la fecha vieja se mueve a la nueva, o se borra si ahí ya está la
+    de football-data. Antes, una pasada incremental dejaba el partido dos veces (revisión data-guardian,
+    B1). Con datos reales, una base vieja solo con openfootball se queda en 380 + 552 partidos, con 0 antes
+    de su temporada. Una con football-data pasa de 446 + 629 a 380 + 552, con 0 parejas repetidas y las
+    cuotas intactas.
+  - Con datos reales mueve exactamente esos 143. Pruebas: `football/ingest/openfootball.test.ts`, fallaban
+    la primera y las dos de la revisión.
+- **El mismo partido con fecha distinta en cada fuente (hallazgo C).** 51 partidos tenían en football-data
+  la fecha a 1–3 días de la de openfootball, o la del aplazamiento (Juve Stabia–Bari, 29/10 y 4/12/2025), y
+  entraban dos veces. Ahora se juntan si se cumple todo esto:
+  - en su fecha no hay gemelo;
+  - hay exactamente un partido de la misma pareja, temporada y marcador a 45 días o menos;
+  - la pareja sale una sola vez en football-data esa temporada.
+
+  Se quedan la fecha de openfootball y las cuotas de football-data. Prueba nueva en
+  `footballData.test.ts`, que fallaba. En una base hecha antes de este cambio, esos partidos siguen en dos
+  fechas hasta `npm run update-data:fb -- --rebuild` (ver las precauciones de la entrada del 14 de
+  noviembre).
+- **Con datos reales**, reconstruido el fútbol desde cero: de 271 parejas repetidas en una temporada quedan
+  77, que son las eliminatorias de ascenso de openfootball. 32.399 partidos, con las 32.312 cuotas puestas.
+
+## verify:data dice qué partidos fallan, no solo cuántos (2026-11-16)
+
+Para diagnosticar los fallos 6 y 7 del nocturno «Datos» (`docs/plans/nocturno-datos.md`). Hasta ahora solo
+decían «199 claves repetidas» y «13 partidos fuera de rango». Ahora dan hasta 6 y 8 ejemplos, con liga,
+fecha, equipos, marcador y temporada. Así se ve si una clave repetida es el mismo partido metido dos veces o
+dos partidos de ligas distintas. Lo que se comprueba no cambia.
+
+## Fútbol: football-data.co.uk ya no duplica equipos ni partidos (2026-11-14)
+
+Los fallos 2 a 5 del nocturno «Datos» (`docs/plans/nocturno-datos.md`), con la revisión de data-guardian
+aplicada.
+
+- **El fallo.** `ingestFootballData` daba a cada club el id `slugify(nombre de football-data)`
+  («Man United» → `man-united`, «Brighton» → `brighton`) y no lo resolvía contra los ids que ya había
+  creado openfootball. Solo se fundían los clubes cuyo slug coincidía por casualidad; el resto entraba dos
+  veces, con ids distintos. Medido con las CSV reales de las 12 divisiones (2019-20 a 2026-27):
+  - 208 de 421 nombres no casaban;
+  - 55.022 partidos en vez de 32.593 y 652 equipos en vez de 449;
+  - `verify:data` fallaba con «equipos que nunca se cruzan» y «clubes con dos ids», como en CI.
+- **Ahora lo dicen los partidos.** El mismo partido está en las dos fuentes (misma liga, día y marcador):
+  - cada partido de football-data con un solo gemelo en openfootball vota qué id es cada nombre;
+  - se vota por temporada (openfootball cambia de id entre temporadas para algunos clubes);
+  - solo cuenta con 3 votos o más y el 90 %;
+  - una temporada que openfootball no tiene toma el id de la más cercana;
+  - si no hay nada, se da de alta como antes, y el log dice cuáles (Celta B, Cottbus, Verona…).
+
+  Sin tabla de alias escrita a mano. El nombre formal de un equipo que ya existe no se pisa con el corto
+  de football-data. Dos nombres nunca acaban en el mismo id en una temporada, tampoco por las vías de
+  respaldo.
+- **Lo aprendido se guarda** en `fb_team_aliases` (migración 28, en la historia), y `buildTeamIndex` lo usa
+  sin tapar ningún nombre que ya resolvía.
+  - Revisión data-guardian, F1: sin esto, las casas de apuestas y ClubElo dejaban de encontrar a «Napoli»,
+    «Lyon» o «Bayern Munich» en una base nueva, y sin `home_id` no se registra la predicción del partido.
+  - Con nombres al estilo de las casas, resuelven 97 de 99, y al id de openfootball. Antes resolvían 94, y
+    al duplicado.
+  - `--rebuild` borra también los alias de la liga.
+- **Resultado con datos reales:** 32.593 partidos, las 32.312 cuotas puestas, 449 equipos y 421 alias;
+  `verify:data`, 527 de 527.
+- **Liga MX y Ligue 2 2022–2024** (`KNOWN_SEASON_GAPS`): la excepción vale ahora solo si football-data no ha
+  llegado a esa liga. Si ha llegado, esas temporadas tienen que estar. Antes, el nocturno pedía borrarla.
+- **Cambio de comportamiento:** las CSV de una liga se leen todas antes de escribir. Una mal formada deja la
+  liga sin tocar; antes entraban las temporadas anteriores a ella. Un partido que quedara de un club contra
+  sí mismo no se guarda, y se cuenta en el log (0 con los datos reales).
+- **Si tu base ya tiene los duplicados** (corriste `update-data:fb` con football-data alcanzable), el
+  arreglo no los quita solo, y las pasadas incrementales los arrastran (revisión data-guardian, F2;
+  pendiente, en el plan). Rehacerla tiene consecuencias en el libro mayor:
+  - las predicciones de fútbol pendientes guardadas con un id duplicado («napoli») ya no se liquidan;
+  - un partido que se vuelva a predecir con el id nuevo deja una segunda fila.
+
+  Si se rehace: con el servidor parado, sin predicciones de fútbol pendientes y con las fuentes
+  alcanzables. `npm run update-data:fb -- --rebuild` borra la liga antes de descargar nada.
+- **Pruebas:** `server/src/football/ingest/footballData.test.ts`, las primeras de esta ingesta. Fallaban
+  las 5 antes de su arreglo.
+- **Pendiente**, con números en el plan:
+  - las pasadas incrementales sobre una base con duplicados (F2). También empieza en una base limpia,
+    incluida la release publicada, cuando football-data va por delante de openfootball. Hoy se dan de alta
+    Verona, Cottbus, Angers, Bordeaux o Dijon en las segundas divisiones. Quien baje esa release y
+    actualice en incremental los verá partidos en dos cuando openfootball publique esas temporadas;
+  - Liga MX, sin ver aquí (F5);
+  - openfootball parte algunos clubes entre temporadas (Leverkusen, Benfica, Rennes…);
+  - fecha un año antes los partidos de julio de 2020;
+  - unos 51 partidos tienen fecha distinta en cada fuente.
+
+## Noticias: «Timber» ya no se adjudica a ciegas (2026-11-14)
+
+Uno de los 7 fallos del nocturno «Datos» (`docs/plans/nocturno-datos.md`), que nunca ha pasado
+`verify:data` ni publicado una release.
+
+- **El fallo.** Con los datos de FPL de 2026-27 hay un «J.Timber» (Arsenal) y un «Timber» (Crystal
+  Palace). `matchPlayer('timber')` devolvía el del Palace, aunque la función ya decía que dos «Timber» en
+  la misma liga son un empate y no se elige. Dos defectos:
+  - una coincidencia exacta con un nombre de una sola palabra ganaba aunque otro jugador llevara ese
+    apellido;
+  - el punto se borraba sin dejar espacio: «J.Timber» quedaba «jtimber» y no emparejaba nunca por el
+    apellido. Pasaba con los 36 de 667 jugadores de la Premier con punto en el nombre («J.Timber»,
+    «B.Fernandes»…).
+- **Ahora:**
+  - el punto separa palabras;
+  - un nombre de una sola palabra que es el apellido de otro jugador es un empate y no empareja;
+  - con el equipo, o con el nombre completo, sí empareja.
+- **Pruebas:** `server/src/news/repo.test.ts`, la primera del módulo de noticias. Fallaban 2 de 3 antes
+  del arreglo.
+- **Con datos reales**, reconstruidos aquí desde las fuentes en una carpeta temporal: `verify:data` pasa
+  528 de 528. Las fuentes que esta sesión no alcanza (football-data.co.uk, ESPN) no entran en esa cuenta.
+
+## Las pruebas K10 y N15 ya no dependen de la suerte (2026-11-14)
+
+Visto al comprobar la rama de la auditoría del 5 de noviembre. Solo cambian las pruebas
+(`web/e2e/movil.spec.ts`); la app no cambia. Las dos tenían la misma causa: React Router navega en una
+transición, así que la URL cambia al tocar, pero la pantalla anterior se queda hasta que llega el trozo de
+la nueva. En CI lo tapaba el reintento.
+
+- **K10** («al cambiar de pantalla, la nueva empieza arriba») fallaba 1 de cada 8 en local.
+  - Medido: la app hace lo que debe. En 16 de 16 vueltas, Tenis acaba arriba en cuanto llega.
+  - La prueba leía la altura una sola vez, tras `waitForLoadState('networkidle')`, que en una SPA no espera
+    a nada después de navegar. Si la precarga ociosa del trozo de Tenis no había terminado, aún se veía la
+    pantalla anterior.
+  - Reproducido de forma determinista: con «ahorro de datos» (sin precarga) y el trozo de Tenis con
+    retraso, la lectura única fallaba 6 de 6.
+  - Ahora espera a que llegue el trozo y a que la altura llegue a 0, y conserva ese caso: pasa 30 de 30.
+  - Sigue cazando el fallo de verdad: sin el `scrollTo(0, 0)` de `App.tsx`, falla 4 de 4 (Tenis se abría a
+    301 px).
+- **N15** («si se sale de Confianza mientras llega lo de encima…») fallaba 2 de cada 8 en local.
+  - Volvía con «atrás» justo al cambiar la URL. Si el trozo de la otra pantalla no había llegado (el
+    glosario no se precarga), Confianza no llegaba a irse. Al volver no se pedía nada y la cuenta de
+    peticiones no llegaba a 8.
+  - Reproducido de forma determinista: con el trozo del glosario 300 ms más lento, fallaba 4 de 4.
+  - Ahora espera a que Confianza se haya ido de verdad antes de volver: pasa 6 de 6 con ese retraso y 30
+    de 30 sin él.
+  - Sigue cazando el fallo de verdad: sin la guarda de `guardar` en `App.tsx` (no guardar la altura
+    mientras se vuelve), falla 4 de 4 (el enlace a 413 px antes, a 1.622 después).
+- **N10** («atrás» desde el glosario…) da el mismo paso al glosario.
+  - Pasó 10 de 10 sola, y por eso al principio no se tocó. Luego falló en una vuelta entera, con la misma
+    causa (0 peticiones).
+  - Reproducido: con el trozo del glosario 300 ms más lento, fallaba 4 de 4.
+  - Mismo arreglo: pasa 6 de 6 con el retraso y 30 de 30 sin él.
+  - Sigue cazando el fallo de verdad: sin la vuelta a la altura de `App.tsx`, falla 4 de 4 (el enlace a
+    413 px antes, a 1.869 mientras llega lo de encima).
+- Ninguna otra prueba lee una sola vez tras esperar a «networkidle» después de navegar dentro de la app.
+
+## Auditoría del 5 de noviembre · temporales del exportador y ajustes de una historia sin filas (2026-11-06)
+
+Dos hallazgos verificados sobre `91c4c04` (`docs/plans/auditoria-5-noviembre.md`). Cada uno, con su prueba
+que falla antes.
+
+- **El exportador ya no borra ficheros que no son suyos.** Sus temporales tenían nombre fijo
+  (`<destino>.parcial`, `.limpia`) y se borraban sin mirar: una base ajena con ese nombre desaparecía, y dos
+  exportaciones a la vez se pisaban. Ahora:
+  - cada exportación usa su propio directorio temporal junto al destino y borra solo ese directorio;
+  - los restos de otras exportaciones se avisan, no se borran;
+  - lo que haya en el destino se vuelve a mirar antes de reemplazarlo;
+  - no exporta encima de un destino vacío o ausente con un `-wal` o `-journal` con contenido al lado, ni
+    de una base abierta, con meta privada o que sea una copia con fecha;
+  - un destino relativo se resuelve desde donde se llama a npm (`INIT_CWD`), no desde `server/`;
+  - los restos de una exportación interrumpida en esta máquina se borran, y los demás se avisan.
+- **Una historia sin filas ya no pierde los ajustes del dueño al descargar.** Antes se apartaba antes de
+  descargar, y sus ajustes de antes de la migración 27 no pasaban a la nueva. Ahora se aparta después, como
+  copia consistente, y lo del dueño pasa a la nueva como con `--force`. Si la descarga falla, sigue en su
+  sitio. Además:
+  - una historia ilegible no se toma por «sin filas»;
+  - las copias con fecha no se pisan nunca ni quedan vacías;
+  - nada se reemplaza si `history.db` apareció o se abrió durante la descarga;
+  - `fetch-data` solo borra sus propios temporales.
+
 ## Auditoría paralela del 3 de noviembre · ajustes privados y guardado de interruptores (2026-11-03)
 
 Dos hallazgos verificados sobre `05a8e12` (`docs/plans/auditoria-paralela-3-noviembre.md`). Cada uno,

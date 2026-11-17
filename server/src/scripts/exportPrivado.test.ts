@@ -7,8 +7,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import os from 'node:os';
 import crypto from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import '../test/setup.ts';
@@ -211,4 +212,176 @@ test('check-publishable rechaza una base con un -wal con cambios: se publica el 
   }
   // Cerrada (el checkpoint pasa todo al fichero y el -wal desaparece), se puede publicar.
   assert.equal(correr('scripts/check-publishable.mjs', [f], RAIZ).status, 0);
+});
+
+// ---- Auditoría del 5 de noviembre: el exportador borraba ficheros que no eran suyos ----
+// Los temporales tenían nombre fijo (`<destino>.parcial`, `<destino>.limpia`) y se borraban, con sus
+// laterales, al empezar y al terminar: una base ajena con ese nombre desaparecía sin aviso, y dos
+// exportaciones a la vez compartían los mismos temporales.
+
+/** Ficheros con los nombres de antes junto al destino: una base con una apuesta, su WAL y un texto. */
+function senuelos(dir: string): Record<string, string> {
+  const destino = path.join(dir, 'history.export.db');
+  const parcial = `${destino}.parcial`;
+  const d = new DatabaseSync(parcial);
+  d.exec("CREATE TABLE paper_bets (id INTEGER PRIMARY KEY, nota TEXT); INSERT INTO paper_bets (nota) VALUES ('apuesta de otra base')");
+  d.close();
+  fs.writeFileSync(`${parcial}-wal`, 'wal ajeno');
+  fs.writeFileSync(`${destino}.limpia`, 'notas de otra persona');
+  fs.writeFileSync(`${destino}.limpia-journal`, 'diario ajeno');
+  return Object.fromEntries([parcial, `${parcial}-wal`, `${destino}.limpia`, `${destino}.limpia-journal`].map((f) => [f, sha(f)]));
+}
+const siguenIgual = (huellas: Record<string, string>) => {
+  for (const [f, h] of Object.entries(huellas)) {
+    assert.ok(fs.existsSync(f), `${path.basename(f)} sigue ahí`);
+    assert.equal(sha(f), h, `${path.basename(f)} sin cambiar`);
+  }
+};
+
+test('los ficheros ajenos con los nombres de los temporales de antes sobreviven a una exportación que sale bien, y no queda ningún temporal propio', () => {
+  const dir = fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'senuelos-ok-'));
+  const huellas = senuelos(dir);
+  const r = correr('src/scripts/dbExport.ts', [path.join(dir, 'history.export.db')], SERVIDOR);
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+  siguenIgual(huellas);
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['history.export.db', ...Object.keys(huellas).map((f) => path.basename(f))].sort(), 'ni temporales ni restos propios');
+  // (Después de listar: abrirla aquí crea su -shm, por el -wal de mentira que tiene al lado.)
+  const b = new DatabaseSync(path.join(dir, 'history.export.db.parcial'), { readOnly: true });
+  assert.equal((b.prepare('SELECT COUNT(*) n FROM paper_bets').get() as { n: number }).n, 1, 'la base ajena, con su apuesta');
+  b.close();
+});
+
+test('y a una exportación que falla a medias: se borra solo lo que creó esa exportación', () => {
+  const db = getDb();
+  db.prepare('INSERT OR REPLACE INTO main.meta (key, value) VALUES (?, ?)').run('ajustes.usuario', JSON.stringify({ bancoPersonal: 7531.25 }));
+  db.exec("CREATE TRIGGER main.prueba_falla_senuelos BEFORE DELETE ON meta BEGIN SELECT RAISE(ABORT, 'fallo simulado'); END");
+  try {
+    const dir = fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'senuelos-falla-'));
+    const huellas = senuelos(dir);
+    const r = correr('src/scripts/dbExport.ts', [path.join(dir, 'history.export.db')], SERVIDOR);
+    assert.notEqual(r.status, 0, r.stdout);
+    assert.match(r.stderr, /fallo simulado/);
+    siguenIgual(huellas);
+    assert.deepEqual(fs.readdirSync(dir).sort(), Object.keys(huellas).map((f) => path.basename(f)).sort(), 'ni destino ni temporales propios');
+  } finally {
+    db.exec('DROP TRIGGER main.prueba_falla_senuelos');
+  }
+});
+
+function correrAsync(script: string, args: string[], cwd: string): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  return new Promise((ok, mal) => {
+    const h = spawn(process.execPath, ['--import', 'tsx', script, ...args], { cwd, env: { ...process.env, NODE_OPTIONS }, stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    h.stdout.setEncoding('utf8').on('data', (c: string) => (stdout += c));
+    h.stderr.setEncoding('utf8').on('data', (c: string) => (stderr += c));
+    h.on('error', mal);
+    h.on('close', (status) => ok({ status, stdout, stderr }));
+  });
+}
+
+test('exportaciones a la vez (al mismo destino y a otro del mismo directorio): ninguna borra ni usa los temporales de otra; cada destino queda completo y limpio', async () => {
+  // La base de origen ya existe y está migrada, como en cualquier exportación de verdad (abrirla por
+  // primera vez desde cuatro procesos a la vez corre las migraciones a la vez: eso es de getDb, aparte).
+  getDb();
+  const dir = fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'a-la-vez-'));
+  const huellas = senuelos(dir);
+  const mismo = path.join(dir, 'history.export.db');
+  const otro = path.join(dir, 'otra.export.db');
+  const destinos = [mismo, mismo, otro, mismo];
+  const rs = await Promise.all(destinos.map((d) => correrAsync('src/scripts/dbExport.ts', [d], SERVIDOR)));
+  // Cada una sale bien o se niega limpia: lo que no puede pasar es que borre o use lo de otra. Al mismo
+  // destino, la sonda de una puede ver un instante abierta la base que comprueba la otra, o SQLite
+  // contestar «locked» al abrir (revisión data-guardian: ~1 de cada 90 rondas); las dos se niegan sin
+  // dejar nada.
+  for (const r of rs) if (r.status !== 0) assert.match(r.stderr, /abierta por otro proceso|database is locked/, r.stderr || r.stdout);
+  for (const d of [mismo, otro]) assert.ok(rs.some((r, i) => destinos[i] === d && r.status === 0), `${path.basename(d)}: al menos una sale bien`);
+  siguenIgual(huellas);
+  for (const f of [mismo, otro]) {
+    const e = new DatabaseSync(f, { readOnly: true });
+    assert.equal((e.prepare('PRAGMA integrity_check').get() as { integrity_check: string }).integrity_check, 'ok', path.basename(f));
+    assert.deepEqual((e.prepare('SELECT key FROM meta').all() as { key: string }[]).map((x) => x.key).filter(claveEsLedger), [], `${path.basename(f)}: sin meta privada`);
+    e.close();
+    assert.equal(fs.readFileSync(f).includes(Buffer.from('ajustes.usuario')), false, `${path.basename(f)}: ni sus bytes`);
+  }
+  assert.deepEqual(fs.readdirSync(dir).sort(), ['history.export.db', 'otra.export.db', ...Object.keys(huellas).map((f) => path.basename(f))].sort(), 'ni temporales ni laterales');
+});
+
+// ---- Revisión data-guardian (5 de noviembre) del exportador ----
+
+test('el destino se resuelve desde donde se llamó a npm (INIT_CWD), no desde server/', () => {
+  const raizNpm = fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'init-cwd-'));
+  fs.mkdirSync(path.join(raizNpm, 'data'));
+  const r = spawnSync(process.execPath, ['--import', 'tsx', 'src/scripts/dbExport.ts', 'data/history.export.db'], { cwd: SERVIDOR, env: { ...process.env, NODE_OPTIONS, INIT_CWD: raizNpm }, encoding: 'utf8', timeout: 120_000 });
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+  assert.ok(fs.existsSync(path.join(raizNpm, 'data', 'history.export.db')), 'en <INIT_CWD>/data, como lo escribe el workflow');
+  assert.equal(fs.existsSync(path.join(SERVIDOR, 'data', 'history.export.db')), false, 'no en server/data');
+});
+
+test('no exporta encima de un destino vacío o ausente con un -wal o -journal al lado, de una base abierta, de una con meta privada ni de una copia con fecha', () => {
+  const dir = fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'destinos-raros-'));
+  // Una copia de carpeta con el libro mayor a 0 bytes y sus apuestas solo en el -wal.
+  const ledger0 = path.join(dir, 'ledger.db');
+  fs.writeFileSync(ledger0, '');
+  fs.writeFileSync(`${ledger0}-wal`, 'cinco apuestas en el WAL');
+  const huerfano = path.join(dir, 'sin-fichero.db');
+  fs.writeFileSync(`${huerfano}-journal`, 'diario de otra base');
+  const conMeta = path.join(dir, 'con-meta.db');
+  const c = new DatabaseSync(conMeta);
+  c.exec(`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT); INSERT INTO meta VALUES ('ajustes.usuario', '{"bancoPersonal":1}')`);
+  c.close();
+  const copiaFecha = path.join(dir, 'history.db.backup-2026-11-05T10-00-00');
+  const b = new DatabaseSync(copiaFecha);
+  b.exec('CREATE TABLE fb_odds_history (id INTEGER PRIMARY KEY); INSERT INTO fb_odds_history VALUES (1)');
+  b.close();
+  const abierta = path.join(dir, 'abierta.export.db');
+  const a = new DatabaseSync(abierta);
+  // Abierta, con su -wal vacío (pasado al fichero): lo que la delata es la conexión, no el WAL.
+  a.exec('PRAGMA journal_mode = WAL; CREATE TABLE x (y); INSERT INTO x VALUES (1); PRAGMA wal_checkpoint(TRUNCATE);');
+  try {
+    const casos: [string, RegExp][] = [
+      [ledger0, /-wal|vac/],
+      [huerfano, /-journal/],
+      [conMeta, /meta privada/],
+      [copiaFecha, /copia/],
+      [abierta, /abierta por otro proceso/],
+    ];
+    const huellas = Object.fromEntries([ledger0, `${ledger0}-wal`, `${huerfano}-journal`, conMeta, copiaFecha].map((f) => [f, sha(f)]));
+    for (const [destino, motivo] of casos) {
+      const r = correr('src/scripts/dbExport.ts', [destino], SERVIDOR);
+      assert.equal(r.status, 1, `${path.basename(destino)}: ${r.stdout}${r.stderr}`);
+      assert.match(r.stderr, motivo, path.basename(destino));
+    }
+    for (const [f, h] of Object.entries(huellas)) assert.equal(sha(f), h, `${path.basename(f)} sin cambiar`);
+    assert.equal(fs.existsSync(huerfano), false);
+  } finally {
+    a.close();
+  }
+});
+
+test('los restos de una exportación que murió en esta máquina (su proceso ya no existe) se borran; los de otra en marcha o sin dueño claro, no', () => {
+  const dir = fs.mkdtempSync(path.join(process.env.DATA_DIR!, 'restos-'));
+  const destino = path.join(dir, 'history.export.db');
+  const muerta = path.join(dir, 'history.export.db.tmp-muerta');
+  fs.mkdirSync(muerta);
+  fs.writeFileSync(path.join(muerta, 'parcial.db'), 'meta privada de una exportación interrumpida');
+  // Un pid que no existe (el más alto posible no se reparte en la práctica), de hace más de una hora.
+  fs.writeFileSync(path.join(muerta, 'propietario.json'), JSON.stringify({ pid: 2 ** 22 + 12345, host: os.hostname(), inicio: '2026-11-05T10:00:00.000Z' }));
+  const viva = path.join(dir, 'history.export.db.tmp-viva');
+  fs.mkdirSync(viva);
+  fs.writeFileSync(path.join(viva, 'propietario.json'), JSON.stringify({ pid: process.pid, host: os.hostname(), inicio: new Date().toISOString() }));
+  const otraMaquina = path.join(dir, 'history.export.db.tmp-otra');
+  fs.mkdirSync(otraMaquina);
+  fs.writeFileSync(path.join(otraMaquina, 'propietario.json'), JSON.stringify({ pid: 2 ** 22 + 12345, host: 'otra-maquina', inicio: '2026-11-05T10:00:00.000Z' }));
+  const sinDueno = path.join(dir, 'history.export.db.tmp-sin-dueno');
+  fs.mkdirSync(sinDueno);
+  // De esta máquina y con el proceso muerto, pero de hace un momento: podría ser de otro contenedor.
+  const reciente = path.join(dir, 'history.export.db.tmp-reciente');
+  fs.mkdirSync(reciente);
+  fs.writeFileSync(path.join(reciente, 'propietario.json'), JSON.stringify({ pid: 2 ** 22 + 12345, host: os.hostname(), inicio: new Date().toISOString() }));
+  const r = correr('src/scripts/dbExport.ts', [destino], SERVIDOR);
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+  assert.equal(fs.existsSync(muerta), false, 'la de un proceso muerto de esta máquina, borrada');
+  for (const d of [viva, otraMaquina, sinDueno, reciente]) assert.ok(fs.existsSync(d), `${path.basename(d)}: no se toca`);
+  assert.match(r.stdout + r.stderr, /tmp-viva|tmp-otra|tmp-sin-dueno/);
 });
