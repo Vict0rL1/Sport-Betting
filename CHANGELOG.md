@@ -4,6 +4,60 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Fútbol: un club que openfootball partió en dos vuelve a ser uno (2026-11-18)
+
+Hallazgo A del nocturno (`docs/plans/nocturno-datos.md`).
+
+- **El fallo.** openfootball cambia a veces cómo escribe a un club de una temporada a otra («Bayer
+  Leverkusen» en 2019-20, «Bayer 04 Leverkusen» después; «SL Benfica» → «Sport Lisboa e Benfica»; «PSV
+  Eindhoven» → «PSV»), y cada grafía era un id. Para el modelo eran dos equipos, y el Elo del segundo
+  empezaba de cero. Con los datos reales, **24 clubes en 7 ligas**, entre ellos Leverkusen, Benfica,
+  Sporting, Braga, PSV, Feyenoord, AZ, Real Sociedad, Betis, Rennes, Atalanta, Lazio y Bologna.
+- **Ahora** `unificarClubesPartidos` (`football/ingest/clubesPartidos.ts`) se ejecuta tras openfootball y
+  antes de football-data. Une dos ids de una liga si se cumple todo esto:
+  - nunca coinciden en una temporada;
+  - uno va después del otro;
+  - los nombres encajan: las palabras de uno están en el otro, sin contar números, o una es la sigla de
+    varias («SL» = «Sport Lisboa»);
+  - si hay temporadas de hueco entre los dos, el nombre nuevo contiene entero al viejo;
+  - es la única pareja posible de los dos;
+  - ninguno es el filial del otro: una marca de filial («B», «II», «Castilla», «Jong», «U23»…) en un nombre
+    y no en el otro descarta la pareja. «Villarreal CF B» no es «Villarreal CF», pero «Willem II» sí es
+    «Willem II Tilburg», porque los dos llevan «II» (revisión data-guardian).
+- **Se queda el id más reciente.** Es el de los partidos de ahora y el del libro mayor, así que nada vivo
+  cambia de id. Las filas del viejo pasan al nuevo en las tablas de la historia (partidos, próximos,
+  jugadores, noticias, alineaciones, ClubElo, calendario y alias), nunca en el libro mayor, y el nombre
+  viejo queda como alias para que no se vuelva a partir.
+- **Lo que no une:**
+  - Paris FC y el PSG: juegan la misma temporada;
+  - el Chievo Verona (hasta 2021) y el «Verona» de 2027, que es el Hellas: tras el hueco, el nombre nuevo
+    no contiene al viejo.
+- **Con datos reales:**
+  - reconstruido el fútbol desde cero, une exactamente esos 24, y la única pareja posible que queda es la
+    del Chievo;
+  - mismos 33.632 partidos y 32.312 cuotas, y 24 equipos menos (469);
+  - el Leverkusen pasa a ser un equipo con 247 partidos (antes 213 + 34), el PSV con 242 y el Benfica con
+    249;
+  - en una copia de la release publicada, una actualización incremental los une igual, y en el libro mayor
+    solo cambia el registro de ejecuciones de `update-data`.
+- **Predicciones con un id que ya no es un equipo.** La liquidación (`resolveFootballPredictions`) traduce
+  ese id por el índice de nombres, con los alias y solo por coincidencia exacta, y vuelve a buscar el
+  partido. Casos:
+  - una casa escribía «SC Cambuur», que caía en el id viejo `cambuur`, mientras el Cambuur de 2026-27 ya
+    era `cambuur-leeuwarden`: esa predicción no se liquidaba nunca, ni antes de unirlos;
+  - una predicción guardada con un id que football-data dio de alta aparte («napoli»; F3 de la revisión del
+    14 de noviembre).
+
+  La fila del libro mayor conserva sus ids: solo se le pone el resultado.
+- **El mismo partido no se registra dos veces porque cambie un id** (revisión data-guardian). Una predicción
+  pendiente con el id viejo y la siguiente con el nuevo tenían `match_key` distinta, y el partido contaba
+  doble en el historial y la calibración. Ahora, si el mismo partido (`upcoming_id`) ya está registrado ese
+  mismo día, vale la primera, como ya hace `ON CONFLICT`. Un aplazamiento cambia el día, y se sigue
+  registrando.
+- **Pruebas:** `football/ingest/clubesPartidos.test.ts` (9).
+- **Sin comprobación nueva en `verify:data` de momento.** El CI comprueba la release publicada, que aún
+  tiene los clubes partidos hasta que el nocturno la vuelva a publicar desde `main`.
+
 ## Primera release de datos publicada, y la auditoría con datos de verdad (2026-11-16)
 
 - **«Datos» pasa por primera vez** (ejecución 39, lanzada a mano en la rama con `0cf7d00`), y publica
