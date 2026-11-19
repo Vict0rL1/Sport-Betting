@@ -50,6 +50,7 @@ const FILAS = [
   fila({ id: 'fb-1', matchKey: 'laliga|a|b|e2e', local: { nombre: 'Atlético Sintético de la Ciudad con Nombre Muy Largo', id: 'a' }, visitante: { nombre: 'Betis Sintético', id: 'b' }, prediccion: { probs: [0.579, 0.201, 0.22], capturadaEn: hoyA(8), version: 'fb-test', fuente: 'instantanea' } }),
   fila({ id: 'fb-2', liga: { id: 'epl', nombre: 'Premier League' }, cuando: hoyA(18), local: { nombre: 'Arsenal Sintético', id: 'ars' }, visitante: { nombre: 'Chelsea Sintético', id: 'che' }, cuotas: { precios: [2.1, 3.3, 3.6], completas: true, casas: 8, recibidasEn: hoyA(9), origen: 'casa', antiguas: false } }),
   fila({ id: 'fixture-demo', origen: 'demo', cuando: hoyA(19), local: { nombre: 'Demo Uno', id: 'd1' }, visitante: { nombre: 'Demo Dos', id: 'd2' }, cuotas: { precios: [1.8, 3.5, 4.5], completas: true, casas: 0, recibidasEn: hoyA(9), origen: 'demo', antiguas: false } }),
+  fila({ id: 'fixture-demo-sin', origen: 'demo', cuando: hoyA(19, 30), local: { nombre: 'Demo Tres', id: 'd3' }, visitante: { nombre: 'Demo Cuatro', id: 'd4' }, prediccion: null, sinPrediccion: 'demo' }),
   fila({ id: 'fb-sin', cuando: hoyA(20), local: { nombre: 'Sin Estimación FC', id: 's1' }, visitante: { nombre: 'Otro FC', id: 's2' }, prediccion: null, sinPrediccion: 'sin-registro' }),
   fila({ sport: 'nhl', id: 'nhl-1', matchKey: 'nhl|e2e|1', liga: { id: 'nhl', nombre: 'NHL' }, cuando: hoyA(22), local: { nombre: 'Toronto Sintético', id: 'TOR' }, visitante: { nombre: 'Boston Sintético', id: 'BOS' }, mercado: { id: 'resultado', resultados: ['local', 'visitante'], excluyentes: true, prorroga: 'incluida' }, prediccion: { probs: [0.62, 0.38], capturadaEn: hoyA(8), version: 'nhl-test', fuente: 'registro' } }),
 ];
@@ -104,7 +105,9 @@ test('recorrido 3: demostración, sin estimación, 1X2 con empate y NHL sin empa
   const demo = page.getByRole('listitem').filter({ hasText: 'Demo Uno' });
   await expect(demo.getByText('Demostración', { exact: true })).toBeVisible();
   await expect(page.getByText(/no son reales, sus cuotas tampoco/)).toBeVisible();
-  await expect(page.getByRole('listitem').filter({ hasText: 'Sin Estimación FC' }).getByText('Sin estimación todavía')).toBeVisible();
+  await expect(page.getByRole('listitem').filter({ hasText: 'Sin Estimación FC' }).getByText('Sin estimación registrada todavía')).toBeVisible();
+  // Una de demostración sin estimación dice dónde está, no «todavía» (revisión ui-tester).
+  await expect(page.getByRole('listitem').filter({ hasText: 'Demo Tres' }).getByText(/la ficha la calcula al abrirla/)).toBeVisible();
   const futbol = page.getByRole('listitem').filter({ hasText: 'Atlético Sintético' });
   await expect(futbol.getByText('Empate')).toBeVisible();
   // T06: 57,9 + 20,1 + 22,0 = 100.

@@ -229,7 +229,7 @@ Estados: OK · PARCIAL · FALTA · HECHO (en esta obra) · BLOQ (bloqueado) · D
     en «Histórico».
   - Exportaciones en `/api/export/:dataset`, Líneas y cuotas por casa.
   - Hay que verificarlo en el navegador.
-- **Fase 5:** en curso. La suite completa y la revisión visual están en marcha.
+- **Fase 5:** hecha para lo hecho: suite completa en verde (Playwright 189/189), revisión ui-tester con sus hallazgos medios atendidos o anotados, revisiones data-guardian y quant-reviewer.
 
 ## Pendientes conocidos (decididos, no olvidados)
 
@@ -244,6 +244,10 @@ Estados: OK · PARCIAL · FALTA · HECHO (en esta obra) · BLOQ (bloqueado) · D
   que el tenis; la NFL ya no. No llegan al rendimiento porque nunca tienen resultado, pero lo correcto
   es no registrarlas (cambio en el libro mayor: necesita data-guardian).
 - **La zona horaria elegida solo la usa Partidos.** El resto de pantallas formatea con la del navegador.
+- **Prosa del servidor en español con la interfaz en inglés.** Los motivos de las tarjetas («En
+  hierba, … llega con mejor Elo», «Forma: …») y las descripciones de `features.json` en Ajustes salen
+  del servidor ya escritos en español. Traducirlos exige localizar esa prosa en el servidor (la
+  petición sabe el idioma); queda abierto (I18N-1).
 - **El código muerto** que quedó sin usar (`ui/slate.tsx` SlateTable, `lib/slate.ts`) se quita en la
   Fase 5 si nada más lo importa.
 
@@ -286,6 +290,25 @@ Ver «Pendientes conocidos». Además:
   probado. Siguen como estaban.
 - **Despliegue:** `fly deploy` no se ha ejecutado (lo decide quien es dueño del proyecto).
 
+## Revisión ui-tester (19-nov, sobre `b382952`)
+
+- 19 rutas a 1280 y 390 en los dos temas, y Partidos a 320: sin errores de consola, sin respuestas
+  ≥ 400 y sin desbordamiento.
+- Navegación, hoja «Más» (diálogo con foco y Escape), píldora, estados vacíos, vista previa del pago
+  y Ajustes › Zona: bien.
+- Hallazgos y qué se hizo:
+  1. **Medio.** «Sin estimación todavía» en filas de demostración cuya ficha sí da una probabilidad.
+     Corregido: las de demostración no se registran (solo las reales) y ahora dicen
+     `sinPrediccion: 'demo'`, «la ficha la calcula al abrirla». Las reales sin registro dicen «Sin
+     estimación registrada todavía».
+  2. **Medio.** Prosa del servidor en español con la interfaz en inglés. Abierto (ver arriba).
+  3. **Bajo.** El título «Mercado (odds sin vig)» seguía con cuotas de demostración. Quitado; «odds
+     demo» pasa a «cuotas de demostración».
+  4. **Bajo.** El banco de papel decía «1000 $» junto a apuestas en EUR. Ahora son «unidades (dinero
+     simulado, sin moneda)».
+  5–7. Claves de configuración en la prosa de Ajustes (es la página del operador), «Más filtros»
+     como `<details>` y la exportación solo con apuestas: se quedan como están.
+
 ## Comandos y resultados
 
 Línea base (19-nov, `faf30e1`): `npm run typecheck` ✓, `npm run lint` ✓, `npm test` ✓ (servidor 717/717,
@@ -305,5 +328,9 @@ Tras las fases 1–3 (sin commit todavía):
   da 8/8 por separado.
 - `verify:data` 532/532 y `audit` 6051/6051, sobre una copia de la release `data-latest` en un
   directorio temporal (nunca `data/`).
+- Tras la revisión ui-tester:
+  - `npm run lint` ✓ y `npm test` ✓ (servidor 741/741, web 117/117);
+  - `npm run build` ✓ (incluye `tsc -b`);
+  - **Playwright 189/189** (`cd web && npx playwright test --trace off`).
 - Ojo: en `web/`, `npx tsc -p .` no comprueba nada (el tsconfig raíz solo tiene referencias); el bueno
   es `npm run typecheck` (`tsc -b`).

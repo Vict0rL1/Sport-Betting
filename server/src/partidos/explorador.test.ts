@@ -152,6 +152,19 @@ test('T08: la NHL y el tenis tienen dos resultados, sin empate; el tenis no tien
   assert.equal(t.local.nombre, 'Jannik Sinner');
 });
 
+test('una fila de demostración sin estimación registrada lo dice con su motivo (no «todavía»)', () => {
+  getDb()
+    .prepare(
+      `INSERT INTO upcoming_matches (id, tour, tournament_id, tournament_name, surface, commence_time, p1_name, p2_name, p1_id, p2_id, p1_odds, p2_odds, books, source, updated_at)
+       VALUES ('t-demo', 'atp', 'w', 'Wimbledon', 'grass', ?, 'Demo Uno', 'Demo Dos', 11, 12, 1.4, 3.1, 0, 'fixture', ?)`,
+    )
+    .run(EN(11), EN(-1));
+  const f = explorarPartidos(ventana({}, AHORA), AHORA).filas.find((x) => x.id === 't-demo')!;
+  assert.equal(f.origen, 'demo');
+  assert.equal(f.prediccion, null);
+  assert.equal(f.sinPrediccion, 'demo');
+});
+
 test('T07: una distribución imposible en el registro no llega a la pantalla como predicción', () => {
   const r = explorarPartidos(ventana({}, AHORA), AHORA);
   const f = r.filas.find((x) => x.id === 'nhl-2')!;

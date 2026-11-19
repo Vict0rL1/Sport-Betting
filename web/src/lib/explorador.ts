@@ -19,7 +19,7 @@ export interface FilaPartido {
   sede: 'local' | 'neutral';
   mercado: { id: 'resultado'; resultados: Resultado[]; excluyentes: true; prorroga: 'no' | 'incluida' | 'no-aplica' };
   prediccion: { probs: number[]; capturadaEn: string; version: string | null; fuente: 'instantanea' | 'registro' } | null;
-  sinPrediccion: 'sin-registro' | 'invalida' | null;
+  sinPrediccion: 'sin-registro' | 'invalida' | 'demo' | null;
   cuotas: { precios: (number | null)[]; completas: boolean; casas: number | null; recibidasEn: string | null; origen: 'casa' | 'demo'; antiguas: boolean } | null;
   origen: 'real' | 'demo';
 }

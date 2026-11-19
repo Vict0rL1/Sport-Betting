@@ -121,12 +121,17 @@ export default function ProbabilityBars({ prediction, sinMercado = false }: { pr
           ) : undefined
         }
       />
-      <SplitBar
-        title={t('pb.mercadoSinVig')}
-        leftFrac={marketLeft}
-        leftLabel={market ? pct(market.implied1, 1) : sinMercado ? t('pb.demoSinMercado') : t('pb.sinOdds')}
-        rightLabel={market ? pct(market.implied2, 1) : ''}
-      />
+      {/* Con cuotas de demostración no hay segunda barra: ni siquiera su título (T04). */}
+      {sinMercado ? (
+        <p className="text-[13px] text-(--ink-muted)">{t('pb.demoSinMercado')}</p>
+      ) : (
+        <SplitBar
+          title={t('pb.mercadoSinVig')}
+          leftFrac={marketLeft}
+          leftLabel={market ? pct(market.implied1, 1) : t('pb.sinOdds')}
+          rightLabel={market ? pct(market.implied2, 1) : ''}
+        />
+      )}
     </div>
   );
 }

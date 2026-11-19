@@ -87,7 +87,12 @@ export interface FilaPartido {
   sede: 'local' | 'neutral';
   mercado: MercadoFila;
   prediccion: PrediccionFila | null;
-  sinPrediccion: 'sin-registro' | 'invalida' | null;
+  /**
+   * Por qué no hay predicción: 'sin-registro' (aún no se ha guardado ninguna), 'invalida' (la
+   * guardada no es una distribución válida) o 'demo' (los partidos de demostración no se registran:
+   * la ficha la calcula al abrirla).
+   */
+  sinPrediccion: 'sin-registro' | 'invalida' | 'demo' | null;
   cuotas: CuotasFila | null;
   origen: 'real' | 'demo';
 }
@@ -291,6 +296,7 @@ export function explorarPartidos(
           } else sinPrediccion = 'invalida';
         } else if (clave) sinPrediccion = 'invalida';
         if (prediccion) sinPrediccion = null;
+        else if (origen === 'demo' && sinPrediccion === 'sin-registro') sinPrediccion = 'demo';
 
         // Las cuotas: solo las que existen; ninguna se rellena.
         const precios = d.cuotas.map((_, i) => {

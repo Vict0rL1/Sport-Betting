@@ -83,6 +83,13 @@ Plan, matriz de requisitos y relevo en `docs/plans/rediseno-2026-11.md`.
 - Despliegue: arrancar el servidor aplica la v29. Para volver atrás, la copia diaria del libro mayor
   (la tabla nueva y la columna solo se añaden; ninguna fila cambia).
 
+**Tras la revisión ui-tester**
+- Las filas de demostración sin estimación dicen que la ficha la calcula. Las de demostración no se
+  registran; antes decían «todavía», como si fuera a llegar.
+- Con cuotas de demostración no queda ni el título de la barra de mercado.
+- «odds demo» pasa a «cuotas de demostración».
+- El banco de papel cuenta en unidades, no en «$».
+
 **Seguridad y datos**
 - La exportación CSV neutraliza las fórmulas (`=`, `+`, `-`, `@`, tab y CR).
 - La importación quita ese apóstrofo, así que la ida y vuelta conserva el texto.

@@ -63,7 +63,7 @@ export default function FilaPartido({ f, zona, locale }: { f: Fila; zona: string
         {(!f.prediccion || f.origen === 'demo') && (
           <span className="flex flex-wrap items-center gap-2 text-[12px] sm:pl-[30px]">
             {f.origen === 'demo' && <span className="rounded border border-(--line-strong) px-1.5 py-px text-(--status-warning)">{t('partidos.demo')}</span>}
-            {!f.prediccion && <span className="text-(--ink-muted)">{f.sinPrediccion === 'invalida' ? t('partidos.estimacionInvalida') : t('partidos.sinEstimar')}</span>}
+            {!f.prediccion && <span className="text-(--ink-muted)">{f.sinPrediccion === 'invalida' ? t('partidos.estimacionInvalida') : f.sinPrediccion === 'demo' ? t('partidos.sinEstimarDemo') : t('partidos.sinEstimar')}</span>}
           </span>
         )}
       </Link>
