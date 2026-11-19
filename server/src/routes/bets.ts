@@ -23,8 +23,7 @@ import {
   summarizeBets,
   updateBet,
   type BetInput,
-  type BetStatus,
-} from '../bets.ts';
+  type BetStatus, BET_CURRENCIES } from '../bets.ts';
 import { listBetCandidates } from '../betCandidates.ts';
 import { importarCsv } from '../bets/importar.ts';
 import { sugerenciaStake } from '../bets/sugerencia.ts';
@@ -102,7 +101,16 @@ function parseBet(body: unknown, partial: boolean): { input: Partial<BetInput> }
     const v = num(b.stake);
     if (v == null) errors.push({ field: 'stake', message: 'La cantidad tiene que ser un número.' });
     else if (v <= 0) errors.push({ field: 'stake', message: 'La cantidad tiene que ser mayor que 0.' });
+    // Céntimos y no más (D8): 10,005 es un error de tecleo, no 10,00. No se trunca nunca.
+    else if (Math.abs(Math.round(v * 100) - v * 100) > 1e-6) errors.push({ field: 'stake', message: 'Como mucho 2 decimales.' });
+    else if (v > 1_000_000) errors.push({ field: 'stake', message: 'Cantidad demasiado alta, revisa el número.' });
     else out.stake = v;
+  }
+  if (has('currency')) {
+    const v = b.currency === null ? null : text(b.currency);
+    if (v != null && !(BET_CURRENCIES as readonly string[]).includes(v))
+      errors.push({ field: 'currency', message: `Moneda no válida. Usa: ${BET_CURRENCIES.join(', ')}.` });
+    else out.currency = v;
   }
 
   if (has('status')) {
@@ -155,7 +163,7 @@ export async function registerBetRoutes(app: FastifyInstance): Promise<void> {
     async (req) => ({ bets: listBets(req.query) }),
   );
 
-  app.get<{ Querystring: { from?: string; to?: string; sport?: string } }>(
+  app.get<{ Querystring: { from?: string; to?: string; sport?: string; currency?: string } }>(
     '/summary',
     async (req) => summarizeBets(req.query),
   );

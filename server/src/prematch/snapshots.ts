@@ -326,6 +326,8 @@ export interface FinalPrePartido {
   probs: number[];
   market_probs: number[] | null;
   model_version: string | null;
+  /** La instantánea que se congeló, si salió de una (no del registro). */
+  snapshot_id: number | null;
 }
 
 export function finalPrePartido(sport: string, matchKey: string): FinalPrePartido | null {
@@ -344,7 +346,44 @@ export function finalPrePartido(sport: string, matchKey: string): FinalPrePartid
     probs: JSON.parse(String(r.probs)) as number[],
     market_probs: r.market_probs == null ? null : (JSON.parse(String(r.market_probs)) as number[]),
     model_version: (r.model_version as string | null) ?? null,
+    snapshot_id: r.snapshot_id == null ? null : Number(r.snapshot_id),
   };
+}
+
+// ---------------------------------------------------------------------------
+// HISTORIAL: cada instantánea con su papel (rediseño de noviembre, HIS-3)
+// ---------------------------------------------------------------------------
+//   original   la primera que se publicó;
+//   revision   las siguientes, cada una porque algo cambió (ver CAMBIO_MIN y las marcas);
+//   evaluada   la que puntúa el rendimiento: la congelada en prematch_final, que es la última
+//              capturada ANTES del inicio. No la más favorable: se decide por la hora, no por el
+//              resultado. Mientras el partido no empieza, ninguna lo es todavía.
+// Nada se recalcula: son las filas tal como se guardaron.
+
+export interface EntradaHistorial {
+  id: number;
+  captured_at: string;
+  outcomes: string[];
+  probs: number[];
+  model_version: string | null;
+  data_as_of: string | null;
+  odds_at: string | null;
+  papel: 'original' | 'revision' | 'evaluada';
+}
+
+export function historial(sport: string, matchKey: string): EntradaHistorial[] {
+  const filas = instantaneas(sport, matchKey);
+  const final = finalPrePartido(sport, matchKey);
+  return filas.map((f, i) => ({
+    id: f.id,
+    captured_at: f.captured_at,
+    outcomes: f.outcomes,
+    probs: f.probs,
+    model_version: f.model_version,
+    data_as_of: f.data_as_of,
+    odds_at: f.odds_at,
+    papel: final?.snapshot_id === f.id ? 'evaluada' : i === 0 ? 'original' : 'revision',
+  }));
 }
 
 // ---------------------------------------------------------------------------

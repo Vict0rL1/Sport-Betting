@@ -4,10 +4,9 @@ import { rutaEquipo } from '../../rutas';
 import { useLigaEnRuta, ligaRecordada, useFiltroQuery } from '../../lib/rutas';
 import {
   pillClass, SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader,
-  EmptySlate, LeagueFlag, NflNoLineNote, SlateTable, VacioPorqueNoHayCuotas, SeccionDia} from '../ui';
+  EmptySlate, LeagueFlag, NflNoLineNote, VacioPorqueNoHayCuotas, SeccionDia} from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, nflPicks } from '../../lib/picks';
-import { nflSlate } from '../../lib/slate';
 import { useStake } from '../../lib/useStake';
 import { dayChipLabel, groupByDay } from '../../lib/format';
 import { nflApi, type NflGameWithPrediction, type NflLeague, type NflMeta } from '../../lib/nfl';
@@ -146,7 +145,6 @@ export default function NflDashboard() {
   );
   const [stake, setStake] = useStake();
   // Every price on screen invented by this app rather than fetched — see picks.ts.
-  const slate = useMemo(() => nflSlate(games), [games]);
   const demoOdds = games.length > 0 && games.every((r) => r.game.source === 'fixture');
   // A day that no longer exists after switching league would filter everything
   // away and look like "no games", so the choice is dropped rather than kept.
@@ -213,7 +211,7 @@ export default function NflDashboard() {
           inventa cuotas, así que `PicksPanel` se retira entera cuando no hay línea y la
           pestaña se quedaba sin ninguna vista de conjunto. `demoOdds` aquí es siempre
           falso —nunca hay precios inventados— pero se pasa igual por coherencia. */}
-      <SlateTable rows={slate} demoOdds={demoOdds} refrescadas={meta?.oddsRefreshedAt} bands={meta?.bands} />
+      {/* La tabla de partidos se quitó (rediseño de noviembre): la lista canónica es Partidos. */}
 
       {games.length === 0 && !loading && (
         <VacioPorqueNoHayCuotas

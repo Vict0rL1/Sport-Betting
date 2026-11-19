@@ -11,6 +11,7 @@ import {
   type BetCandidate,
   type BetInput,
   type FieldError,
+  MONEDAS,
 } from '../../lib/bets';
 import { HOME_COLOR, PROFIT_TEXT } from '../../lib/theme';
 import { Payout, ModeTab, Field, inputClass, selectClass, todayLocal } from './BetFormPartes';
@@ -33,6 +34,24 @@ const SPORTS = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'ufc', 'tenn
  * us, and pre-filling a price the book may not have offered would put a number in
  * the profit column that nobody agreed to.
  */
+const CLAVE_MONEDA = 'predictor.moneda';
+function monedaRecordada(): string {
+  try {
+    const m = localStorage.getItem(CLAVE_MONEDA);
+    if (m && (MONEDAS as readonly string[]).includes(m)) return m;
+  } catch {
+    // Sin almacenamiento: EUR.
+  }
+  return 'EUR';
+}
+function recordarMoneda(m: string): void {
+  try {
+    localStorage.setItem(CLAVE_MONEDA, m);
+  } catch {
+    // No poder recordarla no impide guardar la apuesta.
+  }
+}
+
 export default function BetForm({
   editing,
   borrador,
@@ -62,6 +81,9 @@ export default function BetForm({
     stake: editing ? String(editing.stake) : '',
     placed_on: editing?.placed_on ?? (b('placed_on') || todayLocal()),
     notes: editing?.notes ?? b('notes'),
+    // La moneda de la apuesta (D8): la de la apuesta que se edita (vacía si es antigua y no la
+    // tiene), o la última que se usó en este navegador, o EUR.
+    currency: editing ? (editing.currency ?? '') : monedaRecordada(),
   });
   const [probs, setProbs] = useState<{ model: number | null; market: number | null }>({
     model: editing?.model_prob ?? (borrador && typeof borrador.model_prob === 'number' ? borrador.model_prob : null),
@@ -107,7 +129,9 @@ export default function BetForm({
       market_prob: probs.market,
       match_key: picked?.matchKey ?? editing?.match_key ?? (b('match_key') || null),
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
+      currency: form.currency || null,
     };
+    if (form.currency) recordarMoneda(form.currency);
     try {
       if (editing) await patchBet(editing.id, input);
       else await createBet(input);
@@ -337,7 +361,16 @@ export default function BetForm({
 
           {/* The payout the odds imply, so a typo in either field is visible before
               it becomes a wrong P&L. */}
-          <Payout odds={form.odds} stake={form.stake} />
+          <Field label={t('form.moneda')} error={errorFor('currency')}>
+            <select className={inputClass} value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })}>
+              {editing && editing.currency == null && <option value="">{t('form.monedaSinIndicar')}</option>}
+              {MONEDAS.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Payout odds={form.odds} stake={form.stake} moneda={form.currency || null} />
           <div className="sm:col-span-2">
             <Sugerencia odds={Number(String(form.odds).replace(',', '.'))} prob={probs.model} />
           </div>

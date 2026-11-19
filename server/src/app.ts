@@ -40,6 +40,7 @@ import { registerInformesRoutes } from './routes/informes.ts';
 import { registerLineasArchivoRoutes } from './routes/lineasArchivo.ts';
 import { registerNhlRoutes } from './routes/nhl.ts';
 import { registerUfcRoutes } from './routes/ufc.ts';
+import { registerPartidosRoutes } from './routes/partidos.ts';
 import { conLectorDeAnulaciones } from './features.ts';
 import { incrementar, grupoDeRuta } from './observability/metrics.ts';
 import { registroArrancado } from './scheduler/registry.ts';
@@ -168,6 +169,7 @@ export async function buildApp(opts: AppOptions = {}): Promise<FastifyInstance> 
   await app.register(registerEstrategiasRoutes);
   await app.register(registerInformesRoutes);
   await app.register(registerLineasArchivoRoutes);
+  await app.register(registerPartidosRoutes);
   await app.register(registerUfcRoutes, { prefix: '/api/ufc' });
 
   await app.register(registerRoutes, { prefix: '/api' });

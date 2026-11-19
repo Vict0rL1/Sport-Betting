@@ -137,7 +137,11 @@ export function exportar(dataset: Dataset, f: Filtros = {}): Exportacion {
 export function aCsv(columnas: string[], datos: Record<string, unknown>[]): string {
   const celda = (v: unknown): string => {
     if (v === null || v === undefined) return '';
-    const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    let s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    // Inyección de fórmulas: un TEXTO que empieza por = + - @ (o tab/CR, que algunas hojas
+    // saltan) se abriría como fórmula. Un apóstrofo delante lo deja como texto. Los números
+    // no son texto: −100 sigue siendo −100.
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const lineas = [columnas.map(celda).join(',')];

@@ -118,6 +118,36 @@ export function noLeidas(): number {
   }
 }
 
+/** La ventana de la campana: lo de hace más de una semana sigue en la bandeja, sin número. */
+export const VENTANA_CAMPANA_MS = 7 * 86_400_000;
+
+/**
+ * El número de la campana (rediseño de noviembre, D7): no todo lo no leído, solo lo accionable de
+ * los últimos 7 días, cada aviso una vez. Accionable es lo que pide mirar: severidad «aviso» o
+ * «importante», o cualquier aviso de un partido que la persona sigue. Un aviso repetido (mismo
+ * tipo, partido y título: un trabajo que se reintenta, un proveedor que reenvía) cuenta uno. El
+ * resto sigue en la bandeja, sin leer, pero no infla un contador que acaba en «99+» y se ignora.
+ */
+export function contadorCampana(ahora = new Date()): number {
+  try {
+    const desde = new Date(ahora.getTime() - VENTANA_CAMPANA_MS).toISOString();
+    const r = getDb()
+      .prepare(
+        `SELECT COUNT(*) AS n FROM (
+           SELECT DISTINCT i.tipo, COALESCE(i.sport, ''), COALESCE(i.match_key, ''), i.titulo
+             FROM inbox i
+            WHERE i.leida_at IS NULL AND i.created_at >= ?
+              AND (i.severidad IN ('aviso', 'importante')
+                   OR (i.match_key IS NOT NULL AND EXISTS (
+                         SELECT 1 FROM watchlist w WHERE w.kind = 'partido' AND w.sport = i.sport AND w.ref_id = i.match_key))))`,
+      )
+      .get(desde) as { n: number };
+    return r.n;
+  } catch {
+    return 0;
+  }
+}
+
 /** Marca como leídas (o no leídas) unas cuantas, o todas. Devuelve cuántas cambiaron. */
 export function marcar(objetivo: { ids?: number[]; todas?: boolean }, leida: boolean, ahora = new Date()): number {
   const db = getDb();

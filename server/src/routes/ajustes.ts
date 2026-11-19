@@ -14,6 +14,7 @@ import { estado as estadoTrabajos } from '../scheduler/registry.ts';
 import { leerFeatures, fijarAnulacion, estadoFeatures, CLAVE_ANULACIONES, featureEncendida, soloArranque } from '../features.ts';
 import { leerAjustes, guardarAjustes, idiomaDeAcceptLanguage } from '../ajustes/index.ts';
 import { listarSeguidos, seguir, dejarDeSeguir, validarSeguido } from '../watchlist/index.ts';
+import { guardarInstantanea, listarGuardadas, quitarGuardada } from '../watchlist/guardadas.ts';
 import { SPORT_IDS, type SportId } from '../sports.ts';
 import { ESQUEMA_ERROR, ESQUEMA_ESTADO, ESQUEMA_ERRORES, ESQUEMA_FEATURE, ESQUEMA_AJUSTES, ESQUEMA_WATCHLIST, ESQUEMA_SEGUIDO } from '../api/schemas.ts';
 
@@ -119,6 +120,22 @@ export async function registerAjustesRoutes(app: FastifyInstance): Promise<void>
   app.delete<{ Params: { id: string } }>('/api/watchlist/:id', { schema: { tags: ['interfaz'], summary: 'Dejar de seguir', response: { 200: { type: 'object', properties: { borrado: { type: 'boolean' } }, required: ['borrado'] }, 404: ESQUEMA_ERROR } } }, async (req, reply) => {
     const ok = dejarDeSeguir(Number(req.params.id));
     if (!ok) return reply.code(404).send({ error: 'no se seguía' });
+    return { borrado: true };
+  });
+
+  // Estimaciones guardadas (rediseño de noviembre, FAV-3): referencias a instantáneas que ya existen.
+  app.get('/api/guardadas', { schema: { tags: ['interfaz'], summary: 'Estimaciones guardadas (referencias a instantáneas pre-partido)' } }, async () => ({ guardadas: listarGuardadas() }));
+  app.post<{ Body: { sport?: string; matchKey?: string; snapshotId?: number } }>('/api/guardadas', { schema: { tags: ['interfaz'], summary: 'Guardar una instantánea concreta', body: { type: 'object', properties: { sport: { type: 'string' }, matchKey: { type: 'string' }, snapshotId: { type: 'integer' } }, required: ['sport', 'matchKey', 'snapshotId'] } } }, async (req, reply) => {
+    if (!featureEncendida('interfaz.seguimiento')) return reply.code(404).send({ error: 'apagado (features.json: interfaz.seguimiento)' });
+    try {
+      return guardarInstantanea({ sport: String(req.body.sport) as SportId, matchKey: String(req.body.matchKey).slice(0, 200), snapshotId: Number(req.body.snapshotId) });
+    } catch (e) {
+      return reply.code(400).send({ error: (e as Error).message });
+    }
+  });
+  app.delete<{ Params: { id: string } }>('/api/guardadas/:id', { schema: { tags: ['interfaz'], summary: 'Quitar una estimación guardada (la instantánea no se toca)' } }, async (req, reply) => {
+    if (!featureEncendida('interfaz.seguimiento')) return reply.code(404).send({ error: 'apagado (features.json: interfaz.seguimiento)' });
+    if (!quitarGuardada(Number(req.params.id))) return reply.code(404).send({ error: 'no estaba guardada' });
     return { borrado: true };
   });
 }

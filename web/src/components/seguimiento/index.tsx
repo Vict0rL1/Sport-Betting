@@ -31,17 +31,29 @@ export function useSeguimiento() {
 export function EstrellaSeguir({ kind, sport, league = null, refId, label, size = 16 }: { kind: Seguido['kind']; sport: string; league?: string | null; refId: string; label: string; size?: number }) {
   const { t } = useI18n();
   const { seguidos, recargar, disponible } = useSeguimiento();
+  // Sin estado optimista (T24): lo que se ve es lo que el servidor guardó. Si falla, se dice y se
+  // puede volver a intentar; nunca un «seguido» que no se guardó.
+  const [estado, setEstado] = useState<'listo' | 'enviando' | 'error'>('listo');
   const actual = seguidos.find((s) => s.kind === kind && s.sport === sport && s.ref_id === refId);
   if (!disponible) return null;
   const alternar = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    if (actual) await fetch(`/api/watchlist/${actual.id}`, { method: 'DELETE' });
-    else await fetch('/api/watchlist', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, sport, league, ref_id: refId, label }) });
+    if (estado === 'enviando') return;
+    setEstado('enviando');
+    const r = await (actual
+      ? fetch(`/api/watchlist/${actual.id}`, { method: 'DELETE' })
+      : fetch('/api/watchlist', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, sport, league, ref_id: refId, label }) })
+    ).catch(() => null);
+    if (!r || !r.ok) {
+      setEstado('error');
+      return;
+    }
     recargar();
+    setEstado('listo');
   };
   return (
-    <button onClick={(e) => void alternar(e)} data-icono="campana" aria-pressed={!!actual} aria-label={`${actual ? t('seguimiento.dejar') : t('seguimiento.seguir')}: ${label}`} title={actual ? t('seguimiento.dejar') : t('seguimiento.seguir')} className={`grid shrink-0 place-items-center rounded p-1 transition ${actual ? 'text-(--seleccion)' : 'text-(--ink-faint) hover:text-(--ink-body)'}`}>
+    <button onClick={(e) => void alternar(e)} data-icono="campana" aria-pressed={!!actual} aria-busy={estado === 'enviando' || undefined} aria-label={`${actual ? t('seguimiento.dejar') : t('seguimiento.seguir')}: ${label}${estado === 'error' ? ` — ${t('seguimiento.error')}` : ''}`} title={estado === 'error' ? t('seguimiento.error') : actual ? t('seguimiento.dejar') : t('seguimiento.seguir')} className={`grid shrink-0 place-items-center rounded p-1 transition ${estado === 'error' ? 'text-(--status-critical) ring-1 ring-(--status-critical)' : actual ? 'text-(--seleccion)' : 'text-(--ink-faint) hover:text-(--ink-body)'}`}>
       {/* Una campana, no una estrella (D13): la estrella es «Añadir a mi selección», y dos
           estrellas en la misma tarjeta se confundían. Seguir es recibir avisos: la campana. */}
       <svg width={size} height={size} viewBox="0 0 24 24" fill={actual ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

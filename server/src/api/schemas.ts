@@ -175,7 +175,7 @@ export const ESQUEMA_AVISO_BANDEJA = o({
   sport: nullable('string'), match_key: nullable('string'), titulo: str, cuerpo: str, url: nullable('string'), alert_id: nullable('integer'), leida_at: nullable('string'),
 });
 export const ESQUEMA_BANDEJA = o({ avisos: { type: 'array', items: ESQUEMA_AVISO_BANDEJA }, noLeidas: int, tipos: { type: 'array', items: o({ tipo: str, n: int }) }, hayMas: bool });
-export const ESQUEMA_CONTADOR_BANDEJA = o({ noLeidas: int });
+export const ESQUEMA_CONTADOR_BANDEJA = o({ noLeidas: int, accionables: int });
 export const ESQUEMA_MARCADAS = o({ marcadas: int, noLeidas: int });
 const RESUMEN_INFORME = { id: int, tipo: { type: 'string', enum: ['diario', 'semanal'] }, periodo: str, created_at: str, titulo: str, resumen: str };
 export const ESQUEMA_RESUMEN_INFORME = o(RESUMEN_INFORME);

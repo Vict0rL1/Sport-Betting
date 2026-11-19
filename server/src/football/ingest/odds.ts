@@ -146,6 +146,8 @@ export interface FootballOddsResult {
    * es que el emparejamiento de nombres se rompió.
    */
   promoted: number;
+  /** Partidos descartados porque los dos lados resuelven al mismo club (T01). */
+  cuarentena: number;
 }
 
 export async function refreshFootballOdds(manual = false): Promise<FootballOddsResult> {
@@ -316,6 +318,7 @@ export async function refreshFootballOdds(manual = false): Promise<FootballOddsR
     pruneUpcoming(db, 'fb_upcoming');
     let count = 0;
     let promoted = 0;
+    const cuarentena: string[] = [];
     for (const [league, events] of perLeague) {
       const idx = buildNameIndex(league);
       const second = secondDivisionOf(league);
@@ -354,14 +357,24 @@ export async function refreshFootballOdds(manual = false): Promise<FootballOddsR
         // The draw price is keyed by the literal "Draw" in this provider's h2h
         // market; anything else means the payload changed shape.
         const drawPrice = ev.price['Draw'] ?? ev.price['draw'] ?? null;
+        const homeId = resolveOrSeed(ev.home);
+        const awayId = resolveOrSeed(ev.away);
+        // CUARENTENA (T01, rediseño de noviembre): los dos lados son el mismo club. Un partido
+        // así no existe: es un alias contra su propio club («Atlético Madrid vs Ath Madrid»), o
+        // un club que el archivo tenía partido en dos. No se guarda, ni su precio; se cuenta
+        // y Diagnóstico lo enseña con los nombres para poder arreglar el emparejamiento.
+        if (homeId != null && homeId === awayId) {
+          cuarentena.push(`${league}: ${ev.home} / ${ev.away} → ${homeId}`);
+          continue;
+        }
         insert.run(
           ev.id,
           league,
           ev.commence_time,
           ev.home,
           ev.away,
-          resolveOrSeed(ev.home),
-          resolveOrSeed(ev.away),
+          homeId,
+          awayId,
           ev.price[ev.home] ?? null,
           drawPrice,
           ev.price[ev.away] ?? null,
@@ -399,7 +412,9 @@ export async function refreshFootballOdds(manual = false): Promise<FootballOddsR
     setMeta('fb_odds_source', source);
     setMeta('fb_odds_refreshed_at', new Date().toISOString());
     recordOddsReason('fb_', source === 'live' ? null : motivo, detalle);
-    return { source, count, leagues: [...perLeague.keys()], promoted };
+    setMeta('fb_cuarentena', JSON.stringify({ at: nowIso, partidos: cuarentena.slice(0, 20), n: cuarentena.length }));
+    if (cuarentena.length) process.stderr.write(`  cuarentena: ${cuarentena.length} partido(s) con el mismo club a los dos lados: ${cuarentena.slice(0, 5).join('; ')}\n`);
+    return { source, count, leagues: [...perLeague.keys()], promoted, cuarentena: cuarentena.length };
   } catch (e) {
     db.exec('ROLLBACK');
     throw e;

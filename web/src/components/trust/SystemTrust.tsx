@@ -1,3 +1,4 @@
+import TodayPanel from '../TodayPanel';
 // 📊 Confianza del sistema: ¿podemos fiarnos del modelo? Lo que sabemos, lo que todavía
 // no, y las cifras que lo sostienen. Todo sale del servidor (evaluation/system.ts y
 // compañía); las dos listas se generan con reglas a partir de las muestras reales.
@@ -263,6 +264,9 @@ export default function SystemTrust() {
       <p className="mb-4 text-[13px] text-(--ink-muted)">
         {t('st.intro')}
       </p>
+      {/* Lo primero: qué acertó lo registrado antes de cada partido (rediseño de noviembre, PER-1).
+          Antes salía encima de cada pestaña; ahora es Rendimiento. */}
+      <TodayPanel soloResultados />
       <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
         {tiles.map(([k, v]) => (
           <div key={k} className="rounded-lg border border-(--line) px-3 py-2">

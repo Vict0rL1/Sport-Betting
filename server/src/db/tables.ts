@@ -30,8 +30,9 @@ export const TABLAS_LEDGER: readonly string[] = [
   'prediction_assessments',
   'shadow_predictions',
   'alerts',
-  // Seguimiento de la persona (Fase 5).
+  // Seguimiento de la persona (Fase 5) y estimaciones guardadas (rediseño de noviembre).
   'watchlist',
+  'saved_predictions',
   // Laboratorio de estrategias (Fase 6).
   'strategies',
   'strategy_bets',

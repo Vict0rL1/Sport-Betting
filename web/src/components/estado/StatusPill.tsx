@@ -60,7 +60,7 @@ export function useEstadoGlobal(): Estado | null {
 /** El resumen de una palabra y su color: lo peor que haya manda. */
 export function resumenEstado(e: Estado, t: Traducir): { texto: string; color: string; nivel: 'ok' | 'aviso' | 'error' } {
   const viejo = e.deportes.some((d) => (diasDesde(d.datosHasta) ?? 0) > 7 && d.proximos > 0);
-  if (e.trabajosConError > 0 || e.cuotas.error) return { texto: e.cuotas.modo === 'demo' ? t('estado.demoErrores') : t('estado.conErrores'), color: STATUS.critical, nivel: 'error' };
+  if (e.trabajosConError > 0 || e.cuotas.error) return { texto: t('estado.conErrores'), color: STATUS.critical, nivel: 'error' };
   if (e.cuotas.modo === 'demo') return { texto: t('estado.demo'), color: STATUS.warning, nivel: 'aviso' };
   if (viejo || (e.cuotas.restantes != null && e.cuotas.restantes < 50)) return { texto: t('estado.realAtencion'), color: STATUS.warning, nivel: 'aviso' };
   return { texto: t('estado.real'), color: STATUS.good, nivel: 'ok' };
@@ -99,7 +99,6 @@ export default function StatusPill({ compacto = false }: { compacto?: boolean })
       >
         <span aria-hidden className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: r.color }} />
         <span className={compacto ? 'sr-only sm:not-sr-only' : ''}>{r.texto}</span>
-        {!compacto && e.cuotas.restantes != null && <span className="text-(--ink-muted)">{t('estado.peticiones', { n: e.cuotas.restantes })}</span>}
       </button>
       {abierto && (
         <div ref={dialogo} role="dialog" aria-modal="true" aria-label={t('estado.dialogo')} className="absolute left-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-(--line) bg-(--surface-card) p-3 text-[12px] leading-relaxed text-(--ink-soft) shadow-xl">

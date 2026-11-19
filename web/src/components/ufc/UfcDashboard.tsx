@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { rutaLuchador } from '../../rutas';
 import { useFiltroQuery } from '../../lib/rutas';
-import { SkeletonList, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader, EmptySlate, SlateTable, SeccionDia } from '../ui';
+import { SkeletonList, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader, EmptySlate, SeccionDia } from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, ufcPicks } from '../../lib/picks';
-import { ufcSlate } from '../../lib/slate';
 import { useStake } from '../../lib/useStake';
 import { dayChipLabel, groupByDay } from '../../lib/format';
 import { ufcApi, type UfcFightWithPrediction, type UfcMeta, type UfcTrackRecord } from '../../lib/ufc';
@@ -72,7 +71,6 @@ export default function UfcDashboard() {
 
   const picks = useMemo(() => rankPicks(ufcPicks(fights), Date.now(), { basis: 'confidence' }), [fights]);
   const [stake, setStake] = useStake();
-  const slate = useMemo(() => ufcSlate(fights), [fights]);
   const stale = staleness('ufc', meta?.historyThrough);
   const n = (x: number) => x.toLocaleString(localeDe(idioma));
 
@@ -105,7 +103,7 @@ export default function UfcDashboard() {
       )}
       {meta && meta.hasOddsKey && meta.oddsFallbackReason && fights.length === 0 && <p className="mb-4 text-[13px] leading-relaxed text-(--ink-muted)">{t('ufc.sinCartelera')}</p>}
       {meta && meta.descartadas > 0 && <p className="mb-4 text-[12px] leading-relaxed text-(--ink-faint)">{t('ufc.descartadas', { n: meta.descartadas })}</p>}
-      <SlateTable rows={slate} demoOdds={false} refrescadas={meta?.oddsRefreshedAt} bands={meta?.bands} />
+      {/* La tabla de partidos se quitó (rediseño de noviembre): la lista canónica es Partidos. */}
 
       {error && <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/[0.06] p-3 text-[15px] text-rose-200">{error}</div>}
 

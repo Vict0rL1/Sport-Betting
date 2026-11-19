@@ -24,7 +24,7 @@ test.beforeEach(async ({ page }) => {
 // la barra inferior enseña los cuatro destinos en el móvil; los enlaces profundos restauran
 // el estado; axe pasa en claro y en oscuro.
 
-const RUTAS = ['/destacados', '/futbol', '/baloncesto', '/beisbol', '/nfl', '/nhl', '/ufc', '/tenis', '/apuestas', '/apuestas/laboratorio', '/apuestas/lineas', '/bandeja', '/informes', '/confianza', '/confianza/archivo', '/confianza/diagnostico', '/ajustes', '/glosario', '/no-existe'];
+const RUTAS = ['/partidos', '/destacados', '/futbol', '/baloncesto', '/beisbol', '/nfl', '/nhl', '/ufc', '/tenis', '/apuestas', '/apuestas/laboratorio', '/apuestas/lineas', '/bandeja', '/informes', '/confianza', '/confianza/archivo', '/confianza/diagnostico', '/ajustes', '/glosario', '/no-existe'];
 
 async function sinErroresNiDesbordamiento(page: Page, ruta: string) {
   const errores = recogerErrores(page);
@@ -47,15 +47,15 @@ for (const ruta of RUTAS) {
     const barra = page.getByTestId('barra-inferior');
     await expect(barra).toBeVisible();
     await expect(barra.getByRole('button')).toHaveCount(4);
-    for (const nombre of ['Destacados', 'Deportes', 'Apuestas', 'Confianza']) await expect(barra.getByRole('button', { name: nombre })).toBeVisible();
+    for (const nombre of ['Partidos', 'Rendimiento', 'Mis apuestas', 'Más']) await expect(barra.getByRole('button', { name: nombre })).toBeVisible();
   });
 }
 
 test('la hoja de deportes del móvil lleva a cada deporte', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/destacados');
-  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Deportes' }).click();
-  const hoja = page.getByRole('dialog', { name: 'Deportes' });
+  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Más' }).click();
+  const hoja = page.getByRole('dialog', { name: 'Más' });
   await expect(hoja).toBeVisible();
   await hoja.getByRole('button', { name: 'Baloncesto' }).click();
   await expect(page).toHaveURL(/\/baloncesto/);
@@ -65,7 +65,7 @@ test('los enlaces profundos restauran el estado', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/destacados?horas=24&alta=1&orden=hora');
   await expect(page.getByRole('button', { name: /^24 h$/ })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByRole('button', { name: 'Solo confianza alta' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByRole('button', { name: 'Solo estimaciones sólidas' })).toHaveAttribute('aria-pressed', 'true');
   // La liga en la ruta: la pestaña de esa liga queda seleccionada y la URL no se pisa.
   await page.goto('/futbol');
   await page.waitForLoadState('networkidle');
@@ -87,7 +87,7 @@ test('la píldora de estado está una vez y dice el modo', async ({ page, browse
   // Hay una en la barra lateral y otra en la cabecera del móvil; solo una está visible.
   const pildora = page.locator('[data-testid=status-pill]:visible');
   await expect(pildora).toHaveCount(1);
-  await expect(pildora).toContainText(/Modo demo|Cuotas reales|errores/);
+  await expect(pildora).toContainText(/Sin proveedor de cuotas|Datos al día|Datos · revisar|errores/);
   await pildora.click();
   await expect(page.getByRole('dialog', { name: 'Estado de la app' })).toBeVisible();
   if (comparaPixeles(browser)) await expect(pildora).toHaveScreenshot('pildora-estado.png', { maxDiffPixelRatio: 0.05 });
@@ -122,8 +122,8 @@ for (const tema of ['oscuro', 'claro'] as const) {
     await page.addInitScript((t) => localStorage.setItem('predictor.tema', t), tema);
     await page.goto('/destacados');
     await page.waitForLoadState('networkidle');
-    await page.getByTestId('barra-inferior').getByRole('button', { name: 'Deportes' }).click();
-    await expect(page.getByRole('dialog', { name: 'Deportes' })).toBeVisible();
+    await page.getByTestId('barra-inferior').getByRole('button', { name: 'Más' }).click();
+    await expect(page.getByRole('dialog', { name: 'Más' })).toBeVisible();
     await axeLimpio(page, `hoja de deportes en ${tema}`);
     await page.keyboard.press('Escape');
     await page.getByTestId('filtros-movil').click();

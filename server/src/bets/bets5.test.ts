@@ -61,3 +61,20 @@ test('clvDeApuesta: casa el evento por nombres y fecha, y la selección por text
   const total = createBet({ sport: 'nfl', event: 'Jets @ Bills', market: 'total', selection: 'Over 44.5', odds: 1.9, stake: 5, placed_on: '2026-10-03' });
   assert.match(clvDeApuesta(total).motivo ?? '', /ganador/);
 });
+
+test('ida y vuelta: lo que exporta aCsv (con la fórmula neutralizada) se importa con el texto original', async () => {
+  const { aCsv } = await import('../exports/datasets.ts');
+  const csv = aCsv(['sport', 'event', 'market', 'selection', 'odds', 'stake', 'notes'], [
+    { sport: 'football', event: 'Betis vs Sevilla', market: 'spread', selection: '-1.5', odds: 2.1, stake: 10, notes: '=nota rara' },
+    { sport: 'nfl', event: 'KC @ LV', market: 'spread', selection: '+3.5', odds: 1.9, stake: 5, notes: "'ya con apóstrofo" },
+  ]);
+  assert.match(csv, /'-1\.5/, 'la exportación neutraliza');
+  const r = importarCsv(csv, createBet);
+  assert.equal(r.importadas, 2, JSON.stringify(r.rechazadas));
+  const a = getBet(r.ids[0])!;
+  assert.equal(a.selection, '-1.5');
+  assert.equal(a.notes, '=nota rara');
+  assert.equal(getBet(r.ids[1])!.selection, '+3.5');
+  // Un apóstrofo que no protege una fórmula es texto del usuario y se queda.
+  assert.equal(getBet(r.ids[1])!.notes, "'ya con apóstrofo");
+});

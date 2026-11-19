@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { rutaEquipo } from '../../rutas';
 import { useFiltroQuery } from '../../lib/rutas';
-import { SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader, EmptySlate, NflNoLineNote, SlateTable, SeccionDia } from '../ui';
+import { SkeletonList, TeamCrest, DayFilter, DayHeading, StaleHistoryWarning, PicksPanel, DashboardHeader, EmptySlate, NflNoLineNote, SeccionDia } from '../ui';
 import { staleLabel, staleness } from '../../lib/staleness';
 import { CAVEATS, rankPicks, nhlPicks } from '../../lib/picks';
-import { nflSlate } from '../../lib/slate';
 import { useStake } from '../../lib/useStake';
 import { dayChipLabel, groupByDay } from '../../lib/format';
 import { nhlApi, type NhlGameWithPrediction, type NhlMeta, type NhlTrackRecord } from '../../lib/nhl';
@@ -70,7 +69,6 @@ export default function NhlDashboard() {
 
   const picks = useMemo(() => rankPicks(nhlPicks(games), Date.now(), { basis: 'confidence' }), [games]);
   const [stake, setStake] = useStake();
-  const slate = useMemo(() => nflSlate(games), [games]);
   const stale = staleness('nhl', meta?.historyThrough);
 
   return (
@@ -100,7 +98,7 @@ export default function NhlDashboard() {
       {/* `null` mientras no ha llegado `meta` (L3, lote L): con `?? false` decía «falta ODDS_API_KEY»
           antes de saberlo (D14), y la nota salía encima de las listas, que la empujaban al llegar. */}
       <NflNoLineNote reason={meta?.oddsFallbackReason} detail={meta?.oddsFallbackDetail} hasKey={meta ? meta.hasOddsKey : null} />
-      <SlateTable rows={slate} demoOdds={false} refrescadas={meta?.oddsRefreshedAt} bands={meta?.bands} />
+      {/* La tabla de partidos se quitó (rediseño de noviembre): la lista canónica es Partidos. */}
 
       {error && <div className="mb-4 rounded-xl border border-rose-500/25 bg-rose-500/[0.06] p-3 text-[15px] text-rose-200">{error}</div>}
 

@@ -24,8 +24,11 @@ export default function MatchCard({
 
   const verdict = prediction?.verdict;
   const value = prediction?.market.verdict;
+  // Cuotas de demostración: ni «Posible value» ni barra de mercado (T04). Son el modelo con un
+  // margen; compararlas con el modelo es compararlo consigo mismo.
+  const demo = match.source === 'fixture';
   const valuePlayer =
-    value === 'value_p1' ? match.p1_name : value === 'value_p2' ? match.p2_name : null;
+    demo ? null : value === 'value_p1' ? match.p1_name : value === 'value_p2' ? match.p2_name : null;
 
   return (
     // The shared surface, like the other four sports. This card was the one holdout:
@@ -96,7 +99,7 @@ export default function MatchCard({
 
       {prediction ? (
         <>
-          <ProbabilityBars prediction={prediction} />
+          <ProbabilityBars prediction={prediction} sinMercado={demo} />
 
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <div className="text-[16px]">
@@ -193,6 +196,7 @@ function ReliabilityBadge({ reliability }: { reliability: Reliability }) {
     low: 'bg-rose-900/40 text-rose-300 ring-rose-500/40',
   };
   const title = [
+    t('incert.nota'),
     t('tt.margen', { pp: reliability.marginPp }),
     t('tt.efectivos', { a: reliability.effectiveMatches.p1, b: reliability.effectiveMatches.p2 }),
     ...reliability.reasons,
@@ -202,7 +206,7 @@ function ReliabilityBadge({ reliability }: { reliability: Reliability }) {
       title={title}
       className={`rounded-full px-3 py-1 text-[14px] font-medium ring-1 ${styles[reliability.level]}`}
     >
-      {reliability.label} · ±{numF(reliability.marginPp, 1)} pp
+      {t(`incert.${reliability.level}`)} · ±{numF(reliability.marginPp, 1)} pp
     </span>
   );
 }

@@ -146,7 +146,7 @@ export default function GameCard({
             <div className="mb-1 flex items-center justify-end">
               <MarketGap
                 model={prediction.model.probAway}
-                market={prediction.market.market?.implied2}
+                market={realMarket(game.source) ? prediction.market.market?.implied2 : undefined}
               />
             </div>
             <ProbabilityBar
@@ -154,7 +154,7 @@ export default function GameCard({
                 { value: prediction.model.probAway, color: AWAY_COLOR, label: game.away_name },
                 { value: prediction.model.probHome, color: HOME_COLOR, label: game.home_name },
               ]}
-              marker={prediction.market.market?.implied2}
+              marker={realMarket(game.source) ? prediction.market.market?.implied2 : undefined}
             />
           </div>
 

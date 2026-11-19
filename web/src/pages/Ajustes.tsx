@@ -5,6 +5,8 @@
 import { useEffect, useRef, useState } from 'react';
 import NotificacionesPanel from '../components/auth/NotificacionesPanel';
 import { aplicarTema, type Tema } from '../lib/tema';
+import { guardarZona, leerZona, zonaValida } from '../lib/zona';
+import { zonaDelNavegador } from '../lib/explorador';
 import { DEPORTES } from '../rutas';
 import { ETIQUETA_POLITICA } from '../lib/politica';
 import { conNodos, localeDe, useI18n, type Clave, type Idioma, type Traducir } from '../i18n';
@@ -17,6 +19,37 @@ interface Trabajo { nombre: string; descripcion: string; cadenciaMin: number; ca
 interface Ajustes { deportesOcultos: string[]; tema: Tema; idioma: Idioma; bancoPersonal: number | null; recorridoVisto: boolean }
 
 const etiquetaPolitica = (t: Traducir, clave: string) => (ETIQUETA_POLITICA[clave] ? t(ETIQUETA_POLITICA[clave]) : clave);
+
+/** La zona con la que se leen horas y días (TZ-1): la del navegador o una fijada en este aparato. */
+function ZonaHoraria() {
+  const { t } = useI18n();
+  const [zona, setZona] = useState(leerZona());
+  const [texto, setTexto] = useState('');
+  const [error, setError] = useState(false);
+  const fijada = zona !== zonaDelNavegador();
+  const aplicar = (z: string | null) => {
+    if (z != null && !zonaValida(z)) {
+      setError(true);
+      return;
+    }
+    guardarZona(z);
+    setZona(leerZona());
+    setError(false);
+    setTexto('');
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span>{t('ajustes.zonaActual', { zona })}{fijada ? '' : ` (${t('ajustes.zonaDelNavegador')})`}</span>
+      <label className="flex items-center gap-2">
+        <span className="sr-only">{t('ajustes.zona')}</span>
+        <input value={texto} onChange={(e) => { setTexto(e.target.value); setError(false); }} placeholder="Europe/Madrid" aria-invalid={error || undefined} className="w-48 rounded border border-(--line) bg-transparent px-2 py-1 text-(--ink-strong)" />
+      </label>
+      <button type="button" onClick={() => aplicar(texto.trim())} disabled={!texto.trim()} className="rounded-full px-3 py-1 ring-1 ring-(--line-strong) hover:bg-(--raised) disabled:opacity-50">{t('ajustes.zonaFijar')}</button>
+      {fijada && <button type="button" onClick={() => aplicar(null)} className="rounded-full px-3 py-1 ring-1 ring-(--line) hover:bg-(--raised)">{t('ajustes.zonaVolver')}</button>}
+      {error && <span role="alert" className="text-(--status-critical)">{t('ajustes.zonaInvalida')}</span>}
+    </div>
+  );
+}
 
 function Seccion({ titulo, nota, children }: { titulo: string; nota?: string; children: React.ReactNode }) {
   return (
@@ -263,6 +296,11 @@ export default function Ajustes() {
             </button>
           ))}
         </div>
+      </Seccion>
+
+      <span id="zona" />
+      <Seccion titulo={t('ajustes.zona')} nota={t('ajustes.zonaNota', { navegador: zonaDelNavegador() })}>
+        <ZonaHoraria />
       </Seccion>
 
       <Seccion titulo={t('ajustes.deportes')} nota={t('ajustes.deportesNota')}>

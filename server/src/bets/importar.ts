@@ -4,7 +4,7 @@
 // coma; comillas RFC 4180. Cada fila se valida como una apuesta normal: lo que no pasa se
 // devuelve con su número de línea y NO se guarda nada de esa fila.
 
-import type { Bet, BetInput } from '../bets.ts';
+import { BET_CURRENCIES, type Bet, type BetInput } from '../bets.ts';
 
 export interface ResultadoImportacion {
   importadas: number;
@@ -44,7 +44,7 @@ export function parsearCsv(texto: string): string[][] {
   return filas;
 }
 
-const COLUMNAS = ['placed_on', 'sport', 'league', 'event', 'market', 'selection', 'odds', 'stake', 'status', 'payout', 'notes', 'model_prob', 'market_prob', 'match_key', 'tags'] as const;
+const COLUMNAS = ['placed_on', 'sport', 'league', 'event', 'market', 'selection', 'odds', 'stake', 'status', 'payout', 'notes', 'model_prob', 'market_prob', 'match_key', 'tags', 'currency'] as const;
 
 export function importarCsv(texto: string, crear: (input: BetInput) => Bet, maxFilas = 1000): ResultadoImportacion {
   const filas = parsearCsv(texto);
@@ -63,9 +63,11 @@ export function importarCsv(texto: string, crear: (input: BetInput) => Bet, maxF
   }
   for (let i = 1; i < Math.min(filas.length, maxFilas + 1); i++) {
     const f = filas[i];
+    // Un apóstrofo delante de = + - @ tab o CR es el que pone la exportación (exports/datasets.ts,
+    // aCsv) para que una hoja de cálculo no lo abra como fórmula: se quita al volver a importar.
     const v = (k: string) => {
       const j = idx(k);
-      return j >= 0 ? (f[j] ?? '').trim() : '';
+      return j >= 0 ? (f[j] ?? '').trim().replace(/^'(?=[=+\-@\t\r])/, '') : '';
     };
     try {
       const num = (k: string) => {
@@ -79,6 +81,10 @@ export function importarCsv(texto: string, crear: (input: BetInput) => Bet, maxF
       const stake = num('stake');
       if (odds == null || !(odds > 1)) throw new Error('odds: cuota decimal mayor que 1');
       if (stake == null || !(stake > 0)) throw new Error('stake: mayor que 0');
+      if (Math.abs(Math.round(stake * 100) - stake * 100) > 1e-6) throw new Error('stake: como mucho 2 decimales');
+      if (stake > 1_000_000) throw new Error('stake: cantidad demasiado alta');
+      const moneda = v('currency') || null;
+      if (moneda != null && !(BET_CURRENCIES as readonly string[]).includes(moneda)) throw new Error(`currency: usa ${BET_CURRENCIES.join(', ')}`);
       const input: BetInput = {
         sport: v('sport'),
         event: v('event'),
@@ -94,6 +100,7 @@ export function importarCsv(texto: string, crear: (input: BetInput) => Bet, maxF
         model_prob: num('model_prob') ?? null,
         market_prob: num('market_prob') ?? null,
         match_key: v('match_key') || null,
+        currency: moneda,
         tags: v('tags') ? v('tags').split(/[|;]/).map((t) => t.trim()).filter(Boolean).slice(0, 12) : [],
       };
       if (!input.sport || !input.event || !input.selection) throw new Error('sport, event y selection son obligatorios');

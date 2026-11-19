@@ -98,7 +98,11 @@ function medir(el: HTMLElement | null): (() => void) | void {
   return () => ro.disconnect();
 }
 
-export default function TodayPanel({ pestana = null }: { pestana?: string | null }) {
+/**
+ * `soloResultados` (rediseño de noviembre): en Rendimiento solo «¿Acertó?». La lista de hoy ya es
+ * Partidos, y repetirla encima de cada pestaña era la duplicación que se quitó.
+ */
+export default function TodayPanel({ pestana = null, soloResultados = false }: { pestana?: string | null; soloResultados?: boolean }) {
   const [datos, setDatos] = useState<{ partidos: Partido[]; nota: string | null } | null>(null);
   // En el móvil, la lista entera o solo las primeras FILAS_MOVIL.
   const [todos, setTodos] = useState(false);
@@ -125,6 +129,10 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
 
   useEffect(() => {
     let vivo = true;
+    if (soloResultados) {
+      setDatos({ partidos: [], nota: null });
+      return;
+    }
     fetch('/api/today')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j) => vivo && setDatos(j))
@@ -134,7 +142,7 @@ export default function TodayPanel({ pestana = null }: { pestana?: string | null
     return () => {
       vivo = false;
     };
-  }, []);
+  }, [soloResultados]);
 
   function cambiarVista(v: 'hoy' | 'resultados') {
     setVista(v);

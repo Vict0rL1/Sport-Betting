@@ -7,7 +7,10 @@
 import type { Clave, Traducir } from '../i18n';
 import { num, pct } from './formato';
 
-export type BetStatus = 'pending' | 'won' | 'lost' | 'void' | 'half_won' | 'half_lost' | 'cashout';
+export type BetStatus = 'pending' | 'won' | 'lost' | 'void' | 'push' | 'half_won' | 'half_lost' | 'cashout';
+
+/** Monedas con soporte (las mismas que el servidor, BET_CURRENCIES). */
+export const MONEDAS = ['EUR', 'USD', 'GBP'] as const;
 
 export interface Bet {
   id: number;
@@ -22,6 +25,8 @@ export interface Bet {
   stake: number;
   status: BetStatus;
   payout: number | null;
+  /** La moneda de la apuesta; null en las antiguas (sin indicar). */
+  currency: string | null;
   settled_at: string | null;
   notes: string | null;
   model_prob: number | null;
@@ -29,6 +34,8 @@ export interface Bet {
   match_key: string | null;
   /** Etiquetas libres (Fase 5.16). */
   tags: string[];
+  /** Pago bruto, con la apuesta; null mientras está pendiente. */
+  payoutGross: number | null;
   /** null while pending — never 0, which would claim a settled break-even. */
   profit: number | null;
   risked: number;
@@ -49,6 +56,9 @@ export interface BetGroupSummary {
 }
 
 export interface BetSummary {
+  /** La moneda de todos los importes del resumen (null = sin indicar). Nunca se mezclan. */
+  moneda: string | null;
+  monedas: { moneda: string | null; apuestas: number }[];
   totals: BetGroupSummary;
   pending: { bets: number; staked: number };
   bySport: BetGroupSummary[];
@@ -94,6 +104,7 @@ export interface BetInput {
   market_prob?: number | null;
   match_key?: string | null;
   tags?: string[] | null;
+  currency?: string | null;
 }
 
 export interface FieldError {
@@ -158,6 +169,7 @@ export const STATUS_LABEL: Record<BetStatus, string> = {
   won: 'Ganada',
   lost: 'Perdida',
   void: 'Anulada',
+  push: 'Push (devuelta)',
   half_won: 'Media ganada',
   half_lost: 'Media perdida',
   cashout: 'Cashout',

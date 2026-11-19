@@ -1,3 +1,4 @@
+import { resumir } from '../lib/rendimiento';
 // «¿Acertó?»: los partidos de los últimos días, qué dijo el modelo y qué pasó.
 //
 // Dos orígenes, siempre distinguibles: lo que la app registró ANTES del partido («en
@@ -90,9 +91,10 @@ function veredicto(t: Traducir, r: Resumen): { texto: string; color: string } | 
 /** Lo que va en la cabecera plegable del panel. */
 export function lineaResumen(h: Historial | null, t: Traducir): string {
   if (!h) return t('acerto.cargando');
-  const r = h.resumen;
+  // Solo lo registrado antes del partido: el titular plegado no suma la reconstrucción.
+  const r = h.porOrigen['en vivo'];
   if (r.total === 0) return t('acerto.sinResultados', { dias: h.dias });
-  return t('acerto.linea', { a: r.aciertos, n: r.total, dias: h.dias, pct: pctTxt(r.tasa) }) + (r.tasaEsperada != null ? t('acerto.esperaba', { pct: pctTxt(r.tasaEsperada) }) : '');
+  return t('acerto.linea', { a: r.aciertos, n: r.total, dias: h.dias, pct: pctTxt(r.tasa) });
 }
 
 export function useHistorial(): { h: Historial | null; cargando: boolean; error: boolean; dias: number; setDias: (d: number) => void } {
@@ -285,7 +287,9 @@ export default function RecentResults({ estado, deporteInicial = null }: { estad
   // Nace filtrado al deporte de la pestaña (D3): en la del fútbol, lo del fútbol. «Todos», a un clic.
   const [deporte, setDeporte] = useState<string | null>(deporteInicial);
   useEffect(() => setDeporte(deporteInicial), [deporteInicial]);
-  const [origen, setOrigen] = useState<Origen | null>(null);
+  // Por defecto, solo lo registrado ANTES del partido (rediseño de noviembre, PER-1): la
+  // reconstrucción histórica va aparte y nunca se suma al titular.
+  const [origen, setOrigen] = useState<Origen>('en vivo');
   const [diaSel, setDiaSel] = useState<string | null>(null);
   const { t, idioma } = useI18n();
   const loc = localeDe(idioma);
@@ -296,7 +300,7 @@ export default function RecentResults({ estado, deporteInicial = null }: { estad
   const filtrados = useMemo(
     () =>
       (h?.resultados ?? []).filter(
-        (r) => (!deporte || r.deporte === deporte) && (!origen || r.origen === origen) && (!diaSel || r.dia === diaSel),
+        (r) => (!deporte || r.deporte === deporte) && r.origen === origen && (!diaSel || r.dia === diaSel),
       ),
     [h, deporte, origen, diaSel],
   );
@@ -309,9 +313,13 @@ export default function RecentResults({ estado, deporteInicial = null }: { estad
   if (error && !h) return <p className="px-4 py-3 text-[13px] text-(--ink-soft)">{t('acerto.errorLeer')}</p>;
   if (!h) return <p className="px-4 py-3 text-[13px] text-(--ink-soft)">{t('acerto.calculando', { dias })}</p>;
 
-  const r = h.resumen;
+  // El titular sale de las mismas filas que la lista (deporte y cohorte), no del total de todo.
+  const enAlcance = h.resultados.filter((x) => (!deporte || x.deporte === deporte) && x.origen === origen);
+  const r = resumir(enAlcance);
   const v = veredicto(t, r);
-  const maxDia = Math.max(...h.porDia.map((d) => d.total), 1);
+  // La franja de días, con el MISMO alcance que el titular y la lista (todos los días de la ventana).
+  const porDiaAlcance = h.porDia.map((d) => ({ ...resumir(enAlcance.filter((x) => x.dia === d.dia)), dia: d.dia }));
+  const maxDia = Math.max(...porDiaAlcance.map((d) => d.total), 1);
   // Primero lo seguro (partidos que la app vio jugarse y siguen sin resultado), después
   // los archivos que llevan días sin datos nuevos (que fuera de temporada es normal).
   const avisos = h.archivo
@@ -358,19 +366,16 @@ export default function RecentResults({ estado, deporteInicial = null }: { estad
             )
           )}
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <Chip activo={origen === null} onClick={() => setOrigen(null)}>
-              {t('acerto.todos', { n: r.total })}
-            </Chip>
             <Chip
               activo={origen === 'en vivo'}
-              onClick={() => setOrigen(origen === 'en vivo' ? null : 'en vivo')}
+              onClick={() => setOrigen('en vivo')}
               title={t('acerto.enVivoNota')}
             >
               {t('acerto.enVivoChip', { a: h.porOrigen['en vivo'].aciertos, n: h.porOrigen['en vivo'].total })}
             </Chip>
             <Chip
               activo={origen === 'reconstruida'}
-              onClick={() => setOrigen(origen === 'reconstruida' ? null : 'reconstruida')}
+              onClick={() => setOrigen('reconstruida')}
               title={t('acerto.reconstruidosNota')}
             >
               {t('acerto.reconstruidosChip', { a: h.porOrigen.reconstruida.aciertos, n: h.porOrigen.reconstruida.total })}
@@ -381,7 +386,7 @@ export default function RecentResults({ estado, deporteInicial = null }: { estad
 
       {/* Por día */}
       <div className="mt-3">
-        <FranjaDias porDia={h.porDia} max={maxDia} diaSel={diaSel} onDia={setDiaSel} />
+        <FranjaDias porDia={porDiaAlcance} max={maxDia} diaSel={diaSel} onDia={setDiaSel} />
       </div>
 
       {/* Por deporte */}

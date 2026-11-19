@@ -74,9 +74,13 @@ export default function BetsDashboard() {
     fetch('/api/policy').then((r) => (r.ok ? r.json() : null)).then((j: { vigente?: { config?: { staking?: { minEdge?: number } } } } | null) => setMinEdge(j?.vigente?.config?.staking?.minEdge ?? null)).catch(() => undefined);
   }, []);
 
+  // La moneda del resumen (D8, T29): undefined = la que elija el servidor (la de más apuestas).
+  // Nunca se suman monedas distintas; con varias, se cambia de una a otra.
+  const [moneda, setMoneda] = useState<string | undefined>(undefined);
   const load = useCallback(() => {
     const q: Record<string, string> = sport ? { sport } : {};
-    Promise.all([fetchBets(q), fetchBetSummary(q)])
+    const qResumen: Record<string, string> = moneda === undefined ? q : { ...q, currency: moneda };
+    Promise.all([fetchBets(q), fetchBetSummary(qResumen)])
       .then(([b, s]) => {
         setBets(b);
         setSummary(s);
@@ -87,7 +91,7 @@ export default function BetsDashboard() {
         setSummary(null);
         setErrorCarga(true);
       });
-  }, [sport]);
+  }, [sport, moneda]);
 
   useEffect(load, [load]);
 
@@ -181,6 +185,19 @@ export default function BetsDashboard() {
       {summary && summary.totals.bets > 0 ? (
         <>
           <Card className="p-4">
+            {summary.monedas.length > 1 && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px] text-(--ink-muted)" role="group" aria-label={t('registro.moneda')}>
+                <span>{t('registro.monedaNota')}</span>
+                {summary.monedas.map((m) => {
+                  const on = summary.moneda === m.moneda;
+                  return (
+                    <button key={m.moneda ?? 'none'} type="button" aria-pressed={on} onClick={() => setMoneda(m.moneda ?? 'none')} className={`rounded-lg px-2.5 py-1 ring-1 ${on ? 'bg-(--accent-soft) text-(--ink-strong) ring-(--accent)' : 'text-(--ink-soft) ring-(--line-strong) hover:bg-(--raised)'}`}>
+                      {m.moneda ?? t('form.monedaSinIndicar')} · {m.apuestas}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <Headline summary={summary} />
             {summary.cumulative.length >= 3 && (
               <Panel>
@@ -195,6 +212,10 @@ export default function BetsDashboard() {
 
           {summary.modelAgreement && <ModelAgreement summary={summary} />}
           {(summary.bySport.length > 1 || summary.byMarket.length > 1) && <Breakdown summary={summary} />}
+          <p className="text-[13px] text-(--ink-muted)">
+            <a href="/api/export/apuestas?formato=csv" download className="underline underline-offset-2 hover:text-(--ink-body)">{t('registro.exportar')}</a>{' '}
+            {t('registro.exportarNota')}
+          </p>
         </>
       ) : null}
 

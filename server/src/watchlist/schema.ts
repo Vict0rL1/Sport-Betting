@@ -11,4 +11,17 @@ export const WATCHLIST_SCHEMA = `
     created_at TEXT NOT NULL,
     UNIQUE (kind, sport, ref_id)
   );
+
+  -- Rediseño de noviembre (FAV-3): estimaciones concretas que la persona guarda para mirarlas
+  -- después. Es una REFERENCIA a una fila de prediction_snapshots (que no se toca nunca); quitarla
+  -- solo borra la referencia. Libro mayor, como el seguimiento.
+  CREATE TABLE IF NOT EXISTS saved_predictions (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    sport       TEXT NOT NULL,
+    match_key   TEXT NOT NULL,
+    snapshot_id INTEGER NOT NULL,
+    label       TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    UNIQUE (sport, snapshot_id)
+  );
 `;

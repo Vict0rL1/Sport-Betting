@@ -22,17 +22,28 @@
 
 import { getDb } from './db.ts';
 
-export type BetStatus = 'pending' | 'won' | 'lost' | 'void' | 'half_won' | 'half_lost' | 'cashout';
+export type BetStatus = 'pending' | 'won' | 'lost' | 'void' | 'push' | 'half_won' | 'half_lost' | 'cashout';
 
 export const BET_STATUSES: BetStatus[] = [
   'pending',
   'won',
   'lost',
   'void',
+  // Rediseño de noviembre: «push» (empate en la línea) devuelve la apuesta entera, como void,
+  // pero es otro hecho y se guarda con su nombre.
+  'push',
   'half_won',
   'half_lost',
   'cashout',
 ];
+
+/**
+ * Monedas con soporte (D8): todas con céntimos (2 decimales). Una apuesta guarda la suya; las
+ * anteriores a la columna no la tienen (NULL = «sin indicar») y no se suman con ninguna. Sin tipos
+ * de cambio fechados no se convierte nada: los totales van por moneda.
+ */
+export const BET_CURRENCIES = ['EUR', 'USD', 'GBP'] as const;
+export type BetCurrency = (typeof BET_CURRENCIES)[number];
 
 /** Markets a bet can be on. `other` exists so nothing is unloggable. */
 export const BET_MARKETS = ['moneyline', 'spread', 'total', 'btts', 'score', 'other'] as const;
@@ -51,6 +62,8 @@ export interface BetRow {
   stake: number;
   status: BetStatus;
   payout: number | null;
+  /** La moneda de la apuesta, o null en las anteriores a la columna (sin indicar). */
+  currency: string | null;
   settled_at: string | null;
   notes: string | null;
   model_prob: number | null;
@@ -61,6 +74,8 @@ export interface BetRow {
 }
 
 export interface Bet extends BetRow {
+  /** Pago bruto (con la apuesta), en céntimos exactos. null mientras está pendiente. */
+  payoutGross: number | null;
   /** Net result. null while pending — 0 would claim a settled break-even. */
   profit: number | null;
   /** Stake at risk, i.e. 0 once a bet is void. Denominator for ROI. */
@@ -69,44 +84,54 @@ export interface Bet extends BetRow {
   withModel: boolean | null;
 }
 
+const centimos = (x: number) => Math.round(x * 100) / 100;
+
 /**
- * What a bet returned, net of the stake.
+ * Lo que volvió, CON la apuesta (pago bruto), redondeado a céntimos una sola vez:
  *
- * `null` for pending is deliberate and load-bearing: 0 would mean "settled at
- * break-even", and averaging a pile of not-yet-known results as zeroes is how a
- * tracker quietly reports a 0% ROI on an unfinished week.
+ *   won        s·d              lost       0
+ *   void/push  s                half_won   s/2·d + s/2      half_lost  s/2
+ *   cashout    lo que pagó la casa (no sale de la cuota)
+ *
+ * null mientras está pendiente: 0 diría que se perdió.
  */
-export function profitOf(b: Pick<BetRow, 'status' | 'stake' | 'odds' | 'payout'>): number | null {
-  const win = b.stake * (b.odds - 1);
+export function payoutOf(b: Pick<BetRow, 'status' | 'stake' | 'odds' | 'payout'>): number | null {
   switch (b.status) {
-    case 'pending':
-      return null;
     case 'won':
-      return win;
+      return centimos(b.stake * b.odds);
     case 'lost':
-      return -b.stake;
-    // A void bet is refunded: no profit, and — see `riskedOf` — no stake risked
-    // either, or every push would drag ROI toward zero.
-    case 'void':
       return 0;
-    // Asian handicaps and quarter-goal lines settle half the stake.
+    case 'void':
+    case 'push':
+      return centimos(b.stake);
     case 'half_won':
-      return win / 2;
+      return centimos((b.stake / 2) * b.odds + b.stake / 2);
     case 'half_lost':
-      return -b.stake / 2;
-    // Cashing out breaks the link between odds and return, so the amount that
-    // came back is the only thing that can be believed.
+      return centimos(b.stake / 2);
     case 'cashout':
-      return b.payout != null ? b.payout - b.stake : null;
+      return b.payout != null ? centimos(b.payout) : null;
     default:
       return null;
   }
 }
 
+/**
+ * What a bet returned, net of the stake: pago bruto − apuesta, en céntimos.
+ *
+ * `null` for pending is deliberate and load-bearing: 0 would mean "settled at
+ * break-even", and averaging a pile of not-yet-known results as zeroes is how a
+ * tracker quietly reports a 0% ROI on an unfinished week. A void or push is
+ * refunded: no profit, and — see `riskedOf` — no stake risked either.
+ */
+export function profitOf(b: Pick<BetRow, 'status' | 'stake' | 'odds' | 'payout'>): number | null {
+  const pago = payoutOf(b);
+  return pago == null ? null : centimos(pago - b.stake);
+}
+
 /** Stake that was genuinely at risk. Void returns nothing, so it risks nothing. */
 export function riskedOf(b: Pick<BetRow, 'status' | 'stake'>): number {
-  if (b.status === 'void') return 0;
-  if (b.status === 'half_won' || b.status === 'half_lost') return b.stake / 2;
+  if (b.status === 'void' || b.status === 'push') return 0;
+  if (b.status === 'half_won' || b.status === 'half_lost') return centimos(b.stake / 2);
   return b.stake;
 }
 
@@ -134,11 +159,11 @@ function decorate(r: BetRow): Bet {
   } catch {
     tags = [];
   }
-  return { ...r, tags, profit: profitOf(r), risked: riskedOf(r), withModel: withModelOf(r) };
+  return { ...r, tags, payoutGross: payoutOf(r), profit: profitOf(r), risked: riskedOf(r), withModel: withModelOf(r) };
 }
 
 const SELECT = `SELECT id, created_at, placed_on, sport, league, event, market, selection,
-                       odds, stake, status, payout, settled_at, notes,
+                       odds, stake, status, payout, currency, settled_at, notes,
                        model_prob, market_prob, match_key, tags
                   FROM bets`;
 
@@ -147,6 +172,8 @@ export interface BetFilter {
   to?: string;
   sport?: string;
   status?: string;
+  /** Una moneda, o 'none' para las que no la tienen. */
+  currency?: string;
 }
 
 /** What node:sqlite accepts as a bound parameter. */
@@ -170,6 +197,11 @@ export function listBets(f: BetFilter = {}): Bet[] {
   if (f.status) {
     where.push('status = ?');
     params.push(f.status);
+  }
+  if (f.currency === 'none') where.push('currency IS NULL');
+  else if (f.currency) {
+    where.push('currency = ?');
+    params.push(f.currency);
   }
   const sql = `${SELECT}${where.length ? ` WHERE ${where.join(' AND ')}` : ''}
                ORDER BY placed_on DESC, id DESC`;
@@ -197,6 +229,7 @@ export interface BetInput {
   market_prob?: number | null;
   match_key?: string | null;
   tags?: string[] | null;
+  currency?: string | null;
 }
 
 /** Today in the SERVER's local zone, which is where the user is. */
@@ -213,8 +246,8 @@ export function createBet(input: BetInput): Bet {
     .prepare(
       `INSERT INTO bets (created_at, placed_on, sport, league, event, market, selection,
                          odds, stake, status, payout, settled_at, notes,
-                         model_prob, market_prob, match_key, tags)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                         model_prob, market_prob, match_key, tags, currency)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       now,
@@ -234,6 +267,7 @@ export function createBet(input: BetInput): Bet {
       input.market_prob ?? null,
       input.match_key ?? null,
       JSON.stringify(input.tags ?? []),
+      input.currency ?? null,
     );
   return getBet(Number(info.lastInsertRowid)) as Bet;
 }
@@ -252,7 +286,7 @@ export function updateBet(id: number, patch: Partial<BetInput>): Bet | null {
 
   for (const col of [
     'placed_on', 'sport', 'league', 'event', 'market', 'selection',
-    'odds', 'stake', 'status', 'payout', 'notes', 'model_prob', 'market_prob', 'match_key',
+    'odds', 'stake', 'status', 'payout', 'notes', 'model_prob', 'market_prob', 'match_key', 'currency',
   ] as const) {
     if (col in patch) put(col, ((patch as Record<string, unknown>)[col] ?? null) as SqlParam);
   }
@@ -289,6 +323,12 @@ export interface BetGroupSummary {
 }
 
 export interface BetSummary {
+  /**
+   * La moneda de TODOS los importes de este resumen (null = sin indicar). Nunca se suman monedas
+   * distintas (T29): sin filtro y con varias, se resume la de más apuestas y `monedas` dice cuáles hay.
+   */
+  moneda: string | null;
+  monedas: { moneda: string | null; apuestas: number }[];
   totals: BetGroupSummary;
   pending: { bets: number; staked: number };
   bySport: BetGroupSummary[];
@@ -341,7 +381,13 @@ function finish(group: BetGroupSummary): BetGroupSummary {
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export function summarizeBets(f: BetFilter = {}): BetSummary {
-  const bets = listBets(f);
+  const todas = listBets({ ...f, currency: undefined });
+  const cuenta = new Map<string | null, number>();
+  for (const b of todas) cuenta.set(b.currency, (cuenta.get(b.currency) ?? 0) + 1);
+  // Por defecto, la de más apuestas; en un empate, una moneda indicada antes que «sin indicar».
+  const monedas = [...cuenta].map(([moneda, apuestas]) => ({ moneda, apuestas })).sort((a, b) => b.apuestas - a.apuestas || Number(a.moneda == null) - Number(b.moneda == null) || String(a.moneda).localeCompare(String(b.moneda)));
+  const moneda: string | null = f.currency === 'none' ? null : f.currency ? f.currency : (monedas[0]?.moneda ?? null);
+  const bets = todas.filter((b) => b.currency === moneda);
 
   const totals = emptyGroup('total');
   const pending = { bets: 0, staked: 0 };
@@ -395,7 +441,7 @@ export function summarizeBets(f: BetFilter = {}): BetSummary {
   // Streaks over settled bets in chronological order. Void breaks nothing — it
   // is not a result — so it is skipped rather than counted as a loss.
   const chrono = bets
-    .filter((b) => b.profit != null && b.status !== 'void')
+    .filter((b) => b.profit != null && b.status !== 'void' && b.status !== 'push')
     .sort((a, b) => a.placed_on.localeCompare(b.placed_on) || a.id - b.id);
   let win = 0;
   let lose = 0;
@@ -418,6 +464,8 @@ export function summarizeBets(f: BetFilter = {}): BetSummary {
   const worst = settled.reduce<Bet | null>((m, b) => (!m || (b.profit as number) < (m.profit as number) ? b : m), null);
 
   return {
+    moneda,
+    monedas,
     totals: finish(totals),
     pending: { bets: pending.bets, staked: round2(pending.staked) },
     bySport: [...bySport.values()].map(finish).sort((a, b) => b.bets - a.bets),

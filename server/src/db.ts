@@ -384,6 +384,19 @@ export const MIGRACIONES: Migracion[] = [
   // Los alias de los clubes de fútbol (nocturno «Datos», docs/plans/nocturno-datos.md): en la historia,
   // se llenan en la próxima ingesta de football-data. IF NOT EXISTS: repetirla no cambia nada.
   { version: 28, nombre: 'fb-team-aliases', destino: 'history', up: (d) => d.exec(FB_TEAM_ALIASES_SCHEMA) },
+  // Rediseño de noviembre: la moneda de cada apuesta (bets.currency, columna nueva; las de antes
+  // quedan NULL) y las estimaciones guardadas (FAV-3, tabla nueva). addMissingColumns hace falta
+  // aquí: solo corre dentro de migraciones, y las que lo llaman ya están aplicadas en las bases que
+  // existen (revisión data-guardian). El esquema del seguimiento es idempotente (CREATE IF NOT EXISTS).
+  {
+    version: 29,
+    nombre: 'moneda-y-estimaciones-guardadas',
+    destino: 'ledger',
+    up: (d, ctx) => {
+      addMissingColumns(d);
+      d.exec(ledgerize(WATCHLIST_SCHEMA, ctx.ledger));
+    },
+  },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {
@@ -1503,7 +1516,9 @@ export function addMissingColumns(d: DatabaseSync): void {
     // Fase 5: cadencia anulada desde Ajustes (la del código sigue en cadence_minutes) y
     // etiquetas del registro personal.
     scheduler_jobs: { cadence_override: 'REAL' },
-    bets: { tags: 'TEXT' },
+    // Rediseño de noviembre: la moneda de cada apuesta. Las anteriores quedan NULL (sin indicar):
+    // no se les supone ninguna.
+    bets: { tags: 'TEXT', currency: 'TEXT' },
     // La versión de la política bajo la que se evaluó cada señal (Fase 3.5).
     edge_signals: { policy_version_id: 'INTEGER' },
     // Seguimiento: los grupos de correlación de cada apuesta de estrategia, congelados al apostar.

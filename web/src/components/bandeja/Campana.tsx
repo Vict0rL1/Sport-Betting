@@ -42,7 +42,7 @@ export default function Campana() {
       fetch('/api/bandeja/contador')
         .then((r) => {
           if (r.status === 404) return null;
-          return r.ok ? (r.json() as Promise<{ noLeidas: number }>).then((j) => j.noLeidas) : Promise.reject();
+          return r.ok ? (r.json() as Promise<{ noLeidas: number; accionables?: number }>).then((j) => j.accionables ?? j.noLeidas) : Promise.reject();
         })
         .then((x) => {
           if (!vivo) return;
@@ -77,7 +77,7 @@ export default function Campana() {
       </svg>
       {n > 0 && (
         <span className="absolute -right-1.5 -top-1.5 min-w-[1.1rem] rounded-full px-1 text-center text-[10px] font-semibold leading-[1.1rem]" style={{ backgroundColor: STATUS.critical, color: 'var(--ink-on-fill)' }}>
-          {n > 99 ? '99+' : n}
+          {n > 9 ? '9+' : n}
         </span>
       )}
     </Link>

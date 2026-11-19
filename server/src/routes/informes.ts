@@ -2,7 +2,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { featureEncendida } from '../features.ts';
-import { listarBandeja, marcar, noLeidas } from '../bandeja/index.ts';
+import { contadorCampana, listarBandeja, marcar, noLeidas } from '../bandeja/index.ts';
 import { informe, listarInformes, generarDiario, generarSemanal, type TipoInforme } from '../informes/index.ts';
 import { pdfDeMarkdown } from '../informes/pdf.ts';
 import { zonaApp } from '../informes/tiempo.ts';
@@ -38,9 +38,9 @@ export async function registerInformesRoutes(app: FastifyInstance): Promise<void
       });
     },
   );
-  app.get('/api/bandeja/contador', { schema: { tags: ['producto'], summary: 'Cuántos avisos sin leer (la campana)', response: { 200: ESQUEMA_CONTADOR_BANDEJA, 404: ESQUEMA_ERROR } } }, async (_req, reply) => {
+  app.get('/api/bandeja/contador', { schema: { tags: ['producto'], summary: 'Avisos sin leer: todos (noLeidas) y los accionables de 7 días que cuenta la campana (accionables)', response: { 200: ESQUEMA_CONTADOR_BANDEJA, 404: ESQUEMA_ERROR } } }, async (_req, reply) => {
     if (!featureEncendida('alertas.bandeja')) return reply.code(404).send(APAGADA);
-    return { noLeidas: noLeidas() };
+    return { noLeidas: noLeidas(), accionables: contadorCampana() };
   });
   app.post<{ Body: { ids?: number[]; todas?: boolean; leida?: boolean } }>(
     '/api/bandeja/marcar',

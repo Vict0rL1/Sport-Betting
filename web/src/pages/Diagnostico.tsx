@@ -57,6 +57,7 @@ export default function Diagnostico() {
   const trabajos = usarJson<{ arrancado: boolean; trabajos: Trabajo[] }>('/api/scheduler');
   const datos = usarJson<DatosEstado>('/api/datos/estado');
   const cuota = usarJson<Cuota>('/api/odds-quota');
+  const explorador = usarJson<{ cuarentena: { n: number; ejemplos: string[] }; duplicados: number }>('/api/partidos');
   const rendimiento = usarJson<{ cache: { entradas: number; aciertos: number; fallos: number; on: boolean; ttlSegundos: number }; compresion: boolean }>('/api/rendimiento');
   // Las secciones, cuando han contestado las seis comprobaciones (L6, lote L). Cada una se pintaba
   // vacía y crecía al llegar lo suyo, y «Rendimiento» aparecía de la nada: todo lo de debajo saltaba.
@@ -74,6 +75,41 @@ export default function Diagnostico() {
         <SkeletonList etiqueta={t('comun.cargando')} />
       ) : (
       <>
+      <Bloque titulo={t('diag.puesta')}>
+        <p className="mb-2">{t('diag.puestaIntro')}</p>
+        <dl className="grid gap-x-4 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_auto]">
+          {([
+            ['diag.pCuotas', 'npm run clave'],
+            ['diag.pDatos', 'npm run fetch-data'],
+            ['diag.pFuentes', 'npm run update-all -- --skip-odds'],
+            ['diag.pDeporte', 'npm run update-data:fb · :bb · :bsb · :naf · :nhl · :ufc (tenis: npm run update-data)'],
+            ['diag.pResultados', 'npm run update-results'],
+            ['diag.pComprobar', 'npm run doctor'],
+            ['diag.pDemo', 'npm run demo -- --on · --off'],
+          ] as const).map(([k, cmd]) => (
+            <div key={k} className="contents">
+              <dt>{t(k)}</dt>
+              <dd><code className="rounded bg-(--raised) px-1.5 py-0.5 text-[12px] text-(--ink-body)">{cmd}</code></dd>
+            </div>
+          ))}
+        </dl>
+      </Bloque>
+
+      <Bloque titulo={t('diag.cuarentena')}>
+        {explorador == null || explorador === 'error' ? (
+          <p>{explorador === 'error' ? t('comun.error') : t('comun.cargando')}</p>
+        ) : explorador.cuarentena.n + explorador.duplicados === 0 ? (
+          <p>{t('diag.cuarentenaNinguno')}</p>
+        ) : (
+          <>
+            <p>{t('diag.cuarentenaHay', { n: explorador.cuarentena.n, d: explorador.duplicados })}</p>
+            <ul className="mt-1 list-disc pl-5">
+              {explorador.cuarentena.ejemplos.map((e) => <li key={e}>{e}</li>)}
+            </ul>
+          </>
+        )}
+      </Bloque>
+
       <Bloque titulo={t('ajustes.cadencias')}>
         {trabajos === 'error' && <p>{t('comun.error')}</p>}
         {trabajos && trabajos !== 'error' && (

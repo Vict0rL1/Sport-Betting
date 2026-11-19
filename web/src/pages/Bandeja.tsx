@@ -84,7 +84,7 @@ export default function Bandeja() {
         {(datos?.avisos ?? []).map((a) => (
           <li key={a.id} className={`rounded-xl border border-(--line) p-3 ${a.leida_at ? 'bg-transparent' : 'bg-(--surface-card)'}`}>
             <div className="flex flex-wrap items-start gap-2">
-              {!a.leida_at && <span className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: COLOR[a.severidad] ?? 'var(--ink-soft)' }} aria-label={t('bandeja.sinLeer')} />}
+              {!a.leida_at && <span className="mt-1.5 inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: COLOR[a.severidad] ?? 'var(--ink-soft)' }} role="img" aria-label={t('bandeja.sinLeer')} />}
               <div className="min-w-0 flex-1">
                 <p className={`break-words text-[14px] ${a.leida_at ? 'text-(--ink-soft)' : 'font-semibold text-(--ink-strong)'}`}>{a.titulo}</p>
                 <p className="break-words text-[13px] text-(--ink-body)">{a.cuerpo}</p>

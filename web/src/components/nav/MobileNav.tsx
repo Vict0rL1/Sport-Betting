@@ -1,19 +1,31 @@
-// La barra inferior del móvil (Fase 5.3): cuatro destinos y nada fuera de pantalla a 390 px.
-// «Deportes» abre una hoja con los siete; los demás llevan directamente.
+// La barra inferior del móvil (Fase 5.3; rediseño de noviembre): Partidos, Rendimiento, Mis apuestas
+// y «Más», que abre una hoja con el análisis de los siete deportes y las páginas secundarias.
 
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router';
 import { SPORT_THEMES, type SportId } from '../../lib/theme';
-import { DEPORTES, RUTA_DE_PESTANA, pestanaDeRuta, recordarPestana } from '../../rutas';
+import { DEPORTES, RUTA_AJUSTES, RUTA_DE_PESTANA, RUTA_PARTIDOS, pestanaDeRuta, recordarPestana } from '../../rutas';
+import { destinoPrincipal } from './destinos';
+import { ListaIcono } from './iconos';
 import { SportIcon } from '../icons';
 import { useI18n, type Clave } from '../../i18n';
 import { useDialogo } from '../ui/useDialogo';
 
-const DESTINOS: { id: SportId | 'deportes'; etiqueta: Clave }[] = [
-  { id: 'picks', etiqueta: 'nav.destacados' },
-  { id: 'deportes', etiqueta: 'nav.deportes' },
-  { id: 'bets', etiqueta: 'nav.apuestas' },
-  { id: 'trust', etiqueta: 'nav.confianza' },
+const DESTINOS: { id: 'partidos' | 'trust' | 'bets' | 'mas'; etiqueta: Clave }[] = [
+  { id: 'partidos', etiqueta: 'nav.partidos' },
+  { id: 'trust', etiqueta: 'nav.rendimiento' },
+  { id: 'bets', etiqueta: 'nav.misApuestas' },
+  { id: 'mas', etiqueta: 'nav.mas' },
+];
+const RUTA_DESTINO = { partidos: RUTA_PARTIDOS, trust: RUTA_DE_PESTANA.trust, bets: RUTA_DE_PESTANA.bets } as const;
+/** Las páginas secundarias, en la hoja de «Más». */
+const SECUNDARIAS: [string, Clave][] = [
+  ['/destacados', 'nav.destacados'],
+  ['/informes', 'nav.informes'],
+  ['/bandeja', 'nav.bandeja'],
+  [RUTA_AJUSTES, 'nav.ajustes'],
+  ['/confianza/diagnostico', 'nav.diagnostico'],
+  ['/glosario', 'nav.glosario'],
 ];
 
 /** Cuánto hay que bajar la hoja con el dedo para que se cierre al soltarla (K7, lote K). */
@@ -29,6 +41,9 @@ export default function MobileNav({ ocultos = [] }: { ocultos?: string[] }) {
   const { t } = useI18n();
   const activa = pestanaDeRuta(pathname);
   const enDeporte = activa != null && DEPORTES.includes(activa);
+  const principal = destinoPrincipal(pathname);
+  // «Más» está activo en lo que no es uno de los tres destinos: un deporte, Destacados, Ajustes…
+  const enMas = principal == null && pathname !== '/';
   // Se cierra al navegar (un enlace, «atrás»), no cuando la página reescribe su dirección: al
   // llegar las ligas, /futbol pasa a /futbol/epl con `replace`, y eso cerraba la hoja que se
   // acababa de abrir (K1, lote K).
@@ -84,7 +99,7 @@ export default function MobileNav({ ocultos = [] }: { ocultos?: string[] }) {
   return (
     <>
       {hoja && (
-        <div ref={dialogo} className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label={t('nav.deportes')}>
+        <div ref={dialogo} className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label={t('nav.mas')}>
           <button aria-label={t('comun.cerrar')} data-sin-pulsado className="anim-aparece absolute inset-0 bg-black/50" onClick={() => setHoja(false)} />
           <div
             ref={panel}
@@ -97,7 +112,7 @@ export default function MobileNav({ ocultos = [] }: { ocultos?: string[] }) {
           >
             {/* El asa: dice que la hoja se puede bajar con el dedo. */}
             <div aria-hidden className="mx-auto mb-2 h-1 w-10 rounded-full bg-(--line-strong)" />
-            <p className="mb-2 px-1 text-[12px] font-medium uppercase tracking-wide text-(--ink-muted)">{t('nav.deportes')}</p>
+            <p className="mb-2 px-1 text-[12px] font-medium uppercase tracking-wide text-(--ink-muted)">{t('nav.analisis')}</p>
             {/* Siete deportes en cuatro columnas (4 + 3): en cinco quedaban 5 + 2, con dos solos
                 abajo, y cada botón llegaba justo a 70 px de ancho. */}
             <div className="grid grid-cols-4 gap-1">
@@ -120,24 +135,32 @@ export default function MobileNav({ ocultos = [] }: { ocultos?: string[] }) {
                 );
               })}
             </div>
+            <ul className="mt-3 grid grid-cols-2 gap-1 border-t border-(--line) pt-3">
+              {SECUNDARIAS.map(([ruta, etiqueta]) => (
+                <li key={ruta}>
+                  <button onClick={() => { setHoja(false); navigate(ruta); }} aria-current={pathname === ruta ? 'page' : undefined} className={`flex min-h-11 w-full items-center rounded-lg px-3 text-left text-[15px] ${pathname === ruta ? 'bg-(--raised-2) text-(--ink-strong)' : 'text-(--ink-body) hover:bg-(--raised)'}`}>
+                    {t(etiqueta)}
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}
       <nav aria-label={t('nav.principal')} data-testid="barra-inferior" className="fixed inset-x-0 bottom-0 z-40 grid h-[calc(3.5rem+env(safe-area-inset-bottom))] grid-cols-4 border-t border-(--line) bg-(--surface-page)/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
         {DESTINOS.map((d) => {
-          const on = d.id === 'deportes' ? enDeporte || hoja : activa === d.id;
-          const tema = d.id === 'deportes' ? (enDeporte && activa ? SPORT_THEMES[activa] : null) : SPORT_THEMES[d.id];
+          const on = d.id === 'mas' ? enMas || hoja : principal === RUTA_DESTINO[d.id];
           return (
             <button
               key={d.id}
-              onClick={() => (d.id === 'deportes' ? setHoja((h) => !h) : pathname === RUTA_DE_PESTANA[d.id] ? arriba() : ir(d.id))}
-              aria-current={on && d.id !== 'deportes' ? 'page' : undefined}
-              aria-expanded={d.id === 'deportes' ? hoja : undefined}
+              onClick={() => (d.id === 'mas' ? setHoja((h) => !h) : pathname === RUTA_DESTINO[d.id] ? arriba() : (setHoja(false), navigate(RUTA_DESTINO[d.id])))}
+              aria-current={on && d.id !== 'mas' ? 'page' : undefined}
+              aria-expanded={d.id === 'mas' ? hoja : undefined}
               className={`flex flex-col items-center justify-center gap-0.5 text-[12px] font-medium ${on ? 'text-(--ink-strong)' : 'text-(--ink-muted)'}`}
             >
               {/* La píldora detrás del icono marca dónde se está, además del color (K7). */}
-              <span aria-hidden className={`rounded-full px-4 py-0.5 transition-colors ${on ? 'bg-(--raised-2)' : ''}`} style={{ color: on && tema ? tema.accent : 'currentColor' }}>
-                {d.id === 'deportes' ? <SportIcon sport={enDeporte && activa ? activa : 'football'} size={20} /> : <SportIcon sport={d.id} size={20} />}
+              <span aria-hidden className={`rounded-full px-4 py-0.5 transition-colors ${on ? 'bg-(--raised-2)' : ''}`} style={{ color: on ? 'var(--accent)' : 'currentColor' }}>
+                {d.id === 'partidos' ? <ListaIcono size={20} /> : d.id === 'mas' ? <SportIcon sport={enDeporte && activa ? activa : 'football'} size={20} /> : <SportIcon sport={d.id} size={20} />}
               </span>
               {t(d.etiqueta)}
             </button>
