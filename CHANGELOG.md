@@ -4,6 +4,161 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Rediseño de noviembre: un explorador de partidos, menos ruido, más verdad (2026-11-19)
+
+Plan, matriz de requisitos y relevo en `docs/plans/rediseno-2026-11.md`.
+
+**Navegación**
+- Tres destinos: **Partidos** (`/partidos`, la raíz), **Rendimiento** (`/confianza`) y **Mis apuestas**
+  (`/apuestas`).
+- Los siete deportes quedan como «Análisis por deporte», en la barra lateral o en «Más» del móvil. Sus
+  rutas siguen igual, y también los atajos 1–0.
+- Destacados, Informes, Bandeja, Ajustes, Diagnóstico y Glosario pasan a secundarios.
+
+**Explorador**
+- `GET /api/partidos` (`server/src/partidos/explorador.ts`) da una sola lista de los siete deportes. Cada
+  fila lleva por separado:
+  - el origen del partido (real o demostración);
+  - la predicción (la última instantánea guardada, con su hora y su versión de modelo);
+  - las cuotas (de casa o de demostración, con la hora en que se recibieron).
+- No recalcula modelos.
+- Lo que no entra:
+  - un partido con el mismo participante a los dos lados va a cuarentena (T01);
+  - un duplicado sale una vez;
+  - una distribución imposible sale sin predicción (T07).
+- «Hoy» y «Mañana» se cortan en la zona de quien mira (T22). La zona se elige en Ajustes.
+- La página `pages/Partidos.tsx` agrupa por día y competición, con la probabilidad del modelo al lado de
+  cada participante y el empate solo en el fútbol.
+- Deporte, fecha, competición, búsqueda, «Guardados», orden y umbral van en la URL, con «Quitar filtros»
+  y un estado vacío por motivo.
+- La ventaja del mercado se deja para la ficha: la lista no tiene columnas de cuotas vacías.
+
+**Fuera lo duplicado**
+- La tabla «Los partidos» (SlateTable) y el panel «Hoy» ya no salen encima de cada pestaña.
+- «¿Acertó?» vive en Rendimiento.
+
+**Procedencia y nombres**
+- La píldora de estado describe el servicio («Datos al día», «Sin proveedor de cuotas»), no un «Cuotas
+  reales · N peticiones» global.
+- Con cuotas de demostración no hay barra de mercado, «Posible value» ni línea de mercado (T04).
+- «Cuota mínima» pasa a **cuota justa del modelo** y «Devolvería» a **pago si gana (con la apuesta)**.
+- La incertidumbre del modelo se llama así (±pp, traducida en el navegador; antes llegaba en español
+  del servidor). La capa de confianza pasa a **solidez de la estimación** (sólida, con reservas, frágil):
+  ninguna de las dos dice «confianza alta».
+
+**Rendimiento**
+- El titular y la franja de días cuentan solo lo **registrado antes del partido** y con el mismo alcance
+  que la lista (deporte y cohorte).
+- La **reconstrucción histórica** va aparte y no se suma.
+- «Por puro azar» pasa a decir sus supuestos: probabilidades exactas y partidos independientes. No es
+  una comparación con otro modelo.
+
+**Ficha del partido**
+- «Lo que usó el modelo»: las entradas guardadas con la última estimación; lo que faltaba sale como
+  DESCONOCIDO.
+- «Historial de la estimación»: cada instantánea con su hora, versión y papel (original, revisión o la
+  que se evalúa). La evaluada es la congelada en `prematch_final`.
+
+**Mis apuestas**
+- Moneda por apuesta (EUR, USD o GBP; las antiguas quedan sin indicar).
+- El resumen nunca suma monedas (T29) y, si hay varias, se elige cuál ver.
+- Pago bruto y neto en céntimos exactos: 100 a 2,06 da pago 206 y neto 106 (T27); perdida, 0 / −100;
+  anulada o push, 100 / 0 (T28).
+- Nuevo estado «push».
+- Como mucho 2 decimales en el importe, y monedas validadas (T32).
+- Enlace para exportar lo propio.
+
+**Guardar una estimación (FAV-3)**
+- En el historial de la ficha, «Guardar esta estimación» guarda una referencia a esa instantánea.
+  Se guarda en la tabla nueva `saved_predictions` del libro mayor; la instantánea nunca se toca.
+- El partido entra en «Guardados» de Partidos.
+- Seguir un partido ya no finge el éxito si el servidor falla: lo dice y se puede reintentar (T24).
+
+**Migración v29 (libro mayor, aditiva)**
+- `bets.currency`: las apuestas de antes quedan NULL, sin moneda inventada.
+- `saved_predictions`.
+- La revisión data-guardian encontró que la columna no habría llegado a las bases ya existentes (solo
+  a las nuevas). La v29 llama ahora a `addMissingColumns`, y lo prueba `db/v29.test.ts`, que reabre
+  un libro mayor de v28.
+- Despliegue: arrancar el servidor aplica la v29. Para volver atrás, la copia diaria del libro mayor
+  (la tabla nueva y la columna solo se añaden; ninguna fila cambia).
+
+**Tras la revisión ui-tester**
+- Las filas de demostración sin estimación dicen que la ficha la calcula. Las de demostración no se
+  registran; antes decían «todavía», como si fuera a llegar.
+- Con cuotas de demostración no queda ni el título de la barra de mercado.
+- «odds demo» pasa a «cuotas de demostración».
+- El banco de papel cuenta en unidades, no en «$».
+
+**Seguridad y datos**
+- La exportación CSV neutraliza las fórmulas (`=`, `+`, `-`, `@`, tab y CR).
+- La importación quita ese apóstrofo, así que la ida y vuelta conserva el texto.
+- El fútbol no guarda un partido con el mismo club a los dos lados, y Diagnóstico lo enseña.
+
+**Campana**
+- Cuenta solo lo accionable de 7 días (aviso o importante, o de un partido seguido), con cada aviso
+  repetido una vez, y como mucho «9+». La bandeja sigue teniéndolo todo.
+
+**Copia**
+- Los comandos (`npm run …`, `.env`) salen de las vistas normales. Diagnóstico tiene un bloque «Puesta
+  en marcha» con ellos y la lista de partidos en cuarentena.
+- Quitado el código que quedó sin uso: `SlateTable` y `lib/slate.ts`.
+- Diseño: superficies grafito, acento menta solo para lo seleccionado, contraste medido (`tokens.test.ts`).
+
+## Fútbol: un club que openfootball partió en dos vuelve a ser uno (2026-11-18)
+
+Hallazgo A del nocturno (`docs/plans/nocturno-datos.md`).
+
+- **El fallo.** openfootball cambia a veces cómo escribe a un club de una temporada a otra («Bayer
+  Leverkusen» en 2019-20, «Bayer 04 Leverkusen» después; «SL Benfica» → «Sport Lisboa e Benfica»; «PSV
+  Eindhoven» → «PSV»), y cada grafía era un id. Para el modelo eran dos equipos, y el Elo del segundo
+  empezaba de cero. Con los datos reales, **24 clubes en 7 ligas**, entre ellos Leverkusen, Benfica,
+  Sporting, Braga, PSV, Feyenoord, AZ, Real Sociedad, Betis, Rennes, Atalanta, Lazio y Bologna.
+- **Ahora** `unificarClubesPartidos` (`football/ingest/clubesPartidos.ts`) se ejecuta tras openfootball y
+  antes de football-data. Une dos ids de una liga si se cumple todo esto:
+  - nunca coinciden en una temporada;
+  - uno va después del otro;
+  - los nombres encajan: las palabras de uno están en el otro, sin contar números, o una es la sigla de
+    varias («SL» = «Sport Lisboa»);
+  - si hay temporadas de hueco entre los dos, el nombre nuevo contiene entero al viejo;
+  - es la única pareja posible de los dos;
+  - ninguno es el filial del otro: una marca de filial («B», «II», «Castilla», «Jong», «U23»…) en un nombre
+    y no en el otro descarta la pareja. «Villarreal CF B» no es «Villarreal CF», pero «Willem II» sí es
+    «Willem II Tilburg», porque los dos llevan «II» (revisión data-guardian).
+- **Se queda el id más reciente.** Es el de los partidos de ahora y el del libro mayor, así que nada vivo
+  cambia de id. Las filas del viejo pasan al nuevo en las tablas de la historia (partidos, próximos,
+  jugadores, noticias, alineaciones, ClubElo, calendario y alias), nunca en el libro mayor, y el nombre
+  viejo queda como alias para que no se vuelva a partir.
+- **Lo que no une:**
+  - Paris FC y el PSG: juegan la misma temporada;
+  - el Chievo Verona (hasta 2021) y el «Verona» de 2027, que es el Hellas: tras el hueco, el nombre nuevo
+    no contiene al viejo.
+- **Con datos reales:**
+  - reconstruido el fútbol desde cero, une exactamente esos 24, y la única pareja posible que queda es la
+    del Chievo;
+  - mismos 33.632 partidos y 32.312 cuotas, y 24 equipos menos (469);
+  - el Leverkusen pasa a ser un equipo con 247 partidos (antes 213 + 34), el PSV con 242 y el Benfica con
+    249;
+  - en una copia de la release publicada, una actualización incremental los une igual, y en el libro mayor
+    solo cambia el registro de ejecuciones de `update-data`.
+- **Predicciones con un id que ya no es un equipo.** La liquidación (`resolveFootballPredictions`) traduce
+  ese id por el índice de nombres, con los alias y solo por coincidencia exacta, y vuelve a buscar el
+  partido. Casos:
+  - una casa escribía «SC Cambuur», que caía en el id viejo `cambuur`, mientras el Cambuur de 2026-27 ya
+    era `cambuur-leeuwarden`: esa predicción no se liquidaba nunca, ni antes de unirlos;
+  - una predicción guardada con un id que football-data dio de alta aparte («napoli»; F3 de la revisión del
+    14 de noviembre).
+
+  La fila del libro mayor conserva sus ids: solo se le pone el resultado.
+- **El mismo partido no se registra dos veces porque cambie un id** (revisión data-guardian). Una predicción
+  pendiente con el id viejo y la siguiente con el nuevo tenían `match_key` distinta, y el partido contaba
+  doble en el historial y la calibración. Ahora, si el mismo partido (`upcoming_id`) ya está registrado ese
+  mismo día, vale la primera, como ya hace `ON CONFLICT`. Un aplazamiento cambia el día, y se sigue
+  registrando.
+- **Pruebas:** `football/ingest/clubesPartidos.test.ts` (9).
+- **Sin comprobación nueva en `verify:data` de momento.** El CI comprueba la release publicada, que aún
+  tiene los clubes partidos hasta que el nocturno la vuelva a publicar desde `main`.
+
 ## Primera release de datos publicada, y la auditoría con datos de verdad (2026-11-16)
 
 - **«Datos» pasa por primera vez** (ejecución 39, lanzada a mano en la rama con `0cf7d00`), y publica

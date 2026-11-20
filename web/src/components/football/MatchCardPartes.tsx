@@ -79,9 +79,11 @@ export function MissingModel({ item }: { item: FbFixtureWithPrediction }) {
 
 /** Full breakdown, all figures drawn from the same score distribution. */
 export function Detail({
-  prediction, league, outHome, outAway, onOutHome, onOutAway, adjusting, adjusted,
+  prediction, league, outHome, outAway, onOutHome, onOutAway, adjusting, adjusted, demo = false,
 }: {
   prediction: FbPrediction;
+  /** Partido de demostración: sus cuotas son inventadas y no se enseñan como mercado (T04). */
+  demo?: boolean;
   league: string;
   outHome: string[];
   outAway: string[];
@@ -235,7 +237,7 @@ export function Detail({
         />
       </Panel>
 
-      {market.market && (
+      {market.market && !demo && (
         <Panel>
           <SectionTitle right={t('eq.margenPct', { p: numF((market.market.overround - 1) * 100, 1) })}>
             {t('eq.mercado')}

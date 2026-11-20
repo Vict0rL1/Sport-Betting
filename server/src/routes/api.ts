@@ -68,7 +68,7 @@ import { modelForServing } from '../points/repo.ts';
 import type { Surface as PointsSurface } from '../points/fit.ts';
 import { readCalibration } from '../staking/calibration.ts';
 import { getTrackRecord, logPrediction } from '../trackRecord.ts';
-import { recordSnapshot, horizontes, cambios, finalPrePartido, instantaneas } from '../prematch/snapshots.ts';
+import { recordSnapshot, horizontes, cambios, finalPrePartido, instantaneas, historial } from '../prematch/snapshots.ts';
 import { evaluacionPorHorizonte } from '../prematch/evaluation.ts';
 import { isSportId } from '../sports.ts';
 import { deTenis } from '../prematch/adapters.ts';
@@ -491,6 +491,11 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       horizontes: commence ? horizontes(sport, key, commence) : [],
       cambios: cambios(sport, key),
       final: finalPrePartido(sport, key),
+      // Rediseño de noviembre (HIS-3, DET-2): cada instantánea con su papel, y las entradas que
+      // el modelo usó en la última, tal como se guardaron (null = no se sabía: DESCONOCIDO).
+      historial: historial(sport, key),
+      entradas: filas.length ? Object.values(filas[filas.length - 1].entradas) : [],
+      entradasDe: filas[filas.length - 1]?.captured_at ?? null,
     };
   });
   // ¿Mejora el modelo cerca del partido? Emparejado sobre los mismos partidos.

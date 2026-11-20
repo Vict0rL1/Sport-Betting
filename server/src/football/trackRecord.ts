@@ -12,6 +12,7 @@ import { rankedProbabilityScore, impliedFrom1X2 } from './model.ts';
 import type { FbPrediction } from './predict.ts';
 import type { FbUpcomingRow } from './types.ts';
 import { prepartidoSql } from '../prematch/tiempo.ts';
+import { buildTeamIndex, normalizeTeamName } from './ingest/teamNames.ts';
 
 const RESOLVE_WINDOW_DAYS = 3;
 
@@ -65,6 +66,19 @@ export function footballMatchKey(row: FbUpcomingRow): string {
 export function logFootballPrediction(row: FbUpcomingRow, p: FbPrediction): void {
   if (!row.home_id || !row.away_id) return;
   const key = footballMatchKey(row);
+  // El mismo partido (upcoming_id) el mismo día ya registrado con otros ids: un club que se unió
+  // (ingest/clubesPartidos.ts) o un id que se corrigió. Vale la primera, como con ON CONFLICT; si no, el
+  // partido contaba dos veces (revisión data-guardian). Un aplazamiento cambia el día y sí se registra.
+  if (row.id) {
+    try {
+      const otras = getDb()
+        .prepare('SELECT match_key, commence_time FROM fb_prediction_log WHERE league = ? AND upcoming_id = ? AND match_key != ?')
+        .all(row.league, row.id, key) as unknown as { match_key: string; commence_time: string | null }[];
+      if (otras.some((o) => ymdOf(o.commence_time) === ymdOf(row.commence_time))) return;
+    } catch {
+      // Logging must never break serving a prediction.
+    }
+  }
   const implied =
     row.odds_home && row.odds_draw && row.odds_away
       ? impliedFrom1X2(row.odds_home, row.odds_draw, row.odds_away)
@@ -143,14 +157,37 @@ export function resolveFootballPredictions(): { resolved: number } {
      WHERE match_key = ?`,
   );
 
+  // Un id guardado que ya no es un equipo: el de un club que openfootball partió en dos y se unió
+  // (football/ingest/clubesPartidos.ts), o uno que football-data dio de alta aparte («napoli»). Se
+  // traduce por el índice de nombres, con los alias, solo por coincidencia exacta; la fila del libro
+  // mayor no cambia de ids, solo se le pone el resultado.
+  const esEquipo = db.prepare('SELECT 1 FROM fb_teams WHERE league = ? AND id = ?');
+  const indices = new Map<string, Map<string, string>>();
+  const actual = (league: string, id: string): string => {
+    if (esEquipo.get(league, id)) return id;
+    let idx = indices.get(league);
+    if (!idx) {
+      idx = buildTeamIndex(league as never);
+      indices.set(league, idx);
+    }
+    return idx.get(normalizeTeamName(id.replace(/-/g, ' '))) ?? id;
+  };
+
   let resolved = 0;
   const now = new Date().toISOString();
   for (const p of pending) {
     const target = ymdOf(p.commence_time);
-    const hit = find.get(
-      p.league, p.home_id, p.away_id,
-      shiftYmd(target, -RESOLVE_WINDOW_DAYS), shiftYmd(target, RESOLVE_WINDOW_DAYS), target,
-    ) as unknown as { id: number; home_goals: number; away_goals: number } | undefined;
+    const buscar = (home: string, away: string) =>
+      find.get(
+        p.league, home, away,
+        shiftYmd(target, -RESOLVE_WINDOW_DAYS), shiftYmd(target, RESOLVE_WINDOW_DAYS), target,
+      ) as unknown as { id: number; home_goals: number; away_goals: number } | undefined;
+    let hit = buscar(p.home_id, p.away_id);
+    if (!hit) {
+      const home = actual(p.league, p.home_id);
+      const away = actual(p.league, p.away_id);
+      if (home !== p.home_id || away !== p.away_id) hit = buscar(home, away);
+    }
     if (!hit) continue;
     update.run(hit.home_goals, hit.away_goals, hit.id, now, p.match_key);
     resolved++;

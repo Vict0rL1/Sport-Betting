@@ -5,6 +5,7 @@ import '../test/setup.ts';
 
 const { getDb } = await import('../db.ts');
 const { listarBandeja, marcar, noLeidas, urlPartido } = await import('./index.ts');
+const await_import = await import('./index.ts');
 const { emitirAlerta } = await import('../alerts/engine.ts');
 const { notificar } = await import('../notifications/index.ts');
 
@@ -54,4 +55,23 @@ test('solo cambia «leída»; nada se borra', () => {
 test('urlPartido sin registro usa la clave; sin datos, nada', () => {
   assert.equal(urlPartido('football', 'epl|a|b'), '/partido/football/epl%7Ca%7Cb?clave=epl%7Ca%7Cb');
   assert.equal(urlPartido(null, 'x'), null);
+});
+
+test('D7 / T25: la campana cuenta solo lo accionable de 7 días, cada aviso repetido una vez', () => {
+  const { contadorCampana, guardarEnBandeja } = await_import;
+  marcar({ todas: true }, true);
+  const ahora = new Date('2026-11-20T12:00:00Z');
+  const hace = (dias: number) => new Date(ahora.getTime() - dias * 86_400_000);
+  // Informativo: a la bandeja, no a la campana.
+  guardarEnBandeja({ origen: 'notificacion', tipo: 'resumen_diario', severidad: 'info', titulo: 'Resumen del día', cuerpo: '...' }, hace(0.1));
+  // Importante, repetido tres veces por reintentos del mismo trabajo: cuenta uno.
+  for (let i = 0; i < 3; i++) guardarEnBandeja({ origen: 'alerta', tipo: 'datos_viejos', severidad: 'importante', sport: 'nhl', titulo: 'NHL: resultados sin actualizar', cuerpo: '3 días' }, hace(0.2));
+  // De hace 9 días: fuera de la ventana.
+  guardarEnBandeja({ origen: 'alerta', tipo: 'datos_viejos', severidad: 'importante', sport: 'nba', titulo: 'NBA viejo', cuerpo: '.' }, hace(9));
+  // Informativo pero de un partido seguido: cuenta.
+  db.prepare("INSERT INTO watchlist (kind, sport, league, ref_id, label, created_at) VALUES ('partido', 'nhl', 'nhl', 'nhl|x|y', 'X vs Y', ?)").run(ahora.toISOString());
+  guardarEnBandeja({ origen: 'notificacion', tipo: 'prediccion_cambia', severidad: 'info', sport: 'nhl', matchKey: 'nhl|x|y', titulo: 'X vs Y cambia', cuerpo: '+6 pp' }, hace(0.3));
+  assert.equal(contadorCampana(ahora), 2);
+  // La bandeja sigue teniéndolo todo sin leer.
+  assert.equal(noLeidas(), 6);
 });

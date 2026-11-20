@@ -18,7 +18,7 @@ test('navegación, píldora de estado y analítica en inglés', async ({ page })
   await page.goto('/destacados');
   expect(await page.evaluate(() => document.documentElement.lang)).toBe('en');
   const barra = page.getByTestId('barra-inferior');
-  for (const destino of ['Highlights', 'Sports', 'Bets', 'Trust']) await expect(barra).toContainText(destino);
+  for (const destino of ['Matches', 'Performance', 'My bets', 'More']) await expect(barra).toContainText(destino);
   await page.locator('[data-testid=status-pill]:visible').click();
   const estado = page.getByRole('dialog', { name: 'App status' });
   await expect(estado).toBeVisible();
@@ -49,13 +49,17 @@ test('apuestas en inglés: registro, cartera y banco de papel', async ({ page })
   await expect(page.getByText('Registrar apuesta')).toHaveCount(0);
 });
 
-test('piezas comunes en inglés: cabecera, tabla de partidos y panel de discrepancias', async ({ page }) => {
-  // El tenis es la pestaña con partidos en la base de demostración del e2e.
+test('piezas comunes en inglés: cabecera, explorador y panel de discrepancias', async ({ page }) => {
+  // El tenis es la pestaña con partidos en la base de demostración del e2e. La tabla «Los partidos»
+  // se quitó en el rediseño de noviembre: la lista es Partidos.
   await page.goto('/tenis');
   await expect(page.getByRole('button', { name: /Details|Hide details/ })).toBeVisible();
-  await expect(page.getByText('The matches').first()).toBeVisible();
   await expect(page.getByText(/What the model sees as most likely|Where the model disagrees with the market/).first()).toBeVisible();
-  await expect(page.getByText('Los partidos', { exact: true })).toHaveCount(0);
+  await page.goto('/partidos');
+  await expect(page.getByRole('heading', { name: 'Matches', level: 1 })).toBeVisible();
+  await expect(page.getByText(/Times in /)).toBeVisible();
+  await expect(page.getByText('Próximos 7 días')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Next 7 days' })).toBeVisible();
 });
 
 test('tenis en inglés: cabecera, tarjeta desplegada y clasificación por Elo', async ({ page }) => {

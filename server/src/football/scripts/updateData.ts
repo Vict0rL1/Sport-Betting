@@ -24,6 +24,7 @@ import {
   seasonLabels as openfootballSeasons,
 } from '../ingest/openfootball.ts';
 import { ingestFootballData } from '../ingest/footballData.ts';
+import { unificarClubesPartidos } from '../ingest/clubesPartidos.ts';
 import { ingestFplPlayers } from '../ingest/fplPlayers.ts';
 import { refreshFootballOdds } from '../ingest/odds.ts';
 import { recomputeFootballRatings } from '../ratings.ts';
@@ -123,6 +124,10 @@ async function main() {
       } catch (e) {
         console.warn(`  ⚠️  openfootball falló: ${(e as Error).message}`);
       }
+      // Un club que openfootball escribió distinto en dos temporadas era dos equipos (hallazgo A del
+      // nocturno): se une ANTES de football-data, para que sus partidos voten por el id ya unido.
+      const unidos = unificarClubesPartidos(league.id);
+      if (unidos.length) console.log(`    ${unidos.length} club(es) partido(s) por openfootball, unidos: ${unidos.map((f) => `${f.nombreViejo} → ${f.nombreNuevo}`).join(' · ')}`);
     }
 
     if (source !== 'footballcsv' && league.footballData) {

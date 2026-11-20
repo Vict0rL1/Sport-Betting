@@ -41,6 +41,7 @@ export const rutaEquipo = (sport: string, league: string, id: string) => `/equip
 export const rutaJugador = (tour: string, id: string | number) => `/jugador/${encodeURIComponent(tour)}/${id}`;
 export const rutaLuchador = (id: string) => `/luchador/${encodeURIComponent(id)}`;
 export const rutaLiga = (sport: string, league: string) => `/liga/${sport}/${encodeURIComponent(league)}`;
+export const RUTA_PARTIDOS = '/partidos';
 export const RUTA_AJUSTES = '/ajustes';
 export const RUTA_DIAGNOSTICO = '/confianza/diagnostico';
 export const RUTA_GLOSARIO = '/glosario';

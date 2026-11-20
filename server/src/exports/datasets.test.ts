@@ -10,6 +10,25 @@ test('aCsv escapa comillas, comas y saltos de línea (RFC 4180) y termina en CRL
   assert.equal(csv, 'a,b\r\n"x,y","di ""hola"""\r\n,"l1\nl2"\r\n3,"{""k"":1}"\r\n');
 });
 
+test('aCsv neutraliza las fórmulas en textos (= + - @ tab CR) y deja los números negativos como números', () => {
+  // Una nota «=HYPERLINK(...)» abierta en una hoja de cálculo se ejecutaría como fórmula.
+  const csv = aCsv(['t', 'n'], [
+    { t: '=HYPERLINK("http://x","clic")', n: -100 },
+    { t: '+1+1', n: 2.5 },
+    { t: '-2', n: 0 },
+    { t: '@SUM(A1)', n: null },
+    { t: '\t=1', n: null },
+    { t: 'Betis vs Sevilla', n: null },
+  ]);
+  const filas = csv.trim().split('\r\n');
+  assert.equal(filas[1], `"'=HYPERLINK(""http://x"",""clic"")",-100`);
+  assert.equal(filas[2], "'+1+1,2.5");
+  assert.equal(filas[3], "'-2,0");
+  assert.equal(filas[4], "'@SUM(A1),");
+  assert.equal(filas[5], "'\t=1,");
+  assert.equal(filas[6], 'Betis vs Sevilla,');
+});
+
 test('exportar: apuestas y snapshots con filtros de fecha y deporte; conjuntos vacíos tienen columnas', () => {
   const db = getDb();
   db.exec("INSERT INTO bets (created_at, placed_on, sport, event, market, selection, odds, stake, status) VALUES ('2026-10-01T10:00:00Z', '2026-10-01', 'tennis', 'A vs B', 'moneyline', 'A', 1.9, 10, 'pending'), ('2026-10-05T10:00:00Z', '2026-10-05', 'football', 'C vs D', 'moneyline', 'C', 2.1, 5, 'won')");

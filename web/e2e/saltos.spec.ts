@@ -50,8 +50,7 @@ test('L2: «Detalles» no cambia de línea cuando llegan los contadores', async 
   await page.goto('/tenis');
   const detalles = page.getByRole('button', { name: /^Detalles/ });
   await expect(detalles).toBeVisible();
-  // «Hoy» ya en su sitio: lo único que llega después son los contadores de la cabecera.
-  await expect(page.getByRole('button', { name: /^(Hoy|Cómo le fue)/ })).toBeVisible();
+  // Lo único que llega después son los contadores de la cabecera («Hoy» ya no sale aquí: rediseño de noviembre).
   await page.waitForTimeout(300);
   const antes = (await detalles.boundingBox())!.y;
   soltar();
@@ -81,7 +80,8 @@ test('L3: en Tenis, lo de debajo de las listas espera a los partidos en vez de s
   await expect(page.getByRole('button', { name: /^Detalles/ })).toBeVisible();
   await page.waitForTimeout(800);
   soltar();
-  await expect(page.locator('section', { has: page.getByRole('button', { name: /^Los partidos/ }) })).toBeVisible({ timeout: 20_000 });
+  // La tabla «Los partidos» se quitó (rediseño de noviembre): lo que llega con los partidos es el panel de mercados.
+  await expect(page.locator('section', { has: page.getByRole('button', { name: /^Lo que el modelo ve más probable/ }) })).toBeVisible({ timeout: 20_000 });
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(500);
   expect(await saltos()).toBeLessThan(0.05);
@@ -199,78 +199,13 @@ async function conResultados(page: Page, retraso: () => number) {
   });
 }
 
-test('N2: tocar «¿Acertó?» no deja la semana abierta para la visita siguiente, y esa visita no salta', async ({ page }) => {
-  let retraso = 0;
-  await conResultados(page, () => retraso);
-  const saltos = await contarSaltos(page);
-  await page.goto('/tenis');
-  await page.getByRole('button', { name: '¿Acertó?' }).click();
-  await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByText('el modelo dijo').first()).toBeVisible();
-  await page.waitForTimeout(300);
-  retraso = 1500;
-  await page.reload();
-  // Nace plegado, como sin preferencia guardada: la tabla de la semana se consulta de vez en
-  // cuando. Antes se guardaba abierta, y cada carga la abría encima de cada pestaña.
-  await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toHaveAttribute('aria-expanded', 'false');
-  await page.waitForTimeout(2200);
-  expect(await saltos()).toBeLessThan(0.05);
-});
+// Rediseño de noviembre: «¿Acertó?» vive en Rendimiento, sin el interruptor «Hoy / ¿Acertó?». Test retirado.
 
-test('N2: con «¿Acertó?» abierto a propósito, la visita siguiente reserva su alto mientras llegan los resultados', async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem('predictor.today.open', '1');
-    localStorage.setItem('predictor.today.view', 'resultados');
-  });
-  let retraso = 0;
-  await conResultados(page, () => retraso);
-  const saltos = await contarSaltos(page);
-  await page.goto('/tenis');
-  await expect(page.getByText('el modelo dijo').first()).toBeVisible();
-  await page.waitForTimeout(300);
-  retraso = 1500;
-  await page.reload();
-  await expect(page.getByText('el modelo dijo').first()).toBeVisible({ timeout: 10_000 });
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(500);
-  // Antes, el panel medía 136 px hasta que llegaban los resultados y luego más de 1.000.
-  expect(await saltos()).toBeLessThan(0.05);
-});
+// Rediseño de noviembre: «¿Acertó?» vive en Rendimiento, sin el interruptor «Hoy / ¿Acertó?». Test retirado.
 
-test('N2: sin partidos hoy, la visita siguiente reserva lo que de verdad midió «Hoy»', async ({ page }) => {
-  // Hoy no hay partidos: el panel se queda en los resultados, plegado (46 px). La siguiente carga
-  // no puede reservar el alto de «Hoy» abierto: ese estado no se llegó a pintar.
-  await page.route('**/api/today', (r) => r.fulfill({ json: { nota: null, partidos: [] } }));
-  const saltos = await contarSaltos(page);
-  await page.goto('/tenis');
-  await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toBeVisible();
-  await page.waitForTimeout(500);
-  await page.reload();
-  await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toBeVisible();
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(500);
-  expect(await saltos()).toBeLessThan(0.05);
-});
+// Rediseño de noviembre: el panel «Hoy» ya no sale encima de las pestañas (la lista es Partidos, e2e/partidos.spec.ts). Test retirado.
 
-test('N2: plegado, «¿Acertó?» no crece cuando llega su resumen', async ({ page }) => {
-  // En el móvil, «Cómo le fue al modelo cargando…» cabe en una línea y el resumen ocupa dos: el panel
-  // crecía 24 px al llegar y empujaba todo lo de debajo.
-  await page.addInitScript(() => localStorage.setItem('predictor.today.view', 'resultados'));
-  let retraso = 0;
-  await conResultados(page, () => retraso);
-  await page.goto('/tenis');
-  const cabecera = page.getByRole('button', { name: /^Cómo le fue al modelo/ });
-  await expect(cabecera).toHaveAttribute('aria-expanded', 'false');
-  await page.waitForTimeout(500);
-  retraso = 1500;
-  await page.reload();
-  const panel = page.locator('section', { has: cabecera });
-  await expect(cabecera).toBeVisible();
-  const mientras = (await panel.boundingBox())!.height;
-  await page.waitForResponse('**/api/recent-results*');
-  await page.waitForTimeout(300);
-  expect(Math.abs((await panel.boundingBox())!.height - mientras)).toBeLessThan(1);
-});
+// Rediseño de noviembre: «¿Acertó?» vive en Rendimiento, sin el interruptor «Hoy / ¿Acertó?». Test retirado.
 
 for (const [ruta, meta] of [
   ['/futbol', '**/api/football/meta'],
@@ -623,16 +558,4 @@ test('N14: con la bandeja apagada, la vez siguiente no se guarda el sitio de la 
   await expect(page.getByTestId('campana')).toHaveCount(0);
 });
 
-test('N11: la primera vez, sin partidos hoy, «¿Acertó?» no es una tarjeta vacía de 324 px mientras cargan los resultados', async ({ page }) => {
-  await page.route('**/api/today', (r) => r.fulfill({ json: { nota: null, partidos: [] } }));
-  const soltar = await retener(page, '**/api/recent-results*');
-  await page.goto('/tenis');
-  const cabecera = page.getByRole('button', { name: /^Cómo le fue al modelo/ });
-  await expect(cabecera).toBeVisible();
-  await page.waitForTimeout(400);
-  // Sin alto recordado no hay nada que reservar: se pinta plegado, a su alto. Antes reservaba el de
-  // «Hoy» abierto (324 px) en una tarjeta plegada y vacía, que luego se cerraba.
-  const panel = page.locator('section', { has: cabecera });
-  expect((await panel.boundingBox())!.height).toBeLessThan(120);
-  soltar();
-});
+// Rediseño de noviembre: «¿Acertó?» vive en Rendimiento, sin el interruptor «Hoy / ¿Acertó?». Test retirado.

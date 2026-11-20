@@ -178,37 +178,30 @@ for (const tema of ['claro', 'oscuro'] as const) {
     await page.addInitScript((t) => localStorage.setItem('predictor.tema', t), tema);
     await page.setViewportSize({ width: 1280, height: 900 });
     const bajos: string[] = [];
-    for (const ruta of ['/destacados', '/tenis']) {
+    // Sin «Hoy» encima de cada pestaña, una ruta puede no tener tablas: se cuenta el total.
+    let total = 0;
+    for (const ruta of ['/destacados', '/tenis', '/partidos']) {
       await page.goto(ruta);
       await page.waitForLoadState('networkidle');
       await expect(page.getByTestId('campana')).toBeVisible();
       const medidos = [
         ...(await contrastes(page, '[data-testid="campana"] span')),
         ...(await contrastes(page, 'section table td, section table td span')),
+        // El explorador (rediseño de noviembre): filas, recuentos y estados.
+        // Sin los escudos de iniciales: son marcas (logotipos), sin requisito de contraste en WCAG 1.4.3.
+        ...(await contrastes(page, 'main li a span.truncate, main li a span.tabular-nums, main [role="status"] span, main h3 span.truncate')),
         ...(await contrastes(page, 'main button span.ml-1\\.5')),
         ...(await contrastes(page, '[data-testid="insignia-confianza"] span span')),
       ];
-      expect(medidos.length, ruta).toBeGreaterThan(4);
+      total += medidos.length;
       bajos.push(...medidos.filter((m) => m.ratio < 4.5).map((m) => `${ruta}: «${m.texto}» ${m.ratio}`));
     }
+    expect(total).toBeGreaterThan(8);
     expect(bajos, bajos.join('\n')).toEqual([]);
   });
 }
 
-test('G8: a 390 px la lista de «Hoy» cabe en su caja (nada cortado a la derecha)', async ({ page }) => {
-  await conDatosReales(page);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/destacados');
-  await page.waitForLoadState('networkidle');
-  const tabla = page.locator('section table').first();
-  await expect(tabla).toBeVisible();
-  const medida = await tabla.evaluate((t) => {
-    const caja = t.parentElement!;
-    return { ancho: caja.scrollWidth, visible: caja.clientWidth, derecha: Math.max(...[...t.querySelectorAll('td')].map((td) => td.getBoundingClientRect().right)), borde: caja.getBoundingClientRect().right };
-  });
-  expect(medida.ancho, JSON.stringify(medida)).toBeLessThanOrEqual(medida.visible);
-  expect(medida.derecha, JSON.stringify(medida)).toBeLessThanOrEqual(medida.borde + 0.5);
-});
+// Rediseño de noviembre: el panel «Hoy» ya no sale encima de las pestañas (la lista es Partidos, e2e/partidos.spec.ts). Test retirado.
 
 // G10b (revisión de security-reviewer al lote G): sin puerta en la app pero con un 401 de la API
 // (un proxy delante con su propia contraseña caducada), cada 401 creaba un estado nuevo, los

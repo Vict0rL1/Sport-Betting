@@ -48,11 +48,13 @@ test('informes: generar el de hoy, leerlo y su PDF; la bandeja lo avisa y la cam
   await page.goto('/bandeja');
   const lista = page.getByTestId('lista-bandeja');
   await expect(lista).toContainText('Resumen del día');
+  // La campana cuenta lo accionable (D7): un resumen es informativo y se queda en la bandeja sin
+  // subir el número; marcar todo como leído lo deja en 0 igual.
   const campana = page.locator('[data-testid=campana]:visible');
-  await expect(campana).toHaveAttribute('aria-label', /Bandeja: [1-9]\d* sin leer/);
+  await expect(campana).toHaveAttribute('aria-label', /Bandeja: \d+ por mirar/);
   await page.getByRole('button', { name: 'Marcar todo como leído' }).click();
   await expect(page.getByRole('button', { name: 'Marcar todo como leído' })).toHaveCount(0);
-  await expect(campana).toHaveAttribute('aria-label', 'Bandeja: 0 sin leer');
+  await expect(campana).toHaveAttribute('aria-label', 'Bandeja: 0 por mirar');
   await lista.getByRole('button', { name: 'Abrir' }).first().click();
   await expect(page).toHaveURL(/\/informes\/\d+|\/partido\//);
 });
@@ -68,7 +70,7 @@ test('archivo: los filtros van a la URL y sobreviven a recargar; líneas sin cuo
 
   await page.goto('/apuestas/lineas');
   await expect(page.getByRole('heading', { name: 'Comparador de líneas' })).toBeVisible();
-  await expect(page.getByText('Sin ODDS_API_KEY no hay casas que comparar')).toBeVisible();
+  await expect(page.getByText('sin proveedor de cuotas no hay casas que comparar')).toBeVisible();
 });
 
 // Fase 8: lo opcional, apagado por defecto, y encendido desde los interruptores.
@@ -116,7 +118,7 @@ test('NHL publicada: su pestaña y la prueba con la que se publicó, sin inventa
   await expect(page.getByRole('tab', { name: 'NHL' }).first()).toHaveAttribute('aria-selected', 'true');
   await page.getByRole('button', { name: /Detalles/ }).click();
   await expect(page.getByText('Un Elo por equipo con la diferencia de goles')).toBeVisible();
-  await expect(page.getByTestId('nhl-sin-datos')).toContainText('npm run update-data:nhl');
+  await expect(page.getByTestId('nhl-sin-datos')).toContainText('Diagnóstico explica cómo cargarlos');
   await page.goto('/confianza/diagnostico');
   const b = page.getByTestId('nhl-backtest');
   await expect(b).toContainText('NHL: la prueba con la que se publicó');
@@ -130,8 +132,8 @@ test('UFC publicada: su pestaña, la prueba con la que se publicó y la ficha de
   await page.getByRole('button', { name: /Detalles/ }).click();
   await expect(page.getByText('Un Elo por luchador, su récord, su edad, su alcance')).toBeVisible();
   // Sin archivo: lo dice y da el comando; sin clave, dice que la cartelera llega con las cuotas.
-  await expect(page.getByTestId('ufc-sin-datos')).toContainText('npm run update-data:ufc');
-  await expect(page.getByTestId('ufc-sin-clave')).toContainText('npm run clave');
+  await expect(page.getByTestId('ufc-sin-datos')).toContainText('Diagnóstico explica cómo cargarlos');
+  await expect(page.getByTestId('ufc-sin-clave')).toContainText('Sin proveedor de cuotas no hay cartelera');
   await page.goto('/confianza/diagnostico');
   const b = page.getByTestId('ufc-backtest');
   await expect(b).toContainText('UFC: la prueba con la que se publicó');

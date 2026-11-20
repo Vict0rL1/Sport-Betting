@@ -74,6 +74,27 @@ test('con precio: filas live con las tres cuotas, y sin causa guardada', async (
   assert.equal(readOddsReason('fb_').reason, null);
 });
 
+test('T01: un partido cuyos dos lados son el mismo club (alias contra alias) no entra en fb_upcoming', async () => {
+  const db = getDb();
+  const ahora = new Date().toISOString();
+  db.prepare("INSERT OR IGNORE INTO fb_teams (league, id, name) VALUES ('laliga', 'atletico-madrid', 'Atlético Madrid')").run();
+  db.prepare("INSERT OR REPLACE INTO fb_team_aliases (league, alias, team_id, fuente, season, updated_at) VALUES ('laliga', 'Ath Madrid', 'atletico-madrid', 'football-data', 2026, ?)").run(ahora);
+  const mismo = {
+    ...EVENTO,
+    id: 'liga-alias',
+    sport_key: 'soccer_spain_la_liga',
+    home_team: 'Atlético Madrid',
+    away_team: 'Ath Madrid',
+    bookmakers: [{ key: 'pinnacle', title: 'Pinnacle', markets: [{ key: 'h2h', outcomes: [{ name: 'Atlético Madrid', price: 2.0 }, { name: 'Draw', price: 3.4 }, { name: 'Ath Madrid', price: 3.8 }] }] }],
+  };
+  api({ soccer_epl: () => json(200, [EVENTO]), soccer_spain_la_liga: () => json(200, [mismo]) });
+  const r = await refreshFootballOdds(true);
+  assert.equal(r.cuarentena, 1, 'se cuenta para Diagnóstico');
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM fb_upcoming WHERE id = 'liga-alias'").get()!.n, 0);
+  // El otro partido de la misma pasada entra con normalidad.
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM fb_upcoming WHERE id = 'epl-1'").get()!.n, 1);
+});
+
 test('eventos SIN casas en la región no cuentan como cuotas reales', async () => {
   api({
     soccer_epl: () => json(200, [{ ...EVENTO, id: 'epl-2', bookmakers: [] }]),

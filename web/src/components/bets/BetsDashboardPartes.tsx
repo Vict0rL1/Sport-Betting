@@ -10,6 +10,8 @@ import { pct as pctF, num as numF } from '../../lib/formato';
 export function Headline({ summary }: { summary: BetSummary }) {
   const tot = summary.totals;
   const { t } = useI18n();
+  // La moneda de TODOS estos importes (nunca una suma de varias); «sin indicar» en las antiguas.
+  const m = ` ${summary.moneda ?? t('form.monedaSinIndicar')}`;
   const tone = tot.profit > 0 ? PROFIT_TEXT : tot.profit < 0 ? LOSS_TEXT : NEUTRAL_TEXT;
   return (
     <>
@@ -19,7 +21,7 @@ export function Headline({ summary }: { summary: BetSummary }) {
             {t('registro.beneficio')}
           </span>
           <span className="block text-[26px] font-bold leading-none tabular-nums" style={{ color: tone }}>
-            {signed(tot.profit)}
+            {signed(tot.profit)}{m}
           </span>
         </div>
         <div className="text-right">
@@ -32,7 +34,7 @@ export function Headline({ summary }: { summary: BetSummary }) {
         </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-(--line) pt-3 sm:grid-cols-4">
-        <Stat label={t('registro.apostado')} value={money(tot.staked)} hint={t(tot.bets === 1 ? 'registro.apuestas1' : 'registro.apuestasN', { n: tot.bets })} />
+        <Stat label={t('registro.apostado')} value={money(tot.staked) + m} hint={t(tot.bets === 1 ? 'registro.apuestas1' : 'registro.apuestasN', { n: tot.bets })} />
         <Stat
           label={t('registro.acierto')}
           value={tot.hitRate == null ? '—' : `${pctF(tot.hitRate, 0)}`}
@@ -41,7 +43,7 @@ export function Headline({ summary }: { summary: BetSummary }) {
         <Stat
           label={t('registro.pendientes')}
           value={String(summary.pending.bets)}
-          hint={summary.pending.bets ? t('registro.enJuego', { d: money(summary.pending.staked) }) : t('registro.nadaEnJuego')}
+          hint={summary.pending.bets ? t('registro.enJuego', { d: money(summary.pending.staked) + m }) : t('registro.nadaEnJuego')}
         />
         <Stat
           label={t('registro.rachas')}
@@ -146,18 +148,25 @@ export function DayTotal({ bets }: { bets: Bet[] }) {
   const settled = bets.filter((b) => b.profit != null);
   const { t } = useI18n();
   if (settled.length === 0) return <span className="text-[13px] text-(--ink-muted)">{t('registro.sinResolver')}</span>;
-  const net = settled.reduce((s, b) => s + (b.profit as number), 0);
+  // Un neto por moneda (T29): dos monedas el mismo día no se suman.
+  const porMoneda = new Map<string, number>();
+  for (const b of settled) {
+    const k = b.currency ?? t('form.monedaSinIndicar');
+    porMoneda.set(k, (porMoneda.get(k) ?? 0) + (b.profit as number));
+  }
+  const varias = porMoneda.size > 1;
   return (
-    <span
-      className="text-[13px] font-semibold tabular-nums"
-      style={{ color: net > 0 ? PROFIT_TEXT : net < 0 ? LOSS_TEXT : NEUTRAL_TEXT }}
-    >
-      {signed(net)}
+    <span className="flex flex-wrap gap-x-2 text-[13px] font-semibold tabular-nums">
+      {[...porMoneda].map(([m, net]) => (
+        <span key={m} style={{ color: net > 0 ? PROFIT_TEXT : net < 0 ? LOSS_TEXT : NEUTRAL_TEXT }}>
+          {signed(net)}{varias ? ` ${m}` : ''}
+        </span>
+      ))}
     </span>
   );
 }
 
-export const SETTLE_OPTIONS: BetStatus[] = ['won', 'lost', 'void', 'half_won', 'half_lost', 'cashout'];
+export const SETTLE_OPTIONS: BetStatus[] = ['won', 'lost', 'void', 'push', 'half_won', 'half_lost', 'cashout'];
 
 export function BetRow({
   bet,
@@ -215,8 +224,11 @@ export function BetRow({
                 {bet.profit == null ? estadoDe(t, bet.status) : signed(bet.profit)}
               </div>
               <div className="text-[13px] tabular-nums text-(--ink-muted)">
-                {money(bet.stake)} @ {bet.odds}
+                {money(bet.stake)}{bet.currency ? ` ${bet.currency}` : ''} @ {bet.odds}
               </div>
+              {bet.payoutGross != null && (
+                <div className="text-[12px] tabular-nums text-(--ink-muted)">{t('registro.pago', { pago: money(bet.payoutGross) })}</div>
+              )}
             </div>
           </div>
 

@@ -36,13 +36,13 @@ test('K1: la hoja «Deportes» no se cierra sola cuando el deporte añade la lig
   await conLiga(page, 1500);
   await page.goto('/destacados');
   const barra = page.getByTestId('barra-inferior');
-  const hoja = page.getByRole('dialog', { name: 'Deportes' });
-  await barra.getByRole('button', { name: 'Deportes' }).click();
+  const hoja = page.getByRole('dialog', { name: 'Más' });
+  await barra.getByRole('button', { name: 'Más' }).click();
   await hoja.getByRole('button', { name: 'Fútbol' }).click();
   await expect(hoja).toBeHidden();
   await expect(page).toHaveURL(/\/futbol$/);
   // Quien se equivocó de deporte vuelve a abrirla enseguida.
-  await barra.getByRole('button', { name: 'Deportes' }).click();
+  await barra.getByRole('button', { name: 'Más' }).click();
   await expect(hoja).toBeVisible();
   await expect(page).toHaveURL(/\/futbol\/[a-z0-9-]+$/, { timeout: 10_000 });
   await espera(300);
@@ -50,12 +50,12 @@ test('K1: la hoja «Deportes» no se cierra sola cuando el deporte añade la lig
   // Elegir sí la cierra, también el deporte en el que ya se está.
   await hoja.getByRole('button', { name: 'Fútbol' }).click();
   await expect(hoja).toBeHidden();
-  await barra.getByRole('button', { name: 'Deportes' }).click();
+  await barra.getByRole('button', { name: 'Más' }).click();
   await hoja.getByRole('button', { name: 'Tenis' }).click();
   await expect(hoja).toBeHidden();
   await expect(page).toHaveURL(/\/tenis/);
   // Y «atrás» también: es navegar.
-  await barra.getByRole('button', { name: 'Deportes' }).click();
+  await barra.getByRole('button', { name: 'Más' }).click();
   await expect(hoja).toBeVisible();
   await page.goBack();
   await expect(hoja).toBeHidden();
@@ -76,62 +76,15 @@ const SIETE = {
 };
 const panelHoy = (page: import('@playwright/test').Page) => page.locator('section', { has: page.getByRole('button', { name: /^Hoy/ }) });
 
-test('K2: en el móvil, «Hoy» enseña tres partidos y lo del deporte cabe en la primera pantalla', async ({ page }) => {
-  await page.route('**/api/today', (r) => r.fulfill({ json: SIETE }));
-  await conLiga(page);
-  await page.goto('/futbol');
-  const panel = panelHoy(page);
-  const filas = panel.locator('tbody tr');
-  await expect(filas.first()).toBeVisible();
-  await expect(filas.filter({ visible: true })).toHaveCount(3);
-  // Sin desplazamiento propio: el dedo mueve la página, no una caja dentro de ella.
-  expect(await panel.locator('table').evaluate((t) => t.parentElement!.scrollHeight > t.parentElement!.clientHeight + 1)).toBe(false);
-  // Lo de fútbol (las ligas) se ve sin desplazar, por encima de la barra inferior.
-  const liga = page.getByRole('tab', { name: /Premier League/ });
-  await expect(liga).toBeVisible();
-  const caja = (await liga.boundingBox())!;
-  const barra = (await page.getByTestId('barra-inferior').boundingBox())!;
-  expect(caja.y + caja.height, 'las ligas, por encima de la barra inferior').toBeLessThanOrEqual(barra.y);
-  // El resto, a un toque.
-  await panel.getByRole('button', { name: 'Ver los 7 partidos' }).click();
-  await expect(filas.filter({ visible: true })).toHaveCount(7);
-  await panel.getByRole('button', { name: 'Ver menos' }).click();
-  await expect(filas.filter({ visible: true })).toHaveCount(3);
-});
+// Rediseño de noviembre: el panel «Hoy» ya no sale encima de las pestañas (la lista es Partidos, e2e/partidos.spec.ts). Test retirado.
 
-test('K3: el interruptor «Qué hay hoy / ¿Acertó?» no empuja la lista al llegar los resultados', async ({ page }) => {
-  await page.route('**/api/today', (r) => r.fulfill({ json: SIETE }));
-  await page.route('**/api/recent-results*', async (r) => {
-    await espera(1200);
-    await r.continue();
-  });
-  const llegan = page.waitForResponse('**/api/recent-results*');
-  await page.goto('/futbol');
-  const primera = panelHoy(page).locator('tbody tr').first();
-  await expect(primera).toBeVisible();
-  const antes = (await primera.boundingBox())!.y;
-  await llegan;
-  await expect(page.getByRole('button', { name: '¿Acertó?' })).toBeVisible();
-  await espera(200);
-  // Menos de un píxel, no igual: en CI la misma fila salió en 198 y 198,5 en una máquina y en 198
-  // las dos veces en otra, con el mismo commit (3 de noviembre). El defecto que vigila empujaba 45 px.
-  expect(Math.abs((await primera.boundingBox())!.y - antes)).toBeLessThan(1);
-});
+// Rediseño de noviembre: «¿Acertó?» vive en Rendimiento, sin el interruptor «Hoy / ¿Acertó?». Test retirado.
 
-test.describe('en el escritorio', () => {
-  test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
-  test('K2: a 1280 px «Hoy» sigue enseñando todos los partidos, sin botón', async ({ page }) => {
-    await page.route('**/api/today', (r) => r.fulfill({ json: SIETE }));
-    await page.goto('/futbol');
-    const panel = panelHoy(page);
-    await expect(panel.locator('tbody tr').filter({ visible: true })).toHaveCount(7);
-    await expect(panel.getByRole('button', { name: 'Ver los 7 partidos' })).toBeHidden();
-  });
-});
+// Rediseño de noviembre: el panel «Hoy» ya no sale encima de las pestañas (la lista es Partidos, e2e/partidos.spec.ts). Test retirado.
 
 test('K4: «Lo que el modelo ve más probable» y «Los partidos» se leen enteros a 390 px', async ({ page }) => {
   await page.goto('/tenis');
-  for (const titulo of ['Lo que el modelo ve más probable', 'Los partidos']) {
+  for (const titulo of ['Lo que el modelo ve más probable']) {
     const seccion = page.locator('section', { has: page.getByRole('button', { name: new RegExp(`^${titulo}`) }) });
     // Tenis es la pestaña lenta de la demostración (las otras pruebas de tenis van con test.slow()).
     await expect(seccion.getByText(/\d+,\d\s%/).first()).toBeVisible({ timeout: 20_000 });
@@ -207,8 +160,8 @@ test('K5: los deportes se precargan, y con la red cortada cambiar de deporte sig
   // Sin red (la máquina de Fly parada, el metro): la UFC no se había abierto y aun así se abre;
   // lo que no llega son sus datos, y eso lo dice ella.
   await context.setOffline(true);
-  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Deportes' }).click();
-  await page.getByRole('dialog', { name: 'Deportes' }).getByRole('button', { name: 'UFC' }).click();
+  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Más' }).click();
+  await page.getByRole('dialog', { name: 'Más' }).getByRole('button', { name: 'UFC' }).click();
   await expect(page).toHaveURL(/\/ufc/);
   await expect(page.getByText(/No se pudieron cargar los datos de la UFC/)).toBeVisible();
   await expect(page.getByText('Ha fallado esta pantalla', { exact: false })).toHaveCount(0);
@@ -246,7 +199,7 @@ test.describe('con «ahorro de datos»', () => {
 
 test('K6: lo que se toca responde mientras el dedo está encima, sin el destello gris del navegador', async ({ page }) => {
   await page.goto('/destacados');
-  const boton = page.getByTestId('barra-inferior').getByRole('button', { name: 'Apuestas' });
+  const boton = page.getByTestId('barra-inferior').getByRole('button', { name: 'Mis apuestas' });
   const opacidad = () => boton.evaluate((b) => Number(getComputedStyle(b).opacity));
   expect(await boton.evaluate((b) => getComputedStyle(b).getPropertyValue('-webkit-tap-highlight-color'))).toBe('rgba(0, 0, 0, 0)');
   const caja = (await boton.boundingBox())!;
@@ -260,8 +213,8 @@ test('K6: lo que se toca responde mientras el dedo está encima, sin el destello
 
 test('K7: la hoja «Deportes» sube desde abajo, en cuatro columnas de toque cómodo, y se cierra deslizándola', async ({ page }) => {
   await page.goto('/destacados');
-  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Deportes' }).click();
-  const hoja = page.getByRole('dialog', { name: 'Deportes' });
+  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Más' }).click();
+  const hoja = page.getByRole('dialog', { name: 'Más' });
   const panel = page.getByTestId('hoja-deportes');
   expect(await panel.evaluate((p) => p.getAnimations().length), 'se mueve al abrir').toBeGreaterThan(0);
   const botones = hoja.getByRole('button').filter({ hasNotText: /^$/ });
@@ -283,7 +236,7 @@ test('K7: la hoja «Deportes» sube desde abajo, en cuatro columnas de toque có
   await page.mouse.up();
   await expect(hoja).toBeHidden();
   // Un toque sin desplazar no la cierra.
-  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Deportes' }).click();
+  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Más' }).click();
   await expect(hoja).toBeVisible();
   await quieta();
   const q = (await panel.boundingBox())!;
@@ -297,7 +250,7 @@ test('K7: tocar la pestaña en la que se está vuelve arriba', async ({ page }) 
   // Hasta el final, sea cual sea el largo de la página con los datos de la demostración.
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
-  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Confianza' }).click();
+  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Rendimiento' }).click();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   await expect(page).toHaveURL(/\/confianza$/);
 });
@@ -306,8 +259,8 @@ test.describe('con movimiento reducido', () => {
   test.use({ reducedMotion: 'reduce' });
   test('K7: la hoja aparece sin moverse', async ({ page }) => {
     await page.goto('/destacados');
-    await page.getByTestId('barra-inferior').getByRole('button', { name: 'Deportes' }).click();
-    await expect(page.getByRole('dialog', { name: 'Deportes' })).toBeVisible();
+    await page.getByTestId('barra-inferior').getByRole('button', { name: 'Más' }).click();
+    await expect(page.getByRole('dialog', { name: 'Más' })).toBeVisible();
     await page.waitForTimeout(50);
     expect(await page.getByTestId('hoja-deportes').evaluate((p) => p.getAnimations().filter((a) => a.playState === 'running').length)).toBe(0);
   });
@@ -350,7 +303,7 @@ test('K8: los controles pequeños se aciertan aunque el dedo caiga al lado, sin 
   for (const [nombre, loc] of [
     ['Ver motivos', tarjeta.getByRole('button', { name: /^Ver \d+ motivos? más$/ })],
     ['Abrir partido', tarjeta.getByRole('link', { name: 'Abrir partido ›' })],
-    ['Cuánto fiarse', tarjeta.getByRole('button', { name: /^¿Cuánto fiarse\?/ })],
+    ['Cuánto fiarse', tarjeta.getByRole('button', { name: /^Solidez de la estimación/ })],
   ] as const) {
     const z = await zona(loc);
     expect(z.alto, `${nombre}: ${JSON.stringify(z)}`).toBeGreaterThanOrEqual(24);
@@ -375,8 +328,8 @@ test('K10: al cambiar de pantalla, la nueva empieza arriba, no a la altura de la
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(300);
   const tenis = page.waitForResponse('**/assets/TennisDashboard-*.js');
-  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Deportes' }).click();
-  await page.getByRole('dialog', { name: 'Deportes' }).getByRole('button', { name: 'Tenis' }).click();
+  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Más' }).click();
+  await page.getByRole('dialog', { name: 'Más' }).getByRole('button', { name: 'Tenis' }).click();
   await expect(page).toHaveURL(/\/tenis/);
   await tenis;
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
@@ -386,41 +339,7 @@ test('K10: al cambiar de pantalla, la nueva empieza arriba, no a la altura de la
 // K12: lo que encontró la revisión de ui-tester al lote K.
 // ---------------------------------------------------------------------------------------------
 
-test('K12: tras desplegar «Hoy» y plegarlo, la carga siguiente reserva el alto que de verdad tiene', async ({ page }) => {
-  await page.route('**/api/today', (r) => r.fulfill({ json: SIETE }));
-  await page.goto('/futbol');
-  const panel = panelHoy(page);
-  /** Recarga con «Hoy» retenido: lo que se reservó mientras, y lo que mide cuando llega. */
-  const recargar = async () => {
-    await page.waitForTimeout(300);
-    await page.unroute('**/api/today');
-    let soltar!: () => void;
-    const retenido = new Promise<void>((r) => (soltar = r));
-    await page.route('**/api/today', async (r) => {
-      await retenido;
-      await r.fulfill({ json: SIETE });
-    });
-    await page.reload();
-    const hueco = page.getByTestId('hoy-hueco');
-    await expect(hueco).toBeAttached();
-    const reservado = (await hueco.boundingBox())!.height;
-    soltar();
-    await expect(panel).toBeVisible();
-    await page.waitForTimeout(200);
-    return { reservado, real: (await panel.boundingBox())!.height };
-  };
-  // Desplegado: la próxima vez nace con tres filas, y eso es lo que tiene que reservar.
-  await panel.getByRole('button', { name: 'Ver los 7 partidos' }).click();
-  await expect(panel.locator('tbody tr').filter({ visible: true })).toHaveCount(7);
-  const desplegado = await recargar();
-  expect(Math.abs(desplegado.reservado - desplegado.real), JSON.stringify(desplegado)).toBeLessThanOrEqual(2);
-  // Desplegado y plegado: la próxima vez nace plegado.
-  await panel.getByRole('button', { name: 'Ver los 7 partidos' }).click();
-  await panel.getByRole('button', { name: /^Hoy/ }).click();
-  await expect(panel.getByRole('button', { name: /^Hoy/ })).toHaveAttribute('aria-expanded', 'false');
-  const plegado = await recargar();
-  expect(Math.abs(plegado.reservado - plegado.real), JSON.stringify(plegado)).toBeLessThanOrEqual(2);
-});
+// Rediseño de noviembre: el panel «Hoy» ya no sale encima de las pestañas (la lista es Partidos, e2e/partidos.spec.ts). Test retirado.
 
 /** Una caja `desliza-x` de prueba, de 300 px, con `extra` px de más que desplazar. */
 const cajaDeslizable = (extra: number, id: string) => `{
@@ -459,8 +378,8 @@ test('K12: con el foco del teclado, la caja que se desplaza no se difumina (el a
 
 test('K12: pulsar el fondo oscuro de la hoja no lo aclara', async ({ page }) => {
   await page.goto('/destacados');
-  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Deportes' }).click();
-  const hoja = page.getByRole('dialog', { name: 'Deportes' });
+  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Más' }).click();
+  const hoja = page.getByRole('dialog', { name: 'Más' });
   const fondo = hoja.getByRole('button', { name: 'Cerrar' });
   await fondo.evaluate((b) => Promise.all(b.getAnimations().map((a) => a.finished)));
   await page.mouse.move(195, 120);
@@ -475,13 +394,13 @@ test('K12: más controles pequeños llegan a 24 px sin pisar al de al lado', asy
   await page.waitForLoadState('networkidle');
   const pie = page.getByRole('contentinfo');
   const tarjeta = page.locator('article', { has: page.getByRole('link', { name: 'Abrir partido ›' }) }).first();
-  await tarjeta.getByRole('button', { name: /^¿Cuánto fiarse\?/ }).click();
+  await tarjeta.getByRole('button', { name: /^Solidez de la estimación/ }).click();
   for (const [nombre, loc] of [
     ['Informes (pie)', pie.getByRole('button', { name: 'Informes' })],
     ['Glosario (pie)', pie.getByRole('button', { name: 'Glosario' })],
     ['Ver contra qué se ha medido', page.getByRole('button', { name: 'Ver contra qué se ha medido' })],
-    ['Calidad de datos (¿Cuánto fiarse?)', tarjeta.getByRole('button', { name: /^Calidad de datos/ })],
-    ['Incertidumbre (¿Cuánto fiarse?)', tarjeta.getByRole('button', { name: /^Incertidumbre/ })],
+    ['Calidad de datos (Solidez)', tarjeta.getByRole('button', { name: /^Calidad de datos/ })],
+    ['Incertidumbre (Solidez)', tarjeta.getByRole('button', { name: /^Incertidumbre/ })],
   ] as const) {
     const z = await zona(loc);
     expect(z.alto, `${nombre}: ${JSON.stringify(z)}`).toBeGreaterThanOrEqual(24);
@@ -489,12 +408,7 @@ test('K12: más controles pequeños llegan a 24 px sin pisar al de al lado', asy
   }
 });
 
-test('K12: en inglés, el botón de «Hoy» dice «matches», como la cabecera', async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem('predictor.idioma', 'en'));
-  await page.route('**/api/today', (r) => r.fulfill({ json: SIETE }));
-  await page.goto('/futbol');
-  await expect(page.getByRole('button', { name: 'See all 7 matches' })).toBeVisible();
-});
+// Rediseño de noviembre: el panel «Hoy» ya no sale encima de las pestañas (la lista es Partidos, e2e/partidos.spec.ts). Test retirado.
 
 test.describe('en el escritorio, sin máscara', () => {
   test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
@@ -584,7 +498,7 @@ async function conGanador(page: import('@playwright/test').Page, casa: string) {
   await page.route('**/api/recent-results*', async (r) => {
     const res = await r.fetch();
     const j = (await res.json()) as { resultados: unknown[] };
-    j.resultados.unshift({ deporte: 'Fútbol', liga: 'epl', dia, cuando: null, partido: `${casa} - Sheffield United`, casa, fuera: 'Sheffield United', casaId: null, fueraId: null, favorito: casa, probabilidad: 0.61, ganador: casa, acerto: true, origen: 'reconstruida' });
+    j.resultados.unshift({ deporte: 'Fútbol', liga: 'epl', dia, cuando: null, partido: `${casa} - Sheffield United`, casa, fuera: 'Sheffield United', casaId: null, fueraId: null, favorito: casa, probabilidad: 0.61, ganador: casa, acerto: true, origen: 'en vivo' });
     await r.fulfill({ response: res, json: j });
   });
 }
@@ -607,7 +521,7 @@ test.describe('«ganó» en el escritorio', () => {
   test.use({ viewport: { width: 1280, height: 800 }, isMobile: false, hasTouch: false });
   test('N7: «ganó» mide y se separa del nombre como antes del lote M', async ({ page }) => {
     await conGanador(page, 'Arsenal');
-    await page.goto('/futbol');
+    await page.goto('/confianza');
     const m = await medirGano(page);
     // Antes de M: 17,8 px de alto y 8 px del nombre. Con M, 16,4 y unos 5. Ahora la separación es el
     // espacio de IBM Plex (3,3 px a 14 px) más 4 de word-spacing: 7,3 px, o 7 justos donde el
@@ -631,10 +545,10 @@ test.describe('«@» en el escritorio', () => {
       const res = await r.fetch();
       const j = (await res.json()) as { resultados: unknown[] };
       const [casa, fuera] = ['Boston Bruins', 'Toronto Maple Leafs'];
-      j.resultados.unshift({ deporte: 'NHL', liga: 'nhl', dia, cuando: null, partido: `${fuera} @ ${casa}`, casa, fuera, casaId: null, fueraId: null, favorito: casa, probabilidad: 0.58, ganador: casa, acerto: true, origen: 'reconstruida' });
+      j.resultados.unshift({ deporte: 'NHL', liga: 'nhl', dia, cuando: null, partido: `${fuera} @ ${casa}`, casa, fuera, casaId: null, fueraId: null, favorito: casa, probabilidad: 0.58, ganador: casa, acerto: true, origen: 'en vivo' });
       await r.fulfill({ response: res, json: j });
     });
-    await page.goto('/nhl');
+    await page.goto('/confianza');
     const nombre = page.locator('li', { hasText: 'Boston Bruins' }).getByText('Toronto Maple Leafs');
     await expect(nombre).toBeVisible();
     const hueco = await nombre.evaluate((el) => {
@@ -658,7 +572,7 @@ test.describe('«@» en el escritorio', () => {
 test('N7: si «ganó» baja de línea, empieza alineado con el nombre', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 800 });
   await conGanador(page, 'Wolverhampton Wanderers');
-  await page.goto('/futbol');
+  await page.goto('/confianza');
   const m = await medirGano(page);
   expect(m.top, 'en otra línea').toBeGreaterThan(m.topNombre);
   expect(Math.abs(m.izquierda - m.inicioNombre)).toBeLessThan(0.5);
@@ -735,8 +649,8 @@ test('N15: si se sale de Confianza mientras llega lo de encima, la vuelta siguie
   await expect(page).toHaveURL(/\/confianza$/);
   await page.waitForTimeout(1000);
   // Se va antes de que llegue lo de encima, con la barra de abajo, y vuelve.
-  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Destacados' }).click();
-  await expect(page).toHaveURL(/\/destacados/);
+  await page.getByTestId('barra-inferior').getByRole('button', { name: 'Partidos' }).click();
+  await expect(page).toHaveURL(/\/partidos/);
   await expect(enlace).toHaveCount(0);
   await page.goBack();
   await expect(page).toHaveURL(/\/confianza$/);
@@ -754,21 +668,19 @@ test('N15: si se sale de Confianza mientras llega lo de encima, la vuelta siguie
 
 // Lote M (docs/plans/fixes-M.md): lo que la revisión del lote K vio y ya pasaba antes.
 
-test('M1: con un perfil nuevo, tocar «¿Acertó?» enseña los resultados en vez de plegar el panel', async ({ page }) => {
-  // Perfil nuevo: nada guardado de «Hoy» (el beforeEach solo salta el recorrido).
-  await page.route('**/api/today', (r) => r.fulfill({ json: SIETE }));
-  await page.goto('/tenis');
-  await expect(page.getByRole('button', { name: /^Hoy/ })).toHaveAttribute('aria-expanded', 'true');
-  await page.getByRole('button', { name: '¿Acertó?' }).click();
-  // Sigue abierto, ahora con lo que dijo el modelo y qué pasó.
-  await expect(page.getByRole('button', { name: /^Cómo le fue al modelo/ })).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.getByRole('button', { name: 'Qué hay hoy' })).toBeVisible();
-  // La visita siguiente, en saltos.spec.ts (N2): nace plegado, sin saltar.
-});
+// Rediseño de noviembre: «¿Acertó?» vive en Rendimiento, sin el interruptor «Hoy / ¿Acertó?». Test retirado.
 
 for (const ancho of [360, 320, 280]) {
   test(`M2: a ${ancho} px la ficha «Posible value» cabe en su tarjeta`, async ({ page }) => {
     await page.setViewportSize({ width: ancho, height: 800 });
+    // Desde el rediseño, «Posible value» no sale con cuotas de demostración (T04); la base del e2e
+    // solo tiene esas, así que la respuesta se presenta como de una casa real para medir la ficha.
+    await page.route('**/api/matches/upcoming?*', async (r) => {
+      const res = await r.fetch();
+      const j = (await res.json()) as { match: { source: string } }[];
+      for (const x of j) if (x.match) x.match.source = 'live';
+      await r.fulfill({ response: res, json: j });
+    });
     await page.goto('/tenis');
     const fichas = page.getByText(/^Posible value: /);
     await expect(fichas.first()).toBeAttached({ timeout: 20_000 });
@@ -795,10 +707,10 @@ for (const ancho of [360, 359, 320, 280]) {
       const res = await r.fetch();
       const j = (await res.json()) as { resultados: unknown[] };
       const casa = 'Wolverhampton Wanderers';
-      j.resultados.unshift({ deporte: 'Fútbol', liga: 'epl', dia, cuando: null, partido: `${casa} - Sheffield United`, casa, fuera: 'Sheffield United', casaId: null, fueraId: null, favorito: casa, probabilidad: 0.61, ganador: casa, acerto: true, origen: 'reconstruida' });
+      j.resultados.unshift({ deporte: 'Fútbol', liga: 'epl', dia, cuando: null, partido: `${casa} - Sheffield United`, casa, fuera: 'Sheffield United', casaId: null, fueraId: null, favorito: casa, probabilidad: 0.61, ganador: casa, acerto: true, origen: 'en vivo' });
       await r.fulfill({ response: res, json: j });
     });
-    await page.goto('/futbol');
+    await page.goto('/confianza');
     const fila = page.locator('li', { hasText: 'el modelo dijo' }).filter({ hasText: 'Sheffield United' });
     await expect(fila).toBeVisible();
     // Cuántas líneas ocupa la palabra «Wolverhampton» en el nombre: una, si no se parte.

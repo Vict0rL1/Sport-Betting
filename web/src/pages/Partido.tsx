@@ -4,7 +4,7 @@
 // «¿Acertó?» cuando hay resultado. El ?clave= permite abrirla aunque el partido ya no esté en
 // la lista de próximos.
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import FootballCard from '../components/football/MatchCard';
 import BasketballCard from '../components/basketball/GameCard';
@@ -25,6 +25,38 @@ interface Resultado { casa: string; fuera: string; cuando: string | null; probab
 interface PorCasa { casas: string[]; series: { casa: string; seleccion: string; puntos: { at: string; cuota: number }[] }[] }
 
 const DEPORTES: DeporteId[] = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'ufc', 'tennis'];
+
+/**
+ * Guardar ESTA estimación para mirarla después (FAV-3): una referencia a la instantánea, distinta de
+ * seguir el partido y de apuntar una apuesta. Lo que se ve es lo que el servidor tiene guardado.
+ */
+function GuardarEstimacion({ sport, matchKey, snapshotId }: { sport: string; matchKey: string; snapshotId: number }) {
+  const { t } = useI18n();
+  const [guardada, setGuardada] = useState<number | null | undefined>(undefined);
+  const [error, setError] = useState(false);
+  const leer = useCallback(() => {
+    fetch('/api/guardadas')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j: { guardadas: { id: number; sport: string; snapshot_id: number }[] }) => setGuardada(j.guardadas.find((g) => g.sport === sport && g.snapshot_id === snapshotId)?.id ?? null))
+      .catch(() => setGuardada(null));
+  }, [sport, snapshotId]);
+  useEffect(leer, [leer]);
+  if (guardada === undefined) return null;
+  const alternar = async () => {
+    const r = await (guardada != null
+      ? fetch(`/api/guardadas/${guardada}`, { method: 'DELETE' })
+      : fetch('/api/guardadas', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ sport, matchKey, snapshotId }) })
+    ).catch(() => null);
+    if (!r || !r.ok) return setError(true);
+    setError(false);
+    leer();
+  };
+  return (
+    <button type="button" onClick={() => void alternar()} aria-pressed={guardada != null} className={`toque rounded px-1.5 text-[11px] underline-offset-2 [--toque-y:8px] hover:underline ${error ? 'text-(--status-critical)' : guardada != null ? 'text-(--ink-strong)' : 'text-(--ink-muted)'}`}>
+      {error ? t('seguimiento.error') : guardada != null ? t('partido.guardadaQuitar') : t('partido.guardar')}
+    </button>
+  );
+}
 
 /**
  * La ficha, con una clave por partido (D8): al pasar de un partido a otro sin salir de la ruta,
@@ -151,6 +183,25 @@ function FichaPartido({ sport, id }: { sport: string; id: string }) {
         </div>
       )}
 
+      {/* Lo que usó el modelo (DET-2): las entradas guardadas con la última estimación, tal cual.
+          Lo que no se sabía sale como DESCONOCIDO; no es una explicación causal. */}
+      {pre?.entradas && pre.entradas.length > 0 && (
+        <section className="mb-4 rounded-xl border border-(--line) p-4">
+          <h3 className="mb-1 text-[15px] font-semibold text-(--ink-strong)">{t('partido.entradas')}</h3>
+          <p className="mb-2 text-[12px] text-(--ink-muted)">{t('partido.entradasNota', { cuando: pre.entradasDe ? f.fecha(pre.entradasDe, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—' })}</p>
+          <dl className="grid gap-x-4 gap-y-1 text-[13px] sm:grid-cols-[minmax(0,1fr)_auto]">
+            {pre.entradas.map((e) => (
+              <div key={e.etiqueta} className="contents">
+                <dt className="text-(--ink-soft)">{e.etiqueta}</dt>
+                <dd className={`tabular-nums ${e.valor == null ? 'text-(--status-warning)' : 'text-(--ink-strong)'}`}>
+                  {e.valor == null ? t('partido.desconocido') : typeof e.valor === 'boolean' ? (e.valor ? t('comun.si') : t('comun.no')) : typeof e.valor === 'number' ? f.numero(e.valor, 1) : e.valor}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-xl border border-(--line) p-4">
           <h3 className="mb-2 text-[15px] font-semibold text-(--ink-strong)">{t('partido.deriva')}</h3>
@@ -165,6 +216,24 @@ function FichaPartido({ sport, id }: { sport: string; id: string }) {
             <p className="text-[13px] text-(--ink-muted)">{t(pre ? avisoSinDeriva(pre) : 'partido.sinInstantaneas', { n: pre?.instantaneas ?? 0 })}</p>
           )}
           {pre?.final && <p className="mt-1 text-[12px] text-(--ink-soft)">{t('partido.finalCongelada', { p: f.porcentaje(pre.final.probs[0], 1) })}</p>}
+          {/* El historial (HIS-3): cada estimación guardada, tal cual, con su papel. */}
+          {pre?.historial && pre.historial.length > 0 && (
+            <div className="mt-3 border-t border-(--line) pt-3">
+              <h4 className="mb-1 text-[13px] font-semibold text-(--ink-body)">{t('partido.historial')}</h4>
+              <ol className="space-y-1 text-[13px]">
+                {pre.historial.map((x) => (
+                  <li key={x.id} className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="tabular-nums text-(--ink-muted)">{f.fecha(x.captured_at, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="tabular-nums text-(--ink-strong)">{x.outcomes.map((o, i) => `${o} ${f.porcentaje(x.probs[i], 1)}`).join(' · ')}</span>
+                    <span className={`rounded px-1.5 text-[11px] ${x.papel === 'evaluada' ? 'text-(--ink-strong) ring-1 ring-(--accent)' : 'text-(--ink-muted) ring-1 ring-(--line-strong)'}`}>{t(`partido.papel.${x.papel}`)}</span>
+                    {x.model_version && <span className="text-[11px] text-(--ink-faint)">{x.model_version}</span>}
+                    {clave && <GuardarEstimacion sport={deporte} matchKey={clave} snapshotId={x.id} />}
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-1 text-[12px] text-(--ink-muted)">{pre.final ? t('partido.historialNotaCongelada') : t('partido.historialNota')}</p>
+            </div>
+          )}
         </section>
         <section className="rounded-xl border border-(--line) p-4">
           <h3 className="mb-2 text-[15px] font-semibold text-(--ink-strong)">{t('partido.cuotasPorCasa')}</h3>

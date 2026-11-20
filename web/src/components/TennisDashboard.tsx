@@ -14,12 +14,11 @@ import TrackRecordPanel from './TrackRecordPanel';
 import TennisEloPanel from './TennisEloPanel';
 import {
   DayFilter, DayHeading, pillClass, StaleHistoryWarning, PicksPanel, DashboardHeader, SkeletonList,
-  EmptySlate, SlateTable, VacioPorqueNoHayCuotas, SeccionDia,
+  EmptySlate, VacioPorqueNoHayCuotas, SeccionDia,
 } from './ui';
 import AskPanel from './AskPanel';
 import { staleLabel, staleness } from '../lib/staleness';
 import { CAVEATS, rankPicks, tennisPicks } from '../lib/picks';
-import { tennisSlate } from '../lib/slate';
 import { useStake } from '../lib/useStake';
 import { dayChipLabel, groupByDay } from '../lib/format';
 import { RefreshInfo, DataBadge, ShortSlateNote } from './TennisDashboardPartes';
@@ -115,7 +114,6 @@ export default function TennisDashboard() {
   // Ranked markets, from the rows already fetched. Recomputed only when those
   // change: it is pure arithmetic over what is on screen, no extra request.
   const picks = useMemo(() => rankPicks(tennisPicks(matches)), [matches]);
-  const slate = useMemo(() => tennisSlate(matches), [matches]);
   const [stake, setStake] = useStake();
   // Every price on screen invented by this app rather than fetched — see picks.ts.
   const demoOdds = matches.length > 0 && matches.every((r) => r.match.source === 'fixture');
@@ -195,7 +193,7 @@ export default function TennisDashboard() {
           render, so the two can never disagree about a number. */}
       <PicksPanel {...picks} caveat={t(CAVEATS.tennis)} demoOdds={demoOdds} stake={stake} onStakeChange={setStake} />
 
-      <SlateTable rows={slate} demoOdds={demoOdds} refrescadas={meta?.oddsRefreshedAt} bands={meta?.bands} />
+      {/* La tabla de partidos se quitó (rediseño de noviembre): la lista canónica es Partidos. */}
 
       <AskPanel />
 

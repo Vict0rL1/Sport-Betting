@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import '../test/setup.ts';
 
-const { recordSnapshot, instantaneas, aFecha, horizontes, freezeFinals, finalPrePartido, cambios } = await import('./snapshots.ts');
+const { recordSnapshot, instantaneas, aFecha, horizontes, freezeFinals, finalPrePartido, cambios, historial } = await import('./snapshots.ts');
 const { evaluacionPorHorizonte } = await import('./evaluation.ts');
 const { getDb } = await import('../db.ts');
 
@@ -120,6 +120,20 @@ test('al empezar, la final pre-partido se congela y ya no cambia', () => {
   // Y el modelo «volviendo a ejecutarse» después del inicio no deja rastro.
   assert.equal(recordSnapshot(snap({ probs: [0.7, 0.3] }), despues), 'empezado');
   assert.deepEqual(finalPrePartido('baseball', 'mlb|nyy|bos|20261111')?.probs, [0.61, 0.39]);
+});
+
+test('T11 / T12: el historial etiqueta la original, las revisiones y la evaluada (la última antes del inicio, no la que acertó)', () => {
+  const h = historial('baseball', 'mlb|nyy|bos|20261111');
+  assert.ok(h.length >= 3, `${h.length} instantáneas`);
+  assert.equal(h[0].papel, 'original');
+  // La original no cambió con las revisiones ni con la final.
+  assert.deepEqual(h[0].probs, [0.55, 0.45]);
+  const evaluadas = h.filter((x) => x.papel === 'evaluada');
+  assert.equal(evaluadas.length, 1);
+  assert.equal(evaluadas[0], h[h.length - 1], 'la evaluada es la última capturada antes del inicio');
+  assert.deepEqual(evaluadas[0].probs, finalPrePartido('baseball', 'mlb|nyy|bos|20261111')!.probs);
+  assert.ok(h.slice(1, -1).every((x) => x.papel === 'revision'));
+  for (const x of h) assert.ok(x.captured_at < INICIO, 'todas antes del inicio');
 });
 
 test('sin instantáneas, la final sale del registro de predicciones (también anterior al partido)', () => {

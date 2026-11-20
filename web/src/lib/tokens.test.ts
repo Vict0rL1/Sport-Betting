@@ -55,3 +55,28 @@ for (const [tema, t] of Object.entries(TEMAS)) {
     assert.ok(contraste(t['ink-on-fill'], t['status-critical']) >= 4.5, `${t['ink-on-fill']} sobre ${t['status-critical']}`);
   });
 }
+
+// Rediseño de noviembre: la tinta y el acento sobre las superficies nuevas (grafito en oscuro).
+for (const [tema, t] of Object.entries(TEMAS)) {
+  const fondos = {
+    tarjeta: t['surface-card'],
+    pagina: t['surface-page'],
+    carril: t['surface-rail'],
+    'elevado sobre la página': capa(t['raised'], t['surface-page']),
+    'elevado sobre la tarjeta': capa(t['raised'], t['surface-card']),
+    'elevado 2 sobre la página': capa(t['raised-2'], t['surface-page']),
+  };
+  test(`rediseño: en ${tema}, toda la tinta de texto y el acento pasan de 4,5:1 en cada superficie`, () => {
+    const bajos: string[] = [];
+    for (const tinta of ['ink-strong', 'ink-body', 'ink-soft', 'ink-muted', 'ink-faint', 'accent']) {
+      for (const [donde, base] of Object.entries(fondos)) {
+        const r = contraste(t[tinta], base);
+        if (r < 4.5) bajos.push(`${tinta} (${t[tinta]}) sobre ${donde}: ${r.toFixed(2)}`);
+      }
+    }
+    assert.deepEqual(bajos, []);
+  });
+  test(`rediseño: en ${tema}, el texto sobre el acento pasa de 4,5:1`, () => {
+    assert.ok(contraste(t['accent-ink'], t['accent']) >= 4.5, `${t['accent-ink']} sobre ${t['accent']}: ${contraste(t['accent-ink'], t['accent']).toFixed(2)}`);
+  });
+}

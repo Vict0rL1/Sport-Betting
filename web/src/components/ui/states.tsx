@@ -1,3 +1,5 @@
+import { Link } from 'react-router';
+import { RUTA_DIAGNOSTICO } from '../../rutas';
 // Piezas compartidas de la interfaz: states. Partido de ui/index.tsx en la Fase 5 (ningún import cambia: index.tsx reexporta).
 import { useState, type ReactNode } from 'react';
 import { RELIABILITY_STYLE } from '../../lib/theme';
@@ -23,30 +25,34 @@ export function pillClass(active: boolean): string {
   }`;
 }
 
-/** Reliability chip. Always carries the word, never colour alone. */
+/**
+ * La incertidumbre del modelo (rediseño de noviembre, D5): ±pp por el ruido de los ratings, con
+ * la palabra (nunca solo el color). El texto sale del catálogo y no del servidor, que lo manda en
+ * español; y dice «incertidumbre», no «fiabilidad», para no chocar con la solidez de la estimación.
+ * `label` se acepta por compatibilidad y no se usa.
+ */
 export function ReliabilityChip({
   level,
-  label,
   marginPp,
   title,
 }: {
   level: 'high' | 'medium' | 'low';
-  label: string;
+  label?: string;
   marginPp: number;
   title?: string;
 }) {
+  const { t } = useI18n();
   return (
     <span
-      title={title}
+      title={[t('incert.nota'), title].filter(Boolean).join('\n')}
       className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[13px] font-medium ring-1 ring-inset ${RELIABILITY_STYLE[level]}`}
     >
       <span aria-hidden>{level === 'high' ? '●' : level === 'medium' ? '◐' : '○'}</span>
-      {label} · ±{num(marginPp, 1)} pp
+      {t(`incert.${level}`)} · ±{num(marginPp, 1)} pp
     </span>
   );
 }
 
-/** Progressive disclosure. The breakdown is opt-in, not a wall you scroll past. */
 export function Disclosure({
   summary,
   children,
@@ -183,7 +189,8 @@ export function StaleHistoryWarning({
         {t('historia.termina', { cuando: when, hueco: gap })}
       </p>
       <p className="mt-1">
-        {conNodos(t('historia.noReflejan', { que: what }), { fix: <code className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[14px]">{fix}</code> })}
+        {/* Sin comandos en la vista (rediseño de noviembre, OPS-1): Diagnóstico tiene el detalle. */}
+        {conNodos(t('historia.noReflejan', { que: what }), { fix: <Link to={RUTA_DIAGNOSTICO} className="underline underline-offset-2" data-comando={fix}>{t('nav.diagnostico')}</Link> })}
       </p>
     </div>
   );

@@ -5,14 +5,14 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router';
 import { SPORT_THEMES, type SportId } from './lib/theme';
-import TodayPanel from './components/TodayPanel';
 import { AppMark, SportIcon } from './components/icons';
 import Login from './components/auth/Login';
 import AccountPanel from './components/auth/AccountPanel';
 import { estadoAuth, EVENTO_AUTH, instalarDetector401, type EstadoAuth } from './lib/auth';
-import { DEPORTES, PESTANAS, RUTA_AJUSTES, RUTA_DE_PESTANA, pestanaDeRuta, recordarPestana, ultimaPestana } from './rutas';
+import { DEPORTES, PESTANAS, RUTA_AJUSTES, RUTA_DE_PESTANA, RUTA_PARTIDOS, pestanaDeRuta, recordarPestana } from './rutas';
 import StatusPill from './components/estado/StatusPill';
 import MobileNav from './components/nav/MobileNav';
+import NavPrincipal from './components/nav/Principal';
 import NoEncontrada from './pages/NoEncontrada';
 import Buscador from './components/busqueda/Buscador';
 import Campana from './components/bandeja/Campana';
@@ -37,7 +37,7 @@ const cargarUfc = () => import('./components/ufc/UfcDashboard');
 const cargarApuestas = () => import('./components/bets/BetsDashboard');
 const cargarConfianza = () => import('./components/trust/SystemTrust');
 const cargarDestacados = () => import('./components/picks/TopPicks');
-const PESTANAS_PRECARGADAS = [cargarDestacados, cargarFutbol, cargarBaloncesto, cargarBeisbol, cargarNfl, cargarNhl, cargarUfc, cargarTenis, cargarApuestas, cargarConfianza];
+const PESTANAS_PRECARGADAS = [() => import('./pages/Partidos'), cargarDestacados, cargarFutbol, cargarBaloncesto, cargarBeisbol, cargarNfl, cargarNhl, cargarUfc, cargarTenis, cargarApuestas, cargarConfianza];
 const TennisDashboard = lazy(cargarTenis);
 const BasketballDashboard = lazy(cargarBaloncesto);
 const FootballDashboard = lazy(cargarFutbol);
@@ -63,6 +63,8 @@ const Informes = lazy(() => import('./pages/Informes'));
 const InformeDetalle = lazy(() => import('./pages/Informe'));
 const Lineas = lazy(() => import('./pages/Lineas'));
 const Archivo = lazy(() => import('./pages/Archivo'));
+const cargarPartidos = () => import('./pages/Partidos');
+const Partidos = lazy(cargarPartidos);
 import { I18nProvider, idiomaGuardado, localeDe, useI18n, type Clave } from './i18n';
 import { aplicarTema, temaGuardado, type Tema } from './lib/tema';
 import { atajoPermitido } from './lib/dialogo';
@@ -252,7 +254,6 @@ function Armazon() {
   }
   const alSalir = () => setAuth((a) => (a ? { ...a, dentro: false } : a));
   const ocultos = ajustes?.deportesOcultos ?? [];
-  const conHoy = pestana === 'picks' || (pestana != null && DEPORTES.includes(pestana) && !pathname.startsWith('/partido') && !pathname.startsWith('/equipo') && !pathname.startsWith('/liga') && !pathname.startsWith('/jugador'));
 
   return (
     // Dentro de la puerta (G10): la lista de seguidos pide /api/watchlist, que necesita sesión; antes
@@ -280,7 +281,9 @@ function Armazon() {
               </>
             )}
           </div>
-          <SportNav pestana={pestana} ocultos={ocultos} vertical />
+          <NavPrincipal pathname={pathname} />
+          <p className="mt-4 px-5 pb-1 text-[12px] font-medium uppercase tracking-wide text-(--ink-muted)">{t('nav.analisis')}</p>
+          <SportNav pestana={pestana} ocultos={ocultos} vertical soloDeportes />
           <div className="mt-auto px-2 pb-3">
             <EnlacesSecundarios pathname={pathname} />
             {auth.auth && auth.sesiones && <AccountPanel usuario={auth.usuario} onSalir={alSalir} />}
@@ -311,13 +314,13 @@ function Armazon() {
             (cada pantalla se carga aparte). Medido con Lighthouse: era el mayor desplazamiento. */}
         <main className={`mx-auto ${SHELL_WIDTH} min-h-[100svh] px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5 lg:pb-16`}>
           <BannerSinConexion />
-          {conHoy && <TodayPanel pestana={pestana} />}
           <ErrorBoundary clave={pathname}>
           {/* La forma de lo que viene, no la palabra (K5, lote K): lo mismo que enseña cada pantalla
               mientras llegan sus datos, así que no hay un salto de «Cargando…» a tarjetas. */}
           <Suspense fallback={<SkeletonList />}>
           <Routes>
-            <Route path="/" element={<Navigate to={RUTA_DE_PESTANA[ultimaPestana()]} replace />} />
+            <Route path="/" element={<Navigate to={RUTA_PARTIDOS} replace />} />
+            <Route path="/partidos" element={<Partidos />} />
             <Route path="/destacados" element={<TopPicks />} />
             <Route path="/futbol/:league?" element={<FootballDashboard />} />
             <Route path="/baloncesto/:league?" element={<BasketballDashboard />} />
@@ -390,6 +393,7 @@ function EnlacesSecundarios({ pathname, enLinea = false }: { pathname: string; e
   const { t } = useI18n();
   const navigate = useNavigate();
   const enlaces: [string, string][] = [
+    ['/destacados', t('nav.destacados')],
     ['/informes', t('nav.informes')],
     ['/bandeja', t('nav.bandeja')],
     [RUTA_AJUSTES, t('nav.ajustes')],

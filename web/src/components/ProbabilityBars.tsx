@@ -91,10 +91,11 @@ function SplitBar({
  * each player's win probability. Comparing where the two bars split shows
  * whether the model agrees with the bookmakers.
  */
-export default function ProbabilityBars({ prediction }: { prediction: Prediction }) {
+export default function ProbabilityBars({ prediction, sinMercado = false }: { prediction: Prediction; sinMercado?: boolean }) {
   const { t } = useI18n();
   const modelLeft = prediction.model.prob1;
-  const market = prediction.market.market;
+  // Con cuotas de demostración no hay mercado con el que comparar (T04).
+  const market = sinMercado ? null : prediction.market.market;
   const marketLeft = market ? market.implied1 : null;
 
   // La diferencia, en puntos porcentuales y con su signo. Por debajo de medio punto no
@@ -120,12 +121,17 @@ export default function ProbabilityBars({ prediction }: { prediction: Prediction
           ) : undefined
         }
       />
-      <SplitBar
-        title={t('pb.mercadoSinVig')}
-        leftFrac={marketLeft}
-        leftLabel={market ? pct(market.implied1, 1) : t('pb.sinOdds')}
-        rightLabel={market ? pct(market.implied2, 1) : ''}
-      />
+      {/* Con cuotas de demostración no hay segunda barra: ni siquiera su título (T04). */}
+      {sinMercado ? (
+        <p className="text-[13px] text-(--ink-muted)">{t('pb.demoSinMercado')}</p>
+      ) : (
+        <SplitBar
+          title={t('pb.mercadoSinVig')}
+          leftFrac={marketLeft}
+          leftLabel={market ? pct(market.implied1, 1) : t('pb.sinOdds')}
+          rightLabel={market ? pct(market.implied2, 1) : ''}
+        />
+      )}
     </div>
   );
 }

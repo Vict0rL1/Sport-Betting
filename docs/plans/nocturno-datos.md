@@ -141,7 +141,18 @@ segundas divisiones de 2025-26, la temporada en curso).
 
 ### Hallazgos que salieron al medir (pendientes, cada uno con su prueba)
 
-- **A. openfootball parte clubes entre temporadas.** Cambia la grafía y, con ella, el id:
+- **A. (arreglado el 18 de noviembre: 24 clubes en 7 ligas; ver el CHANGELOG) openfootball parte clubes
+  entre temporadas.** Revisión data-guardian del arreglo: nada bloqueaba.
+  - Aplicados: no unir un filial con su primer equipo, y no registrar dos veces un partido porque cambie un
+    id.
+  - Pendiente, de poco riesgo:
+    - la detección lee antes de abrir la transacción (hoy no hay otro escritor de `fb_matches`);
+    - entre la unión y el recálculo del Elo, al final de `update-data:fb`, un lector ve el rating viejo del
+      id nuevo, nunca uno a medias;
+    - `footballcsv.ts` crea ids con `slugify` sin pasar por los alias, pero solo actúa si no hubo ninguna
+      otra fuente.
+  - Lo que lee el libro mayor por id de equipo («nombre del equipo de una predicción vieja») no encuentra el
+    id viejo. Solo afecta a lo que se ve, nunca al resultado. Cambia la grafía y, con ella, el id:
   - «Bayer Leverkusen» (2019-20) → «Bayer 04 Leverkusen»;
   - «Real Sociedad» → «Real Sociedad de Fútbol», «Real Betis» → «Real Betis Balompié»;
   - «Stade Rennais» → «Stade Rennais FC 1901» (2023-24), «SL Benfica» → «Sport Lisboa e Benfica»;

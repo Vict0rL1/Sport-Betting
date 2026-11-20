@@ -96,6 +96,11 @@ export interface PrePartido {
   horizontes: Horizonte[];
   cambios: { desde: string; hasta: string; deltaPp: number[]; causas: string[]; atribucion: string }[];
   final: { probs: number[]; frozen_at: string; source: string } | null;
+  /** Cada instantánea con su papel (rediseño de noviembre); falta en respuestas de antes. */
+  historial?: { id: number; captured_at: string; outcomes: string[]; probs: number[]; model_version: string | null; papel: 'original' | 'revision' | 'evaluada' }[];
+  /** Las entradas que usó el modelo en la última instantánea; valor null = no se sabía. */
+  entradas?: { etiqueta: string; valor: string | number | boolean | null }[];
+  entradasDe?: string | null;
 }
 
 /**

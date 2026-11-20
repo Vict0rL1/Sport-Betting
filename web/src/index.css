@@ -9,15 +9,15 @@
 :root,
 :root[data-theme='oscuro'] {
   color-scheme: dark;
-  --surface-page: #0b0d11;
-  --surface-card: #14161b;
-  --surface-rail: #0d0f14;
-  --ink-strong: #e8eaed;
-  --ink-body: #c3c9d1;
-  --ink-soft: #9aa1ac;
-  --ink-muted: #8b929d;
+  --surface-page: #0b0f14;
+  --surface-card: #121820;
+  --surface-rail: #0e1319;
+  --ink-strong: #f3f5f7;
+  --ink-body: #cfd6de;
+  --ink-soft: #a7b2c0;
+  --ink-muted: #97a2b0;
   /* ≥ 4,5:1 sobre página, tarjeta y relleno (E2 de la revisión del 8 de octubre: era #5c636c, 3:1). */
-  --ink-faint: #7f8691;
+  --ink-faint: #8a95a3;
   /* Estados como TEXTO: con su fondo teñido al 12–14 % pasan de 4,5:1 sobre tarjeta, página,
      carril y relleno (G6: con el tinte sobre un fondo elevado no llegaban; lib/tokens.test.ts). */
   --status-good: #22b07f;
@@ -37,6 +37,11 @@
   --line: rgba(255, 255, 255, 0.07);
   --line-strong: rgba(255, 255, 255, 0.14);
   --ink-on-fill: #0b1220;
+  /* Acento (rediseño de noviembre): menta contenida, SOLO para lo seleccionado y la acción
+     principal. No es «bueno»: una probabilidad no se pinta con él. Texto encima: --accent-ink. */
+  --accent: #4dd5ad;
+  --accent-ink: #052a1f;
+  --accent-soft: rgba(77, 213, 173, 0.14);
 }
 
 :root[data-theme='claro'] {
@@ -48,7 +53,7 @@
   --ink-body: #2b3038;
   --ink-soft: #4b525c;
   --ink-muted: #565c68;
-  --ink-faint: #636975;
+  --ink-faint: #5a606b;
   --status-good: #0a6747;
   --status-warning: #7c5200;
   --status-critical: #a23434;
@@ -63,6 +68,9 @@
   --line: rgba(20, 22, 27, 0.1);
   --line-strong: rgba(20, 22, 27, 0.2);
   --ink-on-fill: #ffffff;
+  --accent: #08664d;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(8, 102, 77, 0.12);
 }
 
 /* «auto»: lo que pida el sistema. */
@@ -76,7 +84,7 @@
     --ink-body: #2b3038;
     --ink-soft: #4b525c;
     --ink-muted: #565c68;
-    --ink-faint: #636975;
+    --ink-faint: #5a606b;
     --status-good: #0a6747;
     --status-warning: #7c5200;
     --status-critical: #a23434;
@@ -91,6 +99,9 @@
     --line: rgba(20, 22, 27, 0.1);
     --line-strong: rgba(20, 22, 27, 0.2);
     --ink-on-fill: #ffffff;
+    --accent: #08664d;
+    --accent-ink: #ffffff;
+    --accent-soft: rgba(8, 102, 77, 0.12);
   }
 }
 

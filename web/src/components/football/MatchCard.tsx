@@ -275,6 +275,7 @@ export default function MatchCard({
                 />
               </StatRow>
                   <Detail
+                    demo={fixture.source === 'fixture'}
                     prediction={prediction}
                     league={fixture.league}
                     outHome={outHome}
