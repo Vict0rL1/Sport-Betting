@@ -240,9 +240,16 @@ Estados: OK · PARCIAL · FALTA · HECHO (en esta obra) · BLOQ (bloqueado) · D
     estimación vigente.
   - La revisión quant lo marcó (medio). Unificar Destacados con el mismo resolutor cambia su orden y
     su evaluación de confianza: queda para un cambio propio, con quant-reviewer.
-- **Predicciones de demostración en el registro.** El fútbol registra las de partidos `fixture`, igual
-  que el tenis; la NFL ya no. No llegan al rendimiento porque nunca tienen resultado, pero lo correcto
-  es no registrarlas (cambio en el libro mayor: necesita data-guardian).
+  - **20-nov (revisión del PR 17, B1):** lo que se PUNTÚA ya tiene una sola regla, la final congelada
+    (`server/src/evaluation/evaluada.ts`). Destacados sigue con la publicación a propósito, porque
+    actúa al publicar. Ver `docs/plans/revision-pr17-2026-11.md`.
+- ~~**Predicciones de demostración en el registro.**~~ **Corregido en la documentación (B6, revisión
+  del PR 17): la afirmación era falsa.** Ningún deporte registra filas de demostración:
+  - fútbol `routes/football.ts:82`, tenis `routes/api.ts:118`, baloncesto `routes/basketball.ts:78` y
+    béisbol `routes/baseball.ts:79` solo registran `source === 'live'` (y no lo ajustado a mano);
+  - la NFL registra todo menos `fixture` (`routes/nfl.ts:77`: el calendario oficial es real);
+  - la NHL y la UFC solo tienen filas reales (calendario oficial o casa de apuestas).
+  No se ha cambiado código.
 - **La zona horaria elegida solo la usa Partidos.** El resto de pantallas formatea con la del navegador.
 - **Prosa del servidor en español con la interfaz en inglés.** Los motivos de las tarjetas («En
   hierba, … llega con mejor Elo», «Forma: …») y las descripciones de `features.json` en Ajustes salen

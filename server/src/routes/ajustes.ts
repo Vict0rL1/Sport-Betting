@@ -14,7 +14,7 @@ import { estado as estadoTrabajos } from '../scheduler/registry.ts';
 import { leerFeatures, fijarAnulacion, estadoFeatures, CLAVE_ANULACIONES, featureEncendida, soloArranque } from '../features.ts';
 import { leerAjustes, guardarAjustes, idiomaDeAcceptLanguage } from '../ajustes/index.ts';
 import { listarSeguidos, seguir, dejarDeSeguir, validarSeguido } from '../watchlist/index.ts';
-import { guardarInstantanea, listarGuardadas, quitarGuardada } from '../watchlist/guardadas.ts';
+import { anotarGuardada, guardarInstantanea, listarGuardadas, NOTA_MAX, quitarGuardada } from '../watchlist/guardadas.ts';
 import { SPORT_IDS, type SportId } from '../sports.ts';
 import { ESQUEMA_ERROR, ESQUEMA_ESTADO, ESQUEMA_ERRORES, ESQUEMA_FEATURE, ESQUEMA_AJUSTES, ESQUEMA_WATCHLIST, ESQUEMA_SEGUIDO } from '../api/schemas.ts';
 
@@ -132,6 +132,14 @@ export async function registerAjustesRoutes(app: FastifyInstance): Promise<void>
     } catch (e) {
       return reply.code(400).send({ error: (e as Error).message });
     }
+  });
+  // E3: la nota de una guardada. Dato personal y editable; la instantánea no se toca.
+  app.patch<{ Params: { id: string }; Body: { nota?: string | null } }>('/api/guardadas/:id', { schema: { tags: ['interfaz'], summary: 'Escribir, cambiar o borrar la nota de una estimación guardada (la instantánea no se toca)', body: { type: 'object', properties: { nota: { type: ['string', 'null'] } }, required: ['nota'] } } }, async (req, reply) => {
+    if (!featureEncendida('interfaz.seguimiento')) return reply.code(404).send({ error: 'apagado (features.json: interfaz.seguimiento)' });
+    const nota = req.body.nota ?? null;
+    if (nota != null && nota.trim().length > NOTA_MAX) return reply.code(400).send({ error: `la nota tiene más de ${NOTA_MAX} caracteres` });
+    const g = anotarGuardada(Number(req.params.id), nota);
+    return g ?? reply.code(404).send({ error: 'no existe esa estimación guardada' });
   });
   app.delete<{ Params: { id: string } }>('/api/guardadas/:id', { schema: { tags: ['interfaz'], summary: 'Quitar una estimación guardada (la instantánea no se toca)' } }, async (req, reply) => {
     if (!featureEncendida('interfaz.seguimiento')) return reply.code(404).send({ error: 'apagado (features.json: interfaz.seguimiento)' });

@@ -11,11 +11,10 @@ import {
   type BetCandidate,
   type BetInput,
   type FieldError,
-  MONEDAS,
-} from '../../lib/bets';
+  MONEDAS, type EstimacionEnlazada } from '../../lib/bets';
 import { HOME_COLOR, PROFIT_TEXT } from '../../lib/theme';
 import { Payout, ModeTab, Field, inputClass, selectClass, todayLocal } from './BetFormPartes';
-import { conNodos, useI18n } from '../../i18n';
+import { conNodos, existeClave, localeDe, useI18n, type Clave } from '../../i18n';
 import { num as numF } from '../../lib/formato';
 
 const MARKETS = ['moneyline', 'spread', 'total', 'btts', 'score', 'other'];
@@ -91,6 +90,13 @@ export default function BetForm({
   });
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [busy, setBusy] = useState(false);
+  // E5: la estimación con la que se hace la apuesta (desde la ficha, «Apuntar una apuesta con esta
+  // estimación»). Se puede quitar; sin ella la apuesta queda explícitamente sin enlazar.
+  const [enlace, setEnlace] = useState<{ id: number; estimacion: EstimacionEnlazada | null } | null>(() => {
+    if (editing?.snapshotId != null) return { id: editing.snapshotId, estimacion: editing.estimacion ?? null };
+    const id = borrador && typeof borrador.snapshot_id === 'number' ? borrador.snapshot_id : null;
+    return id == null ? null : { id, estimacion: (borrador?.estimacion as EstimacionEnlazada | undefined) ?? null };
+  });
 
   useEffect(() => {
     if (editing) return;
@@ -108,7 +114,13 @@ export default function BetForm({
     [candidates, pickedKey],
   );
 
-  const errorFor = (field: string) => errors.find((e) => e.field === field)?.message;
+  // G2: el error en el idioma de la pantalla por su código; si el código no se conoce, el texto del servidor.
+  const errorFor = (field: string) => {
+    const e = errors.find((x) => x.field === field);
+    if (!e) return undefined;
+    const clave = `apiError.${e.code}` as Clave;
+    return e.code && existeClave(clave) ? t(clave, e.params ?? {}) : e.message;
+  };
 
   const submit = async () => {
     setBusy(true);
@@ -130,6 +142,7 @@ export default function BetForm({
       match_key: picked?.matchKey ?? editing?.match_key ?? (b('match_key') || null),
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       currency: form.currency || null,
+      snapshot_id: enlace?.id ?? null,
     };
     if (form.currency) recordarMoneda(form.currency);
     try {
@@ -154,6 +167,18 @@ export default function BetForm({
           {t('comun.cancelar')}
         </button>
       </div>
+
+      {/* E5: con qué estimación se hace la apuesta, tal como se guardó. */}
+      {enlace && (
+        <p className="mb-3 flex flex-wrap items-baseline gap-x-2 rounded-lg bg-(--raised) px-3 py-2 text-[13px] text-(--ink-body)">
+          <span>
+            {enlace.estimacion
+              ? t('form.enlazada', { cuando: new Date(enlace.estimacion.captured_at).toLocaleString(localeDe(idioma), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }), probs: enlace.estimacion.outcomes.map((o, i) => `${o} ${numF(enlace.estimacion!.probs[i] * 100, 1)} %`).join(' · ') })
+              : t('form.enlazadaSinDatos')}
+          </span>
+          <button type="button" onClick={() => setEnlace(null)} className="underline underline-offset-2 text-(--ink-soft) hover:text-(--ink-strong)">{t('form.quitarEnlace')}</button>
+        </p>
+      )}
 
       {!editing && (
         <div className="mb-3">

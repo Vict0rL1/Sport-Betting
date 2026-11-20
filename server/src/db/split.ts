@@ -178,7 +178,7 @@ export function apartarParaPartir(original: string, history: string, ledger: str
 }
 
 /** Tablas del libro mayor que no son el libro mayor de nadie: sesiones, errores, ejecuciones. */
-const TABLAS_DE_OPERACION = new Set(['sessions', 'error_log', 'ingestion_runs', 'scheduler_jobs', 'notification_log']);
+const TABLAS_DE_OPERACION = new Set(['sessions', 'error_log', 'ingestion_runs', 'scheduler_jobs', 'notification_log', 'notification_pending']);
 
 /**
  * Para el doctor, con un tennis.db sin partir junto a un ledger.db: cuántas filas de cada tabla del

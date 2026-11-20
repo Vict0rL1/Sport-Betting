@@ -26,7 +26,10 @@ import { devig } from '../market/devig.ts';
 import type { SportId } from '../sports.ts';
 import { emitirAlerta } from '../alerts/engine.ts';
 import { deInstantanea } from '../alerts/detectors.ts';
-import { prepartidoSql } from './tiempo.ts';
+import { clasePrepartido, prepartidoSql } from './tiempo.ts';
+import { ORDEN_LIBRE, resolverEvaluada, resultadosDe, type Resolucion } from '../evaluation/evaluada.ts';
+import { nombresDe, publicadaDe } from '../prediction/publicada.ts';
+import { isSportId } from '../sports.ts';
 
 /** Una entrada del modelo con nombre legible, para poder decir QUÉ cambió. */
 export interface Entrada {
@@ -357,7 +360,8 @@ export function finalPrePartido(sport: string, matchKey: string): FinalPrePartid
 //   revision   las siguientes, cada una porque algo cambió (ver CAMBIO_MIN y las marcas);
 //   evaluada   la que puntúa el rendimiento: la congelada en prematch_final, que es la última
 //              capturada ANTES del inicio. No la más favorable: se decide por la hora, no por el
-//              resultado. Mientras el partido no empieza, ninguna lo es todavía.
+//              resultado. Mientras el partido no empieza, ninguna lo es todavía. La regla es la de
+//              evaluation/evaluada.ts, la misma que usan «¿Acertó?», Rendimiento y la exportación.
 // Nada se recalcula: son las filas tal como se guardaron.
 
 export interface EntradaHistorial {
@@ -371,9 +375,29 @@ export interface EntradaHistorial {
   papel: 'original' | 'revision' | 'evaluada';
 }
 
+/** Lo que la política de evaluación dice de una final (null si no hay final). */
+export function evaluadaDeFinal(sport: string, final: FinalPrePartido | null): Resolucion | null {
+  if (!final) return null;
+  // Como «¿Acertó?»: solo con una publicación anterior al inicio (revisión quant de B1, M2), y con los
+  // nombres del registro: en el tenis, una final cuyos jugadores no casan no es la evaluada.
+  const pub = isSportId(sport) ? publicadaDe(sport, final.match_key) : null;
+  if (!pub) return { ok: false, motivo: 'sin-publicacion' };
+  if (clasePrepartido(pub.en, final.commence_time) !== 'prepartido') return { ok: false, motivo: 'publicacion-tardia' };
+  const nombres = isSportId(sport) ? nombresDe(sport, final.match_key) : null;
+  return resolverEvaluada(
+    null,
+    { source: final.source, outcomes: final.outcomes, probs: final.probs, market_probs: final.market_probs, model_version: final.model_version, captured_at: final.captured_at, snapshot_id: final.snapshot_id },
+    resultadosDe(sport),
+    nombres ? { nombres, ordenLibre: ORDEN_LIBRE.has(sport) } : undefined,
+  );
+}
+
 export function historial(sport: string, matchKey: string): EntradaHistorial[] {
   const filas = instantaneas(sport, matchKey);
-  const final = finalPrePartido(sport, matchKey);
+  // La evaluada, con la misma regla que «¿Acertó?» y Rendimiento (evaluation/evaluada.ts): solo si
+  // la final salió de una instantánea y se puede leer. Sin final, o con una ilegible, ninguna lo es.
+  const ev = evaluadaDeFinal(sport, finalPrePartido(sport, matchKey));
+  const evaluadaId = ev?.ok ? ev.evaluada.snapshotId : null;
   return filas.map((f, i) => ({
     id: f.id,
     captured_at: f.captured_at,
@@ -382,7 +406,7 @@ export function historial(sport: string, matchKey: string): EntradaHistorial[] {
     model_version: f.model_version,
     data_as_of: f.data_as_of,
     odds_at: f.odds_at,
-    papel: final?.snapshot_id === f.id ? 'evaluada' : i === 0 ? 'original' : 'revision',
+    papel: evaluadaId != null && evaluadaId === f.id ? 'evaluada' : i === 0 ? 'original' : 'revision',
   }));
 }
 

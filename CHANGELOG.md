@@ -4,6 +4,119 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Revisión del PR 17, fases B a G: lo que se puntúa, el dinero exacto, estados que no mienten, la ficha en orden, lo personal, zona, idioma y silencio (2026-11-20)
+
+Plan, matriz y destino de cada hallazgo en `docs/plans/revision-pr17-2026-11.md`.
+
+**B1. Una sola predicción evaluada** (`server/src/evaluation/evaluada.ts`, política
+`final-congelada-v1`)
+- Antes, «¿Acertó?», los resultados recientes y la evaluación en vivo puntuaban la publicación
+  original, mientras el historial llamaba «evaluada» a la final congelada. Con 20/20/60 publicado,
+  60/20/20 congelado y el local ganando, la app contaba un fallo y señalaba como evaluada la
+  instantánea que acertaba.
+- Ahora se puntúa la final congelada antes del inicio. Sin ella, la publicación, marcada «legado» y
+  contada aparte. Una final ilegible se excluye y se cuenta.
+- La misma regla vale para el veredicto de la ficha (`/api/resultado`, que ahora dice qué se puntuó),
+  los resultados recientes, la evaluación en vivo (con recuentos por tipo), la exportación (columnas
+  `eval_*`) y la etiqueta del historial.
+- Destacados, el banco de papel, las estrategias y la deriva no cambian: actúan al publicar.
+- Arreglado de paso, tras la revisión quant:
+  - en el tenis, una final con los jugadores al revés se reordena; si los nombres no casan, se
+    excluye;
+  - un partido excluido ya no vuelve a entrar como reconstruido;
+  - una publicación tardía queda fuera en todas las vías;
+  - cinco de las siete consultas de la exportación de predicciones nombraban columnas que no existen
+    y caían a `SELECT *`, sin columnas comunes y, en el baloncesto, sin `match_key`.
+- En la copia de datos reales no hay predicciones en vivo resueltas: ninguna cifra real cambia hoy.
+
+**B2. Dinero exacto** (`server/src/dinero.ts`, y su copia idéntica en `web/src/lib/dinero.ts`)
+- Apuesta y cuota como fracciones decimales exactas y un solo redondeo al céntimo, la mitad hacia
+  arriba.
+  - 1,02 a 1,25 paga 1,28 (antes 1,27 en el servidor).
+  - 1,05 a 2,30 paga 2,42 (antes 2,41 en la vista previa).
+  - 3 a 1,005 paga 3,02 (antes 3,01 en los dos).
+- Vista previa, API, resúmenes (sumados en céntimos enteros) y exportación de apuestas (columnas
+  `pago_bruto` y `neto`) dicen lo mismo. No se reescribe ninguna apuesta guardada.
+
+**B3. Lo guardado, sin mentir**
+- Una lectura de `/api/guardadas` por pantalla, con estados explícitos (`web/src/lib/remoto.ts`).
+- Si la lectura falla, la ficha dice «No se pudo comprobar si está guardada · reintentar» en vez de
+  «Guardar». Partidos avisa de que «Guardados» puede estar incompleto.
+
+**B4. Filtros a la vista**
+- Cada filtro activo (competición, búsqueda, «Guardados», umbral, orden) es una etiqueta que se
+  quita.
+- Una competición sin partidos dice «Ningún partido de NHL en la competición khl…», no «No hay
+  partidos de NHL».
+- Fecha, deporte, competición y quitar un filtro se pueden deshacer con «atrás».
+
+**B5. Procedencia en cada fila**
+- La hora de la estimación, siempre a la vista.
+- «Procedencia» despliega la versión del modelo, de dónde sale el partido (casa, calendario oficial o
+  demostración) y la fuente, casas y frescura de las cuotas. Lo que no se sabe dice DESCONOCIDO.
+- Un partido empezado dice «Empezado», nunca «en directo».
+
+**C. Partidos**
+- Los filtros en orden: fecha → búsqueda y competición → deporte → filtros activos → recuento.
+- Densidad cómoda o compacta, recordada en este navegador y fuera de la URL.
+- Estados de carga reutilizables (`components/ui/carga.tsx`): en Ajustes, los interruptores, las
+  cadencias y los canales de aviso decían «Cargando…» para siempre, o nada, cuando la petición
+  fallaba. Ahora dicen «No se pudo cargar…» con «Reintentar».
+
+**D. La ficha**
+- En el orden del brief: veredicto → estimación vigente con su hora y versión → «Lo que este número
+  no es» → entradas → historial → mercado → «Lo que puedes hacer».
+- **D1.** El historial resume original → última con Δpp por resultado, si cambió el favorito y qué
+  versiones del modelo intervinieron, y marca la «última» y la «evaluada».
+- **D2.** En pantallas de 1280 px o más, un partido se abre en un panel lateral sin salir de la
+  lista. Escape, el fondo o «atrás» lo cierran y el foco vuelve a la fila. La página completa sigue
+  ahí.
+- **D3.** Un partido de demostración no enseña mercado: no hay cuotas reales con las que comparar.
+
+**E. Lo personal**
+- **E1.** «Seguidos» (avisos) y «Guardados» (estimaciones guardadas) son filtros distintos.
+- **E2.** Vistas guardadas de Partidos: nombre, aplicar, renombrar y quitar. «Hoy» sigue siendo hoy.
+- **E3/E4.** `/guardadas` («Mis estimaciones guardadas») pone cada guardada al lado de la última
+  registrada, con Δpp, y deja una nota personal que se puede escribir, cambiar o borrar. La
+  instantánea no se toca.
+- **E5.** Una apuesta se puede apuntar desde la ficha enlazada a la estimación vigente.
+  - El enlace se valida al crear y al cambiar deporte o partido.
+  - Las apuestas de antes quedan sin enlazar, y Mis apuestas lo dice.
+- **Migración v30**, solo aditiva: `bets.snapshot_id`, `saved_predictions.note` y `note_updated_at`.
+  `verify:data` comprueba que cada enlace apunta a una instantánea del mismo deporte y partido.
+
+**F. Rendimiento y Mis apuestas**
+- **F1.** Rendimiento empieza por «Cómo se mide»: la política, las cohortes, el periodo, la muestra y
+  que acertar no es ganar dinero. Va con una tabla por deporte de evaluadas con la final, legado y
+  fuera.
+- Los paneles que fallaban en silencio (alertas, riesgo, modelos en la sombra, versiones,
+  experimentos) lo dicen y se pueden reintentar.
+- **F2.** Mis apuestas filtra abiertas o liquidadas. La pastilla del deporte elegido ya no
+  desaparece con el filtro puesto.
+
+**G. Zona, idioma y horas de silencio**
+- **G1.** La zona de Ajustes vale en los formateadores comunes (fechas, horas y días), también a
+  medianoche y con el cambio de hora; una fecha inválida sale «—».
+- **G2.** Los errores de validación de las apuestas llegan con un código estable y la web los enseña
+  en el idioma de la pantalla.
+- **G3.** Horas de silencio opcionales para los avisos externos (Ajustes › Notificaciones).
+  - En la zona elegida, también si la ventana cruza la medianoche.
+  - Suprimir, o aplazar al final de la ventana: una vez por aviso, y caduca en las horas que se
+    elijan.
+  - La bandeja lo recibe todo y «Enviar prueba» nunca se calla.
+  - Migración v31, solo aditiva: la cola `notification_pending`.
+
+**Segunda revisión quant**
+- La deriva sale de las publicaciones, sin pasar por la política.
+- `/api/prematch` aplica la regla de la publicación tardía.
+- La evaluación por horizontes se orienta como el registro.
+- Lo arriesgado en las medias deja el ROI exacto, y las apuestas antiguas suman igual en apostado y
+  en beneficio.
+
+**B6.** La documentación decía que el fútbol registra predicciones de demostración. Era falso: todos
+los deportes registran solo partidos reales (evidencia en `docs/plans/rediseno-2026-11.md`). No se
+cambió código.
+
 ## Rediseño de noviembre: un explorador de partidos, menos ruido, más verdad (2026-11-19)
 
 Plan, matriz de requisitos y relevo en `docs/plans/rediseno-2026-11.md`.

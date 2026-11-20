@@ -1589,6 +1589,24 @@ function auditPrematch(): void {
     .get() as { n: number; malas: number | null; huerfanas: number | null };
   check('pre-partido: cada final es anterior al inicio y se congeló después', (f.malas ?? 0) === 0, `${f.malas} incoherentes`);
   check('pre-partido: cada final sale de una instantánea que existe', (f.huerfanas ?? 0) === 0, `${f.huerfanas} huérfanas`);
+  // Revisión del PR 17 (E3/E5, data-guardian): una apuesta o una estimación guardada solo apunta a
+  // una instantánea que existe, del mismo deporte y, si lo dice, del mismo partido.
+  let malEnlazadas = 0;
+  try {
+    malEnlazadas = (
+      db
+        .prepare(
+          `SELECT (SELECT COUNT(*) FROM bets b LEFT JOIN prediction_snapshots s ON s.id = b.snapshot_id
+                    WHERE b.snapshot_id IS NOT NULL AND (s.id IS NULL OR s.sport <> b.sport OR (b.match_key IS NOT NULL AND s.match_key <> b.match_key)))
+                + (SELECT COUNT(*) FROM saved_predictions g LEFT JOIN prediction_snapshots s ON s.id = g.snapshot_id
+                    WHERE s.id IS NULL OR s.sport <> g.sport OR s.match_key <> g.match_key) AS n`,
+        )
+        .get() as { n: number }
+    ).n;
+  } catch {
+    // Un libro mayor anterior a v30, sin la columna: nada enlazado.
+  }
+  check('apuestas y guardadas: cada enlace apunta a una instantánea del mismo deporte y partido', malEnlazadas === 0, `${malEnlazadas} mal enlazadas`);
   console.log(`  ${r.n} instantáneas de ${r.eventos} partidos · ${f.n} finales congeladas`);
 }
 

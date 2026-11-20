@@ -32,6 +32,8 @@ import { getDb } from './db.ts';
 import { freshSince } from './freshness.ts';
 import { reconstruirDesde } from './recent/reconstruct.ts';
 import { prepartidoSql } from './prematch/tiempo.ts';
+import { ORDEN_LIBRE, POLITICA_EVALUACION, finalDeFila, joinFinal, resolverEvaluada, type TipoEvaluacion } from './evaluation/evaluada.ts';
+import type { SportId } from './sports.ts';
 
 /**
  * «En vivo» es lo registrado ANTES del partido (auditoría del 17 de octubre, revisión quant): una
@@ -136,6 +138,9 @@ export const CON_ARROBA = new Set<PartidoDeHoy['deporte']>(['NFL', 'NHL']);
 
 export type Origen = 'en vivo' | 'reconstruida';
 
+/** El deporte de cada fuente, con el id de la API (el de prematch_final). */
+const ID_DEPORTE: Record<PartidoDeHoy['deporte'], SportId> = { Fútbol: 'football', Baloncesto: 'basketball', Béisbol: 'baseball', NFL: 'nfl', NHL: 'nhl', UFC: 'ufc', Tenis: 'tennis' };
+
 export interface ResultadoReciente {
   deporte: PartidoDeHoy['deporte'];
   liga: string | null;
@@ -154,6 +159,13 @@ export interface ResultadoReciente {
   ganador: string;
   acerto: boolean;
   origen: Origen;
+  /**
+   * Solo «en vivo»: qué predicción se puntuó (evaluation/evaluada.ts). 'final' = la congelada antes
+   * del inicio; 'legado' = la publicación original, porque no hay final congelada.
+   */
+  evaluacion?: TipoEvaluacion;
+  /** Cuándo se capturó la predicción puntuada (solo «en vivo»). */
+  evaluadaEn?: string;
 }
 
 export interface ResumenAciertos {
@@ -192,6 +204,8 @@ export interface HistorialReciente {
   archivo: ArchivoDeporte[];
   /** Jugados en la ventana sin reconstruir porque algún lado tenía poca historia. */
   sinHistoria: number;
+  /** Qué se puntuó en «en vivo», con la política escrita (evaluation/evaluada.ts). */
+  evaluacion: { politica: typeof POLITICA_EVALUACION; final: number; legado: number; excluidas: number };
 }
 
 interface FuenteResuelta extends Fuente {
@@ -283,6 +297,8 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
   /** Partidos del archivo ya contados en vivo: deporte|YYYYMMDD|local|visitante. */
   const vistos = new Set<string>();
   const archivo: ArchivoDeporte[] = [];
+  /** Partidos en vivo con una final congelada que no se puede leer: ni se puntúan ni se sustituyen. */
+  let excluidas = 0;
 
   for (const f of RESUELTAS()) {
     let hasta: string | null = null;
@@ -303,6 +319,7 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
     archivo.push({ deporte: f.deporte, hasta, sinResultado, comando: f.comando, reconstruye: RECONSTRUYE.has(f.deporte) });
 
     try {
+      const pf = joinFinal(ID_DEPORTE[f.deporte], 'l.', f.clave);
       const rows = f.marcador
         ? (db
             .prepare(
@@ -310,9 +327,11 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
                       l.home_id AS casaId, l.away_id AS fueraId,
                       ${probSql(f, 'l.')} AS p ${f.empate ? `, ${empateSql(f, 'l.')} AS pEmpate` : ''},
                       l.${f.marcador[0]} AS gc, l.${f.marcador[1]} AS gf,
-                      g.${f.enlace!.fecha} AS gFecha, ${f.enlace!.casa ?? 'g.home_id'} AS gCasa, ${f.enlace!.fuera ?? 'g.away_id'} AS gFuera
+                      g.${f.enlace!.fecha} AS gFecha, ${f.enlace!.casa ?? 'g.home_id'} AS gCasa, ${f.enlace!.fuera ?? 'g.away_id'} AS gFuera,
+                      l.predicted_at AS publicadaEn, l.model_version AS version, ${pf.columnas}
                  FROM ${f.log} l
                  LEFT JOIN ${f.enlace!.tabla} g ON g.id = l.${f.enlace!.col}
+                 ${pf.join}
                 WHERE l.${f.marcador[0]} IS NOT NULL AND l.commence_time >= ? AND ${PREPARTIDO}
                 ORDER BY l.commence_time DESC`,
             )
@@ -324,8 +343,9 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
             .prepare(
               `SELECT l.commence_time AS cuando, l.tour AS liga, l.p1_name AS casa, l.p2_name AS fuera,
                       CAST(l.p1_id AS TEXT) AS casaId, CAST(l.p2_id AS TEXT) AS fueraId,
-                      l.prob1 AS p, l.winner_id, l.p1_id
+                      l.prob1 AS p, l.winner_id, l.p1_id, l.predicted_at AS publicadaEn, l.model_version AS version, ${pf.columnas}
                  FROM prediction_log l
+                 ${pf.join}
                 WHERE l.winner_id IS NOT NULL AND l.commence_time >= ? AND ${PREPARTIDO}
                 ORDER BY l.commence_time DESC`,
             )
@@ -334,18 +354,34 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
           }[]);
 
       for (const r of rows as (typeof rows)[number][]) {
-        if (!r.casa || !r.fuera || typeof r.p !== 'number') continue;
+        if (!r.casa || !r.fuera) continue;
+        // Un partido registrado en vivo se marca como visto ANTES de decidir si se puntúa: si su final
+        // es ilegible queda fuera, y no vuelve a entrar como «reconstruido» con la predicción del
+        // backtest (revisión quant de B1, hallazgo 4).
+        if (f.marcador) {
+          const g = r as { gFecha: string | null; gCasa: string | null; gFuera: string | null };
+          if (g.gFecha && g.gCasa && g.gFuera) vistos.add(`${f.deporte}|${String(g.gFecha).replace(/-/g, '')}|${g.gCasa}|${g.gFuera}`);
+        }
+        // La predicción a puntuar, con la misma regla que «¿Acertó?» y la evaluación en vivo.
         const pEmpate = typeof (r as { pEmpate?: number }).pEmpate === 'number' ? (r as { pEmpate: number }).pEmpate : 0;
-        const probs = f.empate ? [r.p, pEmpate, 1 - r.p - pEmpate] : [r.p, 1 - r.p];
-        const fav = favoritoDe(r.casa, r.fuera, probs);
+        const ev = resolverEvaluada(
+          typeof r.p === 'number' ? { probs: f.empate ? [r.p, pEmpate, 1 - r.p - pEmpate] : [r.p, 1 - r.p], mercado: null, version: (r as { version?: string | null }).version ?? null, en: String((r as { publicadaEn?: string }).publicadaEn) } : null,
+          finalDeFila(r as unknown as Record<string, unknown>),
+          f.empate ? 3 : 2,
+          { nombres: [r.casa, r.fuera], ordenLibre: ORDEN_LIBRE.has(ID_DEPORTE[f.deporte]) },
+        );
+        if (!ev.ok) {
+          excluidas++;
+          continue;
+        }
+        const fav = favoritoDe(r.casa, r.fuera, ev.evaluada.probs);
         let ganador: string;
         if (f.marcador) {
-          const g = r as { gc: number; gf: number; gFecha: string | null; gCasa: string | null; gFuera: string | null };
+          const g = r as { gc: number; gf: number };
           // El empate solo existe donde el modelo lo predice. En baloncesto o béisbol un
           // marcador igualado sería dato corrupto, y llamarlo «Empate» inventaría un
           // resultado que ese deporte no tiene.
           ganador = g.gc > g.gf ? r.casa : g.gf > g.gc ? r.fuera : f.empate ? 'Empate' : '';
-          if (g.gFecha && g.gCasa && g.gFuera) vistos.add(`${f.deporte}|${String(g.gFecha).replace(/-/g, '')}|${g.gCasa}|${g.gFuera}`);
         } else {
           const w = r as { winner_id: number; p1_id: number };
           ganador = w.winner_id === w.p1_id ? r.casa : r.fuera;
@@ -366,6 +402,8 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
           ganador,
           acerto: ganador === fav.favorito,
           origen: 'en vivo',
+          evaluacion: ev.evaluada.tipo,
+          evaluadaEn: ev.evaluada.capturadaEn,
         });
       }
     } catch {
@@ -422,6 +460,12 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
     porDia,
     archivo,
     sinHistoria: Object.values(rec.sinHistoria).reduce((a, b) => a + b, 0),
+    evaluacion: {
+      politica: POLITICA_EVALUACION,
+      final: out.filter((x) => x.evaluacion === 'final').length,
+      legado: out.filter((x) => x.evaluacion === 'legado').length,
+      excluidas,
+    },
   };
 }
 

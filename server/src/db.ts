@@ -397,6 +397,13 @@ export const MIGRACIONES: Migracion[] = [
       d.exec(ledgerize(WATCHLIST_SCHEMA, ctx.ledger));
     },
   },
+  // Revisión del PR 17 (E3/E5): la nota de cada estimación guardada (dato personal, editable; la
+  // instantánea a la que apunta no se toca) y la instantánea a la que se enlaza una apuesta. Solo
+  // columnas nuevas: lo de antes queda NULL (sin nota, sin enlazar).
+  { version: 30, nombre: 'notas-y-apuestas-enlazadas', destino: 'ledger', up: (d) => addMissingColumns(d) },
+  // Revisión del PR 17 (G3): la cola de avisos aplazados por las horas de silencio. Tabla nueva; el
+  // esquema de notificaciones es idempotente (CREATE IF NOT EXISTS).
+  { version: 31, nombre: 'avisos-aplazados', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(NOTIFICATIONS_SCHEMA, ctx.ledger)) },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {
@@ -1518,7 +1525,8 @@ export function addMissingColumns(d: DatabaseSync): void {
     scheduler_jobs: { cadence_override: 'REAL' },
     // Rediseño de noviembre: la moneda de cada apuesta. Las anteriores quedan NULL (sin indicar):
     // no se les supone ninguna.
-    bets: { tags: 'TEXT', currency: 'TEXT' },
+    bets: { tags: 'TEXT', currency: 'TEXT', snapshot_id: 'INTEGER' },
+    saved_predictions: { note: 'TEXT', note_updated_at: 'TEXT' },
     // La versión de la política bajo la que se evaluó cada señal (Fase 3.5).
     edge_signals: { policy_version_id: 'INTEGER' },
     // Seguimiento: los grupos de correlación de cada apuesta de estrategia, congelados al apostar.

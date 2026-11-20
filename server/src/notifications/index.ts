@@ -7,6 +7,8 @@
 // tumbar el ciclo que la provocó.
 
 import { getDb } from '../db.ts';
+import { leerAjustes } from '../ajustes/index.ts';
+import { enSilencio, finDeSilencio, type Silencio } from './silencio.ts';
 import { featureEncendida } from '../features.ts';
 import { email, telegram, webhook, webpush, type Canal, type Mensaje, type ResultadoEnvio, type SuscripcionPush } from './channels.ts';
 import { guardarEnBandeja, type Severidad } from '../bandeja/index.ts';
@@ -87,12 +89,108 @@ const SEVERIDAD: Partial<Record<TipoEvento, Severidad>> = { trabajo_fallido: 'av
 export async function notificar(
   evento: TipoEvento,
   m: Mensaje,
-  opciones: { bandeja?: boolean; sport?: string | null; matchKey?: string | null; severidad?: Severidad } = {},
+  opciones: { bandeja?: boolean; sport?: string | null; matchKey?: string | null; severidad?: Severidad; ahora?: Date } = {},
 ): Promise<{ canal: string; ok: boolean; error: string | null }[]> {
   if (opciones.bandeja !== false && evento !== 'prueba') {
     guardarEnBandeja({ origen: 'notificacion', tipo: evento, severidad: opciones.severidad ?? SEVERIDAD[evento] ?? 'info', sport: opciones.sport, matchKey: opciones.matchKey, titulo: m.titulo, cuerpo: m.cuerpo, url: m.url ?? null });
   }
   if (!featureEncendida('notificaciones.canales')) return [];
+  // Horas de silencio (G3): solo los canales externos; la bandeja ya lo tiene.
+  // Si algo falla al decidirlo, se envía normal: el silencio nunca puede tumbar un aviso (ni el
+  // proceso: los que llaman hacen `void notificar(...)`).
+  const ahora = opciones.ahora ?? new Date();
+  try {
+    const silencio = leerAjustes().silencio;
+    if (evento !== 'prueba' && silencio && enSilencio(ahora, silencio)) {
+      if (silencio.modo === 'aplazar') {
+        const r = aplazar(evento, m, ahora, silencio);
+        anotar('silencio', evento, m.titulo, { ok: false, error: r === 'aplazada' ? 'aplazada: horas de silencio' : r === 'desbordada' ? 'descartada: la cola de aplazados está llena' : 'descartada: no se pudo aplazar' }, 0);
+      } else anotar('silencio', evento, m.titulo, { ok: false, error: 'suprimida: horas de silencio' }, 0);
+      return [];
+    }
+  } catch {
+    // Configuración ilegible: como sin silencio.
+  }
+  return enviarPorCanales(evento, m);
+}
+
+/** Tope de la cola de aplazados (revisión data-guardian de G3): lo que pasa se anota y no se guarda. */
+export const MAX_PENDIENTES = 200;
+
+/**
+ * Envíos de las últimas horas para el doctor. Las anotaciones del silencio (suprimidas, aplazadas,
+ * caducadas) no son envíos fallidos y no cuentan (revisión data-guardian de G3).
+ */
+export function resumenEnvios(desde: Date): { ok: number; fallidos: number; ultimoError: { canal: string; error: string } | null } {
+  const db = getDb();
+  const r = db.prepare("SELECT SUM(ok = 1) AS bien, SUM(ok = 0) AS mal FROM notification_log WHERE created_at >= ? AND channel <> 'silencio'").get(desde.toISOString()) as { bien: number | null; mal: number | null };
+  const u = db.prepare("SELECT channel, error FROM notification_log WHERE ok = 0 AND channel <> 'silencio' AND created_at >= ? ORDER BY created_at DESC LIMIT 1").get(desde.toISOString()) as { channel: string; error: string | null } | undefined;
+  return { ok: r.bien ?? 0, fallidos: r.mal ?? 0, ultimoError: u ? { canal: u.channel, error: u.error ?? 'sin detalle' } : null };
+}
+
+/**
+ * Guarda un aviso para el final de la ventana; con la misma clave, gana la última versión. Antes,
+ * quita lo caducado (con su anotación) y respeta el tope de la cola.
+ */
+function aplazar(evento: TipoEvento, m: Mensaje, ahora: Date, s: Silencio): 'aplazada' | 'desbordada' | 'error' {
+  const fin = finDeSilencio(ahora, s) ?? ahora;
+  const clave = `${evento}|${m.titulo}|${m.url ?? ''}`;
+  try {
+    const db = getDb();
+    for (const c of db.prepare('SELECT clave, event_type, title FROM notification_pending WHERE expires_at <= ?').all(ahora.toISOString()) as { clave: string; event_type: TipoEvento; title: string }[]) {
+      db.prepare('DELETE FROM notification_pending WHERE clave = ?').run(c.clave);
+      anotar('silencio', c.event_type, c.title, { ok: false, error: 'caducada: no se envió tras las horas de silencio' }, 0);
+    }
+    const ya = db.prepare('SELECT 1 FROM notification_pending WHERE clave = ?').get(clave);
+    if (!ya && (db.prepare('SELECT COUNT(*) AS n FROM notification_pending').get() as { n: number }).n >= MAX_PENDIENTES) return 'desbordada';
+    db
+      .prepare(
+        `INSERT INTO notification_pending (clave, created_at, event_type, title, body, url, deliver_after, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (clave) DO UPDATE SET body = excluded.body, deliver_after = excluded.deliver_after, expires_at = excluded.expires_at, created_at = excluded.created_at`,
+      )
+      .run(clave, ahora.toISOString(), evento, m.titulo, m.cuerpo, m.url ?? null, fin.toISOString(), new Date(ahora.getTime() + s.caducaHoras * 3_600_000).toISOString());
+    return 'aplazada';
+  } catch {
+    // Sin la tabla (una base sin migrar): el aviso sigue en la bandeja, y se anota que no se aplazó.
+    return 'error';
+  }
+}
+
+/**
+ * Envía lo aplazado cuya ventana ya acabó (y que no ha caducado), una vez, y anota y quita lo
+ * caducado. Lo llama el programador cada pocos minutos.
+ */
+export async function enviarAplazadas(ahora = new Date()): Promise<{ enviadas: number; caducadas: number }> {
+  let filas: { clave: string; event_type: TipoEvento; title: string; body: string; url: string | null; deliver_after: string; expires_at: string }[];
+  try {
+    filas = getDb().prepare('SELECT clave, event_type, title, body, url, deliver_after, expires_at FROM notification_pending ORDER BY created_at').all() as typeof filas;
+  } catch {
+    return { enviadas: 0, caducadas: 0 };
+  }
+  let enviadas = 0;
+  let caducadas = 0;
+  for (const f of filas) {
+    const caduca = Date.parse(f.expires_at) <= ahora.getTime();
+    if (caduca) {
+      getDb().prepare('DELETE FROM notification_pending WHERE clave = ?').run(f.clave);
+      caducadas++;
+      anotar('silencio', f.event_type, f.title, { ok: false, error: 'caducada: no se envió tras las horas de silencio' }, 0);
+      continue;
+    }
+    if (Date.parse(f.deliver_after) > ahora.getTime() || enSilencio(ahora, leerAjustes().silencio)) continue;
+    // Con los canales apagados se quedan en la cola (caducarán con su anotación), no se borran sin
+    // rastro (revisión data-guardian de G3).
+    if (!featureEncendida('notificaciones.canales')) continue;
+    // Se envía y después se quita: si el proceso cae entre medias, como mucho se repite un aviso,
+    // nunca se pierde en silencio.
+    await enviarPorCanales(f.event_type, { titulo: f.title, cuerpo: f.body, url: f.url ?? undefined });
+    getDb().prepare('DELETE FROM notification_pending WHERE clave = ?').run(f.clave);
+    enviadas++;
+  }
+  return { enviadas, caducadas };
+}
+
+async function enviarPorCanales(evento: TipoEvento, m: Mensaje): Promise<{ canal: string; ok: boolean; error: string | null }[]> {
   const out: { canal: string; ok: boolean; error: string | null }[] = [];
   for (const c of CANALES) {
     if (c.falta(entornoActual).length) continue;

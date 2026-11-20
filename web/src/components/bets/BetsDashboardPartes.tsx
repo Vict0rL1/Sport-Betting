@@ -2,7 +2,7 @@
 import { ClvPropio, Etiquetas, LoHabriaApostado } from './ExtrasApuesta';
 import { useState } from 'react';
 import { deporteDe, estadoDe, mercadoDe, money, pctSigned, signed, type Bet, type BetStatus, type BetSummary } from '../../lib/bets';
-import { useI18n } from '../../i18n';
+import { localeDe, useI18n } from '../../i18n';
 import { NEUTRAL_TEXT, PROFIT_TEXT, LOSS_TEXT } from '../../lib/theme';
 import { Card, SectionTitle } from '../ui';
 import { pct as pctF, num as numF } from '../../lib/formato';
@@ -182,7 +182,7 @@ export function BetRow({
   onDelete: (b: Bet) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const tone =
     bet.profit == null
       ? NEUTRAL_TEXT
@@ -262,6 +262,16 @@ export function BetRow({
                 </span>
               )}
               {bet.notes && <span className="text-(--ink-soft)">{bet.notes}</span>}
+              {/* E5: la estimación con la que se hizo, o que no la hay (las de antes nunca se enlazan solas). */}
+              {bet.snapshotId !== undefined && (
+                <span className="text-(--ink-muted)">
+                  {bet.estimacion
+                    ? t('registro.enlazada', { cuando: new Date(bet.estimacion.captured_at).toLocaleString(localeDe(idioma), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }), probs: bet.estimacion.outcomes.map((o, i) => `${o} ${numF(bet.estimacion!.probs[i] * 100, 1)} %`).join(' · ') })
+                    : bet.snapshotId != null
+                      ? t('registro.enlazadaSinDatos')
+                      : t('registro.sinEnlazar')}
+                </span>
+              )}
               <Etiquetas tags={bet.tags} />
               <LoHabriaApostado bet={bet} minEdge={minEdge} />
               {open && <ClvPropio id={bet.id} />}

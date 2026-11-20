@@ -11,12 +11,77 @@ import { DEPORTES } from '../rutas';
 import { ETIQUETA_POLITICA } from '../lib/politica';
 import { conNodos, localeDe, useI18n, type Clave, type Idioma, type Traducir } from '../i18n';
 import { useDialogo } from '../components/ui/useDialogo';
+import { FalloCarga, useCarga } from '../components/ui/carga';
+import { datosDe, pedirJson } from '../lib/remoto';
 import { borradorTrasAplicar, CADENCIA_MAX, CADENCIA_MIN, errorDeRespuesta, leerImporte, validarCadencia } from '../lib/ajustes';
 
 interface Version { id: number; created_at: string; parent_id: number | null; hash: string; nota: string | null; origen: string; config: Record<string, Record<string, number>> }
 interface Feature { on: boolean; activa: boolean; descripcion: string; falta: string | null; anulada: boolean; soloArranque?: boolean }
 interface Trabajo { nombre: string; descripcion: string; cadenciaMin: number; cadenciaPorDefecto: number; enabled: boolean }
-interface Ajustes { deportesOcultos: string[]; tema: Tema; idioma: Idioma; bancoPersonal: number | null; recorridoVisto: boolean }
+/** Horas de silencio de los avisos externos (G3). Ver server/src/notifications/silencio.ts. */
+interface Silencio { activo: boolean; desde: string; hasta: string; zona: string; modo: 'suprimir' | 'aplazar'; caducaHoras: number }
+interface Ajustes { deportesOcultos: string[]; tema: Tema; idioma: Idioma; bancoPersonal: number | null; recorridoVisto: boolean; silencio?: Silencio | null }
+
+/**
+ * Horas de silencio (G3): opcionales. Solo callan los canales externos; la bandeja lo recibe todo.
+ * Desde = hasta no es una ventana y no se deja guardar (el servidor tampoco lo acepta).
+ */
+function HorasDeSilencio({ actual, guardar }: { actual: Silencio | null; guardar: (c: Partial<Ajustes>) => Promise<void> }) {
+  const { t } = useI18n();
+  const [s, setS] = useState<Silencio>(actual ?? { activo: false, desde: '23:00', hasta: '07:00', zona: leerZona(), modo: 'aplazar', caducaHoras: 12 });
+  const [guardado, setGuardado] = useState(false);
+  const iguales = s.desde === s.hasta;
+  const cambiar = (c: Partial<Silencio>) => {
+    setS({ ...s, ...c });
+    setGuardado(false);
+  };
+  return (
+    <div className="mt-4 border-t border-(--line) pt-3">
+      <h4 className="text-[14px] font-semibold text-(--ink-strong)">{t('silencio.titulo')}</h4>
+      <p className="mb-2 text-[12px] text-(--ink-muted)">{t('silencio.nota')}</p>
+      <label className="mb-2 flex items-center gap-2">
+        <input type="checkbox" checked={s.activo} onChange={(e) => cambiar({ activo: e.target.checked })} />
+        <span>{t('silencio.activar')}</span>
+      </label>
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="flex flex-col text-[12px]">
+          {t('silencio.desde')}
+          <input type="time" value={s.desde} onChange={(e) => cambiar({ desde: e.target.value })} className="h-9 rounded-lg border border-(--line-strong) bg-(--surface-card) px-2 text-[14px] text-(--ink-body)" />
+        </label>
+        <label className="flex flex-col text-[12px]">
+          {t('silencio.hasta')}
+          <input type="time" value={s.hasta} onChange={(e) => cambiar({ hasta: e.target.value })} className="h-9 rounded-lg border border-(--line-strong) bg-(--surface-card) px-2 text-[14px] text-(--ink-body)" />
+        </label>
+        <label className="flex flex-col text-[12px]">
+          {t('silencio.modo')}
+          <select value={s.modo} onChange={(e) => cambiar({ modo: e.target.value as Silencio['modo'] })} className="h-9 rounded-lg border border-(--line-strong) bg-(--surface-card) px-2 text-[14px] text-(--ink-body)">
+            <option value="aplazar">{t('silencio.aplazar')}</option>
+            <option value="suprimir">{t('silencio.suprimir')}</option>
+          </select>
+        </label>
+        {s.modo === 'aplazar' && (
+          <label className="flex flex-col text-[12px]">
+            {t('silencio.caduca')}
+            <input type="number" min={1} max={72} value={s.caducaHoras} onChange={(e) => cambiar({ caducaHoras: Number(e.target.value) })} className="h-9 w-20 rounded-lg border border-(--line-strong) bg-(--surface-card) px-2 text-[14px] text-(--ink-body)" />
+          </label>
+        )}
+      </div>
+      <p className="mt-2 text-[12px] text-(--ink-muted)">{t('silencio.zona', { zona: s.zona })}</p>
+      {iguales && <p role="alert" className="mt-1 text-[12px] text-(--status-critical)">{t('silencio.iguales')}</p>}
+      <p className="mt-2 flex items-center gap-3">
+        <button
+          type="button"
+          disabled={iguales}
+          onClick={() => void guardar({ silencio: s.activo ? { ...s, caducaHoras: Math.min(72, Math.max(1, Math.round(s.caducaHoras) || 12)) } : null }).then(() => setGuardado(true))}
+          className="rounded-lg px-3 py-1.5 text-[13px] text-(--ink-body) ring-1 ring-(--line-strong) hover:bg-(--raised) disabled:opacity-50"
+        >
+          {t('silencio.guardar')}
+        </button>
+        {guardado && <span className="text-[12px] text-(--ink-muted)" role="status">{t('silencio.guardado')}</span>}
+      </p>
+    </div>
+  );
+}
 
 const etiquetaPolitica = (t: Traducir, clave: string) => (ETIQUETA_POLITICA[clave] ? t(ETIQUETA_POLITICA[clave]) : clave);
 
@@ -151,13 +216,15 @@ function Politica() {
 
 function Interruptores() {
   const { t } = useI18n();
-  const [f, setF] = useState<Record<string, Feature> | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const cargar = () => fetch('/api/features').then((r) => r.json()).then((j: { features: Record<string, Feature> }) => setF(j.features)).catch(() => setF({}));
-  useEffect(() => {
-    void cargar();
-  }, []);
-  if (!f) return <p>{t('comun.cargando')}</p>;
+  // Un fallo no es «ningún interruptor» ni un «Cargando…» eterno (fase C): se dice y se reintenta.
+  const { estado, recargar: cargar } = useCarga(() => pedirJson('/api/features', (j) => {
+    const x = (j as { features?: Record<string, Feature> }).features;
+    if (!x || typeof x !== 'object') throw new Error('forma');
+    return x;
+  }), []);
+  const f = datosDe(estado);
+  if (!f) return estado.fase === 'error' ? <FalloCarga que={t('carga.queInterruptores')} onReintentar={cargar} /> : <p>{t('comun.cargando')}</p>;
   const cambiar = async (nombre: string, on: boolean | null) => {
     // D11: un PATCH rechazado ya no se traga en silencio.
     const r = await fetch(`/api/features/${encodeURIComponent(nombre)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ on }) }).catch(() => null);
@@ -194,15 +261,16 @@ function Interruptores() {
 
 function Cadencias() {
   const { t } = useI18n();
-  const [trabajos, setTrabajos] = useState<Trabajo[] | null>(null);
   const [borrador, setBorrador] = useState<Record<string, string>>({});
   const [pendiente, setPendiente] = useState<{ nombre: string; antes: number; despues: number | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const cargar = () => fetch('/api/scheduler').then((r) => r.json()).then((j: { trabajos: Trabajo[] }) => setTrabajos(j.trabajos)).catch(() => setTrabajos([]));
-  useEffect(() => {
-    void cargar();
-  }, []);
-  if (!trabajos) return <p>{t('comun.cargando')}</p>;
+  const { estado, recargar: cargar } = useCarga(() => pedirJson('/api/scheduler', (j) => {
+    const x = (j as { trabajos?: Trabajo[] }).trabajos;
+    if (!Array.isArray(x)) throw new Error('forma');
+    return x;
+  }), []);
+  const trabajos = datosDe(estado);
+  if (!trabajos) return estado.fase === 'error' ? <FalloCarga que={t('carga.queCadencias')} onReintentar={cargar} /> : <p>{t('comun.cargando')}</p>;
   const aplicar = async () => {
     if (!pendiente) return;
     const r = await fetch(`/api/scheduler/${encodeURIComponent(pendiente.nombre)}`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cadenciaMin: pendiente.despues }) }).catch(() => null);
@@ -336,6 +404,7 @@ export default function Ajustes() {
 
       <Seccion titulo={t('ajustes.notificaciones')}>
         <NotificacionesPanel />
+        {a && <HorasDeSilencio actual={a.silencio ?? null} guardar={guardar} />}
       </Seccion>
 
       <Seccion titulo={t('ajustes.interruptores')} nota={t('ajustes.interruptoresNota')}>

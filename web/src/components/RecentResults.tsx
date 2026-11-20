@@ -42,6 +42,9 @@ interface Resultado {
   ganador: string;
   acerto: boolean;
   origen: Origen;
+  /** Solo «en vivo»: qué se puntuó (la final congelada, o la publicación si no hay final: legado). */
+  evaluacion?: 'final' | 'legado';
+  evaluadaEn?: string;
 }
 
 export interface Resumen {
@@ -71,6 +74,8 @@ export interface Historial {
   porDia: (Resumen & { dia: string })[];
   archivo: Archivo[];
   sinHistoria: number;
+  /** La política de evaluación y cuántas partidas cayeron en cada caso (falta en respuestas viejas). */
+  evaluacion?: { politica: string; final: number; legado: number; excluidas: number };
 }
 
 
@@ -271,6 +276,11 @@ function Fila({ r }: { r: Resultado }) {
               {r.cuando ? ` · ${new Date(r.cuando).toLocaleTimeString(localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}` : ''}
             </span>
           )}
+          {r.evaluacion === 'legado' && (
+            <span className="rounded px-1.5 py-px text-[11px] text-(--ink-soft) ring-1 ring-(--line)" title={t('acerto.legadoNota')}>
+              {t('acerto.legado')}
+            </span>
+          )}
         </div>
       </div>
       {/* El veredicto lleva palabra y símbolo, nunca solo color. */}
@@ -381,6 +391,14 @@ export default function RecentResults({ estado, deporteInicial = null }: { estad
               {t('acerto.reconstruidosChip', { a: h.porOrigen.reconstruida.aciertos, n: h.porOrigen.reconstruida.total })}
             </Chip>
           </div>
+          {/* Qué se puntúa (B1): la misma regla que «¿Acertó?» en la ficha y que la evaluación en vivo. */}
+          {origen === 'en vivo' && h.evaluacion && (
+            <p className="mt-2 text-[12px] text-(--ink-muted)">
+              {t('acerto.politica')}
+              {h.evaluacion.legado > 0 && ` ${t('acerto.politicaLegado', { n: h.evaluacion.legado })}`}
+              {h.evaluacion.excluidas > 0 && ` ${t('acerto.politicaExcluidas', { n: h.evaluacion.excluidas })}`}
+            </p>
+          )}
         </div>
       </div>
 

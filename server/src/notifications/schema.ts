@@ -12,6 +12,18 @@ export const NOTIFICATIONS_SCHEMA = `
     duration_ms INTEGER
   );
   CREATE INDEX IF NOT EXISTS idx_notif_log_at ON notification_log (created_at);
+  -- Horas de silencio (G3): los avisos aplazados, uno por clave (gana la última versión). Es una cola:
+  -- se borra lo enviado o caducado (queda anotado en notification_log).
+  CREATE TABLE IF NOT EXISTS notification_pending (
+    clave         TEXT PRIMARY KEY,
+    created_at    TEXT NOT NULL,
+    event_type    TEXT NOT NULL,
+    title         TEXT NOT NULL,
+    body          TEXT NOT NULL,
+    url           TEXT,
+    deliver_after TEXT NOT NULL,
+    expires_at    TEXT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS push_subscriptions (
     endpoint    TEXT PRIMARY KEY,
     keys_json   TEXT NOT NULL,

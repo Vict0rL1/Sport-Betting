@@ -9,7 +9,7 @@ import { AppMark, SportIcon } from './components/icons';
 import Login from './components/auth/Login';
 import AccountPanel from './components/auth/AccountPanel';
 import { estadoAuth, EVENTO_AUTH, instalarDetector401, type EstadoAuth } from './lib/auth';
-import { DEPORTES, PESTANAS, RUTA_AJUSTES, RUTA_DE_PESTANA, RUTA_PARTIDOS, pestanaDeRuta, recordarPestana } from './rutas';
+import { DEPORTES, PESTANAS, RUTA_AJUSTES, RUTA_DE_PESTANA, RUTA_PARTIDOS, pestanaDeRuta, recordarPestana, RUTA_GUARDADAS } from './rutas';
 import StatusPill from './components/estado/StatusPill';
 import MobileNav from './components/nav/MobileNav';
 import NavPrincipal from './components/nav/Principal';
@@ -18,6 +18,7 @@ import Buscador from './components/busqueda/Buscador';
 import Campana from './components/bandeja/Campana';
 import Recorrido from './components/Recorrido';
 import { SeguimientoProvider } from './components/seguimiento';
+import { GuardadasProvider } from './components/guardadas';
 import { ESCRITORIO, useMediaQuery } from './lib/useMediaQuery';
 import ErrorBoundary from './components/ErrorBoundary';
 import { registrarServiceWorker, ultimaRed, useEnLinea, useDesdeCache } from './lib/sinConexion';
@@ -47,6 +48,7 @@ const NhlDashboard = lazy(cargarNhl);
 const UfcDashboard = lazy(cargarUfc);
 const BetsDashboard = lazy(cargarApuestas);
 const SystemTrust = lazy(cargarConfianza);
+const Guardadas = lazy(() => import('./pages/Guardadas'));
 const TopPicks = lazy(cargarDestacados);
 const Diagnostico = lazy(() => import('./pages/Diagnostico'));
 const Ajustes = lazy(() => import('./pages/Ajustes'));
@@ -259,6 +261,7 @@ function Armazon() {
     // Dentro de la puerta (G10): la lista de seguidos pide /api/watchlist, que necesita sesión; antes
     // se pedía también en la pantalla de entrada y dejaba un 401 en consola.
     <SeguimientoProvider>
+    <GuardadasProvider>
     <div className="min-h-screen lg:flex">
       {/* La barra lateral desde 1024 px; debajo, la barra inferior (MobileNav). */}
       <aside className="hidden shrink-0 border-r border-(--line) bg-(--surface-rail) lg:block lg:w-[15rem]">
@@ -337,6 +340,7 @@ function Armazon() {
             <Route path="/informes" element={<Informes />} />
             <Route path="/informes/:id" element={<InformeDetalle />} />
             <Route path="/confianza" element={<SystemTrust />} />
+            <Route path={RUTA_GUARDADAS} element={<Guardadas />} />
             <Route path="/confianza/diagnostico" element={<Diagnostico />} />
             <Route path="/ajustes" element={<Ajustes />} />
             <Route path="/glosario" element={<Glosario />} />
@@ -369,6 +373,7 @@ function Armazon() {
       <MobileNav ocultos={ocultos} />
       <Recorrido vistoEnServidor={ajustes ? (ajustes.recorridoVisto ?? false) : null} onVisto={() => void fetch('/api/ajustes', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ recorridoVisto: true }) }).catch(() => undefined)} />
     </div>
+    </GuardadasProvider>
     </SeguimientoProvider>
   );
 }

@@ -91,7 +91,7 @@ import { CLAVE_ANULACIONES } from '../features.ts';
 import { SPORT_IDS } from '../sports.ts';
 import { chatsPermitidos, CLAVE_OFFSET } from '../telegram/asistente.ts';
 import { contarErrores } from '../security/errors.ts';
-import { canales as canalesDeAviso } from '../notifications/index.ts';
+import { canales as canalesDeAviso, resumenEnvios } from '../notifications/index.ts';
 
 const SIN_RED = process.argv.includes('--sin-red') || process.argv.includes('--no-net');
 const PROBAR = process.argv.includes('--probar') || process.argv.includes('--probe');
@@ -468,11 +468,8 @@ if (baseAbre) {
     ),
     canalesOn: featureEncendida('notificaciones.canales'),
     canales: uno(() => canalesDeAviso().map((c) => ({ nombre: c.nombre, configurado: c.configurado, falta: c.falta })), []),
-    envios24h: uno(() => {
-      const r = db.prepare('SELECT SUM(ok = 1) AS bien, SUM(ok = 0) AS mal FROM notification_log WHERE created_at >= ?').get(desde24h) as { bien: number | null; mal: number | null };
-      const u = db.prepare('SELECT channel, error FROM notification_log WHERE ok = 0 AND created_at >= ? ORDER BY created_at DESC LIMIT 1').get(desde24h) as { channel: string; error: string | null } | undefined;
-      return { ok: r.bien ?? 0, fallidos: r.mal ?? 0, ultimoError: u ? { canal: u.channel, error: u.error ?? 'sin detalle' } : null };
-    }, { ok: 0, fallidos: 0, ultimoError: null }),
+    // Lo silenciado (suprimido, aplazado, caducado) no es un envío fallido (revisión data-guardian de G3).
+    envios24h: uno(() => resumenEnvios(new Date(desde24h)), { ok: 0, fallidos: 0, ultimoError: null }),
     interruptores: {
       total: Object.keys(feats).length,
       encendidos: Object.values(feats).filter((f) => f.on).length,

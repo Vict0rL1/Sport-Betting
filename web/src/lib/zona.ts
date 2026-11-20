@@ -35,3 +35,19 @@ export function guardarZona(z: string | null): void {
     // No poder recordarla no impide usarla ahora.
   }
 }
+
+/**
+ * Un instante formateado en la zona elegida (G1 de la revisión del PR 17: la zona vale en toda la
+ * app, no solo en Partidos). Una fecha que no se entiende sale «—» (no «Invalid Date» ni una
+ * excepción); una zona que el navegador no entiende cae a la del navegador.
+ */
+export function formatearInstante(iso: string | Date, locale: string, opciones: Intl.DateTimeFormatOptions, zona: string = leerZona()): string {
+  const d = typeof iso === 'string' ? new Date(iso) : iso;
+  if (Number.isNaN(d.getTime())) return '—';
+  const z = zonaValida(zona) ? zona : zonaDelNavegador();
+  try {
+    return new Intl.DateTimeFormat(locale, { ...opciones, timeZone: opciones.timeZone ?? z }).format(d);
+  } catch {
+    return new Intl.DateTimeFormat(locale, opciones).format(d);
+  }
+}

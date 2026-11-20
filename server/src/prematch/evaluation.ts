@@ -9,6 +9,8 @@ import { getDb } from '../db.ts';
 import { evaluate, type Informe } from '../evaluation/metrics.ts';
 import { SPORT_IDS, type SportId } from '../sports.ts';
 import { horizontes } from './snapshots.ts';
+import { ORDEN_LIBRE, orientarFinal } from '../evaluation/evaluada.ts';
+import { nombresDe } from '../prediction/publicada.ts';
 
 /** El resultado de cada partido resuelto, en el orden de resultados de la instantánea. */
 export const RESULTADOS: Record<SportId, string> = {
@@ -58,13 +60,21 @@ export function evaluacionPorHorizonte(): EvaluacionHorizontes[] {
       // Solo partidos jugados: todas sus marcas han llegado (horizontes() deja pendientes las futuras).
       const hs = horizontes(deporte, e.match_key, e.c, new Date(Date.parse(e.c) + 1));
       if (hs.some((h) => !h.fila)) continue;
+      // Cada instantánea en el orden del registro, como la evaluación en vivo (revisión quant de B1,
+      // M3): en el tenis el proveedor puede dar los jugadores al revés. Si alguna no casa, el
+      // partido no se empareja (compararía horizontes de cosas distintas).
+      const nombres = nombresDe(deporte, e.match_key);
+      const orientacion = nombres ? { nombres, ordenLibre: ORDEN_LIBRE.has(deporte) } : undefined;
+      const sentidos = hs.map((h) => orientarFinal(h.fila!.outcomes, orientacion));
+      if (sentidos.some((x) => x == null)) continue;
       emparejados++;
-      for (const h of hs) {
+      hs.forEach((h, i) => {
         const f = h.fila!;
+        const girar = (v: number[]) => (sentidos[i] === 'invertida' ? [...v].reverse() : v);
         const xs = porHorizonte.get(h.etiqueta) ?? [];
-        xs.push({ p: f.probs, y: res, mercado: f.market_probs });
+        xs.push({ p: girar(f.probs), y: res, mercado: f.market_probs ? girar(f.market_probs) : null });
         porHorizonte.set(h.etiqueta, xs);
-      }
+      });
     }
     const etiquetas = ['T-24h', 'T-6h', 'T-1h', 'Final pre-partido'];
     return {
