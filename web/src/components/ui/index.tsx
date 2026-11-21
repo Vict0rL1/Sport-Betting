@@ -13,6 +13,7 @@ export * from './marks';
 export * from './rows';
 export * from './days';
 export * from './states';
+export * from './carga';
 export * from './picks';
 export * from './dashboard';
 export * from './slate';

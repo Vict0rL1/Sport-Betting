@@ -10,6 +10,8 @@
 //     tienen su propio cálculo (resultadoApuesta) o no se calculan.
 //   · Nada de NaN ni infinitos hacia la pantalla: lo que no se puede calcular es null.
 
+import { resultadoExacto } from './dinero';
+
 export type Validacion<T> = { ok: true; valor: T } | { ok: false; motivo: string };
 
 const finito = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
@@ -160,8 +162,9 @@ export type EstadoApuesta = 'pending' | 'won' | 'lost' | 'void' | 'push' | 'half
 
 /**
  * Pago bruto (lo que vuelve, con la apuesta) y neto (pago − apuesta) de una apuesta simple, en la
- * moneda de la apuesta, redondeados a céntimos. Se calcula en céntimos enteros para que
- * 100 × 2,06 sea 206,00 y no 206,00000000000003.
+ * moneda de la apuesta. Con aritmética decimal exacta y un solo redondeo al céntimo, la mitad hacia
+ * arriba (lib/dinero.ts, copia exacta de server/src/dinero.ts): 1,02 a 1,25 paga 1,28 y 1,05 a 2,30
+ * paga 2,42, lo mismo que guardará y enseñará el servidor (B2).
  *
  *   ganada       pago s·d,                 neto s·(d−1)
  *   perdida      pago 0,                   neto −s
@@ -174,27 +177,6 @@ export type EstadoApuesta = 'pending' | 'won' | 'lost' | 'void' | 'push' | 'half
  */
 export function resultadoApuesta(stake: number, odds: number, estado: EstadoApuesta): { pago: number; neto: number } | null {
   if (!finito(stake) || stake <= 0 || !finito(odds) || odds <= 1) return null;
-  const s = Math.round(stake * 100);
-  let pago: number;
-  switch (estado) {
-    case 'won':
-      pago = Math.round(s * odds);
-      break;
-    case 'lost':
-      pago = 0;
-      break;
-    case 'void':
-    case 'push':
-      pago = s;
-      break;
-    case 'half_won':
-      pago = Math.round((s / 2) * odds + s / 2);
-      break;
-    case 'half_lost':
-      pago = Math.round(s / 2);
-      break;
-    default:
-      return null;
-  }
-  return { pago: pago / 100, neto: (pago - s) / 100 };
+  if (estado === 'pending' || estado === 'cashout') return null;
+  return resultadoExacto(stake, odds, estado);
 }

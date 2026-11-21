@@ -198,3 +198,11 @@ test('GET /api/partidos responde con la lista y respeta deportes=', async () => 
   assert.deepEqual(j.porDeporte.map((d) => d.sport), ['nhl']);
   await app.close();
 });
+
+test('B5: cada fila dice de dónde sale el partido (casa de apuestas, calendario o demostración), sin inventar lo que no se sabe', () => {
+  const r = explorarPartidos(ventana({}, AHORA), AHORA);
+  assert.equal(r.filas.find((x) => x.id === 'ev-real')?.fuenteCalendario, 'casa');
+  assert.equal(r.filas.find((x) => x.id === 'ev-sin')?.fuenteCalendario, 'calendario');
+  assert.equal(r.filas.find((x) => x.id === 'fixture-laliga-x-0')?.fuenteCalendario, 'demo');
+  assert.equal(r.filas.find((x) => x.id === 'nhl-1')?.fuenteCalendario, 'casa');
+});

@@ -12,6 +12,9 @@ import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../../i1
 import { PROFIT_COLOR, LOSS_TEXT } from '../../lib/theme';
 import { DeporteIcono, ShieldCheckIcon, StatusMark } from '../icons';
 import { num as numF, pct as pctF } from '../../lib/formato';
+import { FalloCarga, useCarga } from '../ui/carga';
+import { datosDe, pedirJson } from '../../lib/remoto';
+import { formatearInstante } from '../../lib/zona';
 
 interface Sistema {
   prediccionesEnVivo: number;
@@ -134,11 +137,10 @@ interface Experimentos {
 function ModelosSombra() {
   const { t } = useI18n();
   const { f3 } = useCifras();
-  const [d, setD] = useState<Sombras | null>(null);
-  useEffect(() => {
-    fetch('/api/shadows').then((r) => r.json()).then(setD).catch(() => {});
-  }, []);
-  if (!d) return <p>{t('comun.cargando')}</p>;
+  // Un fallo de carga se dice (fase C/F de la revisión del PR 17): antes se quedaba en «Cargando…».
+  const { estado, recargar } = useCarga(() => pedirJson('/api/shadows', (j) => j as Sombras), []);
+  const d = datosDe(estado);
+  if (!d) return estado.fase === 'error' ? <FalloCarga que={t('st.queSombras')} onReintentar={recargar} /> : <p>{t('comun.cargando')}</p>;
   return (
     <>
       {d.sombras.length === 0 ? (
@@ -174,11 +176,9 @@ function ModelosSombra() {
 
 function HistoriaVersiones() {
   const { t } = useI18n();
-  const [d, setD] = useState<{ historial: Record<string, Version[]>; nota: string | null } | null>(null);
-  useEffect(() => {
-    fetch('/api/model-history').then((r) => r.json()).then(setD).catch(() => {});
-  }, []);
-  if (!d) return <p>{t('comun.cargando')}</p>;
+  const { estado, recargar } = useCarga(() => pedirJson('/api/model-history', (j) => j as { historial: Record<string, Version[]>; nota: string | null }), []);
+  const d = datosDe(estado);
+  if (!d) return estado.fase === 'error' ? <FalloCarga que={t('st.queVersiones')} onReintentar={recargar} /> : <p>{t('comun.cargando')}</p>;
   if (d.nota) return <p>{d.nota}</p>;
   return (
     <>
@@ -203,11 +203,9 @@ function HistoriaVersiones() {
 
 function Rechazados() {
   const { t } = useI18n();
-  const [d, setD] = useState<Experimentos | null>(null);
-  useEffect(() => {
-    fetch('/api/experiments').then((r) => r.json()).then(setD).catch(() => {});
-  }, []);
-  if (!d) return <p>{t('comun.cargando')}</p>;
+  const { estado, recargar } = useCarga(() => pedirJson('/api/experiments', (j) => j as Experimentos), []);
+  const d = datosDe(estado);
+  if (!d) return estado.fase === 'error' ? <FalloCarga que={t('st.queExperimentos')} onReintentar={recargar} /> : <p>{t('comun.cargando')}</p>;
   return (
     <>
       <p>{t('st.experimentos', { total: d.total, a: d.aceptados, r: d.rechazados.length, nc: d.noConcluyentes })}</p>
@@ -224,19 +222,70 @@ function Rechazados() {
   );
 }
 
+/** F1: las definiciones de Rendimiento y, por deporte, cuántas se evaluaron con la final, cuántas son legado y cuántas quedan fuera. */
+function ComoSeMide() {
+  const { t } = useI18n();
+  const { estado, recargar } = useCarga(() => pedirJson('/api/evaluation', (j) => {
+    const d = (j as { deportes?: { deporte: string; n: number; evaluacion?: { politica: string; final: number; legado: number; excluidas: number } }[] }).deportes;
+    if (!Array.isArray(d)) throw new Error('forma');
+    return d;
+  }), []);
+  const deportes = datosDe(estado);
+  return (
+    <details open className="mb-4 rounded-xl border border-(--line) p-4 text-[13px] text-(--ink-soft)">
+      <summary className="cursor-pointer text-[15px] font-semibold text-(--ink-strong)">{t('st.como.titulo')}</summary>
+      <ul className="mt-2 list-disc space-y-1 pl-5">
+        <li>{t('st.como.politica')}</li>
+        <li>{t('st.como.cohortes')}</li>
+        <li>{t('st.como.periodo')}</li>
+        <li>{t('st.como.muestra')}</li>
+        <li>{t('st.como.rentabilidad')}</li>
+      </ul>
+      {estado.fase === 'error' && <div className="mt-2"><FalloCarga que={t('st.como.que')} onReintentar={recargar} /></div>}
+      {deportes && (
+        <table className="mt-3 w-full max-w-xl text-left text-[12px] tabular-nums">
+          <caption className="mb-1 text-left text-(--ink-muted)">{t('st.como.tabla')}</caption>
+          <thead>
+            <tr className="text-(--ink-muted)">
+              <th scope="col" className="py-0.5 font-medium">{t('st.como.deporte')}</th>
+              <th scope="col" className="py-0.5 text-right font-medium">{t('st.como.final')}</th>
+              <th scope="col" className="py-0.5 text-right font-medium">{t('st.como.legado')}</th>
+              <th scope="col" className="py-0.5 text-right font-medium">{t('st.como.excluidas')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {deportes.map((d) => (
+              <tr key={d.deporte} className="border-t border-(--line)">
+                <th scope="row" className="py-0.5 font-normal text-(--ink-body)">{t(`deporte.${d.deporte}` as Clave)}</th>
+                <td className="py-0.5 text-right">{d.evaluacion?.final ?? '—'}</td>
+                <td className="py-0.5 text-right">{d.evaluacion?.legado ?? '—'}</td>
+                <td className="py-0.5 text-right">{d.evaluacion?.excluidas ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </details>
+  );
+}
+
 export default function SystemTrust() {
   const { t, idioma } = useI18n();
   const { f3, pct } = useCifras();
   const subnav = useSubnavConfianza();
   const [s, setS] = useState<Sistema | null>(null);
-  const [alertas, setAlertas] = useState<Alerta[]>([]);
-  const [riesgo, setRiesgo] = useState<Riesgo | null>(null);
+  // Las alertas y el riesgo: un fallo no es «ninguna alerta» (fase F de la revisión del PR 17).
+  const { estado: estAlertas, recargar: recargarAlertas } = useCarga(() => pedirJson('/api/alerts?limit=30', (j) => {
+    if (!Array.isArray(j)) throw new Error('forma');
+    return j as Alerta[];
+  }), []);
+  const alertas = datosDe(estAlertas);
+  const { estado: estRiesgo, recargar: recargarRiesgo } = useCarga(() => pedirJson('/api/risk', (j) => j as Riesgo), []);
+  const riesgo = datosDe(estRiesgo);
   const [error, setError] = useState(false);
   useEffect(() => {
     let vivo = true;
     fetch('/api/system-trust').then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => vivo && setS(j)).catch(() => vivo && setError(true));
-    fetch('/api/alerts?limit=30').then((r) => r.json()).then((j) => vivo && setAlertas(j)).catch(() => {});
-    fetch('/api/risk').then((r) => r.json()).then((j) => vivo && setRiesgo(j)).catch(() => {});
     return () => {
       vivo = false;
     };
@@ -264,6 +313,9 @@ export default function SystemTrust() {
       <p className="mb-4 text-[13px] text-(--ink-muted)">
         {t('st.intro')}
       </p>
+      {/* F1: cómo se mide, antes de cualquier cifra: la política, las cohortes, el periodo, la muestra
+          y lo que queda fuera. Las mismas definiciones que «¿Acertó?» en la ficha y la exportación. */}
+      <ComoSeMide />
       {/* Lo primero: qué acertó lo registrado antes de cada partido (rediseño de noviembre, PER-1).
           Antes salía encima de cada pestaña; ahora es Rendimiento. */}
       <TodayPanel soloResultados />
@@ -334,10 +386,11 @@ export default function SystemTrust() {
           <p className="text-[12px] text-(--ink-faint)">{riesgo.nota}</p>
         </Bloque>
       )}
+      {estRiesgo.fase === 'error' && <FalloCarga que={t('st.queRiesgo')} onReintentar={recargarRiesgo} />}
       <Bloque titulo={t('st.alertas')}>
-        {alertas.length === 0 ? <p>{t('st.ninguna')}</p> : alertas.map((a) => (
+        {alertas == null ? (estAlertas.fase === 'error' ? <FalloCarga que={t('st.queAlertas')} onReintentar={recargarAlertas} /> : <p>{t('comun.cargando')}</p>) : alertas.length === 0 ? <p>{t('st.ninguna')}</p> : alertas.map((a) => (
           <p key={a.id}>
-            <span className="text-(--ink-faint)">{new Date(a.created_at).toLocaleString(localeDe(idioma))}</span>{' '}
+            <span className="text-(--ink-faint)">{formatearInstante(a.created_at, localeDe(idioma), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>{' '}
             <span style={{ color: a.severity === 'importante' ? LOSS_TEXT : a.severity === 'aviso' ? AMBAR : undefined }}>{a.title}</span> — {a.body}
           </p>
         ))}

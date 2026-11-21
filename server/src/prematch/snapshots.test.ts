@@ -123,6 +123,12 @@ test('al empezar, la final pre-partido se congela y ya no cambia', () => {
 });
 
 test('T11 / T12: el historial etiqueta la original, las revisiones y la evaluada (la última antes del inicio, no la que acertó)', () => {
+  // La publicación del registro, anterior al inicio: sin ella el partido no entra en la evaluación
+  // (evaluation/evaluada.ts; revisión quant de B1, M2). En la app, instantánea y registro se escriben juntos.
+  db.prepare(
+    `INSERT OR IGNORE INTO bsb_prediction_log (match_key, league, upcoming_id, commence_time, home_id, away_id, home_name, away_name, prob_home, predicted_at)
+     VALUES ('mlb|nyy|bos|20261111', 'mlb', 'u', ?, 'bos', 'nyy', 'Red Sox', 'Yankees', 0.55, ?)`,
+  ).run(INICIO, a(31).toISOString());
   const h = historial('baseball', 'mlb|nyy|bos|20261111');
   assert.ok(h.length >= 3, `${h.length} instantáneas`);
   assert.equal(h[0].papel, 'original');
@@ -167,7 +173,8 @@ test('evaluación por horizonte: emparejada sobre los mismos partidos', () => {
   db.prepare(
     `INSERT INTO bsb_prediction_log (match_key, league, upcoming_id, commence_time, home_id, away_id, home_name, away_name,
        prob_home, reliability, predicted_at, home_runs, away_runs, resolved_at)
-     VALUES ('mlb|nyy|bos|20261111', 'mlb', 'ev1', ?, 'bos', 'nyy', 'Red Sox', 'Yankees', 0.55, 'high', ?, 5, 2, ?)`,
+     VALUES ('mlb|nyy|bos|20261111', 'mlb', 'ev1', ?, 'bos', 'nyy', 'Red Sox', 'Yankees', 0.55, 'high', ?, 5, 2, ?)
+     ON CONFLICT (match_key) DO UPDATE SET home_runs = excluded.home_runs, away_runs = excluded.away_runs, resolved_at = excluded.resolved_at`,
   ).run(INICIO, a(30).toISOString(), INICIO);
   const mlb = evaluacionPorHorizonte().find((e) => e.deporte === 'baseball')!;
   assert.equal(mlb.emparejados, 1);

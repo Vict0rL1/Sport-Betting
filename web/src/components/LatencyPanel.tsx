@@ -36,6 +36,7 @@ import { Panel, SectionTitle, Disclosure } from './ui';
 import { AlertIcon, CheckIcon } from './icons';
 import { localeDe, useI18n, type Clave } from '../i18n';
 import { num as numF } from '../lib/formato';
+import { formatearInstante } from '../lib/zona';
 
 function fmt(ms: number): string {
   if (ms >= 60_000) return `${numF((ms / 60_000), 1)} min`;
@@ -228,7 +229,7 @@ export default function LatencyPanel() {
             {events.map((e, i) => (
               <li key={`${e.at}-${i}`} className="text-[13px] leading-relaxed">
                 <span className="text-(--ink-faint) tabular-nums">
-                  {new Date(e.at).toLocaleTimeString(localeDe(idioma))}
+                  {formatearInstante(e.at, localeDe(idioma), { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                 </span>{' '}
                 <span className="text-(--ink-strong)">{e.title}</span>{' '}
                 <span className="text-(--ink-muted)">{e.body}</span>

@@ -1,6 +1,7 @@
 // Piezas de TennisDashboard.tsx (partido en la Fase 5: ningún fichero de la interfaz pasa de ~400 líneas).
 import { type Meta, type UpcomingWithPrediction } from '../lib/api';
 import { conNodos, localeDe, useI18n } from '../i18n';
+import { formatearInstante } from '../lib/zona';
 
 const CODIGOS = {
   doctor: <code>npm run doctor</code>,
@@ -15,7 +16,7 @@ export function RefreshInfo({ meta }: { meta: Meta }) {
   const { t, idioma } = useI18n();
   const when = meta.oddsRefreshedAt ?? meta.updatedAt ?? meta.seededAt;
   const whenTxt = when
-    ? new Date(when).toLocaleString(localeDe(idioma), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    ? formatearInstante(when, localeDe(idioma), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
     : '—';
   return (
     <p className="mt-1 text-[14px] text-(--ink-muted)">

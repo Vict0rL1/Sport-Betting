@@ -20,6 +20,7 @@
 // pure function of (status, stake, odds, payout), computed on read. One source of
 // truth, and no migration needed the day a new status appears.
 
+import { apuestaCentimos, arriesgadoCentimos, deCentimos, pagoBrutoCentimos } from './dinero.ts';
 import { getDb } from './db.ts';
 
 export type BetStatus = 'pending' | 'won' | 'lost' | 'void' | 'push' | 'half_won' | 'half_lost' | 'cashout';
@@ -71,6 +72,8 @@ export interface BetRow {
   match_key: string | null;
   /** Etiquetas libres (Fase 5.16), guardadas como JSON. */
   tags: string[];
+  /** La instantánea con la que se hizo (E5); null = sin enlazar (todas las de antes de v30). */
+  snapshot_id: number | null;
 }
 
 export interface Bet extends BetRow {
@@ -82,9 +85,11 @@ export interface Bet extends BetRow {
   risked: number;
   /** True when the bet backed the side the model preferred. */
   withModel: boolean | null;
+  /** E5: la instantánea enlazada y lo que decía, tal como se guardó; null si no está enlazada. */
+  snapshotId: number | null;
+  estimacion: { captured_at: string; outcomes: string[]; probs: number[]; model_version: string | null } | null;
 }
 
-const centimos = (x: number) => Math.round(x * 100) / 100;
 
 /**
  * Lo que volvió, CON la apuesta (pago bruto), redondeado a céntimos una sola vez:
@@ -96,23 +101,10 @@ const centimos = (x: number) => Math.round(x * 100) / 100;
  * null mientras está pendiente: 0 diría que se perdió.
  */
 export function payoutOf(b: Pick<BetRow, 'status' | 'stake' | 'odds' | 'payout'>): number | null {
-  switch (b.status) {
-    case 'won':
-      return centimos(b.stake * b.odds);
-    case 'lost':
-      return 0;
-    case 'void':
-    case 'push':
-      return centimos(b.stake);
-    case 'half_won':
-      return centimos((b.stake / 2) * b.odds + b.stake / 2);
-    case 'half_lost':
-      return centimos(b.stake / 2);
-    case 'cashout':
-      return b.payout != null ? centimos(b.payout) : null;
-    default:
-      return null;
-  }
+  // Aritmética decimal exacta y un solo redondeo al céntimo, la mitad hacia arriba (dinero.ts, B2):
+  // 1,02 a 1,25 ganada paga 1,28, no 1,27. La vista previa del formulario usa el mismo módulo.
+  const c = pagoBrutoCentimos(b.stake, b.odds, b.status, b.payout);
+  return c == null ? null : deCentimos(c);
 }
 
 /**
@@ -124,15 +116,14 @@ export function payoutOf(b: Pick<BetRow, 'status' | 'stake' | 'odds' | 'payout'>
  * refunded: no profit, and — see `riskedOf` — no stake risked either.
  */
 export function profitOf(b: Pick<BetRow, 'status' | 'stake' | 'odds' | 'payout'>): number | null {
-  const pago = payoutOf(b);
-  return pago == null ? null : centimos(pago - b.stake);
+  const pago = pagoBrutoCentimos(b.stake, b.odds, b.status, b.payout);
+  const s = apuestaCentimos(b.stake);
+  return pago == null || s == null ? null : deCentimos(pago - s);
 }
 
 /** Stake that was genuinely at risk. Void returns nothing, so it risks nothing. */
 export function riskedOf(b: Pick<BetRow, 'status' | 'stake'>): number {
-  if (b.status === 'void' || b.status === 'push') return 0;
-  if (b.status === 'half_won' || b.status === 'half_lost') return centimos(b.stake / 2);
-  return b.stake;
+  return deCentimos(arriesgadoCentimos(b.stake, b.status) ?? 0);
 }
 
 /**
@@ -159,12 +150,36 @@ function decorate(r: BetRow): Bet {
   } catch {
     tags = [];
   }
-  return { ...r, tags, payoutGross: payoutOf(r), profit: profitOf(r), risked: riskedOf(r), withModel: withModelOf(r) };
+  const snapshotId = r.snapshot_id == null ? null : Number(r.snapshot_id);
+  return { ...r, tags, payoutGross: payoutOf(r), profit: profitOf(r), risked: riskedOf(r), withModel: withModelOf(r), snapshotId, estimacion: snapshotId == null ? null : estimacionDe(snapshotId) };
+}
+
+/** Lo que decía una instantánea, tal como se guardó (o null si ya no está). */
+function estimacionDe(id: number): Bet['estimacion'] {
+  try {
+    const s = getDb().prepare('SELECT captured_at, outcomes, probs, model_version FROM prediction_snapshots WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+    if (!s) return null;
+    return { captured_at: String(s.captured_at), outcomes: JSON.parse(String(s.outcomes)) as string[], probs: JSON.parse(String(s.probs)) as number[], model_version: (s.model_version as string | null) ?? null };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * ¿Se puede enlazar esta apuesta a esa instantánea? (E5) Tiene que existir y ser del mismo deporte y,
+ * si la apuesta dice su partido, del mismo partido. null si vale; el motivo si no.
+ */
+export function problemaDeEnlace(snapshotId: number, sport: string | undefined, matchKey: string | null | undefined): ErrorDeEnlace | null {
+  const s = getDb().prepare('SELECT sport, match_key FROM prediction_snapshots WHERE id = ?').get(snapshotId) as { sport: string; match_key: string } | undefined;
+  if (!s) return new ErrorDeEnlace('apuesta.enlace-no-existe', 'Esa estimación no existe.');
+  if (sport && s.sport !== sport) return new ErrorDeEnlace('apuesta.enlace-otro-deporte', 'La estimación es de otro deporte.');
+  if (matchKey && s.match_key !== matchKey) return new ErrorDeEnlace('apuesta.enlace-otro-partido', 'La estimación es de otro partido.');
+  return null;
 }
 
 const SELECT = `SELECT id, created_at, placed_on, sport, league, event, market, selection,
                        odds, stake, status, payout, currency, settled_at, notes,
-                       model_prob, market_prob, match_key, tags
+                       model_prob, market_prob, match_key, tags, snapshot_id
                   FROM bets`;
 
 export interface BetFilter {
@@ -230,6 +245,8 @@ export interface BetInput {
   match_key?: string | null;
   tags?: string[] | null;
   currency?: string | null;
+  /** E5: la instantánea con la que se hizo; null o ausente = sin enlazar. */
+  snapshot_id?: number | null;
 }
 
 /** Today in the SERVER's local zone, which is where the user is. */
@@ -239,15 +256,34 @@ function today(): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+/** Un enlace de apuesta a instantánea que no vale (E5): la ruta lo devuelve como 400. */
+export class ErrorDeEnlace extends Error {
+  constructor(public code: 'apuesta.enlace-no-existe' | 'apuesta.enlace-otro-deporte' | 'apuesta.enlace-otro-partido', mensaje: string) {
+    super(mensaje);
+  }
+}
+
+/**
+ * Las etiquetas como se guardan: recortadas, sin vacías ni repetidas, de 30 caracteres y 12 como
+ * mucho. La API y la importación por CSV usan esta misma regla (revisión data-guardian).
+ */
+export function normalizarEtiquetas(xs: readonly string[]): string[] {
+  return [...new Set(xs.map((x) => x.trim().slice(0, 30)).filter(Boolean))].slice(0, 12);
+}
+
 export function createBet(input: BetInput): Bet {
+  if (input.snapshot_id != null) {
+    const p = problemaDeEnlace(input.snapshot_id, input.sport, input.match_key);
+    if (p) throw p;
+  }
   const status = input.status ?? 'pending';
   const now = new Date().toISOString();
   const info = getDb()
     .prepare(
       `INSERT INTO bets (created_at, placed_on, sport, league, event, market, selection,
                          odds, stake, status, payout, settled_at, notes,
-                         model_prob, market_prob, match_key, tags, currency)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                         model_prob, market_prob, match_key, tags, currency, snapshot_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       now,
@@ -268,14 +304,37 @@ export function createBet(input: BetInput): Bet {
       input.match_key ?? null,
       JSON.stringify(input.tags ?? []),
       input.currency ?? null,
+      input.snapshot_id ?? null,
     );
   return getBet(Number(info.lastInsertRowid)) as Bet;
 }
 
 /** Patch a bet. Only the fields present are touched. */
 export function updateBet(id: number, patch: Partial<BetInput>): Bet | null {
+  // La lectura, la comprobación del enlace y el UPDATE, juntos (revisión data-guardian de E5): un
+  // cambio de deporte o de partido en una apuesta enlazada se vuelve a comprobar con los valores de
+  // DESPUÉS del cambio, salvo que el mismo cambio quite el enlace.
+  const db = getDb();
+  db.exec('BEGIN');
+  try {
+    const r = actualizarApuesta(id, patch);
+    db.exec('COMMIT');
+    return r;
+  } catch (e) {
+    db.exec('ROLLBACK');
+    throw e;
+  }
+}
+
+function actualizarApuesta(id: number, patch: Partial<BetInput>): Bet | null {
   const existing = getBet(id);
   if (!existing) return null;
+  const tocaEnlace = 'snapshot_id' in patch || 'sport' in patch || 'match_key' in patch;
+  const enlace = 'snapshot_id' in patch ? (patch.snapshot_id ?? null) : existing.snapshot_id;
+  if (tocaEnlace && enlace != null) {
+    const p = problemaDeEnlace(enlace, patch.sport ?? existing.sport, 'match_key' in patch ? patch.match_key : existing.match_key);
+    if (p) throw p;
+  }
 
   const sets: string[] = [];
   const params: SqlParam[] = [];
@@ -286,7 +345,7 @@ export function updateBet(id: number, patch: Partial<BetInput>): Bet | null {
 
   for (const col of [
     'placed_on', 'sport', 'league', 'event', 'market', 'selection',
-    'odds', 'stake', 'status', 'payout', 'notes', 'model_prob', 'market_prob', 'match_key', 'currency',
+    'odds', 'stake', 'status', 'payout', 'notes', 'model_prob', 'market_prob', 'match_key', 'currency', 'snapshot_id',
   ] as const) {
     if (col in patch) put(col, ((patch as Record<string, unknown>)[col] ?? null) as SqlParam);
   }
@@ -353,13 +412,20 @@ function emptyGroup(key: string): BetGroupSummary {
   return { key, bets: 0, settled: 0, staked: 0, risked: 0, profit: 0, roi: null, wins: 0, losses: 0, hitRate: null };
 }
 
+/** A cents integer: every amount here already has at most two decimals (dinero.ts). */
+const cent = (x: number) => Math.round(x * 100);
+/** The stake in cents, rounded once and exactly like payoutOf/profitOf (a legacy 1,005 is 1,01). */
+const stakeCent = (x: number) => apuestaCentimos(x) ?? cent(x);
+
+// Groups accumulate money in INTEGER CENTS and `finish` converts once: ten bets of 0,26 add up to
+// 2,60, not 2,5999… (B2).
 function accumulate(group: BetGroupSummary, b: Bet): void {
   group.bets++;
-  group.staked += b.stake;
+  group.staked += stakeCent(b.stake);
   if (b.profit == null) return; // pending contributes nothing but the count
   group.settled++;
-  group.risked += b.risked;
-  group.profit += b.profit;
+  group.risked += cent(b.risked);
+  group.profit += cent(b.profit);
   if (b.profit > 0) group.wins++;
   else if (b.profit < 0) group.losses++;
 }
@@ -371,14 +437,12 @@ function finish(group: BetGroupSummary): BetGroupSummary {
   group.roi = group.risked > 0 ? group.profit / group.risked : null;
   const decided = group.wins + group.losses;
   group.hitRate = decided > 0 ? group.wins / decided : null;
-  // Round money at the edge, once, so the UI never has to.
-  group.staked = round2(group.staked);
-  group.risked = round2(group.risked);
-  group.profit = round2(group.profit);
+  // From cents to units at the edge, once, so the UI never has to.
+  group.staked = deCentimos(group.staked);
+  group.risked = deCentimos(group.risked);
+  group.profit = deCentimos(group.profit);
   return group;
 }
-
-const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export function summarizeBets(f: BetFilter = {}): BetSummary {
   const todas = listBets({ ...f, currency: undefined });
@@ -402,7 +466,7 @@ export function summarizeBets(f: BetFilter = {}): BetSummary {
     accumulate(totals, b);
     if (b.profit == null) {
       pending.bets++;
-      pending.staked += b.stake;
+      pending.staked += stakeCent(b.stake);
     }
 
     const sport = bySport.get(b.sport) ?? emptyGroup(b.sport);
@@ -415,9 +479,9 @@ export function summarizeBets(f: BetFilter = {}): BetSummary {
 
     const day = days.get(b.placed_on) ?? { profit: 0, bets: 0, settled: 0, staked: 0 };
     day.bets++;
-    day.staked += b.stake;
+    day.staked += stakeCent(b.stake);
     if (b.profit != null) {
-      day.profit += b.profit;
+      day.profit += cent(b.profit);
       day.settled++;
     }
     days.set(b.placed_on, day);
@@ -429,13 +493,13 @@ export function summarizeBets(f: BetFilter = {}): BetSummary {
   }
 
   const daily = [...days.entries()]
-    .map(([day, d]) => ({ day, profit: round2(d.profit), bets: d.bets, settled: d.settled, staked: round2(d.staked) }))
+    .map(([day, d]) => ({ day, profit: deCentimos(d.profit), bets: d.bets, settled: d.settled, staked: deCentimos(d.staked) }))
     .sort((a, b) => a.day.localeCompare(b.day));
 
   let running = 0;
   const cumulative = daily.map((d) => {
-    running += d.profit;
-    return { day: d.day, profit: round2(running) };
+    running += cent(d.profit);
+    return { day: d.day, profit: deCentimos(running) };
   });
 
   // Streaks over settled bets in chronological order. Void breaks nothing — it
@@ -467,7 +531,7 @@ export function summarizeBets(f: BetFilter = {}): BetSummary {
     moneda,
     monedas,
     totals: finish(totals),
-    pending: { bets: pending.bets, staked: round2(pending.staked) },
+    pending: { bets: pending.bets, staked: deCentimos(pending.staked) },
     bySport: [...bySport.values()].map(finish).sort((a, b) => b.bets - a.bets),
     byMarket: [...byMarket.values()].map(finish).sort((a, b) => b.bets - a.bets),
     daily,

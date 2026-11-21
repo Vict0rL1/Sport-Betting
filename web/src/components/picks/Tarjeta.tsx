@@ -7,6 +7,7 @@ import { EstrellaSeguir } from '../seguimiento';
 import { type Opcion, type Pick, AMBAR, pct, num } from './tipos';
 import { codigo, conNodos, localeDe, useI18n } from '../../i18n';
 import { deporteDe } from '../../lib/bets';
+import { formatearInstante } from '../../lib/zona';
 
 export function Chip({ activo, onClick, children, title }: { activo: boolean; onClick: () => void; children: React.ReactNode; title?: string }) {
   return (
@@ -66,8 +67,8 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
             {p.liga && p.liga.toLowerCase() !== SPORT_THEMES[p.sport].label.toLowerCase() && <span className="text-(--ink-muted)"> · {p.liga.toUpperCase()}</span>}
           </div>
           <div className="text-[12px] capitalize text-(--ink-muted)">
-            {fecha.toLocaleDateString(localeDe(idioma), { weekday: 'short', day: 'numeric', month: 'short' })} ·{' '}
-            {fecha.toLocaleTimeString(localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}
+            {formatearInstante(fecha, localeDe(idioma), { weekday: 'short', day: 'numeric', month: 'short' })} ·{' '}
+            {formatearInstante(fecha, localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
         <span className="shrink-0">

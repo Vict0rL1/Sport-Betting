@@ -37,6 +37,8 @@ export function pestanaDeRuta(pathname: string): SportId | null {
 }
 
 export const rutaPartido = (sport: string, id: string) => `/partido/${sport}/${encodeURIComponent(id)}`;
+/** Las estimaciones guardadas, con su nota y la comparación con la última (E3/E4). */
+export const RUTA_GUARDADAS = '/guardadas';
 export const rutaEquipo = (sport: string, league: string, id: string) => `/equipo/${sport}/${encodeURIComponent(league)}/${encodeURIComponent(id)}`;
 export const rutaJugador = (tour: string, id: string | number) => `/jugador/${encodeURIComponent(tour)}/${id}`;
 export const rutaLuchador = (id: string) => `/luchador/${encodeURIComponent(id)}`;

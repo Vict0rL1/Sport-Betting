@@ -19,6 +19,7 @@
 // summer break is normal; a gap longer than that means a season is missing.
 
 import { localeDe, tr, type Idioma } from '../i18n';
+import { diaDeCalendario } from './zona';
 /** The sports whose history recency is worth checking. */
 export type StaleSport = 'football' | 'basketball' | 'baseball' | 'nfl' | 'nhl' | 'ufc' | 'tennis';
 
@@ -56,10 +57,11 @@ const SLACK_DAYS = 42;
 /** Parses both storage formats the API returns: "20250928" and ISO. */
 function parseThrough(through: string): Date | null {
   const s = through.trim();
-  if (/^\d{8}$/.test(s)) {
-    const d = new Date(+s.slice(0, 4), +s.slice(4, 6) - 1, +s.slice(6, 8));
-    return Number.isNaN(d.getTime()) ? null : d;
-  }
+  // Un día («20250928», «2025-09-28») es ese día en cualquier zona (G1): como instante, al oeste de
+  // UTC el 1 de septiembre era el 31 de agosto y «Datos de» decía agosto.
+  const dia = diaDeCalendario(s);
+  if (dia) return dia;
+  if (/^\d{8}$/.test(s)) return null;
   const d = new Date(s);
   return Number.isNaN(d.getTime()) ? null : d;
 }

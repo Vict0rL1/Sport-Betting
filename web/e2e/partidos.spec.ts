@@ -77,7 +77,8 @@ async function servir(page: Page, opciones: { retrasoHoyMs?: number; fallar?: ()
 test('recorrido 1: deporte, día y liga en la URL; abrir un partido y volver deja los filtros', async ({ page }) => {
   await servir(page);
   const errores = recogerErrores(page);
-  await page.setViewportSize({ width: 1280, height: 900 });
+  // Por debajo de 1280 px: la fila abre la página completa (desde 1280, el panel lateral; ver revision-pr17.spec.ts D2).
+  await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto('/');
   await expect(page).toHaveURL(/\/partidos$/);
   await expect(page.getByRole('heading', { name: 'Partidos', level: 1 })).toBeVisible();
@@ -157,7 +158,7 @@ test('T17: una respuesta tardía de «Hoy» no pisa la de «Mañana»', async ({
 
 test('recorrido 8: con el teclado se abre un partido y «atrás» vuelve a la lista', async ({ page }) => {
   await servir(page);
-  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto('/partidos?deporte=nhl');
   const enlace = page.getByRole('link', { name: /Toronto Sintético – Boston Sintético/ });
   await enlace.focus();
@@ -178,7 +179,7 @@ test('recorrido 9: a 320 px la página refluye sin desplazamiento horizontal', a
   expect(ancho).toBeLessThanOrEqual(1);
 });
 
-test('recorrido 2: seguir un partido, recargar, encontrarlo en «Guardados» y dejar de seguirlo', async ({ page }) => {
+test('recorrido 2: seguir un partido, recargar, encontrarlo en «Seguidos» y dejar de seguirlo', async ({ page }) => {
   await servir(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/partidos');
@@ -187,8 +188,9 @@ test('recorrido 2: seguir un partido, recargar, encontrarlo en «Guardados» y d
   await campana.click();
   await expect(fila.getByRole('button', { name: /Dejar de seguir/ })).toHaveAttribute('aria-pressed', 'true');
   await page.reload();
-  await page.getByRole('button', { name: 'Guardados' }).click();
-  await expect(page).toHaveURL(/guardados=1/);
+  // E1 (revisión del PR 17): seguir (avisos) es «Seguidos»; «Guardados» son las estimaciones guardadas.
+  await page.getByRole('button', { name: 'Seguidos' }).click();
+  await expect(page).toHaveURL(/seguidos=1/);
   await expect(page.getByRole('link', { name: /Toronto Sintético/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Arsenal Sintético/ })).toHaveCount(0);
   await page.getByRole('listitem').filter({ hasText: 'Toronto Sintético' }).getByRole('button', { name: /Dejar de seguir/ }).click();

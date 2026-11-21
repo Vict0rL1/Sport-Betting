@@ -60,10 +60,10 @@ export function useFiltroQuery(clave: string): [string | null, (valor: string | 
 }
 
 /** Varios filtros a la vez, para pantallas con media docena (Destacados). */
-export function useFiltrosQuery(): [URLSearchParams, (cambios: Record<string, string | null | undefined>) => void] {
+export function useFiltrosQuery(): [URLSearchParams, (cambios: Record<string, string | null | undefined>, opciones?: { apilar?: boolean }) => void] {
   const [params, setParams] = useSearchParams();
   const set = useCallback(
-    (cambios: Record<string, string | null | undefined>) => {
+    (cambios: Record<string, string | null | undefined>, opciones: { apilar?: boolean } = {}) => {
       setParams(
         (prev) => {
           const n = new URLSearchParams(prev);
@@ -73,7 +73,9 @@ export function useFiltrosQuery(): [URLSearchParams, (cambios: Record<string, st
           }
           return n;
         },
-        { replace: true },
+        // Por defecto se reemplaza (escribir en la búsqueda no deja una entrada por letra). Un cambio
+        // discreto —fecha, deporte, competición, quitar un filtro— se apila, y «atrás» lo deshace (B4).
+        { replace: !opciones.apilar },
       );
     },
     [setParams],

@@ -68,7 +68,8 @@ import { modelForServing } from '../points/repo.ts';
 import type { Surface as PointsSurface } from '../points/fit.ts';
 import { readCalibration } from '../staking/calibration.ts';
 import { getTrackRecord, logPrediction } from '../trackRecord.ts';
-import { recordSnapshot, horizontes, cambios, finalPrePartido, instantaneas, historial } from '../prematch/snapshots.ts';
+import { recordSnapshot, horizontes, cambios, finalPrePartido, instantaneas, historial, evaluadaDeFinal } from '../prematch/snapshots.ts';
+import { POLITICA_EVALUACION } from '../evaluation/evaluada.ts';
 import { evaluacionPorHorizonte } from '../prematch/evaluation.ts';
 import { isSportId } from '../sports.ts';
 import { deTenis } from '../prematch/adapters.ts';
@@ -494,6 +495,15 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
       // Rediseño de noviembre (HIS-3, DET-2): cada instantánea con su papel, y las entradas que
       // el modelo usó en la última, tal como se guardaron (null = no se sabía: DESCONOCIDO).
       historial: historial(sport, key),
+      // Qué se puntúa de este partido (evaluation/evaluada.ts). null: aún no hay final congelada
+      // (el partido no ha empezado, o el ciclo no la congeló y «¿Acertó?» usa la publicación: legado).
+      evaluada: (() => {
+        const ev = evaluadaDeFinal(sport, finalPrePartido(sport, key));
+        if (!ev) return null;
+        return ev.ok
+          ? { politica: ev.evaluada.politica, tipo: ev.evaluada.tipo, fuente: ev.evaluada.fuente, capturadaEn: ev.evaluada.capturadaEn, snapshotId: ev.evaluada.snapshotId, probs: ev.evaluada.probs, motivo: null }
+          : { politica: POLITICA_EVALUACION, tipo: null, fuente: null, capturadaEn: null, snapshotId: null, probs: null, motivo: ev.motivo };
+      })(),
       entradas: filas.length ? Object.values(filas[filas.length - 1].entradas) : [],
       entradasDe: filas[filas.length - 1]?.captured_at ?? null,
     };
@@ -581,10 +591,12 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // `dias` solo admite las ventanas que ofrece la pantalla (7, 14, 30): reconstruir cuesta
   // ~1 s por deporte y se guarda por ventana, así que una ventana arbitraria por petición
   // sería una forma barata de tener el servidor ocupado.
-  app.get<{ Querystring: { dias?: string } }>('/recent-results', async (req) => {
+  app.get<{ Querystring: { dias?: string; zona?: string } }>('/recent-results', async (req) => {
     const pedido = Number(req.query.dias);
     const dias = (VENTANAS as readonly number[]).includes(pedido) ? pedido : VENTANAS[0];
-    return { ventanas: VENTANAS, ...historialReciente(new Date(), dias) };
+    // La zona de quien mira (G1): los días se cortan en ella. Se acota antes de dársela a Intl.
+    const zona = typeof req.query.zona === 'string' && req.query.zona.length <= 64 ? req.query.zona : undefined;
+    return { ventanas: VENTANAS, ...historialReciente(new Date(), dias, zona) };
   });
 
   // --- auditoría: línea temporal de un partido, reproducción de un id y alertas ---

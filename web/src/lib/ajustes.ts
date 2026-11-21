@@ -1,5 +1,23 @@
 // Los formularios de Ajustes (D11 de la revisión del 8 de octubre), sin React para probarlos.
 
+import { es, type Clave } from '../i18n/es';
+
+/**
+ * La clave del catálogo con la descripción de un interruptor (G2): `funcion.<id>`, o null si el
+ * catálogo no la tiene (un interruptor nuevo en config/features.json): entonces se enseña el texto que
+ * manda el servidor, que está en español, antes que nada.
+ */
+export function claveDeFuncion(id: string): Clave | null {
+  const clave = `funcion.${id}`;
+  return Object.prototype.hasOwnProperty.call(es, clave) ? (clave as Clave) : null;
+}
+
+/** Lo mismo para un trabajo programado (Ajustes → Cadencias): `trabajo.<nombre>` o null. */
+export function claveDeTrabajo(nombre: string): Clave | null {
+  const clave = `trabajo.${nombre}`;
+  return Object.prototype.hasOwnProperty.call(es, clave) ? (clave as Clave) : null;
+}
+
 /** El mismo rango que el servidor (scheduler/registry.ts → configurar). */
 export const CADENCIA_MIN = 1;
 export const CADENCIA_MAX = 7 * 24 * 60;

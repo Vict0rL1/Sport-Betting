@@ -5,6 +5,7 @@
 import type { Combinada, Pick } from './tipos';
 import { localeDe, tr, type Idioma } from '../../i18n';
 import { num as numF, pct as pctF } from '../../lib/formato';
+import { formatearInstante } from '../../lib/zona';
 
 export const CLAVE_BORRADOR = 'predictor.borradorApuesta';
 
@@ -47,7 +48,7 @@ export function borradorDe(xs: Pick[], c: Combinada | null, idioma: Idioma = 'es
 }
 
 export function comoTexto(xs: Pick[], c: Combinada | null, idioma: Idioma = 'es'): string {
-  const lineas = xs.map((p) => `• ${p.partido} — ${p.favorito} ${pctTxt(p.probabilidad, idioma)}${p.cuota ? ` @ ${numF(p.cuota, 2, idioma)}` : ''} (${new Date(p.cuando).toLocaleString(localeDe(idioma), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })})`);
+  const lineas = xs.map((p) => `• ${p.partido} — ${p.favorito} ${pctTxt(p.probabilidad, idioma)}${p.cuota ? ` @ ${numF(p.cuota, 2, idioma)}` : ''} (${formatearInstante(p.cuando, localeDe(idioma), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })})`);
   const pie = c
     ? `${tr(idioma, 'exp.acertarTodos', { p: pctTxt(c.conjunta, idioma) })}${
         c.cuotaCombinada != null

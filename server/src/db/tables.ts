@@ -51,6 +51,7 @@ export const TABLAS_LEDGER: readonly string[] = [
   // Fase 3: operación.
   'scheduler_jobs',
   'notification_log',
+  'notification_pending',
   'push_subscriptions',
 ];
 

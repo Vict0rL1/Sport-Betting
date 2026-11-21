@@ -13,6 +13,8 @@ import { historiaElo } from '../elo/historia.ts';
 import { tarjetaSvg } from '../picks/tarjeta.ts';
 import { buscar } from '../buscar/index.ts';
 import { getDb } from '../db.ts';
+import { ORDEN_LIBRE, POLITICA_EVALUACION, finalDeFila, indiceFavorito, joinFinal, resolverEvaluada } from '../evaluation/evaluada.ts';
+import { clasePrepartido } from '../prematch/tiempo.ts';
 import { FUENTES, probSql, empateSql } from '../today.ts';
 import { isSportId, SPORT_IDS, type SportId } from '../sports.ts';
 import { featureEncendida } from '../features.ts';
@@ -110,7 +112,7 @@ export async function registerAnaliticaRoutes(app: FastifyInstance): Promise<voi
   );
   app.get<{ Params: { sport: string; key: string } }>(
     '/api/resultado/:sport/:key',
-    { schema: { tags: ['analítica'], summary: '¿Acertó? El resultado registrado de un partido con predicción', response: { 200: ESQUEMA_RESULTADO, 404: ESQUEMA_ERROR } } },
+    { schema: { tags: ['analítica'], summary: '¿Acertó? El resultado de un partido con predicción. `probabilidades` son las EVALUADAS (política `final-congelada-v1`, ver `evaluacion`); la publicación original va en `publicada`', response: { 200: ESQUEMA_RESULTADO, 404: ESQUEMA_ERROR } } },
     async (req, reply) => {
       const s = req.params.sport;
       if (!isSportId(s)) return reply.code(404).send({ error: 'deporte desconocido' });
@@ -120,10 +122,11 @@ export async function registerAnaliticaRoutes(app: FastifyInstance): Promise<voi
       const marcador: Record<SportId, [string, string] | null> = { football: ['home_goals', 'away_goals'], basketball: ['home_pts', 'away_pts'], baseball: ['home_runs', 'away_runs'], nfl: ['home_points', 'away_points'], nhl: ['home_goals', 'away_goals'], ufc: ['home_score', 'away_score'], tennis: null };
       const m = marcador[s];
       // La UFC: el «marcador» 1-0 solo dice quién ganó; lo que se enseña es el método (o empate / sin resultado).
-      const extra = (m ? `, ${m[0]} AS g1, ${m[1]} AS g2` : ', winner_id AS ganador, p1_id AS p1') + (s === 'ufc' ? ', outcome AS oc, metodo AS met' : '');
+      const extra = (m ? `, l.${m[0]} AS g1, l.${m[1]} AS g2` : ', l.winner_id AS ganador, l.p1_id AS p1') + (s === 'ufc' ? ', l.outcome AS oc, l.metodo AS met' : '');
       let fila: Record<string, unknown> | undefined;
+      const pf = joinFinal(s, 'l.', f.clave);
       try {
-        fila = getDb().prepare(`SELECT ${f.casa} AS casa, ${f.fuera} AS fuera, ${probSql(f)} AS p ${f.empate ? `, ${empateSql(f)} AS pe` : ''}, ${f.resuelto} AS resuelto, commence_time AS cuando ${extra} FROM ${f.log} WHERE ${f.clave} = ? ORDER BY rowid DESC LIMIT 1`).get(req.params.key) as Record<string, unknown> | undefined;
+        fila = getDb().prepare(`SELECT l.${f.casa} AS casa, l.${f.fuera} AS fuera, ${probSql(f, 'l.')} AS p ${f.empate ? `, ${empateSql(f, 'l.')} AS pe` : ''}, l.${f.resuelto} AS resuelto, l.commence_time AS cuando, l.predicted_at AS publicadaEn, l.model_version AS version ${extra}, ${pf.columnas} FROM ${f.log} l ${pf.join} WHERE l.${f.clave} = ? ORDER BY l.rowid DESC LIMIT 1`).get(req.params.key) as Record<string, unknown> | undefined;
       } catch {
         fila = undefined;
       }
@@ -139,13 +142,30 @@ export async function registerAnaliticaRoutes(app: FastifyInstance): Promise<voi
           marcadorTxt = s === 'ufc' ? (fila.oc === 'EMPATE' ? 'empate' : fila.oc === 'NC' ? 'sin resultado' : ((fila.met as string | null) ?? null)) : `${g1}–${g2}`;
         } else resultado = fila.ganador === fila.p1 ? 'casa' : 'fuera';
       }
+      // La publicación original (lo que dijo el registro) y la EVALUADA (evaluation/evaluada.ts): la
+      // final congelada antes del inicio o, sin final, la publicación marcada «legado». Una fila
+      // escrita en o después del inicio no es pre-partido y no se puntúa.
       const p = Number(fila.p);
       const pe = fila.pe == null ? null : Number(fila.pe);
-      const probs = pe == null ? [p, 1 - p] : [p, pe, 1 - p - pe];
-      const favorito = probs.indexOf(Math.max(...probs));
+      const n = f.empate ? 3 : 2;
+      const publicadas = Number.isFinite(p) ? (pe == null ? [p, 1 - p] : [p, pe, 1 - p - pe]) : null;
+      const prepartido = clasePrepartido(fila.publicadaEn as string | null, fila.cuando as string | null) === 'prepartido';
+      // El partido entra solo si su publicación es anterior al inicio, como en Rendimiento y en la
+      // evaluación en vivo: una publicación tardía queda fuera aunque haya una final (hallazgo 6).
+      const ev = !prepartido
+        ? ({ ok: false, motivo: publicadas ? 'publicacion-tardia' : 'sin-publicacion' } as const)
+        : resolverEvaluada(publicadas ? { probs: publicadas, mercado: null, version: (fila.version as string | null) ?? null, en: String(fila.publicadaEn) } : null, finalDeFila(fila), n, {
+            nombres: [String(fila.casa), String(fila.fuera)],
+            ordenLibre: ORDEN_LIBRE.has(s),
+          });
+      const probs = ev.ok ? ev.evaluada.probs : (publicadas ?? []);
+      const favorito = ev.ok ? indiceFavorito(probs) : null;
       // Con dos resultados, un empate (la NFL; la UFC con empate o sin resultado) no es acierto ni fallo:
       // la apuesta se devuelve. Antes caía en el índice 1, que con dos salidas es el visitante.
-      const indice = resultado == null ? null : resultado === 'casa' ? 0 : resultado === 'empate' ? (probs.length === 3 ? 1 : null) : probs.length - 1;
+      const indice = resultado == null ? null : resultado === 'casa' ? 0 : resultado === 'empate' ? (n === 3 ? 1 : null) : n - 1;
+      const evaluacion = ev.ok
+        ? { politica: ev.evaluada.politica, tipo: ev.evaluada.tipo, fuente: ev.evaluada.fuente, capturadaEn: ev.evaluada.capturadaEn, snapshotId: ev.evaluada.snapshotId, version: ev.evaluada.version, motivo: null }
+        : { politica: POLITICA_EVALUACION, tipo: null, fuente: null, capturadaEn: null, snapshotId: null, version: null, motivo: ev.motivo };
       return {
         sport: s,
         matchKey: req.params.key,
@@ -156,8 +176,10 @@ export async function registerAnaliticaRoutes(app: FastifyInstance): Promise<voi
         resuelto,
         resultado,
         marcador: marcadorTxt,
-        probabilidadDada: indice == null ? null : probs[indice],
-        acerto: indice == null ? null : indice === favorito,
+        probabilidadDada: indice == null || !ev.ok ? null : probs[indice],
+        acerto: indice == null || favorito == null ? null : indice === favorito,
+        evaluacion,
+        publicada: publicadas ? { probabilidades: publicadas, en: String(fila.publicadaEn) } : null,
       };
     },
   );

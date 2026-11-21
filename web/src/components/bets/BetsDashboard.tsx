@@ -45,6 +45,8 @@ export default function BetsDashboard() {
   // has registrado ninguna apuesta», que no se sabe: la petición había fallado.
   const [errorCarga, setErrorCarga] = useState(false);
   const [sport, setSport] = useState<string | null>(null);
+  // F2: abiertas (pendientes) o liquidadas, a la vista y con recuento.
+  const [estadoFiltro, setEstadoFiltro] = useState<'todas' | 'abiertas' | 'liquidadas'>('todas');
   const [day, setDay] = useState<string | null>(null);
   const [borrador, setBorrador] = useState<Record<string, unknown> | null>(null);
   const [minEdge, setMinEdge] = useState<number | null>(null);
@@ -95,7 +97,11 @@ export default function BetsDashboard() {
 
   useEffect(load, [load]);
 
-  const shown = useMemo(() => (day ? (bets ?? []).filter((b) => b.placed_on === day) : bets ?? []), [bets, day]);
+  const shown = useMemo(
+    () => (bets ?? []).filter((b) => (!day || b.placed_on === day) && (estadoFiltro === 'todas' || (estadoFiltro === 'abiertas' ? b.status === 'pending' : b.status !== 'pending'))),
+    [bets, day, estadoFiltro],
+  );
+  const abiertas = (bets ?? []).filter((b) => b.status === 'pending').length;
   const groups = useMemo(() => groupByDay(shown, (b) => `${b.placed_on}T12:00:00`, idioma), [shown, idioma]);
 
   const settle = async (b: Bet, status: BetStatus) => {
@@ -219,8 +225,21 @@ export default function BetsDashboard() {
         </>
       ) : null}
 
-      {/* Sport filter, only once there is more than one to filter. */}
-      {summary && summary.bySport.length > 1 && (
+      {/* Abiertas / liquidadas (F2). */}
+      {bets.length > 0 && (
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label={t('registro.filtroEstado')}>
+          {(['todas', 'abiertas', 'liquidadas'] as const).map((e) => (
+            <button key={e} type="button" aria-pressed={estadoFiltro === e} className={pillClass(estadoFiltro === e)} onClick={() => setEstadoFiltro(e)}>
+              {t(`registro.estado.${e}`)} <span className="ml-1 text-(--ink-muted)">{e === 'todas' ? bets.length : e === 'abiertas' ? abiertas : bets.length - abiertas}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Sport filter, once there is more than one to filter — and always while one is active (F2):
+          with a sport chosen the summary has only that one, and the pills used to vanish with the
+          filter still on (the same defect as B4 in Partidos). */}
+      {summary && (summary.bySport.length > 1 || sport != null) && (
         <div className="flex flex-wrap gap-1.5">
           <button className={pillClass(sport == null)} onClick={() => setSport(null)}>
             {t('registro.todos')}

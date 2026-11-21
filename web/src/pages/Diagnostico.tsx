@@ -14,6 +14,7 @@ import { SubNav } from '../components/nav/SubNav';
 import { useSubnavConfianza } from './subnav';
 import { num as numF } from '../lib/formato';
 import { SkeletonList } from '../components/ui';
+import { formatearInstante } from '../lib/zona';
 
 interface Ejecucion { id: number; source: string; started_at: string; finished_at: string | null; status: 'running' | 'ok' | 'error'; rows_added: number | null; rows_updated: number | null; error: string | null; detail: string | null }
 interface Trabajo { nombre: string; descripcion: string; cadenciaMin: number; cadenciaPorDefecto: number; enabled: boolean; lastRunAt: string | null; lastDurationMs: number | null; lastStatus: 'ok' | 'error' | 'running' | null; lastError: string | null; nextRunAt: string | null; runsOk: number; runsError: number }
@@ -50,7 +51,7 @@ function Bloque({ titulo, children }: { titulo: string; children: React.ReactNod
 export default function Diagnostico() {
   const { t, idioma } = useI18n();
   const fecha = (iso: string | null | undefined) =>
-    iso ? new Date(iso).toLocaleString(localeDe(idioma), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+    iso ? formatearInstante(iso, localeDe(idioma), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
   const subnav = useSubnavConfianza();
   const ingestas = usarJson<{ ultimas: Ejecucion[]; historial: Ejecucion[] }>('/api/ingestion-runs');
   const errores = usarJson<{ errores: ErrorFila[]; total24h: number }>('/api/errores?limite=30');

@@ -11,6 +11,7 @@ import { evaluate, type Informe, type Prediccion } from './metrics.ts';
 import { SPORT_IDS, type SportId } from '../sports.ts';
 import { avisoMuestra, type AvisoMuestra } from './sample.ts';
 import { prepartidoSql } from '../prematch/tiempo.ts';
+import { ORDEN_LIBRE, POLITICA_EVALUACION, finalDeFila, joinFinal, resolverEvaluada, type TipoEvaluacion } from './evaluada.ts';
 
 /**
  * Solo lo escrito ANTES del inicio (auditoría del 17 de octubre, punto 2): una fila registrada
@@ -31,7 +32,19 @@ export type PrediccionEnVivo = Prediccion & {
    * publicado. La deriva se mide con esto, que es lo que midió el backtest (lote C, C4).
    */
   pModelo?: number[];
+  /** La clave del partido en su registro. */
+  matchKey?: string;
+  /** Qué se evaluó (evaluation/evaluada.ts): la final congelada, o la publicación si no hay final. */
+  evaluacion?: TipoEvaluacion;
+  /**
+   * Lo PUBLICADO (la primera fila del registro), aparte de `p` (lo evaluado). La deriva no lee esto
+   * sino `publicacionesResueltas()`, que no pasa por la política de evaluación.
+   */
+  pPublicada?: number[];
 };
+
+/** Una publicación del registro con su fila, antes de resolver qué se evalúa. */
+type Pub = PrediccionEnVivo & { fila: Fila };
 
 function leer(sql: string): Fila[] {
   try {
@@ -42,7 +55,8 @@ function leer(sql: string): Fila[] {
   }
 }
 
-const dos = (r: Fila): PrediccionEnVivo => ({
+const dos = (r: Fila): Pub => ({
+  fila: r,
   p: [r.p as number, 1 - (r.p as number)],
   pModelo: r.pm == null ? undefined : [r.pm as number, 1 - (r.pm as number)],
   y: r.y as number,
@@ -52,26 +66,29 @@ const dos = (r: Fila): PrediccionEnVivo => ({
   liga: (r.l as string | null) ?? null,
 });
 
-export function predicciones(deporte: SportId): PrediccionEnVivo[] {
+function publicaciones(deporte: SportId): Pub[] {
   switch (deporte) {
     case 'tennis':
-      return leer(
+      return conFinal(deporte, 
         `SELECT prob1 AS p, prob1 AS pm, market_prob1 AS m, CASE WHEN winner_id = p1_id THEN 0 ELSE 1 END AS y, model_version AS v, commence_time AS t, tour AS l
-           FROM prediction_log WHERE resolved_at IS NOT NULL AND winner_id IS NOT NULL AND ${PREPARTIDO} ORDER BY rowid`,
+           , match_key AS mk, rowid AS rid, predicted_at AS pub_en, p1_name AS n1, p2_name AS n2
+           FROM prediction_log WHERE resolved_at IS NOT NULL AND winner_id IS NOT NULL AND ${PREPARTIDO}`,
       ).map(dos);
     case 'football':
-      return leer(
+      return conFinal(deporte, 
         `SELECT COALESCE(shown_home, prob_home) AS h, COALESCE(shown_draw, prob_draw) AS d, COALESCE(shown_away, prob_away) AS a,
                 prob_home AS mh0, prob_draw AS md0, prob_away AS ma0,
                 market_prob_home AS mh, market_prob_draw AS md, market_prob_away AS ma, home_goals AS g1, away_goals AS g2,
                 model_version AS v, commence_time AS t, league AS l
-           FROM fb_prediction_log WHERE resolved_at IS NOT NULL AND home_goals IS NOT NULL AND ${PREPARTIDO} ORDER BY rowid`,
+           , match_key AS mk, rowid AS rid, predicted_at AS pub_en, home_name AS n1, away_name AS n2
+           FROM fb_prediction_log WHERE resolved_at IS NOT NULL AND home_goals IS NOT NULL AND ${PREPARTIDO}`,
       ).map((r) => {
         // Renormalizado: el log guarda cinco decimales y las tres pueden sumar 0,99999.
         const s = (r.h as number) + (r.d as number) + (r.a as number);
         const ms = r.mh != null && r.md != null && r.ma != null ? (r.mh as number) + (r.md as number) + (r.ma as number) : null;
         const s0 = (r.mh0 as number) + (r.md0 as number) + (r.ma0 as number);
         return {
+          fila: r,
           p: [(r.h as number) / s, (r.d as number) / s, (r.a as number) / s],
           pModelo: s0 > 0 ? [(r.mh0 as number) / s0, (r.md0 as number) / s0, (r.ma0 as number) / s0] : undefined,
           y: (r.g1 as number) > (r.g2 as number) ? 0 : r.g1 === r.g2 ? 1 : 2,
@@ -82,37 +99,100 @@ export function predicciones(deporte: SportId): PrediccionEnVivo[] {
         };
       });
     case 'basketball':
-      return leer(
+      return conFinal(deporte, 
         `SELECT prob_home AS p, prob_home AS pm, market_prob_home AS m, CASE WHEN home_pts > away_pts THEN 0 ELSE 1 END AS y, model_version AS v, commence_time AS t, league AS l
-           FROM bb_prediction_log WHERE home_pts IS NOT NULL AND home_pts <> away_pts AND ${PREPARTIDO} ORDER BY rowid`,
+           , game_key AS mk, rowid AS rid, predicted_at AS pub_en, home_name AS n1, away_name AS n2
+           FROM bb_prediction_log WHERE home_pts IS NOT NULL AND home_pts <> away_pts AND ${PREPARTIDO}`,
       ).map(dos);
     case 'baseball':
-      return leer(
+      return conFinal(deporte, 
         `SELECT prob_home AS p, prob_home AS pm, market_prob_home AS m, CASE WHEN home_runs > away_runs THEN 0 ELSE 1 END AS y, model_version AS v, commence_time AS t, league AS l
-           FROM bsb_prediction_log WHERE home_runs IS NOT NULL AND home_runs <> away_runs AND ${PREPARTIDO} ORDER BY rowid`,
+           , match_key AS mk, rowid AS rid, predicted_at AS pub_en, home_name AS n1, away_name AS n2
+           FROM bsb_prediction_log WHERE home_runs IS NOT NULL AND home_runs <> away_runs AND ${PREPARTIDO}`,
       ).map(dos);
     case 'nfl':
       // Los empates se excluyen: el moneyline se devuelve y no hay resultado que puntuar.
-      return leer(
+      return conFinal(deporte, 
         `SELECT COALESCE(shown_home, prob_home) AS p, prob_home AS pm, market_prob_home AS m, CASE WHEN home_points > away_points THEN 0 ELSE 1 END AS y,
                 model_version AS v, commence_time AS t, league AS l
-           FROM naf_prediction_log WHERE home_points IS NOT NULL AND home_points <> away_points AND ${PREPARTIDO} ORDER BY rowid`,
+           , match_key AS mk, rowid AS rid, predicted_at AS pub_en, home_name AS n1, away_name AS n2
+           FROM naf_prediction_log WHERE home_points IS NOT NULL AND home_points <> away_points AND ${PREPARTIDO}`,
       ).map(dos);
     case 'nhl':
       // El moneyline incluye prórroga y tanda: siempre hay ganador.
-      return leer(
+      return conFinal(deporte, 
         `SELECT COALESCE(shown_home, prob_home) AS p, prob_home AS pm, market_prob_home AS m, CASE WHEN home_goals > away_goals THEN 0 ELSE 1 END AS y,
                 model_version AS v, commence_time AS t, league AS l
-           FROM nhl_prediction_log WHERE home_goals IS NOT NULL AND home_goals <> away_goals AND ${PREPARTIDO} ORDER BY rowid`,
+           , match_key AS mk, rowid AS rid, predicted_at AS pub_en, home_name AS n1, away_name AS n2
+           FROM nhl_prediction_log WHERE home_goals IS NOT NULL AND home_goals <> away_goals AND ${PREPARTIDO}`,
       ).map(dos);
     case 'ufc':
       // Solo las peleas con ganador: el empate y el «sin resultado» no se puntúan (A es home_*).
-      return leer(
+      return conFinal(deporte, 
         `SELECT COALESCE(shown_home, prob_home) AS p, prob_home AS pm, market_prob_home AS m, CASE WHEN outcome = 'A' THEN 0 ELSE 1 END AS y,
                 model_version AS v, commence_time AS t, league AS l
-           FROM ufc_prediction_log WHERE outcome IN ('A', 'B') AND ${PREPARTIDO} ORDER BY rowid`,
+           , match_key AS mk, rowid AS rid, predicted_at AS pub_en, home_name AS n1, away_name AS n2
+           FROM ufc_prediction_log WHERE outcome IN ('A', 'B') AND ${PREPARTIDO}`,
       ).map(dos);
   }
+}
+
+/**
+ * Las filas pre-partido y resueltas de un registro, cada una con su final congelada al lado
+ * (evaluation/evaluada.ts). La consulta del deporte va dentro, tal cual, con su clave como `mk`.
+ */
+function conFinal(deporte: SportId, sql: string): Fila[] {
+  const pf = joinFinal(deporte, 'q.', 'mk');
+  return leer(`SELECT q.*, ${pf.columnas} FROM (${sql}) q ${pf.join} ORDER BY q.rid`);
+}
+
+/**
+ * Las predicciones EN VIVO que se evalúan: para cada partido resuelto, la predicción evaluada según
+ * la política de evaluation/evaluada.ts (la final congelada antes del inicio; sin ella, la
+ * publicación original marcada «legado»; una final ilegible no entra). `pPublicada` y `pModelo`
+ * siguen siendo los de la PUBLICACIÓN: la deriva (trust/drift.ts) mide lo publicado contra el
+ * backtest, y su aviso recorta importes que se apuestan al publicar.
+ */
+export function predicciones(deporte: SportId): PrediccionEnVivo[] {
+  return prediccionesConRecuento(deporte).xs;
+}
+
+/**
+ * Las PUBLICACIONES pre-partido y resueltas, tal como se publicaron: sin pasar por la política de
+ * evaluación. La deriva (trust/drift.ts) sale de aquí, para que qué se puntúa no cambie cuánto se
+ * apuesta (revisión quant de B1, M1).
+ */
+export function publicacionesResueltas(deporte: SportId): PrediccionEnVivo[] {
+  return publicaciones(deporte).map(({ fila, ...resto }) => ({ ...resto, matchKey: String(fila.mk) }));
+}
+
+/** Cuántas se evaluaron con la final, cuántas con la publicación (legado) y cuántas quedaron fuera. */
+export interface RecuentoEvaluacion {
+  final: number;
+  legado: number;
+  excluidas: number;
+}
+
+/** Las predicciones evaluadas y el recuento por tipo (revisión quant de B1, hallazgo 5). */
+export function prediccionesConRecuento(deporte: SportId): { xs: PrediccionEnVivo[]; recuento: RecuentoEvaluacion } {
+  const xs: PrediccionEnVivo[] = [];
+  const recuento: RecuentoEvaluacion = { final: 0, legado: 0, excluidas: 0 };
+  for (const pub of publicaciones(deporte)) {
+    const fila = pub.fila;
+    const ev = resolverEvaluada({ probs: pub.p, mercado: pub.mercado ?? null, version: pub.version, en: String(fila.pub_en) }, finalDeFila(fila), pub.p.length, {
+      nombres: [String(fila.n1), String(fila.n2)],
+      ordenLibre: ORDEN_LIBRE.has(deporte),
+    });
+    if (!ev.ok) {
+      recuento.excluidas++;
+      continue;
+    }
+    recuento[ev.evaluada.tipo]++;
+    const { fila: _fila, ...resto } = pub;
+    void _fila;
+    xs.push({ ...resto, pPublicada: pub.p, p: ev.evaluada.probs, mercado: ev.evaluada.mercado, version: ev.evaluada.version, matchKey: String(fila.mk), evaluacion: ev.evaluada.tipo });
+  }
+  return { xs, recuento };
 }
 
 /** Las métricas de UNA versión del modelo, sobre sus propias predicciones. */
@@ -149,15 +229,15 @@ export function porVersion(deporte: string, xs: PrediccionEnVivo[]): PorVersion[
   });
 }
 
-export function evaluacionEnVivo(): (Informe & { error?: string; porVersion: PorVersion[]; aviso: AvisoMuestra })[] {
+export function evaluacionEnVivo(): (Informe & { error?: string; porVersion: PorVersion[]; aviso: AvisoMuestra; evaluacion: RecuentoEvaluacion & { politica: typeof POLITICA_EVALUACION } })[] {
   return SPORT_IDS.map((d) => {
     try {
-      const xs = predicciones(d);
-      return { ...evaluate('live', d, xs), porVersion: porVersion(d, xs), aviso: avisoMuestra(xs.length, 'predicciones') };
+      const { xs, recuento } = prediccionesConRecuento(d);
+      return { ...evaluate('live', d, xs), porVersion: porVersion(d, xs), aviso: avisoMuestra(xs.length, 'predicciones'), evaluacion: { politica: POLITICA_EVALUACION, ...recuento } };
     } catch (e) {
       // Una fila mal formada no puede tumbar la evaluación de los otros cuatro, pero
       // tampoco se esconde: el deporte sale sin cifras y con el motivo.
-      return { ...evaluate('live', d, []), porVersion: [], aviso: avisoMuestra(0, 'predicciones'), error: (e as Error).message };
+      return { ...evaluate('live', d, []), porVersion: [], aviso: avisoMuestra(0, 'predicciones'), error: (e as Error).message, evaluacion: { politica: POLITICA_EVALUACION, final: 0, legado: 0, excluidas: 0 } };
     }
   });
 }

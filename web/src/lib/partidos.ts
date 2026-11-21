@@ -18,6 +18,8 @@ export interface PartidoComun {
   probs: number[] | null;
   confianza: EvaluacionConfianza | null;
   prePartido: PrePartidoRef | null;
+  /** Partido de demostración (`source = 'fixture'`): sin cuotas reales con las que comparar (D3). */
+  demo?: boolean;
 }
 
 /** De dónde pedir UN partido (la misma forma que la lista de su deporte). */
@@ -92,6 +94,7 @@ export function aComun(sport: DeporteId, item: Fila): PartidoComun | null {
     probs,
     confianza: (item.confianza as EvaluacionConfianza | null | undefined) ?? null,
     prePartido: (item.prePartido as PrePartidoRef | null | undefined) ?? null,
+    demo: g.source === 'fixture',
   };
 }
 

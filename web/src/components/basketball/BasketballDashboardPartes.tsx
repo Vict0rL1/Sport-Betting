@@ -4,12 +4,13 @@ import { bbApi, type BbMeta, type BbTrackRecord } from '../../lib/basketball';
 import { CheckIcon, CrossIcon } from '../icons';
 import { conNodos, localeDe, useI18n } from '../../i18n';
 import { cifra, pct as pctF, num as numF } from '../../lib/formato';
+import { formatearInstante } from '../../lib/zona';
 
 export function DataLine({ meta }: { meta: BbMeta }) {
   const { t, idioma } = useI18n();
   const when = meta.oddsRefreshedAt ?? meta.updatedAt;
   const whenTxt = when
-    ? new Date(when).toLocaleString(localeDe(idioma), {
+    ? formatearInstante(when, localeDe(idioma), {
         day: 'numeric',
         month: 'short',
         hour: '2-digit',

@@ -2,6 +2,7 @@
 // función. Un JSON pequeño en `settings` (libro mayor); claves permitidas y validadas aquí.
 import { getMeta, setMeta } from '../db.ts';
 import { SPORT_IDS } from '../sports.ts';
+import { validarSilencio, type Silencio } from '../notifications/silencio.ts';
 
 export const CLAVE_AJUSTES = 'ajustes.usuario';
 
@@ -14,14 +15,24 @@ export interface Ajustes {
   bancoPersonal: number | null;
   /** El recorrido de primer uso ya se vio. */
   recorridoVisto: boolean;
+  /** Horas de silencio de los avisos externos (G3); null = apagadas. */
+  silencio: Silencio | null;
 }
 
-export const AJUSTES_POR_DEFECTO: Ajustes = { deportesOcultos: [], tema: 'auto', idioma: 'es', bancoPersonal: null, recorridoVisto: false };
+export const AJUSTES_POR_DEFECTO: Ajustes = { deportesOcultos: [], tema: 'auto', idioma: 'es', bancoPersonal: null, recorridoVisto: false, silencio: null };
 
 export function leerAjustes(): Ajustes {
   try {
     const raw = getMeta(CLAVE_AJUSTES);
-    return raw ? { ...AJUSTES_POR_DEFECTO, ...(JSON.parse(raw) as Partial<Ajustes>) } : { ...AJUSTES_POR_DEFECTO };
+    const a = raw ? { ...AJUSTES_POR_DEFECTO, ...(JSON.parse(raw) as Partial<Ajustes>) } : { ...AJUSTES_POR_DEFECTO };
+    // Lo guardado se vuelve a validar al leerlo (revisiones de seguridad y data-guardian de G3): una
+    // configuración editada a mano o de otra versión no puede tumbar los avisos; si no vale, apagada.
+    try {
+      a.silencio = validarSilencio(a.silencio ?? null);
+    } catch {
+      a.silencio = null;
+    }
+    return a;
   } catch {
     return { ...AJUSTES_POR_DEFECTO };
   }
@@ -57,6 +68,9 @@ export function validarAjustes(cambios: unknown): Partial<Ajustes> {
       }
       case 'recorridoVisto':
         out.recorridoVisto = !!o[k];
+        break;
+      case 'silencio':
+        out.silencio = validarSilencio(o[k]);
         break;
       default:
         throw new Error(`ajuste desconocido: ${k}`);
