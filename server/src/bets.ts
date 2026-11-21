@@ -263,6 +263,14 @@ export class ErrorDeEnlace extends Error {
   }
 }
 
+/**
+ * Las etiquetas como se guardan: recortadas, sin vacías ni repetidas, de 30 caracteres y 12 como
+ * mucho. La API y la importación por CSV usan esta misma regla (revisión data-guardian).
+ */
+export function normalizarEtiquetas(xs: readonly string[]): string[] {
+  return [...new Set(xs.map((x) => x.trim().slice(0, 30)).filter(Boolean))].slice(0, 12);
+}
+
 export function createBet(input: BetInput): Bet {
   if (input.snapshot_id != null) {
     const p = problemaDeEnlace(input.snapshot_id, input.sport, input.match_key);

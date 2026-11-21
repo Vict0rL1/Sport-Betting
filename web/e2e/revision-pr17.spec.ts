@@ -343,3 +343,71 @@ test('F2: en Mis apuestas, el deporte elegido sigue a la vista (y se quita), y s
   await page.getByRole('group', { name: 'Abiertas o liquidadas' }).getByRole('button', { name: /^Abiertas/ }).click();
   await expect(page.getByText('Evento Sintético 3')).toBeVisible();
 });
+
+test('G1: «¿Acertó?» pide los días en la zona elegida en Ajustes, no en la del navegador', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('predictor.recorrido', '1');
+    localStorage.setItem('predictor.zona', 'America/New_York');
+  });
+  const pedidas: string[] = [];
+  page.on('request', (r) => r.url().includes('/api/recent-results') && pedidas.push(r.url()));
+  await page.goto('/confianza');
+  await expect.poll(() => pedidas.length).toBeGreaterThan(0);
+  expect(new URL(pedidas[0]).searchParams.get('zona')).toBe('America/New_York');
+});
+
+for (const ancho of [390, 320]) {
+  test(`ui-tester 7: a ${ancho} px el desplegable del estado cabe en la pantalla y no crea desplazamiento horizontal`, async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('predictor.recorrido', '1'));
+    await page.setViewportSize({ width: ancho, height: 800 });
+    await page.goto('/partidos');
+    await page.getByTestId('status-pill').last().click();
+    const dialogo = page.getByRole('dialog');
+    await expect(dialogo).toBeVisible();
+    const caja = (await dialogo.boundingBox())!;
+    expect(caja.x).toBeGreaterThanOrEqual(0);
+    expect(caja.x + caja.width).toBeLessThanOrEqual(ancho);
+    const sobra = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(sobra).toBe(0);
+  });
+}
+
+test('F1: una fila «registrada antes» de «¿Acertó?» abre su ficha; una reconstruida no tiene enlace', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('predictor.recorrido', '1');
+    localStorage.setItem('predictor.today.open', '1');
+    localStorage.setItem('predictor.today.view', 'resultados');
+  });
+  const dia = new Date().toISOString().slice(0, 10);
+  const clave = 'atp|9001|9002|20261120';
+  await page.route('**/api/recent-results*', async (r) => {
+    const res = await r.fetch();
+    const j = (await res.json()) as { resultados: unknown[] };
+    j.resultados.unshift(
+      { deporte: 'Tenis', liga: 'atp', dia, cuando: `${dia}T15:00:00Z`, partido: 'Jugadora Enlace vs Rival Enlace', casa: 'Jugadora Enlace', fuera: 'Rival Enlace', casaId: '9001', fueraId: '9002', favorito: 'Jugadora Enlace', probabilidad: 0.64, ganador: 'Rival Enlace', acerto: false, origen: 'en vivo', evaluacion: 'final', sport: 'tennis', matchKey: clave },
+      { deporte: 'Tenis', liga: 'atp', dia, cuando: null, partido: 'Sin Registro vs Otra', casa: 'Sin Registro', fuera: 'Otra', casaId: null, fueraId: null, favorito: 'Sin Registro', probabilidad: 0.55, ganador: 'Otra', acerto: false, origen: 'reconstruida', sport: 'tennis', matchKey: null },
+    );
+    await r.fulfill({ response: res, json: j });
+  });
+  await page.route('**/api/resultado/tennis/**', (r) =>
+    r.fulfill({ json: { casa: 'Jugadora Enlace', fuera: 'Rival Enlace', cuando: `${dia}T15:00:00Z`, probabilidades: [0.64, 0.36], resuelto: true, resultado: 'fuera', marcador: null, probabilidadDada: 0.64, acerto: false } }),
+  );
+  await page.goto('/confianza');
+  const enlace = page.getByRole('link', { name: /Jugadora Enlace vs Rival Enlace/ });
+  await expect(enlace).toBeVisible();
+  expect(await enlace.getAttribute('href')).toBe(`/partido/tennis/${encodeURIComponent(clave)}?clave=${encodeURIComponent(clave)}`);
+  await expect(page.locator('li', { hasText: 'Sin Registro' }).getByRole('link')).toHaveCount(0);
+  await enlace.click();
+  await expect(page).toHaveURL(/\/partido\/tennis\//);
+  await expect(page.getByText('El partido ya no está en la lista de próximos')).toBeVisible();
+});
+
+test('G2: en inglés, las descripciones de interruptores y trabajos de Ajustes salen en inglés', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('predictor.recorrido', '1');
+    localStorage.setItem('predictor.idioma', 'en');
+  });
+  await page.goto('/ajustes');
+  await expect(page.getByText('Global search (Ctrl/Cmd+K) for teams, players, matches, leagues and pages.')).toBeVisible();
+  await expect(page.getByText('Búsqueda global (Ctrl/Cmd+K)')).toHaveCount(0);
+});

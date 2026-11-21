@@ -37,6 +37,21 @@ export function guardarZona(z: string | null): void {
 }
 
 /**
+ * Un DÍA de calendario (no un instante) como fecha local a medianoche, para formatearlo sin que la
+ * zona lo mueva (G1). Acepta «2026-11-20», «20261120» y la medianoche UTC con que el servidor manda
+ * los días («2026-11-20T00:00:00.000Z»): formateada como instante, al oeste de UTC salía el 19.
+ * null si no es un día válido o lleva otra hora (eso es un instante: `formatearInstante`).
+ */
+export function diaDeCalendario(s: string | null | undefined): Date | null {
+  if (!s) return null;
+  const m = /^(\d{4})-?(\d{2})-?(\d{2})(?:T00:00:00(?:\.0+)?Z)?$/.exec(s.trim());
+  if (!m) return null;
+  const [a, me, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const f = new Date(a, me - 1, d);
+  return f.getFullYear() === a && f.getMonth() === me - 1 && f.getDate() === d ? f : null;
+}
+
+/**
  * Un instante formateado en la zona elegida (G1 de la revisión del PR 17: la zona vale en toda la
  * app, no solo en Partidos). Una fecha que no se entiende sale «—» (no «Invalid Date» ni una
  * excepción); una zona que el navegador no entiende cae a la del navegador.

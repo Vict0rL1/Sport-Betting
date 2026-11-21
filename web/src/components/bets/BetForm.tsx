@@ -16,6 +16,7 @@ import { HOME_COLOR, PROFIT_TEXT } from '../../lib/theme';
 import { Payout, ModeTab, Field, inputClass, selectClass, todayLocal } from './BetFormPartes';
 import { conNodos, existeClave, localeDe, useI18n, type Clave } from '../../i18n';
 import { num as numF } from '../../lib/formato';
+import { formatearInstante } from '../../lib/zona';
 
 const MARKETS = ['moneyline', 'spread', 'total', 'btts', 'score', 'other'];
 const SPORTS = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'ufc', 'tennis', 'other'];
@@ -173,7 +174,7 @@ export default function BetForm({
         <p className="mb-3 flex flex-wrap items-baseline gap-x-2 rounded-lg bg-(--raised) px-3 py-2 text-[13px] text-(--ink-body)">
           <span>
             {enlace.estimacion
-              ? t('form.enlazada', { cuando: new Date(enlace.estimacion.captured_at).toLocaleString(localeDe(idioma), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }), probs: enlace.estimacion.outcomes.map((o, i) => `${o} ${numF(enlace.estimacion!.probs[i] * 100, 1)} %`).join(' · ') })
+              ? t('form.enlazada', { cuando: formatearInstante(enlace.estimacion.captured_at, localeDe(idioma), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }), probs: enlace.estimacion.outcomes.map((o, i) => `${o} ${numF(enlace.estimacion!.probs[i] * 100, 1)} %`).join(' · ') })
               : t('form.enlazadaSinDatos')}
           </span>
           <button type="button" onClick={() => setEnlace(null)} className="underline underline-offset-2 text-(--ink-soft) hover:text-(--ink-strong)">{t('form.quitarEnlace')}</button>
@@ -224,7 +225,7 @@ export default function BetForm({
                     {candidates.map((c) => (
                       <option key={c.matchKey} value={c.matchKey}>
                         {deporteDe(t, c.sport)} · {c.event} ·{' '}
-                        {new Date(c.commenceTime).toLocaleDateString(idioma === 'en' ? 'en-GB' : 'es', {
+                        {formatearInstante(c.commenceTime, idioma === 'en' ? 'en-GB' : 'es', {
                           day: 'numeric',
                           month: 'short',
                           hour: '2-digit',

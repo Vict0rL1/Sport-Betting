@@ -20,6 +20,9 @@ export { DeporteIcono };
 import { TeamCrest } from './ui';
 import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../i18n';
 import { num as numF } from '../lib/formato';
+import { leerZona, formatearInstante } from '../lib/zona';
+import { Link } from 'react-router';
+import { rutaPartido } from '../rutas';
 
 /** El servidor manda el nombre del deporte en español: se pasa al catálogo si se conoce. */
 
@@ -45,6 +48,9 @@ interface Resultado {
   /** Solo «en vivo»: qué se puntuó (la final congelada, o la publicación si no hay final: legado). */
   evaluacion?: 'final' | 'legado';
   evaluadaEn?: string;
+  /** F1: el deporte y la clave del registro, para abrir la ficha. Las reconstruidas no tienen (null). */
+  sport?: string;
+  matchKey?: string | null;
 }
 
 export interface Resumen {
@@ -117,7 +123,7 @@ export function useHistorial(): { h: Historial | null; cargando: boolean; error:
   useEffect(() => {
     let vivo = true;
     setCargando(true);
-    fetch(`/api/recent-results?dias=${dias}`)
+    fetch(`/api/recent-results?dias=${dias}&zona=${encodeURIComponent(leerZona())}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((j: Historial) => {
         if (!vivo) return;
@@ -273,13 +279,24 @@ function Fila({ r }: { r: Resultado }) {
           {r.origen === 'en vivo' && (
             <span className="rounded px-1.5 py-px text-[11px]" style={{ color: STATUS.good, background: 'rgba(25,158,112,0.1)' }}>
               {t('acerto.enVivo')}
-              {r.cuando ? ` · ${new Date(r.cuando).toLocaleTimeString(localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}` : ''}
+              {r.cuando ? ` · ${formatearInstante(r.cuando, localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}` : ''}
             </span>
           )}
           {r.evaluacion === 'legado' && (
             <span className="rounded px-1.5 py-px text-[11px] text-(--ink-soft) ring-1 ring-(--line)" title={t('acerto.legadoNota')}>
               {t('acerto.legado')}
             </span>
+          )}
+          {/* F1: lo registrado antes se puede abrir (resultado, predicción evaluada e historial); lo
+              reconstruido no tiene registro que abrir y no lleva enlace. */}
+          {r.origen === 'en vivo' && r.sport && r.matchKey && (
+            <Link
+              to={`${rutaPartido(r.sport, r.matchKey)}?clave=${encodeURIComponent(r.matchKey)}`}
+              aria-label={t('acerto.abrirFicha', { partido: r.partido })}
+              className="toque [--toque-y:6px] text-(--ink-soft) underline-offset-2 hover:text-(--ink-strong) hover:underline"
+            >
+              {t('enlace.abrirPartido')}
+            </Link>
           )}
         </div>
       </div>

@@ -34,6 +34,7 @@ import { reconstruirDesde } from './recent/reconstruct.ts';
 import { prepartidoSql } from './prematch/tiempo.ts';
 import { ORDEN_LIBRE, POLITICA_EVALUACION, finalDeFila, joinFinal, resolverEvaluada, type TipoEvaluacion } from './evaluation/evaluada.ts';
 import type { SportId } from './sports.ts';
+import { zonedToUtc } from './timezone.ts';
 
 /**
  * «En vivo» es lo registrado ANTES del partido (auditoría del 17 de octubre, revisión quant): una
@@ -166,6 +167,13 @@ export interface ResultadoReciente {
   evaluacion?: TipoEvaluacion;
   /** Cuándo se capturó la predicción puntuada (solo «en vivo»). */
   evaluadaEn?: string;
+  /** El id del deporte, para el enlace a la ficha (F1). */
+  sport: SportId;
+  /**
+   * La clave del registro, para abrir la ficha del partido (F1). null en las reconstruidas: no
+   * tienen registro y no se inventa una clave.
+   */
+  matchKey: string | null;
 }
 
 export interface ResumenAciertos {
@@ -192,6 +200,8 @@ export interface ArchivoDeporte {
 }
 
 export interface HistorialReciente {
+  /** La zona en la que se cortan los días; null = la del servidor. */
+  zona: string | null;
   dias: number;
   desde: string;
   hasta: string;
@@ -284,15 +294,37 @@ const RESUELTAS = (): FuenteResuelta[] => [
 
 const RECONSTRUYE = new Set<PartidoDeHoy['deporte']>(['Fútbol', 'Baloncesto', 'Béisbol', 'NFL', 'NHL', 'UFC']);
 
-export function historialReciente(now = new Date(), dias: number = VENTANAS[0]): HistorialReciente {
+/** El día (YYYY-MM-DD) de un instante en una zona IANA. */
+const diaEnZona = (d: Date, zona: string) => new Intl.DateTimeFormat('en-CA', { timeZone: zona, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+/** YYYY-MM-DD menos `n` días de calendario. */
+const restarDias = (dia: string, n: number) => {
+  const [y, m, d] = dia.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d - n)).toISOString().slice(0, 10);
+};
+const zonaValida = (z: string | undefined): z is string => {
+  if (!z) return false;
+  try {
+    new Intl.DateTimeFormat('en', { timeZone: z });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+export function historialReciente(now = new Date(), dias: number = VENTANAS[0], zonaPedida?: string): HistorialReciente {
   rellenarMostrado();
   const db = getDb();
   // «Los últimos 7 días» son SIETE DÍAS NATURALES: hoy y los seis anteriores, desde la
   // medianoche local. Con «ahora − 7×24 h» la lista arrastraba la tarde del octavo día,
   // que luego no salía en ninguna barra por día.
-  const desdeD = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (dias - 1));
-  const desde = desdeD.toISOString();
-  const desdeYmd = diaLocal(desdeD).replaceAll('-', '');
+  // Local de QUIÉN: con `zona` (G1 de la revisión del PR 17), la de quien mira, como Partidos; sin
+  // ella (o con una que no vale), la del servidor, y la respuesta lo dice (`zona: null`).
+  const zona = zonaValida(zonaPedida) ? zonaPedida : null;
+  const hoy = zona ? diaEnZona(now, zona) : diaLocal(now);
+  const diaDe = (d: Date) => (zona ? diaEnZona(d, zona) : diaLocal(d));
+  const desdeDia = restarDias(hoy, dias - 1);
+  const desde = zona ? (zonedToUtc(desdeDia, '00:00', zona) ?? new Date(now.getFullYear(), now.getMonth(), now.getDate() - (dias - 1)).toISOString()) : new Date(now.getFullYear(), now.getMonth(), now.getDate() - (dias - 1)).toISOString();
+  const desdeYmd = desdeDia.replaceAll('-', '');
   const out: ResultadoReciente[] = [];
   /** Partidos del archivo ya contados en vivo: deporte|YYYYMMDD|local|visitante. */
   const vistos = new Set<string>();
@@ -328,7 +360,7 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
                       ${probSql(f, 'l.')} AS p ${f.empate ? `, ${empateSql(f, 'l.')} AS pEmpate` : ''},
                       l.${f.marcador[0]} AS gc, l.${f.marcador[1]} AS gf,
                       g.${f.enlace!.fecha} AS gFecha, ${f.enlace!.casa ?? 'g.home_id'} AS gCasa, ${f.enlace!.fuera ?? 'g.away_id'} AS gFuera,
-                      l.predicted_at AS publicadaEn, l.model_version AS version, ${pf.columnas}
+                      l.${f.clave} AS clave, l.predicted_at AS publicadaEn, l.model_version AS version, ${pf.columnas}
                  FROM ${f.log} l
                  LEFT JOIN ${f.enlace!.tabla} g ON g.id = l.${f.enlace!.col}
                  ${pf.join}
@@ -336,21 +368,21 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
                 ORDER BY l.commence_time DESC`,
             )
             .all(desde) as unknown as {
-            cuando: string; liga: string | null; casa: string; fuera: string; casaId: string | null; fueraId: string | null; p: number; pEmpate?: number;
+            cuando: string; liga: string | null; casa: string; fuera: string; casaId: string | null; fueraId: string | null; p: number; pEmpate?: number; clave: string | null;
             gc: number; gf: number; gFecha: string | null; gCasa: string | null; gFuera: string | null;
           }[])
         : (db
             .prepare(
               `SELECT l.commence_time AS cuando, l.tour AS liga, l.p1_name AS casa, l.p2_name AS fuera,
                       CAST(l.p1_id AS TEXT) AS casaId, CAST(l.p2_id AS TEXT) AS fueraId,
-                      l.prob1 AS p, l.winner_id, l.p1_id, l.predicted_at AS publicadaEn, l.model_version AS version, ${pf.columnas}
+                      l.prob1 AS p, l.winner_id, l.p1_id, l.${f.clave} AS clave, l.predicted_at AS publicadaEn, l.model_version AS version, ${pf.columnas}
                  FROM prediction_log l
                  ${pf.join}
                 WHERE l.winner_id IS NOT NULL AND l.commence_time >= ? AND ${PREPARTIDO}
                 ORDER BY l.commence_time DESC`,
             )
             .all(desde) as unknown as {
-            cuando: string; liga: string | null; casa: string; fuera: string; casaId: string | null; fueraId: string | null; p: number; winner_id: number; p1_id: number;
+            cuando: string; liga: string | null; casa: string; fuera: string; casaId: string | null; fueraId: string | null; p: number; winner_id: number; p1_id: number; clave: string | null;
           }[]);
 
       for (const r of rows as (typeof rows)[number][]) {
@@ -390,7 +422,7 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
         out.push({
           deporte: f.deporte,
           liga: r.liga,
-          dia: diaLocal(new Date(r.cuando)),
+          dia: diaDe(new Date(r.cuando)),
           cuando: r.cuando,
           partido: CON_ARROBA.has(f.deporte) ? `${r.fuera} @ ${r.casa}` : `${r.casa} vs ${r.fuera}`,
           casa: r.casa,
@@ -404,6 +436,8 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
           origen: 'en vivo',
           evaluacion: ev.evaluada.tipo,
           evaluadaEn: ev.evaluada.capturadaEn,
+          sport: ID_DEPORTE[f.deporte],
+          matchKey: r.clave ?? null,
         });
       }
     } catch {
@@ -436,6 +470,8 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
       ganador,
       acerto: fav.indice === p.y,
       origen: 'reconstruida',
+      sport: ID_DEPORTE[p.deporte],
+      matchKey: null,
     });
   }
 
@@ -446,10 +482,11 @@ export function historialReciente(now = new Date(), dias: number = VENTANAS[0]):
   for (const d of new Set(out.map((x) => x.deporte))) porDeporte[d] = resumir(out.filter((x) => x.deporte === d));
   const porDia: HistorialReciente['porDia'] = [];
   for (let i = 0; i < dias; i++) {
-    const dia = diaLocal(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i));
+    const dia = restarDias(hoy, i);
     porDia.push({ dia, ...resumir(out.filter((x) => x.dia === dia)) });
   }
   return {
+    zona,
     dias,
     desde,
     hasta: now.toISOString(),

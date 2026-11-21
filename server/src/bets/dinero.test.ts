@@ -91,3 +91,29 @@ test('B2 (revisión quant L1/L2): ROI exacto en medias y una apuesta antigua de 
   assert.equal(antigua.staked, 1.01);
   assert.equal(antigua.profit, -1.01);
 });
+
+test('Ida y vuelta por CSV (data-guardian): las etiquetas exportadas vuelven como etiquetas, no como una sola', async () => {
+  const { exportar, aCsv } = await import('../exports/datasets.ts');
+  const { importarCsv } = await import('./importar.ts');
+  const { getBet } = await import('../bets.ts');
+  createBet({ sport: 'tennis', event: 'Con etiquetas', market: 'moneyline', selection: 'A', placed_on: '2026-11-05', odds: 1.9, stake: 5, status: 'pending', currency: 'EUR', tags: ['valor', 'directo, en vivo'] });
+  const e = exportar('apuestas');
+  const fila = e.datos.filter((d) => d.event === 'Con etiquetas');
+  const r = importarCsv(aCsv(e.columnas, fila), (input) => createBet(input));
+  assert.equal(r.rechazadas.length, 0, JSON.stringify(r.rechazadas));
+  assert.deepEqual(getBet(r.ids[0])?.tags, ['valor', 'directo, en vivo']);
+  // Y una lista escrita a mano con comas o punto y coma sigue valiendo.
+  const aMano = importarCsv('placed_on,sport,event,market,selection,odds,stake,tags\n2026-11-05,tennis,A mano,moneyline,A,1.9,5,"uno; dos"\n', (input) => createBet(input));
+  assert.deepEqual(getBet(aMano.ids[0])?.tags, ['uno', 'dos']);
+});
+
+test('Etiquetas a mano (data-guardian): mismos límites que la API (sin repetidas, 30 caracteres, 12 como mucho)', async () => {
+  const { importarCsv } = await import('./importar.ts');
+  const { getBet } = await import('../bets.ts');
+  const largo = 'x'.repeat(40);
+  const csv = `placed_on,sport,event,market,selection,odds,stake,tags\n2026-11-05,tennis,Repetidas,moneyline,A,1.9,5,"a|a| a |${largo}"\n2026-11-05,tennis,Enorme,moneyline,A,1.9,5,"${'['.repeat(5000)}"\n`;
+  const r = importarCsv(csv, (input) => createBet(input));
+  assert.equal(r.importadas, 2);
+  assert.deepEqual(getBet(r.ids[0])?.tags, ['a', 'x'.repeat(30)]);
+  assert.deepEqual(getBet(r.ids[1])?.tags, ['['.repeat(30)], 'una celda enorme no entra entera en el libro mayor');
+});

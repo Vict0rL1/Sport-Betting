@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import NotificacionesPanel from '../components/auth/NotificacionesPanel';
 import { aplicarTema, type Tema } from '../lib/tema';
-import { guardarZona, leerZona, zonaValida } from '../lib/zona';
+import { guardarZona, leerZona, zonaValida, formatearInstante } from '../lib/zona';
 import { zonaDelNavegador } from '../lib/explorador';
 import { DEPORTES } from '../rutas';
 import { ETIQUETA_POLITICA } from '../lib/politica';
@@ -13,7 +13,7 @@ import { conNodos, localeDe, useI18n, type Clave, type Idioma, type Traducir } f
 import { useDialogo } from '../components/ui/useDialogo';
 import { FalloCarga, useCarga } from '../components/ui/carga';
 import { datosDe, pedirJson } from '../lib/remoto';
-import { borradorTrasAplicar, CADENCIA_MAX, CADENCIA_MIN, errorDeRespuesta, leerImporte, validarCadencia } from '../lib/ajustes';
+import { borradorTrasAplicar, CADENCIA_MAX, claveDeFuncion, claveDeTrabajo, CADENCIA_MIN, errorDeRespuesta, leerImporte, validarCadencia } from '../lib/ajustes';
 
 interface Version { id: number; created_at: string; parent_id: number | null; hash: string; nota: string | null; origen: string; config: Record<string, Record<string, number>> }
 interface Feature { on: boolean; activa: boolean; descripcion: string; falta: string | null; anulada: boolean; soloArranque?: boolean }
@@ -190,7 +190,7 @@ function Politica() {
   };
   return (
     <>
-      <p className="mb-2">{t('aj.version', { id: v.vigente.id, origen: v.vigente.origen, fecha: new Date(v.vigente.created_at).toLocaleDateString(localeDe(idioma)), sig: v.vigente.id + 1 })}</p>
+      <p className="mb-2">{t('aj.version', { id: v.vigente.id, origen: v.vigente.origen, fecha: formatearInstante(v.vigente.created_at, localeDe(idioma), { day: 'numeric', month: 'numeric', year: 'numeric' }), sig: v.vigente.id + 1 })}</p>
       <div className="grid gap-2 sm:grid-cols-2">
         {campos.map((c) => (
           <label key={c.clave} className="flex items-center justify-between gap-2 rounded-lg bg-(--raised) px-3 py-2">
@@ -212,6 +212,14 @@ function Politica() {
       {confirmar && <Confirmar ocupado={ocupado} onNo={() => setConfirmar(false)} onOk={() => void aplicar()} cambios={cambios.map((c) => ({ etiqueta: etiquetaPolitica(t, c.clave), antes: fmt(c.actual, idioma), despues: fmt(c.nuevo, idioma) }))} />}
     </>
   );
+}
+
+/**
+ * G2: las descripciones de interruptores y trabajos llegan del servidor en español; se traducen por su
+ * id. Si el catálogo aún no conoce uno nuevo, se enseña el texto del servidor antes que nada.
+ */
+function traducidaODelServidor(t: Traducir, clave: Clave | null, delServidor: string): string {
+  return clave ? t(clave) : delServidor;
 }
 
 function Interruptores() {
@@ -245,7 +253,7 @@ function Interruptores() {
             {/* El nombre del interruptor es un identificador de configuración (config/features.json,
                 npm run features), no texto que traducir: va como código (E8). */}
             <p className="text-(--ink-body)"><code className="font-mono text-[12px]">{k}</code>{x.anulada && <span className="ml-1.5 text-[11px] text-(--ink-muted)">{t('aj.anulado')}</span>}{x.falta && <span className="ml-1.5 text-[11px]" style={{ color: 'var(--status-warning)' }}>{t('notif.falta', { vars: x.falta })}</span>}</p>
-            <p className="text-[12px] text-(--ink-muted)">{x.descripcion}</p>
+            <p className="text-[12px] text-(--ink-muted)">{traducidaODelServidor(t, claveDeFuncion(k), x.descripcion)}</p>
           </div>
           <div className="flex items-center gap-1.5">
             <button role="switch" aria-checked={x.on} aria-label={`${k}: ${x.on ? t('aj.encendido') : t('aj.apagado')}`} onClick={() => void cambiar(k, !x.on)} className={`relative h-6 w-11 rounded-full transition ${x.on ? 'bg-[#199e70]' : 'bg-(--raised-2)'}`}>
@@ -304,7 +312,7 @@ function Cadencias() {
           <li key={x.nombre} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-(--raised) px-3 py-2">
             <div className="min-w-0 flex-1">
               <p className="text-(--ink-body)">{x.nombre} {!x.enabled && <span className="text-[11px] text-(--ink-muted)">{t('aj.apagadoParen')}</span>}</p>
-              <p className="text-[12px] text-(--ink-muted)">{x.descripcion}</p>
+              <p className="text-[12px] text-(--ink-muted)">{traducidaODelServidor(t, claveDeTrabajo(x.nombre), x.descripcion)}</p>
             </div>
             <div className="flex items-center gap-1.5">
               <label className="flex items-center gap-1 text-[12px]">

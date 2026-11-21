@@ -12,6 +12,7 @@ import { etiquetaHorizonte, nombreDelPrePartido, type EvaluacionConfianza, type 
 import { ConfianzaBadge } from './ConfianzaBadge';
 import { codigo, useI18n } from '../../i18n';
 import { cifra, pct as pctF, num as numF } from '../../lib/formato';
+import { formatearInstante } from '../../lib/zona';
 
 const pct = (p: number) => `${pctF(p, 1)}`;
 const pp = (x: number) => `${x >= 0 ? '+' : '−'}${numF(Math.abs(x), 1)} pp`;
@@ -166,7 +167,7 @@ function LineaTemporal({ refP }: { refP: PrePartidoRef }) {
     <>
       {d.hitos.map((h, i) => (
         <p key={i}>
-          <span className="text-(--ink-faint)">{new Date(h.at).toLocaleString(idioma === 'en' ? 'en-GB' : 'es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span> {h.texto}
+          <span className="text-(--ink-faint)">{formatearInstante(h.at, idioma === 'en' ? 'en-GB' : 'es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span> {h.texto}
         </p>
       ))}
       <p className="text-(--ink-faint)">{d.nota}</p>

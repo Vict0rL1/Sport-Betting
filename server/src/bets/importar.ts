@@ -4,7 +4,8 @@
 // coma; comillas RFC 4180. Cada fila se valida como una apuesta normal: lo que no pasa se
 // devuelve con su número de línea y NO se guarda nada de esa fila.
 
-import { BET_CURRENCIES, type Bet, type BetInput } from '../bets.ts';
+import { normalizarEtiquetas, type Bet, type BetInput } from '../bets.ts';
+import { parseBet } from './validar.ts';
 
 export interface ResultadoImportacion {
   importadas: number;
@@ -46,6 +47,25 @@ export function parsearCsv(texto: string): string[][] {
 
 const COLUMNAS = ['placed_on', 'sport', 'league', 'event', 'market', 'selection', 'odds', 'stake', 'status', 'payout', 'notes', 'model_prob', 'market_prob', 'match_key', 'tags', 'currency'] as const;
 
+/**
+ * Las etiquetas de una celda: la lista JSON que escribe la exportación (`["a","b"]`, que puede llevar
+ * comas o punto y coma dentro de una etiqueta) o una lista a mano separada por `|` o `;`. Antes la
+ * JSON entraba como UNA etiqueta (revisión data-guardian).
+ */
+function leerEtiquetas(celda: string): string[] {
+  const c = celda.trim();
+  if (!c) return [];
+  if (c.startsWith('[')) {
+    try {
+      const v = JSON.parse(c) as unknown;
+      if (Array.isArray(v) && v.every((x) => typeof x === 'string')) return normalizarEtiquetas(v);
+    } catch {
+      // No es JSON: se lee como lista a mano.
+    }
+  }
+  return normalizarEtiquetas(c.split(/[|;]/));
+}
+
 export function importarCsv(texto: string, crear: (input: BetInput) => Bet, maxFilas = 1000): ResultadoImportacion {
   const filas = parsearCsv(texto);
   const out: ResultadoImportacion = { importadas: 0, rechazadas: [], ids: [] };
@@ -70,41 +90,39 @@ export function importarCsv(texto: string, crear: (input: BetInput) => Bet, maxF
       return j >= 0 ? (f[j] ?? '').trim().replace(/^'(?=[=+\-@\t\r])/, '') : '';
     };
     try {
-      const num = (k: string) => {
+      // La misma validación que POST /api/bets (bets/validar.ts): deporte, mercado, cuota, estado,
+      // fecha, probabilidades, cashout con importe, longitudes y etiquetas. Una celda opcional
+      // vacía es «no dado»; las obligatorias vacías dan su error.
+      const opcional = (k: string) => v(k) || undefined;
+      // La API toma un número opcional ilegible como vacío; aquí se rechaza la fila, como antes:
+      // «55 %» en model_prob no puede perderse en silencio (revisión data-guardian).
+      for (const k of ['payout', 'model_prob', 'market_prob']) {
         const t = v(k);
-        if (!t) return undefined;
-        const n = Number(t.replace(',', '.'));
-        if (!Number.isFinite(n)) throw new Error(`${k}: «${t}» no es un número`);
-        return n;
-      };
-      const odds = num('odds');
-      const stake = num('stake');
-      if (odds == null || !(odds > 1)) throw new Error('odds: cuota decimal mayor que 1');
-      if (stake == null || !(stake > 0)) throw new Error('stake: mayor que 0');
-      if (Math.abs(Math.round(stake * 100) - stake * 100) > 1e-6) throw new Error('stake: como mucho 2 decimales');
-      if (stake > 1_000_000) throw new Error('stake: cantidad demasiado alta');
-      const moneda = v('currency') || null;
-      if (moneda != null && !(BET_CURRENCIES as readonly string[]).includes(moneda)) throw new Error(`currency: usa ${BET_CURRENCIES.join(', ')}`);
-      const input: BetInput = {
-        sport: v('sport'),
-        event: v('event'),
-        market: v('market') || 'other',
-        selection: v('selection'),
-        odds,
-        stake,
-        placed_on: v('placed_on') || undefined,
-        league: v('league') || null,
-        status: (v('status') || undefined) as BetInput['status'],
-        payout: num('payout') ?? null,
-        notes: v('notes') || null,
-        model_prob: num('model_prob') ?? null,
-        market_prob: num('market_prob') ?? null,
-        match_key: v('match_key') || null,
-        currency: moneda,
-        tags: v('tags') ? v('tags').split(/[|;]/).map((t) => t.trim()).filter(Boolean).slice(0, 12) : [],
-      };
-      if (!input.sport || !input.event || !input.selection) throw new Error('sport, event y selection son obligatorios');
-      if (input.placed_on && !/^\d{4}-\d{2}-\d{2}$/.test(input.placed_on)) throw new Error('placed_on: AAAA-MM-DD');
+        if (t && !Number.isFinite(Number(t.replace(',', '.')))) throw new Error(`${k}: «${t}» no es un número`);
+      }
+      const parsed = parseBet(
+        {
+          sport: v('sport'),
+          event: v('event'),
+          market: v('market') || 'other',
+          selection: v('selection'),
+          odds: v('odds'),
+          stake: v('stake'),
+          placed_on: opcional('placed_on'),
+          league: opcional('league'),
+          status: opcional('status'),
+          payout: opcional('payout'),
+          notes: opcional('notes'),
+          model_prob: opcional('model_prob'),
+          market_prob: opcional('market_prob'),
+          match_key: opcional('match_key'),
+          currency: opcional('currency'),
+          tags: leerEtiquetas(v('tags')),
+        },
+        false,
+      );
+      if ('errors' in parsed) throw new Error(parsed.errors.map((e) => `${e.field}: ${e.message}`).join('; '));
+      const input = parsed.input as BetInput;
       const b = crear(input);
       out.importadas++;
       out.ids.push(b.id);

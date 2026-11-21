@@ -4,6 +4,48 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Revisión del PR 17, lo que quedaba abierto: zona, idioma, etiquetas, desplegable y desglose (2026-11-21)
+
+Sigue a la entrada de abajo. Destino de cada punto en `docs/plans/revision-pr17-2026-11.md`.
+
+**G1. La zona elegida, en lo que faltaba**
+- Los días de «¿Acertó?» se cortan en la zona de Ajustes: la web la manda (`/api/recent-results?zona=`)
+  y el servidor corta a su medianoche (`today.ts`). Antes era la hora del servidor. Una zona inválida
+  no rompe: se usa la del servidor y la respuesta dice `zona: null` (`recent/zona.test.ts`).
+- Las horas sueltas de tarjetas, paneles y pestañas pasan por `formatearInstante` (la zona elegida).
+- Un DÍA de calendario ya no se trata como instante (`diaDeCalendario`, `lib/diaCalendario.test.ts`,
+  que corre en Nueva York):
+  - la píldora de estado decía «datos hasta el 19» con datos hasta el 20 al oeste de UTC;
+  - «Datos de» decía agosto para un archivo que llega al 1 de septiembre.
+- Lo que queda con `toLocale*String` son números (sin zona) y etiquetas de días de calendario.
+
+**G2. Textos del servidor, traducidos por id**
+- Ajustes: las descripciones de los 49 interruptores (`funcion.<id>`) y de los 13 trabajos
+  programados (`trabajo.<nombre>`) salían en español con la interfaz en inglés. La española del
+  catálogo es la del servidor y un test lo vigila, con un interruptor o trabajo nuevo incluido
+  (`i18n/funciones.test.ts`). Sin clave, se enseña el texto del servidor.
+- Clima de la ficha: el servidor añade `cielo` y `motivoCodigo` (códigos estables) junto a los
+  textos de siempre, y la web los traduce (`weather/openMeteo.test.ts`, `lib/clima.test.ts`).
+- Siguen en español los motivos de las tarjetas: son frases del modelo con datos dentro.
+
+**F1. De «¿Acertó?» a la ficha**
+- Cada fila «registrada antes» lleva su deporte y la clave del registro, y abre su ficha: resultado,
+  predicción evaluada e historial pre-partido. Las reconstruidas no tienen registro: sin enlace y sin
+  clave inventada (`recent/enlace.test.ts`, e2e F1).
+
+**Arreglado, anterior a este cambio**
+- Etiquetas de apuestas por CSV: la exportación las escribe como lista JSON y la importación las leía
+  como una sola. Ahora entra la lista; una celda a mano sigue separándose por `|` o `;`. Las dos
+  vías y la API usan la misma regla (`normalizarEtiquetas`: sin repetidas, 30 caracteres, 12 como
+  mucho). Antes, una celda a mano entraba sin recortar (`bets/dinero.test.ts`).
+- La importación por CSV no validaba como la API: una fila con deporte «foo», mercado «bar», cuota
+  5000, estado «zzz», probabilidad 2 o un cashout sin importe entraba en el libro mayor. La
+  validación de POST /api/bets pasa a `bets/validar.ts` y cada fila pasa por ella; lo que no pasa se
+  devuelve con su línea y su campo. Un número opcional ilegible (`55%` en model_prob) se sigue
+  rechazando, no se guarda como vacío (`bets/importar.validacion.test.ts`). Lo vio el data-guardian.
+- El desplegable de la píldora de estado se salía de la pantalla a 390 y 320 px: en la cabecera se
+  abre hacia la izquierda y no pasa del ancho de la pantalla (e2e «ui-tester 7»).
+
 ## Revisión del PR 17, fases B a G: lo que se puntúa, el dinero exacto, estados que no mienten, la ficha en orden, lo personal, zona, idioma y silencio (2026-11-20)
 
 Plan, matriz y destino de cada hallazgo en `docs/plans/revision-pr17-2026-11.md`.

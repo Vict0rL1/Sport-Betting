@@ -70,6 +70,7 @@ const Partidos = lazy(cargarPartidos);
 import { I18nProvider, idiomaGuardado, localeDe, useI18n, type Clave } from './i18n';
 import { aplicarTema, temaGuardado, type Tema } from './lib/tema';
 import { atajoPermitido } from './lib/dialogo';
+import { formatearInstante } from './lib/zona';
 
 /**
  * Ancho máximo del armazón: 80rem (1280px), con las listas de tarjetas a dos columnas en
@@ -385,7 +386,7 @@ function BannerSinConexion() {
   const { t, idioma } = useI18n();
   if (enLinea && !desdeCache) return null;
   const u = ultimaRed();
-  const hora = u ? new Date(u).toLocaleString(localeDe(idioma), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
+  const hora = u ? formatearInstante(u, localeDe(idioma), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
   return (
     <p role="status" aria-live="polite" data-testid="sin-conexion" className="mb-4 rounded-lg border border-[#c98500]/50 px-3 py-2 text-[13px] text-(--ink-body)">
       {t('sinConexion', { hora })}

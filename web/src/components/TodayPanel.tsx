@@ -19,6 +19,7 @@ import { deporteInicial, panelAbierto } from '../lib/hoy';
 import { localeDe, useI18n } from '../i18n';
 import { pct as pctF } from '../lib/formato';
 import { MOVIL } from '../lib/useMediaQuery';
+import { formatearInstante } from '../lib/zona';
 
 interface Partido {
   deporte: string;
@@ -270,7 +271,7 @@ export default function TodayPanel({ pestana = null, soloResultados = false }: {
                         data-empezado={p.empezado || undefined}
                       >
                         <td className={`whitespace-nowrap py-2 pl-4 pr-2 ${p.empezado ? 'text-(--ink-faint)' : 'text-(--ink-soft)'}`}>
-                          {new Date(p.cuando).toLocaleTimeString(localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}
+                          {formatearInstante(p.cuando, localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}
                         </td>
                         <td className="py-2 pr-2"><span title={p.deporte} className="inline-flex"><DeporteIcono nombre={p.deporte} size={24} tile /></span></td>
                         <td className={`py-2 pr-3 ${p.empezado ? 'text-(--ink-faint)' : 'text-(--ink-body)'}`}>{p.partido}</td>

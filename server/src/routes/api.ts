@@ -591,10 +591,12 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   // `dias` solo admite las ventanas que ofrece la pantalla (7, 14, 30): reconstruir cuesta
   // ~1 s por deporte y se guarda por ventana, así que una ventana arbitraria por petición
   // sería una forma barata de tener el servidor ocupado.
-  app.get<{ Querystring: { dias?: string } }>('/recent-results', async (req) => {
+  app.get<{ Querystring: { dias?: string; zona?: string } }>('/recent-results', async (req) => {
     const pedido = Number(req.query.dias);
     const dias = (VENTANAS as readonly number[]).includes(pedido) ? pedido : VENTANAS[0];
-    return { ventanas: VENTANAS, ...historialReciente(new Date(), dias) };
+    // La zona de quien mira (G1): los días se cortan en ella. Se acota antes de dársela a Intl.
+    const zona = typeof req.query.zona === 'string' && req.query.zona.length <= 64 ? req.query.zona : undefined;
+    return { ventanas: VENTANAS, ...historialReciente(new Date(), dias, zona) };
   });
 
   // --- auditoría: línea temporal de un partido, reproducción de un id y alertas ---

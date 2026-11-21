@@ -7,6 +7,7 @@ import { STATUS, tenido } from '../../lib/theme';
 import { StatusMark } from '../icons';
 import { useI18n, type Clave, type Traducir } from '../../i18n';
 import { useDialogo } from '../ui/useDialogo';
+import { diaDeCalendario } from '../../lib/zona';
 
 interface Estado {
   generado: string;
@@ -101,7 +102,7 @@ export default function StatusPill({ compacto = false }: { compacto?: boolean })
         <span className={compacto ? 'sr-only sm:not-sr-only' : ''}>{r.texto}</span>
       </button>
       {abierto && (
-        <div ref={dialogo} role="dialog" aria-modal="true" aria-label={t('estado.dialogo')} className="absolute left-0 z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-(--line) bg-(--surface-card) p-3 text-[12px] leading-relaxed text-(--ink-soft) shadow-xl">
+        <div ref={dialogo} role="dialog" aria-modal="true" aria-label={t('estado.dialogo')} className={`absolute ${compacto ? 'right-0' : 'left-0'} z-50 mt-2 w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-(--line) bg-(--surface-card) p-3 text-[12px] leading-relaxed text-(--ink-soft) shadow-xl`}>
           <p className="mb-1 font-semibold text-(--ink-strong)">
             <StatusMark estado={r.nivel === 'ok' ? 'ok' : r.nivel === 'aviso' ? 'aviso' : 'error'} color={r.color} />
             {r.texto}
@@ -127,7 +128,7 @@ export default function StatusPill({ compacto = false }: { compacto?: boolean })
                 <li key={d.sport} className="flex justify-between gap-2">
                   <span className="text-(--ink-body)">{nombreDe(t, d.sport)}</span>
                   <span className="text-right">
-                    {d.datosHasta ? `${t('estado.datosHasta', { fecha: new Date(d.datosHasta).toLocaleDateString(loc) })}${dias != null && dias > 7 ? t('estado.dias', { n: dias }) : ''}` : t('estado.sinArchivo')} · {t('estado.proximos', { n: d.proximos })}
+                    {d.datosHasta ? `${t('estado.datosHasta', { fecha: (diaDeCalendario(d.datosHasta) ?? new Date(d.datosHasta)).toLocaleDateString(loc) })}${dias != null && dias > 7 ? t('estado.dias', { n: dias }) : ''}` : t('estado.sinArchivo')} · {t('estado.proximos', { n: d.proximos })}
                   </span>
                 </li>
               );

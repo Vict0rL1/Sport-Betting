@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import '../test/setup.ts';
 
-const { horizontesPendientes, leerHora, consultar, cicloClima, climaDe, estadioDe, estadios, descripcionCodigo } = await import('./openMeteo.ts');
+const { horizontesPendientes, leerHora, consultar, cicloClima, climaDe, estadioDe, estadios, descripcionCodigo, cieloDeCodigo, CIELOS } = await import('./openMeteo.ts');
 const { getDb } = await import('../db.ts');
 
 const KICKOFF = '2026-10-11T17:00:00Z';
@@ -64,6 +64,9 @@ test('leerHora toma la hora del partido; consultar devuelve null ante error, 500
   assert.equal(arch?.tempC, 11.4);
   assert.equal(descripcionCodigo(61), 'lluvia');
   assert.equal(descripcionCodigo(null), 'sin dato');
+  // Cada código WMO cae en uno de los cielos que la web sabe traducir (G2).
+  for (let k = 0; k <= 99; k++) assert.ok(CIELOS.includes(cieloDeCodigo(k)), `código ${k}`);
+  assert.equal(cieloDeCodigo(null), 'sin-dato');
 });
 
 test('cicloClima: guarda la previsión de los partidos con estadio, deja DESCONOCIDO a los demás y no repite', async () => {
@@ -88,10 +91,16 @@ test('cicloClima: guarda la previsión de los partidos con estadio, deja DESCONO
   assert.equal(c.horizonte, 'T-1h');
   assert.equal(c.vientoMph, 17.8);
   assert.equal(c.descripcion, 'lluvia');
+  // G2: además del texto en español, el código estable que la web traduce.
+  assert.equal(c.cielo, 'lluvia');
+  assert.equal(c.motivoCodigo, null);
   assert.equal(c.estadio?.nombre, 'Lambeau Field');
   const d = climaDe('nfl', 'nfl', 'g2', 'XXX');
   assert.equal(d.estado, 'DESCONOCIDO');
   assert.match(d.motivo ?? '', /no configurado/);
+  assert.equal(d.motivoCodigo, 'sin-estadio');
+  assert.equal(d.cielo, null);
+  assert.equal(climaDe('nfl', 'nfl', 'sin-fila', 'GB').motivoCodigo, 'sin-prevision');
   // Inmutable.
   assert.throws(() => db.exec("DELETE FROM weather_observations WHERE match_key = 'g1'"), /inmutable/);
   assert.throws(() => db.exec("UPDATE weather_observations SET temp_c = 99 WHERE match_key = 'g1'"), /inmutable/);

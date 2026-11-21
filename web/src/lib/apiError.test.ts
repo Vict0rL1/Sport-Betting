@@ -12,7 +12,7 @@ const aqui = path.dirname(fileURLToPath(import.meta.url));
 const servidor = (f: string) => fs.readFileSync(path.join(aqui, '..', '..', '..', 'server', 'src', f), 'utf8');
 
 test('G2: los códigos de error de las apuestas tienen frase en es y en', () => {
-  const codigos = new Set([...`${servidor('routes/bets.ts')}\n${servidor('bets.ts')}`.matchAll(/'(apuesta\.[a-z-]+)'/g)].map((m) => m[1]));
+  const codigos = new Set([...`${servidor('routes/bets.ts')}\n${servidor('bets/validar.ts')}\n${servidor('bets.ts')}`.matchAll(/'(apuesta\.[a-z-]+)'/g)].map((m) => m[1]));
   assert.ok(codigos.size >= 24, `${codigos.size} códigos`);
   for (const c of codigos) {
     assert.ok(`apiError.${c}` in es, `falta apiError.${c} en es.ts`);

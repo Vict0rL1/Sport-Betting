@@ -6,6 +6,7 @@ import { localeDe, useI18n } from '../../i18n';
 import { NEUTRAL_TEXT, PROFIT_TEXT, LOSS_TEXT } from '../../lib/theme';
 import { Card, SectionTitle } from '../ui';
 import { pct as pctF, num as numF } from '../../lib/formato';
+import { formatearInstante } from '../../lib/zona';
 
 export function Headline({ summary }: { summary: BetSummary }) {
   const tot = summary.totals;
@@ -266,7 +267,7 @@ export function BetRow({
               {bet.snapshotId !== undefined && (
                 <span className="text-(--ink-muted)">
                   {bet.estimacion
-                    ? t('registro.enlazada', { cuando: new Date(bet.estimacion.captured_at).toLocaleString(localeDe(idioma), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }), probs: bet.estimacion.outcomes.map((o, i) => `${o} ${numF(bet.estimacion!.probs[i] * 100, 1)} %`).join(' · ') })
+                    ? t('registro.enlazada', { cuando: formatearInstante(bet.estimacion.captured_at, localeDe(idioma), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }), probs: bet.estimacion.outcomes.map((o, i) => `${o} ${numF(bet.estimacion!.probs[i] * 100, 1)} %`).join(' · ') })
                     : bet.snapshotId != null
                       ? t('registro.enlazadaSinDatos')
                       : t('registro.sinEnlazar')}

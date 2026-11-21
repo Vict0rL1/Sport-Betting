@@ -161,10 +161,10 @@ los resume el brief; donde el resumen no basta, se dice.
 | E3 | Notas en las guardadas (editables, aparte de la evidencia) | Hecho | `watchlist/notas.test.ts`, `db/v30.test.ts`, `e2e/revision-pr17.spec.ts` (E3/E4) |
 | E4 | Guardada contra la última | Hecho | `watchlist/notas.test.ts` (E4), `e2e/revision-pr17.spec.ts` (E3/E4) |
 | E5 | Apuesta enlazada a una instantánea (aditivo; las de antes, sin enlazar) | Hecho | `bets/enlazada.test.ts`, `db/v30.test.ts`, `e2e/revision-pr17.spec.ts` (E5) |
-| F1 | Rendimiento: política, cohortes, periodo, muestra, exclusiones; las mismas definiciones | Hecho en parte | definiciones y exclusiones; gráficos de calibración nuevos y desglose: no |
+| F1 | Rendimiento: política, cohortes, periodo, muestra, exclusiones; las mismas definiciones | Hecho en parte | definiciones y exclusiones; desglose de «¿Acertó?» a la ficha (`recent/enlace.test.ts`, e2e F1); gráficos de calibración nuevos: no |
 | F2 | Mis apuestas: abiertas/liquidadas, filtros visibles, monedas, enlace a la estimación | Hecho | `e2e/revision-pr17.spec.ts` (F2, E5) |
-| G1 | Zona en toda la app (medianoche, cambio de hora, inválidos) | Hecho en parte | `lib/zonaFormato.test.ts`; quedan llamadas sueltas (abajo) |
-| G2 | Explicaciones del servidor localizadas por id y parámetros | Hecho en parte | errores de apuestas (`lib/apiError.test.ts`, `bets/enlazada.test.ts`); motivos de las tarjetas y descripciones de funciones, no |
+| G1 | Zona en toda la app (medianoche, cambio de hora, inválidos) | Hecho | `lib/zonaFormato.test.ts`, `lib/diaCalendario.test.ts`, `recent/zona.test.ts`, e2e G1 |
+| G2 | Explicaciones del servidor localizadas por id y parámetros | Hecho en parte | errores de apuestas (`lib/apiError.test.ts`, `bets/enlazada.test.ts`), interruptores y trabajos (`i18n/funciones.test.ts`, e2e G2), clima (`lib/clima.test.ts`); motivos de las tarjetas, no |
 | G3 | Horas de silencio (zona, medianoche, inicio = fin, suprimir/aplazar, caducidad, sin duplicados) | Hecho | `notifications/silencio.test.ts`, `db/v31.test.ts` |
 
 ## Revisiones y su destino
@@ -260,22 +260,29 @@ los resume el brief; donde el resumen no basta, se dice.
   - trata un cashout sin importe como 0;
   - y `lossState` (`:223`) suma todas las monedas juntas.
   - Tocarla cambia cuándo saltan los límites: queda para un cambio propio, con quant-reviewer.
-- **El desplegable de la píldora de estado** (cabecera) se sale de la pantalla a 390 y 320 px. Es
-  anterior a este cambio; lo vio el ui-tester.
-- **Etiquetas de apuestas por CSV.** Se exportan como JSON y al importar se leen como una sola
-  etiqueta. Es anterior a este cambio; lo vio el data-guardian.
-- **G1, lo que falta.** Unas 55 llamadas sueltas a `toLocale*String` en las pestañas de cada deporte,
-  tarjetas y paneles usan aún la zona del navegador. Los formateadores comunes ya usan la elegida.
-  Además, los días de «¿Acertó?» se cortan en la hora del servidor (`today.ts` diaLocal), y
-  Rendimiento lo dice.
-- **G2, lo que falta.** Los motivos de las tarjetas («En hierba, … llega con mejor Elo») y las
-  descripciones de `features.json` salen del servidor en español. El patrón ya está (código y
-  parámetros, traducidos en la web, con un test de cobertura); falta aplicarlo a esas frases
-  (I18N-1).
-- **F1, lo que falta.** Gráficos nuevos de calibración y en el tiempo y el desglose por partido desde
-  Rendimiento. Los de antes (Analítica, evaluación en vivo) siguen.
+- **G2, lo que falta.** Los motivos de las tarjetas («En hierba, … llega con mejor Elo») salen del
+  servidor en español: son frases del modelo con datos dentro y piden pasar a código y parámetros en
+  cada deporte (I18N-1). Las descripciones de interruptores y trabajos y el clima ya se traducen.
+- **F1, lo que falta.** Gráficos nuevos de calibración y en el tiempo en Rendimiento. Los de antes
+  (Analítica, evaluación en vivo) siguen. El desglose de «¿Acertó?» a la ficha ya está.
+- **El enlace de una apuesta a su instantánea no viaja por CSV.** La exportación lleva
+  `snapshot_id` y la importación no lo lee: en otra instalación ese id no existe y la fila entera se
+  rechazaría. Se pierde el enlace, no se inventa nada (data-guardian, anterior a este cambio).
 - **Las vistas guardadas viven en este navegador** (como la densidad y la zona). Llevarlas a la
   cuenta pide una tabla y una revisión de data-guardian.
+
+## Cerrado el 21-nov (tras «keep working»)
+
+- **G1.** Los días de «¿Acertó?» se cortan en la zona elegida (la web la manda). Las horas sueltas
+  pasan por `formatearInstante`. Los días de calendario («datos hasta») ya no se mueven al oeste de
+  UTC (`diaDeCalendario`). Lo que queda con `toLocale*String` son números o etiquetas de días.
+- **G2 (parte).** Interruptores (49), trabajos (13) y clima, traducidos por id con test de cobertura.
+- **F1 (parte).** Cada fila «registrada antes» abre su ficha; las reconstruidas, sin enlace.
+- **ui-tester 7.** El desplegable de la píldora cabe a 390 y 320 px.
+- **data-guardian, etiquetas CSV.** La lista JSON de la exportación vuelve como lista, y las
+  etiquetas a mano siguen la regla de la API.
+- **data-guardian, importación sin validar** (anterior, visto al revisar lo de arriba). Cada fila del
+  CSV pasa por la validación de la API (`bets/validar.ts`).
 
 ## Informe de entrega (20-nov)
 
