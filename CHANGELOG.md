@@ -4,6 +4,25 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18, fase A: la línea base y la documentación, reconciliadas (2026-11-23)
+
+Plan, matriz y hallazgos en `docs/plans/seguimiento-pr18-2026-11.md`. Rama local
+`claude/seguimiento-pr18`, desde `92339dc` (cabeza del PR #18, sin fusionar).
+
+- **Línea base real en `92339dc`, el 23-nov:**
+  - servidor 801/801, web 148/148 y Playwright 208/208;
+  - `verify:data` 533/533 y `audit` 6007/6007, sobre una copia temporal de la release;
+  - el `audit` baja de 6047 (21-nov) a 6007 solo por el calendario: la copia está congelada y hay 21
+    partidos próximos en la ventana en vez de 31.
+- **`web/src/lib/dinero.ts` es una copia idéntica de `server/src/dinero.ts`**, vigilada por un test, y
+  no una reexportación como decía el comentario de los dos ficheros. Corregido el comentario.
+- **Cifras del plan del PR 17 con su fecha y su commit.** Las de `0aeafcd` (20-nov) se conservan y se
+  añaden las de `92339dc`. El informe del 20-nov lleva una nota: lo que decía «en parte» lo cerró
+  `92339dc`.
+- **Pistas de riesgo confirmadas en el código:** coma flotante, cashout sin importe tomado como 0,
+  monedas sumadas, día de colocación en vez de liquidación, y la hora del servidor. Se arreglan en la
+  fase B, cada una con un test que falle antes.
+
 ## Revisión del PR 17, lo que quedaba abierto: zona, idioma, etiquetas, desplegable y desglose (2026-11-21)
 
 Sigue a la entrada de abajo. Destino de cada punto en `docs/plans/revision-pr17-2026-11.md`.

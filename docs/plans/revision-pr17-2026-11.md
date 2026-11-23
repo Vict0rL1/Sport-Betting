@@ -5,6 +5,10 @@ Encargo: el brief de seguimiento de la revisión independiente del PR 17 (fases 
 base. Los commits son locales; el brief prohíbe empujar, desplegar, gastar créditos de cuotas y mandar
 avisos reales.
 
+> **Nota del 23-nov.** Después, el propietario pidió expresamente empujar y abrir el PR: la rama está en
+> el PR #18 (`0aeafcd` y `92339dc`), sin fusionar. El seguimiento de ese PR vive en
+> `docs/plans/seguimiento-pr18-2026-11.md`.
+
 **La revisión original no está disponible en este entorno.** Es
 `/Users/victor/Downloads/ECON260/Sport_Betting_PR17_Review_and_Claude_Followup.md`, y la sesión corre en un
 contenedor sin acceso a ese Mac (ninguna carpeta compartida). Se ha trabajado con los hallazgos tal como
@@ -286,6 +290,10 @@ los resume el brief; donde el resumen no basta, se dice.
 
 ## Informe de entrega (20-nov)
 
+> Histórico, del 20-nov en `0aeafcd`. Lo que dice «en parte» de F1, G1 y G2 lo cerró o lo acotó
+> `92339dc` (ver «Cerrado el 21-nov» arriba y la matriz). «Sin empujar» también cambió: ver la nota del
+> principio.
+
 - **Hecho:** B1–B6, C, D (D1, D2 y D3), E1–E5, F2 y G3.
 - **Hecho en parte** (la matriz dice qué falta y por qué):
   - F1: las definiciones y las exclusiones; no hay gráficos ni desglose nuevos.
@@ -311,11 +319,17 @@ los resume el brief; donde el resumen no basta, se dice.
 ## Comandos y resultados
 
 - Línea base en `c1f95b9`: typecheck, lint, 741/741 servidor, 117/117 web, build: en verde.
-- Tras B a G (final):
+- Tras el cierre de lo abierto (`92339dc`):
+  - 21-nov: typecheck, lint y build en verde; 801/801 servidor, 148/148 web, Playwright 208/208;
+    `verify:data` 533/533 y `audit` 6047/6047. CI del PR #18: 8/8.
+  - 23-nov, 08:12–08:19 UTC, mismo commit: los mismos números salvo `audit` 6007/6007. La diferencia
+    es solo de calendario: la copia está congelada y hay 21 partidos próximos dentro de la ventana en
+    vez de 31.
+- Tras B a G (`0aeafcd`, 20-nov):
   - typecheck, lint y build en verde; 793/793 tests del servidor y 138/138 de la web;
   - `verify:data` 533/533 y `audit` 6051/6051 sobre la copia temporal de la release, sin `--force`;
   - Playwright 203/203 (`npx playwright test --trace off`).
-- Tras B, C y D:
+- Tras B, C y D (20-nov, antes del commit):
   - typecheck, lint y build en verde; 774/774 tests del servidor y 130/130 de la web;
   - Playwright 194/194 con B (después, `revision-pr17.spec.ts` 10/10 con C y D);
   - `verify:data` 532/532 y `audit` 6051/6051, sobre una copia de la release de datos en un

@@ -6,7 +6,8 @@
 // 2,41 en la vista previa y 2,42 en el servidor. Aquí 1,25 es 125/100 y 2,30 es 23/10: el producto
 // es exacto (127,5 y 241,5 céntimos) y el redondeo es el de un ser humano (1,28 y 2,42).
 //
-// Sin dependencias, a propósito: la web (web/src/lib/dinero.ts) reexporta este mismo fichero, así
+// Sin dependencias, a propósito: web/src/lib/dinero.ts es una COPIA idéntica de este fichero (la web
+// se construye sin el servidor) y web/src/lib/dinero.test.ts falla si difieren en un solo byte, así
 // que la vista previa del formulario y el servidor no pueden divergir. Las apuestas guardadas no se
 // reescriben: se guardan apuesta, cuota y estado, y el pago se calcula al leer (bets.ts).
 
