@@ -32,6 +32,7 @@ import {
   decideStake,
   lossState,
   exposureBreakdown,
+  type LossState,
   DEFAULT_CONFIG,
   type StakeDecision,
   type StakingConfig,
@@ -39,6 +40,7 @@ import {
 import { readCalibration, type CalibrationFile } from './calibration.ts';
 import { portfolioFactors, type Candidate } from './portfolio.ts';
 import { aggregateExposure, links, type Position } from './correlation.ts';
+import type { Moneda } from './contabilidad.ts';
 
 export interface BookCandidate {
   key: string;
@@ -103,14 +105,23 @@ export function decideBook(
   cfg: StakingConfig = DEFAULT_CONFIG,
   cal: CalibrationFile = readCalibration(),
   now = new Date(),
+  /** La moneda del banco: solo sus apuestas personales cuentan para límites y topes (contabilidad.ts). */
+  moneda: Moneda | null = null,
+  /**
+   * Límites y exposición ya leídos, en vez de leerlos del registro personal. Lo usa verify:data para
+   * comprobar los topes sin depender de las apuestas de la instalación que verifica.
+   */
+  contexto: { limites?: LossState; abierto?: ReturnType<typeof exposureBreakdown> } = {},
 ): BookResult {
   const notes: string[] = [];
+  // Los límites se leen UNA vez para toda la cartera, con la moneda del banco.
+  const limites = contexto.limites ?? lossState(bankroll, cfg, now, moneda);
 
   // --- 1. Las puertas de siempre, una a una ---
   const solo = cands.map((c) => ({
     c,
     d: decideStake(
-      { sport: c.sport, p: c.p, odds: c.odds, bankroll, openExposure: 0 },
+      { sport: c.sport, p: c.p, odds: c.odds, bankroll, openExposure: 0, moneda, limites },
       cfg,
       cal,
       now,
@@ -142,7 +153,13 @@ export function decideBook(
   }));
 
   // --- 3. Los topes de exposición ---
-  const open = exposureBreakdown();
+  const open = contexto.abierto ?? exposureBreakdown(moneda);
+  if (open.sinDia > 0) {
+    notes.push(`${open.sinDia.toFixed(2)} pendientes sin día de partido conocido cuentan en el tope de cada día: pueden jugarse en cualquiera.`);
+  }
+  if (open.sinClasificar > 0) {
+    notes.push(`${open.sinClasificar} apuesta(s) pendiente(s) sin moneda indicada se cuentan en los topes como si fueran de este banco.`);
+  }
   const caps: BookResult['caps'] = [];
 
   /**
@@ -167,7 +184,8 @@ export function decideBook(
     const wanted = afterPortfolio.filter((s) => s.c.day === day).reduce((a, s) => a + s.want, 0);
     dayFactor.set(
       day,
-      capFactor(`día ${day}`, cfg.maxExposurePerDay, open.byDay.get(day) ?? 0, wanted),
+      // Lo pendiente sin día de partido conocido puede ser de este día: cuenta (R9).
+      capFactor(`día ${day}`, cfg.maxExposurePerDay, (open.byDay.get(day) ?? 0) + open.sinDia, wanted),
     );
   }
 
@@ -254,9 +272,10 @@ export function decideBook(
     }),
   );
 
-  const loss = lossState(bankroll, cfg, now);
-  if (loss.dayBreached || loss.weekBreached) {
+  if (limites.dayBreached || limites.weekBreached) {
     notes.push('Operativa cortada por límite de pérdida: ninguna apuesta se dimensiona.');
+  } else if (!limites.evaluable) {
+    notes.push('Límites de pérdida sin evaluar (falta información): ninguna apuesta se dimensiona.');
   }
 
   return {

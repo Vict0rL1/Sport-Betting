@@ -84,7 +84,7 @@ Además, vistos al trazar los llamadores:
 | # | Hallazgo | Estado |
 | --- | --- | --- |
 | R8 | `settled_at` es **cuándo la app registró** la liquidación, no cuándo ocurrió. `createBet` pone «ahora» a una apuesta que entra ya liquidada (también cada fila de un CSV), y `updateBet` lo vuelve a poner en cualquier cambio de estado (también al corregir «ganada» a «perdida»). | Confirmado en el código |
-| R9 | El tope por día de `decideBook` compara el día del PARTIDO de la candidata con lo pendiente agrupado por día de COLOCACIÓN. Una apuesta del viernes para el sábado cuenta en el viernes. | Confirmado en el código |
+| R9 | El tope por día de `decideBook` compara el día del PARTIDO de la candidata con lo pendiente agrupado por día de COLOCACIÓN. Una apuesta del viernes para el sábado cuenta en el viernes. | Confirmado y reproducido (89,97 € el sábado contra 60 € de tope); arreglado en B |
 | R10 | Sin cruce entre bancos: el banco de papel y las estrategias pasan su propia exposición y sus propias pérdidas (`openExposure`, `perdidas`) y no leen `bets`. Solo la cartera personal lee el registro personal. | Verificado: no hay defecto |
 | R11 | La reproducción histórica de estrategias pasa `hoy: 0`: el límite diario no actúa al reproducir. | Comportamiento existente de la estrategia; se documenta y no se cambia |
 | R12 | El banco de la cartera (`ExposurePanel`) es un número en `localStorage` sin moneda; el banco personal de Ajustes (`bancoPersonal`) tampoco tiene moneda. | Confirmado |
@@ -94,11 +94,11 @@ Además, vistos al trazar los llamadores:
 | Id | Requisito | Estado | Prueba |
 | --- | --- | --- | --- |
 | A | Base verificada, línea base real, documentación reconciliada | Hecho | este documento; `web/src/lib/dinero.test.ts` |
-| B1 | Contrato de contabilidad del riesgo escrito | Pendiente | |
-| B2 | Dinero exacto en los límites y la exposición | Pendiente | |
-| B3 | Monedas separadas en todo cálculo de riesgo | Pendiente | |
-| B4 | Cálculo incompleto explícito (cuatro estados) | Pendiente | |
-| B5 | Fronteras e integración probadas | Pendiente | |
+| B1 | Contrato de contabilidad del riesgo escrito | Hecho | cabecera de `staking/contabilidad.ts`; «Decisiones» abajo |
+| B2 | Dinero exacto en los límites y la exposición | Hecho | `staking/riesgo.test.ts` (R1), `staking/contabilidad.test.ts` (cada estado, decimales de más) |
+| B3 | Monedas separadas en todo cálculo de riesgo | Hecho | `riesgo.test.ts` (R3, R4, punta a punta), `contabilidad.test.ts` (monedas, exposición) |
+| B4 | Cálculo incompleto explícito (cuatro estados) | Hecho | `contabilidad.test.ts` (cotas, decisión), `e2e/seguimiento-pr18.spec.ts` (B) |
+| B5 | Fronteras e integración probadas | Hecho | `riesgo.test.ts` (R5, R7, R8), `contabilidad.test.ts` (igualdad, ±1 céntimo, cambio de hora, zona inválida), `paper/perdidas.test.ts` (sin cruces) |
 | C | Explicaciones estructuradas y bilingües, siete deportes | Pendiente | |
 | D | Jerarquía visual y móvil | Pendiente | |
 | E | Calibración y rendimiento en el tiempo | Pendiente | |
@@ -107,13 +107,133 @@ Además, vistos al trazar los llamadores:
 
 ## Decisiones
 
-(Se completan en cada fase.)
+### B. El contrato de la contabilidad del riesgo (`riesgo-v1`, `server/src/staking/contabilidad.ts`)
+
+- **Banco.** Dinero de UNA moneda (EUR, USD o GBP) y sus apuestas. Hay tres clases de banco y no se
+  cruzan:
+  - el registro personal (`bets`) en esa moneda;
+  - el banco de papel (`paper_bets`);
+  - cada estrategia (`strategy_bets`).
+  El papel y las estrategias pasan a la decisión su propia exposición y sus propias pérdidas.
+- **La moneda del banco de la cartera.** La define la propia cartera (`ExposurePanel`): importe y
+  moneda, juntos, en este navegador, como ya lo era el importe. No es un filtro de vista. La API la
+  recibe explícita (`/api/staking/book?moneda=`).
+  - Sin ella, ninguna apuesta personal se atribuye al banco. Si hay alguna en la semana, los límites
+    quedan sin evaluar.
+  - Nunca se toma la moneda de un filtro de Mis apuestas, ni se supone para las apuestas sin moneda.
+- **Qué mide un límite:** la PÉRDIDA NETA REALIZADA, igual que antes. Es la suma de los beneficios,
+  positivos y negativos, de lo liquidado en el periodo. Una nula o un push suman 0.
+  - Se mide en céntimos, con `dinero.ts`, el mismo pago que el registro y la exportación.
+  - El límite es −⌈banco × %⌉ en céntimos, redondeado una vez. Con pérdidas en céntimos enteros,
+    «pérdida ≥ ⌈banco × %⌉» es exactamente la comparación de antes, «pérdida ≥ banco × %». Al principio
+    se redondeó hacia abajo, que era un céntimo más estricto; la revisión quant lo corrigió.
+  - Se alcanza con una pérdida neta igual o mayor, como antes.
+  - Los porcentajes no cambian: 5 % diario y 10 % semanal por defecto, o los de la política versionada.
+- **Día.** El día en que se LIQUIDÓ, en la zona de la política. Antes contaba el día de colocación: una
+  apuesta del domingo perdida el lunes se perdía el domingo. `settled_at` es cuándo la app registró la
+  liquidación:
+  - pasó de pendiente a liquidada en la app → ese día;
+  - entró ya liquidada (a mano o por CSV) → algún día entre la colocación y el registro. Si son el
+    mismo día, ese. Si no, **no se inventa**: ni la colocación ni el registro;
+  - liquidada sin `settled_at` (solo editando la base a mano) → algún día desde la colocación.
+  - Corregir el resultado de una apuesta ya liquidada ya no mueve su `settled_at` (R8).
+- **Zona y semana.**
+  - La zona es APP_TIMEZONE o, si no está, la del servidor: la de los informes.
+  - Una APP_TIMEZONE mal escrita deja los límites sin evaluar; no cae a otra zona en silencio. Y se
+    avisa: `npm run doctor` da un error y el servidor lo registra al arrancar. Sin esto, el banco de
+    papel y las estrategias se paraban sin que nada lo dijera.
+  - La zona de visualización de la web no mueve un límite.
+  - La semana va de lunes a domingo en esa zona.
+  - La fecha de colocación por defecto también es «hoy» en esa zona.
+- **Lo que no se sabe, con cotas.** Cada apuesta con un dato desconocido aporta un intervalo, no un
+  número. Son la moneda nula, el día de liquidación desconocido, el cashout sin importe, el estado
+  desconocido y el importe ilegible.
+  - `alcanzado`: también en el mejor caso.
+  - `por-debajo`: también en el peor.
+  - `sin-evaluar`: depende de lo que no se sabe.
+  - Así un dato que falta nunca es 0 y, si no cambia el veredicto, tampoco bloquea. Lo desconocido se
+    cuenta y se enseña (`incidencias`).
+- **Cuatro estados, distintos en la API y en la pantalla:**
+  - completo y por debajo;
+  - límite alcanzado: `blockedBy` «límite de pérdida DIARIA/SEMANAL alcanzado»;
+  - sin evaluar: «límites de pérdida sin evaluar: falta información», y la cartera dice qué falta;
+  - sin apuestas que contar: `apuestas: 0`.
+  - «Sin evaluar» NUNCA devuelve un importe positivo.
+- **Exposición pendiente:** en céntimos, por moneda. Lo de otra moneda no cuenta. Para los topes se usa
+  la cota de arriba: lo de la moneda del banco más lo sin moneda, que podría ser suyo. Como un bote sin
+  moneda, si es del banco, está en la moneda del banco, esto no mezcla unidades. Un importe ilegible no
+  tiene cota: la puerta 6 no apuesta, y la cartera lo enseña como «sin cota» y no como 0.
+  - **Por día, el día del PARTIDO** (R9). Es el de la instantánea enlazada, con la misma convención
+    que las candidatas: la fecha UTC del inicio.
+  - Lo pendiente sin día de partido conocido (la mayoría de las apuestas a mano) cuenta en el tope de
+    CUALQUIER día, porque puede jugarse en cualquiera. Así el tope diario nunca se pasa por no saber
+    el día; a cambio, es más estricto, y la cartera lo dice en una nota.
+  - Antes contaba el día de colocación, que es inventar el día del partido.
+- **Banco de papel y estrategias:** la misma zona y la misma semana, en céntimos.
+  - **Cambio de comportamiento a sabiendas.** Si APP_TIMEZONE no es la zona del servidor, el corte del
+    día del banco de papel y de las estrategias pasa de la hora del servidor a la de APP_TIMEZONE, también
+    para versiones de política ya guardadas (`policy_version_id`). Es el mismo calendario para todos los
+    bancos (R7). Sin APP_TIMEZONE, nada cambia.
+  - Un beneficio que falta, en una liquidación de la semana, deja el periodo sin evaluar en vez de
+    contar 0. `settle()` nunca lo deja nulo, así que no cambia nada en una instalación sana.
+  - Su día ya era el de liquidación.
+- **API.** `/api/staking/book` recibe `moneda`, devuelve `moneda`, `contrato` y `exposicion` (segura y
+  máxima), y `loss` lleva `evaluable` y `estado`.
+  - Un banco ilegible o una moneda desconocida dan 400, con código. Antes, un banco ilegible se cambiaba
+    por 1000 en silencio.
+- **verify:data** comprueba las puertas y los topes sin leer las apuestas personales de la instalación
+  que verifica. Antes dependían de ellas.
 
 ## Revisiones y su destino
 
-(Se completan en cada fase.)
+### Fase B
+
+- **quant-reviewer.** Contrato correcto y dinero idéntico a `bets.ts`:
+  - un oráculo aleatorio, sobre 4.000 casos, 8.000 periodos y cuatro zonas, no encontró ningún
+    veredicto falso;
+  - parámetros, Kelly, topes y porcentajes, sin cambiar.
+
+  | # | Sev. | Hallazgo | Destino |
+  | --- | --- | --- | --- |
+  | 1 | Medio | R9: aplazarlo en silencio inventaba el día del partido | Arreglado: día del partido de la instantánea o, si no se sabe, en el tope de cada día; nota en la cartera (`riesgo.test.ts`, R9) |
+  | 2 | Medio | Una APP_TIMEZONE mal escrita paraba el papel y las estrategias sin alarma | Arreglado: error en `doctor` (`doctor/checks.test.ts`) y al arrancar |
+  | 3 | Bajo | El corte del día del papel y de las estrategias cambia bajo políticas ya guardadas | Documentado arriba («Cambio de comportamiento a sabiendas») y en el CHANGELOG |
+  | 4 | Bajo | ⌊⌋ era un céntimo más estricto que antes | Arreglado: ⌈⌉ (`contabilidad.test.ts`, 1234,56 €) |
+  | 5 | Bajo | Lo en juego sin cota salía como 0 | Arreglado: `used: null` y `sinCota` en la API, «sin cota» en la cartera |
+  | 6 | Info | Lo liquidado sin `settled_at` tiene un intervalo hasta «nunca» | Correcto y holgado; solo afecta a filas editadas a mano. Sin cambio |
+  | — | — | El ejemplo ilustrativo de `npm run staking` leía el registro personal | Arreglado: contexto inventado, como verify:data |
+
+- **data-guardian.** Nada bloqueante:
+  - `bets` no tiene disparadores;
+  - no hay migración nueva;
+  - ninguna fila inmutable se toca.
+
+  | # | Sev. | Hallazgo | Destino |
+  | --- | --- | --- | --- |
+  | 1 | Bajo | Liquidada sin `settled_at` y corregida: se ponía «ahora» | Arreglado: solo pendiente → liquidada pone la hora (`riesgo.test.ts`, R8b) |
+  | 2 | Bajo | La importación ignora el `settled_at` exportado | Fase F |
+  | 3 | Bajo | `today()` dependía del formato `en-CA` | Arreglado: `local()` (formatToParts) |
+  | 4 | Info | Las apuestas corregidas ANTES de este cambio ya tienen la hora de la corrección | No se puede arreglar sin inventar una fecha. Se documenta |
+  | — | Info | `liquidadasPersonales` recorre la tabla entera | 8–10 ms con 100.000 filas, una vez por petición: aceptable, sin índice |
 
 ## Diferido
+
+- **La hora del partido en las apuestas personales.** Sin enlace a una instantánea no se sabe el día
+  del partido, y lo pendiente cuenta en el tope de cada día (R9, arreglado de forma estricta). Guardar
+  esa hora pediría una columna en `bets` (migración v32 y data-guardian); no hace falta para que el
+  tope sea correcto.
+- **Un test intermitente, anterior a este trabajo.** `experiments/recalibracion.test.ts` escribe en el
+  `experiments/registry.jsonl` REAL del repositorio y lo restaura con `writeFileSync`, que vacía el
+  fichero antes de escribirlo.
+  - Si en ese instante `experiments/registry.test.ts` lo lee en otro proceso, lo encuentra vacío y falla
+    («el registro real se puede leer»). Pasó una vez el 24-nov, con el árbol de la fase B: la segunda
+    corrida dio 825/825 y el registro seguía intacto.
+  - Además, si el primer test se cortara a medias, dejaría experimentos de prueba en el registro real.
+  - Arreglarlo pide que el registro de los tests sea una copia temporal. Se deja anotado; no se toca aquí.
+- **Importar el `settled_at` del CSV.** La exportación lo lleva y la importación lo ignora: un histórico
+  importado deja la semana «sin evaluar» hasta el lunes (data-guardian). Se mira en la fase F.
+- **R11.** La reproducción histórica de estrategias no aplica el límite diario (`hoy: 0`). Es su
+  comportamiento; no se toca.
 
 - **Sincronizar las vistas guardadas con la cuenta.** Fuera de este trabajo por el brief; no se añaden
   tablas de cuenta.

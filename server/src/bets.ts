@@ -22,6 +22,7 @@
 
 import { apuestaCentimos, arriesgadoCentimos, deCentimos, pagoBrutoCentimos } from './dinero.ts';
 import { getDb } from './db.ts';
+import { local } from './informes/tiempo.ts';
 
 export type BetStatus = 'pending' | 'won' | 'lost' | 'void' | 'push' | 'half_won' | 'half_lost' | 'cashout';
 
@@ -250,8 +251,21 @@ export interface BetInput {
 }
 
 /** Today in the SERVER's local zone, which is where the user is. */
+/**
+ * Hoy, en la zona de la política (APP_TIMEZONE, o la del servidor): el día que se apunta como
+ * colocación cuando no se dice otro. Es el mismo calendario que los límites de pérdida.
+ */
 function today(): string {
   const d = new Date();
+  const z = process.env.APP_TIMEZONE?.trim();
+  if (z) {
+    try {
+      // formatToParts y no el formato de un idioma: la fecha sale siempre como AAAA-MM-DD (data-guardian).
+      return local(d, z).fecha;
+    } catch {
+      // Una APP_TIMEZONE mal escrita: la fecha del servidor, como antes (los límites lo dirán).
+    }
+  }
   const p = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
@@ -350,9 +364,14 @@ function actualizarApuesta(id: number, patch: Partial<BetInput>): Bet | null {
     if (col in patch) put(col, ((patch as Record<string, unknown>)[col] ?? null) as SqlParam);
   }
   // Settling stamps the time; un-settling clears it, so a status corrected back
-  // to pending does not keep a settlement date it no longer has.
+  // to pending does not keep a settlement date it no longer has. Correcting the result of a bet that
+  // is ALREADY settled (won → lost) keeps its settlement time: the money moved when it settled, not
+  // when the typo was fixed (seguimiento del PR #18, R8: los límites de pérdida cuentan por este día).
   if (patch.status) {
-    put('settled_at', patch.status === 'pending' ? null : new Date().toISOString());
+    // Only pending → settled stamps «now». A settled row that has no settled_at (hand-edited) keeps
+    // having none: stamping it would invent a settlement day (data-guardian).
+    if (patch.status === 'pending') put('settled_at', null);
+    else if (existing.status === 'pending') put('settled_at', new Date().toISOString());
   }
   if (sets.length === 0) return existing;
 

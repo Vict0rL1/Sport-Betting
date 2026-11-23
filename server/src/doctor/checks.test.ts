@@ -671,3 +671,14 @@ test('vencidas: lo que lleva más de 48 h sin resultado, por competición y con 
   assert.match(e.texto, /100\.00 en apuestas vencidas sin resultado: 100 % de su tope de exposición/);
   assert.equal(comprobarVencidas({ ...vacio, apuestas: [{ banco: 'papel', sport: 'baseball', competicion: 'mlb', n: 1, fuenteAtrasada: 1, sinEmparejar: 0, sinHora: 0, sinRegistro: 0, porLiquidar: 0, masAntigua: '2026-09-30T23:00:00Z', importe: 10 }], total: { predicciones: 0, apuestas: 1 } }, { saldo: 1000, topeTotal: 0.1 }).some((x) => x.nivel === 'error'), false, '10 de 100: aviso, no error');
 });
+
+test('APP_TIMEZONE mal escrita: error, porque los límites de pérdida quedan sin evaluar (revisión quant)', () => {
+  const mal = comprobarConfiguracion({ ...base, valoresProceso: { ...base.valoresProceso, APP_TIMEZONE: 'Europe/Madird' } });
+  const e = buscar(mal, /APP_TIMEZONE/);
+  assert.equal(e?.nivel, 'error');
+  assert.match(e!.texto, /Europe\/Madird/);
+  assert.match(e!.texto, /sin evaluar/);
+  const bien = comprobarConfiguracion({ ...base, valoresProceso: { ...base.valoresProceso, APP_TIMEZONE: 'Europe/Madrid' } });
+  assert.equal(buscar(bien, /APP_TIMEZONE/)?.nivel ?? 'ok', 'ok');
+  assert.equal(buscar(comprobarConfiguracion(base), /APP_TIMEZONE.*no es una zona/), undefined);
+});

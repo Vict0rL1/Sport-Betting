@@ -1,4 +1,4 @@
-// CLI: `npm run staking [-- --bankroll 1000]`
+// CLI: `npm run staking [-- --bankroll 1000 --moneda EUR]`
 //
 // La capa de decisión, sobre los partidos que hay ahora mismo. Enseña, para cada
 // candidata, qué puerta la paró o cuánto se arriesgaría — y después el DRAWDOWN
@@ -7,8 +7,9 @@
 import { getDb } from '../db.ts';
 import { listUpcoming } from '../football/repo.ts';
 import { buildFootballPrediction } from '../football/predict.ts';
-import { bestSelection, lossState, DEFAULT_CONFIG } from '../staking/policy.ts';
+import { bestSelection, estadoDePerdidas, lossState, DEFAULT_CONFIG } from '../staking/policy.ts';
 import { decideBook, type BookCandidate } from '../staking/book.ts';
+import { esMoneda } from '../staking/contabilidad.ts';
 import { readCalibration, calibrationMultiplier } from '../staking/calibration.ts';
 import { simulate, type PlannedBet } from '../staking/drawdown.ts';
 import { DEMO_SOURCE } from '../freshness.ts';
@@ -48,6 +49,8 @@ const args = Object.fromEntries(
   process.argv.slice(2).flatMap((a, i, arr) => (a.startsWith('--') ? [[a.slice(2), arr[i + 1]]] : [])),
 ) as Record<string, string>;
 const bankroll = Number(args.bankroll) || 1000;
+// La moneda del banco (contabilidad.ts): sin ella, ninguna apuesta personal es suya y, si hay alguna, los límites quedan sin evaluar.
+const moneda = esMoneda(args.moneda) ? args.moneda : null;
 const cfg = DEFAULT_CONFIG;
 const cal = readCalibration();
 
@@ -81,14 +84,13 @@ for (const sport of ['football', 'nfl']) {
   console.log(`             ${m.reason}`);
 }
 
-const loss = lossState(bankroll, cfg);
-console.log('\nESTADO DE PÉRDIDAS (apuestas ya resueltas)');
-console.log(
-  `  hoy     ${loss.today.toFixed(2)}  de  ${loss.dayLimit.toFixed(2)}   ${loss.dayBreached ? '⛔ OPERATIVA CORTADA' : 'ok'}`,
-);
-console.log(
-  `  semana  ${loss.week.toFixed(2)}  de  ${loss.weekLimit.toFixed(2)}   ${loss.weekBreached ? '⛔ OPERATIVA CORTADA' : 'ok'}`,
-);
+const loss = lossState(bankroll, cfg, new Date(), moneda);
+const lim = (x: number | null) => (x == null ? '—' : x.toFixed(2));
+const marca = (alcanzado: boolean) => (alcanzado ? '⛔ OPERATIVA CORTADA' : loss.evaluable ? 'ok' : '? SIN EVALUAR');
+console.log(`\nESTADO DE PÉRDIDAS (apuestas ya resueltas, ${moneda ?? 'sin moneda: usa --moneda EUR|USD|GBP'}, zona ${loss.estado.zona ?? 'APP_TIMEZONE inválida'})`);
+console.log(`  hoy     ${loss.today.toFixed(2)}  de  ${lim(loss.dayLimit)}   ${marca(loss.dayBreached)}`);
+console.log(`  semana  ${loss.week.toFixed(2)}  de  ${lim(loss.weekLimit)}   ${marca(loss.weekBreached)}`);
+for (const i of loss.estado.incidencias) console.log(`  · ${i.codigo}: ${i.apuestas} apuesta(s)`);
 
 // ---------------------------------------------------------------------------
 // Las candidatas de hoy
@@ -166,7 +168,7 @@ for (const f of fixtures) {
   meta.set(f.id, { event: `${f.home_name} vs ${f.away_name}`, label: best.label, p: best.p, odds: best.odds, day });
 }
 
-const book = decideBook(candidates, bankroll, cfg, cal);
+const book = decideBook(candidates, bankroll, cfg, cal, new Date(), moneda);
 const placed = book.entries.filter((e) => e.stake > 0);
 const blockedBy = new Map<string, number>();
 for (const e of book.entries) {
@@ -248,7 +250,12 @@ if (placed.length === 0) {
     { key: 'e3', label: 'C vs D — local', sport: 'football', league: 'epl', day: '2026-09-12', matchKey: 'm2', market: '1x2', side: 'canonica', p: 0.55, odds: 2.05 },
     { key: 'e4', label: 'E vs F — local', sport: 'football', league: 'laliga', day: '2026-09-13', matchKey: 'm3', market: '1x2', side: 'canonica', p: 0.55, odds: 2.05 },
   ];
-  const b = decideBook(ej, bankroll, cfg, cal);
+  // Inventado también el contexto: sin las pérdidas ni lo pendiente del registro personal, que
+  // pararían o recortarían un ejemplo que solo quiere enseñar cómo se lee la cartera.
+  const b = decideBook(ej, bankroll, cfg, cal, new Date(), null, {
+    limites: estadoDePerdidas(bankroll, cfg, { hoy: 0, semana: 0 }),
+    abierto: { total: 0, byDay: new Map(), byLeague: new Map(), sinDia: 0, sinClasificar: 0 },
+  });
   console.log('\n    apuesta                  en solitario   de cartera   factor');
   for (const e of b.entries) {
     console.log(

@@ -199,11 +199,11 @@ function expuestoDe(id: number): number {
   return r.s;
 }
 
-/** Lo realizado hoy y esta semana (lunes a domingo, hora local), por fecha de liquidación. */
-export function perdidasDe(id: number, now = new Date()): { hoy: number; semana: number } {
+/** Lo realizado hoy y esta semana (lunes a domingo, zona de la política), por fecha de liquidación; null si no se puede saber. */
+export function perdidasDe(id: number, now = new Date()): { hoy: number | null; semana: number | null } {
   const filas = getDb()
     .prepare("SELECT settled_at, profit FROM strategy_bets WHERE strategy_id = ? AND status <> 'pending' AND settled_at >= ?")
-    .all(id, desdeParaPerdidas(now)) as { settled_at: string; profit: number }[];
+    .all(id, desdeParaPerdidas(now)) as { settled_at: string; profit: number | null }[];
   return perdidasRealizadas(filas, now);
 }
 

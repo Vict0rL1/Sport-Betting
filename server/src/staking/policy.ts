@@ -36,7 +36,6 @@
 // dimensionarlos por separado —lo que esto hacía— construía tres posiciones sobre el
 // mismo partido con una rama que pierde con certeza.
 
-import { getDb } from '../db.ts';
 import {
   fractionalKelly,
   expectedValue,
@@ -44,6 +43,18 @@ import {
   type KellyFraction,
 } from './kelly.ts';
 import { calibrationMultiplier, type CalibrationFile, readCalibration } from './calibration.ts';
+import {
+  CONTRATO_RIESGO,
+  centimosConSigno,
+  diaEn,
+  estadoPerdidasPersonales,
+  exposicionPersonal,
+  limiteCentimos,
+  periodosEn,
+  zonaPolitica,
+  type EstadoPerdidas,
+  type Moneda,
+} from './contabilidad.ts';
 
 export interface StakingConfig {
   /** Un cuarto o un quinto. El tipo no admite Kelly completo. */
@@ -147,7 +158,15 @@ export interface StakeRequest {
    * Las pasa el laboratorio de estrategias (Fase 6.1): cada banco tiene que mirar sus propias
    * pérdidas, no las de otro.
    */
-  perdidas?: { hoy: number; semana: number };
+  perdidas?: { hoy: number | null; semana: number | null };
+  /**
+   * La moneda del banco, para leer del registro personal solo sus apuestas (contabilidad.ts). Sin
+   * ella, ninguna apuesta personal se puede atribuir al banco y, si hay alguna, los límites quedan sin
+   * evaluar. No se usa cuando se pasan `perdidas` y `openExposure`.
+   */
+  moneda?: Moneda | null;
+  /** Los límites ya evaluados por quien llama (`decideBook` los lee una vez para toda la cartera). */
+  limites?: LossState;
 }
 
 export interface StakeDecision {
@@ -163,122 +182,123 @@ export interface StakeDecision {
   blockedBy: string | null;
 }
 
-/** Pérdida/ganancia realizada de una apuesta ya resuelta. */
-function profitOf(row: {
-  status: string;
-  stake: number;
-  odds: number;
-  payout: number | null;
-}): number {
-  switch (row.status) {
-    case 'won':
-      return row.stake * (row.odds - 1);
-    case 'lost':
-      return -row.stake;
-    case 'half_won':
-      return (row.stake * (row.odds - 1)) / 2;
-    case 'half_lost':
-      return -row.stake / 2;
-    case 'cashout':
-      return (row.payout ?? row.stake) - row.stake;
-    // pending y void no han movido dinero todavía.
-    default:
-      return 0;
-  }
-}
-
 export interface LossState {
+  /** Lo que se sabe seguro de hoy y de la semana, en unidades de la moneda del banco. */
   today: number;
   week: number;
-  dayLimit: number;
-  weekLimit: number;
+  /** Los límites en unidades (negativos), o null si el banco no se puede leer. */
+  dayLimit: number | null;
+  weekLimit: number | null;
+  /** Alcanzado SEGURO: también en el mejor caso de lo que no se sabe. */
   dayBreached: boolean;
   weekBreached: boolean;
+  /** false: falta algo para saber si se está por debajo (staking/contabilidad.ts). No se apuesta. */
+  evaluable: boolean;
+  /** El detalle: contrato, zona, moneda, cotas y lo que no se sabe. */
+  estado: EstadoPerdidas;
 }
 
-/**
- * Cuánto se lleva perdido hoy y esta semana, de las apuestas YA RESUELTAS.
- *
- * Resueltas y no pendientes: una apuesta abierta no es una pérdida, y contarla como tal
- * cortaría la operativa por partidos que todavía se están jugando. El riesgo vivo es
- * otra cosa y no es lo que estos límites gobiernan.
- *
- * La semana empieza el lunes, que es la convención con la que la gente piensa una
- * semana. No es arbitrario que esté escrito: con una ventana móvil de 7 días, el
- * límite se «renueva» un poco cada día y se puede sangrar indefinidamente sin llegar a
- * cruzarlo nunca.
- */
-export function lossState(bankroll: number, cfg: StakingConfig, now = new Date()): LossState {
-  const iso = (d: Date): string =>
-    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const today = iso(now);
-  const monday = new Date(now);
-  // getDay(): 0 = domingo. El lunes de esta semana está a (day + 6) % 7 días atrás.
-  monday.setDate(monday.getDate() - ((now.getDay() + 6) % 7));
-  const weekStart = iso(monday);
-
-  const rows = getDb()
-    .prepare(
-      `SELECT placed_on, status, stake, odds, payout FROM bets
-       WHERE placed_on >= ? AND status NOT IN ('pending', 'void')`,
-    )
-    .all(weekStart) as unknown as {
-    placed_on: string;
-    status: string;
-    stake: number;
-    odds: number;
-    payout: number | null;
-  }[];
-
-  let week = 0;
-  let day = 0;
-  for (const r of rows) {
-    const pl = profitOf(r);
-    week += pl;
-    if (r.placed_on === today) day += pl;
-  }
-  const dayLimit = -bankroll * cfg.dailyLossLimit;
-  const weekLimit = -bankroll * cfg.weeklyLossLimit;
+/** De un estado de la contabilidad a lo que leen la decisión y la pantalla. */
+export function aLossState(e: EstadoPerdidas): LossState {
+  const u = (c: number | null) => (c == null ? null : c / 100);
   return {
-    today: day,
-    week,
-    dayLimit,
-    weekLimit,
-    dayBreached: day <= dayLimit,
-    weekBreached: week <= weekLimit,
+    today: e.hoy.conocido / 100,
+    week: e.semana.conocido / 100,
+    dayLimit: u(e.hoy.limite),
+    weekLimit: u(e.semana.limite),
+    dayBreached: e.hoy.veredicto === 'alcanzado',
+    weekBreached: e.semana.veredicto === 'alcanzado',
+    evaluable: e.hoy.veredicto !== 'sin-evaluar' && e.semana.veredicto !== 'sin-evaluar',
+    estado: e,
   };
 }
 
 /**
- * Lo realizado HOY y ESTA SEMANA (lunes a domingo, hora local) por fecha de liquidación, a partir
- * de las apuestas liquidadas de un banco. Lo usan el banco de papel y cada estrategia: cada banco
- * mira sus propias pérdidas, no las del registro personal.
+ * Cuánto se lleva perdido hoy y esta semana en el registro PERSONAL, para un banco de `moneda`.
+ *
+ * El contrato (qué se cuenta, en qué día y zona, y qué pasa cuando falta un dato) está en
+ * staking/contabilidad.ts. Antes: coma flotante, un cashout sin importe valía 0, se sumaban todas las
+ * monedas y se contaba por día de COLOCACIÓN con la hora del servidor (seguimiento del PR #18, R1–R7).
+ *
+ * Resueltas y no pendientes: una apuesta abierta no es una pérdida, y contarla como tal cortaría la
+ * operativa por partidos que todavía se están jugando. El riesgo vivo es otra cosa y no es lo que
+ * estos límites gobiernan.
+ *
+ * La semana empieza el lunes, que es la convención con la que la gente piensa una semana. No es
+ * arbitrario que esté escrito: con una ventana móvil de 7 días, el límite se «renueva» un poco cada día
+ * y se puede sangrar indefinidamente sin llegar a cruzarlo nunca.
  */
-export function perdidasRealizadas(filas: { settled_at: string; profit: number | null }[], now = new Date()): { hoy: number; semana: number } {
-  const dia = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const lunes = new Date(now);
-  lunes.setDate(lunes.getDate() - ((now.getDay() + 6) % 7));
-  const hoy = dia(now);
-  const desde = dia(lunes);
+export function lossState(bankroll: number, cfg: StakingConfig, now = new Date(), moneda: Moneda | null = null): LossState {
+  return aLossState(estadoPerdidasPersonales(bankroll, moneda, cfg, now));
+}
+
+/**
+ * Lo realizado HOY y ESTA SEMANA (lunes a domingo, en la zona de la política) por fecha de
+ * liquidación, a partir de las apuestas liquidadas de un banco, en unidades. Lo usan el banco de papel
+ * y cada estrategia: cada banco mira sus propias pérdidas, no las del registro personal.
+ *
+ * Se suma en céntimos (cada beneficio guardado, redondeado una vez). null: no se puede saber (zona de la
+ * política mal escrita, o una liquidación de la semana sin beneficio o sin fecha legible). Antes, un
+ * beneficio que faltaba contaba 0 y el día lo decidía la hora del servidor.
+ */
+export function perdidasRealizadas(
+  filas: { settled_at: string; profit: number | null }[],
+  now = new Date(),
+  zona: string | null = zonaPolitica().zona,
+): { hoy: number | null; semana: number | null } {
+  if (!zona) return filas.length === 0 ? { hoy: 0, semana: 0 } : { hoy: null, semana: null };
+  const { hoy, lunes } = periodosEn(now, zona);
   let h = 0;
   let s = 0;
+  let hDesconocido = false;
+  let sDesconocido = false;
   for (const f of filas) {
-    const d = dia(new Date(f.settled_at));
-    if (d < desde || d > hoy) continue;
-    s += f.profit ?? 0;
-    if (d === hoy) h += f.profit ?? 0;
+    const d = diaEn(f.settled_at, zona);
+    const c = f.profit == null ? null : centimosConSigno(f.profit);
+    if (d == null) {
+      // No se sabe el día: puede ser de hoy.
+      hDesconocido = sDesconocido = true;
+      continue;
+    }
+    if (d < lunes || d > hoy) continue;
+    if (c == null) {
+      sDesconocido = true;
+      if (d === hoy) hDesconocido = true;
+      continue;
+    }
+    s += c;
+    if (d === hoy) h += c;
   }
-  return { hoy: h, semana: s };
+  return { hoy: hDesconocido ? null : h / 100, semana: sDesconocido ? null : s / 100 };
 }
 
 /** Desde cuándo pedir liquidaciones para `perdidasRealizadas`: ocho días cubren cualquier semana. */
 export const desdeParaPerdidas = (now = new Date()) => new Date(now.getTime() - 8 * 86_400_000).toISOString();
 
-/** El mismo estado que `lossState`, con unas pérdidas ya calculadas por quien llama. */
-export function estadoDePerdidas(bankroll: number, cfg: StakingConfig, p: { hoy: number; semana: number }): LossState {
-  const dayLimit = -bankroll * cfg.dailyLossLimit;
-  const weekLimit = -bankroll * cfg.weeklyLossLimit;
-  return { today: p.hoy, week: p.semana, dayLimit, weekLimit, dayBreached: p.hoy <= dayLimit, weekBreached: p.semana <= weekLimit };
+/**
+ * El mismo estado que `lossState`, con unas pérdidas ya calculadas por quien llama (banco de papel,
+ * estrategias). Se compara en céntimos con el mismo límite que el registro personal; null en una
+ * pérdida es «no se sabe» y deja el límite sin evaluar.
+ */
+export function estadoDePerdidas(bankroll: number, cfg: StakingConfig, p: { hoy: number | null; semana: number | null }): LossState {
+  const periodo = (x: number | null, limite: number | null): EstadoPerdidas['hoy'] => {
+    const c = x == null ? null : centimosConSigno(x);
+    const v = limite == null || c == null ? 'sin-evaluar' : c <= limite ? 'alcanzado' : 'por-debajo';
+    return { desde: null, hasta: null, conocido: c ?? 0, minimo: c, maximo: c, limite, veredicto: v };
+  };
+  const hoy = periodo(p.hoy, limiteCentimos(bankroll, cfg.dailyLossLimit));
+  const semana = periodo(p.semana, limiteCentimos(bankroll, cfg.weeklyLossLimit));
+  return aLossState({
+    contrato: CONTRATO_RIESGO,
+    base: 'liquidacion',
+    zona: zonaPolitica().zona,
+    semanaEmpieza: 'lunes',
+    moneda: null,
+    hoy,
+    semana,
+    apuestas: 0,
+    incidencias: [],
+  });
 }
 
 /**
@@ -341,18 +361,26 @@ export function decideStake(
   });
 
   // --- 5. Límites de pérdida ---
-  const loss = req.perdidas ? estadoDePerdidas(req.bankroll, cfg, req.perdidas) : lossState(req.bankroll, cfg, now);
+  const loss = req.limites ?? (req.perdidas ? estadoDePerdidas(req.bankroll, cfg, req.perdidas) : lossState(req.bankroll, cfg, now, req.moneda ?? null));
+  const lim = (x: number | null) => (x == null ? '—' : x.toFixed(2));
   steps.push({
     gate: '5 · límites de pérdida',
     result:
-      `hoy ${loss.today.toFixed(2)} (límite ${loss.dayLimit.toFixed(2)}) · ` +
-      `semana ${loss.week.toFixed(2)} (límite ${loss.weekLimit.toFixed(2)})`,
+      `hoy ${loss.today.toFixed(2)} (límite ${lim(loss.dayLimit)}) · ` +
+      `semana ${loss.week.toFixed(2)} (límite ${lim(loss.weekLimit)})` +
+      (loss.evaluable ? '' : ' · sin evaluar: falta información (moneda, fecha o importe)'),
   });
+  // Alcanzado antes que «sin evaluar»: si incluso en el mejor caso se llega al límite, eso es lo que es.
   if (loss.dayBreached) return zero('límite de pérdida DIARIA alcanzado');
   if (loss.weekBreached) return zero('límite de pérdida SEMANAL alcanzado');
+  if (!loss.evaluable) return zero('límites de pérdida sin evaluar: falta información');
 
   // --- 6. Exposición total simultánea ---
-  const open = req.openExposure ?? pendingExposure();
+  const open = req.openExposure ?? pendingExposure(req.moneda ?? null);
+  if (!Number.isFinite(open)) {
+    steps.push({ gate: '6 · exposición total', result: 'sin evaluar: hay apuestas pendientes con un importe ilegible' });
+    return zero('exposición sin evaluar: falta información');
+  }
   const room = Math.max(0, cfg.maxTotalExposure * req.bankroll - open);
   const wanted = capped * req.bankroll;
   // Se REDONDEA HACIA ABAJO a céntimos, no al más cercano: redondear al más cercano
@@ -433,43 +461,41 @@ export function bestSelection<T extends { p: number; odds: number }>(
 }
 
 /**
- * Dinero comprometido en apuestas todavía sin resolver.
+ * Dinero comprometido en apuestas PERSONALES todavía sin resolver, para un banco de `moneda`, en
+ * unidades. Es la cota de arriba (contabilidad.ts): las pendientes sin moneda pueden ser del banco y
+ * se cuentan como si lo fueran; las de otra moneda, no. Infinity si alguna tiene un importe ilegible.
  *
- * `pending` únicamente: una apuesta resuelta ya no está en riesgo, esté ganada o
- * perdida, y contarla aquí bloquearía la operativa por dinero que ya volvió.
+ * `pending` únicamente: una apuesta resuelta ya no está en riesgo, esté ganada o perdida, y contarla
+ * aquí bloquearía la operativa por dinero que ya volvió.
  */
-export function pendingExposure(): number {
-  const row = getDb()
-    .prepare(`SELECT COALESCE(SUM(stake), 0) AS s FROM bets WHERE status = 'pending'`)
-    .get() as unknown as { s: number };
-  return row.s;
+export function pendingExposure(moneda: Moneda | null = null): number {
+  return exposicionPersonal(moneda).total.maximo / 100;
 }
 
 /**
- * Lo pendiente, partido por día y por liga.
+ * Lo pendiente del registro personal para un banco de `moneda`, partido por día del PARTIDO y por
+ * liga, en unidades y con la cota de arriba (ver `pendingExposure`). Lo que no tiene día de partido
+ * conocido va en `sinDia` y cuenta en el tope de cualquier día (contabilidad.ts, R9).
  *
- * Un único total no puede gobernar tres topes distintos: 8 % repartido entre cuatro
- * ligas y cuatro días es una cartera; el mismo 8 % en una liga y un sábado es una sola
- * apuesta disfrazada de cuatro.
+ * Un único total no puede gobernar tres topes distintos: 8 % repartido entre cuatro ligas y cuatro días
+ * es una cartera; el mismo 8 % en una liga y un sábado es una sola apuesta disfrazada de cuatro.
  */
-export function exposureBreakdown(): {
+export function exposureBreakdown(moneda: Moneda | null = null): {
   total: number;
   byDay: Map<string, number>;
   byLeague: Map<string, number>;
+  /** Lo pendiente sin día de partido conocido: cuenta en el tope de cualquier día. */
+  sinDia: number;
+  /** Pendientes sin moneda o con importe ilegible que se cuentan como del banco. */
+  sinClasificar: number;
 } {
-  const rows = getDb()
-    .prepare(`SELECT placed_on, league, stake FROM bets WHERE status = 'pending'`)
-    .all() as unknown as { placed_on: string; league: string | null; stake: number }[];
-  const byDay = new Map<string, number>();
-  const byLeague = new Map<string, number>();
-  let total = 0;
-  for (const r of rows) {
-    total += r.stake;
-    byDay.set(r.placed_on, (byDay.get(r.placed_on) ?? 0) + r.stake);
-    // Sin liga van a un cubo propio y no se reparten: meterlas en «todas» inventaría
-    // exposición donde no la hay, y descartarlas la escondería.
-    const lg = r.league ?? '(sin liga)';
-    byLeague.set(lg, (byLeague.get(lg) ?? 0) + r.stake);
-  }
-  return { total, byDay, byLeague };
+  const e = exposicionPersonal(moneda);
+  const u = (m: Map<string, { maximo: number }>) => new Map([...m].map(([k, v]) => [k, v.maximo / 100]));
+  return {
+    total: e.total.maximo / 100,
+    byDay: u(e.porDia),
+    byLeague: u(e.porLiga),
+    sinDia: e.sinDia.maximo / 100,
+    sinClasificar: e.incidencias.reduce((a, i) => a + i.apuestas, 0),
+  };
 }

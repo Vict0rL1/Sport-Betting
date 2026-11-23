@@ -4,6 +4,62 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18, fase B: la contabilidad del riesgo, exacta, por moneda y por día de liquidación (2026-11-24)
+
+El contrato está en `server/src/staking/contabilidad.ts` (`riesgo-v1`), y las decisiones y su revisión en
+`docs/plans/seguimiento-pr18-2026-11.md`. Los porcentajes de los límites, Kelly, los topes y el modelo
+no cambian.
+
+**Lo que estaba mal, reproducido antes de arreglarlo** (`staking/riesgo.test.ts`, en `92339dc`)
+- Los límites de pérdida calculaban con coma flotante: 4,75475 en vez de 4,75.
+- Un cashout sin importe valía 0: «por debajo del límite» sin saberlo.
+- Se sumaban euros y dólares: 30 € y 30 $ contaban como 60 de lo mismo.
+- La exposición pendiente también sumaba monedas: 110 en vez de 40 €.
+- Una pérdida contaba el día en que se COLOCÓ la apuesta, no el día en que se perdió. Una apuesta del
+  domingo perdida el lunes no contaba en la semana del lunes.
+- El día y la semana se cortaban con la hora del servidor y no con la de la política.
+- Corregir el resultado de una apuesta ya liquidada la «liquidaba» de nuevo, con la hora de la
+  corrección.
+- El tope por día comparaba el día del partido con lo pendiente agrupado por día de colocación: el
+  sábado podía quedar en el 9 % con un tope del 6 %.
+
+**Ahora**
+- **Dinero exacto en céntimos**, con el mismo pago que el registro y la exportación (`dinero.ts`). El
+  límite es −⌈banco × %⌉ en céntimos, la misma comparación que antes con pérdidas en céntimos.
+- **Monedas separadas.**
+  - La cartera de Mis apuestas tiene moneda, junto al importe del banco, y la API la recibe
+    (`/api/staking/book?moneda=`).
+  - Lo de otra moneda no cuenta.
+  - Lo sin moneda puede contar y se trata como tal.
+  - Sin moneda en el banco no se atribuye nada.
+  - Sin tipos de cambio.
+- **El día en que se liquidó, en la zona de la política** (APP_TIMEZONE o la del servidor), de lunes a
+  domingo. Una apuesta que entró ya liquidada días después de colocarse no tiene día conocido, y no se
+  inventa.
+- **Lo que no se sabe, con cotas.** El veredicto puede ser «alcanzado», «por debajo» o «sin evaluar».
+  «Sin evaluar» no apuesta, y la cartera dice por qué: qué falta y en cuántas apuestas. Un dato que falta
+  nunca vale 0.
+- **El tope por día cuenta lo pendiente en el día de su partido.** Si no se sabe ese día, cuenta en el de
+  cualquiera.
+- **Una APP_TIMEZONE mal escrita** deja los límites sin evaluar, y lo dicen `npm run doctor` (error) y el
+  servidor al arrancar.
+- **Un banco ilegible** (`?bankroll=abc` o con tres decimales) da 400. Antes se cambiaba por 1000 en
+  silencio.
+- **verify:data y el ejemplo de `npm run staking`** ya no leen las apuestas personales de la instalación
+  para comprobar las puertas.
+
+**Cambia, a sabiendas**
+- Con APP_TIMEZONE distinta de la zona del servidor, el banco de papel y las estrategias cortan el día
+  en APP_TIMEZONE, también en políticas ya guardadas. Es el mismo calendario para todos los bancos.
+- Un beneficio que falta en el papel o en una estrategia deja el periodo sin evaluar en vez de contar 0.
+  `settle()` nunca lo deja nulo.
+- La fecha de colocación por defecto es «hoy» en APP_TIMEZONE.
+
+**Revisiones.** quant-reviewer: 6 hallazgos (2 medios, 3 bajos, 1 informativo); data-guardian: 3 bajos y
+2 informativos. Arreglados o con destino en el plan. Lo que no se arregla aquí:
+- importar el `settled_at` del CSV, que va a la fase F;
+- las apuestas corregidas antes de este cambio, que no se pueden reparar sin inventar fechas.
+
 ## Seguimiento del PR #18, fase A: la línea base y la documentación, reconciliadas (2026-11-23)
 
 Plan, matriz y hallazgos en `docs/plans/seguimiento-pr18-2026-11.md`. Rama local

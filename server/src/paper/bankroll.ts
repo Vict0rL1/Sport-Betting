@@ -210,7 +210,7 @@ export function bancoActual(): number {
  * Antes no se pasaba y `decideStake` leía el registro PERSONAL (`bets`): con él vacío, el banco
  * de papel no tenía límite de pérdida (hallazgo de la Fase 6, arreglado en el seguimiento).
  */
-export function perdidasPapel(now = new Date()): { hoy: number; semana: number } {
+export function perdidasPapel(now = new Date()): { hoy: number | null; semana: number | null } {
   const filas = getDb()
     .prepare("SELECT settled_at, profit FROM paper_bets WHERE status <> 'pending' AND settled_at >= ?")
     .all(desdeParaPerdidas(now)) as { settled_at: string; profit: number | null }[];

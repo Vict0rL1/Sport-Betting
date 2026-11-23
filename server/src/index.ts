@@ -52,6 +52,7 @@ import { resolveNflPredictions } from './nfl/trackRecord.ts';
 import { resolveNhlPredictions } from './nhl/trackRecord.ts';
 import { resolveUfcPredictions } from './ufc/trackRecord.ts';
 import { hostDeEscucha } from './auth/mode.ts';
+import { zonaPolitica } from './staking/contabilidad.ts';
 
 /**
  * Keep the schedule current on its own: refresh once at startup and then on an
@@ -478,6 +479,11 @@ async function main() {
     // 127.0.0.1 en el portátil sin contraseña; toda la red solo con ella o en producción (D15).
     await app.listen({ port: env.port, host: hostDeEscucha() });
     app.log.info(`Tennis Predictor API listening on http://localhost:${env.port}`);
+    // Una APP_TIMEZONE mal escrita deja sin evaluar los límites de pérdida y para el banco de papel y las
+    // estrategias (staking/contabilidad.ts): se dice al arrancar, no solo en `npm run doctor`.
+    if (zonaPolitica().zona == null) {
+      app.log.error(`APP_TIMEZONE «${process.env.APP_TIMEZONE}» no es una zona horaria: los límites de pérdida quedan sin evaluar y no se dimensiona ninguna apuesta.`);
+    }
     startAutoRefresh((msg) => app.log.info(msg));
 
     const resolveLog = (msg: string) => app.log.info(msg);
