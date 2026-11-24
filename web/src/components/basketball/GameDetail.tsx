@@ -300,7 +300,7 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
         )}
       </div>
 
-      <p className="text-[13px] leading-relaxed text-(--ink-muted)">{prediction.disclaimer}</p>
+      <p className="text-[13px] leading-relaxed text-(--ink-muted)">{escribir(t, idioma, { codigo: 'aviso.basketball', params: {} }, prediction.disclaimer)}</p>
     </div>
   );
 }

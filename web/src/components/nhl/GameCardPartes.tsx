@@ -4,7 +4,7 @@ import { AWAY_COLOR, HOME_COLOR, NEUTRAL_COLOR, pct } from '../../lib/theme';
 import { BarRow, CompareRow, FactorValue, FormDots, Panel, SectionTitle, TeamCrest } from '../ui';
 import { useI18n } from '../../i18n';
 import { num as numF } from '../../lib/formato';
-import { escribirTodas } from '../../lib/explicacion';
+import { escribir, escribirTodas } from '../../lib/explicacion';
 
 const coma = (x: number) => String(x).replace('.', ',');
 
@@ -144,7 +144,7 @@ export function Detail({ prediction }: { prediction: NhlPrediction }) {
         </Panel>
       )}
 
-      <p className="text-[12px] leading-relaxed text-(--ink-muted)">{prediction.disclaimer}</p>
+      <p className="text-[12px] leading-relaxed text-(--ink-muted)">{escribir(t, idioma, { codigo: 'aviso.nhl', params: {} }, prediction.disclaimer)}</p>
     </div>
   );
 }

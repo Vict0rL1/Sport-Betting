@@ -1,5 +1,7 @@
 // La evaluación de confianza de un partido, tal como la sirve el servidor (server/src/trust).
 
+import type { Explicacion } from './explicacion';
+
 export interface ItemDato {
   estado: 'ok' | 'aviso' | 'desconocido';
   texto: string;
@@ -32,9 +34,9 @@ export interface EvaluacionConfianza {
     criterio: string;
   };
   desacuerdo: { nivel: 'BAJO' | 'MEDIO' | 'ALTO' | 'SIN COMPONENTES'; rangoPp: number; componentes: { nombre: string; p: number }[]; criterio: string };
-  sensibilidad: { base: number; contribuciones: { etiqueta: string; pp: number }[]; final: number; metodo: string; exacta: boolean };
+  sensibilidad: { base: number; contribuciones: { etiqueta: string; explicacion?: Explicacion | null; pp: number }[]; final: number; metodo: string; exacta: boolean };
   /** Qué pasaría si: factores con su rango plausible y la pendiente de la curva (simulación, no predicción publicada). */
-  queSi?: { pendiente: number; exacta: boolean; factores: { clave: string; etiqueta: string; puntos: number; rango: [number, number]; porQue: string }[]; etiqueta: string };
+  queSi?: { pendiente: number; exacta: boolean; factores: { clave: string; etiqueta: string; puntos: number; rango: [number, number]; porQue: string; explicacion?: Explicacion | null; porQueExplicacion?: Explicacion | null }[]; etiqueta: string };
   mercado: {
     etiqueta: string;
     calidad: 'ALTA' | 'MEDIA' | 'BAJA' | 'SIN DATOS';
@@ -99,7 +101,7 @@ export interface PrePartido {
   /** Cada instantánea con su papel (rediseño de noviembre); falta en respuestas de antes. */
   historial?: { id: number; captured_at: string; outcomes: string[]; probs: number[]; model_version: string | null; papel: 'original' | 'revision' | 'evaluada' }[];
   /** Las entradas que usó el modelo en la última instantánea; valor null = no se sabía. */
-  entradas?: { etiqueta: string; valor: string | number | boolean | null }[];
+  entradas?: { clave?: string; etiqueta: string; valor: string | number | boolean | null; explicacion?: Explicacion | null }[];
   entradasDe?: string | null;
 }
 

@@ -4,6 +4,36 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18, fase C (5): la ficha común, en tu idioma (2026-11-24)
+
+- **Lo que usó el modelo.** Las entradas de cada instantánea se escriben por su clave y los nombres
+  del partido (`explicaciones/entradas.ts`), también en las instantáneas guardadas antes:
+  - no se lee la etiqueta guardada en español;
+  - el código solo se adjunta si dice exactamente lo que se guardó; si no, se enseña lo guardado.
+- **El «¿Y si…?» y «Qué mueve la probabilidad».**
+  - Cada factor lleva el código de su etiqueta, que es la de la predicción, y el del porqué de su
+    rango.
+  - La NHL y la UFC ganan códigos para sus etiquetas de factores.
+  - La nota de la simulación y la del método de Shapley salen del catálogo.
+- **El aviso de cada deporte** sale del catálogo: el `DISCLAIMER` del servidor es la misma frase, y
+  la web lo escribe en tu idioma. Las siete frases en español son idénticas a las de antes.
+- **Sigue en español: lo que escribe el motor de confianza.**
+  - Qué es:
+    - las razones de apostar o no y lo que haría falta;
+    - las señales de confianza;
+    - la calidad de datos;
+    - los escenarios de estabilidad;
+    - lo fuera de distribución;
+    - el régimen y los hitos.
+  - Por qué queda fuera:
+    - sus razones se guardan como texto en `prediction_assessments.reasons`, una tabla inmutable del
+      libro mayor;
+    - las familias de razones se reconocen con expresiones sobre ese texto (`trust/decision.ts`).
+
+    Darles código pide una columna nueva (migración), reglas de familia por código con las antiguas
+    para las filas de antes, y la revisión de data-guardian y quant-reviewer. Queda anotado en el plan.
+- **Ningún número ni rango cambia.**
+
 ## Seguimiento del PR #18, fase C (4): baloncesto y béisbol, en tu idioma (2026-11-24)
 
 - **El baloncesto y el béisbol escriben sus explicaciones con código** (84 códigos):

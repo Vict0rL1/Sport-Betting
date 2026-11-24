@@ -19,13 +19,10 @@ import { VALUE_THRESHOLD } from '../model/market.ts';
 import { NHL, predecir, resultado60 } from './model.ts';
 import { estadoElo, getHeadToHead, getTeamInfo, type NhlTeamInfo } from './repo.ts';
 import { nombreDe } from './equipos.ts';
-import { dec, explica, int, lista, motivos, porc, resumen, txt, type Explicacion, type ExplicacionConTexto, type Resumen } from '../explicaciones/index.ts';
+import { dec, explica, int, lista, motivos, porc, resumen, txt, type Explicacion, type ExplicacionConTexto, type Resumen, EXPLICACIONES } from '../explicaciones/index.ts';
 
-export const DISCLAIMER =
-  'Estimación estadística basada en un Elo por equipo con la diferencia de goles y una Poisson por equipo ' +
-  'ajustada a ese Elo (prórroga y tanda a la mitad de fuerza). NO conoce al portero titular, las bajas ni el ' +
-  'cansancio de los partidos seguidos, y no se mezcla con el mercado (no hay cuotas históricas de la NHL con ' +
-  'las que medir esa mezcla). No es una certeza ni una recomendación para apostar.';
+/** El aviso de este deporte, del catálogo de explicaciones (la web lo escribe en su idioma con `aviso.nhl`). */
+export const DISCLAIMER: string = EXPLICACIONES['aviso.nhl'];
 
 export type ReliabilityLevel = 'high' | 'medium' | 'low';
 
@@ -84,7 +81,7 @@ export interface NhlPrediction {
     verdict: 'differs_home' | 'differs_away' | 'agree' | 'no_market';
   };
   /** Los factores, en puntos de Elo a favor del local: su suma es el argumento de la logística. */
-  reasoning: { factors: { key: string; label: string; pointsForHome: number }[] };
+  reasoning: { factors: { key: string; label: string; pointsForHome: number; explicacion: Explicacion }[] };
   reliability: NhlReliability;
   verdict: { label: string; close: boolean; marginPp: number };
   summary: Resumen;
@@ -197,8 +194,8 @@ export function buildPrediction(input: PredictInput): NhlPrediction | null {
     market: { market, edge, verdict: verdictMercado },
     reasoning: {
       factors: [
-        { key: 'elo', label: 'Diferencia de Elo', pointsForHome: Math.round((home.elo - away.elo) * 10) / 10 },
-        { key: 'home', label: 'Ventaja de jugar en casa', pointsForHome: NHL.campo },
+        { key: 'elo', label: EXPLICACIONES['nhl.factor.elo'], pointsForHome: Math.round((home.elo - away.elo) * 10) / 10, explicacion: { codigo: 'nhl.factor.elo', params: {} } },
+        { key: 'home', label: EXPLICACIONES['nhl.factor.home'], pointsForHome: NHL.campo, explicacion: { codigo: 'nhl.factor.home', params: {} } },
       ],
     },
     reliability,

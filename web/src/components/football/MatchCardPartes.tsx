@@ -297,7 +297,7 @@ export function Detail({
         )}
       </div>
 
-      <p className="text-[13px] leading-relaxed text-(--ink-muted)">{prediction.disclaimer}</p>
+      <p className="text-[13px] leading-relaxed text-(--ink-muted)">{escribir(t, idioma, { codigo: 'aviso.football', params: {} }, prediction.disclaimer)}</p>
     </div>
   );
 }

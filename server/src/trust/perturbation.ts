@@ -32,6 +32,7 @@
 
 import type { EventoConfianza } from './types.ts';
 import { num } from '../numeros.ts';
+import { EXPLICACIONES, type Explicacion } from '../explicaciones/index.ts';
 
 const logit = (p: number) => Math.log(Math.max(p, 1e-9) / Math.max(1 - p, 1e-9));
 const sigm = (x: number) => 1 / (1 + Math.exp(-x));
@@ -225,6 +226,8 @@ export function edgeDesaparece(e: EventoConfianza, seleccion: number, cuota: num
 
 export interface Contribucion {
   etiqueta: string;
+  /** La etiqueta como código (fase C). */
+  explicacion: Explicacion | null;
   pp: number;
 }
 
@@ -262,13 +265,10 @@ export function sensibilidad(e: EventoConfianza): Sensibilidad {
   }
   return {
     base: pDe(0),
-    contribuciones: fs.map((f, i) => ({ etiqueta: f.etiqueta, pp: Math.round(phi[i] * 1000) / 10 })),
+    contribuciones: fs.map((f, i) => ({ etiqueta: f.etiqueta, explicacion: f.explicacion ?? null, pp: Math.round(phi[i] * 1000) / 10 })),
     final: e.probs[0],
     exacta: e.pendienteExacta,
-    metodo: e.pendienteExacta
-      ? 'Valores de Shapley sobre la curva logística del modelo: suman exactamente final − base y no dependen del orden.'
-      : 'Valores de Shapley sobre una APROXIMACIÓN logística local del modelo (que no es logístico en estos factores): ' +
-        'suman exactamente final − base, pero el reparto entre factores es aproximado.',
+    metodo: EXPLICACIONES[e.pendienteExacta ? 'sensibilidad.metodo.exacta' : 'sensibilidad.metodo.aproximada'],
   };
 }
 

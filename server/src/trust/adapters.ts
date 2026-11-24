@@ -28,26 +28,31 @@ import { deTenis, deFutbol, deBaloncesto, deBeisbol, deNfl, deNhl, deUfc } from 
 import { ok, aviso, desconocido, graduado, cuotasRecientes, archivoAlDia } from './dataQuality.ts';
 import type { EventoConfianza, Factor, ItemDato, Ood } from './types.ts';
 import { num } from '../numeros.ts';
+import { EXPLICACIONES, type CodigoExplicacion, type Explicacion } from '../explicaciones/index.ts';
 
 const ELO = Math.LN10 / 400;
 const logit = (p: number) => Math.log(Math.max(p, 1e-9) / Math.max(1 - p, 1e-9));
 
 /** Rango por clave de factor: el supuesto y su motivo. */
-const RANGOS: Record<string, { rango: [number, number]; porQue: string }> = {
-  rating: { rango: [1, 1], porQue: 'el rating es la incertidumbre, no un supuesto: va aparte' },
-  elo: { rango: [1, 1], porQue: 'el rating es la incertidumbre, no un supuesto: va aparte' },
-  home: { rango: [0.75, 1.25], porQue: 'ventaja de campo estimada con error: ±25 %' },
-  form: { rango: [0.5, 1.5], porQue: 'la forma sale de una ventana corta de partidos: ±50 %' },
-  h2h: { rango: [0, 1.5], porQue: 'el cara a cara puede ser ruido de pocos partidos' },
-  layoff: { rango: [0.5, 1.5], porQue: 'el efecto de la inactividad varía mucho entre jugadores' },
-  rest: { rango: [0.5, 1.5], porQue: 'el efecto del descanso es medio, no el de este equipo' },
-  offseason: { rango: [0.75, 1.25], porQue: 'cuánto rating cruza el verano varía por equipo' },
+/** El rango plausible de un factor y el código de su porqué (catálogo de explicaciones). */
+type Rango = { rango: [number, number]; motivo: CodigoExplicacion };
+
+const RANGOS: Record<string, Rango> = {
+  rating: { rango: [1, 1], motivo: 'queSi.porQue.rating' },
+  elo: { rango: [1, 1], motivo: 'queSi.porQue.rating' },
+  home: { rango: [0.75, 1.25], motivo: 'queSi.porQue.home' },
+  form: { rango: [0.5, 1.5], motivo: 'queSi.porQue.form' },
+  h2h: { rango: [0, 1.5], motivo: 'queSi.porQue.h2h' },
+  layoff: { rango: [0.5, 1.5], motivo: 'queSi.porQue.layoff' },
+  rest: { rango: [0.5, 1.5], motivo: 'queSi.porQue.rest' },
+  offseason: { rango: [0.75, 1.25], motivo: 'queSi.porQue.offseason' },
 };
 
-function factores(fs: { key: string; label: string; points: number }[], extra: Record<string, { rango: [number, number]; porQue: string }> = {}): Factor[] {
+function factores(fs: { key: string; label: string; points: number; explicacion?: Explicacion }[], extra: Record<string, Rango> = {}): Factor[] {
   return fs.map((f) => {
-    const r = extra[f.key] ?? RANGOS[f.key] ?? { rango: [0.5, 1.5] as [number, number], porQue: 'sin medición específica: ±50 %' };
-    return { clave: f.key, etiqueta: f.label, puntos: f.points, rango: r.rango, porQue: r.porQue };
+    const r: Rango = extra[f.key] ?? RANGOS[f.key] ?? { rango: [0.5, 1.5], motivo: 'queSi.porQue.sinMedir' };
+    // La etiqueta y su porqué, con sus códigos (fase C): la web los escribe en su idioma.
+    return { clave: f.key, etiqueta: f.label, puntos: f.points, rango: r.rango, porQue: EXPLICACIONES[r.motivo], explicacion: f.explicacion ?? null, porQueExplicacion: { codigo: r.motivo, params: {} } };
   });
 }
 
@@ -72,7 +77,7 @@ const sinOdds = (id: string) => id.replace(/^odds-/, '');
 export function confianzaTenis(row: UpcomingRow, p: Prediction, now = new Date()): EventoConfianza | null {
   const snap = deTenis(row, p);
   if (!snap) return null;
-  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForP1 })));
+  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForP1, explicacion: f.explicacion })));
   const pend = pendienteExacta(p.model.prob1, fs, ELO);
   const escala = pend / ELO;
   const curva = (a: number, b: number) => 1 / (1 + 10 ** (((b - a) * escala) / 400));
@@ -130,10 +135,10 @@ export function confianzaFutbol(row: FbUpcomingRow, p: FbPrediction, now = new D
   const snap = deFutbol(row, p);
   if (!snap) return null;
   const lineupsPublicadas = p.news.lineup.home != null && p.news.lineup.away != null;
-  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForHome })), {
+  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForHome, explicacion: f.explicacion })), {
     squad: lineupsPublicadas
-      ? { rango: [0.75, 1.25], porQue: 'bajas confirmadas con la alineación: ±25 % por el impacto estimado' }
-      : { rango: [0, 1.5], porQue: 'bajas según noticias, sin alineación publicada: pueden no jugar o pesar más' },
+      ? { rango: [0.75, 1.25], motivo: 'queSi.porQue.bajasConfirmadas' }
+      : { rango: [0, 1.5], motivo: 'queSi.porQue.bajasNoticias' },
   });
   const homePts = p.reasoning.factors.find((f) => f.key === 'home')?.pointsForHome ?? 0;
   const e = 1 / (1 + 10 ** (-(p.teams.home.elo + homePts - p.teams.away.elo) / 400));
@@ -184,7 +189,7 @@ export function confianzaFutbol(row: FbUpcomingRow, p: FbPrediction, now = new D
 export function confianzaBaloncesto(row: UpcomingGameRow, p: GamePrediction, now = new Date()): EventoConfianza | null {
   const snap = deBaloncesto(row, p);
   if (!snap) return null;
-  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForHome })));
+  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForHome, explicacion: f.explicacion })));
   const pend = pendienteExacta(p.model.probHome, fs, ELO);
   const minG = Math.min(p.teams.home.gamesInDb, p.teams.away.gamesInDb);
   // El modelo no lleva la cuenta de partidos de la temporada; sí sabe cuánto lleva cada
@@ -240,10 +245,10 @@ export function confianzaBeisbol(row: BsbUpcomingRow, p: BsbPrediction, now = ne
   const snap = deBeisbol(row, p);
   if (!snap) return null;
   const ambos = !!p.teams.home.starter.name && !!p.teams.away.starter.name;
-  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForHome })), {
+  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForHome, explicacion: f.explicacion })), {
     pitching: ambos
-      ? { rango: [0.7, 1.3], porQue: 'abridores anunciados; su rating es ruidoso (pocas aperturas por año): ±30 %' }
-      : { rango: [0, 1.3], porQue: 'algún abridor sin anunciar: puede salir uno medio (0) o el supuesto' },
+      ? { rango: [0.7, 1.3], motivo: 'queSi.porQue.abridores' }
+      : { rango: [0, 1.3], motivo: 'queSi.porQue.abridorSinAnunciar' },
   });
   const pitch = fs.find((f) => f.clave === 'pitching')?.puntos ?? 0;
   const sinAbridores = 1 / (1 + Math.exp(-(logit(p.model.home) - ELO * pitch)));
@@ -290,8 +295,8 @@ export function confianzaNfl(row: NafUpcomingRow, p: NafPrediction, now = new Da
   const snap = deNfl(row, p);
   if (!snap) return null;
   const qb = [p.quarterbacks.home, p.quarterbacks.away];
-  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForHome })), {
-    qb: { rango: [0, 1.25], porQue: 'QB SUPUESTO (el último que jugó), no confirmado: desde un titular medio hasta un 25 % más' },
+  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForHome, explicacion: f.explicacion })), {
+    qb: { rango: [0, 1.25], motivo: 'queSi.porQue.qb' },
   });
   const pend = SPREAD_WIN_LOGIT.b; // logit por punto de margen (la curva margen→victoria de la app)
   const qbPts = fs.find((f) => f.clave === 'qb')?.puntos ?? 0;
@@ -335,7 +340,7 @@ export function confianzaNfl(row: NafUpcomingRow, p: NafPrediction, now = new Da
 export function confianzaNhl(row: NhlUpcomingRow, p: NhlPrediction, now = new Date()): EventoConfianza | null {
   const snap = deNhl(row, p);
   if (!snap) return null;
-  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForHome })));
+  const fs = factores(p.reasoning.factors.map((f) => ({ key: f.key, label: f.label, points: f.pointsForHome, explicacion: f.explicacion })));
   // El moneyline ES la logística del Elo (predict busca los goles para reproducirla): pendiente exacta.
   const pend = pendienteExacta(p.model.home, fs, ELO);
   const sinCampo = 1 / (1 + 10 ** (-(p.teams.home.elo - p.teams.away.elo) / 400));
@@ -375,18 +380,18 @@ export function confianzaNhl(row: NhlUpcomingRow, p: NhlPrediction, now = new Da
  * puntos de Elo (÷ ln10/400) para que la pendiente sea la de un Elo y exacta: la suma de los aportes
  * ES el logit de la probabilidad.
  */
-const RANGOS_UFC: Record<string, { rango: [number, number]; porQue: string }> = {
-  record: { rango: [0.5, 1.5], porQue: 'peso pequeño de la logística (≈0,15), con poca señal propia además del Elo: ±50 %' },
-  edad: { rango: [0.75, 1.25], porQue: 'peso estable en cada ajuste anual desde 2007 (−0,56 a −0,68 por década): ±25 %' },
-  alcance: { rango: [0.5, 1.5], porQue: 'peso pequeño y sin medir por separado: ±50 %' },
-  experiencia: { rango: [0.5, 1.5], porQue: 'su peso bajó de 0,43 a 0,13 entre 2007 y 2025: ±50 %' },
+const RANGOS_UFC: Record<string, Rango> = {
+  record: { rango: [0.5, 1.5], motivo: 'queSi.porQue.record' },
+  edad: { rango: [0.75, 1.25], motivo: 'queSi.porQue.edad' },
+  alcance: { rango: [0.5, 1.5], motivo: 'queSi.porQue.alcance' },
+  experiencia: { rango: [0.5, 1.5], motivo: 'queSi.porQue.experiencia' },
 };
 
 export function confianzaUfc(row: UfcUpcomingRow, p: UfcPrediction, now = new Date()): EventoConfianza | null {
   const snap = deUfc(row, p);
   if (!snap) return null;
   const fs = factores(
-    p.factors.map((f) => ({ key: f.key, label: f.label, points: f.logit / ELO })),
+    p.factors.map((f) => ({ key: f.key, label: f.label, points: f.logit / ELO, explicacion: f.explicacion })),
     RANGOS_UFC,
   );
   const pend = pendienteExacta(p.model.home, fs, ELO);

@@ -20,13 +20,10 @@ import { CANDIDATOS, MODELO_PUBLICADO, predecirConPesos } from './combinado.ts';
 import { rasgosDe, type RasgosUfc } from './evaluacion.ts';
 import { UFC } from './model.ts';
 import { estadoUfc, getFighterInfo, getHeadToHead, HOLDOUT_UFC, type UfcFighterInfo } from './repo.ts';
-import { dec, explica, int, lista, motivos, porc, resumen, txt, type Explicacion, type ExplicacionConTexto, type Resumen } from '../explicaciones/index.ts';
+import { dec, explica, int, lista, motivos, porc, resumen, txt, type Explicacion, type ExplicacionConTexto, type Resumen, EXPLICACIONES } from '../explicaciones/index.ts';
 
-export const DISCLAIMER =
-  'Estimación estadística: una regresión logística con la diferencia de Elo de los dos luchadores en la UFC, su ' +
-  'récord, su edad, su alcance y cuántas peleas llevan en la UFC. NO sabe nada de lo que hicieron fuera de la UFC, ' +
-  'ni de lesiones, cambios de categoría o el corte de peso, y no se mezcla con el mercado (no hay cuotas históricas ' +
-  'de la UFC con las que medir esa mezcla). No es una certeza ni una recomendación para apostar.';
+/** El aviso de este deporte, del catálogo de explicaciones (la web lo escribe en su idioma con `aviso.ufc`). */
+export const DISCLAIMER: string = EXPLICACIONES['aviso.ufc'];
 
 export type ReliabilityLevel = 'high' | 'medium' | 'low';
 
@@ -47,6 +44,8 @@ export interface UfcSide extends UfcFighterInfo {
 export interface UfcFactor {
   key: keyof RasgosUfc;
   label: string;
+  /** La etiqueta como código (fase C). */
+  explicacion: Explicacion;
   /** La diferencia en sus unidades (puntos de Elo, años, cm, peleas…), del A menos el B. */
   diff: number | null;
   /** Lo que aporta al logit (peso × rasgo). Positivo, a favor de A. */
@@ -97,11 +96,11 @@ function deVig(oddsHome: number | null | undefined, oddsAway: number | null | un
 }
 
 const ETIQUETAS: Record<keyof RasgosUfc, string> = {
-  elo: 'Elo en la UFC',
-  record: 'Récord en la UFC',
-  edad: 'Edad',
-  alcance: 'Alcance',
-  experiencia: 'Peleas en la UFC',
+  elo: EXPLICACIONES['ufc.rasgo.elo'],
+  record: EXPLICACIONES['ufc.rasgo.record'],
+  edad: EXPLICACIONES['ufc.rasgo.edad'],
+  alcance: EXPLICACIONES['ufc.rasgo.alcance'],
+  experiencia: EXPLICACIONES['ufc.rasgo.experiencia'],
 };
 
 function fiabilidad(a: UfcFighterInfo, b: UfcFighterInfo, ahora: Date, rasgos: RasgosUfc, margenProb: number): UfcPrediction['reliability'] {
@@ -163,6 +162,7 @@ export function buildPrediction(input: PredictInput): UfcPrediction | null {
   const factors: UfcFactor[] = CANDIDATOS[MODELO_PUBLICADO].map((k) => ({
     key: k,
     label: ETIQUETAS[k],
+    explicacion: { codigo: `ufc.rasgo.${k}`, params: {} },
     diff: diffs[k],
     logit: r4(aportes[k]),
     pp: Math.round((p - sigm(t - aportes[k])) * 1000) / 10,

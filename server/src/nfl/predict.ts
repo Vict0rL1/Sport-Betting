@@ -43,14 +43,10 @@ import { carryOver, SCORING_CARRYOVER, SEASON_CARRYOVER } from './model.ts';
 import { postprocess } from '../postprocess/apply.ts';
 import type { LeagueId, NafRecord } from './types.ts';
 import { num } from '../numeros.ts';
-import { dec, exacto, exactoSigno, explica, int, miles, motivos, porc, resumen, signo, sinTexto, textos, txt, type Explicacion, type ExplicacionConTexto, type Resumen } from '../explicaciones/index.ts';
+import { dec, exacto, exactoSigno, explica, int, miles, motivos, porc, resumen, signo, sinTexto, textos, txt, type Explicacion, type ExplicacionConTexto, type Resumen, EXPLICACIONES } from '../explicaciones/index.ts';
 
-export const DISCLAIMER =
-  'Estimación estadística basada en Elo por equipo, una ventaja de campo que la liga actualiza sola, ' +
-  'los ritmos de anotación de cada equipo, el quarterback titular y una distribución de margen con ' +
-  'los números clave del deporte (3 y 7). Da por titular a quien jugó el último partido: NO conoce ' +
-  'las bajas de esta semana, ni el viento del día (no hay previsión en el calendario), ni el estado ' +
-  'del campo. No es una certeza ni una recomendación para apostar.';
+/** El aviso de este deporte, del catálogo de explicaciones (la web lo escribe en su idioma con `aviso.nfl`). */
+export const DISCLAIMER: string = EXPLICACIONES['aviso.nfl'];
 
 export type ReliabilityLevel = 'high' | 'medium' | 'low';
 

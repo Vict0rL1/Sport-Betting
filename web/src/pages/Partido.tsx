@@ -24,6 +24,7 @@ import { resumirHistorial } from '../lib/historial';
 import { CLAVE_BORRADOR } from '../components/picks/acciones';
 import { useI18n, formato } from '../i18n';
 import { PROFIT_COLOR, LOSS_COLOR } from '../lib/theme';
+import { escribir } from '../lib/explicacion';
 
 interface Resultado {
   casa: string;
@@ -263,8 +264,8 @@ export function FichaPartido({ sport, id, claveDada }: { sport: string; id: stri
           <p className="mb-2 text-[12px] text-(--ink-muted)">{t('partido.entradasNota', { cuando: pre.entradasDe ? fecha(pre.entradasDe) : '—' })}</p>
           <dl className="grid gap-x-4 gap-y-1 text-[13px] sm:grid-cols-[minmax(0,1fr)_auto]">
             {pre.entradas.map((e) => (
-              <div key={e.etiqueta} className="contents">
-                <dt className="text-(--ink-soft)">{e.etiqueta}</dt>
+              <div key={e.clave ?? e.etiqueta} className="contents">
+                <dt className="text-(--ink-soft)">{escribir(t, idioma, e.explicacion, e.etiqueta)}</dt>
                 <dd className={`tabular-nums ${e.valor == null ? 'text-(--status-warning)' : 'text-(--ink-strong)'}`}>
                   {e.valor == null ? t('partido.desconocido') : typeof e.valor === 'boolean' ? (e.valor ? t('comun.si') : t('comun.no')) : typeof e.valor === 'number' ? f.numero(e.valor, 1) : e.valor}
                 </dd>

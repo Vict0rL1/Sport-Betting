@@ -22,7 +22,7 @@
 // confidence tier derived purely from how far the probability sits from 50%.
 // ===========================================================================
 
-import { dec, exacto, explica, frases, int, porc, resumen, sinTexto, txt, type Explicacion, type ExplicacionConTexto, type Resumen } from '../explicaciones/index.ts';
+import { dec, exacto, explica, frases, int, porc, resumen, sinTexto, txt, type Explicacion, type ExplicacionConTexto, type Resumen, EXPLICACIONES } from '../explicaciones/index.ts';
 import {
   calibratedExpectedScore,
   calibrationScaleFor,
@@ -64,10 +64,8 @@ import type {
 import { SURFACE_WEIGHT } from './elo.ts';
 export { SURFACE_WEIGHT };
 
-export const DISCLAIMER =
-  'Estimación estadística basada en Elo, forma reciente, head-to-head y odds de mercado. ' +
-  'NO considera lesiones de último momento, clima, cansancio ni motivación (p. ej. exhibiciones). ' +
-  'No es una certeza ni una recomendación para apostar.';
+/** El aviso de este deporte, del catálogo de explicaciones (la web lo escribe en su idioma con `aviso.tennis`). */
+export const DISCLAIMER: string = EXPLICACIONES['aviso.tennis'];
 
 export type ConfidenceTier = 'toss_up' | 'slight' | 'clear' | 'strong';
 

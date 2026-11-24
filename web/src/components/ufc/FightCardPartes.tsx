@@ -4,7 +4,7 @@ import { AWAY_COLOR, HOME_COLOR, NEUTRAL_COLOR, pct } from '../../lib/theme';
 import { CompareRow, FactorValue, FormDots, Panel, SectionTitle } from '../ui';
 import { useI18n, type Clave } from '../../i18n';
 import { num as numF } from '../../lib/formato';
-import { escribirTodas } from '../../lib/explicacion';
+import { escribir, escribirTodas } from '../../lib/explicacion';
 
 const coma = (x: number, d = 0) => numF(x, d);
 const record = (r: UfcSide['record']) => `${r.wins}-${r.losses}${r.draws ? `-${r.draws}` : ''}${r.noContests ? ` (${r.noContests} NC)` : ''}`;
@@ -150,7 +150,7 @@ export function Detail({ prediction }: { prediction: UfcPrediction }) {
         </Panel>
       )}
 
-      <p className="text-[12px] leading-relaxed text-(--ink-muted)">{prediction.disclaimer}</p>
+      <p className="text-[12px] leading-relaxed text-(--ink-muted)">{escribir(t, idioma, { codigo: 'aviso.ufc', params: {} }, prediction.disclaimer)}</p>
     </div>
   );
 }

@@ -40,13 +40,10 @@ import {
 import { getHomePark, getParkFactor } from './parkFactors.ts';
 import { getLeagueRunsPerGame, PITCHER_CARRYOVER } from './ratings.ts';
 import type { BsbRecord, LeagueId } from './types.ts';
-import { dec, exacto, exactoSigno, explica, fecha, frases, int, motivos, porc, resumen, sinTexto, txt, type Explicacion, type ExplicacionConTexto, type ParamExp, type Resumen } from '../explicaciones/index.ts';
+import { dec, exacto, exactoSigno, explica, fecha, frases, int, motivos, porc, resumen, sinTexto, txt, type Explicacion, type ExplicacionConTexto, type ParamExp, type Resumen, EXPLICACIONES } from '../explicaciones/index.ts';
 
-export const DISCLAIMER =
-  'Estimación estadística basada en Elo con ventaja de campo, el lanzador abridor anunciado, ' +
-  'el factor del estadio y una distribución binomial negativa de carreras, comparada con las ' +
-  'cuotas del mercado. NO conoce el bullpen, ni la alineación, ni las lesiones de última hora, ' +
-  'ni el clima del día. No es una certeza ni una recomendación para apostar.';
+/** El aviso de este deporte, del catálogo de explicaciones (la web lo escribe en su idioma con `aviso.baseball`). */
+export const DISCLAIMER: string = EXPLICACIONES['aviso.baseball'];
 
 /** The over/under line the app quotes when the market doesn't supply one. */
 export const DEFAULT_TOTAL_LINE = 8.5;

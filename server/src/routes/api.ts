@@ -504,7 +504,9 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
           ? { politica: ev.evaluada.politica, tipo: ev.evaluada.tipo, fuente: ev.evaluada.fuente, capturadaEn: ev.evaluada.capturadaEn, snapshotId: ev.evaluada.snapshotId, probs: ev.evaluada.probs, motivo: null }
           : { politica: POLITICA_EVALUACION, tipo: null, fuente: null, capturadaEn: null, snapshotId: null, probs: null, motivo: ev.motivo };
       })(),
-      entradas: filas.length ? Object.values(filas[filas.length - 1].entradas) : [],
+      // Cada entrada con su clave y su código (fase C 5): la web la escribe en su idioma. Si el código no
+      // reproduce la etiqueta guardada, se enseña la guardada.
+      entradas: filas.length ? entradasConCodigo(sport, filas[filas.length - 1].entradas, filas[filas.length - 1].outcomes) : [],
       entradasDe: filas[filas.length - 1]?.captured_at ?? null,
     };
   });
@@ -789,6 +791,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
 
 // Small local helper (kept here to avoid widening the repo surface).
 import { findTennisResult, hasStarted } from '../results.ts';
+import { entradasConCodigo } from '../explicaciones/entradas.ts';
 function countRowsWhere(table: string, col: string, value: string): number {
   const row = getDb()
     .prepare(`SELECT COUNT(*) AS c FROM ${table} WHERE ${col} = ?`)

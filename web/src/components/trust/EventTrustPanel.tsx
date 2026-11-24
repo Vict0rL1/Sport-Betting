@@ -13,6 +13,7 @@ import { ConfianzaBadge } from './ConfianzaBadge';
 import { codigo, useI18n } from '../../i18n';
 import { cifra, pct as pctF, num as numF } from '../../lib/formato';
 import { formatearInstante } from '../../lib/zona';
+import { escribir } from '../../lib/explicacion';
 
 const pct = (p: number) => `${pctF(p, 1)}`;
 const pp = (x: number) => `${x >= 0 ? '+' : '−'}${numF(Math.abs(x), 1)} pp`;
@@ -71,7 +72,7 @@ export function moverProbs(probs: number[], pendiente: number, delta: number): n
 function QueSi({ c }: { c: EvaluacionConfianza }) {
   const q = c.queSi;
   const [mult, setMult] = useState<Record<string, number>>({});
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   if (!q || q.factores.length === 0) return <p>{t('fiarse.sinFactores')}</p>;
   const delta = q.factores.reduce((s, f) => s + f.puntos * ((mult[f.clave] ?? 1) - 1), 0);
   const probs = moverProbs(c.probs, q.pendiente, delta);
@@ -84,11 +85,11 @@ function QueSi({ c }: { c: EvaluacionConfianza }) {
         return (
           <label key={f.clave} className="block">
             <span className="flex items-center justify-between gap-2">
-              <span className="text-(--ink-body)">{f.etiqueta}</span>
+              <span className="text-(--ink-body)">{escribir(t, idioma, f.explicacion, f.etiqueta)}</span>
               <span className="tabular-nums">{numF((f.puntos * m), 1)} <span className="text-(--ink-faint)">(×{numF(m, 2)})</span></span>
             </span>
-            <input type="range" min={lo} max={hi} step={0.05} value={m} onChange={(e) => setMult((s) => ({ ...s, [f.clave]: Number(e.target.value) }))} className="mt-1 w-full accent-[#c3c9d1]" aria-label={t('fiarse.queSiAria', { factor: f.etiqueta })} />
-            <span className="text-(--ink-faint)">{f.porQue}</span>
+            <input type="range" min={lo} max={hi} step={0.05} value={m} onChange={(e) => setMult((s) => ({ ...s, [f.clave]: Number(e.target.value) }))} className="mt-1 w-full accent-[#c3c9d1]" aria-label={t('fiarse.queSiAria', { factor: escribir(t, idioma, f.explicacion, f.etiqueta) })} />
+            <span className="text-(--ink-faint)">{escribir(t, idioma, f.porQueExplicacion, f.porQue)}</span>
           </label>
         );
       })}
@@ -98,7 +99,7 @@ function QueSi({ c }: { c: EvaluacionConfianza }) {
         ))}
       </p>
       {tocado && <button onClick={() => setMult({})} className="text-(--ink-muted) underline-offset-2 hover:underline">{t('fiarse.volver')}</button>}
-      <p className="text-(--ink-faint)">{q.etiqueta}{q.exacta ? '' : t('fiarse.curvaAprox')}</p>
+      <p className="text-(--ink-faint)">{escribir(t, idioma, { codigo: 'queSi.etiqueta', params: {} }, q.etiqueta)}{q.exacta ? '' : t('fiarse.curvaAprox')}</p>
     </>
   );
 }
@@ -177,7 +178,7 @@ function LineaTemporal({ refP }: { refP: PrePartidoRef }) {
 
 export default function EventTrustPanel({ confianza, prePartido }: { confianza?: EvaluacionConfianza | null; prePartido?: PrePartidoRef | null }) {
   const [open, setOpen] = useState(false);
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   if (!confianza) return null;
   const c = confianza;
   const top = c.probs.indexOf(Math.max(...c.probs));
@@ -253,9 +254,9 @@ export default function EventTrustPanel({ confianza, prePartido }: { confianza?:
             </Fila>
             <Fila titulo={t('fiarse.queMueve')} valor={c.sensibilidad.exacta ? t('fiarse.exacto') : t('fiarse.aproximado')}>
               <p>{t('fiarse.sinFactor', { p: pct(c.sensibilidad.base), resultado: c.outcomes[0] })}</p>
-              {c.sensibilidad.contribuciones.map((k) => <p key={k.etiqueta}>{k.etiqueta}: {pp(k.pp)}</p>)}
+              {c.sensibilidad.contribuciones.map((k) => <p key={k.etiqueta}>{escribir(t, idioma, k.explicacion, k.etiqueta)}: {pp(k.pp)}</p>)}
               <p>{t('fiarse.final', { p: pct(c.sensibilidad.final) })}</p>
-              <p className="text-(--ink-faint)">{c.sensibilidad.metodo}</p>
+              <p className="text-(--ink-faint)">{escribir(t, idioma, { codigo: c.sensibilidad.exacta ? 'sensibilidad.metodo.exacta' : 'sensibilidad.metodo.aproximada', params: {} }, c.sensibilidad.metodo)}</p>
             </Fila>
             {c.queSi && (
               <Fila titulo={t('fiarse.queSi')} valor={t('fiarse.simulacion')}>

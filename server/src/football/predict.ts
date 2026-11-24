@@ -57,14 +57,10 @@ import { newsForTeam, newsTiming, type NewsTiming, type StoredNews } from '../ne
 import { absenceImpacts, combinedImpact, type AbsenceImpact } from '../news/impact.ts';
 import { diffLineup, rotationRisk, type LineupDiff, type RotationRisk } from './lineups.ts';
 import type { FbRecord, LeagueId } from './types.ts';
-import { dec, exacto, explica, frases, int, motivos, porc, resumen, sinTexto, txt, type Explicacion, type ExplicacionConTexto, type ParamExp, type Resumen } from '../explicaciones/index.ts';
+import { dec, exacto, explica, frases, int, motivos, porc, resumen, sinTexto, txt, type Explicacion, type ExplicacionConTexto, type ParamExp, type Resumen, EXPLICACIONES } from '../explicaciones/index.ts';
 
-export const DISCLAIMER =
-  'Estimación estadística basada en Elo con ventaja de campo, goles esperados y odds de mercado. ' +
-  'En la Premier League tiene en cuenta las bajas conocidas (lesiones y sanciones) y las que marques ' +
-  'tú; en el resto de ligas no hay datos de plantilla, así que supone alineaciones habituales. ' +
-  'Nunca sabe la alineación real hasta que se publica, ni si el partido no vale nada. ' +
-  'No es una certeza ni una recomendación para apostar.';
+/** El aviso de este deporte, del catálogo de explicaciones (la web lo escribe en su idioma con `aviso.football`). */
+export const DISCLAIMER: string = EXPLICACIONES['aviso.football'];
 
 export type ReliabilityLevel = 'high' | 'medium' | 'low';
 

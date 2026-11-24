@@ -56,13 +56,10 @@ import {
 } from './repo.ts';
 import { daysBetween } from './ratings.ts';
 import type { LeagueId, TeamRecord } from './types.ts';
-import { dec, exactoSigno, explica, frases, int, motivos, porc, resumen, sinTexto, txt, type Explicacion, type ExplicacionConTexto, type ParamExp, type Resumen } from '../explicaciones/index.ts';
+import { dec, exactoSigno, explica, frases, int, motivos, porc, resumen, sinTexto, txt, type Explicacion, type ExplicacionConTexto, type ParamExp, type Resumen, EXPLICACIONES } from '../explicaciones/index.ts';
 
-export const DISCLAIMER =
-  'Estimación estadística basada en Elo con ventaja de campo, margen de puntos, descanso y ' +
-  'odds de mercado. NO considera lesiones ni bajas de última hora, rotaciones, minutos de ' +
-  'descanso a estrellas ni partidos sin importancia al final de temporada. ' +
-  'No es una certeza ni una recomendación para apostar.';
+/** El aviso de este deporte, del catálogo de explicaciones (la web lo escribe en su idioma con `aviso.basketball`). */
+export const DISCLAIMER: string = EXPLICACIONES['aviso.basketball'];
 
 export type ConfidenceTier = 'toss_up' | 'slight' | 'clear' | 'strong';
 export type ReliabilityLevel = 'high' | 'medium' | 'low';

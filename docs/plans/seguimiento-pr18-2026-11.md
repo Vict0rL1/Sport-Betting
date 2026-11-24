@@ -99,7 +99,7 @@ Además, vistos al trazar los llamadores:
 | B3 | Monedas separadas en todo cálculo de riesgo | Hecho | `riesgo.test.ts` (R3, R4, punta a punta), `contabilidad.test.ts` (monedas, exposición) |
 | B4 | Cálculo incompleto explícito (cuatro estados) | Hecho | `contabilidad.test.ts` (cotas, decisión), `e2e/seguimiento-pr18.spec.ts` (B) |
 | B5 | Fronteras e integración probadas | Hecho | `riesgo.test.ts` (R5, R7, R8), `contabilidad.test.ts` (igualdad, ±1 céntimo, cambio de hora, zona inválida), `paper/perdidas.test.ts` (sin cruces) |
-| C | Explicaciones estructuradas y bilingües, siete deportes | En curso (24-nov). Hechos: NHL, UFC y NFL (la tarjeta, y la lectura y los factores de la ficha), el tenis entero (C 2), el fútbol (C 3), el baloncesto y el béisbol (C 4). Falta: las piezas comunes de la ficha (ver «Diferido») | `web/src/i18n/explicaciones.test.ts`, `server/src/explicaciones/coherencia.ts` en `nhl/publicada.test.ts`, `ufc/publicada.test.ts` y `prediction/formatoTexto.test.ts` |
+| C | Explicaciones estructuradas y bilingües, siete deportes | En curso (24-nov). Hechos: NHL, UFC y NFL (la tarjeta, y la lectura y los factores de la ficha), el tenis entero (C 2), el fútbol (C 3), el baloncesto y el béisbol (C 4), y en la ficha común lo que usó el modelo, el «¿Y si…?», qué mueve la probabilidad y el aviso (C 5). Falta: el texto del motor de confianza (ver «Diferido») | `web/src/i18n/explicaciones.test.ts`, `server/src/explicaciones/coherencia.ts` en `nhl/publicada.test.ts`, `ufc/publicada.test.ts` y `prediction/formatoTexto.test.ts` |
 | D | Jerarquía visual y móvil | No hecho (ver «Diferido») | |
 | E | Calibración y rendimiento en el tiempo | No hecho: evaluado, con propuesta para quant (ver «Diferido») | |
 | F | Vista previa de la importación CSV | Hecho | `server/src/bets/importar.vista.test.ts`, `e2e/seguimiento-pr18.spec.ts` (F) |
@@ -422,15 +422,24 @@ errores de consola ni peticiones fallidas.
   las tarjetas de NHL, UFC y NFL) pasó por las pruebas de axe a 390 px de `rutas.spec.ts`, y la pasada
   final de ui-tester lo revisa.
 
-- **C, lo que queda.**
-  - Tenis, fútbol, baloncesto y béisbol enteros.
-  - En las fichas de NHL, UFC y NFL:
-    - lo que usó el modelo (`inputs`);
-    - el «¿Y si…?»;
-    - el panel de confianza común a todos los deportes (`trust/EventTrustPanel`);
-    - el aviso «Estimación estadística…».
+- **C, lo que queda: el texto del motor de confianza** (`server/src/trust/`). Sigue en español:
+  - las razones de BET y NO BET y lo que haría falta;
+  - las señales de confianza;
+  - la calidad de datos;
+  - los escenarios y supuestos de estabilidad;
+  - lo fuera de distribución, el régimen y los hitos.
 
-  Hoy son frases del servidor en español: se leen, pero no en inglés, y con coma decimal.
+  Por qué no se hizo en C:
+  - las razones se guardan como texto en `prediction_assessments.reasons` (tabla inmutable);
+  - `trust/decision.ts` (FAMILIAS) clasifica las razones con expresiones sobre ese texto, y de ahí
+    salen el análisis por familias y los tests de mutantes.
+
+  Hacerlo bien pide:
+  - guardar los códigos en una columna nueva (migración, data-guardian);
+  - reconocer las familias por código, y por texto en las filas de antes;
+  - la revisión de quant-reviewer, porque es el camino que decide si se apuesta.
+
+  Es una pieza aparte, del tamaño de una fase.
 - **«60.71 %» en el historial de estimaciones** de la ficha en inglés: un formato distinto del resto
   («60.7%»). Anterior a este trabajo.
 - **La hora del partido en las apuestas personales.** Sin enlace a una instantánea no se sabe el día
