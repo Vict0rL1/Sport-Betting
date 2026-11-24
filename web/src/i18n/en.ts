@@ -2450,6 +2450,7 @@ export const en: Partial<Record<Clave, string>> = {
   "explica.ufc.fiab.igualada": "Very even fight: the favourite is only just the favourite.",
   "explica.ufc.fiab.soloUfc": "Only what happened in the UFC counts: it knows nothing of fights in other organisations, injuries or the weight cut.",
   "explica.nfl.titular": "Most likely: {ganador} wins ({p}), {marcador} the most common score.",
+  "explica.nfl.veredicto": "{equipo} wins",
   "explica.nfl.margen": "Expected margin: {margen} for {local} ({puntosLocal}-{puntosVisitante}).",
   "explica.nfl.marcador": "The most likely score is {marcador} ({p}).",
   "explica.nfl.numerosClave": "The margin lands exactly on 3 or 7 points {p} of the time: they are the two numbers the whole spread market moves around.",

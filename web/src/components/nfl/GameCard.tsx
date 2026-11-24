@@ -7,7 +7,7 @@ import { Badge, Card, Disclosure, EmptyState, HeroStat, MatchTime, ProbabilityBa
 import { fmtLine, KeyNumbers, TeamName, Detail } from './GameCardPartes';
 import { conNodos, useI18n } from '../../i18n';
 import { cifra } from '../../lib/formato';
-import { escribirTodas } from '../../lib/explicacion';
+import { escribir, escribirTodas } from '../../lib/explicacion';
 
 /**
  * One NFL game.
@@ -151,7 +151,7 @@ export default function GameCard({
                       {conNodos(t('bsc.igualado'), {
                         cual: (
                           <strong className="font-semibold text-(--ink-strong)">
-                            {prediction.verdict.label}
+                            {escribir(t, idioma, prediction.verdict.explicacion, prediction.verdict.label)}
                           </strong>
                         ),
                       })}
@@ -161,7 +161,7 @@ export default function GameCard({
                       {conNodos(t('fbc.loMasProbable'), {
                         cual: (
                           <strong className="font-semibold text-(--ink-strong)">
-                            {prediction.verdict.label}
+                            {escribir(t, idioma, prediction.verdict.explicacion, prediction.verdict.label)}
                           </strong>
                         ),
                       })}

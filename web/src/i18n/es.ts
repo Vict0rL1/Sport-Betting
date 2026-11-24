@@ -2450,6 +2450,7 @@ export const es = {
   "explica.ufc.fiab.igualada": "Pelea muy igualada: el favorito lo es por poco.",
   "explica.ufc.fiab.soloUfc": "Solo cuenta lo hecho en la UFC: no sabe de peleas en otras organizaciones, lesiones ni del corte de peso.",
   "explica.nfl.titular": "Lo más probable: gana {ganador} ({p}), {marcador} el marcador más repetido.",
+  "explica.nfl.veredicto": "Gana {equipo}",
   "explica.nfl.margen": "Margen esperado: {margen} para {local} ({puntosLocal}-{puntosVisitante}).",
   "explica.nfl.marcador": "El marcador más probable es {marcador} ({p}).",
   "explica.nfl.numerosClave": "El margen cae justo en 3 o en 7 puntos el {p} de las veces: son los dos números alrededor de los que se mueve todo el mercado de hándicap.",

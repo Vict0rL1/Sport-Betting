@@ -54,6 +54,9 @@ test('G5: tenis, fútbol, baloncesto, béisbol y NFL escriben sus números en es
   assert.ok(n, 'la NFL construye la predicción');
   // Fase C: en los deportes ya estructurados, las frases y sus códigos dicen lo mismo.
   assert.deepEqual((await import('../explicaciones/coherencia.ts')).incoherencias(n), []);
+  // ui-tester (pasada final): la tarjeta en inglés decía «Most likely: Gana Kansas City Chiefs». El
+  // veredicto de la NFL es una frase («Gana …»), no un nombre como en la NHL o la UFC: lleva su código.
+  assert.equal((n.verdict as { explicacion?: { codigo: string } }).explicacion?.codigo, 'nfl.veredicto');
 
   // G5b (segunda pasada de ui-tester): no solo el resumen. TODO el texto de la predicción y de su
   // evaluación de confianza (escenarios, supuestos, razones, datos): ahí quedaban «×0.75»,

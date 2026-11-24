@@ -83,3 +83,19 @@ test('F: la importación por CSV enseña antes qué entra, qué no y qué se pie
   expect(nuestras.map((b) => b.event)).toEqual(['Importada Sintética']);
   expect(nuestras[0].snapshot_id).toBeNull();
 });
+
+// ui-tester (pasada final): a 320 px el selector de moneda, en la misma fila que el banco, empujaba la
+// página 35 px fuera de la pantalla (23 en inglés).
+for (const idioma of ['es', 'en'] as const) {
+  test(`B: a 320 px el banco y su moneda caben sin desplazar la página (${idioma})`, async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 800 });
+    await page.addInitScript((i) => localStorage.setItem('predictor.idioma', i), idioma);
+    const sinEvaluar = { today: 0, week: 0, dayBreached: false, weekBreached: false, evaluable: false, estado: { incidencias: [{ codigo: 'banco-sin-moneda', apuestas: 2 }] } };
+    await aApuestas(page, () => cartera(sinEvaluar, null));
+    const moneda = page.getByRole('combobox', { name: idioma === 'es' ? 'Moneda del banco' : 'Bankroll currency' });
+    await expect(moneda).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    const caja = (await moneda.boundingBox())!;
+    expect(caja.x + caja.width).toBeLessThanOrEqual(320);
+  });
+}

@@ -36,6 +36,7 @@ export const EXPLICACIONES = {
 
   // --- NFL ---
   'nfl.titular': 'Lo más probable: gana {ganador} ({p}), {marcador} el marcador más repetido.',
+  'nfl.veredicto': 'Gana {equipo}',
   'nfl.margen': 'Margen esperado: {margen} para {local} ({puntosLocal}-{puntosVisitante}).',
   'nfl.marcador': 'El marcador más probable es {marcador} ({p}).',
   'nfl.numerosClave': 'El margen cae justo en 3 o en 7 puntos el {p} de las veces: son los dos números alrededor de los que se mueve todo el mercado de hándicap.',

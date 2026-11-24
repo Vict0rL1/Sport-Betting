@@ -44,6 +44,7 @@ test('en español, la web escribe exactamente la frase del servidor; en inglés,
     explica('nfl.fiab.temporadas', { n: int(1) }),
     explica('nfl.fiab.temporadas', { n: int(3) }),
     explica('ufc.factor.edad', { quien: txt('A'), pp: dec(2.4, 1), joven: txt('A'), anios: exacto(3.5) }),
+    explica('nfl.veredicto', { equipo: txt('Kansas City Chiefs') }),
   ];
   fijarIdiomaFormato('es');
   for (const c of casos) assert.equal(escribir(tDe(es) as never, 'es', c, '¿?'), c.texto, c.codigo);
@@ -56,6 +57,7 @@ test('en español, la web escribe exactamente la frase del servidor; en inglés,
   assert.match(ingles[4], /\(−3\.5\)/);
   assert.equal(ingles[5], '1 season is missing from the history: the Elo ratings do not describe today\'s rosters.');
   assert.equal(ingles[6], '3 seasons are missing from the history: the Elo ratings do not describe today\'s rosters.');
+  assert.equal(ingles[8], 'Kansas City Chiefs wins');
   fijarIdiomaFormato('es');
 });
 

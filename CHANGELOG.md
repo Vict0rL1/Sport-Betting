@@ -4,6 +4,18 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18: pasada final de ui-tester (2026-11-24)
+
+- **A 320 px el selector de moneda del banco ya no desplaza la página.** Iba en la misma fila que el
+  banco y empujaba la página 35 px fuera de la pantalla (23 en inglés). Ahora baja de línea.
+- **El veredicto de la NFL, en tu idioma.** En inglés la tarjeta decía «Most likely: Gana Cincinnati
+  Bengals». Ahora lleva su código (`nfl.veredicto`), y la comprobación de coherencia cubre también los
+  veredictos.
+- **Anotado y sin hacer** (`docs/plans/seguimiento-pr18-2026-11.md`, «Diferido»):
+  - en las fichas de NHL y NFL, en inglés, siguen en español las entradas, el «¿Y si…?», el panel de
+    confianza y el aviso;
+  - «60.71 %» en el historial de estimaciones, anterior a este trabajo.
+
 ## Seguimiento del PR #18, fase G: un aviso que nadie aceptó ya no cuenta como enviado (2026-11-24)
 
 - **El defecto.** Lo aplazado por las horas de silencio se borraba de la cola y contaba como «enviado»

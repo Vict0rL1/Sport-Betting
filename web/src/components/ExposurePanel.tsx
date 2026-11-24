@@ -170,7 +170,8 @@ export default function ExposurePanel({ onListo }: { onListo?: () => void } = {}
     <Panel className="mb-4">
       <SectionTitle
         right={
-          <span className="flex items-center gap-1.5">
+          // A 320 px el banco y la moneda no caben en una fila junto al título: bajan, no empujan la página.
+          <span className="flex flex-wrap items-center justify-end gap-1.5">
             <label className="flex items-center gap-1.5">
               <span>{t('cartera.banco')}</span>
               <input

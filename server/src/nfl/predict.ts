@@ -295,7 +295,8 @@ export interface NafPrediction {
     factors: { key: string; label: string; pointsForHome: number; explicacion: Explicacion }[];
   };
   reliability: NafReliability;
-  verdict: { label: string; close: boolean; marginPp: number };
+  /** `label` es una frase («Gana …»), no un nombre como en la NHL o la UFC: lleva su código. */
+  verdict: { label: string; close: boolean; marginPp: number; explicacion: Explicacion };
   summary: Resumen;
   context: { homeAdvantageElo: number; homeAdvantagePoints: number; leagueTotal: number };
   disclaimer: string;
@@ -699,10 +700,12 @@ export function buildPrediction(input: PredictInput): NafPrediction | null {
   const marginPp = Math.abs(outcome.home - outcome.away) * 100;
   const close = marginPp < 10;
   const winner = outcome.home >= outcome.away ? home.name : away.name;
+  const veredicto = explica('nfl.veredicto', { equipo: txt(winner) });
   const verdict = {
-    label: `Gana ${winner}`,
+    label: veredicto.texto,
     close,
     marginPp: Math.round(marginPp * 10) / 10,
+    explicacion: sinTexto(veredicto),
   };
 
   const points = expectedPoints(expectedMargin, expectedTotal);

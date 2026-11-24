@@ -118,7 +118,8 @@ export interface NflPrediction {
   market: NflMarket;
   reasoning: { text: string; explicaciones?: Explicacion[]; factors: { key: string; label: string; pointsForHome: number; explicacion?: Explicacion }[] };
   reliability: NflReliability;
-  verdict: { label: string; close: boolean; marginPp: number };
+  /** `explicacion`: el mismo veredicto como código (la web lo escribe en su idioma; `label`, en español, de reserva). */
+  verdict: { label: string; close: boolean; marginPp: number; explicacion?: Explicacion };
   summary: { headline: string; bullets: string[]; explicaciones?: { headline: Explicacion; bullets: Explicacion[] } };
   context: { homeAdvantageElo: number; homeAdvantagePoints: number; leagueTotal: number };
   disclaimer: string;

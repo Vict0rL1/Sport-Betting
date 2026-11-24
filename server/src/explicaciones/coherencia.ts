@@ -28,6 +28,7 @@ export function incoherencias(pred: unknown): string[] {
     const junto = (p.reasoning.explicaciones as Explicacion[]).map(escrita).join(' ');
     if (junto !== p.reasoning.text) out.push(`reasoning.text: «${junto}» ≠ «${p.reasoning.text}»`);
   }
+  if (p.verdict?.explicacion && escrita(p.verdict.explicacion) !== p.verdict.label) out.push(`verdict: «${escrita(p.verdict.explicacion)}» ≠ «${p.verdict.label}»`);
   for (const f of p.reasoning?.factors ?? []) if (f.explicacion && escrita(f.explicacion) !== f.label) out.push(`factor ${f.key}: «${escrita(f.explicacion)}» ≠ «${f.label}»`);
   return out;
 }
