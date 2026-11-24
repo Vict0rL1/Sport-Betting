@@ -54,9 +54,12 @@ Playwright que fallaba.
   - n e intervalo en cada punto, sin línea que los una;
   - las exclusiones por motivo y la comparación con el mercado en los mismos partidos;
   - un desglose por periodo y una exportación nueva (`evaluadas`) que salen de la misma función.
-- **Lo de siempre no cambia.** El diagrama de siempre, su ECE y `/api/monitoring` dan lo mismo que
-  antes, porque de ellos dependen el PSI, la deriva y los importes. Solo cambian sus rótulos: «por
-  salida» y «deriva del modelo (cifra cruda al publicar)».
+- **Lo de siempre se calcula como antes.** El diagrama de siempre, su ECE y `/api/monitoring` no
+  cambian de método; solo sus rótulos: «por salida» y «deriva del modelo (cifra cruda al publicar)».
+  - Una excepción, el arreglo del fútbol del final de esta entrada, que también les llega: una
+    publicación cuya suma se aparta de 1 en más de 0,001 deja de contarse.
+  - Las bien formadas dan lo mismo.
+  - La deriva que recorta importes (`trust/drift.ts`) lee las publicaciones tal cual y no cambia.
 - **Definiciones de quant-reviewer**, fijadas antes del código. 17 tests de sus casos: bordes de
   cubeta, el 50 %, empates, cambio de versión, cambio de hora, solo legado, Wilson, veredictos,
   periodos vacíos, zona inválida y el mercado. También un test de rutas y Playwright con datos

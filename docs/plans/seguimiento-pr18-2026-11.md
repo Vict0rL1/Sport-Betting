@@ -231,6 +231,12 @@ mayor (qué entra al importar) y la honradez de lo que la app afirma («enviado�
 pesa más que cuatro deportes aún en español, que tienen reserva: la frase del servidor. El mecanismo de C
 ya está y el resto de deportes es mecánico.
 
+Después de empujar la primera tanda, el propietario pidió seguir con lo que quedaba. Orden de la segunda
+tanda:
+- el resto de C, deporte a deporte (C 2 a C 4) y luego la ficha común (C 5);
+- E, con las definiciones de quant-reviewer antes del código;
+- D al final: sale de una auditoría en el navegador hecha sobre la web ya cambiada por C y E.
+
 ### F. La importación por CSV, transparente (`server/src/bets/importar.ts`)
 
 - **Lo que había.**
@@ -306,9 +312,19 @@ casos que lo reproducen están en sus scripts de la revisión).
   - Con 50 partidos al 50 % que ganó siempre el local, sale «perfecto».
   - Un sesgo hacia el local no se ve.
   - Además mezcla registrada y legado y todas las versiones.
-- **Qué NO se toca.** Ese diagrama, su ECE y `/api/monitoring` se quedan byte a byte, porque de ellos
-  cuelgan el PSI, la alerta de deriva y los multiplicadores de importe. Solo cambian sus rótulos: «por
-  salida» y «deriva del modelo, cifra cruda al publicar».
+- **Qué NO se toca.** Ese diagrama, su ECE y `/api/monitoring` se calculan como antes, porque de ellos
+  cuelgan el PSI y la alerta de deriva. Solo cambian sus rótulos: «por salida» y «deriva del modelo,
+  cifra cruda al publicar».
+  - **Una excepción**, de la revisión de quant-reviewer (ver «Revisiones», fase E). En el fútbol, una
+    publicación cuya suma se aparta de 1 en más de 0,001 ya no se renormaliza: se excluye, también en
+    estos dos y en lo demás que lee `predicciones()` (segmentos, la evaluación en vivo, los informes y
+    `doctor`).
+  - Las bien formadas dan lo mismo: el registro guarda cinco decimales y suman 0,99999.
+  - La copia de datos de las pruebas no tiene filas de fútbol, así que no se ha visto ningún cambio en
+    ella.
+  - Los multiplicadores de importe salen de `trust/drift.ts`, que lee las publicaciones tal cual
+    (`publicacionesResueltas`) y no cambia. Ni el banco de papel, ni las estrategias, ni los
+    destacados leen estas cifras.
   - No se reejecuta ningún backtest.
   - No se lee ningún holdout.
 - **La fuente.** `prediccionesConMotivos` (`evaluation/live.ts`): pre-partido, resueltas, evaluadas
