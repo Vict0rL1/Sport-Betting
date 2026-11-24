@@ -7,7 +7,7 @@
 // se enseña la frase del servidor: nunca una clave cruda.
 
 import { existeClave, type Clave, type Idioma } from '../i18n';
-import { cifra, num, pct } from './formato';
+import { cifra, localeFormato, num, pct } from './formato';
 
 export type ParamExp =
   | { t: 'txt'; v: string }
@@ -18,7 +18,9 @@ export type ParamExp =
   | { t: 'lista'; v: string[] }
   | { t: 'miles'; v: number }
   /** Piezas que son otras explicaciones, unidas con «; » o «, » (server/src/explicaciones/index.ts). */
-  | { t: 'frases'; v: Explicacion[]; sep: 'pyc' | 'coma' };
+  | { t: 'frases'; v: Explicacion[]; sep: 'pyc' | 'coma' }
+  /** Un día AAAA-MM-DD, con el formato de fecha del idioma. */
+  | { t: 'fecha'; v: string };
 
 export interface Explicacion {
   codigo: string;
@@ -54,6 +56,10 @@ export function valorEn(p: ParamExp, idioma: Idioma, pieza: (e: Explicacion) => 
     }
     case 'frases':
       return p.v.map(pieza).join(p.sep === 'pyc' ? '; ' : ', ');
+    case 'fecha': {
+      const [a, m, d] = p.v.split('-').map(Number);
+      return new Intl.DateTimeFormat(localeFormato(idioma), { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(Date.UTC(a, m - 1, d));
+    }
   }
 }
 

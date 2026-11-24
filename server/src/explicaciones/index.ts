@@ -40,7 +40,9 @@ export type ParamExp =
    * arman con un número variable de piezas («Forma: A; B», las señales físicas de cada jugador). Cada
    * idioma escribe cada pieza con su catálogo. Una pieza va siempre en medio de la frase: sin mayúscula.
    */
-  | { t: 'frases'; v: Explicacion[]; sep: 'pyc' | 'coma' };
+  | { t: 'frases'; v: Explicacion[]; sep: 'pyc' | 'coma' }
+  /** Un día (AAAA-MM-DD), escrito con el formato de fecha de cada idioma (03/10/2025). */
+  | { t: 'fecha'; v: string };
 
 export interface Explicacion {
   codigo: CodigoExplicacion;
@@ -60,6 +62,8 @@ export const signo = (v: number, d = 1): ParamExp => ({ t: 'signo', v, d });
 export const porc = (v: number, d = 1): ParamExp => ({ t: 'pct', v, d });
 export const lista = (v: string[]): ParamExp => ({ t: 'lista', v });
 export const miles = (v: number): ParamExp => ({ t: 'miles', v: Math.round(v) });
+/** Un día AAAA-MM-DD (o AAAAMMDD, como lo guardan algunas fuentes). */
+export const fecha = (v: string): ParamExp => ({ t: 'fecha', v: /^\d{8}$/.test(v) ? `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6, 8)}` : v });
 /** Piezas que son otras explicaciones (ver `ParamExp`). */
 export const frases = (xs: readonly ExplicacionConTexto[], sep: 'pyc' | 'coma'): ParamExp => ({ t: 'frases', v: xs.map(({ codigo, params }) => ({ codigo, params })), sep });
 /** Los decimales con que un número se escribe (1,91 → 2; 44,5 → 1; 7 → 0), a lo sumo 4. */
@@ -88,6 +92,10 @@ export function valorEs(p: ParamExp): string {
       return `${p.v < 0 ? '−' : ''}${String(Math.abs(p.v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
     case 'frases':
       return p.v.map((e) => rellenar(EXPLICACIONES[e.codigo], e.params)).join(p.sep === 'pyc' ? '; ' : ', ');
+    case 'fecha': {
+      const [a, m, d] = p.v.split('-');
+      return `${d}/${m}/${a}`;
+    }
   }
 }
 

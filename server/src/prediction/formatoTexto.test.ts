@@ -59,7 +59,9 @@ test('G5: tenis, fútbol, baloncesto, béisbol y NFL escriben sus números en es
   assert.equal((n.verdict as { explicacion?: { codigo: string } }).explicacion?.codigo, 'nfl.veredicto');
   // Fase C (2): los demás deportes, uno a uno. Cada frase lleva su código y dice lo mismo que él.
   const { sinEstructura, incoherencias } = await import('../explicaciones/coherencia.ts');
-  for (const [deporte, p] of [['tenis', t], ['fútbol', f]] as const) assert.deepEqual([...sinEstructura(p), ...incoherencias(p)], [], deporte);
+  for (const [deporte, p] of [['tenis', t], ['fútbol', f], ['baloncesto', b], ['béisbol', m]] as const) assert.deepEqual([...sinEstructura(p), ...incoherencias(p)], [], deporte);
+  assert.equal((m.verdict as unknown as { explicacion?: { codigo: string } }).explicacion?.codigo, 'beisbol.veredicto');
+  assert.match((b.projection as unknown as { spreadExplicacion?: { codigo: string } }).spreadExplicacion?.codigo ?? '', /^baloncesto\.spread/);
   // El veredicto del fútbol es una frase («Gana …», «Empate», «… o empate»): lleva su código.
   const veredicto = f.verdict as unknown as { explicacion?: { codigo: string }; doubleChance: { explicacion?: { codigo: string } } };
   assert.match(veredicto.explicacion?.codigo ?? '', /^futbol\.veredicto\./);

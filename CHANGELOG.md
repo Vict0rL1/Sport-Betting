@@ -4,7 +4,33 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
-## Seguimiento del PR #18, fase C (3): el fútbol, en tu idioma (2026-11-25)
+## Seguimiento del PR #18, fase C (4): baloncesto y béisbol, en tu idioma (2026-11-24)
+
+- **El baloncesto y el béisbol escriben sus explicaciones con código** (84 códigos):
+  - el titular y las viñetas;
+  - los motivos y el aviso de fiabilidad;
+  - la lectura de la ficha y sus factores;
+  - el veredicto del béisbol («Gana …»);
+  - el hándicap del baloncesto («sin favorito claro (pick'em)»);
+  - la descripción del abridor del béisbol, que la tarjeta enseña al pasar por encima.
+- **Fechas.** Nuevo parámetro `fecha`, escrito con el formato de cada idioma y sin depender de la zona
+  del navegador. Lo usa «Los datos llegan hasta 03/10/2025».
+- **Formato y frases.**
+  - La diferencia de Elo del béisbol, el hándicap de la línea de carreras («−1,5») y la diferencia
+    media del historial del baloncesto salen con la coma o el punto de cada idioma.
+  - En béisbol, «Partido muy igualado: Gana X es solo ligeramente favorito» pasa a «X es solo
+    ligeramente favorito».
+  - Plurales arreglados.
+- **Un abridor sin nombre en la base** se nombra por el identificador que trae el dato, nunca por un
+  nombre inventado (antes salía «null»).
+- **No cambia ningún número.**
+- **Con esto, los siete deportes escriben en tu idioma** la tarjeta y la lectura y los factores de la
+  ficha. Siguen en español las piezas comunes de la ficha: entradas, «¿Y si…?», panel de confianza y
+  aviso.
+- **Fechas mal escritas en el registro.** La entrada del fútbol y una nota del plan decían 25-nov; eran
+  del 24.
+
+## Seguimiento del PR #18, fase C (3): el fútbol, en tu idioma (2026-11-24)
 
 - **El fútbol escribe sus explicaciones con código** (46 códigos):
   - el veredicto («Gana X», «Empate») y la doble oportunidad («X o empate»);

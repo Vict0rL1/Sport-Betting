@@ -40,7 +40,7 @@ import {
 import { getHomePark, getParkFactor } from './parkFactors.ts';
 import { getLeagueRunsPerGame, PITCHER_CARRYOVER } from './ratings.ts';
 import type { BsbRecord, LeagueId } from './types.ts';
-import { num, pct as pctEs } from '../numeros.ts';
+import { dec, exacto, exactoSigno, explica, fecha, frases, int, motivos, porc, resumen, sinTexto, txt, type Explicacion, type ExplicacionConTexto, type ParamExp, type Resumen } from '../explicaciones/index.ts';
 
 export const DISCLAIMER =
   'Estimación estadística basada en Elo con ventaja de campo, el lanzador abridor anunciado, ' +
@@ -84,6 +84,8 @@ export interface BsbStarter {
   runFactor: number;
   /** Plain wording for the card. */
   label: string;
+  /** La misma descripción como código (explicaciones/); null mientras no hay abridor construido. */
+  explicacion: Explicacion | null;
 }
 
 export interface BsbSide {
@@ -107,6 +109,8 @@ export interface BsbReliability {
   label: string;
   marginPp: number;
   reasons: string[];
+  /** Los mismos motivos, como códigos (explicaciones/): la web los escribe en su idioma. */
+  explicaciones: Explicacion[];
   gamesBehind: { home: number; away: number };
 }
 
@@ -163,16 +167,18 @@ export interface BsbPrediction {
     recent: { date: string; homeId: string; awayId: string; homeRuns: number; awayRuns: number }[];
   };
   reasoning: {
-    factors: { key: 'rating' | 'home' | 'pitching'; label: string; pointsForHome: number }[];
+    factors: { key: 'rating' | 'home' | 'pitching'; label: string; pointsForHome: number; explicacion: Explicacion }[];
     text: string;
+    /** El mismo texto, como códigos (explicaciones/). */
+    explicaciones: Explicacion[];
   };
   reliability: BsbReliability;
-  summary: { headline: string; bullets: string[] };
-  verdict: { outcome: 'home' | 'away'; label: string; probability: number; close: boolean };
+  summary: Resumen;
+  /** `label` es una frase («Gana …»): `explicacion`, su código. */
+  verdict: { outcome: 'home' | 'away'; label: string; explicacion: Explicacion; probability: number; close: boolean };
   disclaimer: string;
 }
 
-const pct1 = (p: number) => pctEs(p);
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 function sigmaFor(games: number, monthsStale: number): number {
@@ -181,26 +187,26 @@ function sigmaFor(games: number, monthsStale: number): number {
   return Math.sqrt(sample * sample + stale * stale);
 }
 
-function humanGap(days: number): string {
-  if (days < 60) return `${days} días`;
+function humanGap(days: number): ExplicacionConTexto {
+  if (days < 60) return explica('tiempo.dias', { n: int(days) });
   const months = Math.round(days / 30);
-  if (months < 24) return `~${months} meses`;
-  const years = Math.round(days / 365);
-  return years === 1 ? '~1 año' : `~${years} años`;
+  if (months < 24) return explica('tiempo.meses', { n: int(months) });
+  return explica('tiempo.anios', { n: int(Math.round(days / 365)) });
 }
 
-function describeStarter(rating: number | null, starts: number): string {
-  if (rating == null || starts === 0) return 'sin datos: se supone un abridor medio';
+function describeStarter(rating: number | null, starts: number): ExplicacionConTexto {
+  if (rating == null || starts === 0) return explica('beisbol.abridor.sinDatos');
   const pctBetter = Math.round((1 - rating) * 100);
-  if (Math.abs(pctBetter) < 4) return `en la media (${starts} aperturas)`;
+  if (Math.abs(pctBetter) < 4) return explica('beisbol.abridor.media', { n: int(starts) });
   return pctBetter > 0
-    ? `permite ~${pctBetter}\u00a0% menos carreras de lo esperado (${starts} aperturas)`
-    : `permite ~${-pctBetter}\u00a0% más carreras de lo esperado (${starts} aperturas)`;
+    ? explica('beisbol.abridor.mejor', { pct: int(pctBetter), n: int(starts) })
+    : explica('beisbol.abridor.peor', { pct: int(-pctBetter), n: int(starts) });
 }
 
 function buildStarter(league: LeagueId, id: string | null, weightApplied: number): BsbStarter {
   const row = id ? getPitcher(league, id) : null;
   const rating = row?.rating ?? null;
+  const descripcion = describeStarter(rating, row?.starts ?? 0);
   return {
     id: id ?? null,
     name: row?.name ?? null,
@@ -208,7 +214,8 @@ function buildStarter(league: LeagueId, id: string | null, weightApplied: number
     runsPerStart: row?.runs_per_9 ?? null,
     rating,
     runFactor: weightApplied,
-    label: describeStarter(rating, row?.starts ?? 0),
+    label: descripcion.texto,
+    explicacion: sinTexto(descripcion),
   };
 }
 
@@ -229,7 +236,7 @@ function buildSide(league: LeagueId, id: string, isHome: boolean): BsbSide {
     venueRecord: isHome ? rec.home : rec.away,
     last10: getRecentGames(league, id, 10).map((g) => g.result),
     expectedRuns: 0,
-    starter: { id: null, name: null, starts: 0, runsPerStart: null, rating: null, runFactor: 1, label: '' },
+    starter: { id: null, name: null, starts: 0, runsPerStart: null, rating: null, runFactor: 1, label: '', explicacion: null },
   };
 }
 
@@ -365,29 +372,24 @@ export function buildBaseballPrediction(
   const slope = (Math.LN10 * pTop * (1 - pTop)) / 400;
   const marginPp = Math.round(Math.min(sigmaGap * slope * 100, 20) * 10) / 10;
 
-  const reasons: string[] = [];
+  const reasons: ExplicacionConTexto[] = [];
   for (const [side, stale] of [
     [home, homeStale],
     [away, awayStale],
   ] as [BsbSide, number][]) {
     if (side.gamesInDb < MIN_GAMES_FOR_ANY_CONFIDENCE) {
-      reasons.push(`${side.name} tiene solo ${side.gamesInDb} partidos en el historial.`);
+      reasons.push(explica('beisbol.fiab.pocosPartidos', { equipo: txt(side.name), n: int(side.gamesInDb) }));
     }
     if (stale >= 5) {
-      reasons.push(
-        `${side.name} no juega desde hace ${humanGap(Math.round(stale * 30))}: su Elo describe a la plantilla de entonces.`,
-      );
+      reasons.push(explica('beisbol.fiab.parado', { equipo: txt(side.name), tiempo: frases([humanGap(Math.round(stale * 30))], 'coma') }));
     }
   }
   for (const side of [home, away]) {
     if (!side.starter.id) {
-      reasons.push(
-        `No se conoce el abridor de ${side.name}: se asume uno medio, y en béisbol eso es mucha incertidumbre.`,
-      );
+      reasons.push(explica('beisbol.fiab.sinAbridor', { equipo: txt(side.name) }));
     } else if (side.starter.starts < 10) {
-      reasons.push(
-        `${side.starter.name} tiene solo ${side.starter.starts} aperturas: su valoración aún pesa poco.`,
-      );
+      // Sin nombre en la base, el identificador que trae el dato: nunca un nombre inventado.
+      reasons.push(explica('beisbol.fiab.pocasAperturas', { abridor: txt(side.starter.name ?? side.starter.id), n: int(side.starter.starts) }));
     }
   }
   const worstGames = Math.min(home.gamesInDb, away.gamesInDb);
@@ -403,14 +405,15 @@ export function buildBaseballPrediction(
     level,
     label: level === 'high' ? 'fiabilidad alta' : level === 'medium' ? 'fiabilidad media' : 'fiabilidad baja',
     marginPp,
-    reasons,
+    ...motivos(reasons),
     gamesBehind: { home: home.gamesInDb, away: away.gamesInDb },
   };
 
   // ---- verdict ----
   const outcome: 'home' | 'away' = win.home >= win.away ? 'home' : 'away';
   const outcomeProb = outcome === 'home' ? win.home : win.away;
-  const outcomeLabel = outcome === 'home' ? `Gana ${home.name}` : `Gana ${away.name}`;
+  const veredicto = explica('beisbol.veredicto', { equipo: txt(outcome === 'home' ? home.name : away.name) });
+  const outcomeLabel = veredicto.texto;
   // Baseball is a coin flip far more often than the other three sports. Anything
   // under 55% deserves to be called what it is rather than dressed up as a pick.
   const close = outcomeProb < 0.55;
@@ -421,103 +424,110 @@ export function buildBaseballPrediction(
   // conversion, so it sits on the same scale as the other two factors.
   const pitchRatio = (lambda.home / lambda.baseHome) / (lambda.away / lambda.baseAway);
   const pitchingElo = Math.round((Math.log10(pitchRatio) * 400) / RUN_SENSITIVITY);
-  const factors: BsbPrediction['reasoning']['factors'] = [
-    { key: 'rating', label: 'Elo (nivel del equipo)', pointsForHome: ratingGap },
-    { key: 'home', label: 'Ventaja de campo', pointsForHome: HOME_ADVANTAGE },
-  ];
-  if (Math.abs(pitchingElo) >= 1) {
-    factors.push({ key: 'pitching', label: 'Duelo de abridores', pointsForHome: pitchingElo });
-  }
-  const reasoningText =
+  const factor = (key: 'rating' | 'home' | 'pitching', pointsForHome: number) => {
+    const e = explica(`beisbol.factor.${key}`);
+    return { key, label: e.texto, pointsForHome, explicacion: sinTexto(e) };
+  };
+  const factors: BsbPrediction['reasoning']['factors'] = [factor('rating', ratingGap), factor('home', HOME_ADVANTAGE)];
+  if (Math.abs(pitchingElo) >= 1) factors.push(factor('pitching', pitchingElo));
+  // La diferencia de Elo con sus decimales y la coma (antes salía «45.3 puntos»).
+  const puntos = exacto(Math.abs(ratingGap));
+  const lectura =
     Math.abs(ratingGap) < 20
-      ? `Los dos equipos están muy igualados en Elo; el duelo de abridores y la ventaja de campo deciden.`
+      ? explica('beisbol.lectura.igualados')
       : ratingGap > 0
-        ? `${home.name} es mejor equipo según el Elo (${Math.abs(ratingGap)} puntos) y juega en casa.`
-        : `${away.name} es mejor equipo según el Elo (${Math.abs(ratingGap)} puntos), aunque juega fuera.`;
+        ? explica('beisbol.lectura.mejorLocal', { equipo: txt(home.name), puntos })
+        : explica('beisbol.lectura.mejorVisitante', { equipo: txt(away.name), puntos });
+  const reasoningText = lectura.texto;
 
   // ---- summary ----
   const top = scorelines[0];
   const headline = close
-    ? `Partido muy igualado: ${outcomeLabel} es solo ligeramente favorito (${pct1(outcomeProb)}).`
-    : `Lo más probable: ${outcomeLabel} (${pct1(outcomeProb)}), con ${top.label} como marcador más probable (${pct1(top.probability)}).`;
+    ? explica('beisbol.titular.igualado', { equipo: txt(outcome === 'home' ? home.name : away.name), p: porc(outcomeProb) })
+    : explica('beisbol.titular', { opcion: frases([veredicto], 'coma'), p: porc(outcomeProb), marcador: txt(top.label), pMarcador: porc(top.probability) });
 
-  const bullets: string[] = [];
+  const local = txt(home.name);
+  const visitante = txt(away.name);
+  const bullets: ExplicacionConTexto[] = [];
   if (inviernos > 0) {
     bullets.push(
-      `Los datos llegan hasta ${ultimo!.slice(6, 8)}/${ultimo!.slice(4, 6)}/${ultimo!.slice(0, 4)}: ` +
-        `los ratings se acercan a la media ${inviernos === 1 ? 'un invierno' : `${inviernos} inviernos`} ` +
-        '(las plantillas cambian), igual que haría el modelo con la temporada delante.',
+      inviernos === 1
+        ? explica('beisbol.invierno.uno', { fecha: fecha(ultimo!) })
+        : explica('beisbol.invierno.varios', { fecha: fecha(ultimo!), n: int(inviernos) }),
     );
   }
+  bullets.push(explica('beisbol.ganador', { local, pLocal: porc(win.home), visitante, pVisitante: porc(win.away) }));
+  const abridor = (x: BsbStarter): ParamExp => (x.name ? txt(x.name) : frases([explica('beisbol.sinAnunciar')], 'coma'));
+  const detalle = (x: BsbStarter): ParamExp => frases([describeStarter(x.rating, x.starts)], 'coma');
   bullets.push(
-    `Ganador: ${home.name} ${pct1(win.home)} · ${away.name} ${pct1(win.away)}. ` +
-      `El béisbol es el deporte más igualado de los cuatro: el mejor equipo de la liga pierde ~60 partidos al año.`,
+    explica('beisbol.abridores', {
+      local,
+      abridorLocal: abridor(home.starter),
+      detalleLocal: detalle(home.starter),
+      visitante,
+      abridorVisitante: abridor(away.starter),
+      detalleVisitante: detalle(away.starter),
+    }),
   );
   bullets.push(
-    `Abridores: ${home.name} ${home.starter.name ?? 'sin anunciar'} (${home.starter.label}) · ` +
-      `${away.name} ${away.starter.name ?? 'sin anunciar'} (${away.starter.label}).`,
+    explica('beisbol.carreras', { local, cLocal: exacto(home.expectedRuns), cVisitante: exacto(away.expectedRuns), visitante, total: exacto(round2(expectedTotalRuns(dist))) }),
   );
   bullets.push(
-    `Carreras esperadas: ${home.name} ${num(home.expectedRuns)} – ${num(away.expectedRuns)} ${away.name} ` +
-      `(total ${num(round2(expectedTotalRuns(dist)))}).`,
-  );
-  bullets.push(
-    `Más de ${num(totalLine)} carreras: ${pct1(over)} · menos: ${pct1(1 - over)}. ` +
-      `Línea de carreras: ${home.name} −1,5 al ${pct1(line.homeCovers)}.`,
+    explica('beisbol.total', { linea: exacto(totalLine), pMas: porc(over), pMenos: porc(1 - over), local, hcp: exactoSigno(-1.5), pLinea: porc(line.homeCovers) }),
   );
   if (park && Math.abs(park.factor - 1) >= 0.02) {
     const pct = Math.round((park.factor - 1) * 100);
     const runs = round2(expectedTotal - expectedTotal / park.factor);
     bullets.push(
-      `Estadio: ${park.name} ${pct > 0 ? 'sube' : 'baja'} el total un ${Math.abs(pct)}\u00a0% ` +
-        `(${runs > 0 ? '+' : ''}${num(runs)} carreras) sobre un estadio neutro, medido en ${park.games} partidos allí. ` +
-        `Ya está dentro de las carreras esperadas.`,
+      explica(pct > 0 ? 'beisbol.estadio.sube' : 'beisbol.estadio.baja', { estadio: txt(park.name), pct: int(Math.abs(pct)), carreras: exactoSigno(runs), n: int(park.games) }),
     );
   }
+  bullets.push(explica('beisbol.extras', { p: porc(dist.extraInnings) }));
   bullets.push(
-    `Probabilidad de entradas extra: ${pct1(dist.extraInnings)} (en MLB ocurre en ~8-9\u00a0% de los partidos).`,
+    explica('beisbol.elo', { local, eloLocal: int(home.elo), rankLocal: int(home.eloRank), visitante, eloVisitante: int(away.elo), rankVisitante: int(away.eloRank) }),
   );
   bullets.push(
-    `Elo: ${home.name} ${Math.round(home.elo)} (#${home.eloRank}) vs ${away.name} ${Math.round(away.elo)} (#${away.eloRank}).`,
-  );
-  bullets.push(
-    `Balance: ${home.name} ${home.record.wins}-${home.record.losses} ` +
-      `(${home.venueRecord.wins}-${home.venueRecord.losses} en casa); ` +
-      `${away.name} ${away.record.wins}-${away.record.losses} ` +
-      `(${away.venueRecord.wins}-${away.venueRecord.losses} fuera).`,
+    explica('beisbol.balance', {
+      local,
+      g: int(home.record.wins),
+      p: int(home.record.losses),
+      gCasa: int(home.venueRecord.wins),
+      pCasa: int(home.venueRecord.losses),
+      visitante,
+      g2: int(away.record.wins),
+      p2: int(away.record.losses),
+      gFuera: int(away.venueRecord.wins),
+      pFuera: int(away.venueRecord.losses),
+    }),
   );
   if (home.pythagorean != null && away.pythagorean != null) {
-    bullets.push(
-      `Pitagórico (lo que dicen sus carreras): ${home.name} ${pct1(home.pythagorean)} · ` +
-        `${away.name} ${pct1(away.pythagorean)}. La diferencia con el balance real es la parte de suerte.`,
-    );
+    bullets.push(explica('beisbol.pitagorico', { local, pLocal: porc(home.pythagorean), visitante, pVisitante: porc(away.pythagorean) }));
   }
   if (home.last10.length && away.last10.length) {
-    bullets.push(`Últimos 10: ${home.name} ${home.last10.join('')} · ${away.name} ${away.last10.join('')}.`);
+    bullets.push(explica('beisbol.ultimos10', { local, fLocal: txt(home.last10.join('')), visitante, fVisitante: txt(away.last10.join('')) }));
   }
   if (meetings.length > 0) {
-    bullets.push(
-      `Historial directo reciente: ${home.name} ${hw}-${aw} ${away.name} en ${meetings.length} partidos. ` +
-        `No entra en la probabilidad: el Elo ya recoge el nivel de ambos.`,
-    );
+    bullets.push(explica('beisbol.h2h', { local, g: int(hw), p: int(aw), visitante, n: int(meetings.length) }));
   }
   if (marketComparison.market) {
     const m = marketComparison.market;
     if (marketComparison.verdict === 'agree') {
-      bullets.push(`Las casas coinciden a grandes rasgos (${pct1(m.home)} / ${pct1(m.away)}).`);
+      bullets.push(explica('beisbol.mercado.coincide', { pLocal: porc(m.home), pVisitante: porc(m.away) }));
     } else {
-      const which = marketComparison.verdict === 'value_home' ? home.name : away.name;
+      const which = marketComparison.verdict === 'value_home' ? local : visitante;
       const diff = marketComparison.verdict === 'value_home' ? marketComparison.edge!.home : marketComparison.edge!.away;
-      bullets.push(`El modelo da ${num(diff * 100, 1)} pp más a ${which} que el mercado: posible value.`);
+      bullets.push(explica('beisbol.mercado.value', { pp: dec(diff * 100, 1), quien: which }));
     }
   } else {
-    bullets.push('Sin cuotas disponibles para comparar con el mercado.');
+    bullets.push(explica('beisbol.mercado.sin'));
   }
   if (reliability.level !== 'high') {
+    const margen = dec(reliability.marginPp, 1);
+    const primero = reliability.explicaciones[0];
     bullets.push(
-      `⚠️ ${reliability.label.charAt(0).toUpperCase() + reliability.label.slice(1)}: ` +
-        `tómalo como un rango (±${num(reliability.marginPp, 1)} pp).` +
-        (reliability.reasons.length ? ` ${reliability.reasons[0]}` : ''),
+      primero
+        ? explica(`beisbol.aviso.${reliability.level}.motivo`, { margen, motivo: { t: 'frases', v: [primero], sep: 'coma' } })
+        : explica(`beisbol.aviso.${reliability.level}`, { margen }),
     );
   }
 
@@ -563,10 +573,10 @@ export function buildBaseballPrediction(
       : null,
     market: marketComparison,
     h2h: { total: meetings.length, homeWins: hw, awayWins: aw, recent: meetings },
-    reasoning: { factors, text: reasoningText },
+    reasoning: { factors, text: reasoningText, explicaciones: [sinTexto(lectura)] },
     reliability,
-    summary: { headline, bullets },
-    verdict: { outcome, label: outcomeLabel, probability: outcomeProb, close },
+    summary: resumen(headline, bullets),
+    verdict: { outcome, label: outcomeLabel, explicacion: sinTexto(veredicto), probability: outcomeProb, close },
     disclaimer: DISCLAIMER,
   };
 }

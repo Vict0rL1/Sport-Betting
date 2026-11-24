@@ -5,6 +5,7 @@
 // vice versa.
 
 import type { MatchOutcome } from './outcome';
+import type { Explicacion } from './explicacion';
 
 export interface BbLeague {
   id: string;
@@ -46,6 +47,8 @@ export interface BbReasoningFactor {
   key: 'rating' | 'home' | 'rest';
   label: string;
   pointsForHome: number;
+  /** La etiqueta como código (fase C): falta en respuestas de antes. */
+  explicacion?: Explicacion;
 }
 
 export interface BbReliability {
@@ -54,6 +57,8 @@ export interface BbReliability {
   marginPp: number;
   range: { low: number; high: number };
   reasons: string[];
+  /** Los motivos como códigos (fase C): faltan en respuestas de antes. */
+  explicaciones?: Explicacion[];
   gamesBehind: { home: number; away: number };
 }
 
@@ -105,6 +110,8 @@ export interface BbDistribution {
 export interface BbProjection {
   margin: number;
   spreadLabel: string;
+  /** El hándicap como código (fase C): falta en respuestas de antes. */
+  spreadExplicacion?: Explicacion;
   home: number | null;
   away: number | null;
   total: number | null;
@@ -124,9 +131,10 @@ export interface BbPrediction {
     factors: BbReasoningFactor[];
     topFactor: BbReasoningFactor | null;
     text: string;
+    explicaciones?: Explicacion[];
   };
   reliability: BbReliability;
-  summary: { headline: string; bullets: string[] };
+  summary: { headline: string; bullets: string[]; explicaciones?: { headline: Explicacion; bullets: Explicacion[] } };
   verdict: {
     favored: 'home' | 'away' | null;
     favoredName: string | null;

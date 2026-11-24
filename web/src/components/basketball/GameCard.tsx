@@ -23,6 +23,7 @@ import { EnlacePartido } from '../ui';
 import EventTrustPanel from '../trust/EventTrustPanel';
 import { conNodos, useI18n } from '../../i18n';
 import { cifra, pct as pctF } from '../../lib/formato';
+import { escribir, escribirTodas } from '../../lib/explicacion';
 
 /**
  * A readable label for a margin band.
@@ -46,7 +47,7 @@ export default function GameCard({
   item: BbGameWithPrediction;
   onOpenTeam: (league: string, id: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const { game, prediction, teams } = item;
 
   const value = prediction?.market.verdict;
@@ -224,7 +225,7 @@ export default function GameCard({
                 title={[
                   t('eq.margenPp', { pp: prediction.reliability.marginPp }),
                   t('eq.trasCadaElo', { a: prediction.reliability.gamesBehind.home, b: prediction.reliability.gamesBehind.away }),
-                  ...prediction.reliability.reasons,
+                  ...escribirTodas(t, idioma, prediction.reliability.explicaciones, prediction.reliability.reasons),
                 ].join('\n')}
               />
             </div>
@@ -240,7 +241,7 @@ export default function GameCard({
                 <StatRow>
             <StatTile
               label={t('bkc.diferencia')}
-              value={prediction.projection.spreadLabel}
+              value={escribir(t, idioma, prediction.projection.spreadExplicacion, prediction.projection.spreadLabel)}
               hint={t('bkc.margenEsperado')}
             />
             <StatTile
@@ -276,7 +277,7 @@ export default function GameCard({
                 <Panel>
                   <SectionTitle>{t('eq.lecturaCompleta')}</SectionTitle>
                   <ul className="space-y-1.5">
-                    {prediction.summary.bullets.map((b, i) => (
+                    {escribirTodas(t, idioma, prediction.summary.explicaciones?.bullets, prediction.summary.bullets).map((b, i) => (
                       <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-(--ink-soft)">
                         <span aria-hidden className="text-(--ink-faint)">•</span>
                         <span>{b}</span>

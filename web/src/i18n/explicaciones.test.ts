@@ -14,7 +14,7 @@ import { fijarIdiomaFormato } from '../lib/formato.ts';
  * Iguales en los dos idiomas a propósito: el anglicismo que el español ya usa. Una plantilla sin palabras
  * fuera de sus parámetros («{quien}: {senales}», «{quien} {g}–{p}») tampoco tiene nada que traducir.
  */
-const IGUALES_A_PROPOSITO = new Set(['tenis.factor.h2h', 'tenis.factorEnFrase.h2h', 'futbol.elo']);
+const IGUALES_A_PROPOSITO = new Set(['tenis.factor.h2h', 'tenis.factorEnFrase.h2h', 'futbol.elo', 'baloncesto.elo', 'beisbol.elo']);
 const sinPalabras = (s: string) => !/[a-záéíóúñü]/i.test(s.replace(/\{[^}]*\}/g, ''));
 const marcas = (s: string) => [...new Set([...s.matchAll(/\{(\w+)(?:\|[^}]*)?\}/g)].map((m) => m[1]))].sort().join(',');
 const cat = EXPLICACIONES as Record<string, string>;
@@ -99,5 +99,16 @@ test('una explicación con piezas anidadas se escribe pieza a pieza en cada idio
   // Una pieza que el catálogo no conoce: la frase entera del servidor, no media frase.
   const rara = { codigo: 'tenis.forma.rachas', params: { partes: { t: 'frases', v: [{ codigo: 'nuevo.codigo', params: {} }], sep: 'pyc' } } };
   assert.equal(escribir(tDe({ ...es, ...en }) as never, 'en', rara as never, 'Frase del servidor'), 'Frase del servidor');
+  fijarIdiomaFormato('es');
+});
+
+test('una fecha va con el formato de cada idioma, sin depender de la zona del navegador', async () => {
+  const { fecha } = await import('../../../server/src/explicaciones/index.ts');
+  const e = explica('beisbol.invierno.uno', { fecha: fecha('20251003') });
+  assert.match(e.texto, /^Los datos llegan hasta 03\/10\/2025: /);
+  fijarIdiomaFormato('es');
+  assert.equal(escribir(tDe(es) as never, 'es', e, '¿?'), e.texto);
+  fijarIdiomaFormato('en');
+  assert.match(escribir(tDe({ ...es, ...en }) as never, 'en', e, '¿?'), /^The data runs to 03\/10\/2025: /);
   fijarIdiomaFormato('es');
 });
