@@ -58,3 +58,28 @@ test('B: la cartera pide los límites en la moneda de su banco y distingue «sin
   await page.reload();
   await expect(page.getByRole('combobox', { name: 'Moneda del banco' })).toHaveValue('EUR');
 });
+
+test('F: la importación por CSV enseña antes qué entra, qué no y qué se pierde; importar escribe solo lo válido', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('predictor.recorrido', '1'));
+  await page.goto('/apuestas');
+  await page.getByRole('button', { name: 'Importar CSV' }).click();
+  const csv = [
+    'placed_on,sport,event,market,selection,odds,stake,currency,snapshot_id',
+    '2026-11-20,tennis,Importada Sintética,moneyline,A,1.9,10,EUR,7',
+    '2026-11-20,foo,Rechazada Sintética,moneyline,A,1.9,10,EUR,',
+  ].join('\n');
+  await page.getByRole('textbox', { name: 'Contenido del CSV' }).fill(csv);
+  await page.getByRole('button', { name: 'Revisar' }).click();
+  const vista = page.getByRole('status').filter({ hasText: 'Todavía no se ha guardado nada' });
+  await expect(vista).toContainText('Se importará 1 apuesta; 1 fila no entra.');
+  await expect(vista).toContainText('Línea 3: sport:');
+  await expect(vista).toContainText('Línea 2: la apuesta se puede importar, pero su enlace a la estimación original no se puede restaurar.');
+  await page.getByRole('button', { name: 'Importar 1' }).click();
+  await expect(page.getByRole('status').filter({ hasText: '1 importada' })).toBeVisible();
+  // Lo guardado, no la página (el CSV sigue en el cuadro de texto): solo la fila válida, y sin enlace.
+  const guardadas = (await (await page.request.get('/api/bets')).json()) as { event: string; snapshot_id: number | null }[] | { bets: { event: string; snapshot_id: number | null }[] };
+  const lista = Array.isArray(guardadas) ? guardadas : guardadas.bets;
+  const nuestras = lista.filter((b) => /Sintética/.test(b.event));
+  expect(nuestras.map((b) => b.event)).toEqual(['Importada Sintética']);
+  expect(nuestras[0].snapshot_id).toBeNull();
+});

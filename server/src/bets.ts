@@ -248,6 +248,12 @@ export interface BetInput {
   currency?: string | null;
   /** E5: la instantánea con la que se hizo; null o ausente = sin enlazar. */
   snapshot_id?: number | null;
+  /**
+   * Cuándo se liquidó, si se sabe de antes (la importación por CSV, ya validada: legible, no antes de
+   * colocarse, no en el futuro). Sin él, una apuesta que entra ya liquidada toma «ahora». La API no lo
+   * acepta en el cuerpo (bets/validar.ts no lo lee): solo lo pasa el importador.
+   */
+  settled_at?: string | null;
 }
 
 /** Today in the SERVER's local zone, which is where the user is. */
@@ -311,7 +317,7 @@ export function createBet(input: BetInput): Bet {
       input.stake,
       status,
       input.payout ?? null,
-      status === 'pending' ? null : now,
+      status === 'pending' ? null : (input.settled_at ?? now),
       input.notes ?? null,
       input.model_prob ?? null,
       input.market_prob ?? null,

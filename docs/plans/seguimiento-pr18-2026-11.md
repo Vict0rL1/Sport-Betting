@@ -102,7 +102,7 @@ Además, vistos al trazar los llamadores:
 | C | Explicaciones estructuradas y bilingües, siete deportes | En curso: NHL, UFC y NFL hechas; tenis, fútbol, baloncesto y béisbol, no | `web/src/i18n/explicaciones.test.ts`, `server/src/explicaciones/coherencia.ts` en `nhl/publicada.test.ts`, `ufc/publicada.test.ts` y `prediction/formatoTexto.test.ts` |
 | D | Jerarquía visual y móvil | Pendiente | |
 | E | Calibración y rendimiento en el tiempo | Pendiente | |
-| F | Vista previa de la importación CSV | Pendiente | |
+| F | Vista previa de la importación CSV | Hecho | `server/src/bets/importar.vista.test.ts`, `e2e/seguimiento-pr18.spec.ts` (F) |
 | G | Fiabilidad de los avisos | Pendiente | |
 
 ## Decisiones
@@ -224,6 +224,50 @@ Además, vistos al trazar los llamadores:
   equivalente localizado» al enseñarlo. Las explicaciones estructuradas no lo usan. Queda como estaba en
   las fichas (término fijo); no se cambia aquí.
 
+### Orden de trabajo (decisión del 24-nov)
+
+Después de la fase C (1) se hicieron F y G antes que el resto de C. Las dos tocan la integridad del libro
+mayor (qué entra al importar) y la honradez de lo que la app afirma («enviado»), y una pista sin hacer ahí
+pesa más que cuatro deportes aún en español, que tienen reserva: la frase del servidor. El mecanismo de C
+ya está y el resto de deportes es mecánico.
+
+### F. La importación por CSV, transparente (`server/src/bets/importar.ts`)
+
+- **Lo que había.**
+  - Se importaba a ciegas: la persona solo sabía después qué había entrado.
+  - Las filas que pasaban de 1.000 se ignoraban sin decirlo.
+  - El `settled_at` exportado se tiraba, y un histórico importado dejaba la semana de los límites «sin
+    evaluar».
+  - Una fila con `snapshot_id` perdía el enlace sin aviso.
+- **La vista previa** (`POST /api/bets/import/preview`, `analizarCsv`) NO escribe. Dice:
+  - qué filas entrarían y cuáles no, con la línea, el campo y un código que la web traduce;
+  - qué columnas no se leen;
+  - qué filas pasan del límite;
+  - los avisos de cada fila válida.
+- **Importar vuelve a leer y validar todo desde cero**, con la misma función: lo que dijo la vista previa
+  es lo que hace, y una vista previa no autoriza nada.
+- **Avisos** (no impiden importar):
+  - `enlace-no-restaurado`: la fila traía `snapshot_id`. Un id de instantánea es de su instalación; aquí
+    nunca se engancha, ni a otra con el mismo número, ni a una inventada. La frase que se enseña es la
+    del brief: «La apuesta se puede importar, pero su enlace a la estimación original no se puede
+    restaurar».
+  - `posible-duplicado`: la regla documentada.
+    - Es idéntica a una apuesta guardada o a otra fila del fichero en fecha de colocación, deporte,
+      evento, mercado, selección, cuota, importe, moneda y estado, ya validados (1,90 y 1.9 son lo mismo).
+    - Se avisa y NO se descarta: dos apuestas iguales pueden ser legítimas.
+    - No se intenta adivinar por una combinación más laxa.
+  - `dia-de-liquidacion-desconocido`: liquidada, sin `settled_at` y colocada antes de hoy. Los límites de
+    pérdida no sabrán qué día se liquidó (fase B).
+- **`settled_at` del CSV.** Se acepta solo si es un instante ISO CON zona (`…Z` o `…±hh:mm`, como lo
+  escribe la exportación), de una liquidada, no futuro y no anterior al día de colocación en la zona de
+  la política.
+  - Una fecha a secas, `05/11/2026` o una hora sin zona no se adivinan: la fila se rechaza con su código.
+  - Si el CSV dice que la apuesta entró ya liquidada en su instalación (`created_at` = `settled_at`), su
+    día no se sabía y sigue sin saberse: no se guarda esa fecha, y se avisa.
+  - La API no lo acepta en el cuerpo: solo lo pasa el importador.
+- **La web** (`ImportarCsv`): pegar o elegir el fichero → «Revisar» → resumen, filas rechazadas con su
+  error en el idioma y avisos → «Importar N».
+
 ## Revisiones y su destino
 
 ### Fase B
@@ -255,6 +299,20 @@ Además, vistos al trazar los llamadores:
   | 3 | Bajo | `today()` dependía del formato `en-CA` | Arreglado: `local()` (formatToParts) |
   | 4 | Info | Las apuestas corregidas ANTES de este cambio ya tienen la hora de la corrección | No se puede arreglar sin inventar una fecha. Se documenta |
   | — | Info | `liquidadasPersonales` recorre la tabla entera | 8–10 ms con 100.000 filas, una vez por petición: aceptable, sin índice |
+
+### Fase F
+
+- **data-guardian.** Nada engancha una instantánea, la importación vuelve a validar cada fila, y la ida y
+  vuelta conserva eventos, etiquetas, notas con comillas, celdas con apóstrofo y `settled_at`.
+
+  | # | Sev. | Hallazgo | Destino |
+  | --- | --- | --- | --- |
+  | 1 | Alto | `Date.parse` aceptaba `2026-11-21`, `2026`, `05/11/2026` o una hora sin zona, y los límites de pérdida se fiaban del día que salía (en Nueva York, una fecha a secas caía el día antes de colocarse) | Arreglado: solo instantes ISO con zona; si no, `importar.liquidacion-sin-zona` (`importar.vista.test.ts`) |
+  | 2 | Medio | La ida y vuelta convertía un día desconocido (entró ya liquidada) en uno conocido | Arreglado: con `created_at` = `settled_at` no se guarda la fecha y se avisa |
+  | 3 | Bajo | El límite inferior no miraba la zona de la política | Arreglado: el día de liquidación en esa zona, no antes del de colocación |
+  | 4 | Bajo | El aviso de duplicado fallaba con el estado o la moneda cambiados | Arreglado: la huella sin estado ni moneda |
+  | 5 | Bajo | Leer todas las apuestas: 0,3–0,4 s con 100.000 | Arreglado: solo las de las fechas de colocación del fichero (`idx_bets_day`) |
+  | 6 | Info | Cada fila se guarda por separado (como antes): una caída a media importación deja una parte | Se mantiene. Al reimportar, los avisos de duplicado lo dicen |
 
 ## Diferido
 

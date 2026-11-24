@@ -26,7 +26,7 @@ import {
   type BetInput,
 } from '../bets.ts';
 import { listBetCandidates } from '../betCandidates.ts';
-import { importarCsv } from '../bets/importar.ts';
+import { analizarCsv, importarCsv } from '../bets/importar.ts';
 import { sugerenciaStake } from '../bets/sugerencia.ts';
 import { clvDeApuesta } from '../bets/clv.ts';
 import { parseBet } from '../bets/validar.ts';
@@ -70,6 +70,25 @@ export async function registerBetRoutes(app: FastifyInstance): Promise<void> {
 
   // Fase 5.16: importar un CSV (una apuesta por fila), sugerencia de stake con la misma
   // política Kelly (solo sugerencia) y CLV de las apuestas propias cuando hay snapshot.
+  // La vista previa (fase F del seguimiento del PR #18): qué filas entrarían, cuáles no (campo y código) y
+  // qué se pierde, SIN escribir nada. Importar después vuelve a leer y validar el CSV desde cero.
+  app.post<{ Body: { csv?: string } }>('/import/preview', async (req, reply) => {
+    if (!featureEncendida('apuestas.importacion')) return reply.code(404).send({ error: 'apagado (features.json: apuestas.importacion)' });
+    const csv = typeof req.body?.csv === 'string' ? req.body.csv : '';
+    if (!csv.trim()) return reply.code(400).send({ error: 'falta el CSV' });
+    const a = analizarCsv(csv);
+    // Lo que se guardaría va resumido: lo que la persona reconoce de su apuesta, no todo el objeto.
+    return {
+      ...a,
+      filas: a.filas.map((f) => ({
+        linea: f.linea,
+        valida: f.valida,
+        errores: f.errores,
+        avisos: f.avisos,
+        apuesta: f.apuesta && { placed_on: f.apuesta.placed_on ?? null, sport: f.apuesta.sport, event: f.apuesta.event, selection: f.apuesta.selection, odds: f.apuesta.odds, stake: f.apuesta.stake, currency: f.apuesta.currency ?? null, status: f.apuesta.status ?? 'pending' },
+      })),
+    };
+  });
   app.post<{ Body: { csv?: string } }>('/import', async (req, reply) => {
     if (!featureEncendida('apuestas.importacion')) return reply.code(404).send({ error: 'apagado (features.json: apuestas.importacion)' });
     const csv = typeof req.body?.csv === 'string' ? req.body.csv : '';

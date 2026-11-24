@@ -4,6 +4,28 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18, fase F: la importación por CSV dice antes qué entra, qué no y qué se pierde (2026-11-24)
+
+- **Vista previa** (`POST /api/bets/import/preview`, que no escribe nada). Dice, fila a fila:
+  - qué entraría y qué no, con la línea, el campo y un código que la web traduce;
+  - qué columnas no se leen;
+  - qué filas pasan del límite de 1.000, que antes se ignoraban en silencio.
+- **La web:** pegar o elegir el fichero → «Revisar» → «Importar N».
+- **Importar vuelve a leer y validar todo desde cero:** una vista previa no autoriza nada.
+- **Avisos que no impiden importar:**
+  - el enlace a la estimación original no se puede restaurar: un id de instantánea es de su
+    instalación y nunca se engancha a otra;
+  - posible duplicado: idéntica en fecha, deporte, evento, mercado, selección, cuota e importe a una
+    apuesta guardada o a otra fila; no se descarta en silencio;
+  - liquidada sin fecha de liquidación: los límites de pérdida no sabrán su día.
+- **La fecha de liquidación del CSV se conserva**, si es un instante ISO con zona coherente con la
+  colocación. Antes se cambiaba por la hora de la importación, y un histórico importado dejaba los
+  límites «sin evaluar» hasta el lunes.
+  - Una fecha a secas o una hora sin zona no se adivinan.
+  - Una apuesta que entró ya liquidada en su instalación sigue sin día conocido.
+- Revisado por data-guardian: 1 alto, 1 medio, 3 bajos y 1 informativo, arreglados o con destino en el
+  plan.
+
 ## Seguimiento del PR #18, fase C (1): explicaciones con código, en tu idioma: NHL, UFC y NFL (2026-11-24)
 
 - **Antes,** el titular, las viñetas, los avisos de fiabilidad, la «lectura» y los factores de cada
