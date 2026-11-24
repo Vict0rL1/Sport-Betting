@@ -4,6 +4,7 @@ import { AWAY_COLOR, HOME_COLOR, NEUTRAL_COLOR, pct } from '../../lib/theme';
 import { CompareRow, FactorValue, FormDots, Panel, SectionTitle } from '../ui';
 import { useI18n, type Clave } from '../../i18n';
 import { num as numF } from '../../lib/formato';
+import { escribirTodas } from '../../lib/explicacion';
 
 const coma = (x: number, d = 0) => numF(x, d);
 const record = (r: UfcSide['record']) => `${r.wins}-${r.losses}${r.draws ? `-${r.draws}` : ''}${r.noContests ? ` (${r.noContests} NC)` : ''}`;
@@ -60,7 +61,7 @@ const ETIQUETA: Record<UfcFactor['key'], Clave> = {
 };
 
 export function Detail({ prediction }: { prediction: UfcPrediction }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const { fighters, factors, h2h, market } = prediction;
   const a = fighters.home;
   const b = fighters.away;
@@ -73,7 +74,7 @@ export function Detail({ prediction }: { prediction: UfcPrediction }) {
       <Panel>
         <SectionTitle>{t('det.porQue')}</SectionTitle>
         <ul className="mb-2 list-disc space-y-1 pl-5 text-[14px] leading-relaxed text-(--ink-body)">
-          {prediction.summary.bullets.map((x) => (
+          {escribirTodas(t, idioma, prediction.summary.explicaciones?.bullets, prediction.summary.bullets).map((x) => (
             <li key={x}>{x}</li>
           ))}
         </ul>

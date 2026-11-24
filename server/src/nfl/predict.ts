@@ -42,7 +42,8 @@ import {
 import { carryOver, SCORING_CARRYOVER, SEASON_CARRYOVER } from './model.ts';
 import { postprocess } from '../postprocess/apply.ts';
 import type { LeagueId, NafRecord } from './types.ts';
-import { conSigno, num, pct as pctEs } from '../numeros.ts';
+import { num } from '../numeros.ts';
+import { dec, exacto, exactoSigno, explica, int, miles, motivos, porc, resumen, signo, sinTexto, textos, txt, type Explicacion, type ExplicacionConTexto, type Resumen } from '../explicaciones/index.ts';
 
 export const DISCLAIMER =
   'Estimación estadística basada en Elo por equipo, una ventaja de campo que la liga actualiza sola, ' +
@@ -148,6 +149,8 @@ export interface NafReliability {
   label: string;
   marginPp: number;
   reasons: string[];
+  /** Los mismos avisos, como códigos (explicaciones/): la web los escribe en su idioma. */
+  explicaciones: Explicacion[];
   gamesBehind: { home: number; away: number };
 }
 
@@ -287,20 +290,20 @@ export interface NafPrediction {
   market: NafMarketComparison;
   reasoning: {
     text: string;
-    factors: { key: string; label: string; pointsForHome: number }[];
+    /** El mismo texto, como códigos (explicaciones/), en orden. */
+    explicaciones: Explicacion[];
+    factors: { key: string; label: string; pointsForHome: number; explicacion: Explicacion }[];
   };
   reliability: NafReliability;
   verdict: { label: string; close: boolean; marginPp: number };
-  summary: { headline: string; bullets: string[] };
+  summary: Resumen;
   context: { homeAdvantageElo: number; homeAdvantagePoints: number; leagueTotal: number };
   disclaimer: string;
 }
 
-const pct = (p: number) => pctEs(p);
 
 /** "Seattle Seahawks" → "Seahawks". The nickname is how the team is spoken of. */
 const shortName = (name: string): string => name.split(' ').slice(-1)[0] ?? name;
-const signed = (x: number) => conSigno(x, 1);
 
 /** Decimal odds → implied probability, with the bookmaker's margin removed. */
 function deVig(oddsHome: number | null, oddsAway: number | null): NafMarket | null {
@@ -413,7 +416,7 @@ function reliabilityOf(
   seasonsMissed: number,
   probMargin: number,
 ): NafReliability {
-  const reasons: string[] = [];
+  const reasons: ExplicacionConTexto[] = [];
   const eff = (g: number) => Math.min(g, EFFECTIVE_GAMES_CAP);
   const sigma =
     ELO_SIGMA_C / Math.sqrt(Math.max(eff(homeGames), 1)) +
@@ -429,23 +432,20 @@ function reliabilityOf(
   let level: ReliabilityLevel = 'medium';
   if (thin < MIN_GAMES_FOR_ANY_CONFIDENCE) {
     level = 'low';
-    reasons.push(`Solo ${thin} partidos detrás del Elo más flojo de los dos.`);
+    reasons.push(explica('nfl.fiab.pocosPartidos', { n: int(thin) }));
   } else if (thin >= GAMES_FOR_HIGH && marginPp <= MARGIN_HIGH_MAX && seasonsMissed === 0) {
     level = 'high';
   } else if (marginPp >= MARGIN_LOW_MIN || seasonsMissed >= 2) {
     level = 'low';
   }
   if (seasonsMissed >= 1) {
-    reasons.push(
-      `Falta${seasonsMissed > 1 ? 'n' : ''} ${seasonsMissed} temporada${seasonsMissed > 1 ? 's' : ''} ` +
-        'en el historial: los Elo no describen a las plantillas de hoy.',
-    );
+    reasons.push(explica('nfl.fiab.temporadas', { n: int(seasonsMissed) }));
   }
-  if (probMargin < 0.06) reasons.push('Partido muy igualado: el favorito lo es por poco.');
+  if (probMargin < 0.06) reasons.push(explica('nfl.fiab.igualado'));
 
   const label =
     level === 'high' ? 'fiabilidad alta' : level === 'medium' ? 'fiabilidad media' : 'fiabilidad baja';
-  return { level, label, marginPp, reasons, gamesBehind: { home: homeGames, away: awayGames } };
+  return { level, label, marginPp, ...motivos(reasons), gamesBehind: { home: homeGames, away: awayGames } };
 }
 
 export interface PredictInput {
@@ -644,47 +644,43 @@ export function buildPrediction(input: PredictInput): NafPrediction | null {
   const round1 = (x: number) => Math.round(x * 10) / 10;
   const edgePoints = round1(edge / ELO_PER_POINT);
 
-  const factors = [
-    { key: 'elo', label: 'Elo (nivel del equipo)', pointsForHome: round1(rawEloPoints) },
-  ];
+  const factor = (key: string, e: ExplicacionConTexto, pointsForHome: number) => ({ key, label: e.texto, pointsForHome, explicacion: sinTexto(e) });
+  const factors = [factor('elo', explica('nfl.factor.elo'), round1(rawEloPoints))];
   if (seasonsAhead > 0) {
-    factors.push({
-      key: 'offseason',
-      label: `Regresión de pretemporada (×${num(SEASON_CARRYOVER)}${seasonsAhead > 1 ? `, ${seasonsAhead} veces` : ''})`,
-      pointsForHome: round1(agedEloPoints - rawEloPoints),
-    });
+    factors.push(
+      factor(
+        'offseason',
+        seasonsAhead > 1 ? explica('nfl.factor.pretemporadas', { factor: exacto(SEASON_CARRYOVER), n: int(seasonsAhead) }) : explica('nfl.factor.pretemporada', { factor: exacto(SEASON_CARRYOVER) }),
+        round1(agedEloPoints - rawEloPoints),
+      ),
+    );
   }
   // The quarterback line only appears when there is something to say: two
   // league-average starters cancel to 0.0 and an empty row is worse than none.
   const qbPoints = round1((homeQbAdj - awayQbAdj) / ELO_PER_POINT);
   if (qbPoints !== 0) {
     const named = [homeQb?.name, awayQb?.name].filter(Boolean).join(' vs ');
-    factors.push({
-      key: 'qb',
-      label: named ? `Quarterback titular (${named})` : 'Quarterback titular',
-      pointsForHome: qbPoints,
-    });
+    factors.push(factor('qb', named ? explica('nfl.factor.qbNombres', { nombres: txt(named) }) : explica('nfl.factor.qb'), qbPoints));
   }
-  factors.push({
-    key: 'home',
-    label: input.neutral ? 'Campo neutral' : 'Ventaja de campo (la que mide la liga hoy)',
-    pointsForHome: edgePoints,
-  });
+  factors.push(factor('home', explica(input.neutral ? 'nfl.factor.neutral' : 'nfl.factor.campo'), edgePoints));
 
   const eloPoints = round1(agedEloPoints);
   const favourite = expectedMargin >= 0 ? home.name : away.name;
-  const offseasonNote =
-    seasonsAhead > 0
-      ? ` Los Elo vienen regresados hacia la media porque de por medio hay ${
-          seasonsAhead > 1 ? `${seasonsAhead} pretemporadas` : 'una pretemporada'
-        }: en la NFL solo sobrevive el ${pctEs(SEASON_CARRYOVER, 0)} de la diferencia entre dos equipos.`
-      : '';
-  const reasoningText =
-    (input.neutral
-      ? `${favourite} llega mejor valorado (${num(Math.abs(eloPoints))} puntos de diferencia por Elo) y se juega en campo neutral.`
-      : `${favourite} llega mejor valorado (${num(Math.abs(eloPoints))} puntos por Elo) y ${
-          edgePoints >= 0 ? `jugar en casa vale ${num(edgePoints)} puntos más` : 'el campo no lo compensa'
-        }.`) + offseasonNote;
+  const lectura: ExplicacionConTexto[] = [
+    input.neutral
+      ? explica('nfl.lectura.neutral', { favorito: txt(favourite), puntos: exacto(Math.abs(eloPoints)) })
+      : edgePoints >= 0
+        ? explica('nfl.lectura.casa', { favorito: txt(favourite), puntos: exacto(Math.abs(eloPoints)), campo: exacto(edgePoints) })
+        : explica('nfl.lectura.casaNoCompensa', { favorito: txt(favourite), puntos: exacto(Math.abs(eloPoints)) }),
+  ];
+  if (seasonsAhead > 0) {
+    lectura.push(
+      seasonsAhead > 1
+        ? explica('nfl.lectura.pretemporadas', { n: int(seasonsAhead), queda: porc(SEASON_CARRYOVER, 0) })
+        : explica('nfl.lectura.pretemporada', { queda: porc(SEASON_CARRYOVER, 0) }),
+    );
+  }
+  const reasoningText = textos(lectura).join(' ');
 
   // --- reliability ----------------------------------------------------------
   // Seasons the archive is missing, which for a game in the season right after
@@ -720,33 +716,33 @@ export function buildPrediction(input: PredictInput): NafPrediction | null {
 
   const h2h = getHeadToHead(league, homeId, awayId);
 
-  const bullets: string[] = [
-    `Margen esperado: ${signed(expectedMargin)} para ${home.name} (${num(points.home, 1)}-${num(points.away, 1)}).`,
-    `El marcador más probable es ${scorelines[0]?.label ?? '—'} (${pct(scorelines[0]?.probability ?? 0)}).`,
-    `El margen cae justo en 3 o en 7 puntos el ${pct(
-      keyNumbers[0].probability + keyNumbers[1].probability,
-    )} de las veces: son los dos números alrededor de los que se mueve todo el mercado de hándicap.`,
-    `Total: ${num(expectedTotal, 1)} puntos esperados · over ${num(totalLine)} al ${pct(ou.over)}. ` +
-      `Sale de los ritmos de anotación de los dos equipos (${num(homePf, 1)} y ${num(awayPf, 1)} ` +
-      `a favor, ${num(homePa, 1)} y ${num(awayPa, 1)} en contra), que mueven el total pero no el margen.`,
-    `Ventaja de campo actual de la liga: ${num(edge / ELO_PER_POINT, 1)} puntos${
-      input.neutral ? ', pero este partido es en campo neutral' : ''
-    }.`,
+  const bullets: ExplicacionConTexto[] = [
+    explica('nfl.margen', { margen: signo(expectedMargin, 1), local: txt(home.name), puntosLocal: dec(points.home, 1), puntosVisitante: dec(points.away, 1) }),
+    explica('nfl.marcador', { marcador: txt(scorelines[0]?.label ?? '—'), p: porc(scorelines[0]?.probability ?? 0) }),
+    explica('nfl.numerosClave', { p: porc(keyNumbers[0].probability + keyNumbers[1].probability) }),
+    explica('nfl.total', {
+      total: dec(expectedTotal, 1),
+      linea: exacto(totalLine),
+      pOver: porc(ou.over),
+      aFavorLocal: dec(homePf, 1),
+      aFavorVisitante: dec(awayPf, 1),
+      enContraLocal: dec(homePa, 1),
+      enContraVisitante: dec(awayPa, 1),
+    }),
+    explica(input.neutral ? 'nfl.campoNeutral' : 'nfl.campo', { puntos: dec(edge / ELO_PER_POINT, 1) }),
   ];
   if (market) {
     // The wording says WHERE the number came from, because the two are not equally
     // strong evidence and the reader should not have to guess which one they got.
     bullets.push(
       market.odds && market.overround != null
-        ? `El mercado da ${pct(market.home)} al local (cuotas ${num(market.odds.home)} / ${num(market.odds.away)}, ` +
-          `margen ${pct(market.overround - 1)}).`
-        : `El mercado da ${pct(market.home)} al local, deducido de la línea de cierre ` +
-          `(${market.line! > 0 ? '+' : ''}${num(market.line!)}). Medido sobre 7.276 partidos, esta cifra ` +
-          `predice mejor que la del modelo: Brier 0,2115 frente a 0,2180.`,
+        ? explica('nfl.mercado.cuotas', { p: porc(market.home), cuotaLocal: exacto(market.odds.home), cuotaVisitante: exacto(market.odds.away), margen: porc(market.overround - 1) })
+        : explica('nfl.mercado.linea', { p: porc(market.home), linea: exactoSigno(market.line!), n: miles(7276), brierMercado: dec(0.2115, 4), brierModelo: dec(0.218, 4) }),
     );
   }
   if (h2h.total > 0) {
-    bullets.push(`Historial directo: ${h2h.homeWins}-${h2h.awayWins}${h2h.ties ? `-${h2h.ties}` : ''} en ${h2h.total} partidos.`);
+    const base = { victoriasLocal: int(h2h.homeWins), victoriasVisitante: int(h2h.awayWins), n: int(h2h.total) };
+    bullets.push(h2h.ties ? explica('nfl.h2hEmpates', { ...base, empates: int(h2h.ties) }) : explica('nfl.h2h', base));
   }
 
   const side = (info: typeof homeInfo, expected: number): NafSide => ({
@@ -819,15 +815,10 @@ export function buildPrediction(input: PredictInput): NafPrediction | null {
       })),
     },
     market: comparison,
-    reasoning: { text: reasoningText, factors },
+    reasoning: { text: reasoningText, explicaciones: lectura.map(sinTexto), factors },
     reliability,
     verdict,
-    summary: {
-      headline: `Lo más probable: gana ${winner} (${pct(Math.max(outcome.home, outcome.away))}), ${
-        scorelines[0]?.label ?? '—'
-      } el marcador más repetido.`,
-      bullets,
-    },
+    summary: resumen(explica('nfl.titular', { ganador: txt(winner), p: porc(Math.max(outcome.home, outcome.away)), marcador: txt(scorelines[0]?.label ?? '—') }), bullets),
     context: {
       homeAdvantageElo: Math.round(state.homeAdvantage),
       homeAdvantagePoints: Number((state.homeAdvantage / ELO_PER_POINT).toFixed(2)),

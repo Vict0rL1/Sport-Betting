@@ -1,6 +1,7 @@
 // Cliente tipado de la UFC (/api/ufc/*). `home_*` es el luchador A y `away_*` el B: no hay local
 // (A es el de id de ufcstats menor). Ganador a dos vías: el empate y el «sin resultado» devuelven.
 
+import type { Explicacion } from './explicacion';
 import type { MatchOutcome } from './outcome';
 
 export type ResultadoPelea = 'W' | 'L' | 'D' | 'NC';
@@ -52,9 +53,9 @@ export interface UfcPrediction {
     edge: { home: number; away: number } | null;
     verdict: 'differs_home' | 'differs_away' | 'agree' | 'no_market';
   };
-  reliability: { level: 'high' | 'medium' | 'low'; label: string; marginPp: number; reasons: string[]; fightsBehind: { home: number; away: number } };
+  reliability: { level: 'high' | 'medium' | 'low'; label: string; marginPp: number; reasons: string[]; explicaciones?: Explicacion[]; fightsBehind: { home: number; away: number } };
   verdict: { label: string; close: boolean; marginPp: number };
-  summary: { headline: string; bullets: string[] };
+  summary: { headline: string; bullets: string[]; explicaciones?: { headline: Explicacion; bullets: Explicacion[] } };
   context: { modelo: string; pesos: Record<string, number>; ajustadaCon: number; holdoutDesde: number };
   disclaimer: string;
 }

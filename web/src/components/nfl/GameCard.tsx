@@ -7,6 +7,7 @@ import { Badge, Card, Disclosure, EmptyState, HeroStat, MatchTime, ProbabilityBa
 import { fmtLine, KeyNumbers, TeamName, Detail } from './GameCardPartes';
 import { conNodos, useI18n } from '../../i18n';
 import { cifra } from '../../lib/formato';
+import { escribirTodas } from '../../lib/explicacion';
 
 /**
  * One NFL game.
@@ -29,7 +30,7 @@ export default function GameCard({
   item: NflGameWithPrediction;
   onOpenTeam: (league: string, id: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const { game, prediction, marketOnly, teams } = item;
   // La cabecera es la final publicada (la que registra el historial y lee Destacados), no la cruda.
   const probs = prediction?.final ?? marketOnly ?? null;
@@ -194,7 +195,7 @@ export default function GameCard({
                     title={[
                       t('eq.margenPp', { pp: prediction.reliability.marginPp }),
                       t('nflc.calibrado'),
-                      ...prediction.reliability.reasons,
+                      ...escribirTodas(t, idioma, prediction.reliability.explicaciones, prediction.reliability.reasons),
                     ].join('\n')}
                   />
                 </div>

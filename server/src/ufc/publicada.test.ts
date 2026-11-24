@@ -124,9 +124,11 @@ test('cartelera: solo la UFC (por los luchadores conocidos alrededor), el debuta
   assert.equal(listUpcoming().length, 4);
 });
 
-test('la predicción: suma 1, es simétrica, los aportes suman el logit y el récord cuadra', () => {
+test('la predicción: suma 1, es simétrica, los aportes suman el logit y el récord cuadra', async () => {
   cargar();
   const p = buildPrediction({ homeId: L.pereira.id, awayId: L.hill.id, oddsHome: 1.5, oddsAway: 2.6 })!;
+  // Fase C: las frases y sus códigos dicen lo mismo.
+  assert.deepEqual((await import('../explicaciones/coherencia.ts')).incoherencias(p), []);
   assert.ok(Math.abs(p.model.home + p.model.away - 1) < 1e-9);
   assert.deepEqual(p.final, p.model, 'sin post-proceso medido, lo publicado es el modelo');
   assert.ok(p.model.home > 0.5, `el más fuerte del archivo es favorito: ${p.model.home}`);

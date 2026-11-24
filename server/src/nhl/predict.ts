@@ -19,6 +19,7 @@ import { VALUE_THRESHOLD } from '../model/market.ts';
 import { NHL, predecir, resultado60 } from './model.ts';
 import { estadoElo, getHeadToHead, getTeamInfo, type NhlTeamInfo } from './repo.ts';
 import { nombreDe } from './equipos.ts';
+import { dec, explica, int, lista, motivos, porc, resumen, txt, type Explicacion, type ExplicacionConTexto, type Resumen } from '../explicaciones/index.ts';
 
 export const DISCLAIMER =
   'Estimación estadística basada en un Elo por equipo con la diferencia de goles y una Poisson por equipo ' +
@@ -50,6 +51,8 @@ export interface NhlReliability {
   label: string;
   marginPp: number;
   reasons: string[];
+  /** Los mismos avisos, como códigos (explicaciones/): la web los escribe en su idioma. */
+  explicaciones: Explicacion[];
   gamesBehind: { home: number; away: number };
 }
 
@@ -84,12 +87,11 @@ export interface NhlPrediction {
   reasoning: { factors: { key: string; label: string; pointsForHome: number }[] };
   reliability: NhlReliability;
   verdict: { label: string; close: boolean; marginPp: number };
-  summary: { headline: string; bullets: string[] };
+  summary: Resumen;
   context: { homeAdvantageElo: number; k: number; leagueGoals: number };
   disclaimer: string;
 }
 
-const pct = (p: number) => `${(p * 100).toFixed(1).replace('.', ',')} %`;
 const r4 = (x: number) => Math.round(x * 10000) / 10000;
 
 function deVig(oddsHome: number | null | undefined, oddsAway: number | null | undefined): NhlMarket | null {
@@ -104,19 +106,19 @@ function fiabilidad(home: NhlTeamInfo, away: NhlTeamInfo, ahora: Date, probMarge
   const sigma = ELO_SIGMA_C / Math.sqrt(ef(home.gamesInDb)) + ELO_SIGMA_C / Math.sqrt(ef(away.gamesInDb));
   const p = (dr: number) => 1 / (1 + 10 ** (-dr / 400));
   const marginPp = Math.round((p(sigma) - p(-sigma)) * 1000) / 10;
-  const reasons: string[] = [];
+  const reasons: ExplicacionConTexto[] = [];
   const pocos = Math.min(home.gamesInDb, away.gamesInDb);
   const parado = [home, away].filter((t) => t.lastDate && (ahora.getTime() - Date.parse(t.lastDate)) / 86_400_000 > DIAS_PARADO);
   let level: ReliabilityLevel = 'medium';
   if (pocos < MIN_PARTIDOS) {
     level = 'low';
-    reasons.push(`Solo ${pocos} partidos detrás del Elo más flojo de los dos.`);
+    reasons.push(explica('nhl.fiab.pocosPartidos', { n: int(pocos) }));
   }
-  if (parado.length) reasons.push(`${parado.map((t) => t.name).join(' y ')} no juega${parado.length > 1 ? 'n' : ''} desde hace más de ${DIAS_PARADO} días: su Elo es el de la temporada pasada.`);
-  if (probMargen < 0.06) reasons.push('Partido muy igualado: el favorito lo es por poco.');
-  reasons.push('No conoce al portero titular, que es lo que más mueve un partido de hockey.');
+  if (parado.length) reasons.push(explica('nhl.fiab.parado', { equipos: lista(parado.map((t) => t.name)), n: int(parado.length), dias: int(DIAS_PARADO) }));
+  if (probMargen < 0.06) reasons.push(explica('nhl.fiab.igualado'));
+  reasons.push(explica('nhl.fiab.sinPortero'));
   const label = level === 'low' ? 'fiabilidad baja' : 'fiabilidad media';
-  return { level, label, marginPp, reasons, gamesBehind: { home: home.gamesInDb, away: away.gamesInDb } };
+  return { level, label, marginPp, ...motivos(reasons), gamesBehind: { home: home.gamesInDb, away: away.gamesInDb } };
 }
 
 export interface PredictInput {
@@ -168,11 +170,11 @@ export function buildPrediction(input: PredictInput): NhlPrediction | null {
   const side = (t: NhlTeamInfo, g: number): NhlSide => ({ ...t, last5: t.form.slice(0, 5).map((f) => f.result), expectedGoals: Math.round(g * 100) / 100 });
 
   const bullets = [
-    `Elo ${Math.round(home.elo)} contra ${Math.round(away.elo)}, más ${NHL.campo} puntos de jugar en casa.`,
-    `Goles esperados a 60 minutos: ${pr.golesLocal.toFixed(2).replace('.', ',')} – ${pr.golesVisitante.toFixed(2).replace('.', ',')}; ${pct(r60.empata)} de llegar empatados a la prórroga.`,
-    `Total esperado en el acta ${totalEsperado.toFixed(2).replace('.', ',')}: más de ${String(linea).replace('.', ',')}, ${pct(over)}.`,
+    explica('nhl.elo', { local: int(home.elo), visitante: int(away.elo), campo: int(NHL.campo) }),
+    explica('nhl.goles', { golesLocal: dec(pr.golesLocal, 2), golesVisitante: dec(pr.golesVisitante, 2), pEmpate: porc(r60.empata) }),
+    explica('nhl.total', { total: dec(totalEsperado, 2), linea: dec(linea, Number.isInteger(linea) ? 0 : 1), pMas: porc(over) }),
   ];
-  if (market) bullets.push(`La casa da ${pct(market.home)} al local sin margen; el modelo, ${pct(pr.local)}.`);
+  if (market) bullets.push(explica('nhl.mercado', { pMercado: porc(market.home), pModelo: porc(pr.local) }));
 
   return {
     league: 'nhl',
@@ -202,7 +204,7 @@ export function buildPrediction(input: PredictInput): NhlPrediction | null {
     reliability,
     // El nombre del favorito; `close` dice si lo es solo por poco (dentro de la banda).
     verdict: { label: fav.name, close, marginPp: reliability.marginPp },
-    summary: { headline: `${nombreDe(fav.id)} gana con un ${pct(pFav)} (prórroga y tanda incluidas)`, bullets },
+    summary: resumen(explica('nhl.titular', { fav: txt(nombreDe(fav.id)), p: porc(pFav) }), bullets),
     context: { homeAdvantageElo: NHL.campo, k: NHL.k, leagueGoals: NHL.golesLiga },
     disclaimer: DISCLAIMER,
   };

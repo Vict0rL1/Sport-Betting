@@ -4,6 +4,26 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18, fase C (1): explicaciones con código, en tu idioma: NHL, UFC y NFL (2026-11-24)
+
+- **Antes,** el titular, las viñetas, los avisos de fiabilidad, la «lectura» y los factores de cada
+  deporte llegaban del servidor como frases en español, y en inglés se leían en español.
+- **Ahora** cada frase lleva al lado un código estable con parámetros tipados
+  (`server/src/explicaciones/`). La web la escribe en el idioma elegido con su catálogo
+  (`explica.<código>`) y los formatos del idioma. Los nombres de equipos y luchadores van tal cual.
+- **Hechos:** NHL, UFC y NFL. Son 50 códigos, con titular, viñetas y avisos; en la NFL, también la
+  lectura y los factores.
+- **Faltan** tenis, fútbol, baloncesto y béisbol: siguen en español, con el mismo mecanismo de reserva.
+- **Compatibilidad.** El servidor sigue mandando las frases en español de siempre, escritas con el mismo
+  catálogo. Cambio cosmético: el «%» y los rangos llevan espacio duro.
+- **Reserva.** Un código desconocido enseña la frase del servidor, nunca una clave.
+- **Vigilancia.**
+  - `web/src/i18n/explicaciones.test.ts` falla si un código nuevo no tiene su frase en `es.ts` (la
+    misma del servidor) y en `en.ts` (traducida, con los mismos parámetros).
+  - En cada deporte estructurado, un test comprueba que cada frase de la API es la escritura de su
+    código.
+- **No cambia ninguna probabilidad.**
+
 ## Seguimiento del PR #18, fase B: la contabilidad del riesgo, exacta, por moneda y por día de liquidación (2026-11-24)
 
 El contrato está en `server/src/staking/contabilidad.ts` (`riesgo-v1`), y las decisiones y su revisión en

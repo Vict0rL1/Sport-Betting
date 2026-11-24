@@ -6,6 +6,7 @@ import { BarRow, CompareRow, FactorValue, FormDots, Panel, SectionTitle, TeamCre
 import { ClimaPanel } from '../ClimaPanel';
 import { useI18n } from '../../i18n';
 import { cifra, num as numF } from '../../lib/formato';
+import { escribir, escribirJunto, escribirTodas } from '../../lib/explicacion';
 
 export const twoWay = (m: { home: number; away: number }): { home: number; away: number } => ({
   home: m.home / (m.home + m.away),
@@ -101,7 +102,7 @@ export function TeamName({
 }
 
 export function Detail({ prediction, clima }: { prediction: NflPrediction; clima?: import('../../lib/clima').ClimaFicha | null }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const { teams, spread, total, bands, scorelines, h2h, market, reasoning, summary, context } =
     prediction;
   const home = teams.home;
@@ -114,11 +115,11 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
     <div className="space-y-3">
       <Panel>
         <SectionTitle>{t('det.porQue')}</SectionTitle>
-        <p className="mb-2 text-[15px] leading-relaxed text-(--ink-body)">{reasoning.text}</p>
+        <p className="mb-2 text-[15px] leading-relaxed text-(--ink-body)">{escribirJunto(t, idioma, reasoning.explicaciones, reasoning.text)}</p>
         <dl className="space-y-1 text-[13px]">
           {reasoning.factors.map((f) => (
             <div key={f.key} className="flex justify-between gap-3">
-              <dt className="text-(--ink-soft)">{f.label}</dt>
+              <dt className="text-(--ink-soft)">{escribir(t, idioma, f.explicacion, f.label)}</dt>
               <dd>
                 <FactorValue
                   color={f.pointsForHome >= 0 ? HOME_COLOR : AWAY_COLOR}
@@ -364,7 +365,7 @@ export function Detail({ prediction, clima }: { prediction: NflPrediction; clima
           {t('eq.lecturaCompleta')}
         </SectionTitle>
         <ul className="space-y-1.5">
-          {summary.bullets.map((b, i) => (
+          {escribirTodas(t, idioma, summary.explicaciones?.bullets, summary.bullets).map((b, i) => (
             <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-(--ink-soft)">
               <span aria-hidden className="text-(--ink-faint)">
                 •

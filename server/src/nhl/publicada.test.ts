@@ -92,11 +92,14 @@ test('cuotas de un evento: mediana entre casas y la línea de total que ofrecen 
   assert.equal(ev.books, 3);
 });
 
-test('la predicción: todo sale de una distribución y cuadra', () => {
+test('la predicción: todo sale de una distribución y cuadra', async () => {
   getDb().exec('DELETE FROM nhl_games');
   guardarPartidos(liga(400));
   guardarEquipos();
   const p = buildPrediction({ homeId: 'TOR', awayId: 'MTL', oddsHome: 1.4, oddsAway: 3.2, totalLine: 6 })!;
+  // Fase C: las frases y sus códigos dicen lo mismo.
+  assert.deepEqual((await import('../explicaciones/coherencia.ts')).incoherencias(p), []);
+  assert.ok(p.summary.explicaciones.bullets.length > 0);
   assert.ok(p.model.home > 0.6, `el fuerte en casa es favorito: ${p.model.home}`);
   assert.ok(Math.abs(p.model.home + p.model.away - 1) < 1e-9);
   assert.deepEqual(p.final, p.model, 'sin post-proceso medido, lo publicado es el modelo');

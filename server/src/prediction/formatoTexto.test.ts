@@ -52,6 +52,8 @@ test('G5: tenis, fútbol, baloncesto, béisbol y NFL escriben sus números en es
   const { buildPrediction: nfl } = await import('../nfl/predict.ts');
   const n = nfl({ league: 'nfl' as never, homeId: 'KC', awayId: 'BUF', oddsHome: 1.7, oddsAway: 2.2, spreadLine: -3.5, totalLine: 47.5 });
   assert.ok(n, 'la NFL construye la predicción');
+  // Fase C: en los deportes ya estructurados, las frases y sus códigos dicen lo mismo.
+  assert.deepEqual((await import('../explicaciones/coherencia.ts')).incoherencias(n), []);
 
   // G5b (segunda pasada de ui-tester): no solo el resumen. TODO el texto de la predicción y de su
   // evaluación de confianza (escenarios, supuestos, razones, datos): ahí quedaban «×0.75»,

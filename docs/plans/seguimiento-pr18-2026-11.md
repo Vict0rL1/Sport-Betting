@@ -99,7 +99,7 @@ Además, vistos al trazar los llamadores:
 | B3 | Monedas separadas en todo cálculo de riesgo | Hecho | `riesgo.test.ts` (R3, R4, punta a punta), `contabilidad.test.ts` (monedas, exposición) |
 | B4 | Cálculo incompleto explícito (cuatro estados) | Hecho | `contabilidad.test.ts` (cotas, decisión), `e2e/seguimiento-pr18.spec.ts` (B) |
 | B5 | Fronteras e integración probadas | Hecho | `riesgo.test.ts` (R5, R7, R8), `contabilidad.test.ts` (igualdad, ±1 céntimo, cambio de hora, zona inválida), `paper/perdidas.test.ts` (sin cruces) |
-| C | Explicaciones estructuradas y bilingües, siete deportes | Pendiente | |
+| C | Explicaciones estructuradas y bilingües, siete deportes | En curso: NHL, UFC y NFL hechas; tenis, fútbol, baloncesto y béisbol, no | `web/src/i18n/explicaciones.test.ts`, `server/src/explicaciones/coherencia.ts` en `nhl/publicada.test.ts`, `ufc/publicada.test.ts` y `prediction/formatoTexto.test.ts` |
 | D | Jerarquía visual y móvil | Pendiente | |
 | E | Calibración y rendimiento en el tiempo | Pendiente | |
 | F | Vista previa de la importación CSV | Pendiente | |
@@ -183,6 +183,46 @@ Además, vistos al trazar los llamadores:
     por 1000 en silencio.
 - **verify:data** comprueba las puertas y los topes sin leer las apuestas personales de la instalación
   que verifica. Antes dependían de ellas.
+
+### C. Las explicaciones, estructuradas (`server/src/explicaciones/`)
+
+- **Qué había.** Cada deporte escribía como frases en español:
+  - el titular y las viñetas (`summary`);
+  - los avisos de fiabilidad (`reliability.reasons`);
+  - en la ficha, la «lectura» (`reasoning.text`) y las etiquetas de los factores.
+  La web las pintaba tal cual, también en inglés. Son unos 110 sitios en los siete deportes.
+- **Cómo queda.** Cada frase es un CÓDIGO estable con PARÁMETROS tipados:
+  - `txt`: nombres, tal cual;
+  - `int`: enteros sin miles, como un Elo;
+  - `num` y `signo`: decimales fijos;
+  - `pct`: probabilidad;
+  - `lista`: nombres unidos con «y» o «and»;
+  - `miles`: con separador de miles.
+- **Catálogo del servidor** (`catalogo.ts`), sin imports. El servidor sigue escribiendo la frase en
+  español con él, así que la API conserva `bullets`, `reasons`, `text` y `label`, y gana
+  `explicaciones` al lado (compatibilidad con clientes, el asistente y los informes).
+  - Cambio cosmético: el «%» y los rangos llevan espacio duro, el formato de `numeros.ts`, en vez del
+    espacio normal de algunos deportes.
+- **La web** (`web/src/lib/explicacion.ts`):
+  - escribe `explica.<código>` con su catálogo y los formatos del idioma;
+  - con un código desconocido, o sin código, enseña la frase del servidor, nunca una clave;
+  - un párrafo con una pieza desconocida sale entero del servidor.
+- **Coberturas.**
+  - `es.ts` lleva la misma frase que el servidor;
+  - `en.ts` la traduce con los mismos parámetros;
+  - no hay claves `explica.*` sin código;
+  - en español, la web escribe exactamente la frase del servidor;
+  - en cada deporte estructurado, cada frase de la API es la escritura de su código (`coherencia.ts`).
+- **No cambia ningún número.** Se escribe lo que el modelo ya calculó, y un dato que falta elige otro
+  código o no se dice.
+- **Probabilidad, frescura y evidencia** siguen separadas como ya lo estaban:
+  - el titular dice la probabilidad;
+  - los avisos de fiabilidad hablan de la muestra y de lo que el modelo no sabe;
+  - la evidencia histórica vive en Rendimiento.
+  - No se añade ninguna «confianza alta» nueva.
+- **DESCONOCIDO.** CLAUDE.md lo fija como el valor de lo que falta, y el brief del PR 17 admitía «su
+  equivalente localizado» al enseñarlo. Las explicaciones estructuradas no lo usan. Queda como estaba en
+  las fichas (término fijo); no se cambia aquí.
 
 ## Revisiones y su destino
 

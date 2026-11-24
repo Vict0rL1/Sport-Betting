@@ -20,6 +20,7 @@ import { CANDIDATOS, MODELO_PUBLICADO, predecirConPesos } from './combinado.ts';
 import { rasgosDe, type RasgosUfc } from './evaluacion.ts';
 import { UFC } from './model.ts';
 import { estadoUfc, getFighterInfo, getHeadToHead, HOLDOUT_UFC, type UfcFighterInfo } from './repo.ts';
+import { dec, explica, int, lista, motivos, porc, resumen, txt, type Explicacion, type ExplicacionConTexto, type Resumen } from '../explicaciones/index.ts';
 
 export const DISCLAIMER =
   'Estimación estadística: una regresión logística con la diferencia de Elo de los dos luchadores en la UFC, su ' +
@@ -78,17 +79,15 @@ export interface UfcPrediction {
     /** Desacuerdo, no valor: ver la cabecera del fichero. */
     verdict: 'differs_home' | 'differs_away' | 'agree' | 'no_market';
   };
-  reliability: { level: ReliabilityLevel; label: string; marginPp: number; reasons: string[]; fightsBehind: { home: number; away: number } };
+  reliability: { level: ReliabilityLevel; label: string; marginPp: number; reasons: string[]; explicaciones: Explicacion[]; fightsBehind: { home: number; away: number } };
   verdict: { label: string; close: boolean; marginPp: number };
-  summary: { headline: string; bullets: string[] };
+  summary: Resumen;
   context: { modelo: string; pesos: Record<string, number>; ajustadaCon: number; holdoutDesde: number };
   disclaimer: string;
 }
 
-const pct = (p: number) => `${(p * 100).toFixed(1).replace('.', ',')} %`;
 const r4 = (x: number) => Math.round(x * 10000) / 10000;
 const sigm = (t: number) => 1 / (1 + Math.exp(-t));
-const coma = (x: number, d = 0) => x.toFixed(d).replace('.', ',');
 
 function deVig(oddsHome: number | null | undefined, oddsAway: number | null | undefined): UfcMarket | null {
   if (!oddsHome || !oddsAway || oddsHome <= 1 || oddsAway <= 1) return null;
@@ -111,20 +110,20 @@ function fiabilidad(a: UfcFighterInfo, b: UfcFighterInfo, ahora: Date, rasgos: R
   const p = (dr: number) => 1 / (1 + 10 ** (-dr / 400));
   // La mitad del intervalo (±): con diez peleas cada uno, σ = 46,8 puntos de Elo → ±6,7 pp.
   const marginPp = Math.round((p(sigma) - p(-sigma)) * 500) / 10;
-  const reasons: string[] = [];
+  const reasons: ExplicacionConTexto[] = [];
   let level: ReliabilityLevel = 'medium';
   const pocas = [a, b].filter((x) => x.fightsInDb < MIN_PELEAS);
   if (pocas.length) {
     level = 'low';
-    reasons.push(`${pocas.map((x) => x.name).join(' y ')} ${pocas.length > 1 ? 'llevan' : 'lleva'} menos de ${MIN_PELEAS} peleas en la UFC: su Elo apenas ha empezado a moverse.`);
+    reasons.push(explica('ufc.fiab.pocasPeleas', { luchadores: lista(pocas.map((x) => x.name)), n: int(pocas.length), min: int(MIN_PELEAS) }));
   }
   const parados = [a, b].filter((x) => x.lastDate && (ahora.getTime() - Date.parse(x.lastDate)) / 86_400_000 > DIAS_PARADO);
-  if (parados.length) reasons.push(`${parados.map((x) => x.name).join(' y ')} no ${parados.length > 1 ? 'pelean' : 'pelea'} en la UFC desde hace más de año y medio.`);
-  if (rasgos.edad === 0) reasons.push('Falta la fecha de nacimiento de alguno de los dos: la edad no entra en este número.');
-  if (rasgos.alcance === 0 && (a.reachCm == null || b.reachCm == null)) reasons.push('Falta el alcance de alguno de los dos: no entra en este número.');
-  if (margenProb < 0.06) reasons.push('Pelea muy igualada: el favorito lo es por poco.');
-  reasons.push('Solo cuenta lo hecho en la UFC: no sabe de peleas en otras organizaciones, lesiones ni del corte de peso.');
-  return { level, label: level === 'low' ? 'fiabilidad baja' : 'fiabilidad media', marginPp, reasons, fightsBehind: { home: a.fightsInDb, away: b.fightsInDb } };
+  if (parados.length) reasons.push(explica('ufc.fiab.parado', { luchadores: lista(parados.map((x) => x.name)), n: int(parados.length) }));
+  if (rasgos.edad === 0) reasons.push(explica('ufc.fiab.sinEdad'));
+  if (rasgos.alcance === 0 && (a.reachCm == null || b.reachCm == null)) reasons.push(explica('ufc.fiab.sinAlcance'));
+  if (margenProb < 0.06) reasons.push(explica('ufc.fiab.igualada'));
+  reasons.push(explica('ufc.fiab.soloUfc'));
+  return { level, label: level === 'low' ? 'fiabilidad baja' : 'fiabilidad media', marginPp, ...motivos(reasons), fightsBehind: { home: a.fightsInDb, away: b.fightsInDb } };
 }
 
 export interface PredictInput {
@@ -181,19 +180,18 @@ export function buildPrediction(input: PredictInput): UfcPrediction | null {
 
   // Los dos rasgos que más empujan, dichos en claro.
   const fuertes = [...factors].filter((f) => Math.abs(f.pp) >= 0.5).sort((a, b) => Math.abs(b.pp) - Math.abs(a.pp));
-  const frase = (f: UfcFactor): string => {
-    const quien = f.pp > 0 ? A.name : B.name;
-    const pp = `${coma(Math.abs(f.pp), 1)} pp`;
-    if (f.key === 'elo') return `Elo ${Math.round(A.elo)} contra ${Math.round(B.elo)}: ${pp} para ${quien}.`;
-    if (f.key === 'record') return `Récord en la UFC ${A.record.wins}-${A.record.losses} contra ${B.record.wins}-${B.record.losses}: ${pp} para ${quien}.`;
-    if (f.key === 'edad' && f.diff != null) return `${f.diff < 0 ? A.name : B.name} es ${coma(Math.abs(f.diff), 1)} años más joven: ${pp} para ${quien}.`;
-    if (f.key === 'alcance' && f.diff != null) return `${f.diff > 0 ? A.name : B.name} tiene ${coma(Math.abs(f.diff))} cm más de alcance: ${pp} para ${quien}.`;
-    if (f.key === 'experiencia') return `${A.fightsInDb} peleas en la UFC contra ${B.fightsInDb}: ${pp} para ${quien}.`;
-    return `${f.label}: ${pp} para ${quien}.`;
+  const frase = (f: UfcFactor): ExplicacionConTexto => {
+    const comun = { quien: txt(f.pp > 0 ? A.name : B.name), pp: dec(Math.abs(f.pp), 1) };
+    if (f.key === 'elo') return explica('ufc.factor.elo', { ...comun, eloA: int(A.elo), eloB: int(B.elo) });
+    if (f.key === 'record') return explica('ufc.factor.record', { ...comun, victoriasA: int(A.record.wins), derrotasA: int(A.record.losses), victoriasB: int(B.record.wins), derrotasB: int(B.record.losses) });
+    if (f.key === 'edad' && f.diff != null) return explica('ufc.factor.edad', { ...comun, joven: txt(f.diff < 0 ? A.name : B.name), anios: dec(Math.abs(f.diff), 1) });
+    if (f.key === 'alcance' && f.diff != null) return explica('ufc.factor.alcance', { ...comun, largo: txt(f.diff > 0 ? A.name : B.name), cm: dec(Math.abs(f.diff), 0) });
+    if (f.key === 'experiencia') return explica('ufc.factor.experiencia', { ...comun, peleasA: int(A.fightsInDb), peleasB: int(B.fightsInDb) });
+    return explica('ufc.factor.otro', { ...comun, factor: txt(f.label) });
   };
   const bullets = fuertes.slice(0, 3).map(frase);
-  if (market) bullets.push(`La casa da ${pct(market.home)} a ${A.name} sin margen; el modelo, ${pct(p)}.`);
-  if (A.weightClass && B.weightClass && A.weightClass !== B.weightClass) bullets.push(`Vienen de categorías distintas (${A.weightClass} y ${B.weightClass}): uno cambia de peso.`);
+  if (market) bullets.push(explica('ufc.mercado', { pMercado: porc(market.home), luchador: txt(A.name), pModelo: porc(p) }));
+  if (A.weightClass && B.weightClass && A.weightClass !== B.weightClass) bullets.push(explica('ufc.categorias', { categoriaA: txt(A.weightClass), categoriaB: txt(B.weightClass) }));
 
   return {
     league: 'ufc',
@@ -207,7 +205,7 @@ export function buildPrediction(input: PredictInput): UfcPrediction | null {
     market: { market, edge, verdict: verdictMercado },
     reliability,
     verdict: { label: fav.name, close, marginPp: reliability.marginPp },
-    summary: { headline: `${fav.name} gana a ${otro.name} con un ${pct(pFav)}`, bullets },
+    summary: resumen(explica('ufc.titular', { fav: txt(fav.name), rival: txt(otro.name), p: porc(pFav) }), bullets),
     context: {
       modelo: MODELO_PUBLICADO,
       pesos: Object.fromEntries(CANDIDATOS[MODELO_PUBLICADO].map((k, i) => [k, r4(e.pesos[i] ?? 0)])),

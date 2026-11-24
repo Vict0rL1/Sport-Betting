@@ -5,6 +5,7 @@ import EventTrustPanel from '../trust/EventTrustPanel';
 import { Detail, FighterName } from './FightCardPartes';
 import { conNodos, useI18n } from '../../i18n';
 import { num as numF } from '../../lib/formato';
+import { escribirTodas } from '../../lib/explicacion';
 
 const coma = (x: number, d = 0) => numF(x, d);
 
@@ -16,7 +17,7 @@ const coma = (x: number, d = 0) => numF(x, d);
  * son raros, devuelven la apuesta. Debajo, lo que aporta cada rasgo.
  */
 export default function FightCard({ item, onOpenFighter }: { item: UfcFightWithPrediction; onOpenFighter: (id: string) => void }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const { fight, prediction, fighters } = item;
   const probs = prediction?.final ?? null;
   const resultado = item.outcome.result;
@@ -81,7 +82,7 @@ export default function FightCard({ item, onOpenFighter }: { item: UfcFightWithP
                 level={prediction.reliability.level}
                 label={prediction.reliability.label}
                 marginPp={prediction.reliability.marginPp}
-                title={[t('eq.margenPp', { pp: prediction.reliability.marginPp }), t('ufcc.bandaJuicio'), ...prediction.reliability.reasons].join('\n')}
+                title={[t('eq.margenPp', { pp: prediction.reliability.marginPp }), t('ufcc.bandaJuicio'), ...escribirTodas(t, idioma, prediction.reliability.explicaciones, prediction.reliability.reasons)].join('\n')}
               />
             </div>
           </div>
