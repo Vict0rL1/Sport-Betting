@@ -11,6 +11,8 @@ interface Resultado { importadas: number; rechazadas: { linea: number; error: st
 interface Vista {
   error: ErrorDeFila | null;
   ignoradas: string[];
+  /** Cuántas en total: el servidor devuelve como mucho 50 nombres. */
+  ignoradasTotal?: number;
   filas: { linea: number; valida: boolean; errores: ErrorDeFila[]; avisos: { codigo: string }[]; apuesta: { event: string; selection: string; odds: number; stake: number; currency: string | null; status: string } | null }[];
   resumen: { validas: number; rechazadas: number; conAvisos: number; omitidas: number };
 }
@@ -109,7 +111,7 @@ export default function ImportarCsv({ onHecho }: { onHecho: () => void }) {
             <>
               <p className="text-(--ink-body)">{t('csv.vista', { n: vista.resumen.validas, r: vista.resumen.rechazadas })}</p>
               {vista.resumen.omitidas > 0 && <p style={{ color: STATUS.warning }}>{t('csv.omitidas', { n: vista.resumen.omitidas })}</p>}
-              {vista.ignoradas.length > 0 && <p>{t('csv.ignoradas', { lista: vista.ignoradas.join(', ') })}</p>}
+              {vista.ignoradas.length > 0 && <p>{t('csv.ignoradas', { lista: vista.ignoradas.join(', ') + ((vista.ignoradasTotal ?? 0) > vista.ignoradas.length ? ' …' : '') })}</p>}
               {vista.resumen.rechazadas > 0 && (
                 <ul className="list-disc pl-5">
                   {vista.filas.filter((f) => !f.valida).slice(0, 50).map((f) => (

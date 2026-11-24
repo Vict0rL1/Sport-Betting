@@ -25,6 +25,12 @@ cambian.
   - Una apuesta que entró ya liquidada en su instalación sigue sin día conocido.
 - Revisado por data-guardian: 1 alto, 1 medio, 3 bajos y 1 informativo, arreglados o con destino en el
   plan.
+- **Revisión de seguridad:**
+  - una cabecera de 110.000 columnas bloqueaba el proceso 1,8 s, porque se buscaba en ella en cada
+    celda;
+  - la vista previa devolvía todos los nombres de columna desconocidos.
+
+  Ahora las columnas se leen una vez por fichero y se devuelven como mucho 50 nombres.
 
 ## Seguimiento del PR #18, fase C (1): explicaciones con código, en tu idioma: NHL, UFC y NFL (2026-11-24)
 

@@ -95,8 +95,10 @@ export interface FilaAnalizada {
 export interface Analisis {
   /** Un problema de todo el fichero (sin cabecera, sin una columna obligatoria): no hay filas. */
   error: ErrorDeFila | null;
-  /** Columnas que no se leen (se ignoran). */
+  /** Columnas que no se leen (se ignoran): como mucho 50 nombres. */
   ignoradas: string[];
+  /** Cuántas columnas no se leen en total. */
+  ignoradasTotal: number;
   filas: FilaAnalizada[];
   resumen: { validas: number; rechazadas: number; conAvisos: number; omitidas: number };
 }
@@ -128,10 +130,16 @@ const huella = (b: { placed_on?: string | null; sport: string; event: string; ma
  */
 export function analizarCsv(texto: string, maxFilas = 1000): Analisis {
   const filas = parsearCsv(texto);
-  const vacio = (e: ErrorDeFila): Analisis => ({ error: e, ignoradas: [], filas: [], resumen: { validas: 0, rechazadas: 0, conAvisos: 0, omitidas: 0 } });
+  const vacio = (e: ErrorDeFila): Analisis => ({ error: e, ignoradas: [], ignoradasTotal: 0, filas: [], resumen: { validas: 0, rechazadas: 0, conAvisos: 0, omitidas: 0 } });
   if (filas.length < 2) return vacio({ campo: '', codigo: 'importar.sin-filas', mensaje: 'hace falta una cabecera y al menos una fila' });
   const cab = filas[0].map((c) => c.trim().toLowerCase().replace(/\s+/g, '_'));
-  const idx = (k: string) => cab.indexOf(k);
+  // Columna → posición, una vez por fichero (la primera, como indexOf): con una cabecera enorme, buscar en
+  // ella en cada celda bloqueaba el proceso (revisión de seguridad).
+  const posiciones = new Map<string, number>();
+  cab.forEach((c, i) => {
+    if (!posiciones.has(c)) posiciones.set(c, i);
+  });
+  const idx = (k: string) => posiciones.get(k) ?? -1;
   for (const req of OBLIGATORIAS) {
     if (idx(req) < 0) return vacio({ campo: req, codigo: 'importar.falta-columna', params: { columna: req }, mensaje: `falta la columna ${req}` });
   }
@@ -222,9 +230,12 @@ export function analizarCsv(texto: string, maxFilas = 1000): Analisis {
     out.push({ linea: i + 1, valida: errores.length === 0 && input != null, apuesta: errores.length === 0 ? input : null, errores, avisos });
   }
   const validas = out.filter((x) => x.valida).length;
+  const ignoradas = cab.filter((c) => c && !LEIDAS.has(c));
   return {
     error: null,
-    ignoradas: cab.filter((c) => c && !LEIDAS.has(c)),
+    // Como mucho 50 nombres de vuelta; el total aparte.
+    ignoradas: ignoradas.slice(0, 50),
+    ignoradasTotal: ignoradas.length,
     filas: out,
     resumen: { validas, rechazadas: out.length - validas, conAvisos: out.filter((x) => x.valida && x.avisos.length > 0).length, omitidas: Math.max(0, filas.length - 1 - maxFilas) },
   };

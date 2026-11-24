@@ -131,3 +131,11 @@ test('data-guardian (bajo): el aviso de duplicado no depende del estado ni de la
   const v = analizarCsv(CAB + '2026-11-20,tennis,Ya liquidada,moneyline,A,1.9,10,,,,,\n');
   assert.deepEqual(v.filas[0].avisos.map((a) => a.codigo), ['posible-duplicado']);
 });
+
+test('seguridad: una cabecera enorme no se devuelve entera ni se recorre por celda', () => {
+  const cab = 'placed_on,sport,event,market,selection,odds,stake,' + Array.from({ length: 20_000 }, (_, i) => `c${i}`).join(',') + '\n';
+  const v = analizarCsv(cab + '2026-11-20,tennis,X,moneyline,A,1.9,10\n'.repeat(50));
+  assert.equal(v.resumen.validas, 50);
+  assert.ok(v.ignoradas.length <= 50, `${v.ignoradas.length} columnas devueltas`);
+  assert.equal(v.ignoradasTotal, 20_000);
+});
