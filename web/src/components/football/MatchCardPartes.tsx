@@ -9,6 +9,7 @@ import ThinMarkets from './ThinMarkets';
 import NewsPanel from './NewsPanel';
 import SquadPanel from './SquadPanel';
 import { conNodos, useI18n } from '../../i18n';
+import { escribir, escribirJunto, escribirTodas } from '../../lib/explicacion';
 import { num as numF } from '../../lib/formato';
 
 export function TeamName({
@@ -92,7 +93,7 @@ export function Detail({
   adjusting: boolean;
   adjusted: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const { teams, goals, h2h, market, reasoning, reliability, squads, summary } = prediction;
   const home = teams.home;
   const away = teams.away;
@@ -130,11 +131,11 @@ export function Detail({
 
       <Panel>
         <SectionTitle>{t('det.porQue')}</SectionTitle>
-        <p className="mb-2 text-[15px] leading-relaxed text-(--ink-body)">{reasoning.text}</p>
+        <p className="mb-2 text-[15px] leading-relaxed text-(--ink-body)">{escribirJunto(t, idioma, reasoning.explicaciones, reasoning.text)}</p>
         <dl className="space-y-1 text-[13px]">
           {reasoning.factors.map((f) => (
             <div key={f.key} className="flex justify-between gap-3">
-              <dt className="text-(--ink-soft)">{f.label}</dt>
+              <dt className="text-(--ink-soft)">{escribir(t, idioma, f.explicacion, f.label)}</dt>
               <dd>
                 <FactorValue
                   color={f.pointsForHome >= 0 ? HOME_COLOR : AWAY_COLOR}
@@ -258,7 +259,7 @@ export function Detail({
       <Panel>
         <SectionTitle>{t('eq.lecturaCompleta')}</SectionTitle>
         <ul className="space-y-1.5">
-          {summary.bullets.map((b, i) => (
+          {escribirTodas(t, idioma, summary.explicaciones?.bullets, summary.bullets).map((b, i) => (
             <li key={i} className="flex gap-2 text-[13px] leading-relaxed text-(--ink-soft)">
               <span aria-hidden className="text-(--ink-faint)">
                 •
@@ -279,12 +280,12 @@ export function Detail({
         }`}
       >
         <p className="text-(--ink-body)">
-          <strong className="capitalize">{reliability.label}</strong>{' '}
+          <strong className="capitalize">{t(`fiab.nivel.${reliability.level}`)}</strong>{' '}
           {t('eq.margenDetalle', { pp: reliability.marginPp, a: reliability.matchesBehind.home, b: reliability.matchesBehind.away })}
         </p>
         {reliability.reasons.length > 0 && (
           <ul className="mt-1.5 space-y-1">
-            {reliability.reasons.map((r, i) => (
+            {escribirTodas(t, idioma, reliability.explicaciones, reliability.reasons).map((r, i) => (
               <li key={i} className="flex gap-2 text-[13px] text-(--ink-soft)">
                 <span aria-hidden className="text-(--ink-faint)">
                   •

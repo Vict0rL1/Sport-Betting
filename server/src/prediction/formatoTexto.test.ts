@@ -59,7 +59,11 @@ test('G5: tenis, fútbol, baloncesto, béisbol y NFL escriben sus números en es
   assert.equal((n.verdict as { explicacion?: { codigo: string } }).explicacion?.codigo, 'nfl.veredicto');
   // Fase C (2): los demás deportes, uno a uno. Cada frase lleva su código y dice lo mismo que él.
   const { sinEstructura, incoherencias } = await import('../explicaciones/coherencia.ts');
-  for (const [deporte, p] of [['tenis', t]] as const) assert.deepEqual([...sinEstructura(p), ...incoherencias(p)], [], deporte);
+  for (const [deporte, p] of [['tenis', t], ['fútbol', f]] as const) assert.deepEqual([...sinEstructura(p), ...incoherencias(p)], [], deporte);
+  // El veredicto del fútbol es una frase («Gana …», «Empate», «… o empate»): lleva su código.
+  const veredicto = f.verdict as unknown as { explicacion?: { codigo: string }; doubleChance: { explicacion?: { codigo: string } } };
+  assert.match(veredicto.explicacion?.codigo ?? '', /^futbol\.veredicto\./);
+  assert.match(veredicto.doubleChance.explicacion?.codigo ?? '', /^futbol\.dobleOportunidad\./);
 
   // G5b (segunda pasada de ui-tester): no solo el resumen. TODO el texto de la predicción y de su
   // evaluación de confianza (escenarios, supuestos, razones, datos): ahí quedaban «×0.75»,

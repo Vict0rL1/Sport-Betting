@@ -99,7 +99,7 @@ Además, vistos al trazar los llamadores:
 | B3 | Monedas separadas en todo cálculo de riesgo | Hecho | `riesgo.test.ts` (R3, R4, punta a punta), `contabilidad.test.ts` (monedas, exposición) |
 | B4 | Cálculo incompleto explícito (cuatro estados) | Hecho | `contabilidad.test.ts` (cotas, decisión), `e2e/seguimiento-pr18.spec.ts` (B) |
 | B5 | Fronteras e integración probadas | Hecho | `riesgo.test.ts` (R5, R7, R8), `contabilidad.test.ts` (igualdad, ±1 céntimo, cambio de hora, zona inválida), `paper/perdidas.test.ts` (sin cruces) |
-| C | Explicaciones estructuradas y bilingües, siete deportes | En curso (25-nov). Hechos: NHL, UFC y NFL (la tarjeta, y la lectura y los factores de la ficha) y el tenis entero (C 2). Faltan: fútbol, baloncesto y béisbol, y las piezas comunes de la ficha (ver «Diferido») | `web/src/i18n/explicaciones.test.ts`, `server/src/explicaciones/coherencia.ts` en `nhl/publicada.test.ts`, `ufc/publicada.test.ts` y `prediction/formatoTexto.test.ts` |
+| C | Explicaciones estructuradas y bilingües, siete deportes | En curso (25-nov). Hechos: NHL, UFC y NFL (la tarjeta, y la lectura y los factores de la ficha) el tenis entero (C 2) y el fútbol (C 3). Faltan: baloncesto y béisbol, y las piezas comunes de la ficha (ver «Diferido») | `web/src/i18n/explicaciones.test.ts`, `server/src/explicaciones/coherencia.ts` en `nhl/publicada.test.ts`, `ufc/publicada.test.ts` y `prediction/formatoTexto.test.ts` |
 | D | Jerarquía visual y móvil | No hecho (ver «Diferido») | |
 | E | Calibración y rendimiento en el tiempo | No hecho: evaluado, con propuesta para quant (ver «Diferido») | |
 | F | Vista previa de la importación CSV | Hecho | `server/src/bets/importar.vista.test.ts`, `e2e/seguimiento-pr18.spec.ts` (F) |

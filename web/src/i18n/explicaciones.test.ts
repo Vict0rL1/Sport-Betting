@@ -14,7 +14,7 @@ import { fijarIdiomaFormato } from '../lib/formato.ts';
  * Iguales en los dos idiomas a propósito: el anglicismo que el español ya usa. Una plantilla sin palabras
  * fuera de sus parámetros («{quien}: {senales}», «{quien} {g}–{p}») tampoco tiene nada que traducir.
  */
-const IGUALES_A_PROPOSITO = new Set(['tenis.factor.h2h', 'tenis.factorEnFrase.h2h']);
+const IGUALES_A_PROPOSITO = new Set(['tenis.factor.h2h', 'tenis.factorEnFrase.h2h', 'futbol.elo']);
 const sinPalabras = (s: string) => !/[a-záéíóúñü]/i.test(s.replace(/\{[^}]*\}/g, ''));
 const marcas = (s: string) => [...new Set([...s.matchAll(/\{(\w+)(?:\|[^}]*)?\}/g)].map((m) => m[1]))].sort().join(',');
 const cat = EXPLICACIONES as Record<string, string>;

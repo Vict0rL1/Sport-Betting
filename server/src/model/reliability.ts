@@ -190,8 +190,8 @@ export function computeReliability(
 /** A layoff in the largest unit that still reads naturally ("~4 años", not "229 meses"). */
 function humanGap(days: number): ExplicacionConTexto {
   const months = Math.round(days / 30);
-  if (months < 24) return explica('tenis.tiempo.meses', { n: int(months) });
-  return explica('tenis.tiempo.anios', { n: int(Math.round(days / 365)) });
+  if (months < 24) return explica('tiempo.meses', { n: int(months) });
+  return explica('tiempo.anios', { n: int(Math.round(days / 365)) });
 }
 
 function clamp01(n: number): number {

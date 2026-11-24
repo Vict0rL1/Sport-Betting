@@ -4,6 +4,22 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18, fase C (3): el fútbol, en tu idioma (2026-11-25)
+
+- **El fútbol escribe sus explicaciones con código** (46 códigos):
+  - el veredicto («Gana X», «Empate») y la doble oportunidad («X o empate»);
+  - la «Lectura completa»;
+  - los motivos y el aviso de fiabilidad;
+  - la lectura de la ficha y sus factores;
+  - las bajas.
+- **La opción suelta dentro de la frase** («la opción suelta más probable es…») tiene su propio código.
+  Antes la web pasaba la etiqueta a minúsculas, y el nombre del club con ella.
+- **Formato.** La diferencia de Elo de la lectura salía con punto («45.3 puntos») y ahora sale con
+  coma. El «%» de las bajas lleva espacio duro.
+- **Plurales** («1 partido», «1 temporada»). El tiempo sin jugar usa los códigos comunes `tiempo.*`,
+  que comparte con el tenis.
+- **No cambia:** ningún número, y el panel de noticias, que cita artículos de fuera y no se traduce.
+
 ## Seguimiento del PR #18, fase C (2): el tenis, en tu idioma (2026-11-24)
 
 - **El tenis escribe sus explicaciones con código** (55 códigos). Cubre la tarjeta (titular y viñetas),
