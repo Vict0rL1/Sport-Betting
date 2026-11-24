@@ -1855,7 +1855,7 @@ export const en: Partial<Record<Clave, string>> = {
   'notif.canal.email': 'Email',
   'notif.canal.webpush': 'This browser (push)',
   'notif.enviando': 'sending…',
-  'notif.enviada': 'sent ✓',
+  'notif.enviada': 'accepted by the channel ✓',
   'notif.no': 'no: {error}',
   'notif.noEnviar': 'could not send',
   'notif.noActivar': 'could not enable',

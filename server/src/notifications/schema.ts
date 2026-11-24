@@ -22,7 +22,10 @@ export const NOTIFICATIONS_SCHEMA = `
     body          TEXT NOT NULL,
     url           TEXT,
     deliver_after TEXT NOT NULL,
-    expires_at    TEXT NOT NULL
+    expires_at    TEXT NOT NULL,
+    -- Intentos de entrega sin que ningún canal lo aceptara, y el último error (v32).
+    attempts      INTEGER NOT NULL DEFAULT 0,
+    last_error    TEXT
   );
   CREATE TABLE IF NOT EXISTS push_subscriptions (
     endpoint    TEXT PRIMARY KEY,

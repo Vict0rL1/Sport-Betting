@@ -7,6 +7,11 @@ export interface Mensaje {
   cuerpo: string;
   /** Ruta de la app a abrir (p. ej. `/partido/football/<id>?clave=<match_key>`). */
   url?: string | null;
+  /**
+   * Una clave de idempotencia (la misma en cada intento de este aviso). El webhook la manda en
+   * `Idempotency-Key`; los demás canales no tienen dónde (notifications/index.ts).
+   */
+  id?: string;
 }
 
 export interface ResultadoEnvio {
@@ -56,7 +61,9 @@ export const webhook: Canal = {
   enviar: async (m, e, f) => {
     try {
       const texto = `**${m.titulo}**\n${m.cuerpo}`;
-      const res = await f(e.WEBHOOK_URL!, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: texto, text: texto, titulo: m.titulo, cuerpo: m.cuerpo, url: m.url ?? null }) });
+      // Con clave, el receptor puede descartar un duplicado (la entrega es «al menos una vez»).
+      const headers: Record<string, string> = { 'content-type': 'application/json', ...(m.id ? { 'idempotency-key': m.id } : {}) };
+      const res = await f(e.WEBHOOK_URL!, { method: 'POST', headers, body: JSON.stringify({ content: texto, text: texto, titulo: m.titulo, cuerpo: m.cuerpo, url: m.url ?? null }) });
       return res.ok ? { ok: true, error: null } : { ok: false, error: await leerError(res) };
     } catch (err) {
       return { ok: false, error: (err as Error).message };

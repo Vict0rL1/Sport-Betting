@@ -103,7 +103,7 @@ Además, vistos al trazar los llamadores:
 | D | Jerarquía visual y móvil | Pendiente | |
 | E | Calibración y rendimiento en el tiempo | Pendiente | |
 | F | Vista previa de la importación CSV | Hecho | `server/src/bets/importar.vista.test.ts`, `e2e/seguimiento-pr18.spec.ts` (F) |
-| G | Fiabilidad de los avisos | Pendiente | |
+| G | Fiabilidad de los avisos | Hecho | `server/src/notifications/entrega.test.ts`, `server/src/db/v32.test.ts`, `notifications/silencio.test.ts` |
 
 ## Decisiones
 
@@ -268,6 +268,33 @@ ya está y el resto de deportes es mecánico.
 - **La web** (`ImportarCsv`): pegar o elegir el fichero → «Revisar» → resumen, filas rechazadas con su
   error en el idioma y avisos → «Importar N».
 
+### G. La entrega de los avisos, dicha como es (`server/src/notifications/index.ts`)
+
+- **El defecto.** Lo aplazado por las horas de silencio se borraba de la cola y contaba como «enviado»
+  aunque TODOS los canales lo rechazaran (un 503, un token caducado): el fallo se volvía éxito y el aviso
+  se perdía. Tampoco había reintentos. Reproducido en `entrega.test.ts`.
+- **Ahora:**
+  - **«Enviado» = aceptado por al menos un canal.** «Aceptado», porque ningún proveedor confirma que la
+    persona lo vio. La pantalla de prueba dice «aceptada por el canal».
+  - **Si ninguno lo acepta**, se queda con su intento y su error (v32: `attempts`, `last_error`) y se
+    reintenta con espera (5, 10, 20, 40 min), hasta 5 intentos o hasta que caduque.
+  - **Un 4xx que no sea 408 ni 429 es definitivo** y no se reintenta.
+  - **Lo descartado queda anotado**, igual que lo caducado y lo que no cabe en la cola.
+  - **Al menos una vez, no «exactamente una vez».** Se envía y después se quita. Una caída entre medias,
+    o una copia restaurada de antes del envío, lo repite. El webhook lleva la misma `Idempotency-Key`
+    (un resumen, sin contenido) en cada intento del mismo aviso. Telegram, el correo y Web Push no la
+    admiten.
+  - **Lo que ya estaba y se comprobó:**
+    - la cola sobrevive a un reinicio (está en la base);
+    - lo caducado no se envía;
+    - con los canales apagados, se queda y caduca anotado;
+    - la misma clave, la última versión;
+    - el tope de 200;
+    - el cambio de hora de la ventana (`silencio.test.ts`).
+- **v32 `intentos-de-avisos`.** Columnas nuevas con valor por defecto, aditiva e idempotente, probada:
+  sube desde v31 con avisos dentro, se reaplica y la instalación nueva ya las tiene.
+- La garantía, para quien opera, está en `docs/NOTIFICACIONES.md`.
+
 ## Revisiones y su destino
 
 ### Fase B
@@ -314,7 +341,72 @@ ya está y el resto de deportes es mecánico.
   | 5 | Bajo | Leer todas las apuestas: 0,3–0,4 s con 100.000 | Arreglado: solo las de las fechas de colocación del fichero (`idx_bets_day`) |
   | 6 | Info | Cada fila se guarda por separado (como antes): una caída a media importación deja una parte | Se mantiene. Al reimportar, los avisos de duplicado lo dicen |
 
+- **security-reviewer (fase F).**
+  - Comprobado y bien:
+    - la vista previa va detrás de la autenticación, del control de origen y del interruptor;
+    - 413 por encima de 256 KB, y 400 y no 500 con cuerpos raros;
+    - nada se inyecta en la web: todo son nodos de texto;
+    - consultas con parámetros;
+    - `settled_at` no se puede fijar por la API.
+  - Un hallazgo bajo: una cabecera de 110.000 columnas bloqueaba el proceso 1,8 s y la respuesta las
+    devolvía todas. Arreglado en `d67c46c`: el mapa de columnas se hace una vez y se devuelven 50
+    nombres como mucho.
+
+### Fase G
+
+- **data-guardian.** v32 es aditiva e idempotente:
+  - en el libro mayor separado (el nombre sin calificar va a `ledger.notification_pending`), en un solo
+    fichero y en una instalación nueva;
+  - no pide nada a la copia ni a la restauración;
+  - ninguna fila inmutable se toca;
+  - `resumenEnvios` y el doctor cuentan bien.
+
+  | # | Sev. | Hallazgo | Destino |
+  | --- | --- | --- | --- |
+  | 1 | Bajo | Si mientras se enviaba v1 llegaba v2 con la misma clave, quitar v1 borraba v2 sin enviarla (o v2 heredaba los intentos de v1) | Arreglado: borrar y reintentar por clave y versión (`created_at`) (`entrega.test.ts`) |
+  | 2 | Bajo | Una versión nueva heredaba los intentos de la vieja y podía descartarse tras un solo intento | Arreglado: el upsert pone `attempts = 0` y `last_error = NULL` |
+  | 3 | Info | El resumen del trabajo no decía reintentos ni descartes; la nota de caducada no decía el último error | Arreglado |
+
+- **security-reviewer.**
+  - Comprobado y bien:
+    - los reintentos tienen tope (un 429, cinco intentos);
+    - un 404 se descarta a la primera;
+    - `Idempotency-Key` es un resumen de 32 caracteres hexadecimales, sin contenido y sin inyección de
+      cabeceras;
+    - el token de Telegram no se cuela en los errores;
+    - «aceptada por el canal».
+  - Un hallazgo bajo, anterior a este trabajo y que este trabajo extendía: un `WEBHOOK_URL` con
+    `usuario:contraseña@` o un token en la ruta acababa entero en el mensaje de error, y de ahí en
+    `notification_log`, en `last_error` y en las notas. Arreglado: `sinSecretos` quita los valores
+    configurados (`WEBHOOK_URL`, `TELEGRAM_BOT_TOKEN`, `SMTP_PASS`, `SMTP_USER`, `VAPID_PRIVATE_KEY`) y
+    cualquier `//usuario:contraseña@` antes de guardar o devolver un error, también en «probar»
+    (`entrega.test.ts`).
+  - Lo que ya estaba guardado no se reescribe: el registro solo se añade.
+
 ## Diferido
+
+- **E. Rendimiento: calibración y en el tiempo. Evaluado, no hecho.**
+  - **Lo que ya hay** (`web/src/components/trust/Analitica.tsx`):
+    - un diagrama de fiabilidad del backtest y del vivo (`/api/evaluation/reliability`), con 10 cubetas
+      fijas y un resumen en texto con `n` por cubeta, que vale como alternativa en tabla;
+    - la serie diaria de log loss y Brier (`/api/monitoring`).
+  - **Lo que falla, confirmado en el código** (`server/src/evaluation/reliability.ts`):
+    - cada SALIDA de un partido cuenta como una observación: en el fútbol, tres por partido, que no son
+      independientes, que es justo lo que el brief prohíbe;
+    - no hay bandas de incertidumbre ni mínimo de muestra por cubeta.
+  - **Propuesta para quant-reviewer, antes de tocarlo:**
+    - una observación por partido: la probabilidad del favorito evaluado (`final-congelada-v1`, legado
+      aparte) contra si ganó, en binarios y en 1X2;
+    - cubetas de 10 puntos con intervalo de Wilson al 95 %;
+    - cada cubeta, solo con n ≥ 30; un juicio de conjunto, solo con n ≥ 100;
+    - en el tiempo, Brier por semana ISO en la zona de la política, cortado por versión del modelo, con
+      `n` en cada punto y sin unir semanas vacías;
+    - registrado, legado y reconstruido, siempre aparte.
+  - No se ha hecho por tiempo. Necesita la revisión quant de las definiciones primero.
+- **D. Jerarquía visual y móvil. No hecho en esta pasada.** No hay capturas ni inspección nuevas en el
+  navegador de las que salgan cambios concretos. Lo que se tocó de la web (la cartera, la importación y
+  las tarjetas de NHL, UFC y NFL) pasó por las pruebas de axe a 390 px de `rutas.spec.ts`, y la pasada
+  final de ui-tester lo revisa.
 
 - **La hora del partido en las apuestas personales.** Sin enlace a una instantánea no se sabe el día
   del partido, y lo pendiente cuenta en el tope de cada día (R9, arreglado de forma estricta). Guardar

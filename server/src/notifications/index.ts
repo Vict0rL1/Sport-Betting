@@ -6,6 +6,7 @@
 // configurado» y la app no se queja. Nunca lanza: una notificación que no sale no puede
 // tumbar el ciclo que la provocó.
 
+import { createHash } from 'node:crypto';
 import { getDb } from '../db.ts';
 import { leerAjustes } from '../ajustes/index.ts';
 import { enSilencio, finDeSilencio, type Silencio } from './silencio.ts';
@@ -146,7 +147,8 @@ function aplazar(evento: TipoEvento, m: Mensaje, ahora: Date, s: Silencio): 'apl
     db
       .prepare(
         `INSERT INTO notification_pending (clave, created_at, event_type, title, body, url, deliver_after, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT (clave) DO UPDATE SET body = excluded.body, deliver_after = excluded.deliver_after, expires_at = excluded.expires_at, created_at = excluded.created_at`,
+         ON CONFLICT (clave) DO UPDATE SET body = excluded.body, deliver_after = excluded.deliver_after, expires_at = excluded.expires_at, created_at = excluded.created_at,
+           attempts = 0, last_error = NULL`,
       )
       .run(clave, ahora.toISOString(), evento, m.titulo, m.cuerpo, m.url ?? null, fin.toISOString(), new Date(ahora.getTime() + s.caducaHoras * 3_600_000).toISOString());
     return 'aplazada';
@@ -156,38 +158,115 @@ function aplazar(evento: TipoEvento, m: Mensaje, ahora: Date, s: Silencio): 'apl
   }
 }
 
+/** Intentos sin que ningún canal acepte un aviso aplazado, antes de descartarlo (fase G del seguimiento del PR #18). */
+export const MAX_INTENTOS = 5;
+/** La espera tras el intento n (1, 2, …): 5, 10, 20, 40 minutos. */
+const espera = (intentos: number) => 5 * 60_000 * 2 ** Math.max(0, intentos - 1);
+
 /**
- * Envía lo aplazado cuya ventana ya acabó (y que no ha caducado), una vez, y anota y quita lo
- * caducado. Lo llama el programador cada pocos minutos.
+ * Un rechazo que no se arregla reintentando: un HTTP 4xx salvo 408 (tiempo agotado) y 429 (demasiadas
+ * peticiones). Lo demás (5xx, red caída, tiempo agotado) puede ir mejor más tarde.
  */
-export async function enviarAplazadas(ahora = new Date()): Promise<{ enviadas: number; caducadas: number }> {
-  let filas: { clave: string; event_type: TipoEvento; title: string; body: string; url: string | null; deliver_after: string; expires_at: string }[];
+export function esDefinitivo(error: string | null): boolean {
+  const m = /^HTTP (\d{3})/.exec(error ?? '');
+  if (!m) return false;
+  const c = Number(m[1]);
+  return c >= 400 && c < 500 && c !== 408 && c !== 429;
+}
+
+/**
+ * Una clave de idempotencia para un aviso aplazado: la misma cada vez que se intenta ESA versión (la
+ * clave de la cola y cuándo se aplazó), y sin su contenido (es un resumen SHA-256). La lleva el webhook
+ * en `Idempotency-Key`: el receptor puede descartar un duplicado. Telegram, el correo y Web Push no
+ * tienen dónde ponerla.
+ */
+export const claveIdempotencia = (clave: string, creadaEn: string) => createHash('sha256').update(`${clave}|${creadaEn}`).digest('hex').slice(0, 32);
+
+/**
+ * Envía lo aplazado cuya ventana ya acabó (y que no ha caducado) y anota y quita lo caducado. Lo llama
+ * el programador cada pocos minutos.
+ *
+ * LA GARANTÍA, dicha como es: AL MENOS UNA VEZ, no «exactamente una vez».
+ *   · «Enviado» quiere decir ACEPTADO por al menos un canal (el proveedor contestó que sí). Si el
+ *     destinatario lo vio, la app no lo sabe: ningún canal lo confirma.
+ *   · Si ningún canal lo acepta, no cuenta: se queda, con su intento y su error, y se reintenta con
+ *     espera (5, 10, 20, 40 min) hasta MAX_INTENTOS o hasta que caduque. Un rechazo definitivo (4xx) no
+ *     se reintenta. Lo que se descarta queda anotado en notification_log.
+ *   · Se envía y DESPUÉS se quita de la cola: si el proceso cae entre medias, o se restaura una copia
+ *     de antes del envío, el aviso sale otra vez. Es la ventana inevitable sin un acuse del proveedor;
+ *     el webhook lleva la misma `Idempotency-Key` las dos veces para que el receptor la descarte.
+ *   · Con un aviso aceptado por un canal y rechazado por otro, sale de la cola (no se reenvía a quien
+ *     ya lo aceptó) y el rechazo queda anotado en su canal.
+ */
+export async function enviarAplazadas(ahora = new Date()): Promise<{ enviadas: number; caducadas: number; reintentos: number; fallidas: number }> {
+  let filas: { clave: string; created_at: string; event_type: TipoEvento; title: string; body: string; url: string | null; deliver_after: string; expires_at: string; attempts: number; last_error: string | null }[];
   try {
-    filas = getDb().prepare('SELECT clave, event_type, title, body, url, deliver_after, expires_at FROM notification_pending ORDER BY created_at').all() as typeof filas;
+    filas = getDb().prepare('SELECT clave, created_at, event_type, title, body, url, deliver_after, expires_at, attempts, last_error FROM notification_pending ORDER BY created_at').all() as typeof filas;
   } catch {
-    return { enviadas: 0, caducadas: 0 };
+    return { enviadas: 0, caducadas: 0, reintentos: 0, fallidas: 0 };
   }
   let enviadas = 0;
   let caducadas = 0;
+  let reintentos = 0;
+  let fallidas = 0;
+  // Por clave Y versión (created_at): si mientras se enviaba la vieja llegó otra versión, esa se queda
+  // (revisión data-guardian).
+  const quitar = (f: { clave: string; created_at: string }) => getDb().prepare('DELETE FROM notification_pending WHERE clave = ? AND created_at = ?').run(f.clave, f.created_at).changes > 0;
   for (const f of filas) {
     const caduca = Date.parse(f.expires_at) <= ahora.getTime();
     if (caduca) {
-      getDb().prepare('DELETE FROM notification_pending WHERE clave = ?').run(f.clave);
-      caducadas++;
-      anotar('silencio', f.event_type, f.title, { ok: false, error: 'caducada: no se envió tras las horas de silencio' }, 0);
+      if (quitar(f)) {
+        caducadas++;
+        anotar('silencio', f.event_type, f.title, { ok: false, error: `caducada: no se envió tras las horas de silencio${f.last_error ? ` (último error: ${f.last_error})` : ''}` }, 0);
+      }
       continue;
     }
     if (Date.parse(f.deliver_after) > ahora.getTime() || enSilencio(ahora, leerAjustes().silencio)) continue;
     // Con los canales apagados se quedan en la cola (caducarán con su anotación), no se borran sin
-    // rastro (revisión data-guardian de G3).
+    // rastro (revisión data-guardian de G3). Lo mismo si no hay ningún canal configurado.
     if (!featureEncendida('notificaciones.canales')) continue;
-    // Se envía y después se quita: si el proceso cae entre medias, como mucho se repite un aviso,
-    // nunca se pierde en silencio.
-    await enviarPorCanales(f.event_type, { titulo: f.title, cuerpo: f.body, url: f.url ?? undefined });
-    getDb().prepare('DELETE FROM notification_pending WHERE clave = ?').run(f.clave);
-    enviadas++;
+    const r = await enviarPorCanales(f.event_type, { titulo: f.title, cuerpo: f.body, url: f.url ?? undefined, id: claveIdempotencia(f.clave, f.created_at) });
+    if (r.length === 0) continue;
+    if (r.some((x) => x.ok)) {
+      // Se envió esta versión aunque otra la haya sustituido entretanto: cuenta como enviada.
+      quitar(f);
+      enviadas++;
+      continue;
+    }
+    // Nadie lo aceptó: no es un envío.
+    const intentos = (f.attempts ?? 0) + 1;
+    const error = r.map((x) => `${x.canal}: ${x.error ?? '?'}`).join('; ').slice(0, 300);
+    if (r.every((x) => esDefinitivo(x.error))) {
+      quitar(f);
+      fallidas++;
+      anotar('silencio', f.event_type, f.title, { ok: false, error: `descartada: rechazo definitivo (${error})` }, 0);
+    } else if (intentos >= MAX_INTENTOS) {
+      quitar(f);
+      fallidas++;
+      anotar('silencio', f.event_type, f.title, { ok: false, error: `descartada tras ${intentos} intentos (${error})` }, 0);
+    } else {
+      const c = getDb()
+        .prepare('UPDATE notification_pending SET attempts = ?, last_error = ?, deliver_after = ? WHERE clave = ? AND created_at = ?')
+        .run(intentos, error, new Date(ahora.getTime() + espera(intentos)).toISOString(), f.clave, f.created_at).changes;
+      if (c > 0) reintentos++;
+    }
   }
-  return { enviadas, caducadas };
+  return { enviadas, caducadas, reintentos, fallidas };
+}
+
+/**
+ * Un error de canal sin secretos, antes de guardarlo o devolverlo (revisión de seguridad). Un transporte
+ * puede meter en su mensaje la URL entera del webhook (con `usuario:contraseña@` o un token en la ruta),
+ * y ese texto acaba en notification_log, en la cola y en las copias del libro mayor.
+ */
+export function sinSecretos(error: string | null, entorno: NodeJS.ProcessEnv = entornoActual): string | null {
+  if (error == null) return null;
+  let s = error;
+  for (const k of ['WEBHOOK_URL', 'TELEGRAM_BOT_TOKEN', 'SMTP_PASS', 'SMTP_USER', 'VAPID_PRIVATE_KEY']) {
+    const v = entorno[k]?.trim();
+    if (v && v.length >= 4) s = s.split(v).join(`[${k}]`);
+  }
+  return s.replace(/\/\/[^/\s:@]+:[^/\s@]+@/g, '//***@');
 }
 
 async function enviarPorCanales(evento: TipoEvento, m: Mensaje): Promise<{ canal: string; ok: boolean; error: string | null }[]> {
@@ -195,7 +274,8 @@ async function enviarPorCanales(evento: TipoEvento, m: Mensaje): Promise<{ canal
   for (const c of CANALES) {
     if (c.falta(entornoActual).length) continue;
     const t0 = Date.now();
-    const r = await c.enviar(m, entornoActual, fetchActual).catch((e) => ({ ok: false, error: (e as Error).message }) as ResultadoEnvio);
+    const crudo = await c.enviar(m, entornoActual, fetchActual).catch((e) => ({ ok: false, error: (e as Error).message }) as ResultadoEnvio);
+    const r = { ...crudo, error: sinSecretos(crudo.error) };
     anotar(c.nombre, evento, m.titulo, r, Date.now() - t0);
     out.push({ canal: c.nombre, ok: r.ok, error: r.error });
   }
@@ -209,7 +289,8 @@ export async function probarCanal(nombre: string): Promise<{ ok: boolean; canal:
   const falta = c.falta(entornoActual);
   if (falta.length) return { ok: false, canal: nombre, error: `sin configurar: faltan ${falta.join(', ')}` };
   const t0 = Date.now();
-  const r = await c.enviar({ titulo: 'Sports Predictor: prueba', cuerpo: `Si lees esto, el canal «${nombre}» funciona.`, url: '/' }, entornoActual, fetchActual).catch((e) => ({ ok: false, error: (e as Error).message }) as ResultadoEnvio);
+  const crudo = await c.enviar({ titulo: 'Sports Predictor: prueba', cuerpo: `Si lees esto, el canal «${nombre}» funciona.`, url: '/' }, entornoActual, fetchActual).catch((e) => ({ ok: false, error: (e as Error).message }) as ResultadoEnvio);
+  const r = { ...crudo, error: sinSecretos(crudo.error) };
   anotar(c.nombre, 'prueba', 'prueba', r, Date.now() - t0);
   return { ok: r.ok, canal: nombre, error: r.error };
 }

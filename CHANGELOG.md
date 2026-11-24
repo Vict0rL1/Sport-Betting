@@ -4,6 +4,33 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18, fase G: un aviso que nadie aceptó ya no cuenta como enviado (2026-11-24)
+
+- **El defecto.** Lo aplazado por las horas de silencio se borraba de la cola y contaba como «enviado»
+  aunque TODOS los canales lo rechazaran (un 503, un token caducado). El fallo se volvía éxito y el aviso
+  se perdía.
+- **Ahora,** si ningún canal lo acepta:
+  - se queda con su intento y su error;
+  - se reintenta con espera (5, 10, 20 y 40 min), hasta 5 intentos o hasta que caduque;
+  - un 4xx definitivo (no 408 ni 429) no se reintenta;
+  - lo descartado queda anotado.
+
+  Si un canal lo acepta, sale de la cola aunque otro lo rechace, y el rechazo queda en su canal.
+- **Migración v32 `intentos-de-avisos`:** `attempts` y `last_error` en la cola, en el libro mayor.
+  Aditiva e idempotente, probada desde v31 con avisos dentro.
+- **La garantía, dicha como es** (`docs/NOTIFICACIONES.md`): al menos una vez, no «exactamente una vez».
+  Una caída tras enviar, o una copia restaurada de antes, lo repite. El webhook lleva la misma cabecera
+  `Idempotency-Key` en cada intento, para que el receptor lo descarte.
+- **«Enviado» es «aceptado por el canal».** Ningún proveedor confirma que la persona lo vio, y la prueba
+  de un canal ya lo dice así.
+- **Revisiones.** data-guardian:
+  - una versión nueva del mismo aviso, llegada mientras se enviaba la vieja, se borraba sin enviar;
+  - una versión nueva heredaba los intentos de la vieja.
+
+  security-reviewer: un `WEBHOOK_URL` con credenciales o un token acababa en el registro de errores. Los
+  errores ya no guardan secretos.
+- Nada sale a la red en los tests: son transportes de mentira.
+
 ## Seguimiento del PR #18, fase F: la importación por CSV dice antes qué entra, qué no y qué se pierde (2026-11-24)
 
 - **Vista previa** (`POST /api/bets/import/preview`, que no escribe nada). Dice, fila a fila:

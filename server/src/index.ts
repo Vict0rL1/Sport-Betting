@@ -508,7 +508,7 @@ async function main() {
     // Horas de silencio (G3): lo aplazado sale al acabar la ventana; lo caducado se anota y no sale.
     registrar({ nombre: 'avisos-aplazados', descripcion: 'Envía los avisos aplazados por las horas de silencio', cadenciaMin: 5, primeraEnMin: 1, fn: async () => {
       const r = await enviarAplazadas();
-      return `${r.enviadas} enviados, ${r.caducadas} caducados`;
+      return `${r.enviadas} aceptados, ${r.reintentos} por reintentar, ${r.fallidas} descartados, ${r.caducadas} caducados`;
     } });
     registrar({ nombre: 'pre-partido', descripcion: 'Predice lo próximo, guarda instantáneas y congela la final de lo que empezó', cadenciaMin: 15, primeraEnMin: 0, fn: (log) => {
         cicloPrePartido(log);

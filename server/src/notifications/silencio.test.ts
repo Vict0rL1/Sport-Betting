@@ -70,7 +70,7 @@ test('G3: aplazar: se envía al acabar la ventana, una vez por clave (la última
   // Antes del final de la ventana, nada; después, lo pendiente y vigente.
   // A las 05:00 UTC (06:00 en Madrid) la ventana sigue: no sale nada; lo de la noche anterior ya
   // pasó de 12 h y se anota como caducado.
-  assert.deepEqual(await enviarAplazadas(new Date('2026-11-21T05:00:00Z')), { enviadas: 0, caducadas: 1 });
+  assert.deepEqual(await enviarAplazadas(new Date('2026-11-21T05:00:00Z')), { enviadas: 0, caducadas: 1, reintentos: 0, fallidas: 0 });
   const r = await enviarAplazadas(new Date('2026-11-21T06:05:00Z'));
   assert.equal(r.enviadas, 1, 'la misma clave, una vez');
   assert.equal(r.caducadas, 0);
@@ -138,9 +138,9 @@ test('G3 (data-guardian): con los canales apagados al vaciar la cola, lo aplazad
   await notificar('digest_listo', { titulo: 'Apagado', cuerpo: 'x' }, { ahora: new Date('2026-12-05T23:30:00Z') });
   reiniciarFeatures(undefined, { 'notificaciones.canales': false });
   try {
-    assert.deepEqual(await enviarAplazadas(new Date('2026-12-06T06:30:00Z')), { enviadas: 0, caducadas: 0 });
+    assert.deepEqual(await enviarAplazadas(new Date('2026-12-06T06:30:00Z')), { enviadas: 0, caducadas: 0, reintentos: 0, fallidas: 0 });
     assert.equal((getDb().prepare("SELECT COUNT(*) AS n FROM notification_pending WHERE title = 'Apagado'").get() as { n: number }).n, 1, 'sigue en la cola');
-    assert.deepEqual(await enviarAplazadas(new Date('2026-12-06T12:00:00Z')), { enviadas: 0, caducadas: 1 }, 'y caduca anotada');
+    assert.deepEqual(await enviarAplazadas(new Date('2026-12-06T12:00:00Z')), { enviadas: 0, caducadas: 1, reintentos: 0, fallidas: 0 }, 'y caduca anotada');
   } finally {
     reiniciarFeatures();
     guardarAjustes({ silencio: null });

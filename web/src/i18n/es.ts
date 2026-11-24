@@ -1855,7 +1855,7 @@ export const es = {
   'notif.canal.email': 'Correo',
   'notif.canal.webpush': 'Este navegador (push)',
   'notif.enviando': 'enviando…',
-  'notif.enviada': 'enviada ✓',
+  'notif.enviada': 'aceptada por el canal ✓',
   'notif.no': 'no: {error}',
   'notif.noEnviar': 'no se pudo enviar',
   'notif.noActivar': 'no se pudo activar',
