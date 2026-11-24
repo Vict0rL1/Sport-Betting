@@ -99,3 +99,83 @@ for (const idioma of ['es', 'en'] as const) {
     expect(caja.x + caja.width).toBeLessThanOrEqual(320);
   });
 }
+
+// Fase E: la calibración por partido y el rendimiento por periodo, con datos SINTÉTICOS servidos desde
+// aquí. Se comprueba que el gráfico, el texto y la tabla dicen lo mismo y que lo que no tiene muestra se dice.
+test('E: la calibración por partido y el Brier por periodo enseñan su muestra, su intervalo y su tabla', async ({ page }) => {
+  const cubetas = (dibujada?: number) =>
+    Array.from({ length: 10 }, (_, i) =>
+      i === dibujada
+        ? { desde: i / 10, hasta: (i + 1) / 10, n: 120, predichaMedia: 0.62, observada: 0.625, ic95: { lo: 0.5358, hi: 0.7065 }, nivel: 'suficiente' }
+        : { desde: i / 10, hasta: (i + 1) / 10, n: i === 2 ? 20 : 0, predichaMedia: i === 2 ? 0.25 : null, observada: null, ic95: null, nivel: 'sin-muestra' },
+    );
+  const conjunto = (veredicto: string) => ({ n: 140, predichaMedia: 0.55, observada: 0.56, ic95: { lo: 0.48, hi: 0.64 }, citlZ: 0.2, spiegelhalterZ: 0.4, veredicto, nivel: 'orientativa' });
+  await page.addInitScript(() => localStorage.setItem('predictor.recorrido', '1'));
+  await page.route('**/api/evaluation/calibracion*', (r) =>
+    r.fulfill({
+      json: {
+        resultados: 3,
+        partidos: 140,
+        excluidas: { 'final-invalida': 2 },
+        versiones: [{ version: 'v1', n: 140 }],
+        umbrales: { cubetaMin: 30, conjuntoMin: 100, zCritico: 2.638 },
+        motivo: null,
+        paneles: [
+          { clase: 'local', n: 140, cubetas: cubetas(6), conjunto: conjunto('sin-evidencia') },
+          { clase: 'empate', n: 140, cubetas: cubetas(), conjunto: conjunto('descalibrado') },
+          { clase: 'visitante', n: 140, cubetas: cubetas(), conjunto: conjunto('sin-evidencia') },
+        ],
+      },
+    }),
+  );
+  await page.route('**/api/evaluation/rendimiento*', (r) =>
+    r.fulfill({
+      json: {
+        zona: 'Europe/Madrid',
+        referencia: { uniforme: 1 / 3 },
+        umbrales: { puntoMin: 30, insuficiente: 100 },
+        motivo: null,
+        excluidas: { '2026-10': { 'final-invalida': 2 } },
+        series: [
+          {
+            cohorte: 'final',
+            version: 'v1',
+            puntos: [
+              { periodo: '2026-10', parcial: false, n: 120, brier: 0.21, ic95: { lo: 0.19, hi: 0.23 }, logLoss: 0.61, mercado: null, nivel: 'orientativa', motivo: null },
+              { periodo: '2026-11', parcial: true, n: 12, brier: null, ic95: null, logLoss: null, mercado: null, nivel: 'sin-muestra', motivo: null },
+            ],
+          },
+        ],
+        resumen: [{ cohorte: 'final', version: 'v1', n: 132, brier: 0.21, ic95: { lo: 0.19, hi: 0.23 }, logLoss: 0.61, mercado: null, nivel: 'orientativa' }],
+      },
+    }),
+  );
+  await page.goto('/confianza');
+  const cal = page.locator('section[aria-labelledby="cal-titulo"]');
+  await expect(cal.getByRole('heading', { name: 'Calibración por partido' })).toBeVisible();
+  await expect(cal.getByText(/Sin evidencia de descalibración con esta muestra \(umbral ±2,64/).first()).toBeVisible();
+  await expect(cal.getByText(/Hay evidencia de descalibración/)).toBeVisible();
+  await expect(cal.getByText(/No evaluados: la estimación congelada no se puede leer/)).toBeVisible();
+  // La tabla dice lo mismo que el punto: 120 partidos, 62,5 %, y la cubeta de 20 se cuenta pero no se dibuja.
+  await cal.getByText('Ver la tabla').first().click();
+  const fila = cal.getByRole('row').filter({ hasText: '60 %–70 %' });
+  await expect(fila).toContainText('120');
+  await expect(fila).toContainText('62,5 %');
+  await expect(cal.getByRole('row').filter({ hasText: '20 %–30 %' })).toContainText('menos de 30');
+  await expect(cal.locator('svg[role="img"] circle[r="4.5"]')).toHaveCount(1);
+
+  const rend = page.locator('section[aria-labelledby="rend-titulo"]');
+  await expect(rend.getByText('Registradas · versión v1')).toBeVisible();
+  await expect(rend.getByText(/132 partidos · Brier 0,210/)).toBeVisible();
+  await expect(rend.getByText(/Mide la calidad de la probabilidad, no si se gana dinero/)).toBeVisible();
+  // Las exclusiones, una vez para el deporte, no repetidas en cada serie.
+  await expect(rend.getByText(/^No evaluados, por mes: 2026-10: la estimación congelada no se puede leer/)).toHaveCount(1);
+  await rend.getByText('Ver la tabla').click();
+  await expect(rend.getByRole('row').filter({ hasText: '2026-11 (en curso)' })).toContainText('menos de 30');
+  // Un punto por periodo con muestra, sin línea que los una.
+  await expect(rend.locator('svg[role="img"] circle[r="4.5"]')).toHaveCount(1);
+  await expect(rend.locator('svg[role="img"] polyline, svg[role="img"] path')).toHaveCount(0);
+
+  await page.setViewportSize({ width: 390, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+});

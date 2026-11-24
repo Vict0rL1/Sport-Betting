@@ -96,7 +96,7 @@ export async function registerOperacionRoutes(app: FastifyInstance): Promise<voi
       if ((req.query.formato ?? 'json') === 'csv') {
         return reply.type('text/csv; charset=utf-8').header('content-disposition', `attachment; filename="${req.params.dataset}.csv"`).send(aCsv(r.columnas, r.datos));
       }
-      return { dataset: req.params.dataset, filas: r.datos.length, columnas: r.columnas, datos: r.datos };
+      return { dataset: req.params.dataset, filas: r.datos.length, columnas: r.columnas, datos: r.datos, ...(r.aviso ? { aviso: r.aviso } : {}) };
     },
   );
 }

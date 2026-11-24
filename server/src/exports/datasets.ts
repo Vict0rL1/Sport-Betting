@@ -11,8 +11,10 @@ import { SPORT_IDS, type SportId } from '../sports.ts';
 import { ORDEN_LIBRE, POLITICA_EVALUACION, resolverEvaluada, resultadosDe, type FinalLeida } from '../evaluation/evaluada.ts';
 import { publicadasDe } from '../prediction/publicada.ts';
 import { clasePrepartido, empezado } from '../prematch/tiempo.ts';
+import { clavePeriodo, cohorteDeMotivo, DEFINICION_RENDIMIENTO, filasEvaluadas } from '../evaluation/calibracion.ts';
+import { zonaPolitica } from '../staking/contabilidad.ts';
 
-export const DATASETS = ['predicciones', 'apuestas', 'papel', 'snapshots', 'benchmark'] as const;
+export const DATASETS = ['predicciones', 'apuestas', 'papel', 'snapshots', 'benchmark', 'evaluadas'] as const;
 export type Dataset = (typeof DATASETS)[number];
 
 export interface Filtros {
@@ -25,6 +27,8 @@ export interface Filtros {
 export interface Exportacion {
   columnas: string[];
   datos: Record<string, unknown>[];
+  /** Algo que quien exporta debe saber y que no cabe en una fila (p. ej., por qué no sale ninguna). */
+  aviso?: string;
 }
 
 const fechaIso = (s?: string) => (s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null);
@@ -195,6 +199,59 @@ function benchmark(f: Filtros): Exportacion {
   return { columnas, datos };
 }
 
+/**
+ * Fase E: las predicciones EVALUADAS, una fila por partido, con las mismas definiciones que la
+ * calibración y el rendimiento por periodo (evaluation/calibracion.ts): lo que se dibuja y lo que se
+ * exporta salen de la misma función; los excluidos van también, con `motivo_exclusion` y sin cifras.
+ * OJO: aquí `desde`/`hasta` son días LOCALES en la zona de la política (en los demás conjuntos, el
+ * prefijo de la fecha guardada); con
+ * una APP_TIMEZONE inválida no se asigna ningún día y no sale ninguna fila (no se finge otra zona).
+ * Lo reconstruido no está: es una reproducción de temporadas de reserva, no lo que se enseñó.
+ */
+function evaluadas(f: Filtros): Exportacion {
+  const columnas = ['sport', 'match_key', 'commence_time', 'dia', 'mes', 'semana', 'cohorte', 'version', 'liga', 'prob_a', 'prob_draw', 'prob_b', 'outcome', 'brier', 'log_loss', 'brier_mercado', 'motivo_exclusion', 'definicion', 'zona'];
+  const { zona } = zonaPolitica();
+  if (!zona) return { columnas, datos: [], aviso: 'APP_TIMEZONE no es una zona válida: no se puede asignar el día de ningún partido y no sale ninguna fila (no se finge otra zona).' };
+  const deportes = f.sport && (SPORT_IDS as readonly string[]).includes(f.sport) ? [f.sport as SportId] : [...SPORT_IDS];
+  const datos: Record<string, unknown>[] = [];
+  for (const sport of deportes) {
+    const { filas, excluidas } = filasEvaluadas(sport, { desde: fechaIso(f.desde) ?? undefined, hasta: fechaIso(f.hasta) ?? undefined }, zona);
+    // Los partidos que no se evalúan, con su motivo: así las exclusiones del informe se pueden rehacer.
+    for (const e of excluidas) {
+      datos.push({
+        sport, match_key: e.matchKey, commence_time: e.cuando, dia: e.dia, mes: e.dia ? clavePeriodo(e.dia, 'mes') : null, semana: e.dia ? clavePeriodo(e.dia, 'semana') : null,
+        cohorte: cohorteDeMotivo(e.motivo), version: null, liga: e.liga, prob_a: null, prob_draw: null, prob_b: null, outcome: null,
+        brier: null, log_loss: null, brier_mercado: null, motivo_exclusion: e.motivo, definicion: DEFINICION_RENDIMIENTO, zona,
+      });
+    }
+    for (const r of filas) {
+      const tres = r.probs.length === 3;
+      datos.push({
+        sport,
+        match_key: r.matchKey,
+        commence_time: r.cuando,
+        dia: r.dia,
+        mes: clavePeriodo(r.dia, 'mes'),
+        semana: clavePeriodo(r.dia, 'semana'),
+        cohorte: r.cohorte,
+        version: r.version,
+        liga: r.liga,
+        prob_a: r.probs[0],
+        prob_draw: tres ? r.probs[1] : null,
+        prob_b: r.probs[r.probs.length - 1],
+        outcome: (tres ? ['home', 'draw', 'away'] : ['home', 'away'])[r.y] ?? null,
+        brier: r.brier,
+        log_loss: r.logLoss,
+        brier_mercado: r.brierMercado,
+        motivo_exclusion: null,
+        definicion: DEFINICION_RENDIMIENTO,
+        zona,
+      });
+    }
+  }
+  return { columnas, datos };
+}
+
 export function exportar(dataset: Dataset, f: Filtros = {}): Exportacion {
   switch (dataset) {
     case 'predicciones':
@@ -207,6 +264,8 @@ export function exportar(dataset: Dataset, f: Filtros = {}): Exportacion {
       return tabla('odds_snapshots', 'observed_at', f);
     case 'benchmark':
       return benchmark(f);
+    case 'evaluadas':
+      return evaluadas(f);
   }
 }
 

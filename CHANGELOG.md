@@ -4,6 +4,43 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18, fase E: calibración por partido y rendimiento en el tiempo (2026-11-24)
+
+- **El defecto.** El diagrama de fiabilidad contaba cada SALIDA como una observación: tres por partido
+  en el fútbol y dos, espejadas, en los binarios.
+  - 50 partidos al 50 % que ganó siempre el local salían «perfectos», y un sesgo hacia el local no se
+    veía.
+  - Mezclaba registrada y legado.
+  - No tenía intervalos ni un mínimo de muestra.
+- **Calibración por partido** (`calibracion-partido-v1`, `GET /api/evaluation/calibracion`):
+  - un partido por panel; en el fútbol, local, empate y visitante;
+  - intervalo de Wilson, y nada dibujado con menos de 30;
+  - registrada y legado aparte, y lo reconstruido fuera;
+  - veredicto con calibración en grande y Spiegelhalter, corregido por pruebas múltiples, que nunca
+    dice «calibrado».
+- **Rendimiento en el tiempo** (`rendimiento-periodo-v1`, `GET /api/evaluation/rendimiento`):
+  - Brier por mes o por semana en la zona de la política, por cohorte y versión;
+  - n e intervalo en cada punto, sin línea que los una;
+  - las exclusiones por motivo y la comparación con el mercado en los mismos partidos;
+  - un desglose por periodo y una exportación nueva (`evaluadas`) que salen de la misma función.
+- **Lo de siempre no cambia.** El diagrama de siempre, su ECE y `/api/monitoring` dan lo mismo que
+  antes, porque de ellos dependen el PSI, la deriva y los importes. Solo cambian sus rótulos: «por
+  salida» y «deriva del modelo (cifra cruda al publicar)».
+- **Definiciones de quant-reviewer**, fijadas antes del código. 17 tests de sus casos: bordes de
+  cubeta, el 50 %, empates, cambio de versión, cambio de hora, solo legado, Wilson, veredictos,
+  periodos vacíos, zona inválida y el mercado. También un test de rutas y Playwright con datos
+  sintéticos.
+- Interruptores nuevos: `analitica.calibracion` y `analitica.rendimiento`.
+- **Revisión de quant-reviewer sobre la implementación**, arreglada con sus tests:
+  - el desglose pide la cohorte y la versión de su punto;
+  - el conjunto de un panel no da cifra con menos de 30 partidos, ni pruebas con menos de 100;
+  - las exclusiones van con su cohorte y se enseñan una vez;
+  - un periodo cortado por el filtro lo dice;
+  - la exportación avisa con una zona inválida y trae los excluidos;
+  - un formateador de fechas por zona, no por fila;
+  - en el fútbol, una publicación que no suma 1 ya no se renormaliza antes de la política: se excluye,
+    como en la exportación de predicciones.
+
 ## Seguimiento del PR #18, fase C (5): la ficha común, en tu idioma (2026-11-24)
 
 - **Lo que usó el modelo.** Las entradas de cada instantánea se escriben por su clave y los nombres

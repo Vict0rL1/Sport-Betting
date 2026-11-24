@@ -11,7 +11,7 @@ import { evaluate, type Informe, type Prediccion } from './metrics.ts';
 import { SPORT_IDS, type SportId } from '../sports.ts';
 import { avisoMuestra, type AvisoMuestra } from './sample.ts';
 import { prepartidoSql } from '../prematch/tiempo.ts';
-import { ORDEN_LIBRE, POLITICA_EVALUACION, finalDeFila, joinFinal, resolverEvaluada, type TipoEvaluacion } from './evaluada.ts';
+import { ORDEN_LIBRE, POLITICA_EVALUACION, finalDeFila, joinFinal, resolverEvaluada, type MotivoSinEvaluar, type TipoEvaluacion } from './evaluada.ts';
 
 /**
  * Solo lo escrito ANTES del inicio (auditoría del 17 de octubre, punto 2): una fila registrada
@@ -43,8 +43,12 @@ export type PrediccionEnVivo = Prediccion & {
   pPublicada?: number[];
 };
 
-/** Una publicación del registro con su fila, antes de resolver qué se evalúa. */
-type Pub = PrediccionEnVivo & { fila: Fila };
+/**
+ * Una publicación del registro con su fila, antes de resolver qué se evalúa. `bruto`: lo publicado tal
+ * cual (fútbol), para que la política de evaluación decida si se puede leer; `p` va renormalizado,
+ * que es lo que mide la deriva.
+ */
+type Pub = PrediccionEnVivo & { fila: Fila; bruto?: number[] };
 
 function leer(sql: string): Fila[] {
   try {
@@ -89,6 +93,7 @@ function publicaciones(deporte: SportId): Pub[] {
         const s0 = (r.mh0 as number) + (r.md0 as number) + (r.ma0 as number);
         return {
           fila: r,
+          bruto: [r.h as number, r.d as number, r.a as number],
           p: [(r.h as number) / s, (r.d as number) / s, (r.a as number) / s],
           pModelo: s0 > 0 ? [(r.mh0 as number) / s0, (r.md0 as number) / s0, (r.ma0 as number) / s0] : undefined,
           y: (r.g1 as number) > (r.g2 as number) ? 0 : r.g1 === r.g2 ? 1 : 2,
@@ -163,7 +168,10 @@ export function predicciones(deporte: SportId): PrediccionEnVivo[] {
  * apuesta (revisión quant de B1, M1).
  */
 export function publicacionesResueltas(deporte: SportId): PrediccionEnVivo[] {
-  return publicaciones(deporte).map(({ fila, ...resto }) => ({ ...resto, matchKey: String(fila.mk) }));
+  return publicaciones(deporte).map(({ fila, bruto: _bruto, ...resto }) => {
+    void _bruto;
+    return { ...resto, matchKey: String(fila.mk) };
+  });
 }
 
 /** Cuántas se evaluaron con la final, cuántas con la publicación (legado) y cuántas quedaron fuera. */
@@ -173,25 +181,46 @@ export interface RecuentoEvaluacion {
   excluidas: number;
 }
 
-/** Las predicciones evaluadas y el recuento por tipo (revisión quant de B1, hallazgo 5). */
-export function prediccionesConRecuento(deporte: SportId): { xs: PrediccionEnVivo[]; recuento: RecuentoEvaluacion } {
+/** Un partido resuelto que no se evalúa, con su motivo (evaluation/evaluada.ts) y cuándo se jugaba. */
+export interface ExcluidaEnVivo {
+  motivo: MotivoSinEvaluar;
+  cuando: string | null;
+  liga: string | null;
+  matchKey: string;
+}
+
+/**
+ * Las predicciones evaluadas y, aparte, cada partido excluido con su motivo (fase E: el informe por
+ * periodo cuenta las exclusiones por motivo y por periodo). Misma política que `prediccionesConRecuento`.
+ */
+export function prediccionesConMotivos(deporte: SportId): { xs: PrediccionEnVivo[]; excluidas: ExcluidaEnVivo[] } {
   const xs: PrediccionEnVivo[] = [];
-  const recuento: RecuentoEvaluacion = { final: 0, legado: 0, excluidas: 0 };
+  const excluidas: ExcluidaEnVivo[] = [];
   for (const pub of publicaciones(deporte)) {
     const fila = pub.fila;
-    const ev = resolverEvaluada({ probs: pub.p, mercado: pub.mercado ?? null, version: pub.version, en: String(fila.pub_en) }, finalDeFila(fila), pub.p.length, {
+    // Revisión quant de E: lo publicado TAL CUAL, para que una publicación que no suma 1 se excluya
+    // (como en la exportación de predicciones) en vez de puntuarse renormalizada.
+    const ev = resolverEvaluada({ probs: pub.bruto ?? pub.p, mercado: pub.mercado ?? null, version: pub.version, en: String(fila.pub_en) }, finalDeFila(fila), pub.p.length, {
       nombres: [String(fila.n1), String(fila.n2)],
       ordenLibre: ORDEN_LIBRE.has(deporte),
     });
     if (!ev.ok) {
-      recuento.excluidas++;
+      excluidas.push({ motivo: ev.motivo, cuando: pub.cuando ?? null, liga: pub.liga ?? null, matchKey: String(fila.mk) });
       continue;
     }
-    recuento[ev.evaluada.tipo]++;
-    const { fila: _fila, ...resto } = pub;
+    const { fila: _fila, bruto: _bruto, ...resto } = pub;
     void _fila;
+    void _bruto;
     xs.push({ ...resto, pPublicada: pub.p, p: ev.evaluada.probs, mercado: ev.evaluada.mercado, version: ev.evaluada.version, matchKey: String(fila.mk), evaluacion: ev.evaluada.tipo });
   }
+  return { xs, excluidas };
+}
+
+/** Las predicciones evaluadas y el recuento por tipo (revisión quant de B1, hallazgo 5). */
+export function prediccionesConRecuento(deporte: SportId): { xs: PrediccionEnVivo[]; recuento: RecuentoEvaluacion } {
+  const { xs, excluidas } = prediccionesConMotivos(deporte);
+  const recuento: RecuentoEvaluacion = { final: 0, legado: 0, excluidas: excluidas.length };
+  for (const x of xs) if (x.evaluacion) recuento[x.evaluacion]++;
   return { xs, recuento };
 }
 

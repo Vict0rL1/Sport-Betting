@@ -20,6 +20,8 @@
     "analitica.fiabilidad": { "on": true, "descripcion": "Diagramas de fiabilidad por deporte, backtest y vivo sin mezclar (GET /api/evaluation/reliability)." },
     "analitica.segmentos": { "on": true, "descripcion": "Acierto, Brier y CLV por segmento en vivo; solo celdas con ≥ 100 predicciones o ≥ 30 apuestas (GET /api/evaluation/segmentos)." },
     "analitica.monitorizacion": { "on": true, "descripcion": "Ventana móvil de 4 semanas, PSI contra el backtest y alerta de deriva, con trabajo diario (GET /api/monitoring)." },
+    "analitica.calibracion": { "on": true, "descripcion": "Calibración por partido: un partido por panel, intervalo de Wilson, registrada y legado aparte, sin lo reconstruido (GET /api/evaluation/calibracion)." },
+    "analitica.rendimiento": { "on": true, "descripcion": "Brier por mes o semana en la zona de la política, por cohorte y versión, con n, exclusiones y la comparación con el mercado en los mismos partidos (GET /api/evaluation/rendimiento)." },
     "simulacion.temporada": { "on": true, "descripcion": "Simulación Monte Carlo de la temporada (10.000 corridas, semilla fija) con las probabilidades publicadas; cacheada por día (GET /api/simulation/season)." },
     "simulacion.torneo": { "on": true, "descripcion": "Simulación de cuadro de tenis cuando hay cuadro; si no, lo dice (GET /api/simulation/torneo)." },
     "picks.combinadasCorrelacion": { "on": true, "descripcion": "La probabilidad conjunta de «Mi selección» descuenta la correlación medida entre patas (POST /api/picks/parlay)." },

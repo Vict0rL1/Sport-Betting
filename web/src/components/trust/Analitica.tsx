@@ -10,6 +10,7 @@ import { DeporteIcono } from '../icons';
 import { Termino } from '../ui';
 import { num as numF } from '../../lib/formato';
 import { pct as pctF } from '../../lib/formato';
+import { CalibracionPorPartido, RendimientoPorPeriodo } from './CalibracionRendimiento';
 
 type Deporte = 'football' | 'basketball' | 'baseball' | 'nfl' | 'nhl' | 'ufc' | 'tennis';
 interface Cubeta { desde: number; hasta: number; n: number; predicha: number | null; observada: number | null }
@@ -97,6 +98,9 @@ export default function Analitica() {
           )}
         </div>
       </div>
+      {/* Fase E: un partido por panel, y el Brier por periodo con su muestra. */}
+      <CalibracionPorPartido sport={sport} />
+      <RendimientoPorPeriodo sport={sport} />
       <div className="mt-4">
         <h4 className="mb-1 text-[13px] font-medium text-(--ink-body)">{t('analitica.segmentos')}</h4>
         {seg === null && <p className="text-[12px] text-(--ink-muted)">{t('comun.cargando')}</p>}

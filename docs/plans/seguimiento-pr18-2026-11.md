@@ -101,7 +101,7 @@ Además, vistos al trazar los llamadores:
 | B5 | Fronteras e integración probadas | Hecho | `riesgo.test.ts` (R5, R7, R8), `contabilidad.test.ts` (igualdad, ±1 céntimo, cambio de hora, zona inválida), `paper/perdidas.test.ts` (sin cruces) |
 | C | Explicaciones estructuradas y bilingües, siete deportes | En curso (24-nov). Hechos: NHL, UFC y NFL (la tarjeta, y la lectura y los factores de la ficha), el tenis entero (C 2), el fútbol (C 3), el baloncesto y el béisbol (C 4), y en la ficha común lo que usó el modelo, el «¿Y si…?», qué mueve la probabilidad y el aviso (C 5). Falta: el texto del motor de confianza (ver «Diferido») | `web/src/i18n/explicaciones.test.ts`, `server/src/explicaciones/coherencia.ts` en `nhl/publicada.test.ts`, `ufc/publicada.test.ts` y `prediction/formatoTexto.test.ts` |
 | D | Jerarquía visual y móvil | No hecho (ver «Diferido») | |
-| E | Calibración y rendimiento en el tiempo | No hecho: evaluado, con propuesta para quant (ver «Diferido») | |
+| E | Calibración y rendimiento en el tiempo | Hecho (24-nov), con las definiciones de quant-reviewer. Sin hacer: el panel del favorito (opcional), los pendientes por periodo y el corte del gráfico de deriva (ver «Decisiones», E) | `server/src/evaluation/calibracion.test.ts` (17), `calibracion.rutas.test.ts`, `e2e/seguimiento-pr18.spec.ts` (E) |
 | F | Vista previa de la importación CSV | Hecho | `server/src/bets/importar.vista.test.ts`, `e2e/seguimiento-pr18.spec.ts` (F) |
 | G | Fiabilidad de los avisos | Hecho | `server/src/notifications/entrega.test.ts`, `server/src/db/v32.test.ts`, `notifications/silencio.test.ts` |
 
@@ -295,6 +295,62 @@ ya está y el resto de deportes es mecánico.
   sube desde v31 con avisos dentro, se reaplica y la instalación nueva ya las tiene.
 - La garantía, para quien opera, está en `docs/NOTIFICACIONES.md`.
 
+### E. Calibración y rendimiento en el tiempo (`server/src/evaluation/calibracion.ts`)
+
+Las definiciones las fijó quant-reviewer ANTES de escribir código, sobre el código de `6a3edd2` (los
+casos que lo reproducen están en sus scripts de la revisión).
+
+- **Qué estaba mal, confirmado.** El diagrama de fiabilidad (`evaluation/reliability.ts`) cuenta cada
+  SALIDA como una observación: tres por partido en el fútbol, y dos espejadas en los binarios (la
+  cubeta i es la 9 − i).
+  - Con 50 partidos al 50 % que ganó siempre el local, sale «perfecto».
+  - Un sesgo hacia el local no se ve.
+  - Además mezcla registrada y legado y todas las versiones.
+- **Qué NO se toca.** Ese diagrama, su ECE y `/api/monitoring` se quedan byte a byte, porque de ellos
+  cuelgan el PSI, la alerta de deriva y los multiplicadores de importe. Solo cambian sus rótulos: «por
+  salida» y «deriva del modelo, cifra cruda al publicar».
+  - No se reejecuta ningún backtest.
+  - No se lee ningún holdout.
+- **La fuente.** `prediccionesConMotivos` (`evaluation/live.ts`): pre-partido, resueltas, evaluadas
+  con `final-congelada-v1`, y cada exclusión con su motivo.
+- **E1 `calibracion-partido-v1`.**
+  - **Cohortes.** Registrada (por defecto) y legado, en paneles distintos y nunca juntas. Lo
+    reconstruido NO entra: reproduce temporadas que pueden ser de reserva.
+  - **Unidad.** Un partido por panel. En los binarios, la probabilidad del local (o del jugador 1, o
+    del luchador A). En el fútbol, tres paneles: local, empate y visitante, sin sumar sus n.
+  - **Cubetas.** 10 fijas, con índice `min(9, ⌊10p + 1e-9⌋)`. Wilson al 95 %. Con menos de 30
+    partidos no se dibuja la cubeta (su n sí se enseña); de 30 a 99, orientativa.
+  - **Conjunto.** Calibración en grande (z = (Σy − Σp)/√Σp(1 − p)), que ve el sesgo, y Spiegelhalter,
+    que ve el exceso o el defecto de confianza.
+  - **Veredicto.**
+    - Con menos de 100 partidos, «insuficiente».
+    - Si no, «descalibrado» cuando cualquiera de los dos pasa de z* = Φ⁻¹(1 − 0,05/2m), con m = 2 por
+      panel (2,2414 en binarios, 2,6383 en el fútbol).
+    - Si no, «sin evidencia», nunca «calibrado».
+    - No hay veredicto por cubeta: con 10 cubetas, una falsa alarma sale el 40 % de las veces.
+- **E2 `rendimiento-periodo-v1`.**
+  - **Métrica.** Brier como en `metrics.ts` (Σ(p − y)²/2): menos es mejor, y la referencia uniforme es
+    0,25 o 1/3. Se puntúa la probabilidad evaluada, nunca `pModelo`.
+  - **Periodos.** Mes por defecto, o semana ISO, calendario fijo y sin ventana móvil. El día es el del
+    inicio del partido en la zona de la política; con una `APP_TIMEZONE` inválida no hay serie
+    (`zona-invalida`).
+  - **Grupos.** Una serie por cohorte y versión evaluada (sin versión, su propio grupo). Se emiten
+    todos los periodos del primero al último; los vacíos, sin valores.
+  - **Por punto.**
+    - n, Brier con media ± 1,96·sd/√n, log loss y mezcla de ligas.
+    - La comparación con el mercado en los MISMOS partidos.
+    - Con menos de 30, sin valores; de 30 a 99, insuficiente; de 100 a 499, orientativa.
+  - **Titular.** La media de la serie (= la media de los puntos pesada por n), sin cifra por debajo de
+    100. Ninguna frase de tendencia, ninguna «versión mejor», nada de dinero.
+  - **Exclusiones.** Por periodo y motivo, aparte: no son de ninguna versión.
+- **Una sola fuente para todo.** El gráfico, la tabla, el desglose (`/api/evaluation/rendimiento/partidos`)
+  y la exportación (`evaluadas`) salen de `filasEvaluadas`.
+- **Sin hacer, por alcance:**
+  - el panel del favorito (opcional en la revisión);
+  - los partidos pendientes por periodo;
+  - la mezcla de versiones de calibración;
+  - cortar en `MIN_VENTANA` el gráfico de deriva de siempre, que solo se rotula.
+
 ## Revisiones y su destino
 
 ### Fase B
@@ -383,6 +439,41 @@ ya está y el resto de deportes es mecánico.
     (`entrega.test.ts`).
   - Lo que ya estaba guardado no se reescribe: el registro solo se añade.
 
+### Fase E
+
+- **quant-reviewer, diseño (antes del código).**
+  - Confirmó el defecto del diagrama de fiabilidad y dio sus repros.
+  - Cambió cuatro decisiones de mi propuesta:
+    - la unidad «solo el favorito», que esconde el sesgo hacia el local y el empate;
+    - la semana ISO por defecto, que se queda sin muestra en 4 de 7 deportes;
+    - lo reconstruido «aparte», que pasa a excluido por holdout;
+    - un juicio de conjunto por ECE, cuyo valor esperado con 100 partidos perfectos es 0,093.
+  - Todo está aplicado: ver «Decisiones», E.
+- **quant-reviewer, implementación.**
+  - Comprobado y bien:
+    - las definiciones, z* y los bordes de cubeta;
+    - las semanas de 169 y 167 h con el cambio de hora;
+    - `/api/evaluation/reliability` y `/api/monitoring` idénticos a los de antes, en una base real;
+    - nada importa la reconstrucción.
+
+  | Sev. | Hallazgo | Destino |
+  | --- | --- | --- |
+  | Medio | El desglose mezclaba filas de varios puntos si no llegaban la cohorte y la versión | Arreglado: las pide (400 si no) (`calibracion.revision.test.ts`) |
+  | Medio (anterior) | En el fútbol, una publicación que no suma 1 se renormalizaba antes de la política de evaluación y se puntuaba, mientras que la exportación `predicciones` la excluía | Arreglado en `live.ts`: va tal cual a la política y se excluye como `publicacion-invalida` (test con base real). Las bien formadas dan lo mismo. Queda la tercera vía, «¿Acertó?» (`today.ts`), en «Diferido» |
+  | Bajo-medio | El conjunto de un panel daba lo observado y las pruebas con cualquier n (3 partidos: «pasó el 100 %») | Arreglado: nada observado por debajo de 30 ni pruebas por debajo de 100 |
+  | Bajo-medio | Un formateador de fechas por fila: más de 1 s con 20.000 filas en cada carga | Arreglado: uno por zona |
+  | Bajo | Las exclusiones se pueden asignar a una cohorte por su motivo | Arreglado (`cohorteDeMotivo`); a una versión, no, y así se dice |
+  | Bajo | Las exclusiones se repetían en cada tabla y no salían si no había series | Arreglado: una vez por sección |
+  | Bajo | Un periodo cortado por `desde`/`hasta` no lo decía | Arreglado: `recortado` y los límites del filtro |
+  | Bajo | La exportación no avisaba con una zona inválida y no traía los excluidos | Arreglado: `aviso`, y filas con `motivo_exclusion`. Que aquí `desde`/`hasta` son días locales, documentado |
+  | Bajo | «Sin evidencia» no nombraba el umbral corregido, junto a un intervalo al 95 % | Arreglado en el texto |
+  | Bajo | El gráfico de deriva de siempre dibuja puntos con n ≥ 1, y no hay pendientes por periodo | Diferido (ver «Diferido») |
+
+  También se añadieron los tests que faltaban: base real, la reconstrucción y el holdout fuera, y el
+  desglose con dos versiones.
+
+
+
 ### Pasada final de ui-tester (24-nov, sobre `941ad9c`)
 
 A 1280, 390 y 320 px, en claro y oscuro, en español e inglés, con una copia temporal de los datos. Sin
@@ -399,24 +490,19 @@ errores de consola ni peticiones fallidas.
 
 ## Diferido
 
-- **E. Rendimiento: calibración y en el tiempo. Evaluado, no hecho.**
-  - **Lo que ya hay** (`web/src/components/trust/Analitica.tsx`):
-    - un diagrama de fiabilidad del backtest y del vivo (`/api/evaluation/reliability`), con 10 cubetas
-      fijas y un resumen en texto con `n` por cubeta, que vale como alternativa en tabla;
-    - la serie diaria de log loss y Brier (`/api/monitoring`).
-  - **Lo que falla, confirmado en el código** (`server/src/evaluation/reliability.ts`):
-    - cada SALIDA de un partido cuenta como una observación: en el fútbol, tres por partido, que no son
-      independientes, que es justo lo que el brief prohíbe;
-    - no hay bandas de incertidumbre ni mínimo de muestra por cubeta.
-  - **Propuesta para quant-reviewer, antes de tocarlo:**
-    - una observación por partido: la probabilidad del favorito evaluado (`final-congelada-v1`, legado
-      aparte) contra si ganó, en binarios y en 1X2;
-    - cubetas de 10 puntos con intervalo de Wilson al 95 %;
-    - cada cubeta, solo con n ≥ 30; un juicio de conjunto, solo con n ≥ 100;
-    - en el tiempo, Brier por semana ISO en la zona de la política, cortado por versión del modelo, con
-      `n` en cada punto y sin unir semanas vacías;
-    - registrado, legado y reconstruido, siempre aparte.
-  - No se ha hecho por tiempo. Necesita la revisión quant de las definiciones primero.
+- **E, lo que queda.**
+  - El panel del favorito, opcional.
+  - Los pendientes por periodo: un periodo pasado puede crecer cuando llegan resultados tardíos sin
+    estar marcado como parcial.
+  - Cortar en `MIN_VENTANA` el gráfico de deriva de siempre (`Analitica.tsx`), que hoy dibuja puntos
+    con n ≥ 1; solo se rotuló.
+- **Anterior a este trabajo, encontrado en la fase E:**
+  - «¿Acertó?» (`today.ts`) arma la probabilidad del visitante del fútbol como 1 − local − empate, así
+    que una publicación que no suma 1 se puntúa allí de otra forma.
+  - La reconstrucción (`recent/reconstruct.ts`) reproduce temporadas de reserva sin cerrojo; la NHL
+    ignora `puntuable`. Hoy solo se enseña partido a partido; por eso la fase E la excluye.
+
+  Los dos piden su propia revisión.
 - **D. Jerarquía visual y móvil. No hecho en esta pasada.** No hay capturas ni inspección nuevas en el
   navegador de las que salgan cambios concretos. Lo que se tocó de la web (la cartera, la importación y
   las tarjetas de NHL, UFC y NFL) pasó por las pruebas de axe a 390 px de `rutas.spec.ts`, y la pasada

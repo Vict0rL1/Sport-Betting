@@ -3,6 +3,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { fiabilidad } from '../evaluation/reliability.ts';
+import { calibracion, partidosDelPeriodo, rendimiento, type Filtros } from '../evaluation/calibracion.ts';
 import { segmentos } from '../evaluation/segmentos.ts';
 import { monitorizacion } from '../monitoring/series.ts';
 import { simulacionDelDia } from '../simulation/season.ts';
@@ -22,7 +23,60 @@ import { ESQUEMA_ERROR, ESQUEMA_FIABILIDAD, ESQUEMA_SEGMENTOS, ESQUEMA_MONITORIZ
 
 const DEPORTE = { type: 'object', properties: { sport: { type: 'string', enum: [...SPORT_IDS] } }, required: ['sport'] } as const;
 
+/** Los filtros de la fase E: cohorte, versión, días locales (desde/hasta) y liga. */
+const FILTROS = {
+  type: 'object',
+  properties: {
+    sport: { type: 'string', enum: [...SPORT_IDS] },
+    cohorte: { type: 'string', enum: ['final', 'legado'] },
+    version: { type: 'string', maxLength: 80 },
+    desde: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+    hasta: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+    liga: { type: 'string', maxLength: 40 },
+    periodo: { type: 'string', enum: ['mes', 'semana'] },
+    clave: { type: 'string', maxLength: 10 },
+  },
+  required: ['sport'],
+} as const;
+/** Las respuestas de la fase E se describen en evaluation/calibracion.ts; aquí no se recorta nada. */
+const ABIERTO = { type: 'object', additionalProperties: true } as const;
+type ConsultaE = { sport: string; cohorte?: 'final' | 'legado'; version?: string; desde?: string; hasta?: string; liga?: string; periodo?: 'mes' | 'semana'; clave?: string };
+const filtrosDe = (q: ConsultaE): Filtros => ({ cohorte: q.cohorte, version: q.version, desde: q.desde, hasta: q.hasta, liga: q.liga });
+
 export async function registerAnaliticaRoutes(app: FastifyInstance): Promise<void> {
+  // Fase E (seguimiento del PR #18): calibración por partido y rendimiento por periodo. Las de siempre
+  // (/api/evaluation/reliability y /api/monitoring) no cambian: de ellas cuelgan el PSI y la deriva.
+  app.get<{ Querystring: ConsultaE }>(
+    '/api/evaluation/calibracion',
+    { schema: { tags: ['analítica'], summary: 'Calibración por partido (calibracion-partido-v1): un partido por panel, Wilson, sin veredicto por cubeta', querystring: FILTROS, response: { 200: ABIERTO, 404: ESQUEMA_ERROR } } },
+    async (req, reply) => {
+      if (!featureEncendida('analitica.calibracion')) return reply.code(404).send({ error: 'apagado (features.json: analitica.calibracion)' });
+      if (!isSportId(req.query.sport)) return reply.code(404).send({ error: 'deporte desconocido' });
+      return calibracion(req.query.sport, filtrosDe(req.query));
+    },
+  );
+  app.get<{ Querystring: ConsultaE }>(
+    '/api/evaluation/rendimiento',
+    { schema: { tags: ['analítica'], summary: 'Brier por mes o semana (rendimiento-periodo-v1), por cohorte y versión, con n y exclusiones', querystring: FILTROS, response: { 200: ABIERTO, 404: ESQUEMA_ERROR } } },
+    async (req, reply) => {
+      if (!featureEncendida('analitica.rendimiento')) return reply.code(404).send({ error: 'apagado (features.json: analitica.rendimiento)' });
+      if (!isSportId(req.query.sport)) return reply.code(404).send({ error: 'deporte desconocido' });
+      return rendimiento(req.query.sport, filtrosDe(req.query), req.query.periodo ?? 'mes');
+    },
+  );
+  app.get<{ Querystring: ConsultaE }>(
+    '/api/evaluation/rendimiento/partidos',
+    { schema: { tags: ['analítica'], summary: 'Los partidos de un periodo del rendimiento (las mismas filas que el punto)', querystring: FILTROS, response: { 200: ABIERTO, 400: ESQUEMA_ERROR, 404: ESQUEMA_ERROR } } },
+    async (req, reply) => {
+      if (!featureEncendida('analitica.rendimiento')) return reply.code(404).send({ error: 'apagado (features.json: analitica.rendimiento)' });
+      if (!isSportId(req.query.sport)) return reply.code(404).send({ error: 'deporte desconocido' });
+      if (!req.query.clave) return reply.code(400).send({ error: 'falta el periodo (clave)' });
+      // Un punto es una cohorte y una versión: sin las dos, el desglose mezclaría varios puntos.
+      if (!req.query.cohorte || req.query.version == null) return reply.code(400).send({ error: 'faltan la cohorte y la versión del punto' });
+      return partidosDelPeriodo(req.query.sport, filtrosDe(req.query), req.query.periodo ?? 'mes', req.query.clave);
+    },
+  );
+
   app.get<{ Querystring: { sport: string } }>(
     '/api/evaluation/reliability',
     { schema: { tags: ['analítica'], summary: 'Diagrama de fiabilidad (backtest y vivo, sin mezclar)', querystring: DEPORTE, response: { 200: ESQUEMA_FIABILIDAD, 404: ESQUEMA_ERROR } } },
