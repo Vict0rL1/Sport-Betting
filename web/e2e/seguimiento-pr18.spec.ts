@@ -179,3 +179,35 @@ test('E: la calibración por partido y el Brier por periodo enseñan su muestra,
   await page.setViewportSize({ width: 390, height: 800 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 });
+
+// Fase D (auditoría de ui-tester): estados y paneles de las páginas de cada deporte.
+test('D: en la NHL, si cargar falla, no se dice además que no hay partidos «como es normal entre temporadas»', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('predictor.recorrido', '1'));
+  await page.route('**/api/nhl/meta*', (r) => r.fulfill({ status: 500, json: { error: 'caído' } }));
+  await page.goto('/nhl');
+  await expect(page.getByText(/No se pudieron cargar los datos de la NHL/)).toBeVisible();
+  await expect(page.getByText(/No hay partidos próximos para NHL/)).toHaveCount(0);
+});
+
+test('D: a 390 px «Lo que el modelo ve más probable» empieza cerrado (los partidos no quedan tres pantallas más abajo); a 1280, abierto', async ({ page }) => {
+  test.slow();
+  await page.addInitScript(() => localStorage.setItem('predictor.recorrido', '1'));
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto('/tenis');
+  const boton = page.getByRole('button', { name: /^Lo que el modelo ve más probable/ });
+  await expect(boton).toBeVisible({ timeout: 20_000 });
+  await expect(boton).toHaveAttribute('aria-expanded', 'false');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.reload();
+  await expect(page.getByRole('button', { name: /^Lo que el modelo ve más probable/ })).toHaveAttribute('aria-expanded', 'true', { timeout: 20_000 });
+});
+
+test('D: «Abrir partido» tiene un blanco de al menos 24 px de alto', async ({ page }) => {
+  test.slow();
+  await page.addInitScript(() => localStorage.setItem('predictor.recorrido', '1'));
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/tenis');
+  const enlace = page.getByRole('link', { name: /^Abrir partido/ }).first();
+  await expect(enlace).toBeVisible({ timeout: 20_000 });
+  expect((await enlace.boundingBox())!.height).toBeGreaterThanOrEqual(24);
+});

@@ -4,6 +4,37 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18, fase D: jerarquía visual y móvil (2026-11-24)
+
+Sale de una auditoría de ui-tester en el navegador, a 1280, 390 y 320 px (la tabla, con lo que se hizo
+con cada hallazgo, en `docs/plans/seguimiento-pr18-2026-11.md`). Cada arreglo tiene antes un test de
+Playwright que fallaba.
+
+- **Partidos, la fila.**
+  - Los nombres se parten en líneas en vez de cortarse. A 320 px, 103 de 134 se cortaban
+    («Edmonton Oi…») y solo se leían con el ratón encima.
+  - La probabilidad del favorito es la cifra más visible de la fila: 18 px, frente a los 15 de los
+    nombres.
+  - La fila no se estira a todo el ancho: a 1280 px la probabilidad quedaba a unos 700 px del nombre.
+  - Una marca «›» dice que la fila se abre. Antes no había nada visible.
+- **«Lo que el modelo ve más probable»**, en la página de cada deporte y en el móvil:
+  - empieza cerrado: abierto medía unos 1.830 px y el primer partido quedaba a más de 2.200 px;
+  - sin precio de mercado en ninguna fila, no enseña las columnas «Mercado» y «Dif.», que solo
+    repetían «—»; sin cuota en ninguna, tampoco «Pago si gana».
+- **Zonas de toque de 24 px como mínimo** en «Abrir partido», «Ver contra qué se ha medido»,
+  «Cambiar» (la zona), «Mis estimaciones guardadas», «Quitar filtros», el estado y «Por qué esa
+  confianza». Medían de 17 a 20 px de alto.
+- **NHL y UFC, con un error del servidor**, ya no enseñan debajo «No hay partidos próximos», que lo
+  contradecía.
+- Dos tests del móvil (K4 y K12) abren antes el panel, que ahora empieza cerrado: es un cambio a
+  propósito.
+- Sin hacer, en «Diferido» del plan:
+  - las insignias casi repetidas de las tarjetas;
+  - la página en blanco mientras carga;
+  - la señal de que la fila de deportes se desliza a 320 px;
+  - los enlaces repetidos del panel lateral;
+  - decir en la fila qué resultado se espera, no solo su probabilidad.
+
 ## Seguimiento del PR #18, fase E: calibración por partido y rendimiento en el tiempo (2026-11-24)
 
 - **El defecto.** El diagrama de fiabilidad contaba cada SALIDA como una observación: tres por partido

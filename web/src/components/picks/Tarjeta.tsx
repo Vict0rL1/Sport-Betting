@@ -142,7 +142,7 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
           decidir (probabilidad, histórico, cuota) y el detalle está a un clic. */}
       {p.confianza && (
         <details className="group text-[12.5px]">
-          <summary className="cursor-pointer select-none text-[11px] uppercase tracking-wide text-(--ink-muted) hover:text-(--ink-body)">{t('tj.porQueConfianza')}</summary>
+          <summary className="flex min-h-6 cursor-pointer select-none items-center text-[11px] uppercase tracking-wide text-(--ink-muted) hover:text-(--ink-body)">{t('tj.porQueConfianza')}</summary>
           <p className="mt-1 text-(--ink-soft)">
             {t('tj.datos', {
               c: p.confianza.calidadDatos,

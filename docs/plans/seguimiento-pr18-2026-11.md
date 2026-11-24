@@ -99,8 +99,8 @@ Además, vistos al trazar los llamadores:
 | B3 | Monedas separadas en todo cálculo de riesgo | Hecho | `riesgo.test.ts` (R3, R4, punta a punta), `contabilidad.test.ts` (monedas, exposición) |
 | B4 | Cálculo incompleto explícito (cuatro estados) | Hecho | `contabilidad.test.ts` (cotas, decisión), `e2e/seguimiento-pr18.spec.ts` (B) |
 | B5 | Fronteras e integración probadas | Hecho | `riesgo.test.ts` (R5, R7, R8), `contabilidad.test.ts` (igualdad, ±1 céntimo, cambio de hora, zona inválida), `paper/perdidas.test.ts` (sin cruces) |
-| C | Explicaciones estructuradas y bilingües, siete deportes | En curso (24-nov). Hechos: NHL, UFC y NFL (la tarjeta, y la lectura y los factores de la ficha), el tenis entero (C 2), el fútbol (C 3), el baloncesto y el béisbol (C 4), y en la ficha común lo que usó el modelo, el «¿Y si…?», qué mueve la probabilidad y el aviso (C 5). Falta: el texto del motor de confianza (ver «Diferido») | `web/src/i18n/explicaciones.test.ts`, `server/src/explicaciones/coherencia.ts` en `nhl/publicada.test.ts`, `ufc/publicada.test.ts` y `prediction/formatoTexto.test.ts` |
-| D | Jerarquía visual y móvil | No hecho (ver «Diferido») | |
+| C | Explicaciones estructuradas y bilingües, siete deportes | Hecho en los siete deportes (24-nov), salvo el texto del motor de confianza. Hechos: NHL, UFC y NFL (la tarjeta, y la lectura y los factores de la ficha), el tenis entero (C 2), el fútbol (C 3), el baloncesto y el béisbol (C 4), y en la ficha común lo que usó el modelo, el «¿Y si…?», qué mueve la probabilidad y el aviso (C 5). Falta: el texto del motor de confianza (ver «Diferido») | `web/src/i18n/explicaciones.test.ts`, `server/src/explicaciones/coherencia.ts` en `nhl/publicada.test.ts`, `ufc/publicada.test.ts` y `prediction/formatoTexto.test.ts` |
+| D | Jerarquía visual y móvil | Hecho (24-nov) lo que salió de la auditoría de ui-tester: la fila de Partidos, el panel de lo más probable en el móvil, las zonas de toque y el error de NHL y UFC. Sin hacer: las insignias de las tarjetas, la carga, la fila de deportes a 320 px y el panel lateral (ver «Diferido») | `e2e/partidos.spec.ts` (D, tres), `e2e/seguimiento-pr18.spec.ts` (D, tres), `e2e/movil.spec.ts` (K4 y K12) |
 | E | Calibración y rendimiento en el tiempo | Hecho (24-nov), con las definiciones de quant-reviewer. Sin hacer: el panel del favorito (opcional), los pendientes por periodo y el corte del gráfico de deriva (ver «Decisiones», E) | `server/src/evaluation/calibracion.test.ts` (17), `calibracion.rutas.test.ts`, `e2e/seguimiento-pr18.spec.ts` (E) |
 | F | Vista previa de la importación CSV | Hecho | `server/src/bets/importar.vista.test.ts`, `e2e/seguimiento-pr18.spec.ts` (F) |
 | G | Fiabilidad de los avisos | Hecho | `server/src/notifications/entrega.test.ts`, `server/src/db/v32.test.ts`, `notifications/silencio.test.ts` |
@@ -351,6 +351,35 @@ casos que lo reproducen están en sus scripts de la revisión).
   - la mezcla de versiones de calibración;
   - cortar en `MIN_VENTANA` el gráfico de deriva de siempre, que solo se rotula.
 
+### D. Jerarquía visual y móvil
+
+Sale de una auditoría de ui-tester en el navegador (24-nov, sobre la fase E sin confirmar), a 1280, 390
+y 320 px, en claro y oscuro. Con los datos de entonces solo había partidos próximos de NFL y NHL. Cada
+arreglo tiene antes un test de Playwright que fallaba por el motivo del hallazgo.
+
+- **La fila de Partidos** (`components/partidos/FilaPartido.tsx`).
+  - Los nombres se parten en líneas (`break-words`), sin `truncate` ni `title`. Se descartó un tope de
+    dos líneas: un nombre cortado sigue sin leerse en un móvil.
+  - La probabilidad del favorito a 18 px y la del resto a 15, como los nombres. El tamaño sube solo en
+    la del favorito, que es la cifra que se busca.
+  - El enlace mide como mucho 38 rem (608 px): a 1280 px, los números quedaban a unos 700 px de los
+    nombres.
+  - «›» al final de la fila, dentro del enlace y `aria-hidden`: el nombre accesible del enlace no
+    cambia.
+- **El panel de lo más probable** (`components/ui/picks.tsx`).
+  - En el móvil (`MOVIL`, `lib/useMediaQuery.ts`) empieza cerrado; en el escritorio, abierto, como
+    antes. El estado inicial se lee una vez: girar el teléfono no lo cierra.
+  - Las columnas «Mercado» y «Dif.» se quitan solo si NINGUNA fila tiene precio de mercado, y «Pago si
+    gana» solo si ninguna tiene cuota. Si una fila lo tiene, las demás siguen con «—», que es lo que
+    se sabe de ellas.
+- **Zonas de toque.** `min-h-6` (24 px, el mínimo de WCAG 2.2, 2.5.8) en los siete controles medidos.
+  En las pantallas táctiles `toque` ya las agrandaba; ahora miden 24 px también con ratón.
+- **NHL y UFC con error.** El vacío («No hay partidos próximos…, es normal entre temporadas») sale solo
+  si la petición fue bien. El texto del error no cambia (ver «Diferido»).
+- **No se cambió (hallazgo 6).** En «Destacados», «Añadir a mi selección» sigue siendo el botón
+  principal y «Abrir partido» el enlace: añadir a la selección es el trabajo de esa página. El enlace
+  sí sube a 24 px.
+
 ## Revisiones y su destino
 
 ### Fase B
@@ -474,6 +503,25 @@ casos que lo reproducen están en sus scripts de la revisión).
 
 
 
+### Fase D: auditoría de ui-tester (24-nov)
+
+| # | Sev. | Hallazgo | Destino |
+| --- | --- | --- | --- |
+| 1 | Medio | Partidos a 320 px: los nombres se cortaban y solo se leían con el ratón encima (103 de 134); a 390 px, «Washington Commanders» | Arreglado: se parten en líneas (`partidos.spec.ts`, 320 y 390 px) |
+| 2 | Medio | Partidos: la probabilidad no destacaba (15 px, como los nombres) y a 1280 px quedaba a unos 700 px de ellos. La fila no dice qué resultado se espera; solo la cabecera | Arreglado lo primero: 18 px el favorito y la fila con tope de ancho (`partidos.spec.ts`). Lo segundo, diferido |
+| 3 | Medio | Partidos: nada visible decía que la fila se abre | Arreglado: «›» al final (`partidos.spec.ts`) |
+| 4 | Medio | NHL y NFL a 390 y 320 px: el panel de lo más probable, abierto, medía unos 1.830 px, con columnas de mercado vacías y «Pago si gana» repitiendo la cuota mínima | Arreglado: cerrado en el móvil y sin columnas vacías (`seguimiento-pr18.spec.ts`; K4 y K12 lo abren antes) |
+| 5 | Bajo | Tarjetas de NHL y NFL: insignias casi repetidas («CON RESERVAS», «Sin mercado», la incertidumbre…), «CON RESERVAS» frente a «Estimación con reservas», y «En juego, o el resultado aún no está descargado» 19 h después del inicio | Diferido |
+| 6 | Bajo | Destacados: «Añadir a mi selección» destaca más que «Abrir partido» | No se cambia (ver «Decisiones», D); el enlace sube a 24 px |
+| 7 | Medio | Siete controles de 17 a 20 px de alto | Arreglado: 24 px (`partidos.spec.ts`, `seguimiento-pr18.spec.ts`) |
+| 8 | Medio | NHL con `/meta` en 500: el error y, debajo, «No hay partidos próximos» | Arreglado en NHL y UFC (`seguimiento-pr18.spec.ts`) |
+| 9 | Bajo | La página sale en blanco hasta la primera respuesta, sin esqueleto | Diferido |
+| — | Menor | A 320 px la fila de deportes corta la NHL (se desliza, pero no se ve que se puede); el panel lateral repite «Abrir la página completa» y «Abrir partido ›» | Diferido |
+
+Pasó sin cambios: contraste (≥ 4,84), sin desbordes de página, anillos de foco, estados elegidos no
+solo por color, cifras tabulares, filtros que se quitan, volver atrás conserva la dirección y el
+desplazamiento, y el panel lateral (foco atrapado, Escape, Atrás, cambio de tamaño, enlace directo).
+
 ### Pasada final de ui-tester (24-nov, sobre `941ad9c`)
 
 A 1280, 390 y 320 px, en claro y oscuro, en español e inglés, con una copia temporal de los datos. Sin
@@ -503,10 +551,17 @@ errores de consola ni peticiones fallidas.
     ignora `puntuable`. Hoy solo se enseña partido a partido; por eso la fase E la excluye.
 
   Los dos piden su propia revisión.
-- **D. Jerarquía visual y móvil. No hecho en esta pasada.** No hay capturas ni inspección nuevas en el
-  navegador de las que salgan cambios concretos. Lo que se tocó de la web (la cartera, la importación y
-  las tarjetas de NHL, UFC y NFL) pasó por las pruebas de axe a 390 px de `rutas.spec.ts`, y la pasada
-  final de ui-tester lo revisa.
+- **D, lo que queda** (de la auditoría de ui-tester; ver la tabla en «Revisiones», fase D).
+  - Las insignias de las tarjetas de NHL y NFL: juntar «Sin mercado» con la frescura en una línea,
+    llevar la frase del método a «¿Por qué?» y unificar «CON RESERVAS» con «Estimación con reservas»
+    (también en inglés). Toca el texto de siete deportes; pide su propia pasada.
+  - «En juego, o el resultado aún no está descargado» 19 h después del inicio: decir que falta el
+    resultado. Depende de cuándo se descarga cada deporte.
+  - Decir en la fila de Partidos qué resultado se espera, no solo su probabilidad.
+  - Un esqueleto mientras carga la primera respuesta.
+  - A 320 px, la señal de que la fila de deportes se desliza; los enlaces repetidos del panel lateral.
+  - El aviso de error de NHL y UFC está en el catálogo, pero lleva dentro el detalle técnico
+    («Error: /meta → HTTP 500»). Partidos lo dice sin él.
 
 - **C, lo que queda: el texto del motor de confianza** (`server/src/trust/`). Sigue en español:
   - las razones de BET y NO BET y lo que haría falta;

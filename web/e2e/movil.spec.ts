@@ -86,6 +86,8 @@ test('K4: «Lo que el modelo ve más probable» y «Los partidos» se leen enter
   await page.goto('/tenis');
   for (const titulo of ['Lo que el modelo ve más probable']) {
     const seccion = page.locator('section', { has: page.getByRole('button', { name: new RegExp(`^${titulo}`) }) });
+    // Fase D: en el móvil el panel empieza cerrado (abierto empujaba los partidos tres pantallas abajo).
+    await page.getByRole('button', { name: new RegExp(`^${titulo}`) }).click();
     // Tenis es la pestaña lenta de la demostración (las otras pruebas de tenis van con test.slow()).
     await expect(seccion.getByText(/\d+,\d\s%/).first()).toBeVisible({ timeout: 20_000 });
     // Nada a la derecha de la pantalla: la probabilidad del modelo, el mercado y la cuota caben.
@@ -395,6 +397,8 @@ test('K12: más controles pequeños llegan a 24 px sin pisar al de al lado', asy
   const pie = page.getByRole('contentinfo');
   const tarjeta = page.locator('article', { has: page.getByRole('link', { name: 'Abrir partido ›' }) }).first();
   await tarjeta.getByRole('button', { name: /^Solidez de la estimación/ }).click();
+  // Fase D: en el móvil el panel de mercados empieza cerrado; su enlace está dentro.
+  await page.getByRole('button', { name: /^Lo que el modelo ve más probable/ }).click();
   for (const [nombre, loc] of [
     ['Informes (pie)', pie.getByRole('button', { name: 'Informes' })],
     ['Glosario (pie)', pie.getByRole('button', { name: 'Glosario' })],

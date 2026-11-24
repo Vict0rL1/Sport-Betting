@@ -110,7 +110,8 @@ export default function NhlDashboard() {
           <p className="mt-1 text-rose-300/90">{conNodos(t('nhl.sinDatosCuerpo'), { cmd: <code className="rounded bg-rose-900/40 px-1">npm run update-data:nhl</code> })}</p>
         </div>
       ) : games.length === 0 ? (
-        <EmptySlate what="NHL" reason="sin-partidos" />
+        // Fase D: con un error arriba, «no hay partidos, es normal entre temporadas» lo contradecía.
+        error == null && <EmptySlate what="NHL" reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />

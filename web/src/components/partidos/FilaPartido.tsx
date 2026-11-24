@@ -49,7 +49,9 @@ export default function FilaPartido({ f, zona, locale, densidad = 'comoda', onAb
   const linea = (participante: Fila['local'], i: number) => (
     <span className="flex min-w-0 items-center gap-2">
       {!compacta && <TeamCrest league={ligaCrest} name={participante.nombre} code={participante.id} size={22} className="max-sm:hidden" />}
-      <span className={`min-w-0 flex-1 truncate ${fav?.indice === i ? 'font-semibold text-(--ink-strong)' : 'text-(--ink-body)'}`} title={participante.nombre}>
+      {/* Fase D: el nombre se parte en líneas en vez de cortarse (a 320 px, «Edmonton Oi…» solo se leía
+          con el ratón encima, y en un móvil no hay). */}
+      <span className={`nombre min-w-0 flex-1 break-words ${fav?.indice === i ? 'font-semibold text-(--ink-strong)' : 'text-(--ink-body)'}`}>
         {participante.nombre}
       </span>
       {ps && <Prob v={ps[i]} fuerte={fav?.indice === i} />}
@@ -70,8 +72,11 @@ export default function FilaPartido({ f, zona, locale, densidad = 'comoda', onAb
           if (!onAbrir || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
           if (onAbrir(f)) e.preventDefault();
         }}
-        className="flex min-w-0 flex-col gap-1 rounded-md text-[15px] leading-snug outline-offset-4 after:absolute after:inset-0 after:content-[''] hover:[&_.nombre]:underline"
+        className="flex min-w-0 max-w-[38rem] items-center gap-2 rounded-md text-[15px] leading-snug outline-offset-4 after:absolute after:inset-0 after:content-[''] hover:[&_.nombre]:underline"
       >
+        {/* Fase D: los números junto a los nombres (sin estirarse a todo el ancho) y una marca visible de
+            que la fila se abre. */}
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
         {linea(f.local, iLocal)}
         {linea(f.visitante, iFuera)}
         {tres && ps && (
@@ -87,6 +92,8 @@ export default function FilaPartido({ f, zona, locale, densidad = 'comoda', onAb
             {!f.prediccion && <span className="text-(--ink-muted)">{f.sinPrediccion === 'invalida' ? t('partidos.estimacionInvalida') : f.sinPrediccion === 'demo' ? t('partidos.sinEstimarDemo') : t('partidos.sinEstimar')}</span>}
           </span>
         )}
+        </span>
+        <span data-abrir aria-hidden className="shrink-0 text-[20px] leading-none text-(--ink-faint)">›</span>
       </Link>
       {/* Seguir va por encima del enlace de la fila (z-10): es otra acción. */}
       <span className="relative z-10 grid place-items-center self-start">
@@ -161,7 +168,8 @@ function fechaCorta(iso: string, zona: string, locale: string): string {
 
 function Prob({ v, fuerte, pequeno = false }: { v: number; fuerte: boolean; pequeno?: boolean }) {
   return (
-    <span className={`w-[3.75rem] shrink-0 text-right tabular-nums sm:w-[4.25rem] ${pequeno ? 'text-[13px]' : 'text-[15px]'} ${fuerte ? 'font-semibold text-(--ink-strong)' : 'text-(--ink-soft)'}`}>
+    // Fase D: la probabilidad del favorito, la cifra más visible de la fila (antes, del tamaño de los nombres).
+    <span className={`w-[3.75rem] shrink-0 text-right tabular-nums sm:w-[4.25rem] ${pequeno ? 'text-[13px]' : fuerte ? 'text-[18px]' : 'text-[15px]'} ${fuerte ? 'font-semibold text-(--ink-strong)' : 'text-(--ink-soft)'}`}>
       {num(v, 1)} %
     </span>
   );

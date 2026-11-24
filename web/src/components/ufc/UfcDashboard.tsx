@@ -115,7 +115,8 @@ export default function UfcDashboard() {
           <p className="mt-1 text-rose-300/90">{conNodos(t('ufc.sinDatosCuerpo'), { cmd: <code className="rounded bg-rose-900/40 px-1">npm run update-data:ufc</code> })}</p>
         </div>
       ) : fights.length === 0 ? (
-        <EmptySlate what="UFC" reason="sin-partidos" />
+        // Fase D: con un error arriba, el vacío «normal» lo contradecía.
+        error == null && <EmptySlate what="UFC" reason="sin-partidos" />
       ) : (
         <>
           <DayFilter days={dayChips} selected={day} onSelect={setDay} />

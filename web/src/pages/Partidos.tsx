@@ -188,7 +188,7 @@ export default function Partidos() {
         <p className="mt-1 text-[14px] text-(--ink-muted)">
           {(filtros.deporte ? nombreDeporte(filtros.deporte) : t('partidos.todos'))} · {textoFecha} ·{' '}
           {t('partidos.zona', { zona })}{' '}
-          <Link to={RUTA_AJUSTES + '#zona'} className="underline underline-offset-2 hover:text-(--ink-body)">{t('partidos.cambiarZona')}</Link>
+          <Link to={RUTA_AJUSTES + '#zona'} className="inline-flex min-h-6 items-center underline underline-offset-2 hover:text-(--ink-body)">{t('partidos.cambiarZona')}</Link>
         </p>
       </header>
 
@@ -238,7 +238,7 @@ export default function Partidos() {
           <Chip activo={filtros.guardados} onClick={() => set({ guardados: filtros.guardados ? null : '1' })} titulo={t('partidos.guardadosNota')}>
             {t('partidos.guardados')}
           </Chip>
-          <Link to={RUTA_GUARDADAS} className="text-[13px] text-(--ink-muted) underline underline-offset-2 hover:text-(--ink-body)">{t('partidos.verGuardadas')}</Link>
+          <Link to={RUTA_GUARDADAS} className="inline-flex min-h-6 items-center text-[13px] text-(--ink-muted) underline underline-offset-2 hover:text-(--ink-body)">{t('partidos.verGuardadas')}</Link>
         </div>
         <details className="text-[14px] text-(--ink-muted)" open={filtros.minimo != null || filtros.orden !== 'hora' || undefined}>
           <summary className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg px-3 ring-1 ring-(--line-strong) hover:bg-(--raised) hover:text-(--ink-body)">
@@ -311,7 +311,7 @@ export default function Partidos() {
           {hayFiltros(filtros) && (
             <>
               {' · '}
-              <button onClick={quitarFiltros} className="toque underline underline-offset-2 [--toque-y:6px] hover:text-(--ink-body)">{t('partidos.quitarFiltros')}</button>
+              <button onClick={quitarFiltros} className="toque inline-flex min-h-6 items-center underline underline-offset-2 [--toque-y:6px] hover:text-(--ink-body)">{t('partidos.quitarFiltros')}</button>
             </>
           )}
         </span>

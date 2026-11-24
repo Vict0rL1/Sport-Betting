@@ -215,3 +215,46 @@ test('T24: si guardar falla, no se finge el guardado y se puede reintentar', asy
   await fila.getByRole('button', { name: /Dejar de seguir/ }).click();
   await expect(fila.getByRole('button', { name: /^Seguir/ })).toBeVisible();
 });
+
+// Fase D del seguimiento del PR #18 (auditoría de ui-tester sobre la build de antes): la fila de
+// Partidos a 320 y 390 px y la jerarquía de lo que enseña.
+for (const ancho of [320, 390]) {
+  test(`D: a ${ancho} px ningún nombre de la fila se corta con puntos suspensivos: se parte en líneas`, async ({ page }) => {
+    await servir(page);
+    await page.setViewportSize({ width: ancho, height: 800 });
+    await page.goto('/partidos');
+    await expect(page.getByRole('link', { name: /Toronto Sintético/ })).toBeVisible();
+    const cortados = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('li[data-densidad] a span')]
+        .filter((e) => getComputedStyle(e).textOverflow === 'ellipsis' && e.scrollWidth > e.clientWidth + 1)
+        .map((e) => e.textContent),
+    );
+    expect(cortados).toEqual([]);
+  });
+}
+
+test('D: la probabilidad del favorito es la cifra más visible de la fila, y la fila enseña cómo abrirse', async ({ page }) => {
+  await servir(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/partidos');
+  const fila = page.getByRole('link', { name: /Toronto Sintético/ });
+  await expect(fila).toBeVisible();
+  const tam = (e: Element) => parseFloat(getComputedStyle(e).fontSize);
+  const prob = await fila.getByText('62,0 %').evaluate(tam);
+  const nombre = await fila.getByText('Toronto Sintético').evaluate(tam);
+  expect(prob).toBeGreaterThan(nombre);
+  // Una marca visible de «abrir» en cada fila (antes, la fila entera era un enlace sin nada que lo dijera).
+  for (const f of await page.locator('li[data-densidad] a').all()) await expect(f.locator('[data-abrir]')).toBeVisible();
+  // Y los números junto a los nombres, no 700 px más allá: la fila no se estira a todo el ancho.
+  const caja = (await fila.boundingBox())!;
+  expect(caja.width).toBeLessThanOrEqual(640);
+});
+
+test('D: los enlaces pequeños de Partidos tienen un blanco de al menos 24 px también con ratón', async ({ page }) => {
+  await servir(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/partidos');
+  const guardadas = page.getByRole('link', { name: 'Mis estimaciones guardadas' });
+  await expect(guardadas).toBeVisible();
+  expect((await guardadas.boundingBox())!.height).toBeGreaterThanOrEqual(24);
+});
