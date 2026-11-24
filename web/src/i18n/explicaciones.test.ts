@@ -10,6 +10,12 @@ import { explica, int, porc, txt, lista, dec, signo, miles, exacto } from '../..
 import { escribir, escribirJunto, escribirTodas, valorEn } from '../lib/explicacion.ts';
 import { fijarIdiomaFormato } from '../lib/formato.ts';
 
+/**
+ * Iguales en los dos idiomas a propósito: el anglicismo que el español ya usa. Una plantilla sin palabras
+ * fuera de sus parámetros («{quien}: {senales}», «{quien} {g}–{p}») tampoco tiene nada que traducir.
+ */
+const IGUALES_A_PROPOSITO = new Set(['tenis.factor.h2h', 'tenis.factorEnFrase.h2h']);
+const sinPalabras = (s: string) => !/[a-záéíóúñü]/i.test(s.replace(/\{[^}]*\}/g, ''));
 const marcas = (s: string) => [...new Set([...s.matchAll(/\{(\w+)(?:\|[^}]*)?\}/g)].map((m) => m[1]))].sort().join(',');
 const cat = EXPLICACIONES as Record<string, string>;
 
@@ -19,7 +25,7 @@ test('cada código del servidor tiene su frase en es.ts (la misma) y en en.ts (t
     assert.equal(es[clave], plantilla, `es.ts no dice lo mismo que el servidor en ${k}`);
     const ingles = (en as Record<string, string>)[clave];
     assert.ok(ingles, `${k} sin inglés`);
-    assert.notEqual(ingles, plantilla, `${k} sin traducir`);
+    if (!IGUALES_A_PROPOSITO.has(k) && !sinPalabras(plantilla)) assert.notEqual(ingles, plantilla, `${k} sin traducir`);
     assert.equal(marcas(ingles), marcas(plantilla), `${k}: parámetros distintos`);
   }
   const sobran = Object.keys(es).filter((k) => k.startsWith('explica.') && !(k.slice('explica.'.length) in cat));
@@ -77,4 +83,21 @@ test('los nombres van tal cual en los dos idiomas', () => {
   assert.equal(valorEn({ t: 'txt', v: 'Atlético de Madrid' }, 'en'), 'Atlético de Madrid');
   assert.equal(valorEn({ t: 'int', v: 1650 }, 'en'), '1650', 'un Elo no lleva separador de miles');
   assert.equal(valorEn({ t: 'miles', v: 7276 }, 'es'), '7.276');
+});
+
+// Fase C (2): frases que se arman con piezas de número variable («Forma: A; B», las señales físicas de
+// cada jugador). Cada pieza es otra explicación: cada idioma las escribe con su catálogo y las une.
+test('una explicación con piezas anidadas se escribe pieza a pieza en cada idioma; una pieza desconocida devuelve la frase del servidor', async () => {
+  const { frases } = await import('../../../server/src/explicaciones/index.ts');
+  const racha = (quien: string, n: number) => explica('tenis.forma.rachaGana', { quien: txt(quien), n: int(n) });
+  const e = explica('tenis.forma.rachas', { partes: frases([racha('Sinner', 5), explica('tenis.forma.rachaPierde', { quien: txt('Rune'), n: int(2) })], 'pyc') });
+  assert.equal(e.texto, 'Forma: Sinner llega con 5 victorias seguidas; Rune llega con 2 derrotas seguidas.');
+  fijarIdiomaFormato('es');
+  assert.equal(escribir(tDe(es) as never, 'es', e, '¿?'), e.texto);
+  fijarIdiomaFormato('en');
+  assert.equal(escribir(tDe({ ...es, ...en }) as never, 'en', e, '¿?'), 'Form: Sinner comes in on a 5-match winning streak; Rune comes in on a 2-match losing streak.');
+  // Una pieza que el catálogo no conoce: la frase entera del servidor, no media frase.
+  const rara = { codigo: 'tenis.forma.rachas', params: { partes: { t: 'frases', v: [{ codigo: 'nuevo.codigo', params: {} }], sep: 'pyc' } } };
+  assert.equal(escribir(tDe({ ...es, ...en }) as never, 'en', rara as never, 'Frase del servidor'), 'Frase del servidor');
+  fijarIdiomaFormato('es');
 });

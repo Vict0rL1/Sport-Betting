@@ -4,6 +4,25 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18, fase C (2): el tenis, en tu idioma (2026-11-24)
+
+- **El tenis escribe sus explicaciones con código** (55 códigos). Cubre la tarjeta (titular y viñetas),
+  los motivos de fiabilidad, la lectura de la ficha y sus factores. La web las escribe en el idioma
+  elegido; el servidor sigue mandando la frase en español al lado.
+- **Piezas anidadas** (`frases` en `server/src/explicaciones/`). Algunas frases se arman con un número
+  variable de piezas: «Forma: A; B», las señales físicas de cada jugador, el historial en el torneo,
+  el tiempo sin jugar. Cada idioma escribe cada pieza con su catálogo y las une. Si una sola pieza es
+  desconocida, la web enseña la frase entera del servidor, no media.
+- **Plurales.** «tiene solo 1 partido(s)» pasa a «1 partido» / «3 partidos», y lo mismo con meses y años.
+- **El nivel de fiabilidad de la ficha** («fiabilidad media») sale del catálogo por su nivel, no de la
+  frase del servidor.
+- **Sin cambio en ningún número.** Las probabilidades, los rangos y los umbrales son los de antes.
+- **Tests:**
+  - el tenis, en `prediction/formatoTexto.test.ts`: sin frases sin código, y cada frase igual a su
+    código;
+  - las piezas anidadas en los dos idiomas, y una pieza desconocida;
+  - Playwright en inglés (`e2e/idioma.spec.ts`).
+
 ## Seguimiento del PR #18: pasada final de ui-tester (2026-11-24)
 
 - **A 320 px el selector de moneda del banco ya no desplaza la página.** Iba en la misma fila que el

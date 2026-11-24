@@ -8,6 +8,20 @@ import { rellenar, type Explicacion } from './index.ts';
 const conocido = (e: Explicacion) => Object.prototype.hasOwnProperty.call(EXPLICACIONES, e.codigo);
 const escrita = (e: Explicacion) => rellenar(EXPLICACIONES[e.codigo], e.params);
 
+/**
+ * Las frases de una predicción que todavía llegan SIN código (solo en español): el resumen, los avisos
+ * de fiabilidad, la lectura de la ficha y sus factores. Vacío cuando todo está estructurado.
+ */
+export function sinEstructura(pred: unknown): string[] {
+  const p = pred as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const out: string[] = [];
+  if (p.summary && !p.summary.explicaciones) out.push('summary');
+  if (p.reliability?.reasons && !p.reliability.explicaciones) out.push('reliability.reasons');
+  if (typeof p.reasoning?.text === 'string' && !p.reasoning.explicaciones) out.push('reasoning.text');
+  for (const f of p.reasoning?.factors ?? []) if (typeof f.label === 'string' && !f.explicacion) out.push(`factor ${f.key}`);
+  return out;
+}
+
 export function incoherencias(pred: unknown): string[] {
   const out: string[] = [];
   const pareja = (ruta: string, frases: unknown, codigos: unknown) => {

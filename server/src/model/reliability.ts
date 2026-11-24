@@ -29,6 +29,7 @@
 // ===========================================================================
 
 import { CALIBRATION_SCALE, SURFACE_WEIGHT } from './elo.ts';
+import { explica, frases, int, motivos, txt, type Explicacion, type ExplicacionConTexto } from '../explicaciones/index.ts';
 
 /**
  * Rating noise in Elo points for a player with a single match. Everything scales
@@ -78,6 +79,8 @@ export interface Reliability {
   range: { low: number; high: number };
   /** Plain-Spanish reasons, strongest first. Empty when nothing is lacking. */
   reasons: string[];
+  /** Los mismos motivos, como códigos (explicaciones/): la web los escribe en su idioma. */
+  explicaciones: Explicacion[];
   /** Effective sample size behind each side's rating (surface-weighted). */
   effectiveMatches: { p1: number; p2: number };
 }
@@ -129,7 +132,7 @@ export function computeReliability(
   const worstN = Math.min(n1, n2);
   const worstStale = Math.max(d1.daysStale ?? 0, d2.daysStale ?? 0);
 
-  const reasons: string[] = [];
+  const reasons: ExplicacionConTexto[] = [];
   // Name the weaker side explicitly — "poca información" is useless if the user
   // can't tell WHICH player it applies to.
   for (const [d, name] of [
@@ -138,18 +141,12 @@ export function computeReliability(
   ] as const) {
     const n = effectiveSample(d);
     if (d.matches < MIN_MATCHES_FOR_ANY_CONFIDENCE) {
-      reasons.push(`${name} tiene solo ${d.matches} partido(s) en el historial.`);
+      reasons.push(explica('tenis.fiab.pocosPartidos', { quien: txt(name), n: int(d.matches) }));
     } else if (n < MATCHES_FOR_HIGH) {
-      reasons.push(
-        `Pocos partidos de ${name} en esta superficie (${d.surfaceMatches}); ` +
-          `su Elo de superficie es poco estable.`,
-      );
+      reasons.push(explica('tenis.fiab.superficie', { quien: txt(name), n: int(d.surfaceMatches) }));
     }
     if ((d.daysStale ?? 0) >= STALE_DAYS_LOW_MIN) {
-      reasons.push(
-        `${name} llevaba ${humanGap(d.daysStale as number)} sin jugar al cierre de los datos: ` +
-          `su Elo describe al jugador que era entonces, no necesariamente al de hoy.`,
-      );
+      reasons.push(explica('tenis.fiab.parado', { quien: txt(name), tiempo: frases([humanGap(d.daysStale as number)], 'coma') }));
     }
   }
 
@@ -185,17 +182,16 @@ export function computeReliability(
       low: clamp01(prob1 - marginPp / 100),
       high: clamp01(prob1 + marginPp / 100),
     },
-    reasons,
+    ...motivos(reasons),
     effectiveMatches: { p1: Math.round(n1), p2: Math.round(n2) },
   };
 }
 
 /** A layoff in the largest unit that still reads naturally ("~4 años", not "229 meses"). */
-function humanGap(days: number): string {
+function humanGap(days: number): ExplicacionConTexto {
   const months = Math.round(days / 30);
-  if (months < 24) return `~${months} meses`;
-  const years = Math.round(days / 365);
-  return years === 1 ? '~1 año' : `~${years} años`;
+  if (months < 24) return explica('tenis.tiempo.meses', { n: int(months) });
+  return explica('tenis.tiempo.anios', { n: int(Math.round(days / 365)) });
 }
 
 function clamp01(n: number): number {

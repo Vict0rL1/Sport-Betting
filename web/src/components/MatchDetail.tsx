@@ -4,6 +4,7 @@ import { cifra } from '../lib/formato';
 import { P1_COLOR, P2_COLOR } from './ProbabilityBars';
 import { ReliabilityBlock, FormBox, FitnessBlock, ServeCompare } from './MatchDetailPartes';
 import { conNodos, useI18n } from '../i18n';
+import { escribir, escribirJunto } from '../lib/explicacion';
 
 function Num({ value, plus = false }: { value: number; plus?: boolean }) {
   const sign = plus && value > 0 ? '+' : '';
@@ -74,11 +75,11 @@ export default function MatchDetail({ prediction }: { prediction: Prediction }) 
       {/* WHY — reasoning */}
       <div className="rounded-lg bg-(--raised) p-3">
         <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">{t('det.porQue')}</div>
-        <p className="mb-3 text-(--ink-body)">{reasoning.text}</p>
+        <p className="mb-3 text-(--ink-body)">{escribirJunto(t, idioma, reasoning.explicaciones, reasoning.text)}</p>
         <div className="space-y-2">
           {reasoning.factors.map((f) => (
             <div key={f.key} className="grid grid-cols-[8rem_1fr_3rem] items-center gap-2">
-              <span className="text-[14px] text-(--ink-soft)">{f.label}</span>
+              <span className="text-[14px] text-(--ink-soft)">{escribir(t, idioma, f.explicacion, f.label)}</span>
               <FactorBar points={f.pointsForP1} max={maxFactor} />
               <span className="text-right text-[14px] tabular-nums text-(--ink-body)">
                 {f.pointsForP1 > 0 ? '+' : ''}

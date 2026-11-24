@@ -34,7 +34,13 @@ export type ParamExp =
   /** Varios nombres, unidos con «y» (o «and»). */
   | { t: 'lista'; v: string[] }
   /** Un entero con separador de miles (7.276 / 7,276). */
-  | { t: 'miles'; v: number };
+  | { t: 'miles'; v: number }
+  /**
+   * Piezas que son otras explicaciones, unidas con «; » (`pyc`) o «, » (`coma`): las frases que se
+   * arman con un número variable de piezas («Forma: A; B», las señales físicas de cada jugador). Cada
+   * idioma escribe cada pieza con su catálogo. Una pieza va siempre en medio de la frase: sin mayúscula.
+   */
+  | { t: 'frases'; v: Explicacion[]; sep: 'pyc' | 'coma' };
 
 export interface Explicacion {
   codigo: CodigoExplicacion;
@@ -54,6 +60,8 @@ export const signo = (v: number, d = 1): ParamExp => ({ t: 'signo', v, d });
 export const porc = (v: number, d = 1): ParamExp => ({ t: 'pct', v, d });
 export const lista = (v: string[]): ParamExp => ({ t: 'lista', v });
 export const miles = (v: number): ParamExp => ({ t: 'miles', v: Math.round(v) });
+/** Piezas que son otras explicaciones (ver `ParamExp`). */
+export const frases = (xs: readonly ExplicacionConTexto[], sep: 'pyc' | 'coma'): ParamExp => ({ t: 'frases', v: xs.map(({ codigo, params }) => ({ codigo, params })), sep });
 /** Los decimales con que un número se escribe (1,91 → 2; 44,5 → 1; 7 → 0), a lo sumo 4. */
 const decimales = (v: number): number => Math.min(4, (String(v).split('.')[1] ?? '').length);
 /** Un número con los decimales que trae: una cuota, una línea. */
@@ -78,6 +86,8 @@ export function valorEs(p: ParamExp): string {
       return p.v.length <= 1 ? (p.v[0] ?? '') : `${p.v.slice(0, -1).join(', ')} y ${p.v[p.v.length - 1]}`;
     case 'miles':
       return `${p.v < 0 ? '−' : ''}${String(Math.abs(p.v)).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
+    case 'frases':
+      return p.v.map((e) => rellenar(EXPLICACIONES[e.codigo], e.params)).join(p.sep === 'pyc' ? '; ' : ', ');
   }
 }
 
