@@ -10,12 +10,13 @@ import { DeporteIcono } from '../icons';
 import { Termino } from '../ui';
 import { num as numF } from '../../lib/formato';
 import { pct as pctF } from '../../lib/formato';
+import { CalibracionPorPartido, RendimientoPorPeriodo } from './CalibracionRendimiento';
 
 type Deporte = 'football' | 'basketball' | 'baseball' | 'nfl' | 'nhl' | 'ufc' | 'tennis';
 interface Cubeta { desde: number; hasta: number; n: number; predicha: number | null; observada: number | null }
 interface Diagrama { partidos: number; cubetas: Cubeta[]; ece: number | null; aviso: { nivel: string; texto: string | null } }
 interface Fiabilidad { backtest: Diagrama | null; live: Diagrama }
-interface Monitorizacion { serie: { dia: string; n: number; logLoss: number | null; brier: number | null; psi: number | null }[]; actual: { n: number; logLoss: number | null; brier: number | null; psi: number | null } | null; referencia: { logLoss: number | null; brier: number | null } | null; deriva: { hay: boolean; motivos: string[]; aviso: { texto: string | null } } }
+interface Monitorizacion { serie: { dia: string; n: number; logLoss: number | null; brier: number | null; psi: number | null }[]; actual: { n: number; logLoss: number | null; brier: number | null; psi: number | null } | null; referencia: { logLoss: number | null; brier: number | null } | null; deriva: { hay: boolean; motivos: string[]; aviso: { texto: string | null } }; umbrales?: { minVentana: number } }
 interface Segmentos { predicciones: { n: number; dimensiones: Record<string, Record<string, { n: number; acierto: number | null; publicada: boolean }>> }; apuestas: { n: number; dimensiones: Record<string, Record<string, { n: number; conCierre: number; clvMedio: number | null; publicada: boolean }>> }; umbrales: { predicciones: number; apuestas: number } }
 
 const DEPORTES: Deporte[] = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'ufc', 'tennis'];
@@ -41,8 +42,12 @@ export default function Analitica() {
   const fia = usar<Fiabilidad>(`/api/evaluation/reliability?sport=${sport}`);
   const mon = usar<Monitorizacion>(`/api/monitoring?sport=${sport}`);
   const seg = usar<Segmentos>(`/api/evaluation/segmentos?sport=${sport}`);
-  const serieLL = mon && mon !== 'error' ? mon.serie.filter((p) => p.logLoss != null && p.n >= 1).map((p) => ({ x: Date.parse(p.dia), y: p.logLoss as number })) : [];
-  const serieBr = mon && mon !== 'error' ? mon.serie.filter((p) => p.brier != null && p.n >= 1).map((p) => ({ x: Date.parse(p.dia), y: p.brier as number })) : [];
+  // Lo que quedó de la fase E (revisión de quant-reviewer): un día cuya ventana no llega al mínimo con el que el
+  // servidor concluye algo (`umbrales.minVentana`) no se dibuja; antes bastaba una predicción.
+  const minVentana = mon && mon !== 'error' ? Math.max(1, mon.umbrales?.minVentana ?? 1) : 1;
+  const serieLL = mon && mon !== 'error' ? mon.serie.filter((p) => p.logLoss != null && p.n >= minVentana).map((p) => ({ x: Date.parse(p.dia), y: p.logLoss as number })) : [];
+  const serieBr = mon && mon !== 'error' ? mon.serie.filter((p) => p.brier != null && p.n >= minVentana).map((p) => ({ x: Date.parse(p.dia), y: p.brier as number })) : [];
+  const recortados = mon && mon !== 'error' ? mon.serie.filter((p) => p.logLoss != null && p.n >= 1 && p.n < minVentana).length : 0;
   return (
     <section className="mb-4 rounded-xl border border-(--line) p-4" aria-label={t('analitica.titulo')}>
       <h3 className="mb-2 text-[15px] font-semibold text-(--ink-strong)">{t('analitica.titulo')}</h3>
@@ -87,8 +92,9 @@ export default function Analitica() {
               {serieLL.length > 1 ? (
                 <LineChart series={[{ nombre: 'log loss', puntos: serieLL }, { nombre: 'Brier', puntos: serieBr }]} formatoX={(x) => new Date(x).toLocaleDateString(loc, { day: '2-digit', month: 'short' })} referencia={mon.referencia?.logLoss != null ? { y: mon.referencia.logLoss, etiqueta: t('analitica.referencia', { v: numF(mon.referencia.logLoss, 3) }) } : undefined} />
               ) : (
-                <p className="text-[12px] text-(--ink-muted)">{t('analitica.sinSerie')}</p>
+                <p className="text-[12px] text-(--ink-muted)">{recortados > 0 ? t('analitica.serieSinMuestra', { n: minVentana }) : t('analitica.sinSerie')}</p>
               )}
+              {serieLL.length > 1 && recortados > 0 && <p className="mt-1 text-[12px] text-(--ink-muted)">{t('analitica.serieRecortada', { n: minVentana })}</p>}
               <p className="mt-1 text-[12px] text-(--ink-soft)">
                 {mon.actual ? t('analitica.ahora', { n: mon.actual.n, ll: (mon.actual.logLoss == null ? undefined : numF(mon.actual.logLoss, 3)) ?? '—', psi: (mon.actual.psi == null ? undefined : numF(mon.actual.psi, 3)) ?? '—' }) : t('analitica.sinVentana')}
                 {mon.deriva.hay ? <span className="block" style={{ color: STATUS.critical }} role="alert">{t('analitica.deriva', { motivos: mon.deriva.motivos.join('; ') })}</span> : mon.deriva.aviso.texto ? <span className="block text-(--ink-muted)">{mon.deriva.aviso.texto}</span> : null}
@@ -97,6 +103,9 @@ export default function Analitica() {
           )}
         </div>
       </div>
+      {/* Fase E: un partido por panel, y el Brier por periodo con su muestra. */}
+      <CalibracionPorPartido sport={sport} />
+      <RendimientoPorPeriodo sport={sport} />
       <div className="mt-4">
         <h4 className="mb-1 text-[13px] font-medium text-(--ink-body)">{t('analitica.segmentos')}</h4>
         {seg === null && <p className="text-[12px] text-(--ink-muted)">{t('comun.cargando')}</p>}

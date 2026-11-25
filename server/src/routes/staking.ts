@@ -1,6 +1,6 @@
 // La cartera: qué se pondría hoy, cuánto riesgo agregado es y qué lo recortó.
 //
-//   GET /api/staking/book?bankroll=1000
+//   GET /api/staking/book?bankroll=1000&moneda=EUR
 //
 // ===========================================================================
 // POR QUÉ ESTO ES UN ENDPOINT Y NO UN CÁLCULO EN EL NAVEGADOR
@@ -15,13 +15,27 @@ import type { FastifyInstance } from 'fastify';
 import { listUpcoming } from '../football/repo.ts';
 import { buildFootballPrediction } from '../football/predict.ts';
 import { bestSelection, lossState, DEFAULT_CONFIG } from '../staking/policy.ts';
+import { CONTRATO_RIESGO, esMoneda, exposicionPersonal } from '../staking/contabilidad.ts';
+import { aCentimos } from '../dinero.ts';
 import { decideBook, type BookCandidate } from '../staking/book.ts';
 import { MEASURED, SAME_LEAGUE_DAY_RHO } from '../staking/correlation.ts';
 import { DEMO_SOURCE } from '../freshness.ts';
 
 export async function registerStakingRoutes(app: FastifyInstance): Promise<void> {
-  app.get('/book', async (req) => {
-    const bankroll = Number((req.query as { bankroll?: string }).bankroll) || 1000;
+  app.get('/book', async (req, reply) => {
+    const q = req.query as { bankroll?: string; moneda?: string };
+    // El banco es un importe con céntimos como mucho, y una moneda (staking/contabilidad.ts). Sin
+    // banco, 1000 como siempre; un banco ilegible ya no se cambia por 1000 en silencio.
+    const bankroll = q.bankroll == null || q.bankroll === '' ? 1000 : Number(q.bankroll);
+    if (aCentimos(bankroll) == null || bankroll > 1e9) {
+      return reply.code(400).send({ error: 'banco inválido: un importe mayor que 0, con dos decimales como mucho', code: 'cartera.banco-invalido' });
+    }
+    if (q.moneda != null && q.moneda !== '' && !esMoneda(q.moneda)) {
+      return reply.code(400).send({ error: 'moneda inválida: EUR, USD o GBP', code: 'cartera.moneda-invalida' });
+    }
+    // Sin moneda, ninguna apuesta personal se puede atribuir al banco: si hay alguna, los límites y
+    // los topes quedan sin evaluar en vez de sumar monedas distintas.
+    const moneda = esMoneda(q.moneda) ? q.moneda : null;
     const cfg = DEFAULT_CONFIG;
 
     const fixtures = listUpcoming() as unknown as {
@@ -83,11 +97,23 @@ export async function registerStakingRoutes(app: FastifyInstance): Promise<void>
       });
     }
 
-    const book = decideBook(candidates, bankroll, cfg);
-    const loss = lossState(bankroll, cfg);
+    const now = new Date();
+    const loss = lossState(bankroll, cfg, now, moneda);
+    const book = decideBook(candidates, bankroll, cfg, undefined, now, moneda, { limites: loss });
+    const abierto = exposicionPersonal(moneda);
 
     return {
       bankroll,
+      moneda,
+      contrato: CONTRATO_RIESGO,
+      // Lo pendiente de este banco: lo seguro y lo más que puede ser (lo sin moneda indicada cuenta en la
+      // cota de arriba). null: un importe ilegible, sin cota.
+      exposicion: {
+        segura: abierto.total.seguro / 100,
+        maxima: Number.isFinite(abierto.total.maximo) ? abierto.total.maximo / 100 : null,
+        apuestas: abierto.apuestas,
+        incidencias: abierto.incidencias,
+      },
       // Cuántas se miraron y cuántas quedaron fuera por no tener precio real. Sin esto,
       // una cartera vacía por falta de clave se lee igual que una cartera vacía porque
       // el modelo no encontró ventaja, y son dos situaciones muy distintas.
@@ -107,7 +133,9 @@ export async function registerStakingRoutes(app: FastifyInstance): Promise<void>
       totalStake: book.totalStake,
       aggregate: book.aggregate,
       links: book.links.slice(0, 8),
-      caps: book.caps,
+      // Lo ya en juego sin cota (un importe pendiente ilegible) va como null y con su marca: en JSON,
+      // Infinity sería null a secas y la pantalla lo leería como 0 (revisión quant).
+      caps: book.caps.map((c) => ({ ...c, used: Number.isFinite(c.used) ? c.used : null, sinCota: !Number.isFinite(c.used) })),
       notes: book.notes,
       // Lo medido va en la respuesta para que el panel pueda citar el número y no
       // repetirlo escrito a mano en el frontend, que es como acaban divergiendo.

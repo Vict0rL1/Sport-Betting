@@ -56,13 +56,10 @@ import {
 } from './repo.ts';
 import { daysBetween } from './ratings.ts';
 import type { LeagueId, TeamRecord } from './types.ts';
-import { num, pct } from '../numeros.ts';
+import { dec, exactoSigno, explica, frases, int, motivos, porc, resumen, sinTexto, txt, type Explicacion, type ExplicacionConTexto, type ParamExp, type Resumen, EXPLICACIONES } from '../explicaciones/index.ts';
 
-export const DISCLAIMER =
-  'Estimación estadística basada en Elo con ventaja de campo, margen de puntos, descanso y ' +
-  'odds de mercado. NO considera lesiones ni bajas de última hora, rotaciones, minutos de ' +
-  'descanso a estrellas ni partidos sin importancia al final de temporada. ' +
-  'No es una certeza ni una recomendación para apostar.';
+/** El aviso de este deporte, del catálogo de explicaciones (la web lo escribe en su idioma con `aviso.basketball`). */
+export const DISCLAIMER: string = EXPLICACIONES['aviso.basketball'];
 
 export type ConfidenceTier = 'toss_up' | 'slight' | 'clear' | 'strong';
 export type ReliabilityLevel = 'high' | 'medium' | 'low';
@@ -83,6 +80,8 @@ export interface Reliability {
   marginPp: number;
   range: { low: number; high: number };
   reasons: string[];
+  /** Los mismos motivos, como códigos (explicaciones/): la web los escribe en su idioma. */
+  explicaciones: Explicacion[];
   gamesBehind: { home: number; away: number };
 }
 
@@ -113,6 +112,8 @@ export interface ReasoningFactor {
   label: string;
   /** Elo points in favour of the HOME team (signed). */
   pointsForHome: number;
+  /** La etiqueta como código (explicaciones/). */
+  explicacion: Explicacion;
 }
 
 export interface HeadToHead {
@@ -142,6 +143,8 @@ export interface ScoreProjection {
   margin: number;
   /** How the app would phrase a spread, e.g. "Celtics -6.5". */
   spreadLabel: string;
+  /** El mismo hándicap como código (explicaciones/): la web lo escribe en su idioma. */
+  spreadExplicacion: Explicacion;
   home: number | null;
   away: number | null;
   total: number | null;
@@ -186,9 +189,9 @@ export interface GamePrediction {
   projection: ScoreProjection;
   market: MarketComparison;
   h2h: HeadToHead;
-  reasoning: { factors: ReasoningFactor[]; topFactor: ReasoningFactor | null; text: string };
+  reasoning: { factors: ReasoningFactor[]; topFactor: ReasoningFactor | null; text: string; explicaciones: Explicacion[] };
   reliability: Reliability;
-  summary: { headline: string; bullets: string[] };
+  summary: Resumen;
   verdict: {
     favored: 'home' | 'away' | null;
     favoredName: string | null;
@@ -207,12 +210,11 @@ function confidenceTier(prob: number): ConfidenceTier {
 }
 
 /** A gap in the largest unit that reads naturally ("~4 años", not "1489 días"). */
-function humanGap(days: number): string {
-  if (days < 60) return `${days} días`;
+function humanGap(days: number): ExplicacionConTexto {
+  if (days < 60) return explica('tiempo.dias', { n: int(days) });
   const months = Math.round(days / 30);
-  if (months < 24) return `~${months} meses`;
-  const years = Math.round(days / 365);
-  return years === 1 ? '~1 año' : `~${years} años`;
+  if (months < 24) return explica('tiempo.meses', { n: int(months) });
+  return explica('tiempo.anios', { n: int(Math.round(days / 365)) });
 }
 
 function sigmaFor(games: number, monthsStale: number): number {
@@ -238,18 +240,15 @@ function computeReliability(
   const slope = (Math.LN10 * probHome * (1 - probHome)) / 400;
   const marginPp = Math.round(Math.min(sigmaGap * slope * 100, 25) * 10) / 10;
 
-  const reasons: string[] = [];
+  const reasons: ExplicacionConTexto[] = [];
   for (const t of [home, away]) {
     if (t.games < MIN_GAMES_FOR_ANY_CONFIDENCE) {
-      reasons.push(`${t.name} tiene solo ${t.games} partido(s) en el historial.`);
+      reasons.push(explica('baloncesto.fiab.pocosPartidos', { equipo: txt(t.name), n: int(t.games) }));
     } else if (t.games < GAMES_FOR_HIGH) {
-      reasons.push(`Pocos partidos de ${t.name} (${t.games}): su Elo aún no es estable.`);
+      reasons.push(explica('baloncesto.fiab.inestable', { equipo: txt(t.name), n: int(t.games) }));
     }
     if (t.monthsStale >= 4) {
-      reasons.push(
-        `${t.name} no tiene partidos desde hace ${humanGap(Math.round(t.monthsStale * 30))}: ` +
-          `su Elo describe a la plantilla de entonces, no necesariamente a la actual.`,
-      );
+      reasons.push(explica('baloncesto.fiab.parado', { equipo: txt(t.name), tiempo: frases([humanGap(Math.round(t.monthsStale * 30))], 'coma') }));
     }
   }
 
@@ -273,7 +272,7 @@ function computeReliability(
       low: clamp01(probHome - marginPp / 100),
       high: clamp01(probHome + marginPp / 100),
     },
-    reasons,
+    ...motivos(reasons),
     gamesBehind: { home: home.games, away: away.games },
   };
 }
@@ -351,7 +350,6 @@ function buildH2H(league: LeagueId, homeId: string, awayId: string): HeadToHead 
   };
 }
 
-const pct1 = (p: number) => pct(p);
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
@@ -360,26 +358,23 @@ function clamp01(n: number): number {
 }
 
 /** Spread label in the form bettors read: favourite first, negative number. */
-function spreadLabel(margin: number, homeName: string, awayName: string): string {
-  if (Math.abs(margin) < 0.25) return 'sin favorito claro (pick’em)';
+function spreadLabel(margin: number, homeName: string, awayName: string): ExplicacionConTexto {
+  if (Math.abs(margin) < 0.25) return explica('baloncesto.spread.pickem');
   const fav = margin > 0 ? homeName : awayName;
-  return `${fav} ${num(-Math.abs(margin), 1)}`;
+  return explica('baloncesto.spread', { equipo: txt(fav), linea: dec(-Math.abs(margin), 1) });
 }
 
-function describeRest(side: TeamSide): string | null {
+function describeRest(side: TeamSide): ExplicacionConTexto | null {
   if (side.daysRest == null) return null;
-  if (side.backToBack) return `${side.name} juega en back-to-back (jugó el día anterior)`;
+  if (side.backToBack) return explica('baloncesto.descanso.b2b', { equipo: txt(side.name) });
   if (side.daysRest === 1) return null; // the normal case; not worth a bullet
   // Past a week the gap is no longer "rest" but a layoff of unknown cause — most
   // often that the results simply end there. Saying "llega con 4064 días de
   // descanso" would be technically true and completely misleading.
   if (side.daysRest >= LONG_LAYOFF_DAYS) {
-    return (
-      `${side.name} no aparece con partidos desde hace ${humanGap(side.daysRest)} en los datos ` +
-      `disponibles (no se aplica ajuste de descanso)`
-    );
+    return explica('baloncesto.descanso.parado', { equipo: txt(side.name), tiempo: frases([humanGap(side.daysRest)], 'coma') });
   }
-  return `${side.name} llega con ${side.daysRest} días de descanso`;
+  return explica('baloncesto.descanso.dias', { equipo: txt(side.name), n: int(side.daysRest) });
 }
 
 /** Días sin partidos a partir de los cuales el siguiente es de otra temporada. */
@@ -488,27 +483,31 @@ export function buildGamePrediction(
   const ratingGap = round1(home.elo - away.elo);
   const homeCourt = neutral ? 0 : homeAdvantage;
   const restGap = round1(home.restAdjustment - away.restAdjustment);
-  const factors: ReasoningFactor[] = [
-    { key: 'rating', label: 'Elo (nivel del equipo)', pointsForHome: ratingGap },
-    { key: 'home', label: neutral ? 'Cancha neutral' : 'Ventaja de campo', pointsForHome: homeCourt },
-    { key: 'rest', label: 'Descanso', pointsForHome: restGap },
-  ];
+  // Cada factor con su código, y el código de la misma señal dentro de una frase («lo que más pesa es…»).
+  const variante = (key: ReasoningFactor['key']) => (key === 'home' && neutral ? 'neutral' : key);
+  const factor = (key: ReasoningFactor['key'], pointsForHome: number): ReasoningFactor => {
+    const e = explica(`baloncesto.factor.${variante(key)}`);
+    return { key, label: e.texto, pointsForHome, explicacion: sinTexto(e) };
+  };
+  const factors: ReasoningFactor[] = [factor('rating', ratingGap), factor('home', homeCourt), factor('rest', restGap)];
   const ranked = [...factors].sort((a, b) => Math.abs(b.pointsForHome) - Math.abs(a.pointsForHome));
   const top = ranked[0] ?? null;
   const favoredIsHome = probHome >= 0.5;
   const favName = favoredIsHome ? home.name : away.name;
   const dogName = favoredIsHome ? away.name : home.name;
 
-  let reasoningText: string;
+  let lectura: ExplicacionConTexto;
   if (!top || Math.abs(top.pointsForHome) < 1) {
-    reasoningText = 'Los dos equipos están muy igualados en todas las señales.';
+    lectura = explica('baloncesto.lectura.igualados');
   } else {
     const driver = top.pointsForHome >= 0 ? home.name : away.name;
-    reasoningText =
+    const enFrase = frases([explica(`baloncesto.factorEnFrase.${variante(top.key)}`)], 'coma');
+    lectura =
       driver === favName
-        ? `El modelo favorece a ${favName}; lo que más pesa es ${top.label.toLowerCase()}.`
-        : `El modelo favorece a ${favName}, aunque en ${top.label.toLowerCase()} la ventaja es de ${driver}.`;
+        ? explica('baloncesto.lectura.favorece', { fav: txt(favName), factor: enFrase })
+        : explica('baloncesto.lectura.matiza', { fav: txt(favName), factor: enFrase, otro: txt(driver) });
   }
+  const reasoningText = lectura.texto;
 
   const monthsStale = (d: number | null) => (d == null ? 0 : d / 30);
   const reliability = computeReliability(
@@ -518,98 +517,85 @@ export function buildGamePrediction(
   );
 
   const h2h = buildH2H(league, homeId, awayId);
+  const spread = spreadLabel(margin, home.name, away.name);
   const confidence = confidenceTier(probHome);
 
   // ---------------- Plain-Spanish summary ----------------
   // Everything below restates figures computed above; no new modelling, so the
   // prose can never disagree with the numbers next to it.
-  const favProb = pct1(Math.max(probHome, probAway));
+  const favProb = porc(Math.max(probHome, probAway));
   const headline =
     confidence === 'toss_up'
-      ? `Partido muy parejo: ligerísima ventaja para ${favName} (${favProb}). Cualquiera puede ganar.`
-      : `Lo más probable: gana ${favName} (${favProb})` +
-        (Math.abs(margin) >= 0.5
-          ? `, por unos ${num(Math.abs(margin), 1)} puntos.`
-          : ', en un partido muy ajustado.');
+      ? explica('baloncesto.titular.parejo', { fav: txt(favName), p: favProb })
+      : Math.abs(margin) >= 0.5
+        ? explica('baloncesto.titular.margen', { fav: txt(favName), p: favProb, puntos: dec(Math.abs(margin), 1) })
+        : explica('baloncesto.titular.ajustado', { fav: txt(favName), p: favProb });
 
-  const bullets: string[] = [];
+  const local = txt(home.name);
+  const visitante = txt(away.name);
+  const bullets: ExplicacionConTexto[] = [];
 
   bullets.push(
     neutral
-      ? `Cancha neutral: no se aplica ventaja de campo.`
-      : `${home.name} juega en casa, lo que vale ${Math.round(homeAdvantage)} puntos de Elo ` +
-        // Del número y no de una frase fija: la frase antigua decía «~60 %», que era
+      ? explica('baloncesto.cancha.neutral')
+      : // Del número y no de una frase fija: la frase antigua decía «~60 %», que era
         // la NBA de hace veinte años y justo el error que la ventaja aprendida corrige.
-        `(entre dos equipos iguales, el local ganaría el ${pct(1 / (1 + Math.pow(10, -homeAdvantage / 400)), 0)}; ` +
-        'se aprende de los resultados y ha bajado mucho en la última década).',
+        explica('baloncesto.cancha.casa', { equipo: local, puntos: int(homeAdvantage), p: porc(1 / (1 + Math.pow(10, -homeAdvantage / 400)), 0) }),
   );
 
-  if (pretemporada) {
-    bullets.push(
-      `Primer partido de temporada: los Elo de la temporada pasada se acercan a la media ` +
-        `(conservan el ${pct(SEASON_CARRYOVER, 0)}), porque las plantillas cambian en verano.`,
-    );
-  }
+  if (pretemporada) bullets.push(explica('baloncesto.pretemporada', { p: porc(SEASON_CARRYOVER, 0) }));
 
   bullets.push(
-    `Elo: ${home.name} ${Math.round(home.elo)} (#${home.eloRank}) vs ` +
-      `${away.name} ${Math.round(away.elo)} (#${away.eloRank}).`,
+    explica('baloncesto.elo', { local, eloLocal: int(home.elo), rankLocal: int(home.eloRank), visitante, eloVisitante: int(away.elo), rankVisitante: int(away.eloRank) }),
   );
 
   if (projHome != null && projAway != null) {
-    bullets.push(
-      `Marcador estimado: ${home.name} ${Math.round(projHome)} – ${Math.round(projAway)} ${away.name} ` +
-        `(total ~${Math.round(projHome + projAway)} puntos).`,
-    );
+    bullets.push(explica('baloncesto.marcador', { local, pLocal: int(projHome), pVisitante: int(projAway), visitante, total: int(projHome + projAway) }));
   }
 
-  bullets.push(
-    `Diferencia esperada: ${spreadLabel(margin, home.name, away.name)}. ` +
-      `Ojo: el error típico de esta estimación es ~9 puntos, así que trátala como el centro de un rango amplio.`,
-  );
+  bullets.push(explica('baloncesto.diferencia', { dif: frases([spread], 'coma') }));
 
   // Records, split by venue because that's the relevant one for each side.
   bullets.push(
-    `Balance: ${home.name} ${home.record.wins}–${home.record.losses} ` +
-      `(${home.venueRecord.wins}–${home.venueRecord.losses} en casa); ` +
-      `${away.name} ${away.record.wins}–${away.record.losses} ` +
-      `(${away.venueRecord.wins}–${away.venueRecord.losses} fuera).`,
+    explica('baloncesto.balance', {
+      local,
+      g: int(home.record.wins),
+      p: int(home.record.losses),
+      gCasa: int(home.venueRecord.wins),
+      pCasa: int(home.venueRecord.losses),
+      visitante,
+      g2: int(away.record.wins),
+      p2: int(away.record.losses),
+      gFuera: int(away.venueRecord.wins),
+      pFuera: int(away.venueRecord.losses),
+    }),
   );
 
-  const formOf = (s: TeamSide) => {
+  const formOf = (s: TeamSide): ExplicacionConTexto | null => {
     const last = s.last10.slice(0, 5);
     if (last.length === 0) return null;
     const w = last.filter((g) => g.won).length;
-    return `${s.name} ${w}–${last.length - w} en sus últimos ${last.length}`;
+    return explica('baloncesto.forma.equipo', { equipo: txt(s.name), g: int(w), p: int(last.length - w), n: int(last.length) });
   };
   const f1 = formOf(home);
   const f2 = formOf(away);
-  if (f1 && f2) bullets.push(`Forma reciente: ${f1}; ${f2}.`);
+  if (f1 && f2) bullets.push(explica('baloncesto.forma', { partes: frases([f1, f2], 'pyc') }));
 
-  const restNotes = [describeRest(home), describeRest(away)].filter(Boolean) as string[];
-  if (restNotes.length) {
-    bullets.push(
-      `Descanso: ${restNotes.join('; ')}. ` +
-        `El segundo partido de un back-to-back cuesta ~35 puntos de Elo (medido, no supuesto).`,
-    );
-  }
+  const restNotes = [describeRest(home), describeRest(away)].filter((x): x is ExplicacionConTexto => x != null);
+  if (restNotes.length) bullets.push(explica('baloncesto.descanso', { partes: frases(restNotes, 'pyc') }));
 
   if (h2h.total > 0) {
     const rs = h2h.recentSeasons;
+    const base = { local, visitante, hg: int(h2h.homeWins), hp: int(h2h.awayWins), total: int(h2h.total) };
+    const margen: Record<string, ParamExp> = h2h.averageMargin != null ? { margen: exactoSigno(h2h.averageMargin) } : {};
+    const conMargen = h2h.averageMargin != null;
     bullets.push(
-      (rs
-        ? `Historial directo reciente (${rs.seasons} temporadas): ` +
-          `${home.name} ${rs.homeWins}–${rs.awayWins} ${away.name}. ` +
-          `Histórico completo: ${h2h.homeWins}–${h2h.awayWins} en ${h2h.total} partidos`
-        : `Historial directo: ${home.name} ${h2h.homeWins}–${h2h.awayWins} ${away.name} ` +
-          `en ${h2h.total} enfrentamientos`) +
-        (h2h.averageMargin != null
-          ? `, diferencia media ${h2h.averageMargin > 0 ? '+' : ''}${h2h.averageMargin} para ${home.name}.`
-          : '.') +
-        ` No entra en la probabilidad: el Elo ya recoge el nivel de ambos.`,
+      rs
+        ? explica(conMargen ? 'baloncesto.h2h.reciente.margen' : 'baloncesto.h2h.reciente', { ...base, ...margen, temporadas: int(rs.seasons), g: int(rs.homeWins), p: int(rs.awayWins) })
+        : explica(conMargen ? 'baloncesto.h2h.margen' : 'baloncesto.h2h', { ...base, ...margen }),
     );
   } else {
-    bullets.push('No hay enfrentamientos previos en el historial disponible.');
+    bullets.push(explica('baloncesto.h2h.nunca'));
   }
 
   if (marketComparison.market) {
@@ -617,27 +603,25 @@ export function buildGamePrediction(
       ? marketComparison.market.implied1
       : marketComparison.market.implied2;
     const gapPp = (Math.max(probHome, probAway) - mFav) * 100;
-    const mFavPct = pct1(mFav);
+    const pMercado = porc(mFav);
     if (Math.abs(gapPp) < VALUE_THRESHOLD * 100) {
-      bullets.push(`Las casas coinciden (${mFavPct} para ${favName}).`);
+      bullets.push(explica('baloncesto.mercado.coincide', { pMercado, fav: txt(favName) }));
     } else if (gapPp > 0) {
-      bullets.push(
-        `El modelo es más optimista con ${favName} (${favProb}) que el mercado (${mFavPct}): posible value en ${favName}.`,
-      );
+      bullets.push(explica('baloncesto.mercado.optimista', { fav: txt(favName), pModelo: favProb, pMercado }));
     } else {
-      bullets.push(
-        `El mercado ve a ${favName} más favorito (${mFavPct}) que el modelo (${favProb}): el valor estaría en ${dogName}.`,
-      );
+      bullets.push(explica('baloncesto.mercado.pesimista', { fav: txt(favName), pMercado, pModelo: favProb, dog: txt(dogName) }));
     }
   } else {
-    bullets.push('Sin cuotas disponibles para comparar con el mercado.');
+    bullets.push(explica('baloncesto.mercado.sin'));
   }
 
   if (reliability.level !== 'high') {
+    const banda = { p: favProb, margen: dec(reliability.marginPp, 1) };
+    const primero = reliability.explicaciones[0];
     bullets.push(
-      `⚠️ ${reliability.label.charAt(0).toUpperCase() + reliability.label.slice(1)}: ` +
-        `tómalo como un rango (${favProb} ± ${num(reliability.marginPp, 1)} pp) más que como una cifra exacta.` +
-        (reliability.reasons.length ? ` ${reliability.reasons[0]}` : ''),
+      primero
+        ? explica(`baloncesto.aviso.${reliability.level}.motivo`, { ...banda, motivo: { t: 'frases', v: [primero], sep: 'coma' } })
+        : explica(`baloncesto.aviso.${reliability.level}`, banda),
     );
   }
 
@@ -648,7 +632,8 @@ export function buildGamePrediction(
     model: { probHome, probAway },
     projection: {
       margin,
-      spreadLabel: spreadLabel(margin, home.name, away.name),
+      spreadLabel: spread.texto,
+      spreadExplicacion: sinTexto(spread),
       home: projHome,
       away: projAway,
       total: projHome != null && projAway != null ? round1(projHome + projAway) : null,
@@ -656,9 +641,9 @@ export function buildGamePrediction(
     },
     market: marketComparison,
     h2h,
-    reasoning: { factors, topFactor: top, text: reasoningText },
+    reasoning: { factors, topFactor: top, text: reasoningText, explicaciones: [sinTexto(lectura)] },
     reliability,
-    summary: { headline, bullets },
+    summary: resumen(headline, bullets),
     verdict: {
       favored: probHome === 0.5 ? null : favoredIsHome ? 'home' : 'away',
       favoredName: probHome === 0.5 ? null : favName,

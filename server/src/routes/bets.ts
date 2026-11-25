@@ -17,145 +17,20 @@ import {
   BET_SPORTS,
   BET_STATUSES,
   createBet,
+  ErrorDeEnlace,
   deleteBet,
   getBet,
   listBets,
   summarizeBets,
   updateBet,
   type BetInput,
-  type BetStatus, BET_CURRENCIES } from '../bets.ts';
+} from '../bets.ts';
 import { listBetCandidates } from '../betCandidates.ts';
-import { importarCsv } from '../bets/importar.ts';
+import { analizarCsv, importarCsv } from '../bets/importar.ts';
 import { sugerenciaStake } from '../bets/sugerencia.ts';
 import { clvDeApuesta } from '../bets/clv.ts';
+import { parseBet } from '../bets/validar.ts';
 import { featureEncendida } from '../features.ts';
-
-/** A finite number, accepting the comma decimal separator a Spanish keyboard gives. */
-function num(v: unknown): number | null {
-  if (typeof v === 'number') return Number.isFinite(v) ? v : null;
-  if (typeof v !== 'string') return null;
-  const n = Number(v.trim().replace(',', '.'));
-  return Number.isFinite(n) ? n : null;
-}
-
-function text(v: unknown): string | null {
-  if (typeof v !== 'string') return null;
-  const t = v.trim();
-  return t === '' ? null : t;
-}
-
-const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-interface Problem {
-  field: string;
-  message: string;
-}
-
-/**
- * Validate a body into a BetInput.
- *
- * `partial` skips the required-field checks, for PATCH — where sending only
- * `{status:'won'}` has to be legal.
- */
-function parseBet(body: unknown, partial: boolean): { input: Partial<BetInput> } | { errors: Problem[] } {
-  const b = (body ?? {}) as Record<string, unknown>;
-  const errors: Problem[] = [];
-  const out: Partial<BetInput> = {};
-
-  const has = (k: string) => k in b && b[k] !== undefined;
-
-  if (has('sport') || !partial) {
-    const v = text(b.sport);
-    if (!v) errors.push({ field: 'sport', message: 'Falta el deporte.' });
-    else if (!(BET_SPORTS as readonly string[]).includes(v))
-      errors.push({ field: 'sport', message: `Deporte no válido. Usa: ${BET_SPORTS.join(', ')}.` });
-    else out.sport = v;
-  }
-  if (has('event') || !partial) {
-    const v = text(b.event);
-    if (!v) errors.push({ field: 'event', message: 'Falta el partido o evento.' });
-    else out.event = v.slice(0, 200);
-  }
-  if (has('market') || !partial) {
-    const v = text(b.market);
-    if (!v) errors.push({ field: 'market', message: 'Falta el mercado.' });
-    else if (!(BET_MARKETS as readonly string[]).includes(v))
-      errors.push({ field: 'market', message: `Mercado no válido. Usa: ${BET_MARKETS.join(', ')}.` });
-    else out.market = v;
-  }
-  if (has('selection') || !partial) {
-    const v = text(b.selection);
-    if (!v) errors.push({ field: 'selection', message: 'Falta qué apostaste.' });
-    else out.selection = v.slice(0, 200);
-  }
-  if (has('odds') || !partial) {
-    const v = num(b.odds);
-    // Decimal odds below 1 pay less than the stake back, which is not a price a
-    // book offers — it is almost always an American odds figure in the wrong box.
-    if (v == null) errors.push({ field: 'odds', message: 'La cuota tiene que ser un número.' });
-    else if (v <= 1) errors.push({ field: 'odds', message: 'La cuota decimal tiene que ser mayor que 1 (ej. 1.85).' });
-    else if (v > 1000) errors.push({ field: 'odds', message: 'Cuota demasiado alta, revisa el número.' });
-    else out.odds = v;
-  }
-  if (has('stake') || !partial) {
-    const v = num(b.stake);
-    if (v == null) errors.push({ field: 'stake', message: 'La cantidad tiene que ser un número.' });
-    else if (v <= 0) errors.push({ field: 'stake', message: 'La cantidad tiene que ser mayor que 0.' });
-    // Céntimos y no más (D8): 10,005 es un error de tecleo, no 10,00. No se trunca nunca.
-    else if (Math.abs(Math.round(v * 100) - v * 100) > 1e-6) errors.push({ field: 'stake', message: 'Como mucho 2 decimales.' });
-    else if (v > 1_000_000) errors.push({ field: 'stake', message: 'Cantidad demasiado alta, revisa el número.' });
-    else out.stake = v;
-  }
-  if (has('currency')) {
-    const v = b.currency === null ? null : text(b.currency);
-    if (v != null && !(BET_CURRENCIES as readonly string[]).includes(v))
-      errors.push({ field: 'currency', message: `Moneda no válida. Usa: ${BET_CURRENCIES.join(', ')}.` });
-    else out.currency = v;
-  }
-
-  if (has('status')) {
-    const v = text(b.status);
-    if (!v || !BET_STATUSES.includes(v as BetStatus))
-      errors.push({ field: 'status', message: `Estado no válido. Usa: ${BET_STATUSES.join(', ')}.` });
-    else out.status = v as BetStatus;
-  }
-  if (has('placed_on')) {
-    const v = text(b.placed_on);
-    if (!v || !DAY_RE.test(v)) errors.push({ field: 'placed_on', message: 'La fecha tiene que ser AAAA-MM-DD.' });
-    else out.placed_on = v;
-  }
-  if (has('payout')) {
-    const v = b.payout === null ? null : num(b.payout);
-    if (v != null && v < 0) errors.push({ field: 'payout', message: 'El retorno no puede ser negativo.' });
-    else out.payout = v;
-  }
-  for (const [key, max] of [['league', 80], ['notes', 500], ['match_key', 200]] as const) {
-    if (has(key)) out[key] = b[key] === null ? null : (text(b[key]) ?? '').slice(0, max) || null;
-  }
-  if (has('tags')) {
-    const v = b.tags;
-    if (v === null) out.tags = [];
-    else if (!Array.isArray(v) || v.some((x) => typeof x !== 'string')) errors.push({ field: 'tags', message: 'Las etiquetas son una lista de textos.' });
-    else out.tags = [...new Set(v.map((x) => (x as string).trim().slice(0, 30)).filter(Boolean))].slice(0, 12);
-  }
-  for (const key of ['model_prob', 'market_prob'] as const) {
-    if (has(key)) {
-      const v = b[key] === null ? null : num(b[key]);
-      if (v != null && (v < 0 || v > 1))
-        errors.push({ field: key, message: 'La probabilidad va entre 0 y 1.' });
-      else out[key] = v;
-    }
-  }
-
-  // A cashout without the returned amount cannot be scored, and guessing it from
-  // the odds would report a profit the bet never produced.
-  const status = out.status ?? (partial ? undefined : 'pending');
-  if (status === 'cashout' && out.payout == null) {
-    errors.push({ field: 'payout', message: 'Un cashout necesita el importe que te devolvieron.' });
-  }
-
-  return errors.length ? { errors } : { input: out };
-}
 
 export async function registerBetRoutes(app: FastifyInstance): Promise<void> {
   app.get<{ Querystring: { from?: string; to?: string; sport?: string; status?: string } }>(
@@ -185,11 +60,35 @@ export async function registerBetRoutes(app: FastifyInstance): Promise<void> {
   app.post('/', async (req, reply) => {
     const parsed = parseBet(req.body, false);
     if ('errors' in parsed) return reply.code(400).send({ errors: parsed.errors });
-    return reply.code(201).send(createBet(parsed.input as BetInput));
+    try {
+      return reply.code(201).send(createBet(parsed.input as BetInput));
+    } catch (e) {
+      if (e instanceof ErrorDeEnlace) return reply.code(400).send({ errors: [{ field: 'snapshot_id', code: e.code, message: e.message }] });
+      throw e;
+    }
   });
 
   // Fase 5.16: importar un CSV (una apuesta por fila), sugerencia de stake con la misma
   // política Kelly (solo sugerencia) y CLV de las apuestas propias cuando hay snapshot.
+  // La vista previa (fase F del seguimiento del PR #18): qué filas entrarían, cuáles no (campo y código) y
+  // qué se pierde, SIN escribir nada. Importar después vuelve a leer y validar el CSV desde cero.
+  app.post<{ Body: { csv?: string } }>('/import/preview', async (req, reply) => {
+    if (!featureEncendida('apuestas.importacion')) return reply.code(404).send({ error: 'apagado (features.json: apuestas.importacion)' });
+    const csv = typeof req.body?.csv === 'string' ? req.body.csv : '';
+    if (!csv.trim()) return reply.code(400).send({ error: 'falta el CSV' });
+    const a = analizarCsv(csv);
+    // Lo que se guardaría va resumido: lo que la persona reconoce de su apuesta, no todo el objeto.
+    return {
+      ...a,
+      filas: a.filas.map((f) => ({
+        linea: f.linea,
+        valida: f.valida,
+        errores: f.errores,
+        avisos: f.avisos,
+        apuesta: f.apuesta && { placed_on: f.apuesta.placed_on ?? null, sport: f.apuesta.sport, event: f.apuesta.event, selection: f.apuesta.selection, odds: f.apuesta.odds, stake: f.apuesta.stake, currency: f.apuesta.currency ?? null, status: f.apuesta.status ?? 'pending' },
+      })),
+    };
+  });
   app.post<{ Body: { csv?: string } }>('/import', async (req, reply) => {
     if (!featureEncendida('apuestas.importacion')) return reply.code(404).send({ error: 'apagado (features.json: apuestas.importacion)' });
     const csv = typeof req.body?.csv === 'string' ? req.body.csv : '';
@@ -217,7 +116,13 @@ export async function registerBetRoutes(app: FastifyInstance): Promise<void> {
   app.patch<{ Params: { id: string } }>('/:id', async (req, reply) => {
     const parsed = parseBet(req.body, true);
     if ('errors' in parsed) return reply.code(400).send({ errors: parsed.errors });
-    const bet = updateBet(Number(req.params.id), parsed.input);
+    let bet;
+    try {
+      bet = updateBet(Number(req.params.id), parsed.input);
+    } catch (e) {
+      if (e instanceof ErrorDeEnlace) return reply.code(400).send({ errors: [{ field: 'snapshot_id', code: e.code, message: e.message }] });
+      throw e;
+    }
     return bet ?? reply.code(404).send({ error: 'no existe esa apuesta' });
   });
 

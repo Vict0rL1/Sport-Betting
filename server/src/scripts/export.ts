@@ -12,6 +12,7 @@ if (!dataset || !(DATASETS as readonly string[]).includes(dataset)) {
 }
 getDb();
 const r = exportar(dataset, { desde: valor('--desde'), hasta: valor('--hasta'), sport: valor('--sport') });
+if (r.aviso) console.error(`aviso: ${r.aviso}`);
 const formato = valor('--formato') ?? 'csv';
 const texto = formato === 'json' ? JSON.stringify({ dataset, filas: r.datos.length, columnas: r.columnas, datos: r.datos }, null, 2) + '\n' : aCsv(r.columnas, r.datos);
 const salida = valor('--salida');

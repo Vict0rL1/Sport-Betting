@@ -4,6 +4,512 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18, segunda tanda: revisiones finales (2026-11-25)
+
+- **quant-reviewer sobre C (2) a C (5): solo cambió el texto.** Con los dos árboles, 1.351
+  predicciones, 876 casos de fiabilidad y de bajas y 161 decisiones de confianza dan los mismos
+  números, decisiones y razones. Dos cosas que se dicen aquí:
+  - **`model_version` cambia en los siete deportes.** La huella es del contenido de sus ficheros
+    (`versions.ts`), y los textos estaban en ellos. Al desplegar, cada partido próximo gana una
+    instantánea más («nueva versión del modelo»), y la evaluación por versión empieza un grupo nuevo.
+    Ningún número cambia. Los textos viven ahora en `explicaciones/catalogo.ts`, que no entra en la
+    huella.
+  - **El español cambia solo en los espacios.** Pasan a duros en «±25 %», alrededor de « – » en los
+    marcadores y en «~5 %» y «~−3 %» de las bajas. Nada guarda ni analiza esas frases.
+- **Pasada final de ui-tester** a 1280, 390 y 320 px, en claro y oscuro, en los dos idiomas. Arreglado,
+  con su test:
+  - en inglés, la diferencia modelo − mercado que redondea a cero decía «0,0 pp»; ahora «0.0 pp»
+    (`diferenciaPp` en `lib/formato.ts`);
+  - a 320 px, el nombre del grupo en Partidos se cortaba en «N…» junto al mercado; ahora el mercado baja
+    de línea.
+- **El gráfico de deriva de siempre** ya no dibuja los días cuya ventana no llega al mínimo con el que
+  el servidor concluye algo (100 predicciones), y lo dice. Antes bastaba una. Lo había pedido
+  quant-reviewer en la fase E.
+- **Encontrado y no arreglado, anterior a este trabajo** (en «Diferido» del plan):
+  - Partidos enseña la última instantánea y la ficha la primera publicación: por debajo de 0,5 pp de
+    diferencia, dos cifras sin decirlo. Pide decidir cuál es «la» cifra.
+  - Texto del servidor en español en Confianza.
+  - Mezclas de formato de números en inglés en la ficha.
+
+## Seguimiento del PR #18, fase D: jerarquía visual y móvil (2026-11-24)
+
+Sale de una auditoría de ui-tester en el navegador, a 1280, 390 y 320 px (la tabla, con lo que se hizo
+con cada hallazgo, en `docs/plans/seguimiento-pr18-2026-11.md`). Cada arreglo tiene antes un test de
+Playwright que fallaba.
+
+- **Partidos, la fila.**
+  - Los nombres se parten en líneas en vez de cortarse. A 320 px, 103 de 134 se cortaban
+    («Edmonton Oi…») y solo se leían con el ratón encima.
+  - La probabilidad del favorito es la cifra más visible de la fila: 18 px, frente a los 15 de los
+    nombres.
+  - La fila no se estira a todo el ancho: a 1280 px la probabilidad quedaba a unos 700 px del nombre.
+  - Una marca «›» dice que la fila se abre. Antes no había nada visible.
+- **«Lo que el modelo ve más probable»**, en la página de cada deporte y en el móvil:
+  - empieza cerrado: abierto medía unos 1.830 px y el primer partido quedaba a más de 2.200 px;
+  - sin precio de mercado en ninguna fila, no enseña las columnas «Mercado» y «Dif.», que solo
+    repetían «—»; sin cuota en ninguna, tampoco «Pago si gana».
+- **Zonas de toque de 24 px como mínimo** en «Abrir partido», «Ver contra qué se ha medido»,
+  «Cambiar» (la zona), «Mis estimaciones guardadas», «Quitar filtros», el estado y «Por qué esa
+  confianza». Medían de 17 a 20 px de alto.
+- **NHL y UFC, con un error del servidor**, ya no enseñan debajo «No hay partidos próximos», que lo
+  contradecía.
+- Dos tests del móvil (K4 y K12) abren antes el panel, que ahora empieza cerrado: es un cambio a
+  propósito.
+- Sin hacer, en «Diferido» del plan:
+  - las insignias casi repetidas de las tarjetas;
+  - la página en blanco mientras carga;
+  - la señal de que la fila de deportes se desliza a 320 px;
+  - los enlaces repetidos del panel lateral;
+  - decir en la fila qué resultado se espera, no solo su probabilidad.
+
+## Seguimiento del PR #18, fase E: calibración por partido y rendimiento en el tiempo (2026-11-24)
+
+- **El defecto.** El diagrama de fiabilidad contaba cada SALIDA como una observación: tres por partido
+  en el fútbol y dos, espejadas, en los binarios.
+  - 50 partidos al 50 % que ganó siempre el local salían «perfectos», y un sesgo hacia el local no se
+    veía.
+  - Mezclaba registrada y legado.
+  - No tenía intervalos ni un mínimo de muestra.
+- **Calibración por partido** (`calibracion-partido-v1`, `GET /api/evaluation/calibracion`):
+  - un partido por panel; en el fútbol, local, empate y visitante;
+  - intervalo de Wilson, y nada dibujado con menos de 30;
+  - registrada y legado aparte, y lo reconstruido fuera;
+  - veredicto con calibración en grande y Spiegelhalter, corregido por pruebas múltiples, que nunca
+    dice «calibrado».
+- **Rendimiento en el tiempo** (`rendimiento-periodo-v1`, `GET /api/evaluation/rendimiento`):
+  - Brier por mes o por semana en la zona de la política, por cohorte y versión;
+  - n e intervalo en cada punto, sin línea que los una;
+  - las exclusiones por motivo y la comparación con el mercado en los mismos partidos;
+  - un desglose por periodo y una exportación nueva (`evaluadas`) que salen de la misma función.
+- **Lo de siempre se calcula como antes.** El diagrama de siempre, su ECE y `/api/monitoring` no
+  cambian de método; solo sus rótulos: «por salida» y «deriva del modelo (cifra cruda al publicar)».
+  - Una excepción, el arreglo del fútbol del final de esta entrada, que también les llega: una
+    publicación cuya suma se aparta de 1 en más de 0,001 deja de contarse.
+  - Las bien formadas dan lo mismo.
+  - La deriva que recorta importes (`trust/drift.ts`) lee las publicaciones tal cual y no cambia.
+- **Definiciones de quant-reviewer**, fijadas antes del código. 17 tests de sus casos: bordes de
+  cubeta, el 50 %, empates, cambio de versión, cambio de hora, solo legado, Wilson, veredictos,
+  periodos vacíos, zona inválida y el mercado. También un test de rutas y Playwright con datos
+  sintéticos.
+- Interruptores nuevos: `analitica.calibracion` y `analitica.rendimiento`.
+- **Revisión de quant-reviewer sobre la implementación**, arreglada con sus tests:
+  - el desglose pide la cohorte y la versión de su punto;
+  - el conjunto de un panel no da cifra con menos de 30 partidos, ni pruebas con menos de 100;
+  - las exclusiones van con su cohorte y se enseñan una vez;
+  - un periodo cortado por el filtro lo dice;
+  - la exportación avisa con una zona inválida y trae los excluidos;
+  - un formateador de fechas por zona, no por fila;
+  - en el fútbol, una publicación que no suma 1 ya no se renormaliza antes de la política: se excluye,
+    como en la exportación de predicciones.
+
+## Seguimiento del PR #18, fase C (5): la ficha común, en tu idioma (2026-11-24)
+
+- **Lo que usó el modelo.** Las entradas de cada instantánea se escriben por su clave y los nombres
+  del partido (`explicaciones/entradas.ts`), también en las instantáneas guardadas antes:
+  - no se lee la etiqueta guardada en español;
+  - el código solo se adjunta si dice exactamente lo que se guardó; si no, se enseña lo guardado.
+- **El «¿Y si…?» y «Qué mueve la probabilidad».**
+  - Cada factor lleva el código de su etiqueta, que es la de la predicción, y el del porqué de su
+    rango.
+  - La NHL y la UFC ganan códigos para sus etiquetas de factores.
+  - La nota de la simulación y la del método de Shapley salen del catálogo.
+- **El aviso de cada deporte** sale del catálogo: el `DISCLAIMER` del servidor es la misma frase, y
+  la web lo escribe en tu idioma. Las siete frases en español son idénticas a las de antes.
+- **Sigue en español: lo que escribe el motor de confianza.**
+  - Qué es:
+    - las razones de apostar o no y lo que haría falta;
+    - las señales de confianza;
+    - la calidad de datos;
+    - los escenarios de estabilidad;
+    - lo fuera de distribución;
+    - el régimen y los hitos.
+  - Por qué queda fuera:
+    - sus razones se guardan como texto en `prediction_assessments.reasons`, una tabla inmutable del
+      libro mayor;
+    - las familias de razones se reconocen con expresiones sobre ese texto (`trust/decision.ts`).
+
+    Darles código pide una columna nueva (migración), reglas de familia por código con las antiguas
+    para las filas de antes, y la revisión de data-guardian y quant-reviewer. Queda anotado en el plan.
+- **Ningún número ni rango cambia.**
+
+## Seguimiento del PR #18, fase C (4): baloncesto y béisbol, en tu idioma (2026-11-24)
+
+- **El baloncesto y el béisbol escriben sus explicaciones con código** (84 códigos):
+  - el titular y las viñetas;
+  - los motivos y el aviso de fiabilidad;
+  - la lectura de la ficha y sus factores;
+  - el veredicto del béisbol («Gana …»);
+  - el hándicap del baloncesto («sin favorito claro (pick'em)»);
+  - la descripción del abridor del béisbol, que la tarjeta enseña al pasar por encima.
+- **Fechas.** Nuevo parámetro `fecha`, escrito con el formato de cada idioma y sin depender de la zona
+  del navegador. Lo usa «Los datos llegan hasta 03/10/2025».
+- **Formato y frases.**
+  - La diferencia de Elo del béisbol, el hándicap de la línea de carreras («−1,5») y la diferencia
+    media del historial del baloncesto salen con la coma o el punto de cada idioma.
+  - En béisbol, «Partido muy igualado: Gana X es solo ligeramente favorito» pasa a «X es solo
+    ligeramente favorito».
+  - Plurales arreglados.
+- **Un abridor sin nombre en la base** se nombra por el identificador que trae el dato, nunca por un
+  nombre inventado (antes salía «null»).
+- **No cambia ningún número.**
+- **Con esto, los siete deportes escriben en tu idioma** la tarjeta y la lectura y los factores de la
+  ficha. Siguen en español las piezas comunes de la ficha: entradas, «¿Y si…?», panel de confianza y
+  aviso.
+- **Fechas mal escritas en el registro.** La entrada del fútbol y una nota del plan decían 25-nov; eran
+  del 24.
+
+## Seguimiento del PR #18, fase C (3): el fútbol, en tu idioma (2026-11-24)
+
+- **El fútbol escribe sus explicaciones con código** (46 códigos):
+  - el veredicto («Gana X», «Empate») y la doble oportunidad («X o empate»);
+  - la «Lectura completa»;
+  - los motivos y el aviso de fiabilidad;
+  - la lectura de la ficha y sus factores;
+  - las bajas.
+- **La opción suelta dentro de la frase** («la opción suelta más probable es…») tiene su propio código.
+  Antes la web pasaba la etiqueta a minúsculas, y el nombre del club con ella.
+- **Formato.** La diferencia de Elo de la lectura salía con punto («45.3 puntos») y ahora sale con
+  coma. El «%» de las bajas lleva espacio duro.
+- **Plurales** («1 partido», «1 temporada»). El tiempo sin jugar usa los códigos comunes `tiempo.*`,
+  que comparte con el tenis.
+- **No cambia:** ningún número, y el panel de noticias, que cita artículos de fuera y no se traduce.
+
+## Seguimiento del PR #18, fase C (2): el tenis, en tu idioma (2026-11-24)
+
+- **El tenis escribe sus explicaciones con código** (55 códigos). Cubre la tarjeta (titular y viñetas),
+  los motivos de fiabilidad, la lectura de la ficha y sus factores. La web las escribe en el idioma
+  elegido; el servidor sigue mandando la frase en español al lado.
+- **Piezas anidadas** (`frases` en `server/src/explicaciones/`). Algunas frases se arman con un número
+  variable de piezas: «Forma: A; B», las señales físicas de cada jugador, el historial en el torneo,
+  el tiempo sin jugar. Cada idioma escribe cada pieza con su catálogo y las une. Si una sola pieza es
+  desconocida, la web enseña la frase entera del servidor, no media.
+- **Plurales.** «tiene solo 1 partido(s)» pasa a «1 partido» / «3 partidos», y lo mismo con meses y años.
+- **El nivel de fiabilidad de la ficha** («fiabilidad media») sale del catálogo por su nivel, no de la
+  frase del servidor.
+- **Sin cambio en ningún número.** Las probabilidades, los rangos y los umbrales son los de antes.
+- **Tests:**
+  - el tenis, en `prediction/formatoTexto.test.ts`: sin frases sin código, y cada frase igual a su
+    código;
+  - las piezas anidadas en los dos idiomas, y una pieza desconocida;
+  - Playwright en inglés (`e2e/idioma.spec.ts`).
+
+## Seguimiento del PR #18: pasada final de ui-tester (2026-11-24)
+
+- **A 320 px el selector de moneda del banco ya no desplaza la página.** Iba en la misma fila que el
+  banco y empujaba la página 35 px fuera de la pantalla (23 en inglés). Ahora baja de línea.
+- **El veredicto de la NFL, en tu idioma.** En inglés la tarjeta decía «Most likely: Gana Cincinnati
+  Bengals». Ahora lleva su código (`nfl.veredicto`), y la comprobación de coherencia cubre también los
+  veredictos.
+- **Anotado y sin hacer** (`docs/plans/seguimiento-pr18-2026-11.md`, «Diferido»):
+  - en las fichas de NHL y NFL, en inglés, siguen en español las entradas, el «¿Y si…?», el panel de
+    confianza y el aviso;
+  - «60.71 %» en el historial de estimaciones, anterior a este trabajo.
+
+## Seguimiento del PR #18, fase G: un aviso que nadie aceptó ya no cuenta como enviado (2026-11-24)
+
+- **El defecto.** Lo aplazado por las horas de silencio se borraba de la cola y contaba como «enviado»
+  aunque TODOS los canales lo rechazaran (un 503, un token caducado). El fallo se volvía éxito y el aviso
+  se perdía.
+- **Ahora,** si ningún canal lo acepta:
+  - se queda con su intento y su error;
+  - se reintenta con espera (5, 10, 20 y 40 min), hasta 5 intentos o hasta que caduque;
+  - un 4xx definitivo (no 408 ni 429) no se reintenta;
+  - lo descartado queda anotado.
+
+  Si un canal lo acepta, sale de la cola aunque otro lo rechace, y el rechazo queda en su canal.
+- **Migración v32 `intentos-de-avisos`:** `attempts` y `last_error` en la cola, en el libro mayor.
+  Aditiva e idempotente, probada desde v31 con avisos dentro.
+- **La garantía, dicha como es** (`docs/NOTIFICACIONES.md`): al menos una vez, no «exactamente una vez».
+  Una caída tras enviar, o una copia restaurada de antes, lo repite. El webhook lleva la misma cabecera
+  `Idempotency-Key` en cada intento, para que el receptor lo descarte.
+- **«Enviado» es «aceptado por el canal».** Ningún proveedor confirma que la persona lo vio, y la prueba
+  de un canal ya lo dice así.
+- **Revisiones.** data-guardian:
+  - una versión nueva del mismo aviso, llegada mientras se enviaba la vieja, se borraba sin enviar;
+  - una versión nueva heredaba los intentos de la vieja.
+
+  security-reviewer: un `WEBHOOK_URL` con credenciales o un token acababa en el registro de errores. Los
+  errores ya no guardan secretos.
+- Nada sale a la red en los tests: son transportes de mentira.
+
+## Seguimiento del PR #18, fase F: la importación por CSV dice antes qué entra, qué no y qué se pierde (2026-11-24)
+
+- **Vista previa** (`POST /api/bets/import/preview`, que no escribe nada). Dice, fila a fila:
+  - qué entraría y qué no, con la línea, el campo y un código que la web traduce;
+  - qué columnas no se leen;
+  - qué filas pasan del límite de 1.000, que antes se ignoraban en silencio.
+- **La web:** pegar o elegir el fichero → «Revisar» → «Importar N».
+- **Importar vuelve a leer y validar todo desde cero:** una vista previa no autoriza nada.
+- **Avisos que no impiden importar:**
+  - el enlace a la estimación original no se puede restaurar: un id de instantánea es de su
+    instalación y nunca se engancha a otra;
+  - posible duplicado: idéntica en fecha, deporte, evento, mercado, selección, cuota e importe a una
+    apuesta guardada o a otra fila; no se descarta en silencio;
+  - liquidada sin fecha de liquidación: los límites de pérdida no sabrán su día.
+- **La fecha de liquidación del CSV se conserva**, si es un instante ISO con zona coherente con la
+  colocación. Antes se cambiaba por la hora de la importación, y un histórico importado dejaba los
+  límites «sin evaluar» hasta el lunes.
+  - Una fecha a secas o una hora sin zona no se adivinan.
+  - Una apuesta que entró ya liquidada en su instalación sigue sin día conocido.
+- Revisado por data-guardian: 1 alto, 1 medio, 3 bajos y 1 informativo, arreglados o con destino en el
+  plan.
+- **Revisión de seguridad:**
+  - una cabecera de 110.000 columnas bloqueaba el proceso 1,8 s, porque se buscaba en ella en cada
+    celda;
+  - la vista previa devolvía todos los nombres de columna desconocidos.
+
+  Ahora las columnas se leen una vez por fichero y se devuelven como mucho 50 nombres.
+
+## Seguimiento del PR #18, fase C (1): explicaciones con código, en tu idioma: NHL, UFC y NFL (2026-11-24)
+
+- **Antes,** el titular, las viñetas, los avisos de fiabilidad, la «lectura» y los factores de cada
+  deporte llegaban del servidor como frases en español, y en inglés se leían en español.
+- **Ahora** cada frase lleva al lado un código estable con parámetros tipados
+  (`server/src/explicaciones/`). La web la escribe en el idioma elegido con su catálogo
+  (`explica.<código>`) y los formatos del idioma. Los nombres de equipos y luchadores van tal cual.
+- **Hechos:** NHL, UFC y NFL. Son 50 códigos, con titular, viñetas y avisos; en la NFL, también la
+  lectura y los factores.
+- **Faltan** tenis, fútbol, baloncesto y béisbol: siguen en español, con el mismo mecanismo de reserva.
+- **Compatibilidad.** El servidor sigue mandando las frases en español de siempre, escritas con el mismo
+  catálogo. Cambio cosmético: el «%» y los rangos llevan espacio duro.
+- **Reserva.** Un código desconocido enseña la frase del servidor, nunca una clave.
+- **Vigilancia.**
+  - `web/src/i18n/explicaciones.test.ts` falla si un código nuevo no tiene su frase en `es.ts` (la
+    misma del servidor) y en `en.ts` (traducida, con los mismos parámetros).
+  - En cada deporte estructurado, un test comprueba que cada frase de la API es la escritura de su
+    código.
+- **No cambia ninguna probabilidad.**
+
+## Seguimiento del PR #18, fase B: la contabilidad del riesgo, exacta, por moneda y por día de liquidación (2026-11-24)
+
+El contrato está en `server/src/staking/contabilidad.ts` (`riesgo-v1`), y las decisiones y su revisión en
+`docs/plans/seguimiento-pr18-2026-11.md`. Los porcentajes de los límites, Kelly, los topes y el modelo
+no cambian.
+
+**Lo que estaba mal, reproducido antes de arreglarlo** (`staking/riesgo.test.ts`, en `92339dc`)
+- Los límites de pérdida calculaban con coma flotante: 4,75475 en vez de 4,75.
+- Un cashout sin importe valía 0: «por debajo del límite» sin saberlo.
+- Se sumaban euros y dólares: 30 € y 30 $ contaban como 60 de lo mismo.
+- La exposición pendiente también sumaba monedas: 110 en vez de 40 €.
+- Una pérdida contaba el día en que se COLOCÓ la apuesta, no el día en que se perdió. Una apuesta del
+  domingo perdida el lunes no contaba en la semana del lunes.
+- El día y la semana se cortaban con la hora del servidor y no con la de la política.
+- Corregir el resultado de una apuesta ya liquidada la «liquidaba» de nuevo, con la hora de la
+  corrección.
+- El tope por día comparaba el día del partido con lo pendiente agrupado por día de colocación: el
+  sábado podía quedar en el 9 % con un tope del 6 %.
+
+**Ahora**
+- **Dinero exacto en céntimos**, con el mismo pago que el registro y la exportación (`dinero.ts`). El
+  límite es −⌈banco × %⌉ en céntimos, la misma comparación que antes con pérdidas en céntimos.
+- **Monedas separadas.**
+  - La cartera de Mis apuestas tiene moneda, junto al importe del banco, y la API la recibe
+    (`/api/staking/book?moneda=`).
+  - Lo de otra moneda no cuenta.
+  - Lo sin moneda puede contar y se trata como tal.
+  - Sin moneda en el banco no se atribuye nada.
+  - Sin tipos de cambio.
+- **El día en que se liquidó, en la zona de la política** (APP_TIMEZONE o la del servidor), de lunes a
+  domingo. Una apuesta que entró ya liquidada días después de colocarse no tiene día conocido, y no se
+  inventa.
+- **Lo que no se sabe, con cotas.** El veredicto puede ser «alcanzado», «por debajo» o «sin evaluar».
+  «Sin evaluar» no apuesta, y la cartera dice por qué: qué falta y en cuántas apuestas. Un dato que falta
+  nunca vale 0.
+- **El tope por día cuenta lo pendiente en el día de su partido.** Si no se sabe ese día, cuenta en el de
+  cualquiera.
+- **Una APP_TIMEZONE mal escrita** deja los límites sin evaluar, y lo dicen `npm run doctor` (error) y el
+  servidor al arrancar.
+- **Un banco ilegible** (`?bankroll=abc` o con tres decimales) da 400. Antes se cambiaba por 1000 en
+  silencio.
+- **verify:data y el ejemplo de `npm run staking`** ya no leen las apuestas personales de la instalación
+  para comprobar las puertas.
+
+**Cambia, a sabiendas**
+- Con APP_TIMEZONE distinta de la zona del servidor, el banco de papel y las estrategias cortan el día
+  en APP_TIMEZONE, también en políticas ya guardadas. Es el mismo calendario para todos los bancos.
+- Un beneficio que falta en el papel o en una estrategia deja el periodo sin evaluar en vez de contar 0.
+  `settle()` nunca lo deja nulo.
+- La fecha de colocación por defecto es «hoy» en APP_TIMEZONE.
+
+**Revisiones.** quant-reviewer: 6 hallazgos (2 medios, 3 bajos, 1 informativo); data-guardian: 3 bajos y
+2 informativos. Arreglados o con destino en el plan. Lo que no se arregla aquí:
+- importar el `settled_at` del CSV, que va a la fase F;
+- las apuestas corregidas antes de este cambio, que no se pueden reparar sin inventar fechas.
+
+## Seguimiento del PR #18, fase A: la línea base y la documentación, reconciliadas (2026-11-23)
+
+Plan, matriz y hallazgos en `docs/plans/seguimiento-pr18-2026-11.md`. Rama local
+`claude/seguimiento-pr18`, desde `92339dc` (cabeza del PR #18, sin fusionar).
+
+- **Línea base real en `92339dc`, el 23-nov:**
+  - servidor 801/801, web 148/148 y Playwright 208/208;
+  - `verify:data` 533/533 y `audit` 6007/6007, sobre una copia temporal de la release;
+  - el `audit` baja de 6047 (21-nov) a 6007 solo por el calendario: la copia está congelada y hay 21
+    partidos próximos en la ventana en vez de 31.
+- **`web/src/lib/dinero.ts` es una copia idéntica de `server/src/dinero.ts`**, vigilada por un test, y
+  no una reexportación como decía el comentario de los dos ficheros. Corregido el comentario.
+- **Cifras del plan del PR 17 con su fecha y su commit.** Las de `0aeafcd` (20-nov) se conservan y se
+  añaden las de `92339dc`. El informe del 20-nov lleva una nota: lo que decía «en parte» lo cerró
+  `92339dc`.
+- **Pistas de riesgo confirmadas en el código:** coma flotante, cashout sin importe tomado como 0,
+  monedas sumadas, día de colocación en vez de liquidación, y la hora del servidor. Se arreglan en la
+  fase B, cada una con un test que falle antes.
+
+## Revisión del PR 17, lo que quedaba abierto: zona, idioma, etiquetas, desplegable y desglose (2026-11-21)
+
+Sigue a la entrada de abajo. Destino de cada punto en `docs/plans/revision-pr17-2026-11.md`.
+
+**G1. La zona elegida, en lo que faltaba**
+- Los días de «¿Acertó?» se cortan en la zona de Ajustes: la web la manda (`/api/recent-results?zona=`)
+  y el servidor corta a su medianoche (`today.ts`). Antes era la hora del servidor. Una zona inválida
+  no rompe: se usa la del servidor y la respuesta dice `zona: null` (`recent/zona.test.ts`).
+- Las horas sueltas de tarjetas, paneles y pestañas pasan por `formatearInstante` (la zona elegida).
+- Un DÍA de calendario ya no se trata como instante (`diaDeCalendario`, `lib/diaCalendario.test.ts`,
+  que corre en Nueva York):
+  - la píldora de estado decía «datos hasta el 19» con datos hasta el 20 al oeste de UTC;
+  - «Datos de» decía agosto para un archivo que llega al 1 de septiembre.
+- Lo que queda con `toLocale*String` son números (sin zona) y etiquetas de días de calendario.
+
+**G2. Textos del servidor, traducidos por id**
+- Ajustes: las descripciones de los 49 interruptores (`funcion.<id>`) y de los 13 trabajos
+  programados (`trabajo.<nombre>`) salían en español con la interfaz en inglés. La española del
+  catálogo es la del servidor y un test lo vigila, con un interruptor o trabajo nuevo incluido
+  (`i18n/funciones.test.ts`). Sin clave, se enseña el texto del servidor.
+- Clima de la ficha: el servidor añade `cielo` y `motivoCodigo` (códigos estables) junto a los
+  textos de siempre, y la web los traduce (`weather/openMeteo.test.ts`, `lib/clima.test.ts`).
+- Siguen en español los motivos de las tarjetas: son frases del modelo con datos dentro.
+
+**F1. De «¿Acertó?» a la ficha**
+- Cada fila «registrada antes» lleva su deporte y la clave del registro, y abre su ficha: resultado,
+  predicción evaluada e historial pre-partido. Las reconstruidas no tienen registro: sin enlace y sin
+  clave inventada (`recent/enlace.test.ts`, e2e F1).
+
+**Arreglado, anterior a este cambio**
+- Etiquetas de apuestas por CSV: la exportación las escribe como lista JSON y la importación las leía
+  como una sola. Ahora entra la lista; una celda a mano sigue separándose por `|` o `;`. Las dos
+  vías y la API usan la misma regla (`normalizarEtiquetas`: sin repetidas, 30 caracteres, 12 como
+  mucho). Antes, una celda a mano entraba sin recortar (`bets/dinero.test.ts`).
+- La importación por CSV no validaba como la API: una fila con deporte «foo», mercado «bar», cuota
+  5000, estado «zzz», probabilidad 2 o un cashout sin importe entraba en el libro mayor. La
+  validación de POST /api/bets pasa a `bets/validar.ts` y cada fila pasa por ella; lo que no pasa se
+  devuelve con su línea y su campo. Un número opcional ilegible (`55%` en model_prob) se sigue
+  rechazando, no se guarda como vacío (`bets/importar.validacion.test.ts`). Lo vio el data-guardian.
+- El desplegable de la píldora de estado se salía de la pantalla a 390 y 320 px: en la cabecera se
+  abre hacia la izquierda y no pasa del ancho de la pantalla (e2e «ui-tester 7»).
+
+## Revisión del PR 17, fases B a G: lo que se puntúa, el dinero exacto, estados que no mienten, la ficha en orden, lo personal, zona, idioma y silencio (2026-11-20)
+
+Plan, matriz y destino de cada hallazgo en `docs/plans/revision-pr17-2026-11.md`.
+
+**B1. Una sola predicción evaluada** (`server/src/evaluation/evaluada.ts`, política
+`final-congelada-v1`)
+- Antes, «¿Acertó?», los resultados recientes y la evaluación en vivo puntuaban la publicación
+  original, mientras el historial llamaba «evaluada» a la final congelada. Con 20/20/60 publicado,
+  60/20/20 congelado y el local ganando, la app contaba un fallo y señalaba como evaluada la
+  instantánea que acertaba.
+- Ahora se puntúa la final congelada antes del inicio. Sin ella, la publicación, marcada «legado» y
+  contada aparte. Una final ilegible se excluye y se cuenta.
+- La misma regla vale para el veredicto de la ficha (`/api/resultado`, que ahora dice qué se puntuó),
+  los resultados recientes, la evaluación en vivo (con recuentos por tipo), la exportación (columnas
+  `eval_*`) y la etiqueta del historial.
+- Destacados, el banco de papel, las estrategias y la deriva no cambian: actúan al publicar.
+- Arreglado de paso, tras la revisión quant:
+  - en el tenis, una final con los jugadores al revés se reordena; si los nombres no casan, se
+    excluye;
+  - un partido excluido ya no vuelve a entrar como reconstruido;
+  - una publicación tardía queda fuera en todas las vías;
+  - cinco de las siete consultas de la exportación de predicciones nombraban columnas que no existen
+    y caían a `SELECT *`, sin columnas comunes y, en el baloncesto, sin `match_key`.
+- En la copia de datos reales no hay predicciones en vivo resueltas: ninguna cifra real cambia hoy.
+
+**B2. Dinero exacto** (`server/src/dinero.ts`, y su copia idéntica en `web/src/lib/dinero.ts`)
+- Apuesta y cuota como fracciones decimales exactas y un solo redondeo al céntimo, la mitad hacia
+  arriba.
+  - 1,02 a 1,25 paga 1,28 (antes 1,27 en el servidor).
+  - 1,05 a 2,30 paga 2,42 (antes 2,41 en la vista previa).
+  - 3 a 1,005 paga 3,02 (antes 3,01 en los dos).
+- Vista previa, API, resúmenes (sumados en céntimos enteros) y exportación de apuestas (columnas
+  `pago_bruto` y `neto`) dicen lo mismo. No se reescribe ninguna apuesta guardada.
+
+**B3. Lo guardado, sin mentir**
+- Una lectura de `/api/guardadas` por pantalla, con estados explícitos (`web/src/lib/remoto.ts`).
+- Si la lectura falla, la ficha dice «No se pudo comprobar si está guardada · reintentar» en vez de
+  «Guardar». Partidos avisa de que «Guardados» puede estar incompleto.
+
+**B4. Filtros a la vista**
+- Cada filtro activo (competición, búsqueda, «Guardados», umbral, orden) es una etiqueta que se
+  quita.
+- Una competición sin partidos dice «Ningún partido de NHL en la competición khl…», no «No hay
+  partidos de NHL».
+- Fecha, deporte, competición y quitar un filtro se pueden deshacer con «atrás».
+
+**B5. Procedencia en cada fila**
+- La hora de la estimación, siempre a la vista.
+- «Procedencia» despliega la versión del modelo, de dónde sale el partido (casa, calendario oficial o
+  demostración) y la fuente, casas y frescura de las cuotas. Lo que no se sabe dice DESCONOCIDO.
+- Un partido empezado dice «Empezado», nunca «en directo».
+
+**C. Partidos**
+- Los filtros en orden: fecha → búsqueda y competición → deporte → filtros activos → recuento.
+- Densidad cómoda o compacta, recordada en este navegador y fuera de la URL.
+- Estados de carga reutilizables (`components/ui/carga.tsx`): en Ajustes, los interruptores, las
+  cadencias y los canales de aviso decían «Cargando…» para siempre, o nada, cuando la petición
+  fallaba. Ahora dicen «No se pudo cargar…» con «Reintentar».
+
+**D. La ficha**
+- En el orden del brief: veredicto → estimación vigente con su hora y versión → «Lo que este número
+  no es» → entradas → historial → mercado → «Lo que puedes hacer».
+- **D1.** El historial resume original → última con Δpp por resultado, si cambió el favorito y qué
+  versiones del modelo intervinieron, y marca la «última» y la «evaluada».
+- **D2.** En pantallas de 1280 px o más, un partido se abre en un panel lateral sin salir de la
+  lista. Escape, el fondo o «atrás» lo cierran y el foco vuelve a la fila. La página completa sigue
+  ahí.
+- **D3.** Un partido de demostración no enseña mercado: no hay cuotas reales con las que comparar.
+
+**E. Lo personal**
+- **E1.** «Seguidos» (avisos) y «Guardados» (estimaciones guardadas) son filtros distintos.
+- **E2.** Vistas guardadas de Partidos: nombre, aplicar, renombrar y quitar. «Hoy» sigue siendo hoy.
+- **E3/E4.** `/guardadas` («Mis estimaciones guardadas») pone cada guardada al lado de la última
+  registrada, con Δpp, y deja una nota personal que se puede escribir, cambiar o borrar. La
+  instantánea no se toca.
+- **E5.** Una apuesta se puede apuntar desde la ficha enlazada a la estimación vigente.
+  - El enlace se valida al crear y al cambiar deporte o partido.
+  - Las apuestas de antes quedan sin enlazar, y Mis apuestas lo dice.
+- **Migración v30**, solo aditiva: `bets.snapshot_id`, `saved_predictions.note` y `note_updated_at`.
+  `verify:data` comprueba que cada enlace apunta a una instantánea del mismo deporte y partido.
+
+**F. Rendimiento y Mis apuestas**
+- **F1.** Rendimiento empieza por «Cómo se mide»: la política, las cohortes, el periodo, la muestra y
+  que acertar no es ganar dinero. Va con una tabla por deporte de evaluadas con la final, legado y
+  fuera.
+- Los paneles que fallaban en silencio (alertas, riesgo, modelos en la sombra, versiones,
+  experimentos) lo dicen y se pueden reintentar.
+- **F2.** Mis apuestas filtra abiertas o liquidadas. La pastilla del deporte elegido ya no
+  desaparece con el filtro puesto.
+
+**G. Zona, idioma y horas de silencio**
+- **G1.** La zona de Ajustes vale en los formateadores comunes (fechas, horas y días), también a
+  medianoche y con el cambio de hora; una fecha inválida sale «—».
+- **G2.** Los errores de validación de las apuestas llegan con un código estable y la web los enseña
+  en el idioma de la pantalla.
+- **G3.** Horas de silencio opcionales para los avisos externos (Ajustes › Notificaciones).
+  - En la zona elegida, también si la ventana cruza la medianoche.
+  - Suprimir, o aplazar al final de la ventana: una vez por aviso, y caduca en las horas que se
+    elijan.
+  - La bandeja lo recibe todo y «Enviar prueba» nunca se calla.
+  - Migración v31, solo aditiva: la cola `notification_pending`.
+
+**Segunda revisión quant**
+- La deriva sale de las publicaciones, sin pasar por la política.
+- `/api/prematch` aplica la regla de la publicación tardía.
+- La evaluación por horizontes se orienta como el registro.
+- Lo arriesgado en las medias deja el ROI exacto, y las apuestas antiguas suman igual en apostado y
+  en beneficio.
+
+**B6.** La documentación decía que el fútbol registra predicciones de demostración. Era falso: todos
+los deportes registran solo partidos reales (evidencia en `docs/plans/rediseno-2026-11.md`). No se
+cambió código.
+
 ## Rediseño de noviembre: un explorador de partidos, menos ruido, más verdad (2026-11-19)
 
 Plan, matriz de requisitos y relevo en `docs/plans/rediseno-2026-11.md`.

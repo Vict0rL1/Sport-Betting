@@ -5,11 +5,15 @@
 // llega como 'desconocido', no como un valor por defecto.
 
 import type { SportId } from '../sports.ts';
+import type { Explicacion } from '../explicaciones/index.ts';
 
 /** Un factor del modelo, en las unidades del propio modelo, a favor del resultado 0. */
 export interface Factor {
   clave: string;
   etiqueta: string;
+  /** La etiqueta y su porqué como códigos (fase C): la web los escribe en su idioma. */
+  explicacion?: Explicacion | null;
+  porQueExplicacion?: Explicacion;
   /** Puntos a favor del local / jugador 1 (Elo, o puntos de margen en la NFL). */
   puntos: number;
   /**

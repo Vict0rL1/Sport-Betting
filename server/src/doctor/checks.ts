@@ -187,6 +187,25 @@ export function comprobarConfiguracion(e: EntradaConfig): Hallazgo[] {
   out.push(
     h(S, 'ok', `Zona horaria: ${e.zonaHoraria} (UTC${signo}${hh}:${mm}). Las horas se guardan en UTC y se muestran en esta zona.`),
   );
+  // La zona de la política de riesgo (staking/contabilidad.ts). Mal escrita, los informes caen a la del
+  // servidor, pero los límites de pérdida NO: quedan sin evaluar y no se apuesta, tampoco el banco de
+  // papel ni las estrategias. Eso no puede pasar en silencio (revisión quant del seguimiento del PR #18).
+  const zp = e.valoresProceso.APP_TIMEZONE?.trim();
+  if (zp) {
+    let valida = true;
+    try {
+      new Intl.DateTimeFormat('en', { timeZone: zp });
+    } catch {
+      valida = false;
+    }
+    out.push(
+      valida
+        ? h(S, 'ok', `APP_TIMEZONE: ${zp}. Es la zona de los informes y de los límites de pérdida (días y semanas).`)
+        : h(S, 'error', `APP_TIMEZONE «${zp}» no es una zona horaria: los límites de pérdida quedan sin evaluar y no se dimensiona ninguna apuesta (registro personal, banco de papel y estrategias); los informes usan la zona del servidor.`, {
+            accion: ['Escribe una zona IANA en .env, por ejemplo APP_TIMEZONE=Europe/Madrid, o quita la línea para usar la del servidor'],
+          }),
+    );
+  }
   return out;
 }
 

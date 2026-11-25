@@ -7,6 +7,7 @@ import { EnlacePartido } from '../ui';
 import EventTrustPanel from '../trust/EventTrustPanel';
 import { TeamName, MissingModel, Detail, topOutcome, actualOutcome } from './MatchCardPartes';
 import { conNodos, useI18n } from '../../i18n';
+import { escribir, escribirTodas } from '../../lib/explicacion';
 import { cifra } from '../../lib/formato';
 
 /**
@@ -26,7 +27,7 @@ export default function MatchCard({
   item: FbFixtureWithPrediction;
   onOpenTeam: (league: string, id: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   // Players the user has marked unavailable, and the prediction the server
   // returns for that lineup. Held here rather than inside the squad panel because
   // EVERY figure on the card comes from the same distribution — mark a striker out
@@ -191,13 +192,13 @@ export default function MatchCard({
                       {conNodos(t('fbc.abierto', { p: pct(prediction.verdict.doubleChance.probability) }), {
                         dc: (
                           <strong className="font-semibold text-(--ink-strong)">
-                            {prediction.verdict.doubleChance.label}
+                            {escribir(t, idioma, prediction.verdict.doubleChance.explicacion, prediction.verdict.doubleChance.label)}
                           </strong>
                         ),
                       })}
                       <span className="text-(--ink-soft)">
                         {' '}
-                        {t('fbc.suelto', { cual: prediction.verdict.label.toLowerCase(), p: pct(prediction.verdict.probability) })}
+                        {t('fbc.suelto', { cual: escribir(t, idioma, prediction.verdict.enFrase, prediction.verdict.label.toLowerCase()), p: pct(prediction.verdict.probability) })}
                       </span>
                     </>
                   ) : (
@@ -205,7 +206,7 @@ export default function MatchCard({
                       {conNodos(t('fbc.loMasProbable'), {
                         cual: (
                           <strong className="font-semibold text-(--ink-strong)">
-                            {prediction.verdict.label}
+                            {escribir(t, idioma, prediction.verdict.explicacion, prediction.verdict.label)}
                           </strong>
                         ),
                       })}
@@ -240,7 +241,7 @@ export default function MatchCard({
                     title={[
                       t('eq.margenPp', { pp: prediction.reliability.marginPp }),
                       t('eq.trasCadaElo', { a: prediction.reliability.matchesBehind.home, b: prediction.reliability.matchesBehind.away }),
-                      ...prediction.reliability.reasons,
+                      ...escribirTodas(t, idioma, prediction.reliability.explicaciones, prediction.reliability.reasons),
                     ].join('\n')}
                   />
                 </div>

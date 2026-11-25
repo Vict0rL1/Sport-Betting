@@ -2,6 +2,8 @@
 // sin idioma, español (la fuente de verdad), así que lo que no lo pasa sigue como estaba.
 import { localeDe, tr, type Clave, type Idioma } from '../i18n';
 import { pct as pctFormato } from './formato';
+import { formatearInstante, leerZona } from './zona';
+import { diaEn } from './explorador';
 
 export function pct(p: number | null | undefined, digits = 0): string {
   if (p == null) return '—';
@@ -42,13 +44,8 @@ export function formatDate(yyyymmdd: string | null): string {
 export function formatDateTime(iso: string, idioma: Idioma = 'es'): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(localeDe(idioma), {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  // En la zona elegida en Ajustes (G1).
+  return formatearInstante(d, localeDe(idioma), { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 // `flag(ioc)` vivía aquí y ya no existe. Convertía el código del COI en un emoji de
@@ -81,26 +78,25 @@ export function formatDateTime(iso: string, idioma: Idioma = 'es'): string {
 // heading, so the bucket key is built from LOCAL date parts.
 
 /** Local YYYY-MM-DD — the bucket a match belongs to for the person reading. */
+// Los días se cortan en la zona elegida en Ajustes (G1), como en Partidos: un partido a las 23:30 UTC
+// es del día siguiente en Madrid y del mismo en Nueva York.
 export function dayKey(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return 'invalid';
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return diaEn(d, leerZona());
 }
 
 /** Today's bucket, for comparing against `dayKey`. */
 export function todayKey(now = new Date()): string {
-  const p = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+  return diaEn(now, leerZona());
 }
 
 /** Whole days from today to this bucket. 0 = today, 1 = tomorrow, −1 = yesterday. */
 export function daysFromToday(key: string, now = new Date()): number {
   const [y, m, d] = key.split('-').map(Number);
   if (!y || !m || !d) return NaN;
-  const then = Date.UTC(y, m - 1, d);
-  const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((then - today) / 86_400_000);
+  const [ty, tm, td] = todayKey(now).split('-').map(Number);
+  return Math.round((Date.UTC(y, m - 1, d) - Date.UTC(ty, tm - 1, td)) / 86_400_000);
 }
 
 /**
@@ -141,7 +137,7 @@ export function dayChipLabel(key: string, now = new Date(), idioma: Idioma = 'es
 export function shortTime(iso: string, idioma: Idioma = 'es'): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString(localeDe(idioma), { hour: '2-digit', minute: '2-digit' });
+  return formatearInstante(d, localeDe(idioma), { hour: '2-digit', minute: '2-digit' });
 }
 
 /**

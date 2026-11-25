@@ -24,6 +24,7 @@ import type { EventoConfianza } from './types.ts';
 import { registrarSombras } from '../shadow/shadows.ts';
 import { emitirAlerta } from '../alerts/engine.ts';
 import { deEvaluacion } from '../alerts/detectors.ts';
+import { EXPLICACIONES, type Explicacion } from '../explicaciones/index.ts';
 
 export { ASSESSMENT_SCHEMA } from './schema.ts';
 
@@ -56,17 +57,17 @@ export interface Evaluacion {
 export interface QueSi {
   pendiente: number;
   exacta: boolean;
-  factores: { clave: string; etiqueta: string; puntos: number; rango: [number, number]; porQue: string }[];
+  factores: { clave: string; etiqueta: string; puntos: number; rango: [number, number]; porQue: string; explicacion: Explicacion | null; porQueExplicacion: Explicacion | null }[];
   etiqueta: string;
 }
 
-export const ETIQUETA_QUE_SI = 'Simulación, no predicción publicada: mueve cada factor dentro de su rango plausible y recalcula con la curva del modelo. No se registra en ningún sitio.';
+export const ETIQUETA_QUE_SI: string = EXPLICACIONES['queSi.etiqueta'];
 
 export function queSi(e: EventoConfianza): QueSi {
   return {
     pendiente: e.pendiente,
     exacta: e.pendienteExacta,
-    factores: e.factores.filter((f) => f.puntos !== 0).map((f) => ({ clave: f.clave, etiqueta: f.etiqueta, puntos: f.puntos, rango: f.rango, porQue: f.porQue })),
+    factores: e.factores.filter((f) => f.puntos !== 0).map((f) => ({ clave: f.clave, etiqueta: f.etiqueta, puntos: f.puntos, rango: f.rango, porQue: f.porQue, explicacion: f.explicacion ?? null, porQueExplicacion: f.porQueExplicacion ?? null })),
     etiqueta: ETIQUETA_QUE_SI,
   };
 }

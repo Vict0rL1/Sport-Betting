@@ -22,6 +22,8 @@ export const WATCHLIST_SCHEMA = `
     snapshot_id INTEGER NOT NULL,
     label       TEXT NOT NULL,
     created_at  TEXT NOT NULL,
+    note        TEXT,
+    note_updated_at TEXT,
     UNIQUE (sport, snapshot_id)
   );
 `;

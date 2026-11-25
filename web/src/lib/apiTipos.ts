@@ -1,6 +1,7 @@
 // Los tipos de la API del tenis, partidos de lib/api.ts en la Fase 7 (ningún fichero de lib/ por
 // encima de ~400 líneas). Se siguen importando desde api.ts, que los reexporta.
 import type { TennisOutcome } from './outcome';
+import type { Explicacion } from './explicacion';
 
 export interface Tour {
   id: string;
@@ -122,12 +123,16 @@ export interface ReasoningFactor {
   key: 'rating' | 'form' | 'h2h' | 'layoff';
   label: string;
   pointsForP1: number;
+  /** La etiqueta como código (fase C): falta en respuestas de antes. */
+  explicacion?: Explicacion;
 }
 
 export interface Reasoning {
   factors: ReasoningFactor[];
   topFactor: ReasoningFactor | null;
   text: string;
+  /** El texto como códigos (fase C): falta en respuestas de antes. */
+  explicaciones?: Explicacion[];
 }
 
 export interface ExpectedScore {
@@ -139,6 +144,8 @@ export interface ExpectedScore {
 export interface MatchSummary {
   headline: string;
   bullets: string[];
+  /** Lo mismo como códigos (fase C): falta en respuestas de antes. */
+  explicaciones?: { headline: Explicacion; bullets: Explicacion[] };
 }
 
 export interface ScorelineOutcome {
@@ -185,6 +192,8 @@ export interface Reliability {
   marginPp: number;
   range: { low: number; high: number };
   reasons: string[];
+  /** Los motivos como códigos (fase C): falta en respuestas de antes. */
+  explicaciones?: Explicacion[];
   effectiveMatches: { p1: number; p2: number };
 }
 

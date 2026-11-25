@@ -77,7 +77,8 @@ async function servir(page: Page, opciones: { retrasoHoyMs?: number; fallar?: ()
 test('recorrido 1: deporte, día y liga en la URL; abrir un partido y volver deja los filtros', async ({ page }) => {
   await servir(page);
   const errores = recogerErrores(page);
-  await page.setViewportSize({ width: 1280, height: 900 });
+  // Por debajo de 1280 px: la fila abre la página completa (desde 1280, el panel lateral; ver revision-pr17.spec.ts D2).
+  await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto('/');
   await expect(page).toHaveURL(/\/partidos$/);
   await expect(page.getByRole('heading', { name: 'Partidos', level: 1 })).toBeVisible();
@@ -157,7 +158,7 @@ test('T17: una respuesta tardía de «Hoy» no pisa la de «Mañana»', async ({
 
 test('recorrido 8: con el teclado se abre un partido y «atrás» vuelve a la lista', async ({ page }) => {
   await servir(page);
-  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto('/partidos?deporte=nhl');
   const enlace = page.getByRole('link', { name: /Toronto Sintético – Boston Sintético/ });
   await enlace.focus();
@@ -178,7 +179,7 @@ test('recorrido 9: a 320 px la página refluye sin desplazamiento horizontal', a
   expect(ancho).toBeLessThanOrEqual(1);
 });
 
-test('recorrido 2: seguir un partido, recargar, encontrarlo en «Guardados» y dejar de seguirlo', async ({ page }) => {
+test('recorrido 2: seguir un partido, recargar, encontrarlo en «Seguidos» y dejar de seguirlo', async ({ page }) => {
   await servir(page);
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto('/partidos');
@@ -187,8 +188,9 @@ test('recorrido 2: seguir un partido, recargar, encontrarlo en «Guardados» y d
   await campana.click();
   await expect(fila.getByRole('button', { name: /Dejar de seguir/ })).toHaveAttribute('aria-pressed', 'true');
   await page.reload();
-  await page.getByRole('button', { name: 'Guardados' }).click();
-  await expect(page).toHaveURL(/guardados=1/);
+  // E1 (revisión del PR 17): seguir (avisos) es «Seguidos»; «Guardados» son las estimaciones guardadas.
+  await page.getByRole('button', { name: 'Seguidos' }).click();
+  await expect(page).toHaveURL(/seguidos=1/);
   await expect(page.getByRole('link', { name: /Toronto Sintético/ })).toBeVisible();
   await expect(page.getByRole('link', { name: /Arsenal Sintético/ })).toHaveCount(0);
   await page.getByRole('listitem').filter({ hasText: 'Toronto Sintético' }).getByRole('button', { name: /Dejar de seguir/ }).click();
@@ -212,4 +214,61 @@ test('T24: si guardar falla, no se finge el guardado y se puede reintentar', asy
   // Se deja como estaba para los demás tests.
   await fila.getByRole('button', { name: /Dejar de seguir/ }).click();
   await expect(fila.getByRole('button', { name: /^Seguir/ })).toBeVisible();
+});
+
+// Fase D del seguimiento del PR #18 (auditoría de ui-tester sobre la build de antes): la fila de
+// Partidos a 320 y 390 px y la jerarquía de lo que enseña.
+for (const ancho of [320, 390]) {
+  test(`D: a ${ancho} px ningún nombre de la fila se corta con puntos suspensivos: se parte en líneas`, async ({ page }) => {
+    await servir(page);
+    await page.setViewportSize({ width: ancho, height: 800 });
+    await page.goto('/partidos');
+    await expect(page.getByRole('link', { name: /Toronto Sintético/ })).toBeVisible();
+    const cortados = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('li[data-densidad] a span')]
+        .filter((e) => getComputedStyle(e).textOverflow === 'ellipsis' && e.scrollWidth > e.clientWidth + 1)
+        .map((e) => e.textContent),
+    );
+    expect(cortados).toEqual([]);
+  });
+
+  test(`D: a ${ancho} px el nombre del grupo («NHL») se lee entero junto al mercado («Quién gana · con prórroga · local arriba»)`, async ({ page }) => {
+    await servir(page);
+    await page.setViewportSize({ width: ancho, height: 800 });
+    await page.goto('/partidos');
+    await expect(page.getByRole('link', { name: /Toronto Sintético/ })).toBeVisible();
+    // La pasada final de ui-tester vio «N…» a 320 px: el mercado no encogía y el nombre se quedaba con ~20 px.
+    const cortados = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('section > h3 span')]
+        .filter((e) => e.scrollWidth > e.clientWidth + 1)
+        .map((e) => e.textContent),
+    );
+    expect(cortados).toEqual([]);
+  });
+}
+
+test('D: la probabilidad del favorito es la cifra más visible de la fila, y la fila enseña cómo abrirse', async ({ page }) => {
+  await servir(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/partidos');
+  const fila = page.getByRole('link', { name: /Toronto Sintético/ });
+  await expect(fila).toBeVisible();
+  const tam = (e: Element) => parseFloat(getComputedStyle(e).fontSize);
+  const prob = await fila.getByText('62,0 %').evaluate(tam);
+  const nombre = await fila.getByText('Toronto Sintético').evaluate(tam);
+  expect(prob).toBeGreaterThan(nombre);
+  // Una marca visible de «abrir» en cada fila (antes, la fila entera era un enlace sin nada que lo dijera).
+  for (const f of await page.locator('li[data-densidad] a').all()) await expect(f.locator('[data-abrir]')).toBeVisible();
+  // Y los números junto a los nombres, no 700 px más allá: la fila no se estira a todo el ancho.
+  const caja = (await fila.boundingBox())!;
+  expect(caja.width).toBeLessThanOrEqual(640);
+});
+
+test('D: los enlaces pequeños de Partidos tienen un blanco de al menos 24 px también con ratón', async ({ page }) => {
+  await servir(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/partidos');
+  const guardadas = page.getByRole('link', { name: 'Mis estimaciones guardadas' });
+  await expect(guardadas).toBeVisible();
+  expect((await guardadas.boundingBox())!.height).toBeGreaterThanOrEqual(24);
 });

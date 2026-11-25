@@ -22,6 +22,8 @@ export interface FilaPartido {
   sinPrediccion: 'sin-registro' | 'invalida' | 'demo' | null;
   cuotas: { precios: (number | null)[]; completas: boolean; casas: number | null; recibidasEn: string | null; origen: 'casa' | 'demo'; antiguas: boolean } | null;
   origen: 'real' | 'demo';
+  /** De dónde sale el partido (B5); null = no se sabe. Falta en respuestas de antes. */
+  fuenteCalendario?: 'casa' | 'calendario' | 'demo' | null;
 }
 
 export interface RespuestaExplorador {
@@ -41,16 +43,19 @@ export interface Filtros {
   deporte: DeporteId | null;
   liga: string | null;
   q: string;
+  /** Solo partidos con una estimación GUARDADA (para compararla después). */
   guardados: boolean;
+  /** Solo partidos SEGUIDOS (avisos): el partido, o un equipo o jugador que se sigue (E1). */
+  seguidos: boolean;
   /** Probabilidad mínima del favorito (0–1), o null. */
   minimo: number | null;
   orden: Orden;
 }
 
-export const FILTROS_POR_DEFECTO: Filtros = { deporte: null, liga: null, q: '', guardados: false, minimo: null, orden: 'hora' };
+export const FILTROS_POR_DEFECTO: Filtros = { deporte: null, liga: null, q: '', guardados: false, seguidos: false, minimo: null, orden: 'hora' };
 
 export function hayFiltros(f: Filtros): boolean {
-  return f.deporte != null || f.liga != null || f.q.trim() !== '' || f.guardados || f.minimo != null || f.orden !== 'hora';
+  return f.deporte != null || f.liga != null || f.q.trim() !== '' || f.guardados || f.seguidos || f.minimo != null || f.orden !== 'hora';
 }
 
 /** La zona del navegador (IANA), o UTC si no la da. */
@@ -95,7 +100,10 @@ export const claveGuardado = (f: Pick<FilaPartido, 'sport' | 'matchKey'>) => `${
 function pasa(f: FilaPartido, filtros: Filtros, guardados: ReadonlySet<string>, conDeporte: boolean): boolean {
   if (conDeporte && filtros.deporte && f.sport !== filtros.deporte) return false;
   if (conDeporte && filtros.deporte && filtros.liga && f.liga?.id !== filtros.liga) return false;
-  if (filtros.guardados && !guardados.has(claveGuardado(f)) && !guardados.has(`${f.sport}|eq|${f.local.id}`) && !guardados.has(`${f.sport}|eq|${f.visitante.id}`)) return false;
+  // E1: «Guardados» son las estimaciones guardadas (`deporte|clave`); «Seguidos», los avisos
+  // (`sig|deporte|clave` del partido o `sig|deporte|eq|id` de un equipo o jugador).
+  if (filtros.guardados && !guardados.has(claveGuardado(f))) return false;
+  if (filtros.seguidos && !guardados.has(`sig|${claveGuardado(f)}`) && !guardados.has(`sig|${f.sport}|eq|${f.local.id}`) && !guardados.has(`sig|${f.sport}|eq|${f.visitante.id}`)) return false;
   if (filtros.minimo != null) {
     const fav = favorito(f);
     if (!fav || fav.p < filtros.minimo) return false;

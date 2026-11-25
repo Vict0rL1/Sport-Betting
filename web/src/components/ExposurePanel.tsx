@@ -27,7 +27,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Panel, SectionTitle, Disclosure } from './ui';
 import { money } from '../lib/bets';
-import { conNodos, useI18n } from '../i18n';
+import { conNodos, existeClave, useI18n, type Clave } from '../i18n';
 import { pct as pctF, num as numF } from '../lib/formato';
 
 interface BookEntry {
@@ -54,14 +54,25 @@ interface Book {
     maxExposurePerDay: number;
     maxExposurePerLeague: number;
   };
-  loss: { today: number; week: number; dayBreached: boolean; weekBreached: boolean };
+  /** La moneda del banco (contabilidad del riesgo, seguimiento del PR #18): null si no se eligió. */
+  moneda?: string | null;
+  loss: {
+    today: number;
+    week: number;
+    dayBreached: boolean;
+    weekBreached: boolean;
+    /** false: falta información para saber si se está por debajo del límite. Faltaba en respuestas de antes. */
+    evaluable?: boolean;
+    estado?: { incidencias: { codigo: string; apuestas: number }[] };
+  };
   entries: BookEntry[];
   blocked: number;
   naiveStake: number;
   totalStake: number;
   aggregate: { naive: number; effective: number; concentration: number; positions: number };
   links: { a: string; b: string; rho: number; reason: string }[];
-  caps: { scope: string; limit: number; used: number; factor: number }[];
+  /** `used` null con `sinCota`: lo ya en juego no tiene cota (un importe pendiente ilegible). */
+  caps: { scope: string; limit: number; used: number | null; sinCota?: boolean; factor: number }[];
   notes: string[];
   correlation: {
     sameMatch: Record<string, { rho: number; lo: number; hi: number }>;
@@ -82,6 +93,22 @@ const pct = (x: number): string => `${pctF(x, 1)}`;
  * un dato. El valor por defecto es el mismo 1.000 del CLI, y se dice que lo es.
  */
 const BANKROLL_KEY = 'predictor.bankroll';
+const MONEDA_KEY = 'predictor.bankroll.moneda';
+const MONEDAS = ['EUR', 'USD', 'GBP'] as const;
+
+/**
+ * La moneda de ESTE banco (seguimiento del PR #18): es parte de su definición, como el importe. El
+ * servidor solo cuenta las apuestas personales de esa moneda; sin ella, no puede atribuirle ninguna y,
+ * si hay alguna, dice que los límites no se pueden evaluar en vez de sumar monedas distintas.
+ */
+function readMoneda(): string {
+  try {
+    const v = localStorage.getItem(MONEDA_KEY) ?? '';
+    return (MONEDAS as readonly string[]).includes(v) ? v : '';
+  } catch {
+    return '';
+  }
+}
 
 function readBankroll(): number {
   try {
@@ -94,6 +121,7 @@ function readBankroll(): number {
 
 export default function ExposurePanel({ onListo }: { onListo?: () => void } = {}) {
   const [bankroll, setBankroll] = useState<number>(readBankroll);
+  const [moneda, setMoneda] = useState<string>(readMoneda);
   const [book, setBook] = useState<Book | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { t, idioma } = useI18n();
@@ -107,20 +135,21 @@ export default function ExposurePanel({ onListo }: { onListo?: () => void } = {}
   useEffect(() => {
     try {
       localStorage.setItem(BANKROLL_KEY, String(bankroll));
+      localStorage.setItem(MONEDA_KEY, moneda);
     } catch {
       // Solo afecta a que haya que volver a escribirlo la próxima vez.
     }
-  }, [bankroll]);
+  }, [bankroll, moneda]);
 
   const load = useCallback(() => {
-    fetch(`/api/staking/book?bankroll=${bankroll}`)
+    fetch(`/api/staking/book?bankroll=${bankroll}&moneda=${encodeURIComponent(moneda)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
       .then((b: Book) => {
         setBook(b);
         setError(null);
       })
       .catch((e: unknown) => setError(String(e)));
-  }, [bankroll]);
+  }, [bankroll, moneda]);
 
   useEffect(load, [load]);
 
@@ -141,22 +170,47 @@ export default function ExposurePanel({ onListo }: { onListo?: () => void } = {}
     <Panel className="mb-4">
       <SectionTitle
         right={
-          <label className="flex items-center gap-1.5">
-            <span>{t('cartera.banco')}</span>
-            <input
-              type="number"
-              min={1}
-              step={50}
-              value={bankroll}
-              onChange={(e) => setBankroll(Math.max(1, Number(e.target.value) || 1))}
-              className="w-24 rounded-md bg-(--raised) px-2 py-0.5 text-right text-[13px] tabular-nums text-(--ink-strong) ring-1 ring-inset ring-(--line) focus:outline-none focus:ring-(--line-strong)"
-              aria-label={t('cartera.tuBanco')}
-            />
-          </label>
+          // A 320 px el banco y la moneda no caben en una fila junto al título: bajan, no empujan la página.
+          <span className="flex flex-wrap items-center justify-end gap-1.5">
+            <label className="flex items-center gap-1.5">
+              <span>{t('cartera.banco')}</span>
+              <input
+                type="number"
+                min={1}
+                step={50}
+                value={bankroll}
+                // Céntimos como mucho: el servidor rechaza un banco con más decimales.
+                onChange={(e) => setBankroll(Math.max(1, Math.round((Number(e.target.value) || 1) * 100) / 100))}
+                className="w-24 rounded-md bg-(--raised) px-2 py-0.5 text-right text-[13px] tabular-nums text-(--ink-strong) ring-1 ring-inset ring-(--line) focus:outline-none focus:ring-(--line-strong)"
+                aria-label={t('cartera.tuBanco')}
+              />
+            </label>
+            <select
+              value={moneda}
+              onChange={(e) => setMoneda(e.target.value)}
+              aria-label={t('cartera.moneda')}
+              className="rounded-md bg-(--raised) px-1.5 py-0.5 text-[13px] text-(--ink-strong) ring-1 ring-inset ring-(--line) focus:outline-none focus:ring-(--line-strong)"
+            >
+              <option value="">{t('cartera.monedaElige')}</option>
+              {MONEDAS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </span>
         }
       >
         {t('cartera.titulo')}
       </SectionTitle>
+      {/* «Alcanzado» y «no se puede saber» son cosas distintas (seguimiento del PR #18): aquí se dice qué falta. */}
+      {book.loss.evaluable === false && !book.loss.dayBreached && !book.loss.weekBreached && (
+        <ul role="status" className="mb-3 list-disc space-y-0.5 pl-5 text-[13px] text-(--ink-soft)">
+          {(book.loss.estado?.incidencias ?? []).map((i) => (
+            <li key={i.codigo}>{existeClave(`cartera.incidencia.${i.codigo}`) ? t(`cartera.incidencia.${i.codigo}` as Clave, { n: i.apuestas }) : i.codigo}</li>
+          ))}
+        </ul>
+      )}
 
       {book.entries.length === 0 ? (
         <p className="text-[14px] leading-relaxed text-(--ink-soft)">
@@ -165,7 +219,9 @@ export default function ExposurePanel({ onListo }: { onListo?: () => void } = {}
             ? conNodos(t('cartera.demo', { n: book.demoOdds }), { demostracion: <strong className="text-(--ink-body)">{t('cartera.demostracion')}</strong> })
             : book.loss.dayBreached || book.loss.weekBreached
               ? t('cartera.cortada')
-              : t('cartera.bloqueadas', { n: book.blocked })}
+              : book.loss.evaluable === false
+                ? t('cartera.sinEvaluar')
+                : t('cartera.bloqueadas', { n: book.blocked })}
         </p>
       ) : (
         <>
@@ -203,7 +259,7 @@ export default function ExposurePanel({ onListo }: { onListo?: () => void } = {}
                 {book.caps.map((c) => (
                   <li key={c.scope} className="text-[13px] tabular-nums text-(--ink-soft)">
                     <span className="text-(--ink-body)">{c.scope}</span>
-                    {t('cartera.topeLinea', { limite: money(c.limit), usado: money(c.used), factor: numF(c.factor, 2) })}
+                    {t('cartera.topeLinea', { limite: money(c.limit), usado: c.used == null ? t('cartera.sinCota') : money(c.used), factor: numF(c.factor, 2) })}
                   </li>
                 ))}
               </ul>

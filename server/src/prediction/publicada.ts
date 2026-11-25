@@ -51,6 +51,42 @@ export function publicadaDe(sport: SportId, clave: string): Publicada | null {
   return { en: String(r.en), probs };
 }
 
+/**
+ * Todas las publicaciones de un deporte, por clave, con la hora de inicio: para quien necesita la de
+ * muchos partidos a la vez (la exportación). Las mismas columnas que `publicadaDe`.
+ */
+export function publicadasDe(sport: SportId): Map<string, Publicada & { commence: string | null; nombres: [string, string] }> {
+  const c = COLUMNAS[sport];
+  const sel = c.probs.map((e, i) => `${e} AS p${i}`).join(', ');
+  const [n1, n2] = sport === 'tennis' ? ['p1_name', 'p2_name'] : ['home_name', 'away_name'];
+  const out = new Map<string, Publicada & { commence: string | null; nombres: [string, string] }>();
+  let filas: Record<string, number | string | null>[];
+  try {
+    filas = getDb().prepare(`SELECT ${c.clave} AS k, ${sel}, predicted_at AS en, commence_time AS commence, ${n1} AS n1, ${n2} AS n2 FROM ${c.log}`).all() as Record<string, number | string | null>[];
+  } catch {
+    return out;
+  }
+  for (const r of filas) {
+    const ps = c.probs.map((_, i) => r[`p${i}`]);
+    if (ps.some((p) => typeof p !== 'number' || !Number.isFinite(p))) continue;
+    const probs = ps.length === 1 ? [ps[0] as number, 1 - (ps[0] as number)] : (ps as number[]);
+    out.set(String(r.k), { en: String(r.en), probs, commence: (r.commence as string | null) ?? null, nombres: [String(r.n1), String(r.n2)] });
+  }
+  return out;
+}
+
+/** Los nombres del registro [local, visitante] (jugador 1 y 2 en el tenis), o null si no hay fila. */
+export function nombresDe(sport: SportId, clave: string): [string, string] | null {
+  const c = COLUMNAS[sport];
+  const [n1, n2] = sport === 'tennis' ? ['p1_name', 'p2_name'] : ['home_name', 'away_name'];
+  try {
+    const r = getDb().prepare(`SELECT ${n1} AS a, ${n2} AS b FROM ${c.log} WHERE ${c.clave} = ?`).get(clave) as { a: string | null; b: string | null } | undefined;
+    return r && r.a != null && r.b != null ? [r.a, r.b] : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Diferencia (en probabilidad) a partir de la que la tarjeta dice «el modelo hoy diría…». */
 export const UMBRAL_DIFIERE = 0.005;
 

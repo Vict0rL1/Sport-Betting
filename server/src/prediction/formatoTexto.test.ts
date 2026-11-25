@@ -52,6 +52,23 @@ test('G5: tenis, fútbol, baloncesto, béisbol y NFL escriben sus números en es
   const { buildPrediction: nfl } = await import('../nfl/predict.ts');
   const n = nfl({ league: 'nfl' as never, homeId: 'KC', awayId: 'BUF', oddsHome: 1.7, oddsAway: 2.2, spreadLine: -3.5, totalLine: 47.5 });
   assert.ok(n, 'la NFL construye la predicción');
+  // Fase C: en los deportes ya estructurados, las frases y sus códigos dicen lo mismo.
+  assert.deepEqual((await import('../explicaciones/coherencia.ts')).incoherencias(n), []);
+  // ui-tester (pasada final): la tarjeta en inglés decía «Most likely: Gana Kansas City Chiefs». El
+  // veredicto de la NFL es una frase («Gana …»), no un nombre como en la NHL o la UFC: lleva su código.
+  assert.equal((n.verdict as { explicacion?: { codigo: string } }).explicacion?.codigo, 'nfl.veredicto');
+  // Fase C (2): los demás deportes, uno a uno. Cada frase lleva su código y dice lo mismo que él.
+  const { sinEstructura, incoherencias } = await import('../explicaciones/coherencia.ts');
+  const { rellenar, EXPLICACIONES } = await import('../explicaciones/index.ts');
+  type Explicacion = { codigo: string; params: Record<string, never> };
+  const escrita = (x: Explicacion | null) => (x ? rellenar(EXPLICACIONES[x.codigo as keyof typeof EXPLICACIONES], x.params) : null);
+  for (const [deporte, p] of [['tenis', t], ['fútbol', f], ['baloncesto', b], ['béisbol', m]] as const) assert.deepEqual([...sinEstructura(p), ...incoherencias(p)], [], deporte);
+  assert.equal((m.verdict as unknown as { explicacion?: { codigo: string } }).explicacion?.codigo, 'beisbol.veredicto');
+  assert.match((b.projection as unknown as { spreadExplicacion?: { codigo: string } }).spreadExplicacion?.codigo ?? '', /^baloncesto\.spread/);
+  // El veredicto del fútbol es una frase («Gana …», «Empate», «… o empate»): lleva su código.
+  const veredicto = f.verdict as unknown as { explicacion?: { codigo: string }; doubleChance: { explicacion?: { codigo: string } } };
+  assert.match(veredicto.explicacion?.codigo ?? '', /^futbol\.veredicto\./);
+  assert.match(veredicto.doubleChance.explicacion?.codigo ?? '', /^futbol\.dobleOportunidad\./);
 
   // G5b (segunda pasada de ui-tester): no solo el resumen. TODO el texto de la predicción y de su
   // evaluación de confianza (escenarios, supuestos, razones, datos): ahí quedaban «×0.75»,
@@ -71,6 +88,17 @@ test('G5: tenis, fútbol, baloncesto, béisbol y NFL escriben sus números en es
   for (const [deporte, e] of eventos) {
     assert.ok(e, `${deporte}: evento de confianza`);
     completas.push(...malEscritos(evaluar(e)).map((s) => `${deporte} confianza ${s}`));
+    // Fase C (5): el «¿Y si…?» y «Qué mueve la probabilidad» llevan el código de cada factor y de su
+    // porqué, y escritos en español dicen lo mismo que la frase de al lado.
+    const ev = evaluar(e) as unknown as {
+      queSi?: { factores: { etiqueta: string; porQue: string; explicacion: Explicacion | null; porQueExplicacion: Explicacion | null }[] };
+      sensibilidad: { contribuciones: { etiqueta: string; explicacion: Explicacion | null }[] };
+    };
+    for (const f of ev.queSi?.factores ?? []) {
+      assert.equal(escrita(f.explicacion), f.etiqueta, `${deporte}: factor ${f.etiqueta}`);
+      assert.equal(escrita(f.porQueExplicacion), f.porQue, `${deporte}: porqué de ${f.etiqueta}`);
+    }
+    for (const k of ev.sensibilidad.contribuciones) assert.equal(escrita(k.explicacion), k.etiqueta, `${deporte}: contribución ${k.etiqueta}`);
   }
   completas.push(...malEscritos(t).map((s) => `tenis ${s}`), ...malEscritos(f).map((s) => `fútbol ${s}`), ...malEscritos(b).map((s) => `baloncesto ${s}`), ...malEscritos(m).map((s) => `béisbol ${s}`), ...malEscritos(n).map((s) => `nfl ${s}`));
 

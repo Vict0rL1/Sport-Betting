@@ -66,6 +66,16 @@ export function pp(x: number, d = 1, i: IdiomaFormato = activo): string {
 }
 
 /**
+ * La diferencia modelo − mercado (0–1) en puntos porcentuales. Por debajo de media décima redondea
+ * a cero y se escribe sin signo, en el idioma: «0,0 pp» o «0.0 pp» (la pasada final de ui-tester
+ * vio «0,0 pp» fijo en inglés). Sin mercado, «—».
+ */
+export function diferenciaPp(edge: number | null, i: IdiomaFormato = activo): string {
+  if (edge == null) return '—';
+  return Math.abs(edge) < 0.005 ? `${num(0, 1, i)} pp` : pp(edge * 100, 1, i);
+}
+
+/**
  * Dinero del banco de papel o del registro: con Intl y SIN símbolo. El proyecto no inventa
  * moneda (ver lib/bets.ts: los mismos números valen para euros, pesos o unidades).
  */

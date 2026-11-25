@@ -10,6 +10,7 @@ import { NEUTRAL_TEXT, PROFIT_TEXT, STATUS, LOSS_TEXT } from '../../lib/theme';
 import { StatusMark } from '../icons';
 import { conNodos, useI18n, type Clave } from '../../i18n';
 import { pct as pctF, num as numF, dinero as dineroF } from '../../lib/formato';
+import { formatearInstante } from '../../lib/zona';
 
 interface Apuesta {
   /** Grupos de correlación (server/src/staking/risk.ts), en JSON: el primero es el evento. */
@@ -158,7 +159,7 @@ export default function PaperBankroll({ onListo }: { onListo?: () => void } = {}
         {plural(r.liquidadas, 'papel.liquidada1', 'papel.liquidadaN')} ({plural(r.ganadas, 'papel.ganada1', 'papel.ganadaN')},{' '}
         {plural(r.perdidas, 'papel.perdida1', 'papel.perdidaN')}) · {t('papel.sinResolver', { n: r.pendientes })}
         {r.arriesgado > 0 && t('papel.arriesgados', { d: dinero(r.arriesgado) })}
-        {r.empezado && t('papel.desde', { fecha: new Date(r.empezado).toLocaleDateString(loc) })}
+        {r.empezado && t('papel.desde', { fecha: formatearInstante(r.empezado, loc, { day: 'numeric', month: 'numeric', year: 'numeric' }) })}
         {/* Mismos umbrales que server/src/evaluation/sample.ts (apuestas: 30 y 300). Un aviso,
             no una prueba: el veredicto con intervalo está en «¿Es real?». */}
         {r.roi !== null && r.liquidadas < 300 && (
@@ -183,7 +184,7 @@ export default function PaperBankroll({ onListo }: { onListo?: () => void } = {}
       {r.ultima && (r.ultima.candidatas > 0 || Object.keys(r.ultima.rechazos).length > 0) && (
         <div className="border-t border-(--line) px-4 py-2.5 text-[13px] leading-relaxed text-(--ink-muted)">
           {t('papel.ultimaRevision', {
-            cuando: new Date(r.ultima.cuando).toLocaleString(loc, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+            cuando: formatearInstante(r.ultima.cuando, loc, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
             partidos: plural(r.ultima.candidatas, 'papel.partidosReales1', 'papel.partidosRealesN'),
             apostados: plural(r.ultima.colocadas, 'papel.apostado1', 'papel.apostadoN'),
           })}

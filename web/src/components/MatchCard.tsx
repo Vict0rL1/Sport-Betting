@@ -10,6 +10,7 @@ import { EnlacePartido } from './ui';
 import EventTrustPanel from './trust/EventTrustPanel';
 import { conNodos, localeDe, useI18n } from '../i18n';
 import { num as numF, pct as pctF } from '../lib/formato';
+import { escribir, escribirTodas } from '../lib/explicacion';
 
 export default function MatchCard({
   item,
@@ -134,8 +135,10 @@ export default function MatchCard({
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-(--ink-muted)">
               {t('tt.masProbable')}
             </div>
-            <p className="text-[16px] font-medium text-(--ink-strong)">{prediction.summary.headline}</p>
-            <Bullets items={prediction.summary.bullets} />
+            <p className="text-[16px] font-medium text-(--ink-strong)">
+              {escribir(t, idioma, prediction.summary.explicaciones?.headline, prediction.summary.headline)}
+            </p>
+            <Bullets items={escribirTodas(t, idioma, prediction.summary.explicaciones?.bullets, prediction.summary.bullets)} />
           </div>
 
           <div className="mt-2 flex justify-end">
@@ -189,7 +192,7 @@ export default function MatchCard({
  * look like the same confident call.
  */
 function ReliabilityBadge({ reliability }: { reliability: Reliability }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const styles: Record<Reliability['level'], string> = {
     high: 'bg-emerald-900/40 text-emerald-300 ring-emerald-500/40',
     medium: 'bg-amber-900/40 text-amber-300 ring-amber-500/40',
@@ -199,7 +202,7 @@ function ReliabilityBadge({ reliability }: { reliability: Reliability }) {
     t('incert.nota'),
     t('tt.margen', { pp: reliability.marginPp }),
     t('tt.efectivos', { a: reliability.effectiveMatches.p1, b: reliability.effectiveMatches.p2 }),
-    ...reliability.reasons,
+    ...escribirTodas(t, idioma, reliability.explicaciones, reliability.reasons),
   ].join('\n');
   return (
     <span

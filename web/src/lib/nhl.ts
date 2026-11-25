@@ -1,5 +1,6 @@
 // Cliente tipado de la NHL (/api/nhl/*). Una liga; el moneyline incluye prórroga y tanda.
 
+import type { Explicacion } from './explicacion';
 import type { MatchOutcome } from './outcome';
 
 export interface NhlRecord {
@@ -46,9 +47,9 @@ export interface NhlPrediction {
     verdict: 'differs_home' | 'differs_away' | 'agree' | 'no_market';
   };
   reasoning: { factors: { key: string; label: string; pointsForHome: number }[] };
-  reliability: { level: 'high' | 'medium' | 'low'; label: string; marginPp: number; reasons: string[]; gamesBehind: { home: number; away: number } };
+  reliability: { level: 'high' | 'medium' | 'low'; label: string; marginPp: number; reasons: string[]; explicaciones?: Explicacion[]; gamesBehind: { home: number; away: number } };
   verdict: { label: string; close: boolean; marginPp: number };
-  summary: { headline: string; bullets: string[] };
+  summary: { headline: string; bullets: string[]; explicaciones?: { headline: Explicacion; bullets: Explicacion[] } };
   context: { homeAdvantageElo: number; k: number; leagueGoals: number };
   disclaimer: string;
 }

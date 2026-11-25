@@ -10,6 +10,7 @@ import { StadiumIcon } from '../icons';
 import { StarterChip, TeamName, MissingModel, Detail } from './GameCardPartes';
 import { conNodos, useI18n } from '../../i18n';
 import { cifra } from '../../lib/formato';
+import { escribir, escribirTodas } from '../../lib/explicacion';
 
 export default function GameCard({
   item,
@@ -18,7 +19,7 @@ export default function GameCard({
   item: BsbGameWithPrediction;
   onOpenTeam: (league: string, id: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   // The starting pitchers the user has chosen, and the prediction the server
   // returns for them. Held here because EVERYTHING on the card comes out of the
   // same run distribution: change a starter and the winner, the total, the run
@@ -217,7 +218,7 @@ export default function GameCard({
                       {conNodos(t('bsc.igualado'), {
                         cual: (
                           <strong className="font-semibold text-(--ink-strong)">
-                            {prediction.verdict.label}
+                            {escribir(t, idioma, prediction.verdict.explicacion, prediction.verdict.label)}
                           </strong>
                         ),
                       })}
@@ -227,7 +228,7 @@ export default function GameCard({
                       {conNodos(t('fbc.loMasProbable'), {
                         cual: (
                           <strong className="font-semibold text-(--ink-strong)">
-                            {prediction.verdict.label}
+                            {escribir(t, idioma, prediction.verdict.explicacion, prediction.verdict.label)}
                           </strong>
                         ),
                       })}
@@ -260,7 +261,7 @@ export default function GameCard({
                     title={[
                       t('eq.margenPp', { pp: prediction.reliability.marginPp }),
                       t('eq.trasCadaElo', { a: prediction.reliability.gamesBehind.home, b: prediction.reliability.gamesBehind.away }),
-                      ...prediction.reliability.reasons,
+                      ...escribirTodas(t, idioma, prediction.reliability.explicaciones, prediction.reliability.reasons),
                     ].join('\n')}
                   />
                 </div>

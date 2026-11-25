@@ -1,5 +1,5 @@
 import type { ClimaFicha } from '../lib/clima';
-import { TECHO } from '../lib/clima';
+import { TECHO, claveCielo, claveMotivoClima } from '../lib/clima';
 import { Panel, SectionTitle } from './ui';
 import { useI18n, type Clave } from '../i18n';
 import { num as numF } from '../lib/formato';
@@ -14,6 +14,11 @@ export function ClimaPanel({ clima }: { clima: ClimaFicha | null | undefined }) 
   if (!clima) return null;
   // TECHO (lib/clima) sigue siendo la referencia en español; la etiqueta sale del catálogo.
   const techo = clima.estadio && clima.estadio.techo in TECHO ? t(`clima.techo.${clima.estadio.techo}` as Clave) : null;
+  // G2: el cielo y el motivo se traducen por su código; sin código (servidor anterior), el texto que llegó.
+  const cc = claveCielo(clima.cielo);
+  const cm = claveMotivoClima(clima.motivoCodigo);
+  const cielo = cc ? t(cc) : clima.descripcion;
+  const motivo = cm ? t(cm) : clima.motivo;
   const derecha =
     clima.estado === 'DESCONOCIDO'
       ? t('clima.sinDato')
@@ -25,7 +30,7 @@ export function ClimaPanel({ clima }: { clima: ClimaFicha | null | undefined }) 
       <SectionTitle right={derecha}>{t('clima.titulo')}</SectionTitle>
       {clima.estado === 'DESCONOCIDO' ? (
         <p className="text-[13px] text-(--ink-muted)">
-          DESCONOCIDO{clima.motivo ? ` · ${clima.motivo}` : ''}
+          DESCONOCIDO{motivo ? ` · ${motivo}` : ''}
           {clima.estadio ? ` · ${clima.estadio.nombre} (${techo})` : ''}
         </p>
       ) : (
@@ -46,7 +51,7 @@ export function ClimaPanel({ clima }: { clima: ClimaFicha | null | undefined }) 
           </div>
           <div>
             <dt className="text-(--ink-muted)">{t('clima.cielo')}</dt>
-            <dd className="text-(--ink-strong)">{clima.descripcion ?? '—'}</dd>
+            <dd className="text-(--ink-strong)">{cielo ?? '—'}</dd>
           </div>
         </dl>
       )}

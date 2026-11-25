@@ -68,6 +68,20 @@ test('T18: los filtros (deporte, liga, guardados, búsqueda sin acentos, umbral)
   assert.equal(hayFiltros({ ...base, q: 'x' }), true);
 });
 
+test('E1: «Guardados» (estimaciones guardadas) y «Seguidos» (avisos) son filtros distintos', () => {
+  const filas = [
+    fila({ id: '1', matchKey: 'k-1', local: { nombre: 'A', id: 'eqA' } }),
+    fila({ id: '2', matchKey: 'k-2' }),
+    fila({ id: '3', matchKey: 'k-3' }),
+  ];
+  // k-1 tiene una estimación guardada; k-2 se sigue; el equipo eqA también se sigue.
+  const marcas = new Set(['football|k-1', 'sig|football|k-2', 'sig|football|eq|eqA']);
+  const base = { ...FILTROS_POR_DEFECTO };
+  assert.deepEqual(filtrar(filas, { ...base, guardados: true }, marcas).map((f) => f.id), ['1']);
+  assert.deepEqual(filtrar(filas, { ...base, seguidos: true }, marcas).map((f) => f.id), ['1', '2'], 'el 1 por su equipo seguido');
+  assert.equal(hayFiltros({ ...base, seguidos: true }), true);
+});
+
 test('agrupar por día local y competición, en orden de hora, sin perder ni repetir filas', () => {
   const filas = ordenar(
     [

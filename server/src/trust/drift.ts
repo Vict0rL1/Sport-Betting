@@ -6,7 +6,7 @@
 // ±0,02 por azar, y llamar «deriva» a eso sería cambiar de opinión con cada racha.
 // No abstiene: recorta el importe (ver trust/decision.ts).
 
-import { predicciones } from '../evaluation/live.ts';
+import { publicacionesResueltas } from '../evaluation/live.ts';
 import { leerMetricasBacktest } from '../evaluation/report.ts';
 import type { SportId } from '../sports.ts';
 
@@ -24,9 +24,11 @@ export interface Deriva {
 
 export function derivaReciente(sport: SportId): Deriva {
   const base = leerMetricasBacktest()[sport]?.logLoss ?? null;
+  // Lo PUBLICADO, no lo evaluado (revisión quant de B1): este aviso recorta los importes del banco de
+  // papel y de las estrategias, que apuestan al publicar con la cuota de ese momento.
   let xs: { p: number[]; y: number }[] = [];
   try {
-    xs = predicciones(sport).slice(-VENTANA);
+    xs = publicacionesResueltas(sport).slice(-VENTANA).map((x) => ({ p: x.p, y: x.y }));
   } catch {
     xs = [];
   }

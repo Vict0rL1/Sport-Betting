@@ -1,5 +1,6 @@
 // Typed client for the American football half of the API (/api/nfl/*).
 
+import type { Explicacion } from './explicacion';
 import type { MatchOutcome } from './outcome';
 
 /**
@@ -47,7 +48,7 @@ export interface NflSide {
 
 export interface NflReliability {
   level: 'high' | 'medium' | 'low';
-  label: string; marginPp: number; reasons: string[];
+  label: string; marginPp: number; reasons: string[]; explicaciones?: Explicacion[];
   gamesBehind: { home: number; away: number };
 }
 
@@ -115,10 +116,11 @@ export interface NflPrediction {
     }[];
   };
   market: NflMarket;
-  reasoning: { text: string; factors: { key: string; label: string; pointsForHome: number }[] };
+  reasoning: { text: string; explicaciones?: Explicacion[]; factors: { key: string; label: string; pointsForHome: number; explicacion?: Explicacion }[] };
   reliability: NflReliability;
-  verdict: { label: string; close: boolean; marginPp: number };
-  summary: { headline: string; bullets: string[] };
+  /** `explicacion`: el mismo veredicto como código (la web lo escribe en su idioma; `label`, en español, de reserva). */
+  verdict: { label: string; close: boolean; marginPp: number; explicacion?: Explicacion };
+  summary: { headline: string; bullets: string[]; explicaciones?: { headline: Explicacion; bullets: Explicacion[] } };
   context: { homeAdvantageElo: number; homeAdvantagePoints: number; leagueTotal: number };
   disclaimer: string;
 }

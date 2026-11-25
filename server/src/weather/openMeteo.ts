@@ -121,19 +121,44 @@ export async function consultar(e: Estadio, targetIso: string, kind: 'prevision'
   }
 }
 
-/** Códigos WMO → texto corto en español. */
-export function descripcionCodigo(c: number | null): string {
-  if (c == null) return 'sin dato';
+/**
+ * Códigos WMO agrupados en un cielo estable: la web lo traduce (G2, revisión del PR 17); el texto en
+ * español de `descripcionCodigo` se sigue sirviendo igual.
+ */
+export const CIELOS = ['sin-dato', 'despejado', 'poco-nuboso', 'cubierto', 'niebla', 'llovizna', 'lluvia', 'nieve', 'chubascos', 'chubascos-nieve', 'tormenta'] as const;
+export type Cielo = (typeof CIELOS)[number];
+
+export function cieloDeCodigo(c: number | null): Cielo {
+  if (c == null) return 'sin-dato';
   if (c === 0) return 'despejado';
-  if (c <= 2) return 'poco nuboso';
+  if (c <= 2) return 'poco-nuboso';
   if (c === 3) return 'cubierto';
   if (c <= 48) return 'niebla';
   if (c <= 57) return 'llovizna';
   if (c <= 67) return 'lluvia';
   if (c <= 77) return 'nieve';
   if (c <= 82) return 'chubascos';
-  if (c <= 86) return 'chubascos de nieve';
+  if (c <= 86) return 'chubascos-nieve';
   return 'tormenta';
+}
+
+const TEXTO_CIELO: Record<Cielo, string> = {
+  'sin-dato': 'sin dato',
+  despejado: 'despejado',
+  'poco-nuboso': 'poco nuboso',
+  cubierto: 'cubierto',
+  niebla: 'niebla',
+  llovizna: 'llovizna',
+  lluvia: 'lluvia',
+  nieve: 'nieve',
+  chubascos: 'chubascos',
+  'chubascos-nieve': 'chubascos de nieve',
+  tormenta: 'tormenta',
+};
+
+/** Códigos WMO → texto corto en español. */
+export function descripcionCodigo(c: number | null): string {
+  return TEXTO_CIELO[cieloDeCodigo(c)];
 }
 
 interface FilaUpcoming {
@@ -205,19 +230,23 @@ export interface ClimaFicha {
   lluviaMm: number | null;
   probLluvia: number | null;
   descripcion: string | null;
+  /** El cielo como código estable, para traducirlo (G2); null sin lectura. */
+  cielo: Cielo | null;
   fechaDato: string | null;
   motivo: string | null;
+  /** El porqué de DESCONOCIDO como código estable, para traducirlo (G2). */
+  motivoCodigo: 'sin-estadio' | 'sin-prevision' | null;
 }
 
 /** Lo que enseña la ficha: la lectura más reciente, o DESCONOCIDO con el porqué. */
 export function climaDe(sport: DeporteClima, league: string, matchKey: string, homeId: string | null): ClimaFicha {
   const e = estadioDe(sport, league, homeId);
   const base = { estadio: e ? { nombre: e.name, ciudad: e.city, techo: e.roof } : null };
-  if (!e) return { estado: 'DESCONOCIDO', horizonte: null, ...base, tempC: null, vientoMph: null, lluviaMm: null, probLluvia: null, descripcion: null, fechaDato: null, motivo: 'estadio no configurado' };
+  if (!e) return { estado: 'DESCONOCIDO', horizonte: null, ...base, tempC: null, vientoMph: null, lluviaMm: null, probLluvia: null, descripcion: null, cielo: null, fechaDato: null, motivo: 'estadio no configurado', motivoCodigo: 'sin-estadio' };
   const fila = getDb()
     .prepare('SELECT kind, horizon, temp_c, wind_mph, precip_mm, precip_prob, weather_code, fetched_at FROM weather_observations WHERE sport = ? AND match_key = ? ORDER BY id DESC LIMIT 1')
     .get(sport, matchKey) as { kind: 'prevision' | 'observado'; horizon: Horizonte; temp_c: number | null; wind_mph: number | null; precip_mm: number | null; precip_prob: number | null; weather_code: number | null; fetched_at: string } | undefined;
-  if (!fila) return { estado: 'DESCONOCIDO', horizonte: null, ...base, tempC: null, vientoMph: null, lluviaMm: null, probLluvia: null, descripcion: null, fechaDato: null, motivo: 'todavía sin previsión (se pide desde 24 h antes)' };
+  if (!fila) return { estado: 'DESCONOCIDO', horizonte: null, ...base, tempC: null, vientoMph: null, lluviaMm: null, probLluvia: null, descripcion: null, cielo: null, fechaDato: null, motivo: 'todavía sin previsión (se pide desde 24 h antes)', motivoCodigo: 'sin-prevision' };
   return {
     estado: fila.kind === 'observado' ? 'observado' : 'previsión',
     horizonte: fila.horizon,
@@ -227,7 +256,9 @@ export function climaDe(sport: DeporteClima, league: string, matchKey: string, h
     lluviaMm: fila.precip_mm,
     probLluvia: fila.precip_prob,
     descripcion: descripcionCodigo(fila.weather_code),
+    cielo: cieloDeCodigo(fila.weather_code),
     fechaDato: fila.fetched_at,
     motivo: null,
+    motivoCodigo: null,
   };
 }

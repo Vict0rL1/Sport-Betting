@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useI18n, type Clave } from '../../i18n';
 import { activarPush, canales, desactivarPush, probar, pushDisponible, suscripcionActual, type CanalVista } from '../../lib/notificaciones';
+import { FalloCarga, useCarga } from '../ui/carga';
+import { datosDe } from '../../lib/remoto';
 
 const NOMBRES: Record<string, string | Clave> = { telegram: 'Telegram', webhook: 'Webhook (Discord/Slack)', email: 'notif.canal.email', webpush: 'notif.canal.webpush' };
 
@@ -14,12 +16,16 @@ export default function NotificacionesPanel() {
     const v = NOMBRES[n];
     return v == null ? n : v.startsWith('notif.') ? t(v as Clave) : v;
   };
-  const [lista, setLista] = useState<CanalVista[] | null>(null);
+  // Un fallo no es «ningún canal» (fase C): se dice y se reintenta.
+  const { estado: estadoCanales, recargar: recargarCanales } = useCarga(() => canales().then((r) => {
+    if (!Array.isArray(r.canales)) throw new Error('forma');
+    return r.canales;
+  }), []);
+  const lista: CanalVista[] | null = datosDe(estadoCanales);
   const [push, setPush] = useState<boolean | null>(null);
   const [resultado, setResultado] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    canales().then((r) => setLista(r.canales)).catch(() => setLista([]));
     suscripcionActual().then((s) => setPush(!!s)).catch(() => setPush(false));
   }, []);
 
@@ -47,7 +53,8 @@ export default function NotificacionesPanel() {
   return (
     <div className="mt-2">
       <p className="mb-1.5 px-1 text-[11px] uppercase tracking-wide text-(--ink-muted)">{t('notif.titulo')}</p>
-      {lista === null && <p className="px-1 text-(--ink-muted)">{t('comun.cargando')}</p>}
+      {lista === null && estadoCanales.fase === 'error' && <FalloCarga que={t('carga.queCanales')} onReintentar={recargarCanales} />}
+      {lista === null && estadoCanales.fase !== 'error' && <p className="px-1 text-(--ink-muted)">{t('comun.cargando')}</p>}
       {lista && (
         <ul className="divide-y divide-(--line)">
           {lista.map((c) => (

@@ -7,8 +7,9 @@ import { CrossIcon, LogoutIcon, UserIcon } from '../icons';
 import NotificacionesPanel from './NotificacionesPanel';
 import { useI18n, type Traducir } from '../../i18n';
 import { STATUS, tenido } from '../../lib/theme';
+import { formatearInstante } from '../../lib/zona';
 
-const cuando = (iso: string, loc: string) => new Date(iso).toLocaleString(loc, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const cuando = (iso: string, loc: string) => formatearInstante(iso, loc, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /** Un nombre legible del navegador, sin librería: lo justo para reconocer «el móvil». */
 function dispositivo(t: Traducir, ua: string | null): string {

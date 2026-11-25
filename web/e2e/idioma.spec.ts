@@ -76,6 +76,21 @@ test('tenis en inglés: cabecera, tarjeta desplegada y clasificación por Elo', 
   await expect(page.getByText('Mercados del modelo de puntos')).toHaveCount(0);
 });
 
+test('C (2): en inglés, el titular, las viñetas, la lectura y los factores del tenis van en inglés', async ({ page }) => {
+  test.slow();
+  await page.goto('/tenis');
+  // El titular y las viñetas son explicaciones con código: en inglés, nada de la frase del servidor.
+  await expect(page.getByText(/^(Most likely: .+ wins \(|Very even match: )/).first()).toBeVisible();
+  await expect(page.getByText(/^(Lo más probable: gana|Partido muy parejo:)/)).toHaveCount(0);
+  // La primera viñeta, siempre visible: el Elo en la superficie.
+  await expect(page.getByText(/^(On .+, .+ comes in with the better Elo|Very even level on |Surface not identified: )/).first()).toBeVisible();
+  await expect(page.getByText(/^(En .+, .+ llega con mejor Elo|Nivel muy parejo en |Superficie no identificada: )/)).toHaveCount(0);
+  await page.getByRole('button', { name: /Why\?/ }).first().click();
+  await expect(page.getByText(/^(The model (slightly )?favours |Both players are very even)/).first()).toBeVisible();
+  await expect(page.getByText('Recent form', { exact: true }).first()).toBeVisible();
+  await expect(page.getByText('Forma reciente', { exact: true })).toHaveCount(0);
+});
+
 test('fútbol y baloncesto en inglés: cabecera y aviso sin datos', async ({ page }) => {
   for (const [ruta, vacio] of [
     ['/futbol', 'No hay datos de fútbol todavía.'],

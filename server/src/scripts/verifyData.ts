@@ -70,7 +70,7 @@ import { normalizeTeamName } from '../football/ingest/teamNames.ts';
 import { parseFootballTxt } from '../football/ingest/openfootballTxt.ts';
 import { readRegistry, distinctExperiments } from '../experiments/registry.ts';
 import { fullKelly, fractionalKelly, expectedLogGrowth, expectedValue } from '../staking/kelly.ts';
-import { decideStake, decideEvent, DEFAULT_CONFIG } from '../staking/policy.ts';
+import { decideStake, decideEvent, estadoDePerdidas, DEFAULT_CONFIG } from '../staking/policy.ts';
 import { calibrationMultiplier, type CalibrationFile } from '../staking/calibration.ts';
 import { simulate } from '../staking/drawdown.ts';
 import { fitDixonColes, expectedGoalsDc } from '../football/bayes/dixonColes.ts';
@@ -1589,6 +1589,24 @@ function auditPrematch(): void {
     .get() as { n: number; malas: number | null; huerfanas: number | null };
   check('pre-partido: cada final es anterior al inicio y se congeló después', (f.malas ?? 0) === 0, `${f.malas} incoherentes`);
   check('pre-partido: cada final sale de una instantánea que existe', (f.huerfanas ?? 0) === 0, `${f.huerfanas} huérfanas`);
+  // Revisión del PR 17 (E3/E5, data-guardian): una apuesta o una estimación guardada solo apunta a
+  // una instantánea que existe, del mismo deporte y, si lo dice, del mismo partido.
+  let malEnlazadas = 0;
+  try {
+    malEnlazadas = (
+      db
+        .prepare(
+          `SELECT (SELECT COUNT(*) FROM bets b LEFT JOIN prediction_snapshots s ON s.id = b.snapshot_id
+                    WHERE b.snapshot_id IS NOT NULL AND (s.id IS NULL OR s.sport <> b.sport OR (b.match_key IS NOT NULL AND s.match_key <> b.match_key)))
+                + (SELECT COUNT(*) FROM saved_predictions g LEFT JOIN prediction_snapshots s ON s.id = g.snapshot_id
+                    WHERE s.id IS NULL OR s.sport <> g.sport OR s.match_key <> g.match_key) AS n`,
+        )
+        .get() as { n: number }
+    ).n;
+  } catch {
+    // Un libro mayor anterior a v30, sin la columna: nada enlazado.
+  }
+  check('apuestas y guardadas: cada enlace apunta a una instantánea del mismo deporte y partido', malEnlazadas === 0, `${malEnlazadas} mal enlazadas`);
   console.log(`  ${r.n} instantáneas de ${r.eventos} partidos · ${f.n} finales congeladas`);
 }
 
@@ -1886,12 +1904,15 @@ function auditStaking(): void {
   );
 
   const bank = 1000;
+  // Las puertas se comprueban SIN leer el registro personal de esta instalación: sus pérdidas y lo que
+  // tenga pendiente cambiarían el resultado (seguimiento del PR #18: los límites dependen de él).
+  const SIN_REGISTRO = { perdidas: { hoy: 0, semana: 0 }, openExposure: 0 };
   // Puerta 1: sin ventaja no se apuesta.
-  const sinVentaja = decideStake({ sport: 'bueno', p: 0.5, odds: 1.9, bankroll: bank }, cfg, cal);
+  const sinVentaja = decideStake({ sport: 'bueno', p: 0.5, odds: 1.9, bankroll: bank, ...SIN_REGISTRO }, cfg, cal);
   check('puerta 1: sin ventaja, cero', sinVentaja.stake === 0, `${sinVentaja.stake}`);
 
   // Puerta 2: la calibración lo para aunque haya ventaja de sobra.
-  const malCal = decideStake({ sport: 'perdedor', p: 0.9, odds: 3, bankroll: bank }, cfg, cal);
+  const malCal = decideStake({ sport: 'perdedor', p: 0.9, odds: 3, bankroll: bank, ...SIN_REGISTRO }, cfg, cal);
   check(
     'puerta 2: calibración insuficiente para una ventaja enorme, cero',
     malCal.stake === 0 && malCal.blockedBy === 'calibración insuficiente',
@@ -1901,7 +1922,7 @@ function auditStaking(): void {
   // Puerta 4: EL TOPE. p = 0.9 a cuota 3 da un Kelly completo del 85 %; un cuarto es el
   // 21 %, que sigue siendo una barbaridad. El tope tiene que dejarlo en el 2 %, y esto
   // es lo que protege de una p disparatada SIN necesidad de saber que está disparatada.
-  const enorme = decideStake({ sport: 'bueno', p: 0.9, odds: 3, bankroll: bank }, cfg, cal);
+  const enorme = decideStake({ sport: 'bueno', p: 0.9, odds: 3, bankroll: bank, ...SIN_REGISTRO }, cfg, cal);
   check(
     'puerta 4: el tope por evento corta una ventaja absurda',
     Math.abs(enorme.fraction - cfg.maxPerEvent) < 1e-9,
@@ -1915,7 +1936,7 @@ function auditStaking(): void {
 
   // Un caso normal, que tiene que pasar: sin esto, todas las comprobaciones de arriba
   // se cumplirían con una función que devuelve 0 siempre.
-  const normal = decideStake({ sport: 'bueno', p: 0.55, odds: 2, bankroll: bank }, cfg, cal);
+  const normal = decideStake({ sport: 'bueno', p: 0.55, odds: 2, bankroll: bank, ...SIN_REGISTRO }, cfg, cal);
   check(
     'una apuesta razonable SÍ pasa las cinco puertas',
     normal.stake > 0 && normal.stake < bank * cfg.maxPerEvent + 0.01,
@@ -1934,7 +1955,7 @@ function auditStaking(): void {
   let acc = 0;
   for (let i = 0; i < 25; i++) {
     acc += decideStake(
-      { sport: 'bueno', p: 0.55, odds: 2, bankroll: bank, openExposure: acc },
+      { sport: 'bueno', p: 0.55, odds: 2, bankroll: bank, openExposure: acc, perdidas: { hoy: 0, semana: 0 } },
       cfg,
       cal,
     ).stake;
@@ -1960,7 +1981,7 @@ function auditStaking(): void {
       { label: 'empate', p: 0.29, odds: 3.9 },
       { label: 'visitante', p: 0.21, odds: 5.2 },
     ],
-    { sport: 'bueno', bankroll: bank },
+    { sport: 'bueno', bankroll: bank, ...SIN_REGISTRO },
     cfg,
     cal,
   );
@@ -1981,7 +2002,7 @@ function auditStaking(): void {
       { label: 'corta', p: 0.7, odds: 1.6 },
       { label: 'larga', p: 0.12, odds: 10 },
     ],
-    { sport: 'bueno', bankroll: bank },
+    { sport: 'bueno', bankroll: bank, ...SIN_REGISTRO },
     cfg,
     cal,
   );
@@ -3604,10 +3625,15 @@ function auditPortfolio(): void {
   // comprobación dependiente de ellos).
   const cal: CalibrationFile = { football: { multiplier: 1, reason: 'prueba', ece: 0, n: 0 } } as never;
   const cfg = { ...DEFAULT_CONFIG };
+  // Y sin leer el registro personal: ni sus pérdidas ni lo que tenga pendiente.
+  const LIBRO_LIMPIO = {
+    limites: estadoDePerdidas(bank, cfg, { hoy: 0, semana: 0 }),
+    abierto: { total: 0, byDay: new Map<string, number>(), byLeague: new Map<string, number>(), sinDia: 0, sinClasificar: 0 },
+  };
 
   // Ocho de la misma liga y el mismo día: el tope de liga (5 %) es el más ajustado.
   const eight = Array.from({ length: 8 }, (_, i) => mkCand(`c${i}`, 'epl', '2026-09-12', `m${i}`));
-  const bk = decideBook(eight, bank, cfg, cal, new Date('2026-09-10T12:00:00Z'));
+  const bk = decideBook(eight, bank, cfg, cal, new Date('2026-09-10T12:00:00Z'), null, LIBRO_LIMPIO);
   const placedTotal = bk.entries.reduce((a, e) => a + e.stake, 0);
   check(
     'cartera: el tope por liga se respeta',
@@ -3634,7 +3660,7 @@ function auditPortfolio(): void {
   const spread = Array.from({ length: 8 }, (_, i) =>
     mkCand(`c${i}`, `lg${i}`, `2026-09-${12 + i}`, `m${i}`),
   );
-  const bk2 = decideBook(spread, bank, cfg, cal, new Date('2026-09-10T12:00:00Z'));
+  const bk2 = decideBook(spread, bank, cfg, cal, new Date('2026-09-10T12:00:00Z'), null, LIBRO_LIMPIO);
   const total2 = bk2.entries.reduce((a, e) => a + e.stake, 0);
   check(
     'cartera: repartida en ligas y días, manda el tope total',
@@ -3643,7 +3669,7 @@ function auditPortfolio(): void {
   );
   // Y el tope diario muerde cuando todo cae el mismo día en ligas distintas.
   const oneDay = Array.from({ length: 8 }, (_, i) => mkCand(`c${i}`, `lg${i}`, '2026-09-12', `m${i}`));
-  const bk3 = decideBook(oneDay, bank, cfg, cal, new Date('2026-09-10T12:00:00Z'));
+  const bk3 = decideBook(oneDay, bank, cfg, cal, new Date('2026-09-10T12:00:00Z'), null, LIBRO_LIMPIO);
   const total3 = bk3.entries.reduce((a, e) => a + e.stake, 0);
   check(
     'cartera: el tope por día se respeta',

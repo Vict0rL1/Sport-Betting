@@ -56,6 +56,7 @@
 
 import { getDb } from '../db.ts';
 import type { LeagueId } from './types.ts';
+import { explica, frases, int, txt, type ExplicacionConTexto } from '../explicaciones/index.ts';
 
 export type Position = 'GK' | 'DEF' | 'MID' | 'FWD';
 
@@ -349,15 +350,17 @@ export function squadAvailability(
 }
 
 /** One-line summary of what the absences did, for the reasoning panel. */
-export function describeAvailability(a: SquadAvailability, teamName: string): string | null {
+export function describeAvailability(a: SquadAvailability, teamName: string): ExplicacionConTexto | null {
   if (a.out.length === 0) return null;
-  const names = a.out.slice(0, 3).map((p) => p.name).join(', ');
-  const more = a.out.length > 3 ? ` y ${a.out.length - 3} más` : '';
+  const nombres = txt(a.out.slice(0, 3).map((p) => p.name).join(', '));
   const attackPct = Math.round((1 - a.attack) * 100);
   const defencePct = Math.round((a.defence - 1) * 100);
-  const effect =
-    attackPct <= 0 && defencePct <= 0
-      ? 'sin efecto apreciable en el pronóstico'
-      : `marca ~${attackPct}% menos y encaja ~${defencePct}% más`;
-  return `${teamName} sin ${names}${more}: ${effect}.`;
+  const efecto = frases(
+    [attackPct <= 0 && defencePct <= 0 ? explica('futbol.bajas.sinEfecto') : explica('futbol.bajas.efecto', { ataque: int(attackPct), defensa: int(defencePct) })],
+    'coma',
+  );
+  const equipo = txt(teamName);
+  return a.out.length > 3
+    ? explica('futbol.bajas.mas', { equipo, nombres, n: int(a.out.length - 3), efecto })
+    : explica('futbol.bajas', { equipo, nombres, efecto });
 }

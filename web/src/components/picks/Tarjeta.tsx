@@ -7,6 +7,7 @@ import { EstrellaSeguir } from '../seguimiento';
 import { type Opcion, type Pick, AMBAR, pct, num } from './tipos';
 import { codigo, conNodos, localeDe, useI18n } from '../../i18n';
 import { deporteDe } from '../../lib/bets';
+import { formatearInstante } from '../../lib/zona';
 
 export function Chip({ activo, onClick, children, title }: { activo: boolean; onClick: () => void; children: React.ReactNode; title?: string }) {
   return (
@@ -66,8 +67,8 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
             {p.liga && p.liga.toLowerCase() !== SPORT_THEMES[p.sport].label.toLowerCase() && <span className="text-(--ink-muted)"> · {p.liga.toUpperCase()}</span>}
           </div>
           <div className="text-[12px] capitalize text-(--ink-muted)">
-            {fecha.toLocaleDateString(localeDe(idioma), { weekday: 'short', day: 'numeric', month: 'short' })} ·{' '}
-            {fecha.toLocaleTimeString(localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}
+            {formatearInstante(fecha, localeDe(idioma), { weekday: 'short', day: 'numeric', month: 'short' })} ·{' '}
+            {formatearInstante(fecha, localeDe(idioma), { hour: '2-digit', minute: '2-digit' })}
           </div>
         </div>
         <span className="shrink-0">
@@ -141,7 +142,7 @@ export function Tarjeta({ p, puesto, elegido, onElegir }: { p: Pick; puesto: num
           decidir (probabilidad, histórico, cuota) y el detalle está a un clic. */}
       {p.confianza && (
         <details className="group text-[12.5px]">
-          <summary className="cursor-pointer select-none text-[11px] uppercase tracking-wide text-(--ink-muted) hover:text-(--ink-body)">{t('tj.porQueConfianza')}</summary>
+          <summary className="flex min-h-6 cursor-pointer select-none items-center text-[11px] uppercase tracking-wide text-(--ink-muted) hover:text-(--ink-body)">{t('tj.porQueConfianza')}</summary>
           <p className="mt-1 text-(--ink-soft)">
             {t('tj.datos', {
               c: p.confianza.calidadDatos,

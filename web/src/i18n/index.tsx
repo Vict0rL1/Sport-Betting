@@ -2,6 +2,7 @@
 // {var}; una clave sin traducción cae al español, nunca a la clave. El idioma sale de Ajustes
 // (servidor), si no del navegador, y se recuerda localmente.
 
+import { formatearInstante } from '../lib/zona';
 import { cifra, fijarIdiomaFormato } from '../lib/formato';
 import { createContext, createElement, Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { es, type Clave } from './es';
@@ -125,6 +126,11 @@ export function useI18n() {
 }
 
 /** Formato de números, fechas y moneda según el idioma (Fase 5.25). */
+/** ¿Hay una frase con esta clave en el catálogo? (para códigos que llegan del servidor, G2). */
+export function existeClave(clave: string): clave is Clave {
+  return Object.prototype.hasOwnProperty.call(es, clave);
+}
+
 export function formato(idioma: Idioma) {
   const loc = idioma === 'en' ? 'en-GB' : 'es-ES';
   return {
@@ -132,7 +138,8 @@ export function formato(idioma: Idioma) {
     // Con el signo menos (U+2212), como pct() en lib/formato.ts: Intl pone el guion ASCII.
     porcentaje: (p: number, digitos = 0) => new Intl.NumberFormat(loc, { style: 'percent', minimumFractionDigits: digitos, maximumFractionDigits: digitos }).format(p).replace('-', '−'),
     moneda: (n: number, moneda = 'EUR') => new Intl.NumberFormat(loc, { style: 'currency', currency: moneda }).format(n),
-    fecha: (iso: string, opciones: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) => new Intl.DateTimeFormat(loc, opciones).format(new Date(iso)),
+    // En la zona elegida en Ajustes (G1), y «—» para una fecha que no se entiende.
+    fecha: (iso: string, opciones: Intl.DateTimeFormatOptions = { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) => formatearInstante(iso, loc, opciones),
   };
 }
 

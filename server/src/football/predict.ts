@@ -57,14 +57,10 @@ import { newsForTeam, newsTiming, type NewsTiming, type StoredNews } from '../ne
 import { absenceImpacts, combinedImpact, type AbsenceImpact } from '../news/impact.ts';
 import { diffLineup, rotationRisk, type LineupDiff, type RotationRisk } from './lineups.ts';
 import type { FbRecord, LeagueId } from './types.ts';
-import { num, pct } from '../numeros.ts';
+import { dec, exacto, explica, frases, int, motivos, porc, resumen, sinTexto, txt, type Explicacion, type ExplicacionConTexto, type ParamExp, type Resumen, EXPLICACIONES } from '../explicaciones/index.ts';
 
-export const DISCLAIMER =
-  'Estimación estadística basada en Elo con ventaja de campo, goles esperados y odds de mercado. ' +
-  'En la Premier League tiene en cuenta las bajas conocidas (lesiones y sanciones) y las que marques ' +
-  'tú; en el resto de ligas no hay datos de plantilla, así que supone alineaciones habituales. ' +
-  'Nunca sabe la alineación real hasta que se publica, ni si el partido no vale nada. ' +
-  'No es una certeza ni una recomendación para apostar.';
+/** El aviso de este deporte, del catálogo de explicaciones (la web lo escribe en su idioma con `aviso.football`). */
+export const DISCLAIMER: string = EXPLICACIONES['aviso.football'];
 
 export type ReliabilityLevel = 'high' | 'medium' | 'low';
 
@@ -160,6 +156,8 @@ export interface FbReliability {
   label: string;
   marginPp: number;
   reasons: string[];
+  /** Los mismos motivos, como códigos (explicaciones/): la web los escribe en su idioma. */
+  explicaciones: Explicacion[];
   matchesBehind: { home: number; away: number };
 }
 
@@ -327,14 +325,19 @@ export interface FbPrediction {
   market: FbMarketComparison;
   h2h: FbHeadToHead;
   reasoning: {
-    factors: { key: 'rating' | 'home' | 'squad'; label: string; pointsForHome: number }[];
+    factors: { key: 'rating' | 'home' | 'squad'; label: string; pointsForHome: number; explicacion: Explicacion }[];
     text: string;
+    /** El mismo texto, como códigos (explicaciones/). */
+    explicaciones: Explicacion[];
   };
   reliability: FbReliability;
-  summary: { headline: string; bullets: string[] };
+  summary: Resumen;
   verdict: {
     outcome: 'home' | 'draw' | 'away';
     label: string;
+    /** `label` como código; `enFrase`, la misma opción dentro de una frase («la opción suelta es gana …»). */
+    explicacion: Explicacion;
+    enFrase: Explicacion;
     probability: number;
     /** True when no outcome clears 40% — genuinely open matches. */
     open: boolean;
@@ -347,7 +350,7 @@ export interface FbPrediction {
      * 82,2 %— una doble oportunidad pasa del 65 %. Decir «ninguna opción llega al
      * 40 %» y parar es esconder un 70 % detrás de tres treintaipicos.
      */
-    doubleChance: { outcome: '1X' | 'X2'; label: string; probability: number };
+    doubleChance: { outcome: '1X' | 'X2'; label: string; probability: number; explicacion: Explicacion };
   };
   disclaimer: string;
 }
@@ -358,12 +361,11 @@ function sigmaFor(matches: number, monthsStale: number): number {
   return Math.sqrt(sample * sample + stale * stale);
 }
 
-function humanGap(days: number): string {
-  if (days < 60) return `${days} días`;
+function humanGap(days: number): ExplicacionConTexto {
+  if (days < 60) return explica('tiempo.dias', { n: int(days) });
   const months = Math.round(days / 30);
-  if (months < 24) return `~${months} meses`;
-  const years = Math.round(days / 365);
-  return years === 1 ? '~1 año' : `~${years} años`;
+  if (months < 24) return explica('tiempo.meses', { n: int(months) });
+  return explica('tiempo.anios', { n: int(Math.round(days / 365)) });
 }
 
 function buildSide(league: LeagueId, id: string, isHome: boolean): FbSide {
@@ -822,29 +824,21 @@ export function buildFootballPrediction(
   const slope = (Math.LN10 * pTop * (1 - pTop)) / 400;
   const marginPp = Math.round(Math.min(sigmaGap * slope * 100, 25) * 10) / 10;
 
-  const reasons: string[] = [];
+  const reasons: ExplicacionConTexto[] = [];
   for (const [side, stale] of [
     [home, homeStale],
     [away, awayStale],
   ] as [FbSide, number][]) {
+    const equipo = txt(side.name);
     if (side.seededFrom) {
-      reasons.push(
-        `${side.name} acaba de subir: su Elo viene de ${side.seededFrom} con el salto de ` +
-          `división medido para esta liga, no de partidos jugados aquí.`,
-      );
+      reasons.push(explica('futbol.fiab.ascendido', { equipo, origen: txt(side.seededFrom) }));
     } else if (side.matchesInDb < MIN_MATCHES_FOR_ANY_CONFIDENCE) {
-      reasons.push(
-        `${side.name} tiene solo ${side.matchesInDb} partido(s) en el historial ` +
-          `(recién ascendido o liga sin datos suficientes).`,
-      );
+      reasons.push(explica('futbol.fiab.pocosPartidos', { equipo, n: int(side.matchesInDb) }));
     } else if (side.matchesInDb < MATCHES_FOR_HIGH) {
-      reasons.push(`Pocos partidos de ${side.name} (${side.matchesInDb}): su Elo aún no es estable.`);
+      reasons.push(explica('futbol.fiab.inestable', { equipo, n: int(side.matchesInDb) }));
     }
     if (stale >= 4) {
-      reasons.push(
-        `${side.name} no tiene partidos desde hace ${humanGap(Math.round(stale * 30))}: ` +
-          `su Elo describe a la plantilla de entonces.`,
-      );
+      reasons.push(explica('futbol.fiab.parado', { equipo, tiempo: frases([humanGap(Math.round(stale * 30))], 'coma') }));
     }
   }
   // A promoted club has zero matches HERE and that is not the same as knowing
@@ -874,7 +868,7 @@ export function buildFootballPrediction(
     label:
       level === 'high' ? 'fiabilidad alta' : level === 'medium' ? 'fiabilidad media' : 'fiabilidad baja',
     marginPp,
-    reasons,
+    ...motivos(reasons),
     matchesBehind: { home: home.matchesInDb, away: away.matchesInDb },
   };
 
@@ -898,37 +892,32 @@ export function buildFootballPrediction(
         ? 'draw'
         : 'away';
   const outcomeProb = outcome === 'home' ? probs.home : outcome === 'draw' ? probs.draw : probs.away;
-  const outcomeLabel =
-    outcome === 'home' ? `Gana ${home.name}` : outcome === 'draw' ? 'Empate' : `Gana ${away.name}`;
+  const ganador = outcome === 'home' ? home.name : outcome === 'away' ? away.name : null;
+  const veredicto = ganador ? explica('futbol.veredicto.gana', { equipo: txt(ganador) }) : explica('futbol.veredicto.empate');
+  const veredictoEnFrase = ganador ? explica('futbol.veredictoEnFrase.gana', { equipo: txt(ganador) }) : explica('futbol.veredictoEnFrase.empate');
+  const outcomeLabel = veredicto.texto;
   // Football is genuinely open far more often than the other two sports: with
   // three outcomes, a "favourite" at 38% is not a favourite in any useful sense.
   const open = outcomeProb < 0.4;
 
   const pHomeDraw = probs.home + probs.draw;
   const pDrawAway = probs.draw + probs.away;
+  const doble =
+    pHomeDraw >= pDrawAway
+      ? explica('futbol.dobleOportunidad.1X', { equipo: txt(home.name) })
+      : explica('futbol.dobleOportunidad.X2', { equipo: txt(away.name) });
   const doubleChance =
     pHomeDraw >= pDrawAway
-      ? {
-          outcome: '1X' as const,
-          label: `${home.name} o empate`,
-          probability: pHomeDraw,
-        }
-      : {
-          outcome: 'X2' as const,
-          label: `Empate o ${away.name}`,
-          probability: pDrawAway,
-        };
+      ? { outcome: '1X' as const, label: doble.texto, probability: pHomeDraw, explicacion: sinTexto(doble) }
+      : { outcome: 'X2' as const, label: doble.texto, probability: pDrawAway, explicacion: sinTexto(doble) };
 
   // ---- reasoning ----
   const ratingGap = Math.round((home.elo - away.elo) * 10) / 10;
   const homeCourt = neutral ? 0 : HOME_ADVANTAGE;
+  const factor = (key: 'rating' | 'home' | 'squad', e: ExplicacionConTexto, pointsForHome: number) => ({ key, label: e.texto, pointsForHome, explicacion: sinTexto(e) });
   const factors: FbPrediction['reasoning']['factors'] = [
-    { key: 'rating', label: 'Elo (nivel del equipo)', pointsForHome: ratingGap },
-    {
-      key: 'home',
-      label: neutral ? 'Campo neutral' : 'Ventaja de campo',
-      pointsForHome: homeCourt,
-    },
+    factor('rating', explica('futbol.factor.rating'), ratingGap),
+    factor('home', explica(neutral ? 'futbol.factor.neutral' : 'futbol.factor.home'), homeCourt),
   ];
   // Absences act on goals, not on the rating, so there is no Elo number to show.
   // Converting the goal effect back to the Elo points that would have produced it
@@ -936,104 +925,107 @@ export function buildFootballPrediction(
   // breakdown reads as one thing rather than two.
   const squadElo = availabilityAsElo(homeSquad, awaySquad);
   if (Math.abs(squadElo) >= 1) {
-    factors.push({ key: 'squad', label: 'Bajas y lesiones', pointsForHome: Math.round(squadElo) });
+    factors.push(factor('squad', explica('futbol.factor.squad'), Math.round(squadElo)));
   }
-  const reasoningText =
+  // La diferencia de Elo con sus decimales y la coma (antes salía «45.3 puntos»).
+  const puntos = exacto(Math.abs(ratingGap));
+  const lectura =
     Math.abs(ratingGap) < 15
-      ? `Los dos equipos están muy igualados en Elo${neutral ? '' : '; la ventaja de campo inclina la balanza'}.`
-      : ratingGap > 0
-        ? `${home.name} es mejor equipo según el Elo (${Math.abs(ratingGap)} puntos)${neutral ? '' : ', y además juega en casa'}.`
-        : `${away.name} es mejor equipo según el Elo (${Math.abs(ratingGap)} puntos)${neutral ? '' : ', aunque juega fuera'}.`;
+      ? explica(neutral ? 'futbol.lectura.igualados' : 'futbol.lectura.igualadosCampo')
+      : neutral
+        ? explica('futbol.lectura.mejorNeutral', { equipo: txt(ratingGap > 0 ? home.name : away.name), puntos })
+        : ratingGap > 0
+          ? explica('futbol.lectura.mejorLocal', { equipo: txt(home.name), puntos })
+          : explica('futbol.lectura.mejorVisitante', { equipo: txt(away.name), puntos });
+  const reasoningText = lectura.texto;
 
   // ---- summary ----
   const top = scorelines[0];
   // Never lowercase the label: it contains a club name, and "gana manchester
   // city fc" reads like a bug even though the number is right.
+  const una = (e: ExplicacionConTexto): ParamExp => frases([e], 'coma');
   const headline = open
-    ? `Partido abierto: ninguna opción llega al 40\u00a0%. Lo más sólido que se puede decir ` +
-      `es «${doubleChance.label}» (${pct(doubleChance.probability)}); la opción suelta ` +
-      `más probable es «${outcomeLabel}» (${pct(outcomeProb)}).`
-    : `Lo más probable: ${outcomeLabel} (${pct(outcomeProb)}), con ${top.label} como marcador más probable (${pct(top.probability)}).`;
+    ? explica('futbol.titular.abierto', { doble: una(doble), pDoble: porc(doubleChance.probability), opcion: una(veredicto), pOpcion: porc(outcomeProb) })
+    : explica('futbol.titular', { opcion: una(veredicto), pOpcion: porc(outcomeProb), marcador: txt(top.label), pMarcador: porc(top.probability) });
 
-  const bullets: string[] = [];
+  const local = txt(home.name);
+  const visitante = txt(away.name);
+  const bullets: ExplicacionConTexto[] = [];
+  bullets.push(explica('futbol.1x2', { local, pLocal: porc(probs.home), pEmpate: porc(probs.draw), visitante, pVisitante: porc(probs.away) }));
   bullets.push(
-    `1X2: ${home.name} ${pct(probs.home)} · empate ${pct(probs.draw)} · ${away.name} ${pct(probs.away)}.` +
-      ` El empate se lleva ~1 de cada 4 partidos en el fútbol, por eso siempre aparece como opción real.`,
+    explica('futbol.goles', { local, gLocal: exacto(home.expectedGoals), gVisitante: exacto(away.expectedGoals), visitante, total: exacto(round2(expectedTotalGoals(dist))) }),
   );
+  bullets.push(explica('futbol.overUnder', { pMas: porc(over25), pMenos: porc(1 - over25), pAmbos: porc(bts) }));
   bullets.push(
-    `Goles esperados: ${home.name} ${num(home.expectedGoals)} – ${num(away.expectedGoals)} ${away.name} ` +
-      `(total ${num(round2(expectedTotalGoals(dist)))}).`,
-  );
-  bullets.push(
-    `Más de 2,5 goles: ${pct(over25)} · menos de 2,5: ${pct(1 - over25)} · ambos marcan: ${pct(bts)}.`,
-  );
-  bullets.push(
-    `Marcadores más probables: ${scorelines.slice(0, 3).map((s) => `${s.label} (${pct(s.probability)})`).join(', ')}.`,
+    explica('futbol.marcadores', {
+      lista: frases(scorelines.slice(0, 3).map((x) => explica('futbol.marcador', { marcador: txt(x.label), p: porc(x.probability) })), 'coma'),
+    }),
   );
   const homeAbsences = homeSquad ? describeAvailability(homeSquad, home.name) : null;
   const awayAbsences = awaySquad ? describeAvailability(awaySquad, away.name) : null;
   if (homeAbsences) bullets.push(homeAbsences);
   if (awayAbsences) bullets.push(awayAbsences);
-  if (squadsKnown && !homeAbsences && !awayAbsences) {
-    bullets.push(
-      'Sin bajas conocidas en ninguno de los dos: la predicción supone las alineaciones habituales. ' +
-        'Si sabes quién no juega, márcalo y los números se recalculan.',
-    );
-  }
+  if (squadsKnown && !homeAbsences && !awayAbsences) bullets.push(explica('futbol.sinBajas'));
+  bullets.push(neutral ? explica('futbol.campo.neutral') : explica('futbol.campo.casa', { equipo: local, puntos: exacto(HOME_ADVANTAGE) }));
   bullets.push(
-    neutral
-      ? 'Campo neutral: no se aplica ventaja de campo.'
-      : `${home.name} juega en casa (+${HOME_ADVANTAGE} puntos de Elo).`,
+    explica('futbol.elo', { local, eloLocal: int(home.elo), rankLocal: int(home.eloRank), visitante, eloVisitante: int(away.elo), rankVisitante: int(away.eloRank) }),
   );
   bullets.push(
-    `Elo: ${home.name} ${Math.round(home.elo)} (#${home.eloRank}) vs ${away.name} ${Math.round(away.elo)} (#${away.eloRank}).`,
-  );
-  bullets.push(
-    `Balance: ${home.name} ${home.record.wins}G-${home.record.draws}E-${home.record.losses}P ` +
-      `(${home.venueRecord.wins}-${home.venueRecord.draws}-${home.venueRecord.losses} en casa); ` +
-      `${away.name} ${away.record.wins}-${away.record.draws}-${away.record.losses} ` +
-      `(${away.venueRecord.wins}-${away.venueRecord.draws}-${away.venueRecord.losses} fuera).`,
+    explica('futbol.balance', {
+      local,
+      g: int(home.record.wins),
+      e: int(home.record.draws),
+      p: int(home.record.losses),
+      gCasa: int(home.venueRecord.wins),
+      eCasa: int(home.venueRecord.draws),
+      pCasa: int(home.venueRecord.losses),
+      visitante,
+      g2: int(away.record.wins),
+      e2: int(away.record.draws),
+      p2: int(away.record.losses),
+      gFuera: int(away.venueRecord.wins),
+      eFuera: int(away.venueRecord.draws),
+      pFuera: int(away.venueRecord.losses),
+    }),
   );
   if (home.last5.length && away.last5.length) {
-    bullets.push(`Forma (últimos 5): ${home.name} ${home.last5.join('')} · ${away.name} ${away.last5.join('')}.`);
+    bullets.push(explica('futbol.forma', { local, formaLocal: txt(home.last5.join('')), visitante, formaVisitante: txt(away.last5.join('')) }));
   }
   if (h2h.total > 0) {
     const rs = h2h.recentSeasons;
+    const historico = { hg: int(hw), he: int(hd), hp: int(ha), total: int(h2h.total) };
     bullets.push(
-      (rs
-        ? `Historial directo reciente (${rs.seasons} temporadas): ${home.name} ${rs.homeWins}-${rs.draws}-${rs.awayWins} ${away.name}. Histórico: ${hw}-${hd}-${ha}`
-        : `Historial directo: ${home.name} ${hw}-${hd}-${ha} ${away.name}`) +
-        ` en ${h2h.total} partidos. No entra en la probabilidad: el Elo ya recoge el nivel de ambos.`,
+      rs
+        ? explica('futbol.h2h.reciente', { temporadas: int(rs.seasons), local, g: int(rs.homeWins), e: int(rs.draws), p: int(rs.awayWins), visitante, ...historico })
+        : explica('futbol.h2h', { local, visitante, ...historico }),
     );
   }
   if (marketComparison.market) {
     const m = marketComparison.market;
     const e = marketComparison.edge!;
     if (marketComparison.verdict === 'agree') {
-      bullets.push(
-        `Las casas coinciden a grandes rasgos (${pct(m.home)} / ${pct(m.draw)} / ${pct(m.away)}).`,
-      );
+      bullets.push(explica('futbol.mercado.coincide', { pLocal: porc(m.home), pEmpate: porc(m.draw), pVisitante: porc(m.away) }));
     } else {
-      const which =
+      const quien =
         marketComparison.verdict === 'value_home'
-          ? home.name
+          ? local
           : marketComparison.verdict === 'value_away'
-            ? away.name
-            : 'el empate';
+            ? visitante
+            : una(explica('futbol.elEmpate'));
       const diff =
         marketComparison.verdict === 'value_home' ? e.home : marketComparison.verdict === 'value_away' ? e.away : e.draw;
-      bullets.push(
-        `El modelo da ${num(diff * 100, 1)} pp más a ${which} que el mercado: posible value.`,
-      );
+      bullets.push(explica('futbol.mercado.value', { pp: dec(diff * 100, 1), quien }));
     }
   } else {
-    bullets.push('Sin cuotas disponibles para comparar con el mercado.');
+    bullets.push(explica('futbol.mercado.sin'));
   }
   if (reliability.level !== 'high') {
+    const margen = dec(reliability.marginPp, 1);
+    const primero = reliability.explicaciones[0];
     bullets.push(
-      `⚠️ ${reliability.label.charAt(0).toUpperCase() + reliability.label.slice(1)}: ` +
-        `tómalo como un rango (±${num(reliability.marginPp, 1)} pp).` +
-        (reliability.reasons.length ? ` ${reliability.reasons[0]}` : ''),
+      primero
+        ? explica(`futbol.aviso.${reliability.level}.motivo`, { margen, motivo: { t: 'frases', v: [primero], sep: 'coma' } })
+        : explica(`futbol.aviso.${reliability.level}`, { margen }),
     );
   }
 
@@ -1068,10 +1060,10 @@ export function buildFootballPrediction(
     squads: { home: homeSquad, away: awaySquad },
     market: marketComparison,
     h2h,
-    reasoning: { factors, text: reasoningText },
+    reasoning: { factors, text: reasoningText, explicaciones: [sinTexto(lectura)] },
     reliability,
-    summary: { headline, bullets },
-    verdict: { outcome, label: outcomeLabel, probability: outcomeProb, open, doubleChance },
+    summary: resumen(headline, bullets),
+    verdict: { outcome, label: outcomeLabel, explicacion: sinTexto(veredicto), enFrase: sinTexto(veredictoEnFrase), probability: outcomeProb, open, doubleChance },
     disclaimer: DISCLAIMER,
   };
 }

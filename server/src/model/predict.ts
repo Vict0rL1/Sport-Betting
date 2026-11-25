@@ -22,6 +22,7 @@
 // confidence tier derived purely from how far the probability sits from 50%.
 // ===========================================================================
 
+import { dec, exacto, explica, frases, int, porc, resumen, sinTexto, txt, type Explicacion, type ExplicacionConTexto, type Resumen, EXPLICACIONES } from '../explicaciones/index.ts';
 import {
   calibratedExpectedScore,
   calibrationScaleFor,
@@ -61,13 +62,10 @@ import type {
 // SURFACE_WEIGHT vive en elo.ts (ver allí por qué), y se reexporta desde aquí porque
 // es donde lo buscan los que ya lo importaban.
 import { SURFACE_WEIGHT } from './elo.ts';
-import { num, pct } from '../numeros.ts';
 export { SURFACE_WEIGHT };
 
-export const DISCLAIMER =
-  'Estimación estadística basada en Elo, forma reciente, head-to-head y odds de mercado. ' +
-  'NO considera lesiones de último momento, clima, cansancio ni motivación (p. ej. exhibiciones). ' +
-  'No es una certeza ni una recomendación para apostar.';
+/** El aviso de este deporte, del catálogo de explicaciones (la web lo escribe en su idioma con `aviso.tennis`). */
+export const DISCLAIMER: string = EXPLICACIONES['aviso.tennis'];
 
 export type ConfidenceTier = 'toss_up' | 'slight' | 'clear' | 'strong';
 
@@ -89,12 +87,16 @@ export interface ReasoningFactor {
   key: 'rating' | 'form' | 'h2h' | 'layoff';
   label: string;
   pointsForP1: number;
+  /** La misma etiqueta, como código (explicaciones/): la web la escribe en su idioma. */
+  explicacion: Explicacion;
 }
 
 export interface Reasoning {
   factors: ReasoningFactor[];
   topFactor: ReasoningFactor | null;
   text: string; // plain-language summary (Spanish)
+  /** El mismo texto, como códigos (explicaciones/), en orden. */
+  explicaciones: Explicacion[];
 }
 
 export interface ExpectedScore {
@@ -103,11 +105,8 @@ export interface ExpectedScore {
   note: string;
 }
 
-/** Plain-language "what is most likely to happen" for this match. */
-export interface MatchSummary {
-  headline: string;
-  bullets: string[];
-}
+/** Plain-language "what is most likely to happen" for this match (y sus códigos, ver explicaciones/). */
+export type MatchSummary = Resumen;
 
 export interface Prediction {
   tour: TourId;
@@ -188,29 +187,34 @@ function buildReasoning(
   h2hGap: number, // 2 * h2h.delta
   layoffGap: number, // layoff1 - layoff2 (both ≤ 0)
 ): Reasoning {
+  const factor = (key: ReasoningFactor['key'], pointsForP1: number): ReasoningFactor => {
+    const e = explica(`tenis.factor.${key}`);
+    return { key, label: e.texto, pointsForP1, explicacion: sinTexto(e) };
+  };
   const factors: ReasoningFactor[] = [
-    { key: 'rating', label: 'Elo (nivel + superficie)', pointsForP1: round1(ratingGap) },
-    { key: 'form', label: 'Forma reciente', pointsForP1: round1(formGap) },
-    { key: 'h2h', label: 'Head-to-head', pointsForP1: round1(h2hGap) },
-    { key: 'layoff', label: 'Inactividad', pointsForP1: round1(layoffGap) },
+    factor('rating', round1(ratingGap)),
+    factor('form', round1(formGap)),
+    factor('h2h', round1(h2hGap)),
+    factor('layoff', round1(layoffGap)),
   ];
   const ranked = [...factors].sort((a, b) => Math.abs(b.pointsForP1) - Math.abs(a.pointsForP1));
   const top = ranked[0];
   const totalGap = ratingGap + formGap + h2hGap + layoffGap;
   const favored = totalGap >= 0 ? p1Name : p2Name;
 
-  let text: string;
+  let lectura: ExplicacionConTexto;
   if (!top || Math.abs(top.pointsForP1) < 1) {
-    text = 'Ambos jugadores están muy igualados en todas las señales.';
+    lectura = explica('tenis.lectura.igualados');
   } else {
     const driverName = top.pointsForP1 >= 0 ? p1Name : p2Name;
-    const agrees = driverName === favored;
-    text = agrees
-      ? `El modelo favorece a ${favored}; la señal que más pesa es su ventaja en ${top.label.toLowerCase()}.`
-      : `El modelo favorece ligeramente a ${favored}, aunque en ${top.label.toLowerCase()} ` +
-        `la ventaja es para ${driverName}.`;
+    // La señal, dentro de la frase y en minúscula («su ventaja en forma reciente»).
+    const enFrase = frases([explica(`tenis.factorEnFrase.${top.key}`)], 'coma');
+    lectura =
+      driverName === favored
+        ? explica('tenis.lectura.favorece', { fav: txt(favored), factor: enFrase })
+        : explica('tenis.lectura.matiza', { fav: txt(favored), factor: enFrase, otro: txt(driverName) });
   }
-  return { factors, topFactor: top ?? null, text };
+  return { factors, topFactor: top ?? null, text: lectura.texto, explicaciones: [sinTexto(lectura)] };
 }
 
 /** Rough scoreline estimate from the win probability. Honest: it's a heuristic. */
@@ -237,12 +241,7 @@ function round1(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-const SURFACE_ES: Record<string, string> = { hard: 'dura', clay: 'arcilla', grass: 'hierba' };
 
-/** Format a 0..1 probability as a percentage string with one decimal. */
-function pct1(p: number): string {
-  return pct(p);
-}
 
 /**
  * Write the "what's most likely to happen" summary in plain Spanish. Everything
@@ -277,23 +276,22 @@ function buildSummary(args: {
   const dog = favIsP1 ? p2 : p1;
   // One decimal everywhere, matching what the UI displays, so the prose and the
   // big numbers never show different figures for the same quantity.
-  const favProb = pct1(Math.max(prob1, 1 - prob1));
-  const dogProb = pct1(Math.min(prob1, 1 - prob1));
-  const surfName = SURFACE_ES[args.surface.toLowerCase()] ?? args.surface.toLowerCase();
+  const favProb = porc(Math.max(prob1, 1 - prob1));
+  const dogProb = porc(Math.min(prob1, 1 - prob1));
+  // La superficie, como pieza de la frase en cada idioma; una desconocida, tal cual la trae el dato.
+  const clave = args.surface.toLowerCase();
+  const superficie =
+    clave === 'hard' || clave === 'clay' || clave === 'grass' ? frases([explica(`tenis.superficie.${clave}`)], 'coma') : txt(clave);
 
   // --- Headline ---
   // Most likely single outcome, with its own probability — derived, not guessed.
   const top = args.scorelines.outcomes[0];
-  const topPct = pct1(top.probability);
   const headline =
     confidence === 'toss_up'
-      ? `Partido muy parejo: ligerísima ventaja para ${fav} (${favProb}–${dogProb}). ` +
-        `Cualquiera de los dos puede ganar.`
-      : `Lo más probable: gana ${fav} (${favProb}). ` +
-        `El marcador más probable es ${top.label} para ` +
-        `${top.side === 1 ? p1 : p2} (${topPct}).`;
+      ? explica('tenis.titular.parejo', { fav: txt(fav), pFav: favProb, pDog: dogProb })
+      : explica('tenis.titular', { fav: txt(fav), pFav: favProb, marcador: txt(top.label), lado: txt(top.side === 1 ? p1 : p2), pMarcador: porc(top.probability) });
 
-  const bullets: string[] = [];
+  const bullets: ExplicacionConTexto[] = [];
 
   // --- Surface / rating ---
   const favEff = favIsP1 ? args.eff1 : args.eff2;
@@ -306,13 +304,11 @@ function buildSummary(args: {
     const leader = favS >= dogS ? fav : dog;
     bullets.push(
       Math.abs(favS - dogS) >= 25
-        ? `En ${surfName}, ${leader} llega con mejor Elo (${Math.max(favS, dogS)} vs ${Math.min(favS, dogS)}).`
-        : `Nivel muy parejo en ${surfName} (${favS} vs ${dogS}); la ventaja viene de otras señales.`,
+        ? explica('tenis.elo.mejor', { superficie, lider: txt(leader), alto: int(Math.max(favS, dogS)), bajo: int(Math.min(favS, dogS)) })
+        : explica('tenis.elo.parejo', { superficie, fav: int(favS), dog: int(dogS) }),
     );
   } else {
-    bullets.push(
-      `Superficie no identificada: la predicción usa el Elo general (${Math.round(favEff.overall)} vs ${Math.round(dogEff.overall)}).`,
-    );
+    bullets.push(explica('tenis.elo.general', { fav: int(favEff.overall), dog: int(dogEff.overall) }));
   }
 
   // --- Surface record ---
@@ -320,32 +316,29 @@ function buildSummary(args: {
   const dogRec = favIsP1 ? args.rec2 : args.rec1;
   if (favRec.wins + favRec.losses >= 5 && dogRec.wins + dogRec.losses >= 5) {
     bullets.push(
-      `Historial en ${surfName}: ${fav} ${favRec.wins}–${favRec.losses}, ${dog} ${dogRec.wins}–${dogRec.losses}.`,
+      explica('tenis.historialSuperficie', { superficie, fav: txt(fav), favG: int(favRec.wins), favP: int(favRec.losses), dog: txt(dog), dogG: int(dogRec.wins), dogP: int(dogRec.losses) }),
     );
   }
 
   // --- Form ---
   const favForm = favIsP1 ? args.form1 : args.form2;
   const dogForm = favIsP1 ? args.form2 : args.form1;
-  const streakTxt = (f: FormSignal, who: string) =>
+  const racha = (f: FormSignal, who: string): ExplicacionConTexto | null =>
     f.streak >= 2
-      ? `${who} llega con ${f.streak} victorias seguidas`
+      ? explica('tenis.forma.rachaGana', { quien: txt(who), n: int(f.streak) })
       : f.streak <= -2
-        ? `${who} llega con ${-f.streak} derrotas seguidas`
+        ? explica('tenis.forma.rachaPierde', { quien: txt(who), n: int(-f.streak) })
         : null;
-  const favStreak = streakTxt(favForm, fav);
-  const dogStreak = streakTxt(dogForm, dog);
-  if (favStreak || dogStreak) {
-    bullets.push(`Forma: ${[favStreak, dogStreak].filter(Boolean).join('; ')}.`);
+  const rachas = [racha(favForm, fav), racha(dogForm, dog)].filter((x): x is ExplicacionConTexto => x != null);
+  if (rachas.length) {
+    bullets.push(explica('tenis.forma.rachas', { partes: frases(rachas, 'pyc') }));
   } else {
-    bullets.push(
-      `Forma reciente parecida (${pct(favForm.winRate, 0)} vs ${pct(dogForm.winRate, 0)} de victorias).`,
-    );
+    bullets.push(explica('tenis.forma.parecida', { pFav: porc(favForm.winRate, 0), pDog: porc(dogForm.winRate, 0) }));
   }
 
   // --- Head-to-head ---
   if (h2h.total === 0) {
-    bullets.push('Nunca se han enfrentado, así que no hay historial directo que pese.');
+    bullets.push(explica('tenis.h2h.nunca'));
   } else {
     const favWins = favIsP1 ? h2h.p1Wins : h2h.p2Wins;
     const dogWins = favIsP1 ? h2h.p2Wins : h2h.p1Wins;
@@ -353,18 +346,15 @@ function buildSummary(args: {
     const hi = Math.max(favWins, dogWins);
     const lo = Math.min(favWins, dogWins);
     if (favWins === dogWins) {
-      bullets.push(`El head-to-head está igualado ${hi}–${lo} en ${h2h.total} enfrentamientos.`);
+      bullets.push(explica('tenis.h2h.igualado', { a: int(hi), b: int(lo), total: int(h2h.total) }));
     } else if (h2h.total <= 2) {
       // One or two meetings is anecdote, not dominance — say it plainly.
-      bullets.push(
-        `Solo se han enfrentado ${h2h.total} ${h2h.total === 1 ? 'vez' : 'veces'} ` +
-          `(ganó ${leader}): poco peso en la predicción.`,
-      );
+      bullets.push(explica('tenis.h2h.pocos', { n: int(h2h.total), lider: txt(leader) }));
     } else {
       bullets.push(
         hi - lo >= 2
-          ? `${leader} domina el head-to-head ${hi}–${lo}.`
-          : `El head-to-head está muy ajustado (${hi}–${lo} para ${leader}).`,
+          ? explica('tenis.h2h.domina', { lider: txt(leader), a: int(hi), b: int(lo) })
+          : explica('tenis.h2h.ajustado', { a: int(hi), b: int(lo), lider: txt(leader) }),
       );
     }
   }
@@ -377,16 +367,14 @@ function buildSummary(args: {
     if (Math.abs(diff) >= 3) {
       const better = diff > 0 ? fav : dog;
       bullets.push(
-        `${better} tiene el saque más fuerte (${num(Math.max(favServe.acePct, dogServe.acePct))}\u00a0% de aces vs ${num(Math.min(favServe.acePct, dogServe.acePct))}\u00a0%).`,
+        explica('tenis.saque', { mejor: txt(better), alto: exacto(Math.max(favServe.acePct, dogServe.acePct)), bajo: exacto(Math.min(favServe.acePct, dogServe.acePct)) }),
       );
     }
   }
 
   // --- Scoreline shape: how the match is likely to unfold ---
   bullets.push(
-    `Probabilidad de que se vaya al set decisivo: ` +
-      `${pct1(args.scorelines.decidingSetProbability)}; ` +
-      `de que el favorito gane sin ceder sets: ${pct1(args.scorelines.straightSetsProbability)}.`,
+    explica('tenis.sets', { pDecisivo: porc(args.scorelines.decidingSetProbability), pCorridos: porc(args.scorelines.straightSetsProbability) }),
   );
 
   // --- Tournament history ---
@@ -394,33 +382,33 @@ function buildSummary(args: {
     const th = favIsP1 ? args.tournamentHistory.p1 : args.tournamentHistory.p2;
     const to = favIsP1 ? args.tournamentHistory.p2 : args.tournamentHistory.p1;
     if (th.played > 0 || to.played > 0) {
-      const describe = (who: string, h: TournamentHistory) =>
+      const describe = (who: string, h: TournamentHistory): ExplicacionConTexto =>
         h.played === 0
-          ? `${who} nunca ha jugado aquí`
-          : `${who} ${h.wins}–${h.losses}` +
-            (h.titles > 0 ? `, ${h.titles} ${h.titles === 1 ? 'título' : 'títulos'}` : '') +
-            (h.titles === 0 && h.bestRound ? `, mejor ronda ${h.bestRound}` : '');
-      bullets.push(`En este torneo: ${describe(fav, th)}; ${describe(dog, to)}.`);
+          ? explica('tenis.torneo.nunca', { quien: txt(who) })
+          : h.titles > 0
+            ? explica('tenis.torneo.titulos', { quien: txt(who), g: int(h.wins), p: int(h.losses), t: int(h.titles) })
+            : h.bestRound
+              ? explica('tenis.torneo.ronda', { quien: txt(who), g: int(h.wins), p: int(h.losses), ronda: txt(h.bestRound) })
+              : explica('tenis.torneo.balance', { quien: txt(who), g: int(h.wins), p: int(h.losses) });
+      bullets.push(explica('tenis.torneo', { partes: frases([describe(fav, th), describe(dog, to)], 'pyc') }));
     }
   }
 
   // --- Physical availability (evidence from results, not a medical claim) ---
-  const fitnessNotes: string[] = [];
+  const fitnessNotes: ExplicacionConTexto[] = [];
   for (const [who, f] of [
     [fav, favIsP1 ? args.fitness.p1 : args.fitness.p2],
     [dog, favIsP1 ? args.fitness.p2 : args.fitness.p1],
   ] as [string, FitnessSignals][]) {
-    const flags: string[] = [];
-    if (f.retirements > 0)
-      flags.push(`${f.retirements} retiro${f.retirements > 1 ? 's' : ''} en sus últimos 20 partidos`);
-    if (f.walkovers > 0) flags.push(`${f.walkovers} W/O`);
-    if (f.daysSinceLastMatch != null && f.daysSinceLastMatch > 45)
-      flags.push(`${f.daysSinceLastMatch} días sin competir`);
-    if (f.matchesLast30Days >= 12) flags.push(`carga alta (${f.matchesLast30Days} partidos en 30 días)`);
-    if (flags.length) fitnessNotes.push(`${who}: ${flags.join(', ')}`);
+    const flags: ExplicacionConTexto[] = [];
+    if (f.retirements > 0) flags.push(explica('tenis.fisico.retiros', { n: int(f.retirements) }));
+    if (f.walkovers > 0) flags.push(explica('tenis.fisico.wo', { n: int(f.walkovers) }));
+    if (f.daysSinceLastMatch != null && f.daysSinceLastMatch > 45) flags.push(explica('tenis.fisico.inactivo', { n: int(f.daysSinceLastMatch) }));
+    if (f.matchesLast30Days >= 12) flags.push(explica('tenis.fisico.carga', { n: int(f.matchesLast30Days) }));
+    if (flags.length) fitnessNotes.push(explica('tenis.fisico.jugador', { quien: txt(who), senales: frases(flags, 'coma') }));
   }
   if (fitnessNotes.length) {
-    bullets.push(`Señales físicas — ${fitnessNotes.join('; ')}.`);
+    bullets.push(explica('tenis.fisico', { partes: frases(fitnessNotes, 'pyc') }));
   }
 
   // --- Market agreement ---
@@ -428,20 +416,16 @@ function buildSummary(args: {
     const marketFav = favIsP1 ? market.market.implied1 : market.market.implied2;
     const modelFav = Math.max(prob1, 1 - prob1);
     const gapPp = (modelFav - marketFav) * 100; // percentage points
-    const marketFavProb = pct1(marketFav);
+    const pMercado = porc(marketFav);
     if (Math.abs(gapPp) < VALUE_THRESHOLD * 100) {
-      bullets.push(`Las casas de apuestas coinciden (${marketFavProb} para ${fav}).`);
+      bullets.push(explica('tenis.mercado.coincide', { pMercado, fav: txt(fav) }));
     } else if (gapPp > 0) {
-      bullets.push(
-        `El modelo es más optimista con ${fav} (${favProb}) que el mercado (${marketFavProb}): posible value en ${fav}.`,
-      );
+      bullets.push(explica('tenis.mercado.optimista', { fav: txt(fav), pModelo: favProb, pMercado }));
     } else {
-      bullets.push(
-        `El mercado ve a ${fav} más favorito (${marketFavProb}) que el modelo (${favProb}): el valor estaría en ${dog}.`,
-      );
+      bullets.push(explica('tenis.mercado.pesimista', { fav: txt(fav), pMercado, pModelo: favProb, dog: txt(dog) }));
     }
   } else {
-    bullets.push('Sin cuotas disponibles para comparar con el mercado.');
+    bullets.push(explica('tenis.mercado.sin'));
   }
 
   // --- How solid is this prediction? (closing caveat, last on purpose) ---
@@ -449,20 +433,18 @@ function buildSummary(args: {
   // the confidence of the wording matches the confidence of the data.
   const rel = args.reliability;
   if (rel.level !== 'high') {
-    const band = `${pct1(Math.max(prob1, 1 - prob1))} ± ${num(rel.marginPp, 1)} pp`;
+    const banda = { p: favProb, margen: dec(rel.marginPp, 1) };
+    const primero = rel.explicaciones[0];
     bullets.push(
-      `⚠️ ${cap(rel.label)}: tómalo como un rango (${band}) más que como una cifra exacta.` +
-        (rel.reasons.length ? ` ${rel.reasons[0]}` : ''),
+      primero
+        ? explica(`tenis.aviso.${rel.level}.motivo`, { ...banda, motivo: { t: 'frases', v: [primero], sep: 'coma' } })
+        : explica(`tenis.aviso.${rel.level}`, banda),
     );
   }
 
-  return { headline, bullets };
+  return resumen(headline, bullets);
 }
 
-/** Capitalise the first letter (labels are stored lowercase for inline use). */
-function cap(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
 
 /**
  * Build a full, explainable prediction between two players on a given surface.

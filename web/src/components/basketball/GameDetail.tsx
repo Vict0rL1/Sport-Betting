@@ -3,6 +3,7 @@ import { formatDate } from '../../lib/format';
 import { AWAY_COLOR, HOME_COLOR } from '../../lib/theme';
 import { conNodos, useI18n, type Traducir } from '../../i18n';
 import { cifra, pct as pctF, num as numF } from '../../lib/formato';
+import { escribir, escribirJunto, escribirTodas } from '../../lib/explicacion';
 
 function Num({ value, plus = false }: { value: number; plus?: boolean }) {
   const sign = plus && value > 0 ? '+' : '';
@@ -76,7 +77,7 @@ function LastGames({ side, color }: { side: BbTeamSide; color: string }) {
 
 /** Signal-by-signal breakdown, all in Elo points so the arithmetic is visible. */
 export default function GameDetail({ prediction }: { prediction: BbPrediction }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const { teams, reasoning, projection, h2h, market } = prediction;
   const home = teams.home;
   const away = teams.away;
@@ -116,11 +117,11 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
       {/* WHY */}
       <div className="rounded-lg bg-(--raised) p-3">
         <div className="mb-2 text-[14px] uppercase tracking-wide text-(--ink-muted)">{t('det.porQue')}</div>
-        <p className="mb-3 text-(--ink-body)">{reasoning.text}</p>
+        <p className="mb-3 text-(--ink-body)">{escribirJunto(t, idioma, reasoning.explicaciones, reasoning.text)}</p>
         <div className="space-y-2">
           {reasoning.factors.map((f) => (
             <div key={f.key} className="grid grid-cols-[8rem_1fr_3rem] items-center gap-2">
-              <span className="text-[14px] text-(--ink-soft)">{f.label}</span>
+              <span className="text-[14px] text-(--ink-soft)">{escribir(t, idioma, f.explicacion, f.label)}</span>
               <FactorBar points={f.pointsForHome} max={maxFactor} />
               <span className="text-right text-[14px] tabular-nums text-(--ink-body)">
                 {f.pointsForHome > 0 ? '+' : ''}
@@ -169,12 +170,12 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
             <span style={{ color: HOME_COLOR }}>{home.name}</span>
             <span className="text-(--ink-soft)">
               {' '}
-              {t('bkd.totalSpread', { n: Math.round(projection.total ?? 0), spread: projection.spreadLabel })}
+              {t('bkd.totalSpread', { n: Math.round(projection.total ?? 0), spread: escribir(t, idioma, projection.spreadExplicacion, projection.spreadLabel) })}
             </span>
           </p>
         ) : (
           <p className="text-(--ink-soft)">
-            {t('bkd.sinMedias', { spread: projection.spreadLabel })}
+            {t('bkd.sinMedias', { spread: escribir(t, idioma, projection.spreadExplicacion, projection.spreadLabel) })}
           </p>
         )}
         <p className="mt-2 text-[14px] text-(--ink-muted)">
@@ -299,7 +300,7 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
         )}
       </div>
 
-      <p className="text-[13px] leading-relaxed text-(--ink-muted)">{prediction.disclaimer}</p>
+      <p className="text-[13px] leading-relaxed text-(--ink-muted)">{escribir(t, idioma, { codigo: 'aviso.basketball', params: {} }, prediction.disclaimer)}</p>
     </div>
   );
 }
@@ -309,7 +310,7 @@ export default function GameDetail({ prediction }: { prediction: BbPrediction })
  * qualifies every figure below it.
  */
 function ReliabilityBlock({ prediction }: { prediction: BbPrediction }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const rel = prediction.reliability;
   const favIsHome = prediction.model.probHome >= 0.5;
   const favProb = favIsHome ? prediction.model.probHome : prediction.model.probAway;
@@ -330,7 +331,7 @@ function ReliabilityBlock({ prediction }: { prediction: BbPrediction }) {
         {t('bkd.cuantaConfianza')}
       </div>
       <p className="text-(--ink-body)">
-        <strong className="capitalize">{rel.label}</strong>{' '}
+        <strong className="capitalize">{t(`fiab.nivel.${rel.level}`)}</strong>{' '}
         {conNodos(t('bkd.entre', { equipo: favName }), {
           lo: <strong className="tabular-nums">{pctF(lo, 1)}</strong>,
           hi: <strong className="tabular-nums">{pctF(hi, 1)}</strong>,
@@ -349,7 +350,7 @@ function ReliabilityBlock({ prediction }: { prediction: BbPrediction }) {
       </div>
       {rel.reasons.length > 0 && (
         <ul className="mt-2 space-y-1">
-          {rel.reasons.map((r, i) => (
+          {escribirTodas(t, idioma, rel.explicaciones, rel.reasons).map((r, i) => (
             <li key={i} className="flex gap-2 text-[14px] text-(--ink-body)">
               <span className="text-(--ink-faint)">•</span>
               <span>{r}</span>

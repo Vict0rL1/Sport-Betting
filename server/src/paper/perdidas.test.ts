@@ -6,7 +6,7 @@ import '../test/setup.ts';
 
 const { getDb } = await import('../db.ts');
 const { place, perdidasPapel } = await import('./bankroll.ts');
-const { perdidasRealizadas } = await import('../staking/policy.ts');
+const { perdidasRealizadas, lossState, pendingExposure, DEFAULT_CONFIG } = await import('../staking/policy.ts');
 const { recordOddsResponse } = await import('../odds/snapshots.ts');
 
 const db = getDb();
@@ -63,11 +63,16 @@ test('la regla: hoy y desde el lunes, por día local de liquidación', () => {
       { settled_at: en(5), profit: -30 }, // lunes de esta semana
       { settled_at: en(4), profit: -500 }, // domingo pasado: otra semana
       { settled_at: en(6), profit: 15 }, // las ganancias también cuentan
-      { settled_at: en(7, 9), profit: null }, // anulada: cero
+      { settled_at: en(7, 9), profit: 0 }, // anulada: settle() escribe 0
     ],
     miercoles,
   );
   assert.deepEqual(r, { hoy: -20, semana: -35 });
+  // Un beneficio que FALTA no es un 0 (seguimiento del PR #18): settle() nunca lo deja nulo, así que
+  // una fila así es un dato que no se sabe, y el límite de ese periodo queda sin evaluar.
+  assert.deepEqual(perdidasRealizadas([{ settled_at: en(7, 9), profit: null }], miercoles), { hoy: null, semana: null });
+  assert.deepEqual(perdidasRealizadas([{ settled_at: en(5), profit: null }], miercoles), { hoy: 0, semana: null }, 'del lunes: hoy se sabe');
+  assert.deepEqual(perdidasRealizadas([{ settled_at: en(4), profit: null }], miercoles), { hoy: 0, semana: 0 }, 'de la semana pasada: no cuenta');
 });
 
 test('el registro personal no frena al banco de papel', () => {
@@ -84,6 +89,8 @@ test('el registro personal no frena al banco de papel', () => {
 
 test('con sus propias pérdidas de hoy por encima del 5 % del banco, el banco de papel no apuesta', () => {
   partido('epl-dos', 'Liverpool', 'Everton', 50);
+  const personalAntes = lossState(1000, DEFAULT_CONFIG, new Date(ahora), 'EUR');
+  const pendienteAntes = pendingExposure('EUR');
   // Dos apuestas de papel perdidas hoy: −60 sobre un banco de 1.000 (el límite diario es el 5 %).
   // Se dan de alta pendientes y se liquidan una vez, como lo hace el banco.
   for (const i of [1, 2]) {
@@ -99,6 +106,9 @@ test('con sus propias pérdidas de hoy por encima del 5 % del banco, el banco de
   }
   const p = perdidasPapel(new Date(ahora));
   assert.equal(p.hoy, -60);
+  // Y al revés (seguimiento del PR #18): las pérdidas del papel no cuentan para el registro personal.
+  assert.deepEqual(lossState(1000, DEFAULT_CONFIG, new Date(ahora), 'EUR'), personalAntes, 'el registro personal solo ve `bets`');
+  assert.equal(pendingExposure('EUR'), pendienteAntes);
   const r = place();
   assert.equal(r.colocadas, 0, JSON.stringify(r));
   assert.ok(r.detalle.some((d) => /Liverpool.*límite de pérdida DIARIA/.test(d)), r.detalle.join('\n'));

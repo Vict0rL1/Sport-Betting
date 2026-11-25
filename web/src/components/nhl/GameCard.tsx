@@ -6,6 +6,7 @@ import { TeamName } from '../nfl/GameCardPartes';
 import { Detail } from './GameCardPartes';
 import { conNodos, useI18n } from '../../i18n';
 import { cifra } from '../../lib/formato';
+import { escribirTodas } from '../../lib/explicacion';
 
 /**
  * Un partido de la NHL.
@@ -15,7 +16,7 @@ import { cifra } from '../../lib/formato';
  * de goles del acta, en el que la prórroga o la tanda suman uno. Todo sale de la misma distribución.
  */
 export default function GameCard({ item, onOpenTeam }: { item: NhlGameWithPrediction; onOpenTeam: (id: string) => void }) {
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const { game, prediction, teams } = item;
   const probs = prediction?.final ?? null;
   const resultado = item.outcome.result;
@@ -96,7 +97,7 @@ export default function GameCard({ item, onOpenTeam }: { item: NhlGameWithPredic
                 level={prediction.reliability.level}
                 label={prediction.reliability.label}
                 marginPp={prediction.reliability.marginPp}
-                title={[t('eq.margenPp', { pp: prediction.reliability.marginPp }), t('nhlc.bandaJuicio'), ...prediction.reliability.reasons].join('\n')}
+                title={[t('eq.margenPp', { pp: prediction.reliability.marginPp }), t('nhlc.bandaJuicio'), ...escribirTodas(t, idioma, prediction.reliability.explicaciones, prediction.reliability.reasons)].join('\n')}
               />
             </div>
           </div>

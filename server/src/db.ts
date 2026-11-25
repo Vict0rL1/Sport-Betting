@@ -397,6 +397,17 @@ export const MIGRACIONES: Migracion[] = [
       d.exec(ledgerize(WATCHLIST_SCHEMA, ctx.ledger));
     },
   },
+  // Revisión del PR 17 (E3/E5): la nota de cada estimación guardada (dato personal, editable; la
+  // instantánea a la que apunta no se toca) y la instantánea a la que se enlaza una apuesta. Solo
+  // columnas nuevas: lo de antes queda NULL (sin nota, sin enlazar).
+  { version: 30, nombre: 'notas-y-apuestas-enlazadas', destino: 'ledger', up: (d) => addMissingColumns(d) },
+  // Revisión del PR 17 (G3): la cola de avisos aplazados por las horas de silencio. Tabla nueva; el
+  // esquema de notificaciones es idempotente (CREATE IF NOT EXISTS).
+  { version: 31, nombre: 'avisos-aplazados', destino: 'ledger', up: (d, ctx) => d.exec(ledgerize(NOTIFICATIONS_SCHEMA, ctx.ledger)) },
+  // Seguimiento del PR #18 (G): la cola de aplazados cuenta los intentos sin éxito y guarda el último
+  // error, para reintentar con espera y descartar con su nota en vez de dar por enviado lo que nadie
+  // aceptó. Columnas nuevas, con valor por defecto: aditivo e idempotente.
+  { version: 32, nombre: 'intentos-de-avisos', destino: 'ledger', up: (d) => addMissingColumns(d) },
 ];
 
 export function aplicarPragmas(d: DatabaseSync, schemas: string[]): void {
@@ -1435,6 +1446,11 @@ export function addMissingColumns(d: DatabaseSync): void {
 
   // table -> column -> definition
   const wanted: Record<string, Record<string, string>> = {
+    // v32: intentos de entrega de lo aplazado por las horas de silencio (notifications/index.ts).
+    notification_pending: {
+      attempts: 'INTEGER NOT NULL DEFAULT 0',
+      last_error: 'TEXT',
+    },
     // Where a rating came from when the club has never played in this division.
     // Null for every rating earned normally; the id of the second division for a
     // club just promoted, whose Elo was transplanted with that country's measured
@@ -1518,7 +1534,8 @@ export function addMissingColumns(d: DatabaseSync): void {
     scheduler_jobs: { cadence_override: 'REAL' },
     // Rediseño de noviembre: la moneda de cada apuesta. Las anteriores quedan NULL (sin indicar):
     // no se les supone ninguna.
-    bets: { tags: 'TEXT', currency: 'TEXT' },
+    bets: { tags: 'TEXT', currency: 'TEXT', snapshot_id: 'INTEGER' },
+    saved_predictions: { note: 'TEXT', note_updated_at: 'TEXT' },
     // La versión de la política bajo la que se evaluó cada señal (Fase 3.5).
     edge_signals: { policy_version_id: 'INTEGER' },
     // Seguimiento: los grupos de correlación de cada apuesta de estrategia, congelados al apostar.

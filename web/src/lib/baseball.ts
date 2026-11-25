@@ -1,6 +1,7 @@
 // Typed client for the baseball half of the API (/api/baseball/*).
 
 import type { MatchOutcome } from './outcome';
+import type { Explicacion } from './explicacion';
 
 export interface BsbLeague {
   id: string; name: string; label: string; country: string;
@@ -20,6 +21,8 @@ export interface BsbStarter {
   rating: number | null;
   runFactor: number;
   label: string;
+  /** La descripción como código (fase C): falta en respuestas de antes. */
+  explicacion?: Explicacion | null;
 }
 
 export interface BsbSide {
@@ -34,6 +37,8 @@ export interface BsbSide {
 export interface BsbReliability {
   level: 'high' | 'medium' | 'low';
   label: string; marginPp: number; reasons: string[];
+  /** Los motivos como códigos (fase C): faltan en respuestas de antes. */
+  explicaciones?: Explicacion[];
   gamesBehind: { home: number; away: number };
 }
 
@@ -70,10 +75,10 @@ export interface BsbPrediction {
     total: number; homeWins: number; awayWins: number;
     recent: { date: string; homeId: string; awayId: string; homeRuns: number; awayRuns: number }[];
   };
-  reasoning: { factors: { key: string; label: string; pointsForHome: number }[]; text: string };
+  reasoning: { factors: { key: string; label: string; pointsForHome: number; explicacion?: Explicacion }[]; text: string; explicaciones?: Explicacion[] };
   reliability: BsbReliability;
-  summary: { headline: string; bullets: string[] };
-  verdict: { outcome: 'home' | 'away'; label: string; probability: number; close: boolean };
+  summary: { headline: string; bullets: string[]; explicaciones?: { headline: Explicacion; bullets: Explicacion[] } };
+  verdict: { outcome: 'home' | 'away'; label: string; explicacion?: Explicacion; probability: number; close: boolean };
   disclaimer: string;
 }
 

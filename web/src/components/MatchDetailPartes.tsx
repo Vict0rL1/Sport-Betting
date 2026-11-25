@@ -4,6 +4,7 @@ import { pct } from '../lib/format';
 import { num } from '../lib/formato';
 import { P1_COLOR, P2_COLOR } from './ProbabilityBars';
 import { conNodos, useI18n, type Clave } from '../i18n';
+import { escribirTodas } from '../lib/explicacion';
 
 export function Last5({ results, color }: { results: boolean[]; color: string }) {
   const { t } = useI18n();
@@ -36,7 +37,7 @@ export function Last5({ results, color }: { results: boolean[]; color: string })
  */
 export function ReliabilityBlock({ prediction }: { prediction: Prediction }) {
   const rel = prediction.reliability;
-  const { t } = useI18n();
+  const { t, idioma } = useI18n();
   const { p1, p2 } = prediction.players;
   // Express the range from the favourite's side — that's the number the user
   // reads off the card, so the band has to qualify the same quantity.
@@ -60,7 +61,7 @@ export function ReliabilityBlock({ prediction }: { prediction: Prediction }) {
       </div>
       <p className="text-(--ink-body)">
         {conNodos(t('det.rango', { nombre: favName }), {
-          nivel: <strong className="capitalize">{rel.label}</strong>,
+          nivel: <strong className="capitalize">{t(`fiab.nivel.${rel.level}`)}</strong>,
           lo: <strong className="tabular-nums">{pct(lo, 1)}</strong>,
           hi: <strong className="tabular-nums">{pct(hi, 1)}</strong>,
           margen: <span className="text-(--ink-soft)">(±{num(rel.marginPp, 1)} pp)</span>,
@@ -86,7 +87,7 @@ export function ReliabilityBlock({ prediction }: { prediction: Prediction }) {
       </div>
       {rel.reasons.length > 0 && (
         <ul className="mt-2 space-y-1">
-          {rel.reasons.map((r, i) => (
+          {escribirTodas(t, idioma, rel.explicaciones, rel.reasons).map((r, i) => (
             <li key={i} className="flex gap-2 text-[14px] text-(--ink-body)">
               <span className="text-(--ink-faint)">•</span>
               <span>{r}</span>

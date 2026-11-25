@@ -17,6 +17,7 @@ import { conRegistro, marcarMuertas } from './ingest/runs.ts';
 import { registrarCuotas } from './odds/metricas.ts';
 import { horasDesdeEntorno, cicloResultados, PRIMERA_PASADA_MIN } from './ingest/scheduler.ts';
 import { registrar, arrancar } from './scheduler/registry.ts';
+import { enviarAplazadas } from './notifications/index.ts';
 import { horasDesdeEntorno as horasDeCadencia } from './scheduler/horas.ts';
 import { instalarApagado } from './apagado.ts';
 import { cicloClima } from './weather/openMeteo.ts';
@@ -51,6 +52,7 @@ import { resolveNflPredictions } from './nfl/trackRecord.ts';
 import { resolveNhlPredictions } from './nhl/trackRecord.ts';
 import { resolveUfcPredictions } from './ufc/trackRecord.ts';
 import { hostDeEscucha } from './auth/mode.ts';
+import { zonaPolitica } from './staking/contabilidad.ts';
 
 /**
  * Keep the schedule current on its own: refresh once at startup and then on an
@@ -477,6 +479,11 @@ async function main() {
     // 127.0.0.1 en el portátil sin contraseña; toda la red solo con ella o en producción (D15).
     await app.listen({ port: env.port, host: hostDeEscucha() });
     app.log.info(`Tennis Predictor API listening on http://localhost:${env.port}`);
+    // Una APP_TIMEZONE mal escrita deja sin evaluar los límites de pérdida y para el banco de papel y las
+    // estrategias (staking/contabilidad.ts): se dice al arrancar, no solo en `npm run doctor`.
+    if (zonaPolitica().zona == null) {
+      app.log.error(`APP_TIMEZONE «${process.env.APP_TIMEZONE}» no es una zona horaria: los límites de pérdida quedan sin evaluar y no se dimensiona ninguna apuesta.`);
+    }
     startAutoRefresh((msg) => app.log.info(msg));
 
     const resolveLog = (msg: string) => app.log.info(msg);
@@ -498,6 +505,11 @@ async function main() {
     // Puntuar el registro en vivo con los resultados que lleguen (y al arrancar, lo atrasado).
     registrar({ nombre: 'puntuar-en-vivo', descripcion: 'Puntúa las predicciones en vivo con los resultados del archivo', cadenciaMin: RESOLVE_EVERY_MINUTES, primeraEnMin: 0, fn: (log) => resolveAllPredictions(log) });
     // Instantáneas pre-partido (T-24h, T-6h, T-1h y la final congelada). Ver prematch/snapshots.ts.
+    // Horas de silencio (G3): lo aplazado sale al acabar la ventana; lo caducado se anota y no sale.
+    registrar({ nombre: 'avisos-aplazados', descripcion: 'Envía los avisos aplazados por las horas de silencio', cadenciaMin: 5, primeraEnMin: 1, fn: async () => {
+      const r = await enviarAplazadas();
+      return `${r.enviadas} aceptados, ${r.reintentos} por reintentar, ${r.fallidas} descartados, ${r.caducadas} caducados`;
+    } });
     registrar({ nombre: 'pre-partido', descripcion: 'Predice lo próximo, guarda instantáneas y congela la final de lo que empezó', cadenciaMin: 15, primeraEnMin: 0, fn: (log) => {
         cicloPrePartido(log);
         // Las listas de próximos por defecto quedan calculadas para la siguiente visita (Fase 7.2).

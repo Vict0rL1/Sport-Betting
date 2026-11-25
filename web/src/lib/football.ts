@@ -1,6 +1,7 @@
 // Typed client for the football half of the API (/api/football/*).
 
 import type { MatchOutcome } from './outcome';
+import type { Explicacion } from './explicacion';
 
 export interface FbLeague {
   id: string; name: string; label: string; country: string; tier: number;
@@ -24,6 +25,8 @@ export interface FbSide {
 export interface FbReliability {
   level: 'high' | 'medium' | 'low';
   label: string; marginPp: number; reasons: string[];
+  /** Los motivos como códigos (fase C): faltan en respuestas de antes. */
+  explicaciones?: Explicacion[];
   matchesBehind: { home: number; away: number };
 }
 
@@ -221,16 +224,19 @@ export interface FbPrediction {
     recentSeasons: { seasons: number; homeWins: number; draws: number; awayWins: number } | null;
     recent: { date: string; homeId: string; awayId: string; homeGoals: number; awayGoals: number }[];
   };
-  reasoning: { factors: { key: string; label: string; pointsForHome: number }[]; text: string };
+  reasoning: { factors: { key: string; label: string; pointsForHome: number; explicacion?: Explicacion }[]; text: string; explicaciones?: Explicacion[] };
   reliability: FbReliability;
-  summary: { headline: string; bullets: string[] };
+  summary: { headline: string; bullets: string[]; explicaciones?: { headline: Explicacion; bullets: Explicacion[] } };
   verdict: {
     outcome: 'home' | 'draw' | 'away';
     label: string;
+    /** `label` como código, y la misma opción dentro de una frase (fase C): faltan en respuestas de antes. */
+    explicacion?: Explicacion;
+    enFrase?: Explicacion;
     probability: number;
     open: boolean;
     /** La mejor doble oportunidad. Es lo único afirmable en un partido abierto. */
-    doubleChance: { outcome: '1X' | 'X2'; label: string; probability: number };
+    doubleChance: { outcome: '1X' | 'X2'; label: string; probability: number; explicacion?: Explicacion };
   };
   disclaimer: string;
 }

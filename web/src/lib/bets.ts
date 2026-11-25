@@ -13,6 +13,9 @@ export type BetStatus = 'pending' | 'won' | 'lost' | 'void' | 'push' | 'half_won
 export const MONEDAS = ['EUR', 'USD', 'GBP'] as const;
 
 export interface Bet {
+  /** E5: la instantánea enlazada (null = sin enlazar; falta en respuestas de antes). */
+  snapshotId?: number | null;
+  estimacion?: EstimacionEnlazada | null;
   id: number;
   created_at: string;
   placed_on: string;
@@ -105,11 +108,24 @@ export interface BetInput {
   match_key?: string | null;
   tags?: string[] | null;
   currency?: string | null;
+  /** E5: la instantánea con la que se hace; null = sin enlazar. */
+  snapshot_id?: number | null;
+}
+
+/** Lo que decía la estimación enlazada a una apuesta (E5), tal como se guardó. */
+export interface EstimacionEnlazada {
+  captured_at: string;
+  outcomes: string[];
+  probs: number[];
+  model_version: string | null;
 }
 
 export interface FieldError {
   field: string;
   message: string;
+  /** Código estable del servidor (G2): se traduce con `apiError.<code>`; sin él, el texto tal cual. */
+  code?: string;
+  params?: Record<string, string | number>;
 }
 
 const BASE = '/api/bets';

@@ -2,14 +2,17 @@
 // con el deporte, la fecha, la competición, la búsqueda, «Guardados» y el orden en la URL. Las
 // pestañas de cada deporte quedan como «Análisis» y se llega desde aquí.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { useI18n, localeDe, type Clave } from '../i18n';
 import { useFiltrosQuery } from '../lib/rutas';
-import { RUTA_AJUSTES, RUTA_DE_PESTANA } from '../rutas';
+import { RUTA_AJUSTES, RUTA_DE_PESTANA, RUTA_GUARDADAS, rutaPartido } from '../rutas';
 import { SportIcon } from '../components/icons';
 import { SkeletonList } from '../components/ui';
 import { useSeguimiento } from '../components/seguimiento';
+import { useGuardadas } from '../components/guardadas';
+import { conProblema, datosDe as datosRemotos } from '../lib/remoto';
 import FilaPartido from '../components/partidos/FilaPartido';
+import PanelPartido from '../components/partidos/PanelPartido';
 import { contadorDePeticiones } from '../lib/carga';
 import { relativeTime } from '../lib/format';
 import type { Idioma } from '../i18n';
@@ -18,6 +21,8 @@ import {
   type Filtros, type Orden, type RespuestaExplorador,
 } from '../lib/explorador';
 import { leerZona } from '../lib/zona';
+import { guardarDensidad, leerDensidad, type Densidad } from '../lib/densidad';
+import { ErrorDeVista, guardarVista, leerVistas, quitarVista, renombrarVista, type Vista } from '../lib/vistas';
 import type { DeporteId } from '../lib/partidos';
 
 const DEPORTES: DeporteId[] = ['football', 'basketball', 'baseball', 'nfl', 'nhl', 'ufc', 'tennis'];
@@ -37,6 +42,7 @@ export default function Partidos() {
     liga: q.get('liga'),
     q: q.get('q') ?? '',
     guardados: q.get('guardados') === '1',
+    seguidos: q.get('seguidos') === '1',
     minimo: MINIMOS.includes(Number(q.get('minimo'))) ? Number(q.get('minimo')) : null,
     orden: q.get('orden') === 'prob' ? 'probabilidad' : 'hora',
   };
@@ -53,6 +59,12 @@ export default function Partidos() {
   const [error, setError] = useState(false);
   const [peticiones] = useState(contadorDePeticiones);
   const [vuelta, setVuelta] = useState(0);
+  // Densidad de la lista (fase C): preferencia de este navegador, aparte de los filtros.
+  const [densidad, setDensidadState] = useState<Densidad>(leerDensidad);
+  const setDensidad = (d: Densidad) => {
+    setDensidadState(d);
+    guardarDensidad(d);
+  };
   const pedir = useCallback(() => setVuelta((n) => n + 1), []);
 
   useEffect(() => {
@@ -85,50 +97,98 @@ export default function Partidos() {
   }, [pedir]);
 
   // «Guardados»: partidos seguidos, partidos de equipos o jugadores seguidos y partidos con una
-  // estimación guardada (FAV-3).
-  const [conEstimacion, setConEstimacion] = useState<string[]>([]);
-  useEffect(() => {
-    fetch('/api/guardadas')
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((j: { guardadas: { sport: string; match_key: string }[] }) => setConEstimacion(j.guardadas.map((g) => `${g.sport}|${g.match_key}`)))
-      .catch(() => setConEstimacion([]));
-  }, []);
+  // estimación guardada (FAV-3). La lista de guardadas es la compartida (B3): si no se pudo leer, se
+  // dice en vez de filtrar en silencio con una lista incompleta.
+  const { estado: estadoGuardadas, recargar: recargarGuardadas } = useGuardadas();
+  const guardadas = datosRemotos(estadoGuardadas);
   const guardados = useMemo(() => {
-    const s = new Set<string>(conEstimacion);
-    for (const x of seguidos) s.add(x.kind === 'partido' ? `${x.sport}|${x.ref_id}` : `${x.sport}|eq|${x.ref_id}`);
+    const s = new Set<string>((guardadas ?? []).map((g) => `${g.sport}|${g.match_key}`));
+    for (const x of seguidos) s.add(x.kind === 'partido' ? `sig|${x.sport}|${x.ref_id}` : `sig|${x.sport}|eq|${x.ref_id}`);
     return s;
-  }, [seguidos, conEstimacion]);
+  }, [seguidos, guardadas]);
 
   const vigentes = datos && datosDe === dia ? datos : null;
   const filas = useMemo(() => vigentes?.filas ?? [], [vigentes]);
-  const visibles = useMemo(() => ordenar(filtrar(filas, filtros, guardados), filtros.orden), [filas, filtros.deporte, filtros.liga, filtros.q, filtros.guardados, filtros.minimo, filtros.orden, guardados]); // eslint-disable-line react-hooks/exhaustive-deps
-  const cuentas = useMemo(() => contarPorDeporte(filas, filtros, guardados), [filas, filtros.q, filtros.guardados, filtros.minimo, guardados]); // eslint-disable-line react-hooks/exhaustive-deps
+  const visibles = useMemo(() => ordenar(filtrar(filas, filtros, guardados), filtros.orden), [filas, filtros.deporte, filtros.liga, filtros.q, filtros.guardados, filtros.seguidos, filtros.minimo, filtros.orden, guardados]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cuentas = useMemo(() => contarPorDeporte(filas, filtros, guardados), [filas, filtros.q, filtros.guardados, filtros.seguidos, filtros.minimo, guardados]); // eslint-disable-line react-hooks/exhaustive-deps
   const ligas = useMemo(() => {
     if (!filtros.deporte) return [];
     const m = new Map<string, string>();
-    for (const f of filas) if (f.sport === filtros.deporte && f.liga) m.set(f.liga.id, f.torneo && f.sport === 'tennis' ? f.liga.nombre : f.liga.nombre);
+    for (const f of filas) if (f.sport === filtros.deporte && f.liga) m.set(f.liga.id, f.liga.nombre);
     return [...m].sort((a, b) => a[1].localeCompare(b[1]));
   }, [filas, filtros.deporte]);
+  // La competición activa, con su nombre si alguna fila lo da; si no (un enlace a una competición sin
+  // partidos en esta fecha), su id tal cual: se ve y se puede quitar (B4).
+  const nombreLiga = filtros.liga ? (ligas.find(([id]) => id === filtros.liga)?.[1] ?? filtros.liga) : null;
+  // Las etiquetas de los filtros activos que no son la fecha ni el deporte (que ya se ven arriba).
+  const activos: { clave: string; texto: string; quitar: Record<string, null> }[] = [];
+  if (filtros.liga && nombreLiga) activos.push({ clave: 'liga', texto: t('partidos.chipLiga', { liga: nombreLiga }), quitar: { liga: null } });
+  if (filtros.q.trim()) activos.push({ clave: 'q', texto: t('partidos.chipBusqueda', { q: filtros.q.trim() }), quitar: { q: null } });
+  if (filtros.guardados) activos.push({ clave: 'guardados', texto: t('partidos.guardados'), quitar: { guardados: null } });
+  if (filtros.seguidos) activos.push({ clave: 'seguidos', texto: t('partidos.seguidos'), quitar: { seguidos: null } });
+  if (filtros.minimo != null) activos.push({ clave: 'minimo', texto: t('partidos.chipMinimo', { p: Math.round(filtros.minimo * 100) }), quitar: { minimo: null } });
+  if (filtros.orden !== 'hora') activos.push({ clave: 'orden', texto: t('partidos.ordenProb'), quitar: { orden: null } });
   const grupos = useMemo(() => (filtros.orden === 'hora' ? agrupar(visibles, zona) : null), [visibles, filtros.orden, zona]);
   const hayDemo = visibles.some((f) => f.origen === 'demo');
   const errores = vigentes?.porDeporte.filter((d) => d.error) ?? [];
 
   const nombreDeporte = (d: DeporteId) => t(`deporte.${d}` as Clave);
   const textoFecha = dia === hoy ? t('partidos.fechaHoy') : dia === manana ? t('partidos.fechaManana') : dia ? t('partidos.fechaDia', { dia: fechaLarga(dia, locale) }) : t('partidos.fechaProximos');
-  const set = (cambios: Record<string, string | null>) => setQ(cambios);
-  const quitarFiltros = () => set({ deporte: null, liga: null, q: null, guardados: null, minimo: null, orden: null });
+  // Los cambios discretos se apilan en el historial (atrás los deshace); la búsqueda reemplaza.
+  const set = (cambios: Record<string, string | null>) => setQ(cambios, { apilar: true });
+  const setBusqueda = (q: string | null) => setQ({ q });
+  const quitarFiltros = () => set({ deporte: null, liga: null, q: null, guardados: null, seguidos: null, minimo: null, orden: null });
 
   // El primer render con datos de otro día enseña el esqueleto, no la lista vieja.
   const inicial = vigentes == null && !error;
 
+  // El panel lateral (D2): en pantallas anchas, abrir un partido no saca de la lista. Va en la URL
+  // (?panel=deporte:id&panelClave=…), así que «atrás» lo cierra y el enlace se comparte.
+  const panel = q.get('panel');
+  const [panelSport, ...panelResto] = (panel ?? '').split(':');
+  const panelId = panelResto.join(':');
+  const panelValido = panel != null && DEPORTES.includes(panelSport as DeporteId) && panelId !== '';
+  const navegar = useNavigate();
+  const [abiertoAqui, setAbiertoAqui] = useState(false);
+  const abrirEnPanel = (f: RespuestaExplorador['filas'][number]) => {
+    if (typeof window === 'undefined' || !window.matchMedia?.('(min-width: 1280px)').matches) return false;
+    setAbiertoAqui(true);
+    setQ({ panel: `${f.sport}:${f.id}`, panelClave: f.matchKey }, { apilar: true });
+    return true;
+  };
+  const cerrarPanel = () => {
+    // Si se abrió desde la lista, cerrar es volver atrás (la entrada del panel no se queda en el
+    // historial); si llegó en el enlace, se quita de la URL y el foco va al título (no hay fila de
+    // la que venir).
+    if (abiertoAqui) {
+      setAbiertoAqui(false);
+      navegar(-1);
+    } else {
+      setQ({ panel: null, panelClave: null });
+      window.setTimeout(() => document.querySelector<HTMLElement>('main h1')?.focus(), 0);
+    }
+  };
+  // Por debajo de 1280 px no hay panel: un enlace con ?panel= o una ventana que se estrecha con él
+  // abierto pasan a la página completa del partido.
+  useEffect(() => {
+    if (!panelValido || typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(min-width: 1280px)');
+    const aPagina = () => {
+      if (!mq.matches) navegar(rutaPartido(panelSport, panelId) + (q.get('panelClave') ? `?clave=${encodeURIComponent(q.get('panelClave')!)}` : ''), { replace: true });
+    };
+    aPagina();
+    mq.addEventListener('change', aPagina);
+    return () => mq.removeEventListener('change', aPagina);
+  }, [panelValido, panelSport, panelId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <div>
       <header className="mb-4">
-        <h1 className="text-[24px] font-semibold leading-tight text-(--ink-strong)">{t('partidos.titulo')}</h1>
+        <h1 tabIndex={-1} className="text-[24px] font-semibold leading-tight text-(--ink-strong) outline-none">{t('partidos.titulo')}</h1>
         <p className="mt-1 text-[14px] text-(--ink-muted)">
           {(filtros.deporte ? nombreDeporte(filtros.deporte) : t('partidos.todos'))} · {textoFecha} ·{' '}
           {t('partidos.zona', { zona })}{' '}
-          <Link to={RUTA_AJUSTES + '#zona'} className="underline underline-offset-2 hover:text-(--ink-body)">{t('partidos.cambiarZona')}</Link>
+          <Link to={RUTA_AJUSTES + '#zona'} className="inline-flex min-h-6 items-center underline underline-offset-2 hover:text-(--ink-body)">{t('partidos.cambiarZona')}</Link>
         </p>
       </header>
 
@@ -148,17 +208,6 @@ export default function Partidos() {
             />
           </label>
         </div>
-        {/* Deporte: solo los que tienen algo con los demás filtros (y el elegido, aunque se quede a 0). */}
-        <div className="flex gap-2 overflow-x-auto pb-1 desliza-x [scrollbar-width:thin]" role="group" aria-label={t('partidos.deportes')}>
-          <Chip activo={filtros.deporte == null} onClick={() => set({ deporte: null, liga: null })}>
-            {t('partidos.todos')} <Cuenta n={cuentas.total ?? 0} />
-          </Chip>
-          {DEPORTES.filter((d) => (cuentas[d] ?? 0) > 0 || filtros.deporte === d).map((d) => (
-            <Chip key={d} activo={filtros.deporte === d} onClick={() => set({ deporte: d, liga: null })}>
-              <SportIcon sport={d} size={16} /> {nombreDeporte(d)} <Cuenta n={cuentas[d] ?? 0} />
-            </Chip>
-          ))}
-        </div>
         {/* Búsqueda, competición, guardados y orden. */}
         <div className="flex flex-wrap items-center gap-2">
           <label className="min-w-[12rem] flex-1">
@@ -166,12 +215,12 @@ export default function Partidos() {
             <input
               type="search"
               value={filtros.q}
-              onChange={(e) => set({ q: e.target.value || null })}
+              onChange={(e) => setBusqueda(e.target.value || null)}
               placeholder={t('partidos.buscar')}
               className="h-10 w-full rounded-lg border border-(--line-strong) bg-(--surface-card) px-3 text-[15px] text-(--ink-body) placeholder:text-(--ink-faint)"
             />
           </label>
-          {ligas.length > 1 && (
+          {(ligas.length > 1 || (filtros.liga != null && filtros.deporte != null)) && (
             <label className="flex items-center gap-2 text-[14px] text-(--ink-muted)">
               <span className="sr-only">{t('partidos.liga')}</span>
               <select value={filtros.liga ?? ''} onChange={(e) => set({ liga: e.target.value || null })} className="h-10 rounded-lg border border-(--line-strong) bg-(--surface-card) px-2 text-[14px] text-(--ink-body)">
@@ -179,15 +228,23 @@ export default function Partidos() {
                 {ligas.map(([id, nombre]) => (
                   <option key={id} value={id}>{nombre}</option>
                 ))}
+                {filtros.liga && !ligas.some(([id]) => id === filtros.liga) && <option value={filtros.liga}>{t('partidos.ligaSinPartidos', { liga: filtros.liga })}</option>}
               </select>
             </label>
           )}
+          <Chip activo={filtros.seguidos} onClick={() => set({ seguidos: filtros.seguidos ? null : '1' })} titulo={t('partidos.seguidosNota')}>
+            {t('partidos.seguidos')}
+          </Chip>
           <Chip activo={filtros.guardados} onClick={() => set({ guardados: filtros.guardados ? null : '1' })} titulo={t('partidos.guardadosNota')}>
             {t('partidos.guardados')}
           </Chip>
+          <Link to={RUTA_GUARDADAS} className="inline-flex min-h-6 items-center text-[13px] text-(--ink-muted) underline underline-offset-2 hover:text-(--ink-body)">{t('partidos.verGuardadas')}</Link>
         </div>
         <details className="text-[14px] text-(--ink-muted)" open={filtros.minimo != null || filtros.orden !== 'hora' || undefined}>
-          <summary className="inline-flex min-h-10 cursor-pointer items-center hover:text-(--ink-body)">{t('partidos.masFiltros')}</summary>
+          <summary className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg px-3 ring-1 ring-(--line-strong) hover:bg-(--raised) hover:text-(--ink-body)">
+            {t('partidos.masFiltros')}
+            <span aria-hidden className="text-[11px]">▾</span>
+          </summary>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2">
           <label className="flex items-center gap-2 text-[14px] text-(--ink-muted)">
             <span>{t('partidos.orden')}</span>
@@ -207,7 +264,45 @@ export default function Partidos() {
           </label>
           </div>
         </details>
+        <VistasGuardadas q={q} aplicar={(consulta) => navegar({ pathname: '/partidos', search: consulta ? `?${consulta}` : '' })} />
+        {/* Deporte: solo los que tienen algo con los demás filtros (y el elegido, aunque se quede a 0). */}
+        <div className="flex gap-2 overflow-x-auto pb-1 desliza-x [scrollbar-width:thin]" role="group" aria-label={t('partidos.deportes')}>
+          <Chip activo={filtros.deporte == null} onClick={() => set({ deporte: null, liga: null })}>
+            {t('partidos.todos')} <Cuenta n={cuentas.total ?? 0} />
+          </Chip>
+          {DEPORTES.filter((d) => (cuentas[d] ?? 0) > 0 || filtros.deporte === d).map((d) => (
+            <Chip key={d} activo={filtros.deporte === d} onClick={() => set({ deporte: d, liga: null })}>
+              <SportIcon sport={d} size={16} /> {nombreDeporte(d)} <Cuenta n={cuentas[d] ?? 0} />
+            </Chip>
+          ))}
+        </div>
       </section>
+
+      {/* Los filtros activos, cada uno con su «quitar» (B4): un filtro que no se ve no puede explicar
+          una lista vacía. */}
+      {activos.length > 0 && (
+        <ul className="mb-3 flex flex-wrap gap-2" aria-label={t('partidos.filtrosActivos')}>
+          {activos.map((a) => (
+            <li key={a.clave}>
+              <button
+                type="button"
+                onClick={() => set(a.quitar)}
+                aria-label={t('partidos.quitarFiltro', { filtro: a.texto })}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-(--raised) px-3 text-[13px] text-(--ink-body) ring-1 ring-(--line-strong) hover:bg-(--raised-2)"
+              >
+                <span>{a.texto}</span>
+                <span aria-hidden className="text-[15px] leading-none text-(--ink-muted)">×</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {filtros.guardados && conProblema(estadoGuardadas) && (
+        <p className="mb-2 text-[13px] text-(--status-warning)" role="alert">
+          {t(estadoGuardadas.fase === 'error-refresco' ? 'partidos.guardadasErrorRefresco' : 'partidos.guardadasError')}{' '}
+          <button onClick={recargarGuardadas} className="toque underline underline-offset-2 [--toque-y:6px]">{t('partidos.reintentar')}</button>
+        </p>
+      )}
 
       {/* Estado: cuántos, de cuándo, y si se está actualizando. Sin bloques de mantenimiento. */}
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-[13px] text-(--ink-muted)" role="status" aria-live="polite">
@@ -216,11 +311,26 @@ export default function Partidos() {
           {hayFiltros(filtros) && (
             <>
               {' · '}
-              <button onClick={quitarFiltros} className="toque underline underline-offset-2 [--toque-y:6px] hover:text-(--ink-body)">{t('partidos.quitarFiltros')}</button>
+              <button onClick={quitarFiltros} className="toque inline-flex min-h-6 items-center underline underline-offset-2 [--toque-y:6px] hover:text-(--ink-body)">{t('partidos.quitarFiltros')}</button>
             </>
           )}
         </span>
-        <span>{cargando && vigentes ? t('partidos.actualizando') : vigentes ? t('partidos.actualizado', { cuando: haceCuanto(vigentes.generado, idioma, t) }) : ''}</span>
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span>{cargando && vigentes ? t('partidos.actualizando') : vigentes ? t('partidos.actualizado', { cuando: haceCuanto(vigentes.generado, idioma, t) }) : ''}</span>
+          <span role="group" aria-label={t('partidos.densidad')} className="inline-flex overflow-hidden rounded-md ring-1 ring-(--line-strong)">
+            {(['comoda', 'compacta'] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                aria-pressed={densidad === d}
+                onClick={() => setDensidad(d)}
+                className={`h-8 px-2.5 text-[12px] ${densidad === d ? 'bg-(--raised-2) font-medium text-(--ink-strong)' : 'text-(--ink-muted) hover:text-(--ink-body)'}`}
+              >
+                {t(d === 'comoda' ? 'partidos.densidadComoda' : 'partidos.densidadCompacta')}
+              </button>
+            ))}
+          </span>
+        </span>
       </div>
       {filtros.orden === 'probabilidad' && <p className="mb-2 text-[13px] text-(--ink-muted)">{t('partidos.ordenProbNota')}</p>}
       {hayDemo && <p className="mb-2 text-[13px] text-(--status-warning)">{t('partidos.demoNota')}</p>}
@@ -252,12 +362,23 @@ export default function Partidos() {
       ) : visibles.length === 0 ? (
         <Vacio>
           <p className="font-medium text-(--ink-strong)">
-            {filtros.deporte && !filtros.q && !filtros.guardados && filtros.minimo == null
+            {/* Solo se dice «no hay partidos de X» cuando el deporte es el ÚNICO filtro (B4): con una
+                competición puesta, lo que no hay es partidos de esa competición. */}
+            {filtros.deporte && !filtros.liga && !filtros.q && !filtros.guardados && !filtros.seguidos && filtros.minimo == null
               ? t('partidos.vacioDeporte', { deporte: nombreDeporte(filtros.deporte), fecha: textoFecha })
-              : t('partidos.vacioFiltros')}
+              : filtros.deporte && filtros.liga && nombreLiga && !filtros.q && !filtros.guardados && !filtros.seguidos && filtros.minimo == null
+                ? t('partidos.vacioLiga', { deporte: nombreDeporte(filtros.deporte), liga: nombreLiga, fecha: textoFecha })
+                : t('partidos.vacioFiltros')}
           </p>
-          <p className="mt-1">{t('partidos.vacioFiltrosHay', { n: filas.length })}</p>
-          <button onClick={quitarFiltros} className="mt-3 rounded-lg border border-(--line-strong) px-4 py-2 text-[14px] text-(--ink-body) hover:bg-(--raised)">{t('partidos.quitarFiltros')}</button>
+          <p className="mt-1">
+            {filtros.deporte && filtros.liga && (cuentas[filtros.deporte] ?? 0) > 0
+              ? t('partidos.vacioLigaHay', { n: cuentas[filtros.deporte] ?? 0, deporte: nombreDeporte(filtros.deporte) })
+              : t('partidos.vacioFiltrosHay', { n: filas.length })}
+          </p>
+          <p className="mt-3 flex flex-wrap gap-2">
+            {filtros.liga && <button onClick={() => set({ liga: null })} className="rounded-lg border border-(--line-strong) px-4 py-2 text-[14px] text-(--ink-body) hover:bg-(--raised)">{t('partidos.quitarLiga')}</button>}
+            <button onClick={quitarFiltros} className="rounded-lg border border-(--line-strong) px-4 py-2 text-[14px] text-(--ink-body) hover:bg-(--raised)">{t('partidos.quitarFiltros')}</button>
+          </p>
         </Vacio>
       ) : grupos ? (
         <div aria-label={t('partidos.lista')}>
@@ -271,14 +392,16 @@ export default function Partidos() {
               )}
               {d.grupos.map((g) => (
                 <section key={g.clave} className="mb-3 rounded-xl bg-(--surface-card) px-2 pt-2 sm:px-3">
-                  <h3 className="flex items-center gap-2 px-1 pb-1 text-[14px] font-medium text-(--ink-body)">
+                  {/* Pasada final de ui-tester: a 320 px el mercado no encogía y el nombre del grupo se quedaba
+                      en «N…». Ahora, si no caben, el mercado baja de línea. */}
+                  <h3 className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 pb-1 text-[14px] font-medium text-(--ink-body)">
                     <SportIcon sport={g.sport} size={16} />
                     <span className="min-w-0 truncate">{g.titulo}</span>
-                    <span className="ml-auto shrink-0 text-[12px] font-normal text-(--ink-muted)">{etiquetaMercado(g.filas[0], t)}</span>
+                    <span className="ml-auto text-right text-[12px] font-normal text-(--ink-muted)">{etiquetaMercado(g.filas[0], t)}</span>
                   </h3>
                   <ul>
                     {g.filas.map((f) => (
-                      <FilaPartido key={`${f.sport}|${f.id}`} f={f} zona={zona} locale={locale} />
+                      <FilaPartido key={`${f.sport}|${f.id}`} f={f} zona={zona} locale={locale} densidad={densidad} onAbrir={abrirEnPanel} />
                     ))}
                   </ul>
                 </section>
@@ -289,10 +412,12 @@ export default function Partidos() {
       ) : (
         <ul aria-label={t('partidos.lista')} className="rounded-xl bg-(--surface-card) px-2 sm:px-3">
           {visibles.map((f) => (
-            <FilaPartido key={`${f.sport}|${f.id}`} f={f} zona={zona} locale={locale} />
+            <FilaPartido key={`${f.sport}|${f.id}`} f={f} zona={zona} locale={locale} densidad={densidad} onAbrir={abrirEnPanel} />
           ))}
         </ul>
       )}
+
+      {panelValido && <PanelPartido sport={panelSport as DeporteId} id={panelId} clave={q.get('panelClave')} onCerrar={cerrarPanel} />}
 
       {filtros.deporte && (
         <p className="mt-6 text-[14px]">
@@ -337,6 +462,83 @@ function Chip({ activo, onClick, children, titulo }: { activo: boolean; onClick:
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * Vistas guardadas (E2): la combinación de filtros de ahora, con nombre, en este navegador. Aplicar,
+ * renombrar y quitar; «hoy» y «mañana» siguen siendo relativos (se guarda la consulta tal cual).
+ */
+function VistasGuardadas({ q, aplicar }: { q: URLSearchParams; aplicar: (consulta: string) => void }) {
+  const { t } = useI18n();
+  const [vistas, setVistas] = useState<Vista[]>(leerVistas);
+  const [nombre, setNombre] = useState('');
+  const [renombrando, setRenombrando] = useState<{ id: string; nombre: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const intentar = (f: () => void) => {
+    try {
+      f();
+      setError(null);
+      setVistas(leerVistas());
+      return true;
+    } catch (e) {
+      setError(e instanceof ErrorDeVista ? t(`vistas.error.${e.codigo}`) : t('vistas.error.otro'));
+      return false;
+    }
+  };
+  return (
+    <details className="text-[14px] text-(--ink-muted)">
+      <summary className="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded-lg px-3 ring-1 ring-(--line-strong) hover:bg-(--raised) hover:text-(--ink-body)">
+        {t('vistas.titulo', { n: vistas.length })}
+        <span aria-hidden className="text-[11px]">▾</span>
+      </summary>
+      <div className="mt-2 space-y-2">
+        {vistas.length === 0 && <p className="text-[13px]">{t('vistas.ninguna')}</p>}
+        <ul className="space-y-1">
+          {vistas.map((v) => (
+            <li key={v.id} className="flex flex-wrap items-center gap-2">
+              {renombrando?.id === v.id ? (
+                <form
+                  className="flex flex-wrap items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (intentar(() => renombrarVista(v.id, renombrando.nombre))) setRenombrando(null);
+                  }}
+                >
+                  <label>
+                    <span className="sr-only">{t('vistas.nuevoNombre')}</span>
+                    <input value={renombrando.nombre} onChange={(e) => setRenombrando({ id: v.id, nombre: e.target.value })} className="h-9 rounded-lg border border-(--line-strong) bg-(--surface-card) px-2 text-[14px] text-(--ink-body)" />
+                  </label>
+                  <button type="submit" className="h-9 rounded-lg px-3 text-[13px] ring-1 ring-(--line-strong)">{t('vistas.guardarNombre')}</button>
+                  <button type="button" onClick={() => setRenombrando(null)} className="h-9 rounded-lg px-3 text-[13px]">{t('comun.cancelar')}</button>
+                </form>
+              ) : (
+                <>
+                  <button type="button" onClick={() => aplicar(v.consulta)} className="h-9 rounded-lg px-3 text-[14px] font-medium text-(--ink-body) ring-1 ring-(--line-strong) hover:bg-(--raised)">{v.nombre}</button>
+                  <button type="button" onClick={() => setRenombrando({ id: v.id, nombre: v.nombre })} className="text-[12px] underline underline-offset-2" aria-label={t('vistas.renombrarA', { nombre: v.nombre })}>{t('vistas.renombrar')}</button>
+                  <button type="button" onClick={() => intentar(() => quitarVista(v.id))} className="text-[12px] underline underline-offset-2" aria-label={t('vistas.quitarA', { nombre: v.nombre })}>{t('vistas.quitar')}</button>
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+        <form
+          className="flex flex-wrap items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (intentar(() => guardarVista(nombre, q))) setNombre('');
+          }}
+        >
+          <label className="flex items-center gap-2">
+            <span>{t('vistas.nombre')}</span>
+            <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder={t('vistas.ejemplo')} className="h-9 rounded-lg border border-(--line-strong) bg-(--surface-card) px-2 text-[14px] text-(--ink-body) placeholder:text-(--ink-faint)" />
+          </label>
+          <button type="submit" className="h-9 rounded-lg px-3 text-[13px] text-(--ink-body) ring-1 ring-(--line-strong) hover:bg-(--raised)">{t('vistas.guardar')}</button>
+        </form>
+        <p className="text-[12px]">{t('vistas.relativa')}</p>
+        {error && <p role="alert" className="text-[13px] text-(--status-critical)">{error}</p>}
+      </div>
+    </details>
   );
 }
 

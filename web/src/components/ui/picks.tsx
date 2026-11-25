@@ -4,7 +4,7 @@ import { INK, PROFIT_TEXT, LOSS_TEXT } from '../../lib/theme';
 import { relativeTime, shortTime } from '../../lib/format';
 import { StatusMark } from '../icons';
 import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../../i18n';
-import { lineasEnIdioma, pct as pctF, num as numF } from '../../lib/formato';
+import { diferenciaPp, lineasEnIdioma, pct as pctF, num as numF } from '../../lib/formato';
 import { MOVIL, useMediaQuery } from '../../lib/useMediaQuery';
 
 // Los nombres de mercado y selección son también claves de lib/picks (tasas base, orden): se
@@ -91,7 +91,7 @@ function CaveatNote({ text }: { text: string }) {
           )}
           <button
             onClick={() => setOpen((o) => !o)}
-            className="toque mt-1.5 text-[12px] font-medium text-amber-200/60 underline-offset-2 hover:text-amber-200 hover:underline"
+            className="toque mt-1.5 inline-flex min-h-6 items-center text-[12px] font-medium text-amber-200/60 underline-offset-2 hover:text-amber-200 hover:underline"
           >
             {open ? t('discrepancias.ocultar') : t('discrepancias.verMedido')}
           </button>
@@ -147,7 +147,9 @@ export function PicksPanel({
   stake: number;
   onStakeChange: (n: number) => void;
 }) {
-  const [open, setOpen] = useState(true);
+  // Fase D: en el móvil empieza cerrado. Abierto, medía unos 1.830 px y los partidos quedaban tres
+  // pantallas más abajo; el título y su resumen siguen a la vista, y abre de un toque.
+  const [open, setOpen] = useState(() => typeof window === 'undefined' || !window.matchMedia(MOVIL).matches);
   const { t, idioma } = useI18n();
   // En el móvil, una lista: la tabla mide 736 px y, en una caja de 356, la probabilidad del
   // modelo empezaba en el borde y el resto quedaba fuera (K4, lote K).
@@ -175,8 +177,7 @@ export function PicksPanel({
   // de media décima, tinta neutra.
   const colorDif = (p: Pick) =>
     p.edge == null ? INK.muted : Math.abs(p.edge) < 0.005 ? INK.muted : p.edge > 0 ? PROFIT_TEXT : LOSS_TEXT;
-  const dif = (p: Pick) =>
-    p.edge == null ? '—' : Math.abs(p.edge) < 0.005 ? '0,0 pp' : `${p.edge > 0 ? '+' : ''}${numF(p.edge * 100, 1)} pp`;
+  const dif = (p: Pick) => diferenciaPp(p.edge);
   const cuota = (p: Pick) => (
     <>
       {numF(p.fairOdds, 2)}
@@ -208,6 +209,10 @@ export function PicksPanel({
       (stake * p.odds).toLocaleString(localeDe(idioma), { maximumFractionDigits: 0 })
     );
   const clave = (p: Pick, i: number) => `${p.id}-${p.market}-${p.selection}-${i}`;
+  // Fase D: sin precio de mercado en ninguna fila, las columnas «Mercado» y «Dif.» solo repetían «—»; sin
+  // cuota en ninguna, «Pago si gana» repetía la cuota mínima de al lado. No se enseñan.
+  const hayMercado = picks.some((p) => p.marketProb != null);
+  const hayCuotas = picks.some((p) => p.odds != null);
 
   return (
     <section className="mb-6 overflow-hidden rounded-xl border border-(--line) bg-(--tint)">
@@ -258,22 +263,28 @@ export function PicksPanel({
                     </p>
                   </div>
                   <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[13px] tabular-nums">
-                    <div className="flex gap-1.5">
-                      <dt className="text-(--ink-muted)">{t('discrepancias.mercado')}</dt>
-                      <dd className="text-(--ink-soft)">{p.marketProb == null ? '—' : pct(p.marketProb)}</dd>
-                    </div>
-                    <div className="flex gap-1.5">
-                      <dt className="text-(--ink-muted)">{t('discrepancias.dif')}</dt>
-                      <dd className="font-semibold" style={{ color: colorDif(p) }}>{dif(p)}</dd>
-                    </div>
+                    {hayMercado && (
+                      <>
+                        <div className="flex gap-1.5">
+                          <dt className="text-(--ink-muted)">{t('discrepancias.mercado')}</dt>
+                          <dd className="text-(--ink-soft)">{p.marketProb == null ? '—' : pct(p.marketProb)}</dd>
+                        </div>
+                        <div className="flex gap-1.5">
+                          <dt className="text-(--ink-muted)">{t('discrepancias.dif')}</dt>
+                          <dd className="font-semibold" style={{ color: colorDif(p) }}>{dif(p)}</dd>
+                        </div>
+                      </>
+                    )}
                     <div className="flex gap-1.5">
                       <dt className="text-(--ink-muted)" title={t('discrepancias.cuotaMinimaNota')}>{t('discrepancias.cuotaMinima')}</dt>
                       <dd className="text-(--ink-body)">{cuota(p)}</dd>
                     </div>
-                    <div className="flex gap-1.5">
-                      <dt className="text-(--ink-muted)">{t('discrepancias.devolveria')}</dt>
-                      <dd className="text-(--ink-body)">{devolveria(p)}</dd>
-                    </div>
+                    {hayCuotas && (
+                      <div className="flex gap-1.5">
+                        <dt className="text-(--ink-muted)">{t('discrepancias.devolveria')}</dt>
+                        <dd className="text-(--ink-body)">{devolveria(p)}</dd>
+                      </div>
+                    )}
                   </dl>
                 </li>
               ))}
@@ -288,12 +299,12 @@ export function PicksPanel({
                   <th className="px-4 py-2 font-medium">{t('discrepancias.partido')}</th>
                   <th className="px-3 py-2 font-medium">{t('discrepancias.apuesta')}</th>
                   <th className="px-3 py-2 text-right font-medium">{t('discrepancias.modelo')}</th>
-                  <th className="px-3 py-2 text-right font-medium">{t('discrepancias.mercado')}</th>
-                  <th className="px-3 py-2 text-right font-medium">{t('discrepancias.dif')}</th>
+                  {hayMercado && <th className="px-3 py-2 text-right font-medium">{t('discrepancias.mercado')}</th>}
+                  {hayMercado && <th className="px-3 py-2 text-right font-medium">{t('discrepancias.dif')}</th>}
                   <th className="px-3 py-2 text-right font-medium" title={t('discrepancias.cuotaMinimaNota')}>
                     {t('discrepancias.cuotaMinima')}
                   </th>
-                  <th className="px-4 py-2 text-right font-medium">{t('discrepancias.devolveria')}</th>
+                  {hayCuotas && <th className="px-4 py-2 text-right font-medium">{t('discrepancias.devolveria')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -312,14 +323,18 @@ export function PicksPanel({
                     <td className="px-3 py-2.5 text-right font-semibold tabular-nums text-(--ink-strong)">
                       {pct(p.modelProb)}
                     </td>
-                    <td className="px-3 py-2.5 text-right tabular-nums text-(--ink-soft)">
-                      {p.marketProb == null ? '—' : pct(p.marketProb)}
-                    </td>
-                    <td className="px-3 py-2.5 text-right font-semibold tabular-nums" style={{ color: colorDif(p) }}>
-                      {dif(p)}
-                    </td>
+                    {hayMercado && (
+                      <td className="px-3 py-2.5 text-right tabular-nums text-(--ink-soft)">
+                        {p.marketProb == null ? '—' : pct(p.marketProb)}
+                      </td>
+                    )}
+                    {hayMercado && (
+                      <td className="px-3 py-2.5 text-right font-semibold tabular-nums" style={{ color: colorDif(p) }}>
+                        {dif(p)}
+                      </td>
+                    )}
                     <td className="px-3 py-2.5 text-right tabular-nums text-(--ink-body)">{cuota(p)}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-(--ink-body)">{devolveria(p)}</td>
+                    {hayCuotas && <td className="px-4 py-2.5 text-right tabular-nums text-(--ink-body)">{devolveria(p)}</td>}
                   </tr>
                 ))}
               </tbody>

@@ -115,7 +115,7 @@ test('se liquida una vez con el resultado real, y el banco de la estrategia se m
   assert.throws(() => db.prepare("UPDATE strategy_bets SET status = 'lost', profit = -1 WHERE strategy_id = ?").run(id), /no se vuelve a liquidar/);
   assert.equal(liquidarEstrategias(new Date(ahora + 73 * H)).liquidadas, 0);
   const p = perdidasDe(id, new Date(ahora + 72 * H));
-  assert.ok(p.semana > 0, 'lo realizado esta semana cuenta para los límites de esta estrategia');
+  assert.ok(p.semana != null && p.semana > 0, 'lo realizado esta semana cuenta para los límites de esta estrategia');
 });
 
 test('una apuesta sin resultado sigue pendiente aunque hayan pasado semanas (el tiempo no es un resultado)', () => {

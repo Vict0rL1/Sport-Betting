@@ -70,3 +70,33 @@ construyó no alcanza `api.telegram.org`.
 - `GET /api/notifications/canales`
 - `POST /api/notifications/test/:canal`
 - `GET /api/notifications/push/clave` · `POST /api/notifications/push/subscribe` · `DELETE /api/notifications/push/subscribe`
+
+## Qué garantiza la entrega (seguimiento del PR #18, fase G)
+
+- **«Enviado» quiere decir ACEPTADO por el canal**: Telegram, el webhook, el servidor de correo o el
+  servicio de push contestaron que sí. Que la persona lo vea, la app no lo sabe: ningún canal lo
+  confirma. El registro (`notification_log`, «Últimos envíos») guarda eso, aceptado o rechazado, con su
+  error.
+- **Los avisos al momento** se intentan una vez por canal. Un fallo queda en el registro con su error. La
+  bandeja de la app los tiene siempre, haya canales o no.
+- **Los aplazados por las horas de silencio** (`notification_pending`, en el libro mayor) sobreviven a un
+  reinicio y salen al acabar la ventana:
+  - Si al menos un canal los acepta, salen de la cola. El rechazo de los demás queda anotado y no se
+    reenvía a quien ya lo aceptó.
+  - Si ninguno los acepta, no cuentan como enviados: se quedan, con su intento y su error, y se
+    reintentan con espera (5, 10, 20 y 40 minutos), hasta 5 intentos o hasta que caduquen.
+  - Un rechazo definitivo (un HTTP 4xx que no sea 408 ni 429) no se reintenta.
+  - Lo que se descarta, caduca o no cabe en la cola (200 como mucho) queda anotado.
+  - Con los canales apagados o sin ninguno configurado, se quedan y caducan con su nota.
+- **Al menos una vez, no «exactamente una vez».** Un aviso se envía y DESPUÉS se quita de la cola. Si el
+  proceso cae entre medias, o se restaura una copia de seguridad de antes del envío, sale otra vez.
+  - Sin un acuse del proveedor esa ventana no se puede cerrar.
+  - El webhook lleva la misma cabecera `Idempotency-Key` en cada intento del mismo aviso, para que el
+    receptor descarte el duplicado. La clave es un resumen y no lleva el contenido.
+  - Telegram, el correo y Web Push no tienen dónde ponerla: allí un duplicado se ve.
+- **En desarrollo y en los tests no sale nada a la red.** Los tests usan transportes de mentira, y la
+  preparación de los tests bloquea `fetch`.
+- **Los errores no guardan secretos.** Antes de anotarlos se quitan los valores de `WEBHOOK_URL`,
+  `TELEGRAM_BOT_TOKEN`, `SMTP_PASS`, `SMTP_USER` y `VAPID_PRIVATE_KEY`, y cualquier `usuario:contraseña@`
+  de una URL. Un transporte puede meter la URL entera en su mensaje de error.
+

@@ -95,6 +95,20 @@ export interface FilaPartido {
   sinPrediccion: 'sin-registro' | 'invalida' | 'demo' | null;
   cuotas: CuotasFila | null;
   origen: 'real' | 'demo';
+  /**
+   * De dónde sale el PARTIDO (B5): 'casa' (el proveedor de cuotas), 'calendario' (el calendario
+   * oficial o ESPN), 'demo' (inventado por la app) o null si la fuente guardada no es ninguna de
+   * esas: no se adivina.
+   */
+  fuenteCalendario: 'casa' | 'calendario' | 'demo' | null;
+}
+
+/** La fuente guardada de una fila de próximos, en las tres que se enseñan (o null). */
+export function fuenteDeCalendario(source: unknown): FilaPartido['fuenteCalendario'] {
+  if (source === 'live') return 'casa';
+  if (source === 'fixture') return 'demo';
+  if (source === 'schedule' || source === 'espn') return 'calendario';
+  return null;
 }
 
 export interface Explorador {
@@ -331,6 +345,7 @@ export function explorarPartidos(
           sinPrediccion,
           cuotas,
           origen,
+          fuenteCalendario: fuenteDeCalendario(r.fuente),
         };
 
         // El mismo partido con dos ids (dos fuentes): uno, el real antes que el inventado.
