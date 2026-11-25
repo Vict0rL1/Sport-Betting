@@ -4,7 +4,7 @@ import { INK, PROFIT_TEXT, LOSS_TEXT } from '../../lib/theme';
 import { relativeTime, shortTime } from '../../lib/format';
 import { StatusMark } from '../icons';
 import { conNodos, localeDe, useI18n, type Clave, type Traducir } from '../../i18n';
-import { lineasEnIdioma, pct as pctF, num as numF } from '../../lib/formato';
+import { diferenciaPp, lineasEnIdioma, pct as pctF, num as numF } from '../../lib/formato';
 import { MOVIL, useMediaQuery } from '../../lib/useMediaQuery';
 
 // Los nombres de mercado y selección son también claves de lib/picks (tasas base, orden): se
@@ -177,8 +177,7 @@ export function PicksPanel({
   // de media décima, tinta neutra.
   const colorDif = (p: Pick) =>
     p.edge == null ? INK.muted : Math.abs(p.edge) < 0.005 ? INK.muted : p.edge > 0 ? PROFIT_TEXT : LOSS_TEXT;
-  const dif = (p: Pick) =>
-    p.edge == null ? '—' : Math.abs(p.edge) < 0.005 ? '0,0 pp' : `${p.edge > 0 ? '+' : ''}${numF(p.edge * 100, 1)} pp`;
+  const dif = (p: Pick) => diferenciaPp(p.edge);
   const cuota = (p: Pick) => (
     <>
       {numF(p.fairOdds, 2)}

@@ -4,6 +4,33 @@ Por fases de la hoja de ruta (ver `docs/plans/`). Cada fase termina con doctor, 
 `verify:data`, typecheck, lint y build en verde; las cifras de antes y después van aquí cuando
 cambian.
 
+## Seguimiento del PR #18, segunda tanda: revisiones finales (2026-11-25)
+
+- **quant-reviewer sobre C (2) a C (5): solo cambió el texto.** Con los dos árboles, 1.351
+  predicciones, 876 casos de fiabilidad y de bajas y 161 decisiones de confianza dan los mismos
+  números, decisiones y razones. Dos cosas que se dicen aquí:
+  - **`model_version` cambia en los siete deportes.** La huella es del contenido de sus ficheros
+    (`versions.ts`), y los textos estaban en ellos. Al desplegar, cada partido próximo gana una
+    instantánea más («nueva versión del modelo»), y la evaluación por versión empieza un grupo nuevo.
+    Ningún número cambia. Los textos viven ahora en `explicaciones/catalogo.ts`, que no entra en la
+    huella.
+  - **El español cambia solo en los espacios.** Pasan a duros en «±25 %», alrededor de « – » en los
+    marcadores y en «~5 %» y «~−3 %» de las bajas. Nada guarda ni analiza esas frases.
+- **Pasada final de ui-tester** a 1280, 390 y 320 px, en claro y oscuro, en los dos idiomas. Arreglado,
+  con su test:
+  - en inglés, la diferencia modelo − mercado que redondea a cero decía «0,0 pp»; ahora «0.0 pp»
+    (`diferenciaPp` en `lib/formato.ts`);
+  - a 320 px, el nombre del grupo en Partidos se cortaba en «N…» junto al mercado; ahora el mercado baja
+    de línea.
+- **El gráfico de deriva de siempre** ya no dibuja los días cuya ventana no llega al mínimo con el que
+  el servidor concluye algo (100 predicciones), y lo dice. Antes bastaba una. Lo había pedido
+  quant-reviewer en la fase E.
+- **Encontrado y no arreglado, anterior a este trabajo** (en «Diferido» del plan):
+  - Partidos enseña la última instantánea y la ficha la primera publicación: por debajo de 0,5 pp de
+    diferencia, dos cifras sin decirlo. Pide decidir cuál es «la» cifra.
+  - Texto del servidor en español en Confianza.
+  - Mezclas de formato de números en inglés en la ficha.
+
 ## Seguimiento del PR #18, fase D: jerarquía visual y móvil (2026-11-24)
 
 Sale de una auditoría de ui-tester en el navegador, a 1280, 390 y 320 px (la tabla, con lo que se hizo

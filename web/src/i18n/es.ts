@@ -558,6 +558,8 @@ export const es = {
   'analitica.ventana': 'Deriva del modelo: ventana de 4 semanas con la cifra cruda al publicar ({brier}, {logloss}, {psi})',
   'analitica.sinMonitorizacion': 'Sin monitorización.',
   'analitica.sinSerie': 'Todavía no hay predicciones en vivo puntuadas para dibujar la serie.',
+  'analitica.serieSinMuestra': 'Ninguna ventana de 4 semanas llega aún a {n} predicciones; por debajo, la serie no se dibuja.',
+  'analitica.serieRecortada': 'Solo se dibujan los días cuya ventana de 4 semanas tiene al menos {n} predicciones.',
   'analitica.ahora': 'Ahora: {n} predicciones · log loss {ll} · PSI {psi}',
   'analitica.sinVentana': 'Sin ventana actual.',
   'analitica.deriva': 'Deriva: {motivos}',

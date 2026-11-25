@@ -231,6 +231,20 @@ for (const ancho of [320, 390]) {
     );
     expect(cortados).toEqual([]);
   });
+
+  test(`D: a ${ancho} px el nombre del grupo («NHL») se lee entero junto al mercado («Quién gana · con prórroga · local arriba»)`, async ({ page }) => {
+    await servir(page);
+    await page.setViewportSize({ width: ancho, height: 800 });
+    await page.goto('/partidos');
+    await expect(page.getByRole('link', { name: /Toronto Sintético/ })).toBeVisible();
+    // La pasada final de ui-tester vio «N…» a 320 px: el mercado no encogía y el nombre se quedaba con ~20 px.
+    const cortados = await page.evaluate(() =>
+      [...document.querySelectorAll<HTMLElement>('section > h3 span')]
+        .filter((e) => e.scrollWidth > e.clientWidth + 1)
+        .map((e) => e.textContent),
+    );
+    expect(cortados).toEqual([]);
+  });
 }
 
 test('D: la probabilidad del favorito es la cifra más visible de la fila, y la fila enseña cómo abrirse', async ({ page }) => {

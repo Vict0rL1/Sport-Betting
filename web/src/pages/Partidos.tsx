@@ -392,10 +392,12 @@ export default function Partidos() {
               )}
               {d.grupos.map((g) => (
                 <section key={g.clave} className="mb-3 rounded-xl bg-(--surface-card) px-2 pt-2 sm:px-3">
-                  <h3 className="flex items-center gap-2 px-1 pb-1 text-[14px] font-medium text-(--ink-body)">
+                  {/* Pasada final de ui-tester: a 320 px el mercado no encogía y el nombre del grupo se quedaba
+                      en «N…». Ahora, si no caben, el mercado baja de línea. */}
+                  <h3 className="flex flex-wrap items-center gap-x-2 gap-y-0.5 px-1 pb-1 text-[14px] font-medium text-(--ink-body)">
                     <SportIcon sport={g.sport} size={16} />
                     <span className="min-w-0 truncate">{g.titulo}</span>
-                    <span className="ml-auto shrink-0 text-[12px] font-normal text-(--ink-muted)">{etiquetaMercado(g.filas[0], t)}</span>
+                    <span className="ml-auto text-right text-[12px] font-normal text-(--ink-muted)">{etiquetaMercado(g.filas[0], t)}</span>
                   </h3>
                   <ul>
                     {g.filas.map((f) => (

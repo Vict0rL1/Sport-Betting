@@ -100,8 +100,8 @@ Además, vistos al trazar los llamadores:
 | B4 | Cálculo incompleto explícito (cuatro estados) | Hecho | `contabilidad.test.ts` (cotas, decisión), `e2e/seguimiento-pr18.spec.ts` (B) |
 | B5 | Fronteras e integración probadas | Hecho | `riesgo.test.ts` (R5, R7, R8), `contabilidad.test.ts` (igualdad, ±1 céntimo, cambio de hora, zona inválida), `paper/perdidas.test.ts` (sin cruces) |
 | C | Explicaciones estructuradas y bilingües, siete deportes | Hecho en los siete deportes (24-nov), salvo el texto del motor de confianza. Hechos: NHL, UFC y NFL (la tarjeta, y la lectura y los factores de la ficha), el tenis entero (C 2), el fútbol (C 3), el baloncesto y el béisbol (C 4), y en la ficha común lo que usó el modelo, el «¿Y si…?», qué mueve la probabilidad y el aviso (C 5). Falta: el texto del motor de confianza (ver «Diferido») | `web/src/i18n/explicaciones.test.ts`, `server/src/explicaciones/coherencia.ts` en `nhl/publicada.test.ts`, `ufc/publicada.test.ts` y `prediction/formatoTexto.test.ts` |
-| D | Jerarquía visual y móvil | Hecho (24-nov) lo que salió de la auditoría de ui-tester: la fila de Partidos, el panel de lo más probable en el móvil, las zonas de toque y el error de NHL y UFC. Sin hacer: las insignias de las tarjetas, la carga, la fila de deportes a 320 px y el panel lateral (ver «Diferido») | `e2e/partidos.spec.ts` (D, tres), `e2e/seguimiento-pr18.spec.ts` (D, tres), `e2e/movil.spec.ts` (K4 y K12) |
-| E | Calibración y rendimiento en el tiempo | Hecho (24-nov), con las definiciones de quant-reviewer. Sin hacer: el panel del favorito (opcional), los pendientes por periodo y el corte del gráfico de deriva (ver «Decisiones», E) | `server/src/evaluation/calibracion.test.ts` (17), `calibracion.rutas.test.ts`, `e2e/seguimiento-pr18.spec.ts` (E) |
+| D | Jerarquía visual y móvil | Hecho (24-nov) lo que salió de la auditoría de ui-tester: la fila de Partidos, el panel de lo más probable en el móvil, las zonas de toque, el error de NHL y UFC y, de la pasada final (25-nov), el nombre del grupo a 320 px. Sin hacer: las insignias de las tarjetas, la carga, la fila de deportes a 320 px y el panel lateral (ver «Diferido») | `e2e/partidos.spec.ts` (D, cinco), `e2e/seguimiento-pr18.spec.ts` (D, tres), `e2e/movil.spec.ts` (K4 y K12) |
+| E | Calibración y rendimiento en el tiempo | Hecho (24-nov), con las definiciones de quant-reviewer. El corte del gráfico de deriva de siempre, hecho el 25-nov. Sin hacer: el panel del favorito (opcional) y los pendientes por periodo (ver «Decisiones», E) | `server/src/evaluation/calibracion.test.ts` (17), `calibracion.rutas.test.ts`, `e2e/seguimiento-pr18.spec.ts` (E, dos) |
 | F | Vista previa de la importación CSV | Hecho | `server/src/bets/importar.vista.test.ts`, `e2e/seguimiento-pr18.spec.ts` (F) |
 | G | Fiabilidad de los avisos | Hecho | `server/src/notifications/entrega.test.ts`, `server/src/db/v32.test.ts`, `notifications/silencio.test.ts` |
 
@@ -391,7 +391,11 @@ arreglo tiene antes un test de Playwright que fallaba por el motivo del hallazgo
 - **Zonas de toque.** `min-h-6` (24 px, el mínimo de WCAG 2.2, 2.5.8) en los siete controles medidos.
   En las pantallas táctiles `toque` ya las agrandaba; ahora miden 24 px también con ratón.
 - **NHL y UFC con error.** El vacío («No hay partidos próximos…, es normal entre temporadas») sale solo
-  si la petición fue bien. El texto del error no cambia (ver «Diferido»).
+  si la petición fue bien.
+- **El texto del error no cambia.** Las páginas de los siete deportes dicen la frase del catálogo y,
+  detrás, la causa técnica («Error: /meta → HTTP 500»). En una app de un solo operador, esa causa es
+  lo que dice qué falló; quitarla escondería un dato. Partidos, que junta siete fuentes, lo dice sin
+  ella.
 - **No se cambió (hallazgo 6).** En «Destacados», «Añadir a mi selección» sigue siendo el botón
   principal y «Abrir partido» el enlace: añadir a la selección es el trabajo de esa página. El enlace
   sí sube a 24 px.
@@ -512,7 +516,7 @@ arreglo tiene antes un test de Playwright que fallaba por el motivo del hallazgo
   | Bajo | Un periodo cortado por `desde`/`hasta` no lo decía | Arreglado: `recortado` y los límites del filtro |
   | Bajo | La exportación no avisaba con una zona inválida y no traía los excluidos | Arreglado: `aviso`, y filas con `motivo_exclusion`. Que aquí `desde`/`hasta` son días locales, documentado |
   | Bajo | «Sin evidencia» no nombraba el umbral corregido, junto a un intervalo al 95 % | Arreglado en el texto |
-  | Bajo | El gráfico de deriva de siempre dibuja puntos con n ≥ 1, y no hay pendientes por periodo | Diferido (ver «Diferido») |
+  | Bajo | El gráfico de deriva de siempre dibuja puntos con n ≥ 1, y no hay pendientes por periodo | El gráfico, arreglado el 25-nov: no dibuja los días cuya ventana no llega a `umbrales.minVentana` y lo dice (`seguimiento-pr18.spec.ts`). Los pendientes, diferidos |
 
   También se añadieron los tests que faltaban: base real, la reconstrucción y el holdout fuera, y el
   desglose con dos versiones.
@@ -538,6 +542,27 @@ Pasó sin cambios: contraste (≥ 4,84), sin desbordes de página, anillos de fo
 solo por color, cifras tabulares, filtros que se quitan, volver atrás conserva la dirección y el
 desplazamiento, y el panel lateral (foco atrapado, Escape, Atrás, cambio de tamaño, enlace directo).
 
+### C (2) a C (5): quant-reviewer, ¿cambió algo más que el texto? (25-nov)
+
+Sacó los dos árboles (`6a3edd2` y `9bc741e`) y calculó con cada uno lo mismo sobre la base de test:
+- 600 predicciones de tenis y 756 casos de `computeReliability`;
+- 250 de fútbol y 120 de `describeAvailability`;
+- 250 de baloncesto, 250 de béisbol y 1 de NFL;
+- 161 `evaluar()` completos: 49 BET, 72 NO BET y 40 SIN MERCADO.
+
+Quitando solo los campos de código nuevos, **cero diferencias** en números, booleanos y estructura:
+- la decisión, con sus `razones`, que es lo que se guarda en `prediction_assessments.reasons`;
+- la confianza, la estabilidad y la incertidumbre.
+
+Idénticos byte a byte: los siete `DISCLAIMER`, `ETIQUETA_QUE_SI` y los dos `metodo`. Ni la política
+ni `strategy_version` cambian.
+
+| Sev. | Hallazgo | Destino |
+| --- | --- | --- |
+| Bajo | `model_version` cambia en los siete deportes: sus `predict.ts` y `reliability.ts` están en `MODEL_FILES` (`versions.ts`), y la huella es del contenido. Al desplegar, cada partido próximo gana una instantánea inmutable más («nueva versión del modelo»), y la evaluación por versión empieza un grupo nuevo en n = 0 | Se acepta y se dice (CHANGELOG). La huella por contenido es a propósito («si el código del modelo cambia un byte, la huella cambia sola»): sacar de ella un cambio de texto rompería la trazabilidad de cada cifra. Los textos viven ahora en `catalogo.ts`, fuera de `MODEL_FILES`, así que retocarlos ya no cambiará la versión |
+| Bajo | El español no es idéntico byte a byte: espacios normales pasaron a duros (U+00A0) en «±25 %» (`porQue`, `supuestos`), alrededor de « – » en los marcadores, y «~5%» → «~5 %», «~-3%» → «~−3 %» en las bajas | Se acepta y se dice (CHANGELOG): es la regla de `es.ts` (D5). Nada guarda ni analiza esas frases |
+| Info | Cambios de texto buscados, ya en el CHANGELOG: plurales, coma decimal en la diferencia de Elo, «−3,8» en el h2h, «Gana» fuera del titular ajustado del béisbol, el abridor por id en vez de «null» | Nada que hacer |
+
 ### Pasada final de ui-tester (24-nov, sobre `941ad9c`)
 
 A 1280, 390 y 320 px, en claro y oscuro, en español e inglés, con una copia temporal de los datos. Sin
@@ -552,14 +577,33 @@ errores de consola ni peticiones fallidas.
 | 4 | Info | Sin moneda y con el peor caso por debajo del límite, la cartera no enseña las incidencias | Es el contrato: si contando todo lo desconocido como pérdida no se llega al límite, el veredicto es «por debajo» con certeza. El selector enseña «— moneda —». No se cambia |
 | — | — | La UFC no tiene combates próximos en los datos: sus tarjetas no se pudieron ver | Cubierta por los tests de servidor y de catálogo |
 
+### Pasada final de ui-tester sobre la segunda tanda (25-nov, sobre `4f99d71`)
+
+144 cargas: 12 páginas a 1280, 390 y 320 px, en claro y oscuro, en español e inglés, sobre una copia
+temporal de los datos. Sin desbordes de página, sin errores de consola, sin respuestas ≥ 400 y sin
+claves sin traducir.
+
+Solo NHL y NFL tenían partidos próximos en la copia. Las piezas convertidas de los otros cinco
+deportes (lo que usó el modelo, el «¿Y si…?», los factores) no se pudieron ver en el navegador; las
+cubren los tests de catálogo y de servidor. Los paneles de E no tenían partidos evaluados: se vio su
+estado vacío, y los dibujos los cubre Playwright con datos sintéticos.
+
+| # | Sev. | Hallazgo | Destino |
+| --- | --- | --- | --- |
+| 1 | Medio | Partidos no coincide con la tarjeta y la ficha en 3 de 14 partidos (OTT@FLA 54,0 % frente a 53,9 %; TOR@BOS 64,5 % frente a 64,1 %) | Comprobado en la API: no es un fallo de formato. Partidos enseña la ÚLTIMA instantánea (`partidos/explorador.ts`); la tarjeta y la ficha, la PRIMERA publicación (`prediction/publicada.ts`). Las dos reglas son anteriores a este trabajo (19 y 20-nov), y la ficha solo lo cuenta si difieren 0,5 pp o más. Diferido: pide decidir cuál es «la» cifra (ver «Diferido») |
+| 2 | Bajo | En inglés, «0,0 pp» fijo en la columna modelo − mercado | Arreglado: `diferenciaPp` en `lib/formato.ts`, en el idioma y con espacio duro (`formato.test.ts`) |
+| 3 | Bajo | En inglés, el «%» con y sin espacio en una misma ficha («56.8%», «56.82 %»), «1,560.7» junto a «Elo 1561» | Anterior; con el «60.71 %» del historial, en «Diferido» |
+| 4 | Bajo | En inglés, los ejes de la calibración nueva dicen «50%» y los del diagrama de siempre «50 %» | El nuevo sigue la forma inglesa de `pct`. El de siempre, con el punto 3 |
+| 5 | Medio | Español en inglés en Confianza: el aviso de muestra del ECE, «Todavía no hay partidos resueltos…», «0 de al menos 30 datos…», «Elo básico», «Grupos por reglas…» y las líneas de resumen | Todo es texto del servidor anterior a este trabajo (`evaluation/sample.ts`, `trust/evaluation.ts`, `evaluation/walkforward.ts`, `staking/risk.ts`, `evaluation/system.ts`). Los paneles nuevos de E van por el catálogo. Diferido con el resto del texto del servidor |
+| 6 | Bajo | A 320 px el nombre del grupo («NHL», «Premier League») se cortaba en «N…» junto al mercado | Arreglado: el mercado baja de línea (`partidos.spec.ts`, 320 y 390 px) |
+| 7 | Info | Los ejemplos del asistente del tenis, en español | Es a propósito: la página dice que las preguntas se entienden en español |
+
 ## Diferido
 
 - **E, lo que queda.**
   - El panel del favorito, opcional.
   - Los pendientes por periodo: un periodo pasado puede crecer cuando llegan resultados tardíos sin
     estar marcado como parcial.
-  - Cortar en `MIN_VENTANA` el gráfico de deriva de siempre (`Analitica.tsx`), que hoy dibuja puntos
-    con n ≥ 1; solo se rotuló.
 - **Anterior a este trabajo, encontrado en la fase E:**
   - «¿Acertó?» (`today.ts`) arma la probabilidad del visitante del fútbol como 1 − local − empate, así
     que una publicación que no suma 1 se puntúa allí de otra forma.
@@ -576,9 +620,21 @@ errores de consola ni peticiones fallidas.
   - Decir en la fila de Partidos qué resultado se espera, no solo su probabilidad.
   - Un esqueleto mientras carga la primera respuesta.
   - A 320 px, la señal de que la fila de deportes se desliza; los enlaces repetidos del panel lateral.
-  - El aviso de error de NHL y UFC está en el catálogo, pero lleva dentro el detalle técnico
-    («Error: /meta → HTTP 500»). Partidos lo dice sin él.
 
+- **Qué cifra es «la» cifra de un partido** (pasada final de ui-tester, hallazgo 1). Anterior a este
+  trabajo.
+  - Partidos enseña la última instantánea pre-partido, que es la que se congela al empezar y se
+    puntúa.
+  - La tarjeta y la ficha enseñan la primera publicación, que es con la que apostaron el banco de
+    papel y las estrategias.
+  - La ficha solo cuenta la diferencia desde 0,5 pp; por debajo, dos pantallas dan dos cifras sin
+    decirlo.
+
+  Elegir una, o enseñar siempre las dos, toca lo que se compromete al publicar: pide al propietario y
+  a quant-reviewer.
+- **Texto del servidor en Confianza, en español** (pasada final de ui-tester, hallazgo 5): avisos de
+  muestra, nombres de las referencias («Elo básico») y notas de riesgo. Es el mismo trabajo que el del
+  motor de confianza: códigos en el servidor.
 - **C, lo que queda: el texto del motor de confianza** (`server/src/trust/`). Sigue en español:
   - las razones de BET y NO BET y lo que haría falta;
   - las señales de confianza;
@@ -598,7 +654,8 @@ errores de consola ni peticiones fallidas.
 
   Es una pieza aparte, del tamaño de una fase.
 - **«60.71 %» en el historial de estimaciones** de la ficha en inglés: un formato distinto del resto
-  («60.7%»). Anterior a este trabajo.
+  («60.7%»). Anterior a este trabajo. La pasada final vio más mezclas en inglés: «56.8 %» y «56.8%» en
+  la misma ficha, «1,560.7» junto a «Elo 1561», y los ejes del diagrama de siempre con «50 %».
 - **La hora del partido en las apuestas personales.** Sin enlace a una instantánea no se sabe el día
   del partido, y lo pendiente cuenta en el tope de cada día (R9, arreglado de forma estricta). Guardar
   esa hora pediría una columna en `bets` (una migración nueva, v33, y data-guardian); no hace falta para que el
@@ -622,158 +679,115 @@ errores de consola ni peticiones fallidas.
 
 ## Textos de PR
 
-Borradores: nada se ha empujado, fusionado ni editado en remoto.
+### 1. PR #18, la descripción
 
-### 1. PR #18, descripción corregida (para sustituir la actual cuando el propietario quiera)
+La primera tanda se empujó el 24-nov a la rama del PR #18 (`claude/tennis-prediction-app-jlhgxh`,
+`92339dc..6a3edd2`), y la descripción se sustituyó entonces, las dos cosas a petición del propietario.
+CI dio 8/8 en `6a3edd2`.
 
-**Título:** Revisión del PR 17: lo que se puntúa, dinero exacto, estados veraces, ficha en orden, lo personal, zona, idioma y silencio
+Si se empuja la segunda tanda, la sección «Seguimiento de este PR» de esa descripción pasa a tener dos
+partes:
+- **Primera tanda** (A, B, C (1), F y G, `4bc88f1`…`6a3edd2`): el texto de ahora.
+- **Segunda tanda** (C (2) a C (5), E y D, desde `79b8e31` hasta la cabeza de la rama):
+  - las explicaciones de los siete deportes en tu idioma, con 287 códigos en el catálogo;
+  - la calibración por partido y el rendimiento en el tiempo;
+  - la jerarquía visual y el móvil.
 
-**Cambios respecto a la descripción actual:**
-- **Verificación.** «793/793 servidor, 138/138 web, Playwright 203/203, audit 6051/6051» son de `0aeafcd`
-  (20-nov). En `92339dc` (23-nov): servidor 801/801, web 148/148, Playwright 208/208, `verify:data`
-  533/533, `audit` 6007/6007 sobre una copia temporal (el `audit` baja solo por el calendario) y CI 8/8.
-- **Hecho en parte.** G1 ya está completo en `92339dc`. F1 tiene el desglose a la ficha pero no los
-  gráficos nuevos. G2 tiene interruptores, trabajos y clima, pero no los motivos de las tarjetas.
-- **Revisiones:** añadir data-guardian, dos pasadas más sobre la importación, y ui-tester, una más.
+  «No hecho» se queda con:
+  - el texto del motor de confianza;
+  - lo que queda de E (el panel del favorito, los pendientes por periodo y el corte del gráfico de
+    deriva);
+  - lo que queda de D (las insignias, la carga, el resultado esperado en la fila, la fila de deportes
+    a 320 px y el panel lateral);
+  - qué cifra es «la» cifra de un partido (Partidos frente a la ficha), anterior y por decidir.
 
-### 2. Este trabajo (rama local `claude/seguimiento-pr18`, encima de `92339dc`)
+  La tabla de verificación gana una fila con el último commit.
 
-Puede ir como un PR sobre el PR #18 o, cuando se fusione el #18, contra `main`. Va por commits, uno por
-fase; cada uno se puede revisar solo.
+### 2. Si la segunda tanda va en un PR aparte
 
-**Título:** Seguimiento del PR #18: riesgo exacto por moneda y día, explicaciones bilingües (NHL, UFC, NFL), importación transparente y entrega de avisos honrada
+**Título:** Seguimiento del PR #18, segunda tanda: explicaciones en tu idioma en los siete deportes, calibración por partido y rendimiento en el tiempo, jerarquía visual y móvil
 
-**Descripción:**
-
-Plan, matriz, decisiones y destino de cada hallazgo en `docs/plans/seguimiento-pr18-2026-11.md`; una
-entrada por fase en `CHANGELOG.md`.
-
-- **A. Línea base y documentación.**
-  - Línea base real en `92339dc` y cifras con su fecha y su commit.
-  - `web/src/lib/dinero.ts` es una copia vigilada, no una reexportación.
-- **B. Contabilidad del riesgo** (`staking/contabilidad.ts`, contrato `riesgo-v1`). Reproducido antes
-  de arreglar:
-  - coma flotante;
-  - cashout sin importe tomado como 0;
-  - monedas sumadas en límites y exposición;
-  - día de colocación en vez de liquidación;
-  - la hora del servidor;
-  - la liquidación re-sellada al corregir un resultado;
-  - el tope diario contra lo pendiente por día de colocación.
-
-  Ahora:
-  - céntimos exactos;
-  - moneda del banco explícita;
-  - día de liquidación en APP_TIMEZONE;
-  - cotas para lo que no se sabe: alcanzado / por debajo / sin evaluar, y «sin evaluar» no apuesta;
-  - APP_TIMEZONE mal escrita da error en `doctor` y al arrancar.
-
-  Porcentajes, Kelly, topes y modelo sin cambiar. Revisado por quant-reviewer (oráculo de 4.000 casos)
-  y data-guardian.
-- **C (1). Explicaciones con código** (`server/src/explicaciones/`).
-  - En NHL, UFC y NFL se escriben en el idioma elegido la tarjeta (titular, viñetas, veredicto y avisos)
-    y la lectura y los factores de la ficha: 51 códigos.
-  - Cobertura: `es.ts` igual al servidor y `en.ts` traducido con los mismos parámetros. Un código
-    desconocido enseña la frase del servidor.
-  - **Faltan:**
-    - tenis, fútbol, baloncesto y béisbol;
-    - en esas tres fichas, las entradas, el «¿Y si…?», el panel de confianza y el aviso.
-
-    Todos con la misma reserva: la frase del servidor en español.
-- **F. Importación por CSV.**
-  - Vista previa que no escribe.
-  - Importar valida otra vez.
-  - Avisos: enlace no restaurado, posible duplicado y día de liquidación desconocido.
-  - La fecha de liquidación del CSV se conserva si es un instante ISO con zona.
-  - Revisado por data-guardian (un hallazgo alto, uno medio y dos bajos, arreglados con su test) y por
-    security-reviewer (una cabecera enorme bloqueaba el proceso: arreglado).
-- **G. Entrega de avisos.**
-  - Lo aplazado que ningún canal acepta ya no cuenta como enviado: reintentos con espera, hasta 5, y un
-    4xx definitivo se descarta con su nota. Migración v32, aditiva.
-  - La garantía, «al menos una vez», está escrita en `docs/NOTIFICACIONES.md`.
-  - El webhook lleva `Idempotency-Key`.
-  - «Aceptada por el canal», no «enviada».
-  - Los errores de canal ya no guardan secretos (URL del webhook con credenciales, tokens).
-  - Revisado por data-guardian (borrar y reintentar por versión; una versión nueva empieza de cero) y
-    por security-reviewer.
-
-**No hecho en este trabajo:**
-- D, la jerarquía visual;
-- E, calibración y rendimiento en el tiempo: evaluado, con una propuesta para quant (el diagrama de
-  fiabilidad actual cuenta cada salida como una observación independiente y no tiene bandas);
-- el resto de C: tenis, fútbol, baloncesto y béisbol siguen con la frase del servidor en español.
-
-El porqué está en el plan.
-
-**Verificación:** ver «Informe de entrega» en el plan.
-
-**Migraciones:** v32 `intentos-de-avisos`, aditiva e idempotente (libro mayor). Ninguna fila inmutable
-se actualiza ni se borra.
+**Descripción:** la de la «Segunda tanda» de arriba, con «Verificación» y «Revisiones» de este
+informe. Sin migraciones: ninguna tabla cambia.
 
 ## Informe de entrega
 
-- **Commit de partida:** `92339dc` (cabeza del PR #18). **Rama:** `claude/seguimiento-pr18`, solo
-  local y sin rama remota. Commits de la rama: A `4bc88f1`, B `0d2ca98`, C (1) `41f3d3d`, F `7ced606`,
-  F (seguridad) `d67c46c` y G `941ad9c`. Este informe, en el último.
-- **Nada empujado, fusionado ni desplegado.** No se ha editado nada en remoto, no se han gastado
-  créditos de cuotas y no se ha enviado ningún aviso real.
+- **Commit de partida:** `92339dc` (cabeza del PR #18 el 23-nov). **Rama:** `claude/seguimiento-pr18`,
+  que sigue a `origin/claude/tennis-prediction-app-jlhgxh`.
+- **Primera tanda, empujada** el 24-nov a petición del propietario, hasta `6a3edd2`:
+  - A `4bc88f1`, B `0d2ca98`, C (1) `41f3d3d`, F `7ced606`, F (seguridad) `d67c46c` y G `941ad9c`;
+  - los arreglos de ui-tester y el informe, `6a3edd2`.
 
-### Verificación final (24-nov, sobre el árbol final: `941ad9c` más los dos arreglos de ui-tester)
+  La descripción del PR #18 se actualizó y CI dio 8/8.
+- **Segunda tanda, solo local, sin empujar:**
+  - C (2) `79b8e31`, C (3) `43cde2f`, C (4) `a9fda76` y C (5) `9bc741e`;
+  - E `7171934` y D `6bd1ed5`;
+  - `4f99d71`: corrige lo que E decía de lo de siempre (ver «Decisiones», E);
+  - los arreglos de las revisiones finales y este informe, en el último commit.
+- **Nada fusionado ni desplegado.** No se han gastado créditos de cuotas ni se ha enviado ningún aviso
+  real. Ni `--unlock` ni las reservas.
+
+### Verificación final (25-nov, sobre el árbol del último commit)
 
 | Comprobación | Resultado |
 | --- | --- |
 | `npm run typecheck` | Correcto (servidor y web, con el comando del repositorio) |
 | `npm run lint` | Correcto |
-| `npm test` | Servidor 847/847; web 152/152 |
+| `npm test` | Servidor 875/875; web 155/155 |
 | `npm run build` | Correcto |
-| `verify:data` (`DATA_DIR` temporal) | 533/533 |
-| `audit` (`DATA_DIR` temporal) | 6003/6003. En la línea base eran 6007: baja solo por el calendario, como ya pasaba |
-| `doctor -- --sin-red` (`DATA_DIR` temporal) | Sale con 1 por los dos errores esperados aquí: sin `.env` y sin `ODDS_API_KEY`. Las advertencias son de la copia de datos parada (copia de seguridad de hace 76 h, trabajos sin correr) |
-| Playwright (`--trace off`) | 212/212: las 210 de antes y las dos nuevas de 320 px |
-| ui-tester | Una pasada completa sobre `941ad9c`: 2 hallazgos arreglados, 2 diferidos y 1 decisión (ver «Revisiones y su destino»). Una segunda pasada sobre los arreglos: los dos bien, sin errores de consola |
+| `verify:data` (`DATA_DIR` temporal) | 533/533 (sobre `6bd1ed5`; después no cambió el código del servidor) |
+| `audit` (`DATA_DIR` temporal) | 6003/6003, como en `6a3edd2` (sobre `6bd1ed5`, como `verify:data`) |
+| `doctor -- --sin-red` (`DATA_DIR` temporal) | Sale con 1 por los dos errores esperados aquí: sin `.env` y sin `ODDS_API_KEY`. Las nueve advertencias son de la copia de datos parada: copia de seguridad de hace 94 h, ingestas sin correr y resultados atrasados |
+| Playwright (`--trace off`) | 224/224: las 212 de `6a3edd2`, una de C, dos de E y nueve de D. K4 y K12 abren antes el panel, que en el móvil empieza cerrado |
+| ui-tester | Auditoría de D (24-nov) y pasada final (25-nov, 144 cargas): sin desbordes, sin errores de consola y sin claves sin traducir. Dos hallazgos arreglados; uno anterior y por decidir (la cifra de Partidos frente a la ficha); el resto, anteriores o con su porqué (ver «Revisiones y su destino») |
+| quant-reviewer sobre C (2) a C (5) | Sin cambio de números, decisiones ni razones en 1.351 predicciones, 876 casos y 161 decisiones. Dos bajos aceptados y dichos: `model_version` cambia en los siete deportes y el español cambia en los espacios |
 
-- **Después de la pasada de ui-tester** se arreglaron dos hallazgos (ver «Revisiones y su destino») y
-  se repitió todo. Las cifras de esta tabla son de esa repetición. La primera corrida, sobre `941ad9c`,
-  dio lo mismo salvo Playwright: 210/210.
-- **Revisión del diff.**
-  - Nada bajo `data/` ni `experiments/`; el registro, intacto.
-  - Ningún disparador desactivado. El único `DROP TABLE` está en `db/v32.test.ts`, sobre la base de
-    test, y rehace la cola mutable de v31 como ya hacía `v31.test.ts`.
-  - Migraciones seguidas: v32 es la única nueva.
+- **Revisión del diff** (`6a3edd2..6bd1ed5`).
+  - Nada bajo `data/` ni `experiments/`.
+  - Ninguna migración ni disparador.
   - Ni `.env` ni claves: el escáner de secretos pasó en cada commit.
-  - `es.ts` y `en.ts` con las mismas 2313 claves.
+  - `es.ts` y `en.ts` con las mismas claves.
   - Ningún texto fijo nuevo en la web fuera del catálogo.
+  - Los endpoints de antes (`/api/evaluation/reliability`, `/api/monitoring`) se calculan como antes, salvo una excepción de la revisión de E: una publicación de fútbol que no suma 1 se excluye en vez de renormalizarse (ver «Decisiones», E). Lo que fija importes no la lee.
 
 ### Por fase
 
-- **A, hecho.** Línea base real y documentación con su fecha y su commit.
-- **B, hecho.** Contrato `riesgo-v1`. Los siete defectos del brief más R8 y R9, reproducidos antes de
-  arreglarlos. Revisado por quant-reviewer y data-guardian.
-- **C, en parte.**
-  - Hecho: el mecanismo y, en NHL, UFC y NFL (51 códigos), la tarjeta y la lectura y los factores de
-    la ficha.
-  - Sin hacer:
-    - tenis, fútbol, baloncesto y béisbol, que siguen con la frase del servidor en español como reserva.
-      Sus viñetas se arman con fragmentos anidados y piden parámetros anidados;
-    - en la ficha de esos tres deportes, las entradas, el «¿Y si…?», el panel de confianza y el aviso.
-- **D, no hecho.** Ver «Diferido».
-- **E, no hecho.** Evaluado, con una propuesta que necesita quant-reviewer primero (ver «Diferido»).
-- **F, hecho.** Revisado por data-guardian y security-reviewer.
-- **G, hecho.** Revisado por data-guardian y security-reviewer.
+- **A, B, F y G: hechas** en la primera tanda (ver arriba y «Revisiones y su destino»).
+- **C: hecha en los siete deportes**, salvo el texto del motor de confianza. Ver «Diferido»: pide una
+  columna nueva, data-guardian y quant-reviewer.
+- **D: hecho** lo que salió de la auditoría de ui-tester y de la pasada final, salvo cinco puntos
+  menores que se dejan en «Diferido».
+- **E: hecha**, con las definiciones de quant-reviewer y su revisión de la implementación, y el corte
+  del gráfico de deriva de siempre (25-nov). El panel del favorito y los pendientes por periodo, en
+  «Diferido».
 
 ### Decisiones de contabilidad y de evaluación
 
 Están en «Decisiones» arriba. En corto:
-- una moneda por banco;
-- céntimos exactos;
-- el día de liquidación en `APP_TIMEZONE`;
-- lo desconocido como cota, y «sin evaluar» no apuesta;
-- la exposición, por la cota alta;
-- ningún parámetro del modelo, umbral ni porcentaje cambiado.
+- **Riesgo (B):**
+  - una moneda por banco;
+  - céntimos exactos;
+  - el día de liquidación en `APP_TIMEZONE`;
+  - lo desconocido como cota, y «sin evaluar» no apuesta;
+  - la exposición, por la cota alta.
+- **Evaluación (E):**
+  - un partido por panel;
+  - Wilson, y nada con menos de 30;
+  - registrada y legado aparte, y lo reconstruido fuera;
+  - un veredicto que nunca dice «calibrado»;
+  - el Brier por periodo en la zona de la política;
+  - lo de siempre, igual que antes.
 
-En E no se ha cambiado nada de la evaluación.
+Ningún parámetro del modelo, umbral, calibración ni porcentaje ha cambiado.
 
 ### Revisiones
 
-Cada hallazgo y su destino están en «Revisiones y su destino». Todos se han arreglado con su test,
-salvo los que se dejan anotados en «Diferido» con su porqué (R11, el test intermitente).
+Cada hallazgo y su destino están en «Revisiones y su destino»:
+- B: quant-reviewer y data-guardian;
+- F y G: data-guardian y security-reviewer;
+- E: quant-reviewer, antes del código y sobre la implementación;
+- D: la auditoría de ui-tester;
+- C (2) a C (5): quant-reviewer, sobre si cambió algo más que el texto;
+- la pasada final de ui-tester, sobre las dos tandas.
+
+Todos están arreglados con su test, salvo los que se dejan en «Diferido» con su porqué.

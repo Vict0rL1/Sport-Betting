@@ -57,3 +57,13 @@ test('G5b: las líneas de una selección («Over 2.5», «Yankees −1.5») se e
   assert.equal(lineasEnIdioma('Over 2.5', 'en'), 'Over 2.5');
   assert.equal(lineasEnIdioma('1. FC Köln', 'es'), '1. FC Köln', 'un nombre con punto no es una línea');
 });
+
+test('Pasada final de ui-tester: la diferencia modelo − mercado que redondea a cero sale en el idioma («0.0 pp» en inglés, no «0,0 pp»), con espacio duro', async () => {
+  const { diferenciaPp } = await import('./formato.ts');
+  assert.equal(diferenciaPp(0.001, 'en'), `0.0${NBSP}pp`);
+  assert.equal(diferenciaPp(-0.004, 'en'), `0.0${NBSP}pp`, 'por debajo de media décima, cero y sin signo');
+  assert.equal(diferenciaPp(0.001, 'es'), `0,0${NBSP}pp`);
+  assert.equal(diferenciaPp(-0.011, 'en'), `−1.1${NBSP}pp`);
+  assert.equal(diferenciaPp(0.006, 'es'), `+0,6${NBSP}pp`);
+  assert.equal(diferenciaPp(null, 'en'), '—');
+});

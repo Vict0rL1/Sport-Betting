@@ -558,6 +558,8 @@ export const en: Partial<Record<Clave, string>> = {
   'analitica.ventana': 'Model drift: 4-week window with the raw figure at publication ({brier}, {logloss}, {psi})',
   'analitica.sinMonitorizacion': 'No monitoring.',
   'analitica.sinSerie': 'No scored live predictions yet to draw the series.',
+  'analitica.serieSinMuestra': 'No 4-week window has reached {n} predictions yet; below that, the series is not drawn.',
+  'analitica.serieRecortada': 'Only days whose 4-week window has at least {n} predictions are drawn.',
   'analitica.ahora': 'Now: {n} predictions · log loss {ll} · PSI {psi}',
   'analitica.sinVentana': 'No current window.',
   'analitica.deriva': 'Drift: {motivos}',

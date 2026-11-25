@@ -180,6 +180,33 @@ test('E: la calibración por partido y el Brier por periodo enseñan su muestra,
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 });
 
+// Lo que quedó de la fase E (revisión de quant-reviewer): el gráfico de deriva de siempre dibujaba días cuya
+// ventana tenía una sola predicción; el servidor ya manda el mínimo (umbrales.minVentana).
+test('E: el gráfico de deriva de siempre no dibuja los días cuya ventana no llega al mínimo de predicciones', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('predictor.recorrido', '1'));
+  const punto = (dia: string, n: number, logLoss: number, brier: number) => ({ dia, n, logLoss, brier, psi: null });
+  await page.route('**/api/monitoring*', (r) =>
+    r.fulfill({
+      json: {
+        deporte: 'nhl',
+        ventanaDias: 28,
+        serie: [punto('2026-10-01', 5, 0.9, 0.31), punto('2026-10-02', 120, 0.65, 0.22), punto('2026-10-03', 130, 0.66, 0.23)],
+        actual: punto('2026-10-03', 130, 0.66, 0.23),
+        referencia: { logLoss: 0.64, brier: 0.22, n: 4000 },
+        deriva: { hay: false, motivos: [], n: 130, aviso: { texto: null } },
+        umbrales: { psi: 0.2, erroresTipicos: 2, minVentana: 100 },
+        generado: '2026-10-03T12:00:00Z',
+      },
+    }),
+  );
+  await page.goto('/confianza');
+  const bloque = page.getByRole('heading', { name: /^Deriva del modelo/ }).locator('xpath=..');
+  await expect(bloque.locator('svg[role="img"]')).toBeVisible({ timeout: 20_000 });
+  const puntos = await bloque.locator('svg[role="img"] polyline').first().getAttribute('points');
+  expect(puntos!.trim().split(/\s+/)).toHaveLength(2);
+  await expect(bloque.getByText(/Solo se dibujan los días cuya ventana de 4 semanas tiene al menos 100 predicciones/)).toBeVisible();
+});
+
 // Fase D (auditoría de ui-tester): estados y paneles de las páginas de cada deporte.
 test('D: en la NHL, si cargar falla, no se dice además que no hay partidos «como es normal entre temporadas»', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('predictor.recorrido', '1'));
